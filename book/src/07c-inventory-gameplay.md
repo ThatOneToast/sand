@@ -104,3 +104,17 @@ conversion because they bypass its identity source.
 `on_use_advancement` and `on_use_fn` also return a `Result`, propagating these
 identity diagnostics. They use vanilla's using-item trigger (for example,
 eating or blocking), which is not a general right-click event.
+
+## Inventory presence
+
+`inventory.contains(item)` returns a canonical `Condition` for a typed item ID:
+
+```rust,ignore
+let has_diamonds = player.inventory().contains(Item::Diamond);
+let actions = when(has_diamonds).then_all(["say Ready to trade"]);
+```
+
+Presence has the same coverage as `count`: inventory, crafting grid, and cursor,
+excluding open-container slots and ender chests. Components do not restrict the
+match. The check is non-mutating. An absent or non-player target makes it false;
+its negation is true in those cases too. The owner must select a single player.

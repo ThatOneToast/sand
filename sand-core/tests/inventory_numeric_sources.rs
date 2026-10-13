@@ -19,12 +19,15 @@ fn body() -> Actions {
     BODY.get_or_init(|| {
         Target::players().each(|player| {
             let count = player.inventory().count(sand::vanilla::Item::Diamond);
+            let present = player.inventory().contains(sand::vanilla::Item::Diamond);
             let state = Counts::on(*player);
             let health = StatCurve::from(player.living().health());
             mcfunction![
                 state.diamonds.set(count.clone());
                 state.weighted.set(StatCurve::linear(count.clone(), 1.5, 0.0));
                 when(count.gte(3).and(health.lt(10))).then_all(["say can heal"]);
+                when(present.clone()).then_all(["say diamonds present"]);
+                when(!present).then_all(["say diamonds absent"]);
             ]
         })
     })
@@ -77,6 +80,16 @@ fn inventory_numbers_retain_non_mutating_helpers_across_exports() {
         }
     }
     assert!(reads >= 3);
+    assert!(
+        functions
+            .values()
+            .any(|body| body.contains("say diamonds present"))
+    );
+    assert!(
+        functions
+            .values()
+            .any(|body| body.contains("say diamonds absent"))
+    );
     assert!(functions.values().any(|body| body.contains("say can heal")));
     assert!(functions["__sand_score_init"].contains("scoreboard objectives add"));
 }

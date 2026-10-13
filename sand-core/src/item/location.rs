@@ -638,6 +638,32 @@ impl EntityInventory {
         crate::entity::StatCurve::inventory_count(self.entity.clone(), item.into())
     }
 
+    /// Test whether one player's inventory contains this item ID.
+    ///
+    /// Returns the canonical [`Condition`], so presence composes with guards,
+    /// other conditions, and negation. This is a positive [`Self::count`] check:
+    /// it has the same inventory coverage, ignores component differences, and
+    /// never removes items. An empty inventory, missing target, or non-player
+    /// target makes this condition false. Negating it therefore also accepts
+    /// a missing or non-player target.
+    ///
+    /// The target must be statically single; plural targets fail during export.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::inventory::EntityInventory::contains",
+        summary = "Test one player's inventory for a typed item identity.",
+        context = "Uses the canonical count expression and Condition, retaining ownership and generated helpers through cached guards.",
+        minecraft = "Performs a non-mutating clear count and checks for a positive result; an absent or non-player target makes the condition false.",
+        use_when = ["Gating gameplay on item presence in a player's inventory"],
+        avoid_when = ["Matching custom components, ender-chest entries, or open-container slots"],
+        params(item = "The typed item ID; components do not restrict this identity match."),
+        returns = "A composable runtime presence condition.",
+        example = "let item: sand::registry::ItemId = \"minecraft:diamond\".parse()?; let has_diamonds = player.inventory().contains(item);",
+    )]
+    pub fn contains(&self, item: impl Into<sand_components::ItemId>) -> Condition {
+        self.count(item).gt(0)
+    }
+
     fn location(&self, slot: EntityInventorySlot) -> ItemLocation {
         ItemLocation::EntityInventory {
             entity: self.entity.clone(),

@@ -2,6 +2,10 @@
 use sand::prelude::*;
 use std::sync::OnceLock;
 
+#[expect(
+    dead_code,
+    reason = "State declarations are accessed through generated runtime bindings."
+)]
 #[derive(State)]
 #[state(namespace = "inventory_numbers", scope = player)]
 struct Counts {

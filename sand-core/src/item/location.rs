@@ -552,6 +552,33 @@ impl ItemLocation {
 }
 
 impl EntityInventory {
+    /// Count items with this identity in one player's inventory at runtime.
+    ///
+    /// The result is a canonical [`StatCurve`](crate::entity::StatCurve), usable
+    /// in numeric State assignments, arithmetic, and comparisons. This follows
+    /// vanilla `clear ... 0` counting, including the player crafting grid and carried cursor
+    /// stack, and removes no items. Open-container slots and ender chests are not counted. Components do not restrict this ID match.
+    ///
+    /// The target must be statically single; export rejects plural targets.
+    /// A missing target or non-player executor fails the numeric read, while
+    /// an existing player with no matching items yields zero. Selectors are
+    /// resolved once per read, including random-player selectors.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::inventory::EntityInventory::count",
+        summary = "Read one player's item count as a canonical numeric expression.",
+        context = "Retains the item identity and inventory owner until numeric lowering; works with State writes, arithmetic, and Conditions.",
+        minecraft = "Uses non-mutating clear with maximum count zero, preserving a single selected player. Missing or non-player targets fail; an empty match yields zero.",
+        use_when = ["Counting a typed item ID in a player's inventory"],
+        avoid_when = ["Matching custom components or counting multiple players together"],
+        params(item = "The typed item identity; component differences do not restrict the match."),
+        returns = "A runtime numeric expression with integer source units.",
+        example = "let diamonds = player.inventory().count(sand::vanilla::Item::Diamond);",
+    )]
+    pub fn count(&self, item: impl Into<sand_components::ItemId>) -> crate::entity::StatCurve {
+        crate::entity::StatCurve::inventory_count(self.entity.clone(), item.into())
+    }
+
     fn location(&self, slot: EntityInventorySlot) -> ItemLocation {
         ItemLocation::EntityInventory {
             entity: self.entity.clone(),

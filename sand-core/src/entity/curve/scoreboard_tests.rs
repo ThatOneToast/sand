@@ -10,6 +10,9 @@ struct Machine(
     BTreeMap<String, f64>,
     BTreeMap<String, Vec<f64>>,
     BTreeMap<String, String>,
+    BTreeMap<String, BTreeMap<String, i32>>,
+    String,
+    std::collections::BTreeSet<String>,
 );
 impl Machine {
     fn get(&self, holder: &str, objective: &str) -> i32 {
@@ -23,6 +26,22 @@ impl Machine {
     }
 
     fn run(&mut self, command: &[&str]) -> bool {
+        let resolved = (!self.7.is_empty()).then(|| {
+            command
+                .iter()
+                .map(|word| {
+                    if *word == "@s" {
+                        self.7.clone()
+                    } else {
+                        (*word).to_owned()
+                    }
+                })
+                .collect::<Vec<_>>()
+        });
+        let references = resolved
+            .as_ref()
+            .map(|words| words.iter().map(String::as_str).collect::<Vec<_>>());
+        let command = references.as_deref().unwrap_or(command);
         match command[0] {
             "return" => {
                 let success = match command[1] {
@@ -41,6 +60,15 @@ impl Machine {
                 true
             }
             "execute" => {
+                if command[1] == "as" {
+                    assert_eq!(command[3], "run");
+                    if self.6.contains_key(command[2]) || self.8.contains(command[2]) {
+                        let previous = std::mem::replace(&mut self.7, command[2].to_owned());
+                        self.run(&command[4..]);
+                        self.7 = previous;
+                    }
+                    return true;
+                }
                 if command[1] == "store" {
                     let mut stores = Vec::new();
                     let mut i = 1;
@@ -56,6 +84,15 @@ impl Machine {
                     let inner = &command[i + 1..];
                     let (success, result) = if inner[0] == "function" {
                         self.call_result(inner[1])
+                    } else if inner[0] == "clear" {
+                        assert_eq!(inner[3], "0", "numeric reads must never remove items");
+                        let count = self
+                            .6
+                            .get(inner[1])
+                            .and_then(|items| items.get(inner[2]))
+                            .copied()
+                            .unwrap_or(0);
+                        (count != 0, count)
                     } else if inner[0] == "data" {
                         assert_eq!(inner[1], "get");
                         let key = format!("{} {} {}", inner[2], inner[3], inner[4]);
@@ -100,6 +137,14 @@ impl Machine {
                 while command[i] != "run" {
                     let negate = command[i] == "unless";
                     assert!(matches!(command[i], "if" | "unless"));
+                    if command[i + 1] == "entity" {
+                        assert_eq!(command[i + 2], "@s[type=minecraft:player]");
+                        if self.6.contains_key(&self.7) == negate {
+                            return true;
+                        }
+                        i += 3;
+                        continue;
+                    }
                     if command[i + 1] == "data" {
                         assert_eq!(command[i + 2], "storage");
                         let (path, predicate) = command[i + 4].split_once('{').unwrap();
@@ -959,4 +1004,113 @@ fn numeric_conditions_propagate_custom_failure_on_either_operand() {
             assert_eq!(machine.call_result("test:custom_comparison"), expected);
         }
     }
+}
+
+#[test]
+fn inventory_numeric_reads_preserve_owner_zero_and_failure_semantics() {
+    use crate::entity::FixedPoint;
+    let owner = "test:inventory_count".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::self_();
+    let curve = crate::item::ItemLocation::entity(sand_commands::Selector::player("Alice"))
+        .count(sand_components::ItemId::minecraft("diamond").unwrap());
+    let lowered = curve
+        .lower_scoreboard("result", "test:inventory_count", FixedPoint::default())
+        .unwrap();
+    let rendered = render_lowered_curve(
+        NumericContext::new(&owner, &holder).unwrap(),
+        "inventory_count",
+        &lowered,
+    )
+    .unwrap();
+    let mut machine = Machine::default();
+    for record in &rendered.records {
+        machine.1.insert(
+            format!("test:{}", record.path),
+            record.content.lines().map(str::to_owned).collect(),
+        );
+    }
+    machine.6.insert(
+        "Bob".into(),
+        BTreeMap::from([("minecraft:diamond".into(), 99)]),
+    );
+    for count in [23, 0, 1, 1024] {
+        machine.6.insert(
+            "Alice".into(),
+            BTreeMap::from([("minecraft:diamond".into(), count)]),
+        );
+        let before = machine.6.clone();
+        assert!(machine.execute(&rendered.commands));
+        assert_eq!(machine.get("@s", "result"), count * 1000);
+        assert_eq!(machine.6, before, "counting must never mutate inventory");
+        assert!(
+            !machine.0.contains_key("Alice result"),
+            "commit must preserve the caller"
+        );
+    }
+    machine.7 = "Bob".into();
+    machine
+        .6
+        .get_mut("Alice")
+        .unwrap()
+        .insert("minecraft:diamond".into(), 6);
+    assert!(machine.execute(&rendered.commands));
+    assert_eq!(
+        machine.get("Bob", "result"),
+        6000,
+        "source ownership must survive a different caller"
+    );
+    assert!(!machine.0.contains_key("Alice result"));
+    machine.7.clear();
+    machine
+        .6
+        .get_mut("Alice")
+        .unwrap()
+        .insert("minecraft:diamond".into(), i32::MAX);
+    machine.0.insert("@s result".into(), 123);
+    assert!(!machine.execute(&rendered.commands));
+    assert_eq!(
+        machine.get("@s", "result"),
+        123,
+        "scale overflow must preserve the destination"
+    );
+    machine.6.remove("Alice");
+    machine.0.insert("@s result".into(), 123);
+    assert!(!machine.execute(&rendered.commands));
+    assert_eq!(machine.get("@s", "result"), 123);
+    machine.8.insert("Alice".into());
+    assert!(!machine.execute(&rendered.commands));
+    assert_eq!(
+        machine.get("@s", "result"),
+        123,
+        "non-player must not become zero"
+    );
+    assert_eq!(
+        rendered
+            .commands
+            .iter()
+            .filter(|line| line.contains("execute as Alice"))
+            .count(),
+        1
+    );
+    assert!(curve.validate_entity_inputs("test:mob", "health").is_err());
+}
+
+#[test]
+fn inventory_numeric_reads_reject_plural_targets() {
+    use crate::entity::FixedPoint;
+    let owner = "test:inventory_many".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::self_();
+    let curve = crate::item::ItemLocation::entity(sand_commands::Target::players())
+        .count(sand_components::ItemId::minecraft("diamond").unwrap());
+    let lowered = curve
+        .lower_scoreboard("result", "test:inventory_many", FixedPoint::default())
+        .unwrap();
+    let error = render_lowered_curve(
+        NumericContext::new(&owner, &holder).unwrap(),
+        "inventory_many",
+        &lowered,
+    )
+    .err()
+    .unwrap();
+    assert!(error.to_string().contains("inventory count"), "{error}");
 }

@@ -101,6 +101,34 @@ mark both the field and its component dirty. Archetype derivations and native
 property reconciliation therefore see the change without hand-written
 objective names.
 
+## Inventory counts
+
+`player.inventory().count(sand::vanilla::Item::Diamond)` is a runtime integer
+source for the same numeric engine. Assign it to a Score or FixedScore, compose
+arithmetic, or compare it with another runtime value:
+
+```rust,ignore
+Target::players().each(|player| {
+    let stats = Stats::on(*player);
+    let diamonds = player.inventory().count(sand::vanilla::Item::Diamond);
+    let health = StatCurve::from(player.living().health());
+    mcfunction![
+        stats.amount.set(diamonds.clone());
+        when(diamonds.gte(3).and(health.lt(10))).then_all(["say ready to heal"]);
+    ]
+})
+```
+
+This matches item identity regardless of components and follows vanilla's
+non-removing `clear ... 0` count, including the player's crafting grid and
+carried cursor stack. It excludes open-container slots and ender chests.
+The target must select at most one player; plural targets are rejected at
+export. The selector is resolved once, so a random-player read cannot switch
+owners between validation and counting. An existing player with no matches
+produces zero. A missing or non-player target fails the read and preserves a
+State assignment's destination. Native inventory changes are not yet observed
+by archetype reconciliation; use these reads in authored actions and guards.
+
 ## Comparing runtime values
 
 Use `StatCurve` to compare numeric State, native numeric reads, constants, and

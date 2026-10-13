@@ -669,6 +669,15 @@ pub(crate) enum LoweredCurveOperation {
         /// Source score objective.
         source: String,
     },
+    /// Count one player's matching items without mutating inventory.
+    InventoryCountToFixed {
+        destination: String,
+        target: sand_commands::Selector,
+        item: sand_components::ItemId,
+        scale: i64,
+        rounding: RoundingPolicy,
+        overflow: OverflowPolicy,
+    },
     /// Read one native numeric NBT value at the working fixed-point scale.
     NbtToFixed {
         destination: String,
@@ -947,6 +956,10 @@ enum CurveKind {
 
 #[derive(Clone, Debug, PartialEq)]
 enum CurveInput {
+    InventoryCount {
+        target: sand_commands::Selector,
+        item: sand_components::ItemId,
+    },
     Score {
         objective: String,
         holder: Option<sand_commands::ScoreHolder>,
@@ -969,13 +982,16 @@ impl CurveInput {
             } => format!("{holder} {objective}"),
             Self::Score { objective, .. } => objective.clone(),
             Self::Nbt { target, path } => format!("nbt {target} {path}"),
+            Self::InventoryCount { target, item } => format!("inventory {target} {item}"),
         }
     }
 
     fn score_objective(&self) -> &str {
         match self {
             Self::Score { objective, .. } => objective,
-            Self::Nbt { .. } => unreachable!("discrete mapping constructors require a State score"),
+            Self::Nbt { .. } | Self::InventoryCount { .. } => {
+                unreachable!("discrete mapping constructors require a State score")
+            }
         }
     }
 
@@ -1170,6 +1186,15 @@ impl StatCurve {
         )
     }
 
+    pub(crate) fn inventory_count(
+        target: sand_commands::Selector,
+        item: sand_components::ItemId,
+    ) -> Self {
+        Self {
+            kind: CurveKind::Input(CurveInput::InventoryCount { target, item }),
+        }
+    }
+
     pub(crate) fn native_nbt(
         target: sand_commands::DataTarget,
         path: sand_commands::NbtPath,
@@ -1184,6 +1209,7 @@ impl StatCurve {
             CurveKind::Input(CurveInput::Score { storage_scale, .. }) => {
                 Some(i64::from(*storage_scale))
             }
+            CurveKind::Input(CurveInput::InventoryCount { .. }) => Some(1),
             _ => None,
         }
     }
@@ -1216,7 +1242,9 @@ impl StatCurve {
                 holder: Some(holder),
                 ..
             } if holder.to_string() != "@s" => unsupported = Some(holder.to_string()),
-            CurveInput::Nbt { .. } => unsupported = Some(input.key()),
+            CurveInput::Nbt { .. } | CurveInput::InventoryCount { .. } => {
+                unsupported = Some(input.key())
+            }
             _ => {}
         });
         if let Some(holder) = unsupported {
@@ -1897,7 +1925,8 @@ impl StatCurve {
     /// Unbound inputs use their objective name. A bound State input uses
     /// `<holder> <objective>` so two holders of one field remain distinct in
     /// [`CurveInputs`] when evaluating an expression outside Minecraft. Native
-    /// numeric reads use `nbt <target> <path>` and consume a supplied fixed value.
+    /// numeric reads use `nbt <target> <path>`; inventory counts use
+    /// `inventory <target> <item>`. Both consume supplied fixed values.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::StatCurve::inputs",
@@ -2426,6 +2455,17 @@ impl CurveLoweringBuilder<'_> {
                         rounding: self.fixed.rounding(),
                         overflow: self.fixed.overflow(),
                     });
+                }
+                CurveInput::InventoryCount { target, item } => {
+                    self.operations
+                        .push(LoweredCurveOperation::InventoryCountToFixed {
+                            destination: destination.clone(),
+                            target: target.clone(),
+                            item: item.clone(),
+                            scale: self.fixed.scale(),
+                            rounding: self.fixed.rounding(),
+                            overflow: self.fixed.overflow(),
+                        });
                 }
                 CurveInput::Nbt { target, path } => {
                     self.operations.push(LoweredCurveOperation::NbtToFixed {

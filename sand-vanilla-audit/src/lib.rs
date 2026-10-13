@@ -771,3 +771,12 @@ mod world_build_audit_tests {
         ));
     }
 }
+
+/// The server harness validates generated attribute commands; no live player is implied.
+#[function]
+pub fn audit_native_attribute_values() {
+    Target::players().each(|player| {
+        when(player.living().attribute(AttributeType::MovementSpeed).gt(0))
+            .then_all(["say native attribute read"])
+    });
+}

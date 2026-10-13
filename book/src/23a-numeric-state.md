@@ -101,6 +101,22 @@ mark both the field and its component dirty. Archetype derivations and native
 property reconciliation therefore see the change without hand-written
 objective names.
 
+## Effective native attributes
+
+`player.living().attribute(AttributeType::MovementSpeed)` returns a `StatCurve`
+for Minecraft's effective attribute, including modifiers. Use it directly in
+State assignments, arithmetic, and comparisons. It shares `AttributeType` with
+archetype attribute bindings; it does not read only the base value from NBT.
+
+Each evaluation selects one owner and reads once. Missing owners/attributes fail
+the evaluation and preserve assignment destinations. Minecraft truncates toward
+zero at the expression's working precision (1000 units by default); later
+arithmetic uses the numeric engine's rounding policy. Results at either signed
+32-bit boundary are rejected conservatively because saturation cannot be
+separated from an exact boundary result. Minecraft's native attribute clamping,
+including its handling of non-finite inputs, remains authoritative. These reads
+do not yet participate in archetype change observation.
+
 ## Inventory counts
 
 `player.inventory().count(sand::vanilla::Item::Diamond)` is a runtime integer

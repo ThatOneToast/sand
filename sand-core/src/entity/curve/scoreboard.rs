@@ -83,6 +83,59 @@ pub(crate) fn render_lowered_curve(
             } => commands.push(format!(
                 "scoreboard players operation {holder} {destination} = {holder} {source}"
             )),
+            LoweredCurveOperation::AttributeToFixed {
+                destination,
+                target,
+                attribute,
+                scale,
+                overflow,
+            } => {
+                require_scoreboard_overflow(context, lowered, *overflow)?;
+                let error =
+                    |error: sand_commands::CommandError| EntityDiagnostic::InvalidRawExtension {
+                        archetype: context.owner.to_string(),
+                        extension: "native attribute read".into(),
+                        detail: error.to_string(),
+                    };
+                sand_commands::ScoreHolder::entity(target.clone())
+                    .validate_single(&sand_commands::CommandProfile::unprofiled())
+                    .map_err(error)?;
+                let value =
+                    ObjectiveName::logical(format!("{}.attribute.{index}.value", context.owner));
+                let valid =
+                    ObjectiveName::logical(format!("{}.attribute.{index}.valid", context.owner));
+                objectives.extend([value.clone(), valid.clone()]);
+                let command = sand_commands::builtins::try_attribute_get(
+                    sand_commands::Selector::self_(),
+                    attribute.as_str(),
+                    *scale as f64,
+                )
+                .map_err(error)?;
+                let helper_path = format!("{path}/attribute_{index}");
+                records.push(ComponentRecord::function(context.owner.namespace(), &helper_path, vec![
+                    format!("execute store success score #attribute {valid} store result score #attribute {value} run {command}"),
+                ]));
+                functions.push(helper_path.clone());
+                // Resolve the owner once; the helper's @s must not replace the
+                // caller's numeric storage context. No callback occurs between
+                // the read and copying these operation-owned temporary scores.
+                commands.push(format!("scoreboard players set #attribute {valid} 0"));
+                commands.push(format!(
+                    "execute as {target} run function {}:{helper_path}",
+                    context.owner.namespace()
+                ));
+                commands.push(format!(
+                    "execute unless score #attribute {valid} matches 1 run return fail"
+                ));
+                for boundary in [i32::MIN, i32::MAX] {
+                    commands.push(format!(
+                        "execute if score #attribute {value} matches {boundary} run return fail"
+                    ));
+                }
+                commands.push(format!(
+                    "scoreboard players operation {holder} {destination} = #attribute {value}"
+                ));
+            }
             LoweredCurveOperation::InventoryCountToFixed {
                 destination,
                 target,
@@ -1118,6 +1171,76 @@ mod tests {
     use super::*;
     use crate::entity::{FixedPoint, FixedScore, StatCurve};
     use sand_commands::ScoreHolder;
+
+    #[test]
+    fn native_attributes_select_once_preserve_the_caller_and_guard_failed_reads() {
+        let owner = "game:attribute".parse().unwrap();
+        let expression = StatCurve::native_attribute(
+            sand_commands::Selector::all_entities()
+                .sort(sand_commands::SortOrder::Random)
+                .limit(1),
+            sand_components::item::AttributeType::MovementSpeed,
+        );
+        let lowered = expression
+            .lower_scoreboard("result", "game:attribute", FixedPoint::default())
+            .unwrap();
+        let working = ScoreHolder::fake("#caller");
+        let output = render_lowered_curve(
+            NumericContext::new(&owner, &working).unwrap(),
+            "numeric/read",
+            &lowered,
+        )
+        .unwrap();
+        let text = output.commands.join("\n");
+        assert_eq!(text.matches("execute as @e[").count(), 1);
+        assert!(text.contains("sort=random"));
+        assert!(text.contains("matches 1 run return fail"));
+        assert!(text.contains("matches -2147483648 run return fail"));
+        assert!(text.contains("matches 2147483647 run return fail"));
+        assert!(text.contains("scoreboard players operation #caller "));
+        let helpers = output
+            .records
+            .iter()
+            .map(|r| r.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert_eq!(
+            helpers
+                .matches("run attribute @s minecraft:movement_speed get 1000")
+                .count(),
+            1
+        );
+        assert!(helpers.contains("store success score #attribute"));
+        assert!(helpers.contains("store result score #attribute"));
+    }
+
+    #[test]
+    fn native_attributes_reject_plural_sources_and_malformed_identifiers() {
+        let owner = "game:attribute".parse().unwrap();
+        let working = ScoreHolder::fake("#caller");
+        for (target, attribute) in [
+            (
+                sand_commands::Selector::all_entities(),
+                sand_components::item::AttributeType::MaxHealth,
+            ),
+            (
+                sand_commands::Selector::self_(),
+                sand_components::item::AttributeType::Custom("invalid attribute".into()),
+            ),
+        ] {
+            let lowered = StatCurve::native_attribute(target, attribute)
+                .lower_scoreboard("result", "game:attribute", FixedPoint::default())
+                .unwrap();
+            assert!(
+                render_lowered_curve(
+                    NumericContext::new(&owner, &working).unwrap(),
+                    "numeric/read",
+                    &lowered
+                )
+                .is_err()
+            );
+        }
+    }
 
     #[test]
     fn bound_sources_keep_their_holder_and_scale_in_a_separate_working_context() {

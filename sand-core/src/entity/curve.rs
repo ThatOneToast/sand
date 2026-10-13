@@ -669,6 +669,14 @@ pub(crate) enum LoweredCurveOperation {
         /// Source score objective.
         source: String,
     },
+    /// Read one effective native attribute at the working fixed-point scale.
+    AttributeToFixed {
+        destination: String,
+        target: sand_commands::Selector,
+        attribute: sand_components::item::AttributeType,
+        scale: i64,
+        overflow: OverflowPolicy,
+    },
     /// Count one player's matching items without mutating inventory.
     InventoryCountToFixed {
         destination: String,
@@ -956,6 +964,10 @@ enum CurveKind {
 
 #[derive(Clone, Debug, PartialEq)]
 enum CurveInput {
+    Attribute {
+        target: sand_commands::Selector,
+        attribute: sand_components::item::AttributeType,
+    },
     InventoryCount {
         target: sand_commands::Selector,
         item: Box<sand_components::ItemPredicate>,
@@ -982,6 +994,9 @@ impl CurveInput {
             } => format!("{holder} {objective}"),
             Self::Score { objective, .. } => objective.clone(),
             Self::Nbt { target, path } => format!("nbt {target} {path}"),
+            Self::Attribute { target, attribute } => {
+                format!("attribute {target} {}", attribute.as_str())
+            }
             Self::InventoryCount { target, item } => format!("inventory {target} {item:?}"),
         }
     }
@@ -989,7 +1004,7 @@ impl CurveInput {
     fn score_objective(&self) -> &str {
         match self {
             Self::Score { objective, .. } => objective,
-            Self::Nbt { .. } | Self::InventoryCount { .. } => {
+            Self::Nbt { .. } | Self::InventoryCount { .. } | Self::Attribute { .. } => {
                 unreachable!("discrete mapping constructors require a State score")
             }
         }
@@ -1186,6 +1201,15 @@ impl StatCurve {
         )
     }
 
+    pub(crate) fn native_attribute(
+        target: sand_commands::Selector,
+        attribute: sand_components::item::AttributeType,
+    ) -> Self {
+        Self {
+            kind: CurveKind::Input(CurveInput::Attribute { target, attribute }),
+        }
+    }
+
     pub(crate) fn inventory_count(
         target: sand_commands::Selector,
         item: impl Into<sand_components::ItemPredicate>,
@@ -1245,9 +1269,9 @@ impl StatCurve {
                 holder: Some(holder),
                 ..
             } if holder.to_string() != "@s" => unsupported = Some(holder.to_string()),
-            CurveInput::Nbt { .. } | CurveInput::InventoryCount { .. } => {
-                unsupported = Some(input.key())
-            }
+            CurveInput::Nbt { .. }
+            | CurveInput::InventoryCount { .. }
+            | CurveInput::Attribute { .. } => unsupported = Some(input.key()),
             _ => {}
         });
         if let Some(holder) = unsupported {
@@ -2458,6 +2482,16 @@ impl CurveLoweringBuilder<'_> {
                         rounding: self.fixed.rounding(),
                         overflow: self.fixed.overflow(),
                     });
+                }
+                CurveInput::Attribute { target, attribute } => {
+                    self.operations
+                        .push(LoweredCurveOperation::AttributeToFixed {
+                            destination: destination.clone(),
+                            target: target.clone(),
+                            attribute: attribute.clone(),
+                            scale: self.fixed.scale(),
+                            overflow: self.fixed.overflow(),
+                        });
                 }
                 CurveInput::InventoryCount { target, item } => {
                     self.operations

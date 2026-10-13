@@ -363,3 +363,11 @@ loopback-only server/player harness with RCON disabled. Normal tick coordination
 is frozen during storage assertions; natural window expiry and client combat
 input are outside this proof. The latest-version vanilla CI job runs it and
 uploads server/client logs on failure.
+
+## Player joins and reconnects
+
+`../validate_player_joins.py` exports two independent Sand packs and checks real
+reconnects while another player remains online, callback reentry, namespace and
+reload isolation, and legacy-marker coexistence. See
+[the join evidence](../../docs/testing/player-join-evidence.md) for the tested
+contracts and limits.

@@ -214,3 +214,35 @@ exactly once); reach for **state** (chapter 7) when something *is*
 data is closer to configuration or structured NBT than per-tick gameplay
 state. `StaminaExhaustedEvent` exists specifically because "stamina crossed
 zero" is a happening, even though `STAMINA` itself is state.
+
+
+## Shared transition observations
+
+Tracked transition events such as health changed/lost/gained and the
+low-health/recovered pair use Sand's shared observation planner. Identical canonical
+sources share one sample and one retained baseline per player, even when
+several handlers or event identities consume them. The existing player
+lifecycle owns the tick scan; each event does not add another scan.
+
+For each source, the planner samples before dispatching its handlers. Those
+handlers see the same sample and previous value, and the baseline advances
+only after their dispatch. Source groups run sequentially in deterministic
+compiler order; a handler mutation can be visible to a later group in that
+tick. The
+first available sample without a retained baseline initializes it silently.
+An unavailable numeric sample emits no transition and preserves the last valid
+baseline. Boolean conditions retain ordinary `Condition` semantics, including
+false for an unavailable native query. Baselines persist across reloads and
+reconnects; this is not a login-event mechanism.
+
+Internal sample definitions retain canonical `Condition` and `StatCurve`
+values, including their generated predicates, item tags, and numeric helpers.
+Hidden names include the pack namespace and sample definition. Adding another
+consumer does not change a sample's stored identity. Changing its definition
+establishes a new baseline.
+
+This backend currently serves existing per-player tracked events at their tick
+cadence. General custom subscriptions, selectable cadence/entity/region scopes,
+and integration with State dirty dependencies remain future work. State flows
+continue to share lifecycle assembly and collision checking; they have not
+been converted into generic polling observations.

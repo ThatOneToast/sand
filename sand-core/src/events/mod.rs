@@ -4197,7 +4197,7 @@ impl PersistentSandEvent for PlayerFlyingEvent {
     path = "sand::events::PlayerStartFlyingEvent",
     module = "sand::events",
     summary = "Fires once when a player starts actively flying (Creative/Spectator flight).",
-    context = "Fires once when a player starts actively flying (Creative/Spectator flight). Shares the `player_flying` tracker with [`PlayerStopFlyingEvent`]. The first observed state establishes a baseline and does not fire — a player who is already flying at join/reload does not spuriously fire this event.",
+    context = "Fires once when a player starts actively flying (Creative/Spectator flight). Shares the `player_flying` tracker with [`PlayerStopFlyingEvent`]. The first observed state establishes a baseline and does not fire — an already-flying player with no retained baseline does not spuriously fire this event.",
     minecraft = "Sand tracks the player flying predicate and fires on false-to-true transitions.",
     use_when = ["Registering a handler for this specific Minecraft or Sand runtime occurrence"],
     avoid_when = ["Representing mutable event data; read typed handler context or declared participants instead"],
@@ -4207,7 +4207,8 @@ impl PersistentSandEvent for PlayerFlyingEvent {
 ///
 /// Shares the `player_flying` tracker with [`PlayerStopFlyingEvent`]. The
 /// first observed state establishes a baseline and does not fire — a player
-/// who is already flying at join/reload does not spuriously fire this event.
+/// who is already flying and has no retained baseline does not spuriously fire
+/// this event. Existing baselines persist across reloads and reconnects.
 pub struct PlayerStartFlyingEvent;
 impl SandEvent for PlayerStartFlyingEvent {
     fn dispatch() -> SandEventDispatch {
@@ -4535,10 +4536,8 @@ gamemode_transition!(
 //
 // One shared per-player health provider backed by vanilla's `health`
 // scoreboard criterion. The `health` criterion samples the player's current
-// health **rounded down to an integer, 0-20 by default (more with the Health
-// Boost/absorption-independent max health attribute), and does NOT include
-// absorption hearts** — absorption is a separate, decaying overlay tracked by
-// vanilla outside the `health` stat. Sand auto-declares the backing
+// health plus absorption, rounded upward to an integer (normally 0-20 without
+// absorption or max-health modifiers). Sand auto-declares the backing
 // objective (`sand_health`) once at load time; it is not something callers
 // need to pre-declare.
 
@@ -4546,7 +4545,7 @@ gamemode_transition!(
 /// only for proc-macro expansion.
 #[doc(hidden)]
 pub(crate) const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
-    description: "vanilla health scoreboard criterion (integer, excludes absorption)",
+    description: "vanilla health scoreboard criterion (integer ceiling of health plus absorption)",
     objective: "sand_health",
     criterion: "health",
 };
@@ -4556,17 +4555,18 @@ pub(crate) const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::Tra
     path = "sand::events::PlayerHealthChangedEvent",
     module = "sand::events",
     summary = "Fires once whenever a player's health value changes (gain or loss).",
-    context = "Fires once whenever a player's health value changes (gain or loss). Backed by vanilla's `health` scoreboard criterion — an integer value, 0-20 by default, that does not include absorption hearts. The first tick after join/reload establishes a baseline and does not fire.",
-    minecraft = "Backed by vanilla's `health` scoreboard criterion — an integer value, 0-20 by default, that does not include absorption hearts. The first tick after join/reload establishes a baseline and does not fire.",
+    context = "Fires once whenever a player's health value changes (gain or loss). Backed by vanilla's `health` scoreboard criterion — the integer ceiling of health plus absorption. The first available sample without a retained baseline does not fire. Baselines persist across reloads and reconnects.",
+    minecraft = "Backed by vanilla's `health` scoreboard criterion — the integer ceiling of health plus absorption. The first available sample without a retained baseline does not fire. Baselines persist across reloads and reconnects.",
     use_when = ["Registering a handler for this specific Minecraft or Sand runtime occurrence"],
     avoid_when = ["Representing mutable event data; read typed handler context or declared participants instead"],
     example = "#[sand::on_event]\nfn health(_: sand::events::PlayerHealthChangedEvent) { sand::command::raw(\"say Health\"); }",
 )]
 /// Fires once whenever a player's health value changes (gain or loss).
 ///
-/// Backed by vanilla's `health` scoreboard criterion — an integer value,
-/// 0-20 by default, that does **not** include absorption hearts. The first
-/// tick after join/reload establishes a baseline and does not fire.
+/// Backed by vanilla's `health` scoreboard criterion — the integer ceiling
+/// of health plus absorption. The first
+/// available sample without a retained baseline does not fire. Baselines
+/// persist across reloads and reconnects.
 pub struct PlayerHealthChangedEvent;
 impl SandEvent for PlayerHealthChangedEvent {
     fn dispatch() -> SandEventDispatch {

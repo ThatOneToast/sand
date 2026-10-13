@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{TrackedSource, TrackedTransition, TransitionKind};
+use crate::{TrackedTransition, TransitionKind};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct TransitionHandler {
@@ -27,171 +27,17 @@ pub(crate) struct GeneratedTransitionFunction {
     pub commands: Vec<String>,
 }
 
-#[derive(Debug)]
-struct Tracker<'a> {
-    source: TrackedSource,
-    handlers: BTreeSet<(TransitionKind, &'a str)>,
-}
+pub(crate) mod observation;
 
-pub(crate) fn resolve_transition_plan<'a>(
+pub(crate) fn resolve_transition_plan(
     namespace: &str,
-    handlers: &'a [TransitionHandler],
+    handlers: &[TransitionHandler],
 ) -> Result<TransitionPlan, String> {
-    let mut trackers: BTreeMap<&str, Tracker<'a>> = BTreeMap::new();
-
-    for handler in handlers {
-        validate_kind(handler.transition)?;
-        let id = handler.transition.tracker_id;
-        if id.is_empty() {
-            return Err(format!(
-                "transition handler `{}` has an empty tracker ID for source `{}`",
-                handler.path,
-                handler.transition.source.description()
-            ));
-        }
-        match trackers.get_mut(id) {
-            Some(tracker) if tracker.source == handler.transition.source => {
-                tracker
-                    .handlers
-                    .insert((handler.transition.kind, handler.path.as_str()));
-            }
-            Some(tracker) => {
-                return Err(format!(
-                    "conflicting transition tracker `{id}`: source `{}` conflicts with `{}` for handler `{}`",
-                    tracker.source.description(),
-                    handler.transition.source.description(),
-                    handler.path
-                ));
-            }
-            None => {
-                trackers.insert(
-                    id,
-                    Tracker {
-                        source: handler.transition.source,
-                        handlers: BTreeSet::from([(
-                            handler.transition.kind,
-                            handler.path.as_str(),
-                        )]),
-                    },
-                );
-            }
-        }
-    }
-
-    let mut generated_names: BTreeMap<String, &str> = BTreeMap::new();
-    let mut declared_criteria: BTreeMap<&str, &str> = BTreeMap::new();
-    let mut plan = TransitionPlan::default();
-    for (id, tracker) in trackers {
-        let key = tracker_key(id);
-        let previous = format!("__st_{key}p");
-        let current = format!("__st_{key}c");
-        let seen = format!("__st_{key}s");
-        let available =
-            matches!(tracker.source, TrackedSource::Score { .. }).then(|| format!("__st_{key}a"));
-        let function_path = format!("__sand_transition/{key}");
-
-        if let TrackedSource::Score {
-            objective,
-            criterion,
-            ..
-        }
-        | TrackedSource::ScoreThreshold {
-            objective,
-            criterion,
-            ..
-        } = tracker.source
-        {
-            match declared_criteria.get(objective) {
-                Some(existing) if *existing != criterion => {
-                    return Err(format!(
-                        "transition tracker `{id}` references objective `{objective}` with criterion `{criterion}`, which conflicts with a previously declared criterion `{existing}`"
-                    ));
-                }
-                Some(_) => {}
-                None => {
-                    declared_criteria.insert(objective, criterion);
-                    plan.load_commands
-                        .push(format!("scoreboard objectives add {objective} {criterion}"));
-                }
-            }
-        }
-
-        for generated in [&previous, &current, &seen, &function_path]
-            .into_iter()
-            .chain(available.as_ref())
-        {
-            if let Some(existing) = generated_names.insert(generated.clone(), id)
-                && existing != id
-            {
-                return Err(format!(
-                    "transition tracker name collision: `{existing}` and `{id}` both generate `{generated}`"
-                ));
-            }
-        }
-
-        plan.load_commands
-            .push(format!("scoreboard objectives add {previous} dummy"));
-        plan.load_commands
-            .push(format!("scoreboard objectives add {current} dummy"));
-        plan.load_commands
-            .push(format!("scoreboard objectives add {seen} dummy"));
-        if let Some(available) = &available {
-            plan.load_commands
-                .push(format!("scoreboard objectives add {available} dummy"));
-        }
-        for objective in [&previous, &current, &seen]
-            .into_iter()
-            .chain(available.as_ref())
-        {
-            plan.private_objectives.insert(
-                objective.clone(),
-                (id.to_string(), tracker.source.description().to_string()),
-            );
-        }
-        plan.tick_commands
-            .push(format!("function {namespace}:{function_path}"));
-
-        let commands = match tracker.source {
-            TrackedSource::BooleanCondition { condition, .. } => boolean_commands(
-                &tracker.handlers,
-                condition,
-                &previous,
-                &current,
-                &seen,
-                namespace,
-            ),
-            TrackedSource::ScoreThreshold {
-                objective,
-                comparator,
-                ..
-            } => boolean_commands(
-                &tracker.handlers,
-                &comparator.render(objective),
-                &previous,
-                &current,
-                &seen,
-                namespace,
-            ),
-            TrackedSource::Score { objective, .. } => score_commands(
-                &tracker.handlers,
-                objective,
-                &previous,
-                &current,
-                &seen,
-                available
-                    .as_deref()
-                    .expect("score trackers have availability state"),
-                namespace,
-            ),
-        };
-        plan.functions.push(GeneratedTransitionFunction {
-            tracker_id: id.to_string(),
-            source: tracker.source.description().to_string(),
-            path: function_path,
-            commands,
-        });
-    }
-    Ok(plan)
+    let observations = handlers
+        .iter()
+        .map(observation::ObservationHandler::from)
+        .collect::<Vec<_>>();
+    observation::resolve(namespace, &observations)
 }
 
 /// Resolve tracked events and typed state flows through one transition backend.
@@ -239,42 +85,14 @@ pub(crate) fn resolve_unified_transition_plan(
     Ok(plan)
 }
 
-fn validate_kind(transition: TrackedTransition) -> Result<(), String> {
-    let valid = matches!(
-        (transition.source, transition.kind),
-        (
-            TrackedSource::BooleanCondition { .. } | TrackedSource::ScoreThreshold { .. },
-            TransitionKind::BecameTrue | TransitionKind::BecameFalse
-        ) | (
-            TrackedSource::Score { .. },
-            TransitionKind::ScoreChanged
-                | TransitionKind::ScoreIncreased
-                | TransitionKind::ScoreDecreased
-        )
-    );
-    if valid {
-        Ok(())
-    } else {
-        Err(format!(
-            "transition tracker `{}` uses incompatible kind {:?} for source `{}`",
-            transition.tracker_id,
-            transition.kind,
-            transition.source.description()
-        ))
-    }
-}
-
 fn boolean_commands(
     handlers: &BTreeSet<(TransitionKind, &str)>,
-    condition: &str,
+    mut commands: Vec<String>,
     previous: &str,
     current: &str,
     seen: &str,
     namespace: &str,
 ) -> Vec<String> {
-    let mut commands = vec![format!(
-        "execute store success score @s {current} if {condition}"
-    )];
     for (kind, path) in handlers {
         let comparison = match kind {
             TransitionKind::BecameTrue => {
@@ -299,21 +117,13 @@ fn boolean_commands(
 
 fn score_commands(
     handlers: &BTreeSet<(TransitionKind, &str)>,
-    objective: &str,
+    mut commands: Vec<String>,
     previous: &str,
     current: &str,
     seen: &str,
     available: &str,
     namespace: &str,
 ) -> Vec<String> {
-    let mut commands = vec![
-        format!(
-            "execute store success score @s {available} if score @s {objective} matches -2147483648.."
-        ),
-        format!(
-            "execute if score @s {available} matches 1 run scoreboard players operation @s {current} = @s {objective}"
-        ),
-    ];
     for (kind, path) in handlers {
         let comparison = match kind {
             TransitionKind::ScoreChanged => {
@@ -356,7 +166,17 @@ fn fnv1a(value: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ScoreThresholdComparator;
+    use crate::{ScoreThresholdComparator, TrackedSource};
+
+    // Canonical numeric sampling owns helpers/objectives just like ordinary
+    // gameplay lowering. Keep each planner-only test inside an export scope.
+    fn resolve_transition_plan(
+        namespace: &str,
+        handlers: &[TransitionHandler],
+    ) -> Result<TransitionPlan, String> {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        super::resolve_transition_plan(namespace, handlers)
+    }
 
     const BOOL: TrackedSource = TrackedSource::BooleanCondition {
         description: "test boolean",
@@ -425,14 +245,15 @@ mod tests {
                 .count(),
             1
         );
-        assert!(commands[0].contains("store success score"));
-        assert!(commands[1].contains("a_start"));
+        assert!(commands[0].contains("players set") && commands[0].ends_with(" 0"));
+        assert!(commands[1].contains("predicate test:flag"));
+        assert!(commands[2].contains("a_start"));
         let first_update = commands
             .iter()
             .position(|line| line.contains("players operation"))
             .unwrap();
         assert_eq!(
-            first_update, 4,
+            first_update, 5,
             "all handlers must run after sampling and before state updates"
         );
     }
@@ -551,7 +372,11 @@ mod tests {
         .unwrap();
         assert_eq!(plan.functions.len(), 1);
         let commands = &plan.functions[0].commands;
-        assert!(commands[0].contains("score @s sand_health matches ..6"));
+        assert!(
+            commands
+                .iter()
+                .any(|line| line.contains("score @s sand_health matches ..6"))
+        );
         assert!(
             commands
                 .iter()
@@ -566,13 +391,26 @@ mod tests {
 
     #[test]
     fn score_threshold_at_or_above_renders_open_lower_bound() {
-        assert_eq!(
-            ScoreThresholdComparator::AtOrAbove(10).render("obj"),
-            "score @s obj matches 10.."
-        );
-        assert_eq!(
-            ScoreThresholdComparator::AtOrBelow(10).render("obj"),
-            "score @s obj matches ..10"
+        let plan = resolve_transition_plan(
+            "pack",
+            &[handler(
+                "high",
+                "high_health",
+                TrackedSource::ScoreThreshold {
+                    description: "high health",
+                    objective: "health",
+                    criterion: "health",
+                    comparator: ScoreThresholdComparator::AtOrAbove(10),
+                },
+                TransitionKind::BecameTrue,
+            )],
+        )
+        .unwrap();
+        assert!(
+            plan.functions[0]
+                .commands
+                .iter()
+                .any(|line| line.contains("score @s health matches 10.."))
         );
     }
 

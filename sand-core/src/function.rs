@@ -323,15 +323,6 @@ pub enum ScoreThresholdComparator {
     AtOrAbove(i32),
 }
 
-impl ScoreThresholdComparator {
-    pub(crate) fn render(self, objective: &str) -> String {
-        match self {
-            Self::AtOrBelow(n) => format!("score @s {objective} matches ..{n}"),
-            Self::AtOrAbove(n) => format!("score @s {objective} matches {n}.."),
-        }
-    }
-}
-
 impl TrackedSource {
     pub const fn description(self) -> &'static str {
         match self {

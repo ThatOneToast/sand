@@ -2,8 +2,9 @@
 """Verify emitted world/block capabilities on a disposable vanilla server.
 
 Reuses the reload harness's lifecycle and diagnostics. No player client is
-required: the assertions cover world mutations and execution context, not
-live-player or multiplayer behavior.
+required: assertions cover world mutations, execution context, and controlled
+observation samples. They do not prove native player health updates or
+end-to-end multiplayer behavior.
 """
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import argparse
 import re
 import sys
 import time
+from pathlib import Path
 
 from vanilla_reload_harness import ServerHarness, ValidationFailure
 
@@ -49,6 +51,69 @@ class WorldGameplayHarness(ServerHarness):
                 return
             time.sleep(0.1)
         raise ValidationFailure("world-load", f"test chunk did not load in {dimension}")
+
+    def check_observations(self) -> None:
+        root = Path(self.args.pack) / "data" / "sand_audit" / "function"
+
+        def sampler(handler: str) -> str:
+            matches = [path for path in (root / "__sand_transition").glob("*.mcfunction")
+                       if f"function sand_audit:{handler}" in path.read_text(encoding="utf-8")]
+            if len(matches) != 1:
+                raise ValidationFailure("observation-plan", f"expected one shared sampler for {handler}, got {matches}")
+            return "sand_audit:" + matches[0].relative_to(root).with_suffix("").as_posix()
+
+        numeric = sampler("audit_health_changed")
+        if numeric != sampler("audit_health_lost") or numeric != sampler("audit_health_gained"):
+            raise ValidationFailure("observation-plan", "health consumers did not share one sample")
+        boolean = sampler("audit_health_low")
+        if boolean != sampler("audit_health_recovered"):
+            raise ValidationFailure("observation-plan", "threshold consumers did not share one sample")
+        # Drive the generated observer with controlled scores. Vanilla's health
+        # criterion is read-only; native player health updates need live clients.
+        self.send("scoreboard objectives remove sand_health")
+        self.send("scoreboard objectives add sand_health dummy")
+        objectives = ("sand_obs_change", "sand_obs_lost", "sand_obs_gain", "sand_obs_low", "sand_obs_back")
+        for objective in objectives:
+            self.send(f"scoreboard objectives add {objective} dummy")
+        targets = {}
+        for label, x in (("a", 12), ("b", 13)):
+            tag = f"sand_observe_{label}"
+            targets[label] = f"@e[tag={tag},limit=1]"
+            self.send(f'execute in minecraft:overworld run summon minecraft:armor_stand {x} 80 12 {{Tags:["{tag}"],NoGravity:1b}}')
+            for objective in objectives:
+                self.send(f"execute in minecraft:overworld run scoreboard players set {targets[label]} {objective} 0")
+
+        def sample(label: str, health: int | None, function: str = numeric) -> None:
+            target = targets[label]
+            value = f"set {target} sand_health {health}" if health is not None else f"reset {target} sand_health"
+            self.send(f"execute in minecraft:overworld run scoreboard players {value}")
+            self.send(f"execute in minecraft:overworld as {target} at @s run function {function}")
+
+        def counts(label: str, changed: int, lost: int, gained: int) -> None:
+            for objective, value in zip(objectives, (changed, lost, gained)):
+                self.check(f"OBS_{label}_{objective}_{value}", f"in minecraft:overworld if score {targets[label]} {objective} matches {value}")
+
+        sample("a", 20)
+        sample("b", 10)
+        counts("a", 0, 0, 0)
+        counts("b", 0, 0, 0)
+        sample("a", 17)
+        counts("a", 1, 1, 0)
+        counts("b", 0, 0, 0)
+        sample("a", 23)
+        counts("a", 2, 1, 1)
+        sample("a", None)
+        counts("a", 2, 1, 1)
+        self.check("OBS_MISSING_SOURCE", f"in minecraft:overworld unless score {targets['a']} sand_health matches -2147483648..")
+        sample("a", 24)
+        counts("a", 3, 1, 2)
+        sample("a", 24, boolean)
+        sample("a", 5, boolean)
+        sample("a", 5, boolean)
+        sample("a", 10, boolean)
+        self.check("OBS_BECAME_TRUE", f"in minecraft:overworld if score {targets['a']} sand_obs_low matches 1")
+        self.check("OBS_BECAME_FALSE", f"in minecraft:overworld if score {targets['a']} sand_obs_back matches 1")
+        print("PASSED: shared observation sampling, first baseline, numeric changes, missing samples, boolean transitions, and entity isolation", flush=True)
 
     def run_client(self) -> None:
         self.send("scoreboard objectives add sand_rule_audit dummy")
@@ -95,6 +160,7 @@ class WorldGameplayHarness(ServerHarness):
         self.check("ENTITY_POSITION", "in minecraft:the_nether if block 10 80 10 minecraft:gold_block")
         self.check("ENTITY_OTHER_BLOCK", "in minecraft:overworld if block 10 80 10 minecraft:air")
         self.check("MACRO_MULTILINE", "in minecraft:the_nether if block 3 80 2 minecraft:lapis_block")
+        self.check_observations()
         print("PASSED: runtime block queries, writes, inventory, NBT, dimension scaling, caller context, and unloaded-block behavior", flush=True)
 
 

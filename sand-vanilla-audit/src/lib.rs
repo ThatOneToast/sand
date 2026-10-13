@@ -380,8 +380,9 @@ pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
     cmd::raw("say audit stopped sneaking")
 }
 
-// The disposable-server observation audit drives these shared samplers as
-// isolated tagged entities; it does not claim live-player health replication.
+// The world audit drives these shared samplers as controlled tagged entities.
+// The separate player-observation audit verifies native health/effect changes
+// through normal tick dispatch with two connected players.
 #[on_event]
 pub fn audit_health_changed(_: sand_core::events::PlayerHealthChangedEvent) {
     cmd::raw("scoreboard players add @s sand_obs_change 1")

@@ -16,6 +16,9 @@ on:
       - "scripts/bench_runtime.py"
       - "scripts/validate_worldbuild_profiles.py"
       - "scripts/validate_world_gameplay.py"
+      - "scripts/validate_player_observations.py"
+      - "scripts/mc_validation/minimal_join_client.py"
+      - "scripts/mc_validation/test_minimal_join_client.py"
       - "scripts/validate-vanilla-reload.sh"
       - "scripts/vanilla_reload_harness.py"
   workflow_dispatch:
@@ -119,6 +122,15 @@ jobs:
             --pack sand-vanilla-audit/dist/sand_audit \
             --output "target/vanilla-reload/${{ matrix.version }}/world-gameplay"
 
+      - name: Validate real-player observation isolation and reload
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_player_observations.py \
+            --version "${{ matrix.version }}" \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --pack sand-vanilla-audit/dist/sand_audit \
+            --output "target/vanilla-reload/${{ matrix.version }}/player-observations"
+
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'
         run: |
@@ -147,6 +159,7 @@ jobs:
           path: |
             target/vanilla-reload/${{ matrix.version }}/latest.log
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
+            target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

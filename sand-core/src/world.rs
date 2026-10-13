@@ -2,6 +2,9 @@
 //!
 //! These handles describe work in the current Minecraft execution context.
 //! They do not load chunks, scan regions, or configure a generated world.
+mod gamerule;
+pub use gamerule::GameRuleSetting;
+
 use crate::{
     IntoCommands,
     condition::Condition,

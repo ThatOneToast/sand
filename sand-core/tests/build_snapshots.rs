@@ -150,8 +150,8 @@ fn world_border_and_spawn_init_function_snapshot() {
                     .warning_distance(10)
                     .warning_time(30),
             )
-            .gamerule("keepInventory", "true")
-            .gamerule("doMobSpawning", "false"),
+            .gamerule(sand_core::cmd::gamerule_keep_inventory().value(true))
+            .gamerule(sand_core::cmd::gamerule_spawn_mobs().value(false)),
     );
     let resources = lower_world("snapshot_pack", &build);
     let init_fn = resources

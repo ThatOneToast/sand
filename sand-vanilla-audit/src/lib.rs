@@ -644,6 +644,8 @@ fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
     let build = SandBuild::new().world(
         World::new()
             .spawn(Spawn::at(0, 5, 0))
+            .gamerule(sand_core::cmd::gamerule_keep_inventory().value(true))
+            .gamerule(sand_core::cmd::gamerule_random_tick_speed().value(0))
             .dimensions(Dimensions::new().with(overworld)),
     );
     if let Err(diagnostics) = build.validate() {

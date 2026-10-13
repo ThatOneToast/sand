@@ -68,6 +68,14 @@ pub(crate) fn validate(build: &SandBuild) -> Result<(), Vec<BuildDiagnostic>> {
     let mut diagnostics = Vec::new();
 
     if let Some(world) = &build.world {
+        for (name, setting) in &world.gamerules {
+            if let Err(error) = setting.command() {
+                diagnostics.push(BuildDiagnostic {
+                    location: format!("World::gamerule({name})"),
+                    message: error.to_string(),
+                });
+            }
+        }
         if world.time.as_ref().is_some_and(|time| time.freeze)
             && crate::cmd::WORLD_TIME_FREEZE_COMMAND.is_none()
         {

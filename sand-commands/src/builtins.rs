@@ -1843,16 +1843,16 @@ mod tests {
     #[test]
     fn attribute_get_test() {
         assert_eq!(
-            attribute_get(Selector::self_(), "minecraft:generic.max_health", 1.0),
-            "attribute @s minecraft:generic.max_health get 1"
+            attribute_get(Selector::self_(), "minecraft:max_health", 1.0),
+            "attribute @s minecraft:max_health get 1"
         );
     }
 
     #[test]
     fn attribute_base_set_test() {
         assert_eq!(
-            attribute_base_set(Selector::self_(), "minecraft:generic.max_health", 40.0),
-            "attribute @s minecraft:generic.max_health base set 40"
+            attribute_base_set(Selector::self_(), "minecraft:max_health", 40.0),
+            "attribute @s minecraft:max_health base set 40"
         );
     }
 
@@ -2138,13 +2138,10 @@ mod tests {
     #[test]
     fn try_attribute_base_set_rejects_non_finite_and_bad_id() {
         assert!(
-            try_attribute_base_set(Selector::self_(), "minecraft:generic.max_health", f64::NAN)
-                .is_err()
+            try_attribute_base_set(Selector::self_(), "minecraft:max_health", f64::NAN).is_err()
         );
         assert!(try_attribute_base_set(Selector::self_(), "max_health", 10.0).is_err());
-        assert!(
-            try_attribute_base_set(Selector::self_(), "minecraft:generic.max_health", 10.0).is_ok()
-        );
+        assert!(try_attribute_base_set(Selector::self_(), "minecraft:max_health", 10.0).is_ok());
     }
 
     #[test]
@@ -2250,8 +2247,8 @@ mod tests {
     fn try_attribute_get_rejects_malformed_attribute_id() {
         assert!(try_attribute_get(Selector::self_(), "max_health", 1.0).is_err());
         assert_eq!(
-            try_attribute_get(Selector::self_(), "minecraft:generic.max_health", 1.0).unwrap(),
-            attribute_get(Selector::self_(), "minecraft:generic.max_health", 1.0)
+            try_attribute_get(Selector::self_(), "minecraft:max_health", 1.0).unwrap(),
+            attribute_get(Selector::self_(), "minecraft:max_health", 1.0)
         );
     }
 

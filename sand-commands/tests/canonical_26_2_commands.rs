@@ -236,12 +236,12 @@ fn canonical_26_2_inventory_item_replace_modify_give_clear() {
 #[test]
 fn canonical_26_2_attribute_base_set_and_get() {
     assert_eq!(
-        attribute_get(Selector::self_(), "minecraft:generic.max_health"),
-        "attribute @s minecraft:generic.max_health get"
+        attribute_get(Selector::self_(), "minecraft:max_health", 1.0),
+        "attribute @s minecraft:max_health get 1"
     );
     assert_eq!(
-        attribute_base_set(Selector::self_(), "minecraft:generic.max_health", 40.0),
-        "attribute @s minecraft:generic.max_health base set 40"
+        attribute_base_set(Selector::self_(), "minecraft:max_health", 40.0),
+        "attribute @s minecraft:max_health base set 40"
     );
 }
 

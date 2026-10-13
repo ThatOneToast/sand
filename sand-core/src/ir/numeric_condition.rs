@@ -39,10 +39,15 @@ impl NumericComparison {
         let mut fixed = FixedPoint::default();
         let constant_fits = |value: &StatCurve, scale: i64| {
             value.constant_value().is_some_and(|value| {
-                let stored = value * scale as f64;
-                stored.fract() == 0.0
-                    && stored >= f64::from(i32::MIN)
-                    && stored <= f64::from(i32::MAX)
+                let Ok(precision) = FixedPoint::new(scale, fixed.rounding(), fixed.overflow())
+                else {
+                    return false;
+                };
+                precision
+                    .encode(value, &owner.to_string(), "comparison constant")
+                    .is_ok_and(|stored| {
+                        i32::try_from(stored.units()).is_ok() && stored.as_f64(precision) == value
+                    })
             })
         };
         let exact_scale = match (

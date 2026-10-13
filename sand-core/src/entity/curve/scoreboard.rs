@@ -480,8 +480,14 @@ pub(crate) fn render_lowered_curve(
                         ),
                     }
                 })?;
+                let success =
+                    ObjectiveName::logical(format!("{}.custom.{index}.success", context.owner));
+                objectives.insert(success.clone());
                 commands.push(format!(
-                    "execute store result score {holder} {destination} run function {callback}"
+                    "execute store success score {holder} {success} store result score {holder} {destination} run function {callback}"
+                ));
+                commands.push(format!(
+                    "execute unless score {holder} {success} matches 1 run return fail"
                 ));
             }
         }

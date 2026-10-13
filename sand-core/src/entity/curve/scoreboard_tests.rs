@@ -858,3 +858,105 @@ fn numeric_conditions_share_scale_conversion_and_checked_arithmetic() {
         assert_eq!(machine.call_result("test:scaled_comparison"), (false, 0));
     }
 }
+
+#[test]
+fn numeric_conditions_preserve_scale_exact_decimal_constants() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::curve::{CurveInput, CurveKind, StatCurve};
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    for constant in [0.29, -0.29, 0.57, -0.57] {
+        for constant_on_left in [false, true] {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            let source = StatCurve {
+                kind: CurveKind::Input(CurveInput::Score {
+                    objective: "source".into(),
+                    holder: None,
+                    storage_scale: 100,
+                    field: None,
+                }),
+            };
+            let literal = StatCurve::constant(constant);
+            let (left, right) = if constant_on_left {
+                (literal, source)
+            } else {
+                (source, literal)
+            };
+            let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+                left,
+                op: ScoreCompareOp::Gt,
+                right,
+            }))])
+            .lower(&"test:decimal_comparison".parse().unwrap())
+            .unwrap();
+            let mut machine = Machine::default();
+            machine.1.insert("test:decimal_comparison".into(), body);
+            for stored in [
+                i32::MIN,
+                -58,
+                -57,
+                -30,
+                -29,
+                0,
+                28,
+                29,
+                30,
+                57,
+                58,
+                i32::MAX,
+            ] {
+                machine.0.insert("@s source".into(), stored);
+                let logical = f64::from(stored) / 100.0;
+                let expected = if constant_on_left {
+                    constant > logical
+                } else {
+                    logical > constant
+                };
+                assert_eq!(
+                    machine.call_result("test:decimal_comparison"),
+                    (true, i32::from(expected)),
+                    "{stored} versus {constant}, reversed={constant_on_left}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn numeric_conditions_propagate_custom_failure_on_either_operand() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::StatCurve;
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    for custom_on_left in [false, true] {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let custom = StatCurve::custom(
+            "test:custom"
+                .parse::<crate::resource_ref::FunctionId>()
+                .unwrap(),
+            |_, fixed| fixed.encode(0.0, "test", "custom").map_err(Into::into),
+        );
+        let constant = StatCurve::constant(0.0);
+        let (left, right) = if custom_on_left {
+            (custom, constant)
+        } else {
+            (constant, custom)
+        };
+        let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+            left,
+            op: ScoreCompareOp::Eq,
+            right,
+        }))])
+        .lower(&"test:custom_comparison".parse().unwrap())
+        .unwrap();
+        let mut machine = Machine::default();
+        machine.1.insert("test:custom_comparison".into(), body);
+        for (command, expected) in [
+            ("return 0", (true, 1)),
+            ("return fail", (false, 0)),
+            ("return 1", (true, 0)),
+            ("return 0", (true, 1)),
+        ] {
+            machine.1.insert("test:custom".into(), vec![command.into()]);
+            assert_eq!(machine.call_result("test:custom_comparison"), expected);
+        }
+    }
+}

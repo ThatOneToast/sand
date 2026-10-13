@@ -23,6 +23,7 @@ fn body() -> Actions {
         let inventory = player.inventory();
         mcfunction![
             Counts::on(*player).matches.set(inventory.count(predicate.clone()));
+            inventory.remove(&predicate, 4);
             when(inventory.offhand().matches(&predicate).unwrap()).then_all(["say reward equipped"]);
             when(!inventory.offhand().matches(&predicate).unwrap()).then_all(["say reward absent"]);
             when(inventory.contains(&predicate)).then_all(["say reward present"]);
@@ -74,6 +75,13 @@ fn cached_predicates_own_shared_tags_and_preserve_native_constraints() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(functions.contains(&format!("clear @s {argument} 0")));
+    assert_eq!(
+        functions
+            .lines()
+            .filter(|line| *line == format!("clear @s {argument} 4"))
+            .count(),
+        1
+    );
     assert!(functions.contains(&format!(
         "if items entity @s weapon.offhand {argument} run return 1"
     )));

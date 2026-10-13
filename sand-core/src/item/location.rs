@@ -627,6 +627,37 @@ impl ItemLocation {
 }
 
 impl EntityInventory {
+    /// Remove up to `amount` matching items from one player's inventory.
+    ///
+    /// Uses the same typed identity, per-stack filters, and inventory coverage
+    /// as [`Self::count`]: inventory, crafting grid, and cursor, excluding open
+    /// container slots and the ender chest. The selected owner is evaluated once.
+    /// An insufficient stock removes only what is available; this is not an
+    /// atomic payment or an all-or-nothing transfer. Zero removes nothing.
+    ///
+    /// Returns owned gameplay actions. Export rejects plural owners, unsupported
+    /// predicates, and amounts above `i32::MAX`. A missing/non-player target fails
+    /// the native command without changing another inventory.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::inventory::EntityInventory::remove",
+        summary = "Remove up to a bounded quantity matching a typed inventory predicate.",
+        context = "Retains one inventory owner and the canonical ItemPredicate as an owned gameplay action until export.",
+        minecraft = "Lowers to one typed clear command with a maximum count, sharing item-tag ownership and predicate validation with count and contains.",
+        use_when = ["Removing available matching items from one player"],
+        avoid_when = ["An atomic payment, move, or ender-chest mutation is required"],
+        params(item = "A typed item ID, generated vanilla item, or canonical ItemPredicate.", amount = "Maximum number to remove; zero is non-mutating and values above i32::MAX fail export."),
+        returns = "Owned inventory-removal actions.",
+        example = "let item: sand::registry::ItemId = \"minecraft:diamond\".parse()?; let actions = player.inventory().remove(item, 3);",
+    )]
+    pub fn remove(
+        &self,
+        item: impl Into<sand_components::ItemPredicate>,
+        amount: u32,
+    ) -> crate::ir::Actions {
+        crate::ir::ItemMutation::remove(self.entity.clone(), item.into(), amount)
+    }
+
     /// Count matching items in one player's inventory at runtime.
     ///
     /// The result is a canonical [`StatCurve`](crate::entity::StatCurve), usable
@@ -912,6 +943,50 @@ impl From<ItemLocationError> for sand_components::SandError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inventory_removal_retains_one_owner_and_canonical_custom_identity() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let inventory = ItemLocation::entity(Selector::random_player());
+        let identity = sand_components::CustomItem::new("minecraft:stick")
+            .custom_data("pack:wand")
+            .item_predicate()
+            .unwrap();
+        let commands = inventory
+            .remove(identity, 3)
+            .lower(&"test:remove".parse().unwrap())
+            .unwrap();
+        assert_eq!(
+            commands,
+            vec!["clear @r minecraft:stick[minecraft:custom_data~{\"pack:wand\":1b}] 3"]
+        );
+    }
+
+    #[test]
+    fn inventory_removal_preserves_zero_and_rejects_plural_or_oversized_requests() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let item = sand_components::ItemId::minecraft("diamond").unwrap();
+        let owner = "test:remove".parse().unwrap();
+        let inventory = ItemLocation::entity(Selector::self_());
+        assert_eq!(
+            inventory.remove(item.clone(), 0).lower(&owner).unwrap(),
+            vec!["clear @s minecraft:diamond 0"]
+        );
+        assert!(
+            inventory
+                .remove(item.clone(), u32::MAX)
+                .lower(&owner)
+                .unwrap_err()
+                .to_string()
+                .contains("32-bit")
+        );
+        assert!(
+            ItemLocation::entity(Selector::all_players())
+                .remove(item, 3)
+                .lower(&owner)
+                .is_err()
+        );
+    }
 
     #[test]
     fn typed_slot_writes_preserve_stack_components_and_count() {

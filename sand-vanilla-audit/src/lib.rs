@@ -115,6 +115,7 @@ pub fn audit_inventory_predicates() {
             .custom_data_key("audit_reward");
         let inventory = player.inventory();
         mcfunction![
+            player.inventory().remove(vanilla::Item::Diamond, 3);
             when(inventory.offhand().matches(&predicate).unwrap())
                 .then_all(["say typed slot predicate"]);
             when(inventory.contains(&predicate))

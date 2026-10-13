@@ -68,6 +68,14 @@ pub(crate) fn validate(build: &SandBuild) -> Result<(), Vec<BuildDiagnostic>> {
     let mut diagnostics = Vec::new();
 
     if let Some(world) = &build.world {
+        if world.time.as_ref().is_some_and(|time| time.freeze)
+            && crate::cmd::WORLD_TIME_FREEZE_COMMAND.is_none()
+        {
+            diagnostics.push(BuildDiagnostic {
+                location: "World::time(TimeConfig::frozen)".to_string(),
+                message: format!("Minecraft {CODEGEN_MINECRAFT_VERSION} has no supported boolean time-freeze gamerule in Sand's generated command schema"),
+            });
+        }
         if let Some(border) = &world.border {
             if !(border.diameter > 0.0 && border.diameter <= MAX_BORDER_DIAMETER) {
                 diagnostics.push(BuildDiagnostic {

@@ -346,7 +346,7 @@ impl WorldBorder {
 
 /// The daylight cycle's initial time and whether it advances.
 ///
-/// 🌍 World (datapack) — lowers to `time set` / `gamerule doDaylightCycle`
+/// 🌍 World (datapack) — lowers to `time set` and the target version's time-advance gamerule
 /// in the generated load function.
 #[derive(Debug, Clone)]
 #[api(
@@ -355,7 +355,7 @@ impl WorldBorder {
     module = "sand::build",
     summary = "TimeConfig sets the daylight cycle's initial time and whether it advances.",
     context = "Set on a World via World::time; useful for deterministic test/bench profiles.",
-    minecraft = "Lowers to a time set command (and optionally gamerule doDaylightCycle false) in the generated load function.",
+    minecraft = "Lowers to a time set command (and optionally the target version's time-advance gamerule set to false) in the generated load function.",
     use_when = ["Fixing the initial or frozen time of day for a world"],
     avoid_when = ["Setting initial weather; use WeatherConfig"],
     example = "TimeConfig::set(6000).frozen();"
@@ -388,15 +388,19 @@ impl TimeConfig {
         }
     }
 
-    /// Freezes the daylight cycle at this time (`gamerule doDaylightCycle
-    /// false`) — useful for deterministic `test`/`bench` profiles.
+    /// Freezes the daylight cycle at this time. Sand selects the boolean rule
+    /// from the target command schema (`advance_time` in Minecraft 26.2,
+    /// `doDaylightCycle` in older versions). Build validation rejects a target
+    /// without a supported rule. This runs after explicit world gamerules,
+    /// so freezing takes precedence over a conflicting `World::gamerule`.
+    /// Useful for deterministic `test`/`bench` profiles.
     #[api(
         registry = sand_api_contract,
         path = "sand::build::TimeConfig::frozen",
         module = "sand::build",
         summary = "Freezes the daylight cycle at this time.",
         context = "Useful for deterministic test/bench profiles that need a fixed lighting condition.",
-        minecraft = "Lowers to an additional gamerule doDaylightCycle false command.",
+        minecraft = "Lowers to the target version's time-advance gamerule set to false.",
         use_when = ["Keeping time fixed for deterministic tests or screenshots"],
         avoid_when = ["Allowing the day/night cycle to progress normally; the default"],
         returns = "This TimeConfig with the cycle frozen.",

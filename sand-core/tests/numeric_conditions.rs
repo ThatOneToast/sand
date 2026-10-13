@@ -167,3 +167,51 @@ fn cached_numeric_guards_own_helpers_and_initializers() {
     );
     assert!(functions.values().any(|body| body.ends_with("return 0")));
 }
+
+struct RebuiltCustomTick;
+fn rebuilt_custom_tick() -> Option<sand_core::events::TickEventDispatch> {
+    // Each subscriber constructs a fresh host callback for the same runtime ID.
+    let curve = StatCurve::custom(
+        "numeric_conditions:custom_value"
+            .parse::<sand::resource_ref::FunctionId>()
+            .unwrap(),
+        |_, _| Ok(sand::entity::FixedValue::from_units(1)),
+    );
+    Some(
+        sand_core::events::TickEventDispatch::default()
+            .as_players()
+            .when(curve.gt(0)),
+    )
+}
+macro_rules! custom_tick_handler {
+    ($path:literal) => {
+        sand_core::inventory::submit! {
+            sand_core::EventDescriptor {
+                path: $path,
+                id_override: None,
+                make: Actions::default,
+                dispatch: sand_core::EventDispatch::Custom {
+                    make_trigger: || None,
+                    make_condition: || None,
+                    make_tick: rebuilt_custom_tick,
+                    make_chain: || None,
+                    make_tracked: || None,
+                    make_participants: || sand_core::participant::EventParticipantPlan::none(),
+                    revoke: || true,
+                    event_type_id: std::any::TypeId::of::<RebuiltCustomTick>,
+                    event_type_name: std::any::type_name::<RebuiltCustomTick>,
+                    make_setup: sand_core::events::EventSetup::none,
+                },
+            }
+        }
+    };
+}
+custom_tick_handler!("custom_first_handler");
+custom_tick_handler!("custom_second_handler");
+sand_core::inventory::submit! {
+    sand_core::FunctionDescriptor {
+        context: sand::advanced::compiler::ExecutionContext::Server,
+        path: "custom_value",
+        make: || mcfunction![sand::command::return_cmd(1);],
+    }
+}

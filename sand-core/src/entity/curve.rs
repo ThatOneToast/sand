@@ -860,9 +860,9 @@ struct CustomCurve {
 
 impl PartialEq for CustomCurve {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-            && self.inputs == other.inputs
-            && Arc::ptr_eq(&self.callback, &other.callback)
+        // Runtime identity is declared by the function and its input contract.
+        // Rebuilding the host evaluator must not change event graph identity.
+        self.id == other.id && self.inputs == other.inputs
     }
 }
 

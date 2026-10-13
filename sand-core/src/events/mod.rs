@@ -534,7 +534,7 @@ pub(crate) struct BoundedEventDependency {
     #[doc(hidden)]
     pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub(crate) event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> GraphEventSetup,
     #[doc(hidden)]
     pub(crate) window: TickWindow,
 }
@@ -548,9 +548,26 @@ pub(crate) struct PersistentEventDependency {
     #[doc(hidden)]
     pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub(crate) event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> GraphEventSetup,
     #[doc(hidden)]
     pub(crate) make_condition: fn() -> PersistentEventCondition,
+}
+
+/// Internal graph definition: global lifecycle and subject-bound participants
+/// must remain distinct until the exporter chooses their execution contexts.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct GraphEventSetup {
+    pub lifecycle: EventSetup,
+    pub participants: crate::participant::EventParticipantPlan,
+}
+
+impl From<EventSetup> for GraphEventSetup {
+    fn from(lifecycle: EventSetup) -> Self {
+        Self {
+            lifecycle,
+            participants: crate::participant::EventParticipantPlan::none(),
+        }
+    }
 }
 
 /// One typed same-cycle event occurrence dependency.
@@ -563,17 +580,9 @@ pub(crate) struct SameCycleEventDependency {
     #[doc(hidden)]
     pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub(crate) event_setup: fn() -> EventSetup,
-    /// `E::setup()` called directly, with no participant-plan merge — unlike
-    /// `event_setup` (which is `dependency_setup`, crate-private, the
-    /// participants-merged view a same-cycle child's own recursively-discovered `EventSetup`
-    /// must match). The advancement-bridge eligibility check (#269) needs
-    /// this raw form: a bridge parent's own lifecycle `setup()` must still
-    /// be empty (Phase 6 never runs it), but a non-empty `participants()`
-    /// plan is no longer disqualifying — the export pipeline applies it
-    /// directly around the synthesized bridge entry instead (see
-    /// `sand-core/src/events/graph.rs`'s bridge-eligibility check and
-    /// `sand-core/src/compiler/export/pipeline.rs`'s bridge loop).
+    pub(crate) event_setup: fn() -> GraphEventSetup,
+    /// Raw lifecycle for advancement-bridge eligibility, which does not run
+    /// tick lifecycle commands but does apply the separate participant plan.
     #[doc(hidden)]
     pub(crate) event_raw_setup: fn() -> EventSetup,
     /// `E::participants()` called directly — the raw plan factory carried
@@ -589,24 +598,13 @@ pub(crate) struct SameCycleEventDependency {
     pub(crate) event_revoke: fn() -> bool,
 }
 
-/// `E::setup()` with `E::participants()` merged in exactly the same way the
-/// export pipeline's `apply_participants_to_setup` merges it for `E`'s own
-/// direct registration (#264) — used as this dependency's `event_setup`
-/// factory so a same-cycle child's recursively-discovered view of a
-/// participant-declaring parent's `EventSetup` is byte-identical to that
-/// parent's own explicitly-registered `EventSetup`, not a stale
-/// participant-less copy (which the graph's own consistency validation
-/// would then correctly reject as two conflicting definitions of one
-/// event).
-///
-fn dependency_setup<E: SandEvent + 'static>() -> EventSetup {
-    let plan = E::participants();
-    if plan.is_empty() {
-        return E::setup();
+/// Retain a recursively discovered parent's canonical lifecycle and participant
+/// declarations separately, just as its direct registration does.
+fn dependency_setup<E: SandEvent + 'static>() -> GraphEventSetup {
+    GraphEventSetup {
+        lifecycle: E::setup(),
+        participants: E::participants(),
     }
-    E::setup()
-        .with_participants::<E>(plan)
-        .expect("a same-cycle graph parent's participant plan must be valid")
 }
 
 impl SameCycleEventDependency {
@@ -2062,28 +2060,20 @@ pub trait SandEvent {
         EventSetup::none()
     }
 
-    /// Which participant observations this event declares (#230 Phase 10).
+    /// Declare temporary entity and item evidence available to this event.
     ///
-    /// Defaults to [`crate::participant::EventParticipantPlan::none`] — a
-    /// genuinely additive default; every existing `SandEvent` implementation
-    /// is unaffected by this method's existence. The export pipeline applies
-    /// a declared plan automatically for every dispatch backend that can
-    /// meaningfully own one — tick-lifecycle/tick-poll dispatch, same-cycle
-    /// chained dispatch (#264), and tracked-transition dispatch (#270) all
-    /// merge it into the generated detector/handler around the same
-    /// pre/post-observation boundary [`EventSetup::with_participants`]
-    /// documents; you do not need to call `with_participants` yourself
-    /// unless you are hand-assembling an `EventSetup` outside the normal
-    /// `#[on_event]` path. See `sand-core/src/participant/plan.rs`'s module doc
-    /// for the exact lifecycle ordering per backend.
+    /// Sand captures the plan as the triggering subject before its handlers,
+    /// keeps it alive through supported descendants, and clears it before the
+    /// next subject. Global tick lifecycle commands remain separate. The
+    /// default is an empty plan. See [`crate::participant::plan`] for ordering.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::SandEvent::participants", kind = "trait_method",
         aliases = ["sand::prelude::SandEvent::participants"],
         module = "sand::events",
         summary = "Which participant observations this event declares (#230 Phase 10).",
-        context = "Which participant observations this event declares (#230 Phase 10). Defaults to [`sand::participant::EventParticipantPlan::none`] — a genuinely additive default; every existing `SandEvent` implementation is unaffected by this method's existence. The export pipeline applies a declared plan automatically for every dispatch backend that can meaningfully own one — tick-lifecycle/tick-poll dispatch, same-cycle chained dispatch (#264), and tracked-transition dispatch (#270) all merge it into the generated detector/handler around the same pre/post-observation boundary [`EventSetup::with_participants`] documents; you do not need to call `with_participants` yourself unless you are hand-assembling an `EventSetup` outside the normal `#[on_event]` path. See `sand-core/src/participant/plan.rs`'s module doc for the exact lifecycle ordering per backend.",
-        minecraft = "Defaults to [`sand::participant::EventParticipantPlan::none`] — a genuinely additive default; every existing `SandEvent` implementation is unaffected by this method's existence. The export pipeline applies a declared plan automatically for every dispatch backend that can meaningfully own one — tick-lifecycle/tick-poll dispatch, same-cycle chained dispatch (#264), and tracked-transition dispatch (#270) all merge it into the generated detector/handler around the same pre/post-observation boundary [`EventSetup::with_participants`] documents; you do not need to call `with_participants` yourself unless you are hand-assembling an `EventSetup` outside the normal `#[on_event]` path. See `sand-core/src/participant/plan.rs`'s module doc for the exact lifecycle ordering per backend.",
+        context = "The compiler retains the canonical plan and captures it inside the subject dispatch, separately from global lifecycle commands.",
+        minecraft = "Temporary tags and item snapshots remain live through supported descendants and are cleared before the next subject.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
         returns = "The `sand :: participant :: EventParticipantPlan` value produced to which participant observations this event declares (#230 Phase 10).",

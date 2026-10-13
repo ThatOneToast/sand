@@ -515,7 +515,9 @@ mod tests {
             type_id: TypeId::of::<()>(),
             type_name: name,
             origin: NodeOrigin::Root(TickEventDispatch::default()),
-            setup: EventSetup::none(),
+            setup: EventSetup::none().into(),
+            participant_capture: vec![],
+            participant_cleanup: vec![],
             handlers: vec!["h"],
         }
     }
@@ -535,7 +537,9 @@ mod tests {
                 when: vec![],
                 unless: vec![],
             },
-            setup: EventSetup::none(),
+            setup: EventSetup::none().into(),
+            participant_capture: vec![],
+            participant_cleanup: vec![],
             handlers: vec!["h"],
         }
     }
@@ -734,7 +738,9 @@ mod tests {
                 when: vec![],
                 unless: vec![],
             },
-            setup: EventSetup::none(),
+            setup: EventSetup::none().into(),
+            participant_capture: vec![],
+            participant_cleanup: vec![],
             handlers: vec!["h"],
         }
     }
@@ -761,7 +767,9 @@ mod tests {
                 when: vec![],
                 unless: vec![],
             },
-            setup: EventSetup::none(),
+            setup: EventSetup::none().into(),
+            participant_capture: vec![],
+            participant_cleanup: vec![],
             handlers: vec!["h"],
         }
     }
@@ -1015,7 +1023,9 @@ mod tests {
                 when: vec![],
                 unless: vec![],
             },
-            setup: EventSetup::none(),
+            setup: EventSetup::none().into(),
+            participant_capture: vec![],
+            participant_cleanup: vec![],
             handlers: vec!["h"],
         }
     }

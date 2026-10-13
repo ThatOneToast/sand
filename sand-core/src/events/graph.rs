@@ -26,8 +26,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::condition::{Condition, ScoreRange};
 use crate::events::{
-    EventSetup, NormalizedEventDispatch, SameCycleEventDependency, SameCycleEventRequirement,
-    SandEventDispatch, TickEventDispatch, TickExecutionPlans, TickScope, TickWindow,
+    EventSetup, GraphEventSetup, NormalizedEventDispatch, SameCycleEventDependency,
+    SameCycleEventRequirement, SandEventDispatch, TickEventDispatch, TickExecutionPlans, TickScope,
+    TickWindow,
 };
 
 /// A resolved persistent-state requirement. This is a dependency for graph
@@ -204,7 +205,9 @@ pub struct EventNode {
     /// generated-resource-key derivation.
     pub type_name: &'static str,
     pub origin: NodeOrigin,
-    pub setup: EventSetup,
+    pub setup: GraphEventSetup,
+    pub participant_capture: Vec<String>,
+    pub participant_cleanup: Vec<String>,
     /// Direct `#[on_event]` handler function paths, sorted.
     pub handlers: Vec<&'static str>,
 }
@@ -638,7 +641,7 @@ pub fn discover_node(
     type_id: TypeId,
     type_name: &'static str,
     dispatch: NormalizedEventDispatch,
-    setup: EventSetup,
+    setup: impl Into<GraphEventSetup>,
     handler_path: &'static str,
     resolved: &mut BTreeMap<TypeId, EventNode>,
     advancement_bridges: &mut BTreeMap<String, AdvancementBridge>,
@@ -648,7 +651,7 @@ pub fn discover_node(
         type_id,
         type_name,
         dispatch,
-        setup,
+        setup.into(),
         handler_path,
         resolved,
         &mut visiting,
@@ -668,7 +671,7 @@ fn discover(
     type_id: TypeId,
     type_name: &'static str,
     dispatch: NormalizedEventDispatch,
-    setup: EventSetup,
+    setup: GraphEventSetup,
     handler_path: &'static str,
     resolved: &mut BTreeMap<TypeId, EventNode>,
     visiting: &mut Vec<&'static str>,
@@ -750,7 +753,9 @@ fn discover(
                     )));
                 }
                 let dependency_setup = (dependency.event_setup)();
-                if dependency_setup != EventSetup::none() {
+                // A persistent query does not dispatch the provider, so its
+                // occurrence participant plan needs no capture or cleanup.
+                if dependency_setup.lifecycle != EventSetup::none() {
                     visiting.pop();
                     return Err(GraphError(format!(
                         "SandEvent `{type_name}` cannot evaluate persistent state `{dependency_type_name}`: its SandEvent::setup() is non-empty, but `while_` requires a directly queryable condition and never runs provider detector lifecycle; provision shared resources through typed state lifecycle or return an independently valid condition"
@@ -858,6 +863,10 @@ fn discover(
         }
     };
 
+    let (participant_capture, participant_cleanup) = setup
+        .participants
+        .build(type_name)
+        .map_err(|error| GraphError(format!("invalid participants for `{type_name}`: {error}")))?;
     visiting.pop();
     resolved.insert(
         type_id,
@@ -866,6 +875,8 @@ fn discover(
             type_name,
             origin,
             setup,
+            participant_capture,
+            participant_cleanup,
             handlers: Vec::new(),
         },
     );
@@ -986,8 +997,8 @@ fn resolve_occurrence_dependencies(
                 //
                 // This checks the *raw* `SandEvent::setup()` (#269), not
                 // `factory.event_setup` — the latter is [`dependency_setup`],
-                // which merges a declared `participants()` plan in exactly
-                // the way a same-cycle tick/chain child needs to see it. A
+                // which retains lifecycle and participant declarations together
+                // without merging their execution contexts. A
                 // bridge parent's `participants()` plan is no longer
                 // disqualifying on its own: the export pipeline applies it
                 // directly around the synthesized bridge entry instead (see
@@ -1014,7 +1025,7 @@ fn resolve_occurrence_dependencies(
                         type_id: parent_type_id,
                         type_name: parent_type_name,
                         event_dispatch: factory.event_dispatch,
-                        event_setup: factory.event_setup,
+                        event_setup: factory.event_raw_setup,
                         event_revoke: factory.event_revoke,
                         event_participants: factory.event_participants,
                     },
@@ -1157,15 +1168,15 @@ fn validate_definition_topology(
 fn validate_consistent(
     type_name: &'static str,
     dispatch: &NormalizedEventDispatch,
-    setup: &EventSetup,
+    setup: &GraphEventSetup,
     handler_path: &'static str,
     existing: &EventNode,
 ) -> Result<(), GraphError> {
     if &existing.setup != setup {
         return Err(GraphError(format!(
             "conflicting SandEvent definitions for `{type_name}`: handler(s) {:?} and handler \
-             `{handler_path}` returned different setup() results for the same event type — every \
-             handler subscribing to one SandEvent must observe identical dispatch()/setup() \
+             `{handler_path}` returned different setup()/participants() results for the same event type — every \
+             handler subscribing to one SandEvent must observe identical dispatch()/setup()/participants() \
              output",
             existing.handlers,
         )));
@@ -1222,7 +1233,7 @@ fn validate_consistent(
         return Err(GraphError(format!(
             "conflicting SandEvent definitions for `{type_name}`: handler(s) {:?} and handler \
              `{handler_path}` returned different dispatch() results for the same event type — \
-             every handler subscribing to one SandEvent must observe identical dispatch()/setup() \
+             every handler subscribing to one SandEvent must observe identical dispatch()/setup()/participants() \
              output",
             existing.handlers,
         )));

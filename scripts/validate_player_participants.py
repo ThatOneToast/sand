@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Verify real-player attacker observations and equipment snapshots on 26.2.
 
-Uses normal advancement and tick dispatch. The remaining killer/weapon-event,
-rapid-hit and composed-participant matrix in #265 is outside this audit.
+Uses normal advancement and tick dispatch, including real deaths and composed
+participants and attacking-player weapon snapshots. Rapid mixed-hit timing and
+client attack-input packets remain outside this audit.
 """
 from __future__ import annotations
 
@@ -68,6 +69,109 @@ class PlayerParticipantHarness(PlayerHarness):
                 self.equal_nbt(f"{player}_{field}", f"storage paudit:audit state.{field}", f"storage paudit:oracle {player}_{expected}")
         self.check_cleanup()
 
+    def verify_attacking_weapons(self):
+        for player in self.players:
+            for objective in ("paudit_wpn", "paudit_kwpn"):
+                self.send(f"scoreboard players set {player} {objective} 0")
+        for index, player in enumerate(self.players):
+            self.equip(player, index)
+            victim = f"@e[tag=paudit_victim_{index},limit=1]"
+            self.send(f'summon minecraft:cow {index * 3} 80 2 {{Tags:["paudit_victim_{index}"],NoAI:1b,PersistenceRequired:1b}}')
+            self.eventually(f"{player}_TARGET", f"if entity {victim}")
+            for field in ("weapon_item", "kill_weapon_item"):
+                self.send(f"data remove storage paudit:audit state.{field}")
+            self.send(f"damage {victim} 2 minecraft:generic by {player}")
+            self.eventually(f"{player}_HIT", f"if score {player} paudit_wpn matches 1")
+            self.check(f"{player}_HIT_PRESENT", "if data storage paudit:audit state{weapon_present:1b}")
+            self.equal_nbt(f"{player}_HIT_WEAPON", "storage paudit:audit state.weapon_item", f"storage paudit:oracle {player}_main")
+            self.send(f"damage {victim} 100 minecraft:generic by {player}")
+            self.eventually(f"{player}_KILL_TARGET", f"if score {player} paudit_kwpn matches 1")
+            self.check(f"{player}_KILL_PRESENT", "if data storage paudit:audit state{kill_weapon_present:1b}")
+            self.equal_nbt(f"{player}_KILL_WEAPON", "storage paudit:audit state.kill_weapon_item", f"storage paudit:oracle {player}_main")
+            self.send(f"item replace entity {player} weapon.mainhand with minecraft:air")
+            for field in ("weapon_item", "kill_weapon_item"):
+                self.equal_nbt(f"{player}_{field}_AFTER_CLEAR", f"storage paudit:audit state.{field}", f"storage paudit:oracle {player}_main")
+            other = self.players[1 - index]
+            self.check(f"{other}_KILL_TARGET_ISOLATED", f"if score {other} paudit_kwpn matches {index}")
+            self.check_cleanup()
+
+    def verify_composed_attacker(self, player, has_attacker=True):
+        fields = ("compose_parent_uuid", "compose_child_uuid", "compose_sibling_uuid")
+        for field in fields:
+            self.send(f"data remove storage paudit:audit state.{field}")
+        # Trigger only the fixture gate; normal tick and graph dispatch must
+        # capture as this subject and forward the same binding to descendants.
+        self.send(f"scoreboard players set {player} paudit_cmp_trg 1")
+        self.eventually(f"{player}_COMPOSED", f"if score {player} paudit_cmp_trg matches 0")
+        for field in fields:
+            if has_attacker:
+                self.equal_nbt(f"{player}_{field}", f"storage paudit:audit state.{field}", f"storage paudit:oracle {player}_attacker")
+            else:
+                self.check(f"{player}_{field}_ABSENT", f"unless data storage paudit:audit state.{field}")
+        self.check_cleanup()
+
+    def verify_composed_attackers(self):
+        for index, player in enumerate(self.players):
+            self.send(f"damage {player} 2 minecraft:generic by @e[tag=paudit_actor_{index},limit=1]")
+            self.verify_composed_attacker(player)
+
+    def verify_staged_fan_in(self):
+        for index, player in enumerate(self.players):
+            self.equip(player, index)
+            self.send(f"scoreboard players set {player} paudit_fan 0")
+        self.send("tick freeze")
+        try:
+            for phase in (1, 2):
+                for field in ("fan_alpha_uuid", "fan_beta_uuid", "fan_alpha_item", "fan_beta_item"):
+                    self.send(f"data remove storage paudit:audit state.{field}")
+                # Queue both players before advancing exactly one game tick.
+                # Phase 1 fires the named source; phase 2 fires only the other
+                # alternative, so the named source's evidence must be absent.
+                for player in self.players:
+                    self.send(f"scoreboard players set {player} paudit_cmp_trg {phase}")
+                self.send("tick step 1")
+                for player, label in zip(self.players, ("alpha", "beta")):
+                    self.eventually(f"{player}_FAN_PHASE_{phase}", f"if score {player} paudit_fan matches {phase}")
+                    expected = 1 if phase == 1 else 0
+                    for objective in ("paudit_fan_ent", "paudit_fan_item"):
+                        self.check(f"{player}_{objective}_{phase}", f"if score {player} {objective} matches {expected}")
+                    for field, oracle in ((f"fan_{label}_uuid", "attacker"), (f"fan_{label}_item", "main")):
+                        if phase == 1:
+                            self.equal_nbt(f"{player}_{field}", f"storage paudit:audit state.{field}", f"storage paudit:oracle {player}_{oracle}")
+                        else:
+                            self.check(f"{player}_{field}_SOURCE_ABSENT", f"unless data storage paudit:audit state.{field}")
+                self.check_cleanup()
+        finally:
+            self.send("tick unfreeze")
+
+    def verify_deaths(self):
+        for player in self.players:
+            self.send(f"scoreboard players set {player} paudit_kill 0")
+        for index, player in enumerate(self.players):
+            keep = index == 0
+            self.send(f"gamerule minecraft:keep_inventory {str(keep).lower()}")
+            self.equip(player, index)
+            for field in ("killer_uuid", "bridge_killer_uuid", "bridge_weapon_item", "bridge_weapon_present"):
+                self.send(f"data remove storage paudit:audit state.{field}")
+            self.send(f"damage {player} 100 minecraft:generic by @e[tag=paudit_actor_{index},limit=1]")
+            self.eventually(f"{player}_DEATH", f"if score {player} paudit_kill matches 1")
+            for field in ("killer_uuid", "bridge_killer_uuid"):
+                self.equal_nbt(f"{player}_{field}", f"storage paudit:audit state.{field}", f"storage paudit:oracle {player}_attacker")
+            present = "1b" if keep else "0b"
+            self.check(f"{player}_DEATH_WEAPON_PRESENCE", f"if data storage paudit:audit state{{bridge_weapon_present:{present}}}")
+            if keep:
+                self.equal_nbt(f"{player}_DEATH_WEAPON", "storage paudit:audit state.bridge_weapon_item", f"storage paudit:oracle {player}_main")
+                self.send(f"item replace entity {player} weapon.mainhand with minecraft:air")
+                self.equal_nbt(f"{player}_DEATH_WEAPON_FROZEN", "storage paudit:audit state.bridge_weapon_item", f"storage paudit:oracle {player}_main")
+            else:
+                # Vanilla drops inventory before the death advancement fires.
+                # Absence here is event-time evidence, not the pre-hit weapon.
+                self.check(f"{player}_DEATH_DROPPED", f"unless data entity {player} SelectedItem")
+                self.check(f"{player}_NO_STALE_DEATH_ITEM", "unless data storage paudit:audit state.bridge_weapon_item")
+            other = self.players[1 - index]
+            self.check(f"{other}_DEATH_ISOLATED", f"if score {other} paudit_kill matches {index}")
+            self.check_cleanup()
+
     def run_client(self):
         self.load_test_chunk("minecraft:overworld")
         self.send("difficulty normal")
@@ -88,6 +192,7 @@ class PlayerParticipantHarness(PlayerHarness):
         with self.clients():
             for index, player in enumerate(self.players):
                 self.send(f"tp {player} {index * 3 + 0.5} 80 0.5")
+                self.send(f"tag {player} add paudit_subject_{index}")
                 self.equip(player, index)
             time.sleep(4)
             for player in self.players:
@@ -97,6 +202,11 @@ class PlayerParticipantHarness(PlayerHarness):
             for index, player in enumerate(self.players):
                 self.send(f"damage {player} 2 minecraft:generic by @e[tag=paudit_actor_{index},limit=1]")
                 self.verify_capture(player, 1)
+                self.verify_composed_attacker(player)
+                if index == 0:
+                    # Beta has never been hit: it must not inherit Alpha's
+                    # freshly captured attacker through shared scratch state.
+                    self.verify_composed_attacker("SandBeta", has_attacker=False)
                 other = self.players[1 - index]
                 other_count = index
                 self.check(f"{other}_ISOLATED", f"if score {other} paudit_tracked matches {other_count}")
@@ -116,7 +226,11 @@ class PlayerParticipantHarness(PlayerHarness):
             self.send("damage SandAlpha 2 minecraft:generic by @e[tag=paudit_actor_0,limit=1]")
             self.verify_capture("SandAlpha", 2, equipped=False)
             self.check("BETA_AFTER_ALPHA_EMPTY", "if score SandBeta paudit_tracked matches 1")
-            print("PASSED: real advancement attackers, tracked participants, equipped/empty snapshots, isolation and reload", flush=True)
+            self.verify_attacking_weapons()
+            self.verify_composed_attackers()
+            self.verify_staged_fan_in()
+            self.verify_deaths()
+            print("PASSED: real attackers and killers, composed participants, tracked snapshots, isolation and reload", flush=True)
 
 
 def main():

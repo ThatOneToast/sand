@@ -63,15 +63,60 @@ A roof prevents sunlight from changing zombie helmet durability between oracle
 capture and observation. An initial uncovered run detected that change through
 the exact-compound comparison, rather than treating it as successful evidence.
 
+## Subject-scoped dispatch and composed evidence
+
+A second live regression exposed #429: the composed tick parent's capture ran
+in the server tick context, before `execute as @a`. The gate reset and handlers
+ran, but parent, child and sibling attacker UUIDs were absent. Fresh damage did
+not fix this execution-context error.
+
+The compiler now retains the canonical participant plan separately from global
+`EventSetup` commands. Capture runs inside the selected subject's dispatch.
+Immediate descendants share that binding; staged graphs finish one subject's
+cycle before advancing to another, resetting temporary evidence at both ends.
+Global root lifecycle commands still run once per tick. The obsolete manual
+`EventSetup::with_participants` endpoint is removed; declare the plan through
+`SandEvent::participants` instead.
+
+The audit compares the parent's, child's and sibling's captured UUIDs with the
+independent attacker oracle for each player. A never-hit Beta following Alpha's
+capture must produce no attacker evidence. Generated-output regressions also
+check staged fan-in, absent-source scratch reset, global lifecycle placement,
+and bounded per-subject snapshot persistence and expiry.
+
+A real staged fan-in scenario freezes game ticking, queues both players, and
+advances exactly one tick. Both players must capture their own distinct attacker
+UUID and main-hand compound. A second single tick fires only the alternate
+parent: each named-source entity and item must then be absent, with no stale
+field copied from either player's previous occurrence. Ticking is resumed in a
+finally block, including on assertion failure.
+
+## Weapon and death timing
+
+Each player damages and kills a separately summoned cow through `/damage ... by
+<player>`. The real advancements must capture the equipped weapon, agree with
+the full independent item oracle, and preserve their evidence after the live
+hand is cleared. The other player's kill counter stays unchanged.
+
+Real fatal damage then checks each player's killer and the same-cycle bridge's
+inherited killer. The bridge also observes the victim's own main hand. With
+`keep_inventory` enabled, the captured item is present and stable after a later
+inventory edit. With normal drops, vanilla clears inventory before the death
+advancement fires, so the snapshot is absent. Tests remove prior evidence first
+and reject stale item data. These outcomes preserve the post-trigger snapshot
+contract rather than claiming an exact pre-death item.
+
 ## Scope boundary
 
 The hand snapshots above belong to a tracked health observation and have its
-sampling time. They do not prove the separate attacking-player weapon event's
-advancement timing. The audit does not manually invoke a generated handler or
+sampling time. Separate attacking-player scenarios verify weapon snapshots at
+advancement dispatch; they do not reconstruct a pre-hit state vanilla already
+changed. The audit does not manually invoke a generated handler or
 grant an advancement, but the damage is server-directed rather than generated
 by a client's attack packet.
 
-Killer/bridge events, attacking-player weapon snapshots, composed participant
-forwarding and rapid mixed-attacker timing still require their own assertions.
+The extended audit also exercises actual attacking-player damage/kill advancements,
+real player deaths, and tick-composed parent/child/sibling participants. Rapid
+mixed-attacker timing still requires its own assertions.
 The two-player checks cover the controlled interleaving described above, not
 every concurrency or dimension case. #265 remains open.

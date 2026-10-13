@@ -135,6 +135,75 @@ impl SandEvent for Grandchild {
 }
 submit_chain_handler!(Grandchild, "on_grandchild", "say grandchild fired");
 
+struct CapturingChild;
+impl SandEvent for CapturingChild {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<BridgeParent>()
+    }
+    fn participants() -> EventParticipantPlan {
+        EventParticipantPlan::new().observe_correlated_attacker()
+    }
+}
+submit_chain_handler!(CapturingChild, "on_capturing_child", "say captured child");
+
+struct CapturingGrandchild;
+impl SandEvent for CapturingGrandchild {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<CapturingChild>()
+    }
+    fn participants() -> EventParticipantPlan {
+        EventParticipantPlan::new()
+            .inherit_entity::<CapturingChild>(EntityParticipantRole::Attacker)
+    }
+}
+submit_chain_handler!(
+    CapturingGrandchild,
+    "on_capturing_grandchild",
+    "say captured grandchild"
+);
+
+struct TickRoot;
+impl SandEvent for TickRoot {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players()
+    }
+}
+struct StagedConsumer;
+impl SandEvent for StagedConsumer {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::after_any::<(CapturingChild, TickRoot)>()
+    }
+}
+submit_chain_handler!(StagedConsumer, "on_staged_consumer", "say staged consumer");
+
+#[test]
+fn bridge_descendant_capture_is_cleaned_inline_even_when_occurrence_marked() {
+    let records = records();
+    let child_key = key(std::any::type_name::<CapturingChild>());
+    let dispatch = function(&records, &format!("__sand_event_dispatch/{child_key}"));
+    let capture = dispatch
+        .find("execute on attacker run")
+        .expect("capture as the bridge subject");
+    let handler = dispatch
+        .find("function bridgenestedpack:on_capturing_child")
+        .unwrap();
+    let nested = dispatch
+        .find("function bridgenestedpack:on_capturing_grandchild")
+        .unwrap();
+    let cleanup = dispatch
+        .rfind("tag @e[tag=__sand_observed_")
+        .expect("cleanup inside the synchronous bridge descendant");
+    assert!(
+        capture < handler && handler < nested && nested < cleanup,
+        "{dispatch}"
+    );
+    assert!(dispatch.contains(&format!("scoreboard players set @s se_{child_key}_o 1")));
+    assert!(
+        dispatch.lines().last().unwrap().ends_with("set value 0b"),
+        "presence is cleared before returning: {dispatch}"
+    );
+}
+
 fn key(type_name: &str) -> String {
     let mut hash: u32 = 2_166_136_261;
     for byte in type_name.bytes() {
@@ -179,8 +248,12 @@ fn bridge_entry_order_is_revoke_then_setup_then_every_descendant_then_cleanup() 
     let sibling_b_call_pos = entry
         .find("bridgenestedpack:on_sibling_b")
         .expect("sibling b must be dispatched directly from the bridge entry");
+    let dispatch_group_path = format!(
+        "__sand_event_dispatch/{}",
+        key(std::any::type_name::<SiblingA>())
+    );
     let dispatch_group_call_pos = entry
-        .find("bridgenestedpack:__sand_event_dispatch/")
+        .find(&format!("bridgenestedpack:{dispatch_group_path}"))
         .expect("sibling a's dispatch group (including its own chain child) must be called");
     let cleanup_pos = entry
         .rfind("tag @e[tag=__sand_observed_")
@@ -199,12 +272,7 @@ fn bridge_entry_order_is_revoke_then_setup_then_every_descendant_then_cleanup() 
     // The dispatch group itself must call SiblingA before Grandchild — the
     // nested descendant runs strictly after its direct ancestor, still
     // inside the same bridge cycle, before cleanup.
-    let dispatch_group_path = entry
-        .lines()
-        .find(|line| line.contains("__sand_event_dispatch/"))
-        .and_then(|line| line.strip_prefix("function bridgenestedpack:"))
-        .expect("dispatch group call line must be a plain `function <ref>` line");
-    let dispatch_group = function(&records, dispatch_group_path);
+    let dispatch_group = function(&records, &dispatch_group_path);
     let sibling_a_pos = dispatch_group
         .find("on_sibling_a")
         .expect("the dispatch group must call SiblingA");

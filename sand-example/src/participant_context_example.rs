@@ -1,6 +1,6 @@
 //! Automatic participant-plan integration for advancement-backed combat
 //! events (#230) — proves `AdvancementEvent::participants()` is applied by
-//! the export pipeline without any manual `EventSetup`/`with_participants`
+//! the export pipeline without any manual lifecycle-command
 //! wiring from the handler author, and that the resulting accessors are
 //! infallible typed values, not a `ParticipantAvailability` wrapper (#273).
 

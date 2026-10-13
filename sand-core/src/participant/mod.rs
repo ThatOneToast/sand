@@ -34,10 +34,8 @@
 //! - [`plan::EventParticipantPlan`] — a declarative way for an event
 //!   definition to state which participant observations it needs
 //!   (`SandEvent::participants()`/`AdvancementEvent::participants()`).
-//!   Advancement-backed events (`AdvancementEvent::participants`) are
-//!   applied automatically by the export pipeline; tick-dispatch events
-//!   (`SandEvent::participants`) still apply it via
-//!   `EventSetup::with_participants` from their own `setup()`. Also covers
+//!   Sand applies both declarations automatically in the subject context,
+//!   separately from global tick lifecycle commands. Also covers
 //!   held-item snapshots (`observe_weapon`/`observe_held_item`), backed by
 //!   [`crate::item::ItemSnapshot`].
 //! - [`builder::ParticipantBuilder`] — the public, ordinary-Rust builder for

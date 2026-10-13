@@ -121,8 +121,8 @@ results by category.
 | Advancement-bridge inheritance (`PlayerKillEvent` → `SpecialKillEvent`) | ✅ Proven (same caveat) | Same technique/proof for `bridge_killer_uuid`, invoking the synthesized bridge entry function directly. |
 | Stale-state cleanup (temporary observation tag) | ✅ Proven | Confirmed gone from the real entity after handler completion, not just removed in generated text. |
 | Weapon snapshot, absent-mainhand branch | ✅ Proven | A subject with no `SelectedItem` produces `weapon_present: 0b` live. |
-| Weapon/held-item snapshot, present branch (actual captured item) | ❌ **Not achieved** | Requires a real player client — see "#265 (this pass)" below for why a non-player stand-in doesn't work here. |
-| Combat participants driven by the real advancement criterion | ✅ Attacker case proven | The player-participant audit verifies both attacker handlers against independent UUIDs. Killer/bridge and attacking-player weapon events remain separate. |
+| Weapon/held-item snapshot, present branch (actual captured item) | ✅ Proven with real players | The participant audit compares complete held-item compounds with independent NBT oracles, including attacking-player damage/kill advancements and tracked observations. |
+| Combat participants driven by the real advancement criterion | ✅ Attacker, killer and weapon cases proven | The player-participant audit uses actual damage and deaths, verifies direct and inherited killer UUIDs, and distinguishes retained from dropped victim inventory. |
 | Two independent player sessions | ✅ Proven for observations | The player-observation harness checks both players online, native health/effect transitions, isolated counts and reload through normal tick dispatch. The player-participant audit separately verifies interleaved attacker and tracked-item ownership. |
 
 ## Sustained player sessions and remaining participant coverage
@@ -146,8 +146,11 @@ The separate [equipment and participant audit](../../docs/testing/player-equipme
 now covers advancement-driven attacker UUIDs, tracked participants, exact held
 item compounds, player/mob armor reads, post-capture item changes, interleaved
 player isolation and reload. It runs through `../validate_player_participants.py`.
-Killer/bridge events, attacking-player weapon-event timing, composed forwarding
-and rapid-hit cases still need their own assertions. #265 remains open.
+It additionally checks real damage/kill weapon events, death/bridge inheritance,
+and composed tick participants. A frozen, single-step two-player scenario checks
+staged fan-in and absent named sources without relying on command arrival timing.
+Rapid mixed-hit timing, client attack-input packets and wider dimension cases
+remain outside these assertions. #265 remains open.
 
 ## #269/#280: advancement-bridge parent → SandEvent child validation attempt
 

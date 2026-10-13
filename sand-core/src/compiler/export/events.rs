@@ -86,6 +86,13 @@ pub(crate) fn setup_objective_owner<'a>(
     })
 }
 
+/// The owner that guarantees deferred lifecycle and participant cleanup.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DispatchContext {
+    TickCycle,
+    AdvancementBridge,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ChildPostObservation {
     Inline,
@@ -119,6 +126,7 @@ pub(crate) fn build_dispatch_function(
     namespace: &str,
     self_guard: Option<&str>,
     occurrence_marked: &std::collections::BTreeSet<String>,
+    context: DispatchContext,
     guarded_children: &mut std::collections::BTreeSet<String>,
     bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
@@ -174,7 +182,8 @@ pub(crate) fn build_dispatch_function(
     }
     for edge in &children {
         let child_node = &graph.nodes[&edge.child];
-        let post_observation = if occurrence_marked.contains(&edge.child)
+        let post_observation = if context == DispatchContext::TickCycle
+            && occurrence_marked.contains(&edge.child)
             && !child_node.setup.lifecycle.post_observation.is_empty()
         {
             ChildPostObservation::DeferredByAttempt
@@ -186,6 +195,7 @@ pub(crate) fn build_dispatch_function(
             graph,
             namespace,
             occurrence_marked,
+            context,
             post_observation,
             guarded_children,
             bounded_item,
@@ -193,7 +203,9 @@ pub(crate) fn build_dispatch_function(
         ));
     }
 
-    if !records_occurrence {
+    // An occurrence mark is not proof that the tick coordinator owns this
+    // call: advancement rewards execute their descendants synchronously.
+    if context == DispatchContext::AdvancementBridge || !records_occurrence {
         cmds.extend(node.participant_cleanup.iter().cloned());
     }
 
@@ -226,6 +238,7 @@ pub(crate) fn build_child_edge(
     graph: &crate::events::graph::EventGraph,
     namespace: &str,
     occurrence_marked: &std::collections::BTreeSet<String>,
+    context: DispatchContext,
     post_observation: ChildPostObservation,
     guarded_children: &mut std::collections::BTreeSet<String>,
     bounded_item: BoundedItemCodegen<'_>,
@@ -238,6 +251,7 @@ pub(crate) fn build_child_edge(
         namespace,
         None,
         occurrence_marked,
+        context,
         guarded_children,
         bounded_item,
         records,

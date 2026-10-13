@@ -21,11 +21,11 @@ use super::dialogs::{
     DialogCallbackExportReset, dialog_callback_export_lock, drain_dialog_callbacks_into,
 };
 use super::events::{
-    ChildPostObservation, CustomDispatchBackend, build_child_edge, build_dispatch_function,
-    build_staged_occurrence_lines, build_staged_post_observation_line, check_event_trigger,
-    graph_event_setup, participant_accessor_panic_export_error, participant_plan_export_error,
-    resolve_custom_dispatch_backend, setup_objective_owner, tick_event_export_error,
-    xp_advance_command, xp_score_commands,
+    ChildPostObservation, CustomDispatchBackend, DispatchContext, build_child_edge,
+    build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
+    check_event_trigger, graph_event_setup, participant_accessor_panic_export_error,
+    participant_plan_export_error, resolve_custom_dispatch_backend, setup_objective_owner,
+    tick_event_export_error, xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_generated_resources_into, resolve_local_refs};
 use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
@@ -1636,6 +1636,7 @@ pub(crate) fn try_export_components_impl(
                     namespace,
                     self_guard.as_deref(),
                     &occurrence_marked,
+                    DispatchContext::TickCycle,
                     &mut guarded_children,
                     bounded_item_codegen,
                     &mut records,
@@ -1655,6 +1656,7 @@ pub(crate) fn try_export_components_impl(
                 &graph,
                 namespace,
                 &occurrence_marked,
+                DispatchContext::TickCycle,
                 ChildPostObservation::DeferredByOccurrence,
                 &mut guarded_children,
                 bounded_item_codegen,
@@ -2119,6 +2121,7 @@ pub(crate) fn try_export_components_impl(
                     &graph,
                     namespace,
                     &occurrence_marked,
+                    DispatchContext::AdvancementBridge,
                     ChildPostObservation::Inline,
                     &mut guarded_children,
                     bounded_item_codegen,

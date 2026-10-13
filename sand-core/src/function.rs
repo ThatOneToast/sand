@@ -122,18 +122,12 @@ pub enum EventDispatch {
     /// `__sand_death_init` load function (adds the `deathCount` objective).
     DeathTick,
 
-    /// Fires on the first tick after a server start, `/reload`, or when a new
-    /// player joins mid-session.
+    /// Tick-observed player joins, reconnects, and presence after load/reload.
     ///
-    /// Sand generates a `__sand_join_init` load function that creates the
-    /// `__sand_join` scoreboard objective and resets all scores on every load,
-    /// plus a `__sand_join_check` tick function that runs all handlers for
-    /// any online player whose `__sand_join` score is not 1, then sets the
-    /// score to 1.
-    ///
-    /// **Vanilla limitation:** mid-session disconnect → reconnect without a
-    /// `/reload` does **not** re-fire because the player's score persists in
-    /// `scoreboard.dat`. True per-login detection requires a mod or plugin.
+    /// Uses namespace-owned vanilla leave-game and baseline scores through the
+    /// shared player lifecycle. The baseline advances before callbacks; handlers
+    /// run in function-path order for each player after player State provisioning.
+    /// See [`crate::events::OnJoinEvent`] for occurrence and reload semantics.
     JoinTick,
 
     /// Fires on the first Sand tick that observes a player active after an

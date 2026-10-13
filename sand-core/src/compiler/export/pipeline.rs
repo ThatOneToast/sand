@@ -937,69 +937,6 @@ pub(crate) fn try_export_components_impl(
         entry.3.push((is_equip, desc.path));
     }
 
-    // ── JoinTick aggregation ──────────────────────────────────────────────────
-    // Detection: players whose `__sand_join` scoreboard score is unset (never
-    // seen) or was cleared by the load-time reset have (re)joined since the
-    // last server start/reload.
-    //
-    // WHY scoreboard instead of entity tag:
-    //   Entity tags are saved to each player's playerdata/<uuid>.dat, so they
-    //   persist across disconnects. A player who logs out still has the tag
-    //   when they log back in, so tag-based detection fires only once ever.
-    //   Scoreboard scores live in the world's scoreboard.dat.
-    //   `scoreboard players reset * __sand_join` (run on minecraft:load)
-    //   clears ALL entries — including offline players — so the next time
-    //   any player joins after a server start or /reload, they fire OnJoin.
-    //
-    // KNOWN LIMITATION:
-    //   Mid-session disconnect → reconnect WITHOUT a /reload does NOT re-fire
-    //   OnJoin. The score for the player is still 1 in scoreboard.dat.
-    //   True per-login detection for mid-session reconnects requires a mod or
-    //   plugin; it is not achievable in vanilla datapacks.
-    if !join_tick_events.is_empty() {
-        // ── Init (minecraft:load) ──────────────────────────────────────────
-        let join_init_path = "__sand_join_init";
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: join_init_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            // `reset *` clears ALL tracked entries, including offline players.
-            content: "scoreboard objectives add __sand_join dummy\nscoreboard players reset * __sand_join".to_string(),
-        });
-        tag_map
-            .entry("minecraft:load".to_string())
-            .or_default()
-            .push(format!("{namespace}:{join_init_path}"));
-
-        // ── Tick check ────────────────────────────────────────────────────
-        let join_path = "__sand_join_check";
-        let mut join_cmds: Vec<String> = Vec::new();
-        for desc in &join_tick_events {
-            join_cmds.push(format!(
-                "execute as @a unless score @s __sand_join matches 1 at @s run function {namespace}:{}",
-                desc.path
-            ));
-        }
-        // Set score for all online players AFTER all handlers have run, so
-        // every handler fires for a newly-joined player on the same tick.
-        join_cmds.push("scoreboard players set @a __sand_join 1".to_string());
-
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: join_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: join_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:tick".to_string())
-            .or_default()
-            .push(format!("{namespace}:{join_path}"));
-    }
-
     // ── DeathTick + RespawnTick aggregation ───────────────────────────────────
     death_tick_events.sort_by_key(|desc| desc.path);
     respawn_tick_events.sort_by_key(|desc| desc.path);
@@ -2569,9 +2506,15 @@ pub(crate) fn try_export_components_impl(
             }
         }
 
-        let transition_plan =
-            crate::transition::resolve_unified_transition_plan(namespace, &transition_handlers)
-                .map_err(transition_export_error)?;
+        let transition_plan = crate::transition::resolve_unified_transition_plan(
+            namespace,
+            &transition_handlers,
+            &join_tick_events
+                .iter()
+                .map(|handler| handler.path)
+                .collect::<Vec<_>>(),
+        )
+        .map_err(transition_export_error)?;
         for generated in &transition_plan.functions {
             transition_private_metadata.insert(
                 generated.path.clone(),
@@ -2605,9 +2548,23 @@ pub(crate) fn try_export_components_impl(
                 )));
             }
         }
+        for (owner, _, command) in &registration_load_commands {
+            if let Some(objective) = command
+                .strip_prefix("scoreboard objectives add ")
+                .and_then(|rest| rest.split_whitespace().next())
+                && let Some((tracker_id, source)) = transition_objectives.get(objective)
+            {
+                return Err(transition_export_error(format!(
+                    "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with a registered lifecycle declaration from `{owner}`"
+                )));
+            }
+        }
         automatic
             .load_commands
             .extend(transition_plan.load_commands);
+        automatic
+            .global_init_commands
+            .extend(transition_plan.reload_commands);
         automatic
             .player_tick_commands
             .extend(transition_plan.tick_commands);

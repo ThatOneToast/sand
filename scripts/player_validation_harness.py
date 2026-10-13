@@ -28,18 +28,25 @@ class PlayerHarness(WorldGameplayHarness):
         raise ValidationFailure(name, f"condition did not become true: {condition}")
 
     @contextmanager
-    def clients(self):
+    def clients(self, *, players=None):
+        """Connect selected players; nested sessions retain independent logs."""
+        players = self.players if players is None else tuple(players)
+        sessions = getattr(self, "_client_sessions", {})
+        self._client_sessions = sessions
         with ExitStack() as stack:
             processes = []
             try:
-                for player in self.players:
-                    log = stack.enter_context((self.output / f"{player}.log").open("w"))
+                for player in players:
+                    sessions[player] = sessions.get(player, 0) + 1
+                    suffix = "" if sessions[player] == 1 else f"-{sessions[player]}"
+                    log = stack.enter_context((self.output / f"{player}{suffix}.log").open("w"))
+                    start = len(self.lines)
                     process = subprocess.Popen([
                         sys.executable, "-u", str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
                         "127.0.0.1", str(self.port), "776", player, str(self.args.timeout * 4 + 90),
                     ], stdout=log, stderr=subprocess.STDOUT)
                     processes.append(process)
-                    self.wait_for(re.compile(re.escape(player) + r" joined the game$"), "player-join")
+                    self.wait_for(re.compile(re.escape(player) + r" joined the game$"), "player-join", start)
                 yield
                 if any(process.poll() is not None for process in processes):
                     raise ValidationFailure("player-client", "a client exited during the assertions")

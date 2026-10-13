@@ -535,7 +535,8 @@ impl<K: LivingEntityKind> LivingEntity<K> {
 
     /// Reads the effective native attribute, including Minecraft modifiers, as
     /// Sand's canonical numeric expression. The source is selected and read
-    /// once per evaluation; this is not the base value stored in entity NBT.
+    /// once per evaluation. Use [`Self::attribute_base`] to read the configured
+    /// value without modifiers or effective-range clamping.
     ///
     /// Minecraft truncates the scaled result toward zero at the expression's
     /// working precision (1000 units by default). Subsequent arithmetic and
@@ -562,7 +563,44 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         params(attribute = "The typed attribute used by this operation."),
     )]
     pub fn attribute(&self, attribute: AttributeType) -> super::StatCurve {
-        super::StatCurve::native_attribute(self.selector.clone(), attribute)
+        super::StatCurve::native_attribute(
+            self.selector.clone(),
+            attribute,
+            super::curve::NativeAttributeValue::Effective,
+        )
+    }
+
+    /// Reads the configured native attribute base without applying modifiers.
+    ///
+    /// This uses the same numeric conversion and failure policy as
+    /// [`Self::attribute`]: Minecraft truncates at the working precision, and
+    /// missing owners/attributes or saturated results do not commit assignments.
+    /// Compare the effective and base expressions to detect modifier influence.
+    /// Unlike the effective value, the stored base may lie outside the native
+    /// attribute range. Minecraft converts a stored NaN base to command result
+    /// zero; Sand cannot distinguish that from a real zero at this boundary.
+    /// This is a native read, not a separate State value or ownership binding.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::LivingEntity::attribute_base",
+        aliases = ["sand::prelude::LivingEntity::attribute_base"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Reads a native attribute base as the canonical numeric expression.",
+        context = "Shares AttributeType and StatCurve with effective attribute reads and archetype bindings; modifiers are excluded from this native source.",
+        minecraft = "Resolves one owner and reads attribute base get at the working fixed-point precision with success and saturation guards.",
+        use_when = ["Comparing configured base values with effective attributes", "Assigning native attribute bases into State"],
+        avoid_when = ["Including modifiers; use attribute", "Changing the native base; use set_attribute_base"],
+        params(attribute = "The canonical typed native attribute to read."),
+        returns = "A StatCurve that composes with State assignments, arithmetic, and Conditions.",
+        example = "use sand::prelude::*; Target::players().each(|player| when(player.living().attribute(AttributeType::MovementSpeed).gt(player.living().attribute_base(AttributeType::MovementSpeed))).then_all([\"say boosted\"]));",
+    )]
+    pub fn attribute_base(&self, attribute: AttributeType) -> super::StatCurve {
+        super::StatCurve::native_attribute(
+            self.selector.clone(),
+            attribute,
+            super::curve::NativeAttributeValue::Base,
+        )
     }
 
     #[sand_macros::api(

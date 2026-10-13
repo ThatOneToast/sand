@@ -776,8 +776,9 @@ mod world_build_audit_tests {
 #[function]
 pub fn audit_native_attribute_values() {
     Target::players().each(|player| {
-        when(player.living().attribute(AttributeType::MovementSpeed).gt(0))
-            .then_all(["say native attribute read"])
+        when(player.living().attribute(AttributeType::MovementSpeed)
+            .gt(player.living().attribute_base(AttributeType::MovementSpeed)))
+            .then_all(["say native attribute modifier boost"])
     });
 }
 

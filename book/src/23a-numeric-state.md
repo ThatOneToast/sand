@@ -101,12 +101,27 @@ mark both the field and its component dirty. Archetype derivations and native
 property reconciliation therefore see the change without hand-written
 objective names.
 
-## Effective native attributes
+## Native attribute values
 
 `player.living().attribute(AttributeType::MovementSpeed)` returns a `StatCurve`
 for Minecraft's effective attribute, including modifiers. Use it directly in
 State assignments, arithmetic, and comparisons. It shares `AttributeType` with
 archetype attribute bindings; it does not read only the base value from NBT.
+
+Use `player.living().attribute_base(AttributeType::MovementSpeed)` for the
+configured base without modifiers. Both reads use the same canonical numeric
+expression and can be compared directly:
+
+```rust,ignore
+let living = player.living();
+let boosted = living.attribute(AttributeType::MovementSpeed)
+    .gt(living.attribute_base(AttributeType::MovementSpeed));
+```
+
+The stored base can lie outside the attribute's effective range. Minecraft's
+command conversion maps a NaN base to zero; this is indistinguishable from a
+real zero at that boundary. Effective reads instead apply Minecraft's native
+attribute clamping before conversion.
 
 Each evaluation selects one owner and reads once. Missing owners/attributes fail
 the evaluation and preserve assignment destinations. Minecraft truncates toward

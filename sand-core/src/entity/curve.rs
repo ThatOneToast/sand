@@ -669,11 +669,12 @@ pub(crate) enum LoweredCurveOperation {
         /// Source score objective.
         source: String,
     },
-    /// Read one effective native attribute at the working fixed-point scale.
+    /// Read one native attribute value at the working fixed-point scale.
     AttributeToFixed {
         destination: String,
         target: sand_commands::Selector,
         attribute: sand_components::item::AttributeType,
+        value: NativeAttributeValue,
         scale: i64,
         overflow: OverflowPolicy,
     },
@@ -962,11 +963,19 @@ enum CurveKind {
     Custom(CustomCurve),
 }
 
+/// Which native attribute value supplies a canonical numeric expression.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NativeAttributeValue {
+    Effective,
+    Base,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum CurveInput {
     Attribute {
         target: sand_commands::Selector,
         attribute: sand_components::item::AttributeType,
+        value: NativeAttributeValue,
     },
     InventoryCount {
         target: sand_commands::Selector,
@@ -994,8 +1003,12 @@ impl CurveInput {
             } => format!("{holder} {objective}"),
             Self::Score { objective, .. } => objective.clone(),
             Self::Nbt { target, path } => format!("nbt {target} {path}"),
-            Self::Attribute { target, attribute } => {
-                format!("attribute {target} {}", attribute.as_str())
+            Self::Attribute {
+                target,
+                attribute,
+                value,
+            } => {
+                format!("attribute {target} {} {value:?}", attribute.as_str())
             }
             Self::InventoryCount { target, item } => format!("inventory {target} {item:?}"),
         }
@@ -1204,9 +1217,14 @@ impl StatCurve {
     pub(crate) fn native_attribute(
         target: sand_commands::Selector,
         attribute: sand_components::item::AttributeType,
+        value: NativeAttributeValue,
     ) -> Self {
         Self {
-            kind: CurveKind::Input(CurveInput::Attribute { target, attribute }),
+            kind: CurveKind::Input(CurveInput::Attribute {
+                target,
+                attribute,
+                value,
+            }),
         }
     }
 
@@ -2483,12 +2501,17 @@ impl CurveLoweringBuilder<'_> {
                         overflow: self.fixed.overflow(),
                     });
                 }
-                CurveInput::Attribute { target, attribute } => {
+                CurveInput::Attribute {
+                    target,
+                    attribute,
+                    value,
+                } => {
                     self.operations
                         .push(LoweredCurveOperation::AttributeToFixed {
                             destination: destination.clone(),
                             target: target.clone(),
                             attribute: attribute.clone(),
+                            value: *value,
                             scale: self.fixed.scale(),
                             overflow: self.fixed.overflow(),
                         });

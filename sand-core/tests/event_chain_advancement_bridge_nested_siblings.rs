@@ -162,22 +162,8 @@ submit_chain_handler!(
     "say captured grandchild"
 );
 
-struct TickRoot;
-impl SandEvent for TickRoot {
-    fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::tick().as_players()
-    }
-}
-struct StagedConsumer;
-impl SandEvent for StagedConsumer {
-    fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::after_any::<(CapturingChild, TickRoot)>()
-    }
-}
-submit_chain_handler!(StagedConsumer, "on_staged_consumer", "say staged consumer");
-
 #[test]
-fn bridge_descendant_capture_is_cleaned_inline_even_when_occurrence_marked() {
+fn bridge_descendant_capture_surrounds_synchronous_consumers() {
     let records = records();
     let child_key = key(std::any::type_name::<CapturingChild>());
     let dispatch = function(&records, &format!("__sand_event_dispatch/{child_key}"));
@@ -197,7 +183,6 @@ fn bridge_descendant_capture_is_cleaned_inline_even_when_occurrence_marked() {
         capture < handler && handler < nested && nested < cleanup,
         "{dispatch}"
     );
-    assert!(dispatch.contains(&format!("scoreboard players set @s se_{child_key}_o 1")));
     assert!(
         dispatch.lines().last().unwrap().ends_with("set value 0b"),
         "presence is cleared before returning: {dispatch}"

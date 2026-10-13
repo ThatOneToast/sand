@@ -1353,13 +1353,15 @@ impl ChainEventDispatch {
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_any` groups in one definition are rejected at export
     /// because their coalescing boundary would otherwise be ambiguous.
+    /// Advancement-backed events and their synchronous descendants cannot
+    /// supply this tick-staged dependency; use an unbounded single-parent chain.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::ChainEventDispatch::after_any",
         module = "sand::events",
         kind = "method",
         summary = "Require at least one event in `G` to have fired for the same subject during the current event cycle.",
-        context = "Require at least one event in `G` to have fired for the same subject during the current event cycle. `G` is a tuple of two through eight concrete [`SandEvent`] types. Multiple `after_any` groups in one definition are rejected at export because their coalescing boundary would otherwise be ambiguous.",
+        context = "Require at least one event in `G` to have fired for the same subject during the current event cycle. `G` is a tuple of two through eight concrete [`SandEvent`] types. Multiple `after_any` groups in one definition are rejected at export because their coalescing boundary would otherwise be ambiguous. Advancement-backed events and their synchronous descendants cannot supply tick-staged occurrence or bounded dependencies.",
         minecraft = "`G` is a tuple of two through eight concrete [`SandEvent`] types. Multiple `after_any` groups in one definition are rejected at export because their coalescing boundary would otherwise be ambiguous.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
@@ -1375,13 +1377,15 @@ impl ChainEventDispatch {
     ///
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_all` groups in one definition are rejected at export.
+    /// Advancement-backed events and their synchronous descendants cannot
+    /// supply this tick-staged dependency; use an unbounded single-parent chain.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::ChainEventDispatch::after_all",
         module = "sand::events",
         kind = "method",
         summary = "Require every event in `G` to have fired for the same subject during the current event cycle.",
-        context = "Require every event in `G` to have fired for the same subject during the current event cycle. `G` is a tuple of two through eight concrete [`SandEvent`] types. Multiple `after_all` groups in one definition are rejected at export.",
+        context = "Require every event in `G` to have fired for the same subject during the current event cycle. `G` is a tuple of two through eight concrete [`SandEvent`] types. Multiple `after_all` groups in one definition are rejected at export. Advancement-backed events and their synchronous descendants cannot supply tick-staged occurrence or bounded dependencies.",
         minecraft = "`G` is a tuple of two through eight concrete [`SandEvent`] types. Multiple `after_all` groups in one definition are rejected at export.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
@@ -1476,13 +1480,16 @@ impl ChainEventDispatch {
     ///     .within::<PriorEvent>(TickWindow::new(20).expect("nonzero, in range"));
     /// # let _: SandEventDispatch = child.into();
     /// ```
+    /// Both the occurrence source and bounded providers must be tick-backed.
+    /// Advancement-backed events and their synchronous descendants are rejected
+    /// because their rewards execute outside the tick coordinator.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::ChainEventDispatch::within",
         module = "sand::events",
         kind = "method",
         summary = "Require `E` to have fired for the same subject during the current cycle or within the previous `window.ticks() - 1` completed tick boundaries. See [`TickWindow`] for the exact boundary convention.",
-        context = "Require `E` to have fired for the same subject during the current cycle or within the previous `window.ticks() - 1` completed tick boundaries. See [`TickWindow`] for the exact boundary convention. Unlike `after`, `E`'s occurrence may have happened on an earlier tick. Unlike `while_`, `E` is an occurrence, not a directly queryable current-state condition — its own detector still runs and its same-cycle occurrence mark still drives the age tracked for this window. Distinct `.within` calls for different concrete parent types are conjunctive. A repeated `.within::<E>(window)` call with the same `window` is deduplicated; a repeated call for the same `E` with a different `window` is rejected at export as an unrepresentable conflicting declaration — declare a second concrete parent type instead if two different windows against the same underlying event are genuinely required.",
+        context = "Require `E` to have fired for the same subject during the current cycle or within the previous `window.ticks() - 1` completed tick boundaries. See [`TickWindow`] for the exact boundary convention. Unlike `after`, `E`'s occurrence may have happened on an earlier tick. Unlike `while_`, `E` is an occurrence, not a directly queryable current-state condition — its own detector still runs and its same-cycle occurrence mark still drives the age tracked for this window. Distinct `.within` calls for different concrete parent types are conjunctive. A repeated `.within::<E>(window)` call with the same `window` is deduplicated; a repeated call for the same `E` with a different `window` is rejected at export as an unrepresentable conflicting declaration — declare a second concrete parent type instead if two different windows against the same underlying event are genuinely required. Advancement-backed events and their synchronous descendants cannot supply tick-staged occurrence or bounded dependencies.",
         minecraft = "Unlike `after`, `E`'s occurrence may have happened on an earlier tick. Unlike `while_`, `E` is an occurrence, not a directly queryable current-state condition — its own detector still runs and its same-cycle occurrence mark still drives the age tracked for this window. Distinct `.within` calls for different concrete parent types are conjunctive. A repeated `.within::<E>(window)` call with the same `window` is deduplicated; a repeated call for the same `E` with a different `window` is rejected at export as an unrepresentable conflicting declaration — declare a second concrete parent type instead if two different windows against the same underlying event are genuinely required.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
@@ -1859,6 +1866,9 @@ impl SandEventDispatch {
     }
 
     /// Start a typed any-parent same-cycle composition.
+    ///
+    /// See [`ChainEventDispatch::after_any`] for the tick-backed source
+    /// requirement, including the rejection of advancement descendants.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::SandEventDispatch::after_any",
@@ -1866,7 +1876,7 @@ impl SandEventDispatch {
         module = "sand::events",
         kind = "method",
         summary = "Start a typed any-parent same-cycle composition.",
-        context = "Start a typed any-parent same-cycle composition. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        context = "Start a typed any-parent same-cycle composition. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private. Advancement-backed events and their synchronous descendants cannot supply tick-staged occurrence or bounded dependencies.",
         minecraft = "Sand coalesces tuple occurrence marks in the current cycle.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
@@ -1878,6 +1888,9 @@ impl SandEventDispatch {
     }
 
     /// Start a typed all-parent same-cycle composition.
+    ///
+    /// See [`ChainEventDispatch::after_all`] for the tick-backed source
+    /// requirement, including the rejection of advancement descendants.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::SandEventDispatch::after_all",
@@ -1885,7 +1898,7 @@ impl SandEventDispatch {
         module = "sand::events",
         kind = "method",
         summary = "Start a typed all-parent same-cycle composition.",
-        context = "Start a typed all-parent same-cycle composition. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        context = "Start a typed all-parent same-cycle composition. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private. Advancement-backed events and their synchronous descendants cannot supply tick-staged occurrence or bounded dependencies.",
         minecraft = "Sand waits for every tuple occurrence mark in the same cycle.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],

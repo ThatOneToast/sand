@@ -33,6 +33,8 @@ pub enum ConditionIr {
         block: String,
     },
     Predicate(String),
+    /// Match a named function that returns a nonzero value.
+    Function(String),
     Data {
         target: DataTarget,
         path: String,
@@ -77,6 +79,7 @@ impl ConditionIr {
             } => format!("score {left} {left_objective} {op} {right} {right_objective}"),
             Self::Block { position, block } => format!("block {position} {block}"),
             Self::Predicate(predicate) => format!("predicate {predicate}"),
+            Self::Function(function) => format!("function {function}"),
             Self::Data { target, path } => format!("data {target} {path}"),
             Self::ItemsEntity { target, slot, item } => {
                 format!("items entity {target} {slot} {item}")

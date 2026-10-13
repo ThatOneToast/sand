@@ -858,6 +858,14 @@ struct CustomCurve {
     callback: Arc<CurveCallback>,
 }
 
+impl PartialEq for CustomCurve {
+    fn eq(&self, other: &Self) -> bool {
+        // Runtime identity is declared by the function and its input contract.
+        // Rebuilding the host evaluator must not change event graph identity.
+        self.id == other.id && self.inputs == other.inputs
+    }
+}
+
 impl fmt::Debug for CustomCurve {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CustomCurve")
@@ -888,12 +896,12 @@ impl fmt::Debug for CustomCurve {
 /// Bound `Score` and `FixedScore` accessors convert through [`From`], retaining
 /// their source holder and declared scale. `StatCurve::from(state.amount)` is
 /// a runtime read description; it does not inspect live Minecraft state in Rust.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StatCurve {
     kind: CurveKind,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum CurveKind {
     Constant(f64),
     Input(CurveInput),
@@ -937,7 +945,7 @@ enum CurveKind {
     Custom(CustomCurve),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum CurveInput {
     Score {
         objective: String,
@@ -1007,6 +1015,161 @@ impl From<f64> for StatCurve {
 }
 
 impl StatCurve {
+    /// Test whether this runtime value is equal to `right`.
+    ///
+    /// Returns a [`Condition`](crate::condition::Condition) for `when`, events,
+    /// and other runtime guards; this does not compare values in Rust.
+    /// Equal-scale direct State reads retain their exact stored units, including
+    /// comparisons against a constant exactly representable at that scale.
+    /// Two whole-number constants compare as integers. Other comparisons use [`FixedPoint::default`] precision and checked i32
+    /// intermediates. Missing inputs or arithmetic failure make the condition
+    /// false; normal condition negation therefore makes that failure true.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::eq",
+        aliases = ["sand::prelude::StatCurve::eq"],
+        module = "sand::entity",
+        summary = "Compare runtime numeric values: equal to.",
+        context = "Produces a canonical Condition that composes with gameplay guards and events. It retains both expressions until export.",
+        minecraft = "Uses the canonical checked numeric backend and a function condition. Equal-scale direct State reads and exactly representable constants retain exact units; two whole-number constants compare as integers. Other expressions use default fixed precision. Missing inputs or arithmetic failures compare false.",
+        use_when = ["Branching on runtime State or native numeric values"],
+        avoid_when = ["Comparing build-time Rust values"],
+        params(right = "The runtime numeric expression or constant to compare against."),
+        returns = "A composable runtime Condition.",
+        example = "let ready = sand::entity::StatCurve::constant(5.0).eq(3);",
+    )]
+    pub fn eq(&self, right: impl Into<Self>) -> crate::condition::Condition {
+        crate::condition::Condition::numeric_compare(
+            self.clone(),
+            crate::condition::ScoreCompareOp::Eq,
+            right.into(),
+        )
+    }
+
+    /// Test whether this runtime value is greater than `right`.
+    ///
+    /// Returns a [`Condition`](crate::condition::Condition) for `when`, events,
+    /// and other runtime guards; this does not compare values in Rust.
+    /// Equal-scale direct State reads retain their exact stored units, including
+    /// comparisons against a constant exactly representable at that scale.
+    /// Two whole-number constants compare as integers. Other comparisons use [`FixedPoint::default`] precision and checked i32
+    /// intermediates. Missing inputs or arithmetic failure make the condition
+    /// false; normal condition negation therefore makes that failure true.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::gt",
+        aliases = ["sand::prelude::StatCurve::gt"],
+        module = "sand::entity",
+        summary = "Compare runtime numeric values: greater than.",
+        context = "Produces a canonical Condition that composes with gameplay guards and events. It retains both expressions until export.",
+        minecraft = "Uses the canonical checked numeric backend and a function condition. Equal-scale direct State reads and exactly representable constants retain exact units; two whole-number constants compare as integers. Other expressions use default fixed precision. Missing inputs or arithmetic failures compare false.",
+        use_when = ["Branching on runtime State or native numeric values"],
+        avoid_when = ["Comparing build-time Rust values"],
+        params(right = "The runtime numeric expression or constant to compare against."),
+        returns = "A composable runtime Condition.",
+        example = "let ready = sand::entity::StatCurve::constant(5.0).gt(3);",
+    )]
+    pub fn gt(&self, right: impl Into<Self>) -> crate::condition::Condition {
+        crate::condition::Condition::numeric_compare(
+            self.clone(),
+            crate::condition::ScoreCompareOp::Gt,
+            right.into(),
+        )
+    }
+
+    /// Test whether this runtime value is greater than or equal to `right`.
+    ///
+    /// Returns a [`Condition`](crate::condition::Condition) for `when`, events,
+    /// and other runtime guards; this does not compare values in Rust.
+    /// Equal-scale direct State reads retain their exact stored units, including
+    /// comparisons against a constant exactly representable at that scale.
+    /// Two whole-number constants compare as integers. Other comparisons use [`FixedPoint::default`] precision and checked i32
+    /// intermediates. Missing inputs or arithmetic failure make the condition
+    /// false; normal condition negation therefore makes that failure true.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::gte",
+        aliases = ["sand::prelude::StatCurve::gte"],
+        module = "sand::entity",
+        summary = "Compare runtime numeric values: greater than or equal to.",
+        context = "Produces a canonical Condition that composes with gameplay guards and events. It retains both expressions until export.",
+        minecraft = "Uses the canonical checked numeric backend and a function condition. Equal-scale direct State reads and exactly representable constants retain exact units; two whole-number constants compare as integers. Other expressions use default fixed precision. Missing inputs or arithmetic failures compare false.",
+        use_when = ["Branching on runtime State or native numeric values"],
+        avoid_when = ["Comparing build-time Rust values"],
+        params(right = "The runtime numeric expression or constant to compare against."),
+        returns = "A composable runtime Condition.",
+        example = "let ready = sand::entity::StatCurve::constant(5.0).gte(3);",
+    )]
+    pub fn gte(&self, right: impl Into<Self>) -> crate::condition::Condition {
+        crate::condition::Condition::numeric_compare(
+            self.clone(),
+            crate::condition::ScoreCompareOp::Gte,
+            right.into(),
+        )
+    }
+
+    /// Test whether this runtime value is less than `right`.
+    ///
+    /// Returns a [`Condition`](crate::condition::Condition) for `when`, events,
+    /// and other runtime guards; this does not compare values in Rust.
+    /// Equal-scale direct State reads retain their exact stored units, including
+    /// comparisons against a constant exactly representable at that scale.
+    /// Two whole-number constants compare as integers. Other comparisons use [`FixedPoint::default`] precision and checked i32
+    /// intermediates. Missing inputs or arithmetic failure make the condition
+    /// false; normal condition negation therefore makes that failure true.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::lt",
+        aliases = ["sand::prelude::StatCurve::lt"],
+        module = "sand::entity",
+        summary = "Compare runtime numeric values: less than.",
+        context = "Produces a canonical Condition that composes with gameplay guards and events. It retains both expressions until export.",
+        minecraft = "Uses the canonical checked numeric backend and a function condition. Equal-scale direct State reads and exactly representable constants retain exact units; two whole-number constants compare as integers. Other expressions use default fixed precision. Missing inputs or arithmetic failures compare false.",
+        use_when = ["Branching on runtime State or native numeric values"],
+        avoid_when = ["Comparing build-time Rust values"],
+        params(right = "The runtime numeric expression or constant to compare against."),
+        returns = "A composable runtime Condition.",
+        example = "let ready = sand::entity::StatCurve::constant(5.0).lt(3);",
+    )]
+    pub fn lt(&self, right: impl Into<Self>) -> crate::condition::Condition {
+        crate::condition::Condition::numeric_compare(
+            self.clone(),
+            crate::condition::ScoreCompareOp::Lt,
+            right.into(),
+        )
+    }
+
+    /// Test whether this runtime value is less than or equal to `right`.
+    ///
+    /// Returns a [`Condition`](crate::condition::Condition) for `when`, events,
+    /// and other runtime guards; this does not compare values in Rust.
+    /// Equal-scale direct State reads retain their exact stored units, including
+    /// comparisons against a constant exactly representable at that scale.
+    /// Two whole-number constants compare as integers. Other comparisons use [`FixedPoint::default`] precision and checked i32
+    /// intermediates. Missing inputs or arithmetic failure make the condition
+    /// false; normal condition negation therefore makes that failure true.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::lte",
+        aliases = ["sand::prelude::StatCurve::lte"],
+        module = "sand::entity",
+        summary = "Compare runtime numeric values: less than or equal to.",
+        context = "Produces a canonical Condition that composes with gameplay guards and events. It retains both expressions until export.",
+        minecraft = "Uses the canonical checked numeric backend and a function condition. Equal-scale direct State reads and exactly representable constants retain exact units; two whole-number constants compare as integers. Other expressions use default fixed precision. Missing inputs or arithmetic failures compare false.",
+        use_when = ["Branching on runtime State or native numeric values"],
+        avoid_when = ["Comparing build-time Rust values"],
+        params(right = "The runtime numeric expression or constant to compare against."),
+        returns = "A composable runtime Condition.",
+        example = "let ready = sand::entity::StatCurve::constant(5.0).lte(3);",
+    )]
+    pub fn lte(&self, right: impl Into<Self>) -> crate::condition::Condition {
+        crate::condition::Condition::numeric_compare(
+            self.clone(),
+            crate::condition::ScoreCompareOp::Lte,
+            right.into(),
+        )
+    }
+
     pub(crate) fn native_nbt(
         target: sand_commands::DataTarget,
         path: sand_commands::NbtPath,

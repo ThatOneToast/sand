@@ -40,7 +40,7 @@ use crate::validate;
 /// let everyone = ScoreHolder::all();
 /// assert_eq!(everyone.to_string(), "*");
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ScoreHolderKind {
     Entity(Selector),
     Fake(String),
@@ -62,7 +62,7 @@ enum ScoreHolderKind {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::ScoreHolder;",
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use = "score holders do nothing until passed to a scoreboard command"]
 pub struct ScoreHolder(ScoreHolderKind);
 

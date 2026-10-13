@@ -1691,8 +1691,23 @@ pub fn lower_item_predicate_for_command(
     let json = predicate.render_for_advancement(None)?;
     let mut constraints = Vec::new();
     if let Some(count) = json.get("count") {
-        let operator = if count.is_object() { '~' } else { '=' };
-        constraints.push(format!("minecraft:count{operator}{count}"));
+        // The native sub-predicate accepts both exact integers and ranges,
+        // including zero/negative bounds that simply match no nonempty stack.
+        // Its codec uses signed 32-bit integers, unlike the generic IntRange.
+        let bounds = predicate
+            .count
+            .expect("serialized count retains its typed range");
+        if [bounds.min, bounds.max]
+            .into_iter()
+            .flatten()
+            .any(|bound| i32::try_from(bound).is_err())
+        {
+            return Err(
+                "item predicate.count: bounds must fit Minecraft's signed 32-bit integer range"
+                    .into(),
+            );
+        }
+        constraints.push(format!("minecraft:count~{count}"));
     }
     for (bag, operator) in [("components", '='), ("predicates", '~')] {
         if let Some(object) = json.get(bag).and_then(Value::as_object) {
@@ -3109,7 +3124,7 @@ mod tests {
     }
 
     #[test]
-    fn native_item_predicate_uses_range_operator_for_bounds_and_exact_for_integers() {
+    fn native_item_predicate_uses_range_operator_for_all_count_constraints() {
         for (predicate, expected) in [
             (
                 ItemPredicate::new().count_min(2),
@@ -3123,13 +3138,38 @@ mod tests {
                 ItemPredicate::new().count_range(2, 5),
                 "minecraft:count~{\"max\":5,\"min\":2}",
             ),
-            (ItemPredicate::new().count_range(3, 3), "minecraft:count=3"),
+            (ItemPredicate::new().count_range(3, 3), "minecraft:count~3"),
+            (
+                ItemPredicate::new().count(IntRange::exact(0)),
+                "minecraft:count~0",
+            ),
+            (
+                ItemPredicate::new().count(IntRange::exact(-3)),
+                "minecraft:count~-3",
+            ),
+            (ItemPredicate::new().count_range(0, 0), "minecraft:count~0"),
         ] {
             assert_eq!(
                 lower_item_predicate_for_command(&predicate)
                     .unwrap()
                     .constraints,
                 vec![expected]
+            );
+        }
+    }
+
+    #[test]
+    fn native_item_predicate_rejects_count_bounds_outside_minecraft_integer_range() {
+        for predicate in [
+            ItemPredicate::new().count_min(i64::from(i32::MAX) + 1),
+            ItemPredicate::new().count_max(i64::from(i32::MIN) - 1),
+            ItemPredicate::new().count(IntRange::exact(i64::MAX)),
+        ] {
+            assert!(
+                lower_item_predicate_for_command(&predicate)
+                    .err()
+                    .unwrap()
+                    .contains("signed 32-bit")
             );
         }
     }

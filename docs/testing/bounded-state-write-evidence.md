@@ -41,6 +41,11 @@ audit exercises synchronous generated operations directly; it does not measure
 tick scheduling or numeric overflow behavior. The latest-version vanilla CI
 workflow runs it and retains failure diagnostics.
 
+On Minecraft 26.2, the unfixed compiler produced an actual score of 105 for
+Alpha's initial guarded add and failed the expected-100 assertion. With the
+owned mutation, the same two-player audit passes every row above. The server
+log records the queried post-write scores as well as the assertions.
+
 Export tests assert one guarded entry call with reachable lower and upper clamps,
 no repeated original guard inside the mutation, and deterministic isolated
 exports. Existing fixed-point and entity-state tests inspect the owned helper's

@@ -58,7 +58,7 @@ class JoinHarness(PlayerHarness):
         for namespace, count in zip(NAMESPACES, (a, b)):
             for handler in ("a", "b"):
                 self.eventually(f"{phase}_{player}_{namespace}_{handler}",
-                                f"if score {player} {namespace}:{handler} matches {count}")
+                                f"if score #{namespace}:{player} join_{handler} matches {count}")
 
     def settle(self):
         """Observe five actual game ticks before checking unchanged counters."""
@@ -78,9 +78,9 @@ class JoinHarness(PlayerHarness):
         # A legacy/other pack's global marker must neither suppress nor be reset.
         self.send("scoreboard objectives add __sand_join dummy")
         self.send("scoreboard players set SandBeta __sand_join 1")
+        for handler in ("a", "b"):
+            self.send(f"scoreboard objectives add join_{handler} dummy")
         for namespace in NAMESPACES:
-            for handler in ("a", "b"):
-                self.send(f"scoreboard objectives add {namespace}:{handler} dummy")
             self.check(f"{namespace}_INITIAL_ABSENT",
                        f"unless score SandBeta {self.leave_objective(namespace)} = SandBeta {self.leave_objective(namespace)}")
             # Exercise a retained nonzero statistic as well as Beta's absent one.

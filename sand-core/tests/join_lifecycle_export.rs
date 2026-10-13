@@ -7,7 +7,8 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "join_b", id_override: None,
         make: || sand::component::IntoCommands::into_commands(vec![
-            "scoreboard players add @s __sand_local:b 1".to_string(),
+            "execute if entity @s[name=SandAlpha] run scoreboard players add #__sand_local:SandAlpha join_b 1".to_string(),
+            "execute if entity @s[name=SandBeta] run scoreboard players add #__sand_local:SandBeta join_b 1".to_string(),
         ]),
         dispatch: EventDispatch::JoinTick,
     }
@@ -16,7 +17,8 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "join_a", id_override: None,
         make: || sand::component::IntoCommands::into_commands(vec![
-            "scoreboard players add @s __sand_local:a 1".to_string(),
+            "execute if entity @s[name=SandAlpha] run scoreboard players add #__sand_local:SandAlpha join_a 1".to_string(),
+            "execute if entity @s[name=SandBeta] run scoreboard players add #__sand_local:SandBeta join_a 1".to_string(),
             // The generated check must be safe to reenter from a callback.
             "function __sand_local:__sand_join_check".to_string(),
         ]),
@@ -89,7 +91,7 @@ fn join_uses_private_leave_statistic_and_commits_before_reentrant_handlers() {
     assert!(!load.contains(" __sand_join "));
     assert_eq!(
         function(&records, "join_a").lines().next().unwrap(),
-        "scoreboard players add @s joina:a 1"
+        "execute if entity @s[name=SandAlpha] run scoreboard players add #joina:SandAlpha join_a 1"
     );
 }
 

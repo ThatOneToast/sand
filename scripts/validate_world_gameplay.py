@@ -51,6 +51,11 @@ class WorldGameplayHarness(ServerHarness):
         raise ValidationFailure("world-load", f"test chunk did not load in {dimension}")
 
     def run_client(self) -> None:
+        self.send("scoreboard objectives add sand_rule_audit dummy")
+        self.send("execute store result score #keep sand_rule_audit run gamerule keep_inventory")
+        self.send("execute store result score #ticks sand_rule_audit run gamerule random_tick_speed")
+        self.check("BOOLEAN_SETTING", "if score #keep sand_rule_audit matches 1")
+        self.check("INTEGER_SETTING", "if score #ticks sand_rule_audit matches 0")
         # Only test setup loads chunks; the generated gameplay must not do so.
         for dimension in ("minecraft:overworld", "minecraft:the_nether"):
             self.load_test_chunk(dimension)

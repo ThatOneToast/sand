@@ -807,6 +807,78 @@ fn world_time_freeze_command(root: &Value) -> Option<String> {
     None
 }
 
+// Convert the existing typed command builders into owned world settings.
+// Query-only commands and unsupported argument grammars deliberately have no
+// conversion; callers can choose the explicit raw setting escape hatch.
+fn emit_gamerule_setting_conversion(code: &mut String, ev: &EmittedVariant, root: &Value) {
+    let literals = ev.command.literal_segments();
+    if literals.len() != 2
+        || literals[0] != "gamerule"
+        || !ev.command.required_args().is_empty()
+        || ev.command.optional_args.len() != 1
+    {
+        return;
+    }
+    let argument = &ev.command.optional_args[0];
+    let Some(rule) = root
+        .get("children")
+        .and_then(|c| c.get("gamerule"))
+        .and_then(|c| c.get("children"))
+        .and_then(|c| c.get(literals[1]))
+    else {
+        return;
+    };
+    if !is_executable(rule) || has_redirect(rule) {
+        return;
+    }
+    let Some((_, value)) = children(rule).into_iter().find(|(name, value)| {
+        sanitize_field_name(name) == argument.name
+            && node_type(value) == "argument"
+            && parser_str(value) == argument.parser
+            && is_executable(value)
+            && !has_redirect(value)
+    }) else {
+        return;
+    };
+    let field = &argument.name;
+    let constructor = match argument.parser.as_str() {
+        "brigadier:bool" => format!("Self::boolean({:?}, command.{field})", literals[1]),
+        "brigadier:integer" => {
+            let bound = |key, default| match value
+                .get("properties")
+                .and_then(|properties| properties.get(key))
+            {
+                Some(value) => value.as_i64().and_then(|value| i32::try_from(value).ok()),
+                None => Some(default),
+            };
+            let (Some(minimum), Some(maximum)) = (bound("min", i32::MIN), bound("max", i32::MAX))
+            else {
+                return;
+            };
+            if minimum > maximum {
+                return;
+            }
+            format!(
+                "Self::integer({:?}, command.{field}, {minimum}, {maximum})",
+                literals[1]
+            )
+        }
+        _ => return,
+    };
+    let name = &ev.struct_name;
+    writeln!(
+        code,
+        "impl From<{name}> for crate::build::GameRuleSetting {{"
+    )
+    .unwrap();
+    writeln!(
+        code,
+        "    fn from(command: {name}) -> Self {{ {constructor} }}"
+    )
+    .unwrap();
+    writeln!(code, "}}\n").unwrap();
+}
+
 /// Parse `commands.json` and write `commands.rs` to `out_dir`.
 pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> Result<()> {
     let path = reports_dir.join("commands.json");
@@ -860,6 +932,7 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
     for ev in &emitted {
         let contracts = command_api_entries(ev, minecraft_version);
         emit_variant(&mut code, ev, &contracts);
+        emit_gamerule_setting_conversion(&mut code, ev, &root);
         api_entries.extend(contracts);
     }
 
@@ -873,6 +946,61 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gamerule_conversions_use_executable_typed_schema_and_integer_bounds() {
+        let emit = |parser: &str, properties: Value, executable: bool| {
+            let tree = serde_json::json!({"children":{"gamerule":{"children":{"test_rule":{
+                "type":"literal", "executable":true, "children":{"value":{
+                    "type":"argument", "parser":parser, "properties":properties, "executable":executable
+                }}
+            }}}}});
+            let variant = CommandVariant {
+                full_path: vec![
+                    PathSegment::Literal("gamerule".into()),
+                    PathSegment::Literal("test_rule".into()),
+                ],
+                optional_args: vec![ArgInfo {
+                    name: "value".into(),
+                    parser: parser.into(),
+                }],
+            };
+            let emitted = assign_rust_names(vec![variant]);
+            let mut code = String::new();
+            emit_gamerule_setting_conversion(&mut code, &emitted[0], &tree);
+            code
+        };
+        assert!(
+            emit("brigadier:bool", serde_json::json!({}), true)
+                .contains("Self::boolean(\"test_rule\", command.value)")
+        );
+        assert!(
+            emit(
+                "brigadier:integer",
+                serde_json::json!({"min":0,"max":100}),
+                true
+            )
+            .contains("Self::integer(\"test_rule\", command.value, 0, 100)")
+        );
+        assert!(emit("brigadier:bool", serde_json::json!({}), false).is_empty());
+        assert!(emit("brigadier:string", serde_json::json!({}), true).is_empty());
+        assert!(
+            emit(
+                "brigadier:integer",
+                serde_json::json!({"min":"invalid"}),
+                true
+            )
+            .is_empty()
+        );
+        assert!(
+            emit(
+                "brigadier:integer",
+                serde_json::json!({"min":10,"max":1}),
+                true
+            )
+            .is_empty()
+        );
+    }
 
     fn time_rule_tree(name: &str, parser: &str, executable: bool) -> Value {
         serde_json::json!({"children": {"gamerule": {"children": {

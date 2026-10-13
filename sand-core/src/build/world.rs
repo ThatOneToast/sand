@@ -446,11 +446,11 @@ pub enum WeatherConfig {
 /// let world = World::new()
 ///     .spawn(Spawn::at(0, 64, 0))
 ///     .border(WorldBorder::diameter(6000.0))
-///     .gamerule("keepInventory", "true")
+///     .gamerule(sand_core::cmd::gamerule_keep_inventory().value(true))
 ///     .time(TimeConfig::set(6000).frozen())
 ///     .weather(WeatherConfig::Clear);
 ///
-/// assert_eq!(world.gamerules().get("keepInventory").map(String::as_str), Some("true"));
+/// assert!(world.gamerules().contains_key("keep_inventory"));
 /// ```
 #[derive(Debug, Clone, Default)]
 #[api(
@@ -462,14 +462,14 @@ pub enum WeatherConfig {
     minecraft = "Everything reachable from World lowers into the exported datapack, except WorldPreset (server-only, see its own docs).",
     use_when = ["Configuring the world an exported datapack ships"],
     avoid_when = ["Configuring sand run's own local server process; use ServerConfig"],
-    example = "World::new().spawn(Spawn::at(0, 64, 0)).gamerule(\"keepInventory\", \"true\");"
+    example = "use sand::build::{World, Spawn}; use sand::build::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().spawn(Spawn::at(0, 64, 0)).gamerule(rule) }"
 )]
 pub struct World {
     pub(crate) seed: Option<Seed>,
     pub(crate) preset: WorldPreset,
     pub(crate) spawn: Option<Spawn>,
     pub(crate) border: Option<WorldBorder>,
-    pub(crate) gamerules: BTreeMap<String, String>,
+    pub(crate) gamerules: BTreeMap<String, crate::build::GameRuleSetting>,
     pub(crate) time: Option<TimeConfig>,
     pub(crate) weather: Option<WeatherConfig>,
     pub(crate) dimensions: Dimensions,
@@ -565,22 +565,34 @@ impl World {
         self
     }
 
-    /// Sets a single vanilla or datapack-defined gamerule by name.
+    /// Configures one gamerule using its version-generated typed builder.
+    ///
+    /// Supply `.value(...)` to assign a value; build validation rejects a query
+    /// or an integer outside the generated schema bounds. Later assignments to
+    /// the same rule replace earlier ones, including `minecraft:` aliases.
+    /// See [`crate::build::GameRuleSetting::raw`] for unsupported rules.
+    ///
+    /// Boolean and integer builders retain distinct value types:
+    /// ```compile_fail
+    /// use sand_core::{build::World, cmd};
+    /// let world = World::new().gamerule(cmd::gamerule_keep_inventory().value(1));
+    /// ```
     #[api(
         registry = sand_api_contract,
         path = "sand::build::World::gamerule",
         module = "sand::build",
-        summary = "Sets a single vanilla or datapack-defined gamerule by name.",
-        context = "Call once per gamerule; later calls with the same name overwrite the earlier value.",
+        summary = "Configures one gamerule using its version-generated typed builder.",
+        context = "Pass a generated gamerule builder with .value(...). Later calls for the same rule replace earlier settings; default-namespace aliases share one key. Build validation rejects queries and out-of-range values.",
         minecraft = "Lowers to a gamerule command in the generated load function.",
-        use_when = ["Setting keepInventory, doMobSpawning, or any other gamerule"],
+        use_when = ["Configuring supported vanilla gamerules with typed values"],
         avoid_when = ["Setting the difficulty default; use ServerConfig::difficulty"],
-        params(name = "The gamerule's name.", value = "The gamerule's value as text."),
+        params(setting = "A generated gamerule builder with its value set, or an explicit GameRuleSetting::raw escape hatch."),
         returns = "This world with the gamerule set.",
-        example = "World::new().gamerule(\"keepInventory\", \"true\");"
+        example = "use sand::build::World; use sand::build::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().gamerule(rule) }"
     )]
-    pub fn gamerule(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.gamerules.insert(name.into(), value.into());
+    pub fn gamerule(mut self, setting: impl Into<crate::build::GameRuleSetting>) -> Self {
+        let setting = setting.into();
+        self.gamerules.insert(setting.key().to_string(), setting);
         self
     }
 
@@ -644,15 +656,15 @@ impl World {
         registry = sand_api_contract,
         path = "sand::build::World::gamerules",
         module = "sand::build",
-        summary = "Returns the configured gamerules as a name-to-value map.",
+        summary = "Returns the configured gamerules as a name-to-setting map.",
         context = "Used by lowering and by tests asserting on which gamerules a World configures.",
         minecraft = "Reflects exactly the gamerule commands the generated load function will contain.",
         use_when = ["Inspecting which gamerules a World configures"],
         avoid_when = ["Setting a gamerule; use World::gamerule"],
-        returns = "A map of gamerule name to value.",
+        returns = "A map of canonical gamerule name to owned setting.",
         example = "assert!(World::new().gamerules().is_empty());"
     )]
-    pub fn gamerules(&self) -> &BTreeMap<String, String> {
+    pub fn gamerules(&self) -> &BTreeMap<String, crate::build::GameRuleSetting> {
         &self.gamerules
     }
 
@@ -714,12 +726,15 @@ mod tests {
     #[test]
     fn builder_accumulates_gamerules() {
         let world = World::new()
-            .gamerule("keepInventory", "true")
-            .gamerule("doMobSpawning", "false");
+            .gamerule(crate::cmd::gamerule_keep_inventory().value(true))
+            .gamerule(crate::cmd::gamerule_spawn_mobs().value(false));
         assert_eq!(world.gamerules().len(), 2);
         assert_eq!(
-            world.gamerules().get("doMobSpawning").map(String::as_str),
-            Some("false")
+            world
+                .gamerules()
+                .get("spawn_mobs")
+                .map(|setting| setting.command().unwrap()),
+            Some("gamerule spawn_mobs false".to_string())
         );
     }
 

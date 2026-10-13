@@ -49,8 +49,8 @@ pub struct WorldResource {
 /// Returns an empty vec if no [`super::world::World`] was configured.
 ///
 /// # Panics
-/// Panics if frozen time requests a gamerule absent from the generated target
-/// schema. Call [`SandBuild::validate`] before lowering to receive a diagnostic.
+/// Panics if a gamerule assignment is invalid or frozen time requests a rule
+/// absent from the generated target schema. Call [`SandBuild::validate`] before lowering to receive a diagnostic.
 #[api(
     registry = sand_api_contract,
     path = "sand::build::lower_world",
@@ -131,8 +131,12 @@ pub fn lower(namespace: &str, build: &SandBuild) -> Vec<WorldResource> {
         ));
         commands.push(format!("worldborder warning time {}", border.warning_time));
     }
-    for (name, value) in &world.gamerules {
-        commands.push(format!("gamerule {name} {value}"));
+    for setting in world.gamerules.values() {
+        commands.push(
+            setting
+                .command()
+                .expect("validate SandBuild before lowering gamerule settings"),
+        );
     }
     if let Some(time) = &world.time {
         commands.push(format!("time set {}", time.ticks));
@@ -222,7 +226,7 @@ mod tests {
             World::new()
                 .spawn(Spawn::at(0, 100, 0))
                 .border(WorldBorder::diameter(2000.0))
-                .gamerule("keepInventory", "true"),
+                .gamerule(crate::cmd::gamerule_keep_inventory().value(true)),
         );
         let resources = lower("pack", &build);
         let func = resources
@@ -231,7 +235,7 @@ mod tests {
             .expect("init function present");
         assert!(func.content.contains("setworldspawn 0 100 0 0 0"));
         assert!(func.content.contains("worldborder set 2000"));
-        assert!(func.content.contains("gamerule keepInventory true"));
+        assert!(func.content.contains("gamerule keep_inventory true"));
 
         let tag = resources
             .iter()
@@ -252,7 +256,7 @@ mod tests {
         let enabled_command = format!("gamerule {rule} true");
         let build = SandBuild::new().world(
             World::new()
-                .gamerule(rule, "true")
+                .gamerule(crate::build::GameRuleSetting::raw(rule, "true"))
                 .time(TimeConfig::set(6000).frozen()),
         );
         build.validate().unwrap();

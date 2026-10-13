@@ -62,6 +62,7 @@ fn build(ctx: &BuildContext) -> SandBuild {
                 )
                 // The frozen-time operation selects the target version's
                 // gamerule from Sand's generated Minecraft command schema.
+                .gamerule(sand::command::gamerule_keep_inventory().value(true))
                 .time(TimeConfig::set(6000).frozen())
                 .dimensions(Dimensions::new().with(overworld)),
         )

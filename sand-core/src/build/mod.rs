@@ -31,6 +31,7 @@
 use sand_macros::api;
 mod context;
 mod dimension;
+mod gamerule;
 mod generator;
 mod profile;
 mod registry;
@@ -42,6 +43,7 @@ mod world;
 
 pub use context::BuildContext;
 pub use dimension::{Dimension, DimensionSlot, DimensionType, Dimensions};
+pub use gamerule::GameRuleSetting;
 pub use generator::{
     BiomeSource, FlatGenerator, FlatLayer, Generator, NoiseGenerator, NoiseSettingsRef,
     VanillaNoiseSettings,

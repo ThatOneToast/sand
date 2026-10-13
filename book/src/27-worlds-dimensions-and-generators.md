@@ -15,7 +15,7 @@ use sand::build::{Spawn, TimeConfig, WeatherConfig, World, WorldBorder};
 let world = World::new()
     .spawn(Spawn::at(0, 64, 0))
     .border(WorldBorder::diameter(6000.0))
-    .gamerule("keepInventory", "true")
+    .gamerule(sand::command::gamerule_keep_inventory().value(true))
     .time(TimeConfig::set(6000).frozen())
     .weather(WeatherConfig::Clear);
 ```

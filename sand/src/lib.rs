@@ -550,10 +550,10 @@ pub use sand_core::vfx;
 pub mod build {
     pub use sand_core::build::{
         BiomeSource, BuildContext, BuildDiagnostic, BuildProfile, Difficulty, Dimension,
-        DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, Generator,
-        NoiseGenerator, NoiseSettingsRef, SandBuild, Seed, ServerConfig, Spawn, SpawnPlatform,
-        TimeConfig, VanillaNoiseSettings, WeatherConfig, World, WorldBorder, WorldPreset,
-        WorldResetPolicy, WorldResource, lower_world, run_and_print,
+        DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, GameRuleSetting,
+        Generator, NoiseGenerator, NoiseSettingsRef, SandBuild, Seed, ServerConfig, Spawn,
+        SpawnPlatform, TimeConfig, VanillaNoiseSettings, WeatherConfig, World, WorldBorder,
+        WorldPreset, WorldResetPolicy, WorldResource, lower_world, run_and_print,
     };
 }
 

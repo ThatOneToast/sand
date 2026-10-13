@@ -5,5 +5,5 @@ worldborder set 6000
 worldborder damage amount 1
 worldborder warning distance 10
 worldborder warning time 30
-gamerule doMobSpawning false
-gamerule keepInventory true
+gamerule keep_inventory true
+gamerule spawn_mobs false

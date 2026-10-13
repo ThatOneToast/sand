@@ -24,7 +24,7 @@ use sand::build::{Spawn, TimeConfig, World, WorldBorder};
 let world = World::new()
     .spawn(Spawn::at(0, 100, 0))
     .border(WorldBorder::diameter(2000.0))
-    .gamerule("keep_inventory", "true")
+    .gamerule(sand::command::gamerule_keep_inventory().value(true))
     .time(TimeConfig::set(6000).frozen());
 ```
 
@@ -44,9 +44,16 @@ gamerule advance_time false
 
 `TimeConfig::frozen()` selects the boolean time-advance rule from the target
 command schema (`advance_time` in Minecraft 26.2, `doDaylightCycle` in older
-versions). Build validation rejects targets without a supported rule. Explicit
-`World::gamerule` names remain caller-supplied and must match the target version.
-Freezing runs after those explicit gamerules and takes precedence.
+versions). Build validation rejects targets without a supported rule. Freezing runs after
+explicit gamerule settings and takes precedence.
+
+`World::gamerule` accepts the existing generated command builders with
+`.value(...)`. Their boolean or integer types come from the target command
+schema; build validation rejects queries without a value and integers outside
+the schema bounds. Default-namespace aliases replace the same setting, with
+the last assignment winning. Use `GameRuleSetting::raw(name, value)` only for
+unsupported rules: it validates single-token syntax, while the author owns
+rule existence, value semantics, and version compatibility.
 
 ## Merging with your own `Load` hooks
 

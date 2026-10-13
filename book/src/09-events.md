@@ -23,6 +23,21 @@ and dispatch wiring; the handler just receives an `Event<T>` (or, for
 built-ins with a stable player accessor, the marker type directly) with
 `.player()` giving you the affected entity's selector.
 
+## Joins and reconnects
+
+Use `OnJoin` (`sand::events::OnJoinEvent`) for the first Sand tick that observes
+a player joining or reconnecting. It also runs for online players after server
+start or `/reload`, and for offline players when they next connect after a reload.
+Use `FirstJoin` for once-ever behavior instead.
+
+Each datapack owns its leave-game statistic and baseline objectives, so two Sand
+packs can subscribe independently. Canonical player State is initialized first;
+join handlers then run in function-path order for each player, before owned
+observation sampling. Sand commits the baseline before callbacks and positions
+each callback at the player, including after an earlier callback teleports them.
+This is tick-observed presence: a connection that ends before a Sand tick does
+not produce an occurrence.
+
 ## An advancement-backed custom event: `ObtainedGrappleCoreEvent`
 
 ```rust,ignore

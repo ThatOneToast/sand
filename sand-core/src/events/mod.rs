@@ -28,7 +28,7 @@
 //!
 //! | Type | When it fires | Required filters |
 //! |---|---|---|
-//! | [`OnJoinEvent`] | First tick after load, or new player mid-session | — |
+//! | [`OnJoinEvent`] | Tick-observed join, reconnect, or presence after load | — |
 //! | [`FirstJoinEvent`] | Very first join ever | — |
 //! | [`OnDeathEvent`] | Any death (mob, fall, void, `/kill`, …) | — |
 //! | [`OnRespawnEvent`] | First Sand tick observing post-death activity | — |
@@ -2330,25 +2330,27 @@ impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
     path = "sand::events::OnJoinEvent",
     aliases = ["sand::event::vanilla::OnJoin"],
     module = "sand::events",
-    summary = "Fires on the first tick after a server start, `/reload`, or when a new player joins mid-session.",
-    context = "Fires on the first tick after a server start, `/reload`, or when a new player joins mid-session. The supported author-facing identity is `sand::events::OnJoinEvent`. Implemented as a `JoinTick` scoreboard check: the `__sand_join` scoreboard objective is created and reset on `minecraft:load`; players whose score is not 1 trigger all handlers, after which their score is set to 1. Vanilla limitation: mid-session disconnect → reconnect without a `/reload` does not re-fire because the player's score persists in `scoreboard.dat`. True per-login detection requires a mod or plugin.",
-    minecraft = "Implemented as a `JoinTick` scoreboard check: the `__sand_join` scoreboard objective is created and reset on `minecraft:load`; players whose score is not 1 trigger all handlers, after which their score is set to 1.",
+    summary = "Fires on the first Sand tick that observes a player joining, reconnecting, or online after server start or `/reload`.",
+    context = "Fires on the first Sand tick that observes a player joining, reconnecting, or online after server start or `/reload`. Sand compares a namespace-owned baseline with the vanilla leave-game statistic, commits the baseline before callbacks, and dispatches handlers in function-path order for each player. Player State is initialized before dispatch. Reload resets this datapack’s baseline, including offline players. This is tick-observed presence, not a network login callback; connections that end before a Sand tick are not observed. Use FirstJoinEvent for once-ever behavior.",
+    minecraft = "Uses namespace-owned leave-game and baseline objectives in the shared player lifecycle; reconnects require no reload.",
     use_when = ["Registering a handler for this specific Minecraft or Sand runtime occurrence"],
     avoid_when = ["Representing mutable event data; read typed handler context or declared participants instead"],
     example = "#[sand::on_event]\nfn joined(event: sand::event::Event<sand::events::OnJoinEvent>) { sand::command::raw(\"say @s event fired\"); }",
 )]
-/// Fires on the first tick after a server start, `/reload`, or when a new
-/// player joins mid-session.
+/// Fires on the first Sand tick that observes a player joining, reconnecting,
+/// or online after server start or `/reload`.
 ///
-/// The supported author-facing identity is `sand::events::OnJoinEvent`.
+/// Sand compares a namespace-owned baseline with vanilla's leave-game statistic.
+/// The baseline advances before callbacks, so reentering the join check from a
+/// handler does not dispatch the same occurrence again. Handlers run in function
+/// path order for each player, with canonical player [State](crate::state) initialized
+/// first and execution positioned at that player for each handler. Join callbacks
+/// run before owned observation sampling in the shared lifecycle.
 ///
-/// Implemented as a `JoinTick` scoreboard check: the `__sand_join` scoreboard
-/// objective is created and reset on `minecraft:load`; players whose score is
-/// not 1 trigger all handlers, after which their score is set to 1.
-///
-/// **Vanilla limitation:** mid-session disconnect → reconnect without a
-/// `/reload` does **not** re-fire because the player's score persists in
-/// `scoreboard.dat`. True per-login detection requires a mod or plugin.
+/// Reload resets only this datapack's baseline, including offline players.
+/// This is tick-observed presence, not a network login callback: connections
+/// that end before a Sand tick are not observed. Use [`FirstJoinEvent`] for
+/// once-ever behavior across reconnects and reloads.
 ///
 /// # Example
 ///

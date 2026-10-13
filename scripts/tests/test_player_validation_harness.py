@@ -59,6 +59,27 @@ class PlayerHarnessTests(unittest.TestCase):
             self.assertEqual(processes[0].wait.call_count, 2)
             processes[1].wait.assert_called_once_with(timeout=5)
 
+    def test_nested_reconnect_preserves_logs_and_waits_for_new_join(self):
+        with tempfile.TemporaryDirectory() as output:
+            harness = self.make_harness(output)
+            harness.wait_for = Mock()
+            processes = [Mock(), Mock(), Mock()]
+            for process in processes:
+                process.poll.return_value = None
+            with patch("player_validation_harness.subprocess.Popen", side_effect=processes):
+                with harness.clients(players=("SandBeta",)):
+                    with harness.clients(players=("SandAlpha",)):
+                        harness.lines.append("SandAlpha joined the game")
+                    processes[0].terminate.assert_not_called()
+                    with harness.clients(players=("SandAlpha",)):
+                        processes[0].terminate.assert_not_called()
+                        self.assertEqual(harness.wait_for.call_args.args[2], 1)
+            self.assertEqual({p.name for p in Path(output).glob("*.log")},
+                             {"SandBeta.log", "SandAlpha.log", "SandAlpha-2.log"})
+            for process in processes:
+                process.terminate.assert_called_once()
+                process.wait.assert_called_once_with(timeout=5)
+
     def test_missing_expected_nbt_cannot_pass_as_an_unchanged_copy(self):
         harness = PlayerParticipantHarness.__new__(PlayerParticipantHarness)
         harness.send = Mock()

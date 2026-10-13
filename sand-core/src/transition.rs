@@ -15,6 +15,7 @@ pub(crate) struct TransitionHandler {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct TransitionPlan {
     pub load_commands: Vec<String>,
+    pub reload_commands: Vec<String>,
     pub tick_commands: Vec<String>,
     pub global_tick_commands: Vec<String>,
     pub functions: Vec<GeneratedTransitionFunction>,
@@ -29,6 +30,7 @@ pub(crate) struct GeneratedTransitionFunction {
     pub commands: Vec<String>,
 }
 
+mod join;
 pub(crate) mod observation;
 
 pub(crate) fn resolve_transition_plan(
@@ -42,49 +44,67 @@ pub(crate) fn resolve_transition_plan(
     observation::resolve(namespace, &observations)
 }
 
-/// Resolve tracked events and typed state flows through one transition backend.
-///
-/// Both families share lifecycle merging, generated-function collision checks,
-/// private objective diagnostics, deterministic ordering, and the exporter
-/// wiring below this boundary.
+/// Resolve observations, joins and typed state flows through one lifecycle.
 pub(crate) fn resolve_unified_transition_plan(
     namespace: &str,
     handlers: &[TransitionHandler],
+    join_handlers: &[&str],
 ) -> Result<TransitionPlan, String> {
-    let mut plan = resolve_transition_plan(namespace, handlers)?;
+    let mut plan = join::resolve(namespace, join_handlers);
+    merge_plan(&mut plan, resolve_transition_plan(namespace, handlers)?)?;
     let flows = crate::state::flow::drain_flows();
-    let flow_plan = crate::state::flow::resolve_state_flow_plan(namespace, flows)?;
+    merge_plan(
+        &mut plan,
+        crate::state::flow::resolve_state_flow_plan(namespace, flows)?,
+    )?;
+    Ok(plan)
+}
 
-    let mut paths: BTreeSet<String> = plan
-        .functions
-        .iter()
-        .map(|function| function.path.clone())
-        .collect();
-    for function in flow_plan.functions {
+/// All lifecycle producers share private resource ownership checks.
+fn merge_plan(plan: &mut TransitionPlan, incoming: TransitionPlan) -> Result<(), String> {
+    for (commands, private) in [
+        (&incoming.load_commands, &plan.private_objectives),
+        (&plan.load_commands, &incoming.private_objectives),
+    ] {
+        for command in commands {
+            if let Some(objective) = command
+                .strip_prefix("scoreboard objectives add ")
+                .and_then(|rest| rest.split_whitespace().next())
+                && let Some((owner, source)) = private.get(objective)
+            {
+                return Err(format!(
+                    "generated private objective `{objective}` for owner `{owner}` source `{source}` collides with another lifecycle declaration"
+                ));
+            }
+        }
+    }
+    let mut paths: BTreeSet<String> = plan.functions.iter().map(|f| f.path.clone()).collect();
+    for function in incoming.functions {
         if !paths.insert(function.path.clone()) {
             return Err(format!(
-                "error[SAND-STATE-FLOW]: generated transition helper collision\n\nPath: {}\nFlow: {}\n\nCorrection: give the state flow a distinct `.named(...)` label",
-                function.path, function.tracker_id
+                "generated transition helper collision at `{}` for owner `{}` source `{}`",
+                function.path, function.tracker_id, function.source
             ));
         }
         plan.functions.push(function);
     }
-    for (objective, owner) in flow_plan.private_objectives {
+    for (objective, owner) in incoming.private_objectives {
         if let Some(existing) = plan
             .private_objectives
             .insert(objective.clone(), owner.clone())
         {
             return Err(format!(
-                "error[SAND-STATE-FLOW]: generated objective collision\n\nObjective: {objective}\nExisting owner: {}\nFlow owner: {}\n\nCorrection: give the state flow a distinct `.named(...)` label",
+                "generated objective collision at `{objective}` between owners `{}` and `{}`",
                 existing.0, owner.0
             ));
         }
     }
-    plan.load_commands.extend(flow_plan.load_commands);
-    plan.tick_commands.extend(flow_plan.tick_commands);
+    plan.load_commands.extend(incoming.load_commands);
+    plan.reload_commands.extend(incoming.reload_commands);
+    plan.tick_commands.extend(incoming.tick_commands);
     plan.global_tick_commands
-        .extend(flow_plan.global_tick_commands);
-    Ok(plan)
+        .extend(incoming.global_tick_commands);
+    Ok(())
 }
 
 fn boolean_commands(

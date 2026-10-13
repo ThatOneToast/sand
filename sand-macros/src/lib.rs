@@ -2673,12 +2673,7 @@ fn expand_event_with_path(
             }
         }
 
-        // OnJoinEvent / OnJoin — scoreboard-backed join detection (fires after load/reload / new player mid-session)
-        //
-        // Uses JoinTick dispatch: `__sand_join_check` runs handlers for any online
-        // player whose `__sand_join` score is not 1 (cleared on minecraft:load),
-        // then sets the score to 1. Vanilla limitation: mid-session disconnect
-        // → reconnect without /reload does not re-fire.
+        // Delegate join and reconnect detection to the canonical player lifecycle.
         "OnJoinEvent" | "OnJoin" => {
             quote! {
                 #preamble

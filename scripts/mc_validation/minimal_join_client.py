@@ -11,9 +11,11 @@ Usage:
     python3 minimal_join_client.py <host> <port> 776 <username> [<run_seconds>]
 
 An optional final argument runs a shell command when the Play login arrives.
+Pass --auto-respawn for death/respawn lifecycle audits; other audits leave it off.
 """
 
 from contextlib import closing
+import argparse
 
 import socket
 import struct
@@ -135,25 +137,36 @@ PLAY_CLIENTBOUND_KEEP_ALIVE = 0x2C
 PLAY_CLIENTBOUND_LOGIN = 0x31
 PLAY_CLIENTBOUND_PLAYER_POSITION = 0x48
 PLAY_CLIENTBOUND_RESPAWN = 0x52
+PLAY_CLIENTBOUND_COMBAT_KILL = 0x44
+PLAY_SERVERBOUND_CLIENT_COMMAND = 0x0C
 PLAY_SERVERBOUND_ACCEPT_TELEPORTATION = 0x00
 PLAY_SERVERBOUND_PLAYER_LOADED = 0x2C
 PLAY_SERVERBOUND_KEEP_ALIVE = 0x1C
 
 
 def main():
-    host, port, protocol_version, username = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("host")
+    parser.add_argument("port", type=int)
+    parser.add_argument("protocol_version", type=int)
+    parser.add_argument("username")
+    parser.add_argument("run_seconds", nargs="?", type=float, default=30)
+    parser.add_argument("on_join", nargs="?")
+    parser.add_argument("--auto-respawn", action="store_true")
+    args = parser.parse_args()
+    host, port, protocol_version, username = args.host, args.port, args.protocol_version, args.username
     if protocol_version != SUPPORTED_PROTOCOL:
         raise ValueError("This audit client supports Minecraft 26.2 / protocol 776 only")
-    run_seconds = float(sys.argv[5]) if len(sys.argv) > 5 else 30
+    run_seconds, on_join = args.run_seconds, args.on_join
     if run_seconds <= 0:
         raise ValueError("run_seconds must be positive")
-    on_join = sys.argv[6] if len(sys.argv) > 6 else None
     conn = Conn(host, port)
     with closing(conn.sock):
-        return run_session(conn, host, port, protocol_version, username, run_seconds, on_join)
+        return run_session(conn, host, port, protocol_version, username, run_seconds, on_join,
+                           auto_respawn=args.auto_respawn)
 
 
-def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None):
+def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *, auto_respawn=False):
     payload = write_varint(protocol_version) + write_string(host) + struct.pack(">H", port) + write_varint(2)
     conn.send_packet(0x00, payload)
 
@@ -235,6 +248,11 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                     conn.send_packet(PLAY_SERVERBOUND_PLAYER_LOADED, b"")
                     loading = False
                     print("[play] player loaded")
+            elif pid == PLAY_CLIENTBOUND_COMBAT_KILL and auto_respawn:
+                # Protocol 776 GameProtocols maps ClientCommand to 0x0c;
+                # ServerboundClientCommandPacket.Action.PERFORM_RESPAWN is 0.
+                conn.send_packet(PLAY_SERVERBOUND_CLIENT_COMMAND, write_varint(0))
+                print("[play] requested respawn after death")
             elif pid == PLAY_CLIENTBOUND_RESPAWN:
                 loading = True
                 print("[play] respawn/dimension change")

@@ -71,37 +71,56 @@ fn fnv1a_hex(value: &str) -> String {
     format!("{h:08x}")
 }
 
-/// Deterministically allocate a bounded, private entity-tag key for every
-/// registered armor watch.
+/// Allocate namespace-owned armor tags through the shared identity allocator.
 ///
-/// The 32-bit seed hash can still collide between two distinct semantic
-/// keys (birthday paradox, not a bug in the hash itself), so this walks all
-/// watches in `ArmorWatchKey` order — independent of inventory registration
-/// order, since `watches` is a `BTreeMap` keyed by the exact tuple — and
-/// appends a stable `_<n>` disambiguating suffix to every key beyond the
-/// first that maps to the same base tag. Two runs over the same watch set
-/// always produce the same mapping.
+/// Exact watch tuples remain the aggregation identity. Their namespace-prefixed
+/// seeds produce deterministic keys, and shared probing resolves hash collisions
+/// without depending on inventory registration order.
 pub(crate) fn allocate_armor_tag_keys(
+    namespace: &str,
     watches: &BTreeMap<ArmorWatchKey, ArmorWatchEntry>,
-) -> BTreeMap<ArmorWatchKey, String> {
-    let mut seen: BTreeMap<String, u32> = BTreeMap::new();
-    let mut allocated = BTreeMap::new();
-
-    for (key, (slot, item_id, custom_data, _)) in watches {
-        let seed = armor_watch_tag_seed(*slot, *item_id, *custom_data);
-        let base = format!("{}_{}", slot.tag_name_segment(), fnv1a_hex(&seed));
-
-        let count = seen.entry(base.clone()).or_insert(0);
-        *count += 1;
-        let tag_key = if *count == 1 {
-            base
-        } else {
-            format!("{base}_{count}")
-        };
-        allocated.insert(*key, tag_key);
-    }
-
-    allocated
+) -> Result<BTreeMap<ArmorWatchKey, String>, crate::component::ComponentExportError> {
+    let owners = watches
+        .iter()
+        .map(|(key, (slot, item, data, _))| {
+            (
+                *key,
+                format!(
+                    "{namespace}:armor:{}",
+                    armor_watch_tag_seed(*slot, *item, *data)
+                ),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let segments = watches
+        .iter()
+        .map(|(key, (slot, _, _, _))| (owners[key].as_str(), slot.tag_name_segment()))
+        .collect::<BTreeMap<_, _>>();
+    let keys = super::identities::allocate_collision_safe_keys(
+        owners.values().map(String::as_str),
+        |owner, attempt| {
+            let seed = if attempt == 0 {
+                owner.to_owned()
+            } else {
+                format!("{owner}#{attempt}")
+            };
+            format!("{}_{}", segments[owner], fnv1a_hex(&seed))
+        },
+        |_, _| Ok(()),
+        |owner, previous, key| crate::component::ComponentExportError::ComponentValidation {
+            location: sand_components::ResourceLocation::new(namespace, "__sand_armor_check")
+                .expect("export namespace is validated"),
+            kind: "armor observation".into(),
+            field: "private tag".into(),
+            message: format!(
+                "armor watches `{owner}` and `{previous}` cannot allocate distinct private tag key `{key}`"
+            ),
+        },
+    )?;
+    Ok(owners
+        .into_iter()
+        .map(|(watch, owner)| (watch, keys[&owner].clone()))
+        .collect())
 }
 
 pub(crate) fn build_item_cond(

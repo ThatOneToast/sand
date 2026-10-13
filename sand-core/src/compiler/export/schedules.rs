@@ -125,13 +125,10 @@ fn ensure_objective_names_fit(path: &str, key: &str) -> ExportResult<()> {
 /// [`schedule_key_attempt`]; `source` is a seam so tests can force a
 /// collision without brute-forcing a real FNV-1a one.
 ///
-/// This is the schedule-namespace sibling of
-/// [`super::armor::allocate_armor_tag_keys`], which resolves collisions by
-/// appending a stable `_<n>` suffix. That approach cannot be reused here:
-/// entity tag names are effectively unbounded, but a scoreboard objective is
-/// capped at 16 chars and `__ss_` (5) + 8 hex + `_t` (2) already spends 15 of
-/// them, leaving no room for a suffix. Schedules therefore disambiguate by
-/// deterministically salted rehash, which keeps the key width fixed at 8.
+/// Schedules and [`super::armor::allocate_armor_tag_keys`] share the same
+/// export-local allocator. Deterministically salted rehash keeps objective
+/// keys at eight hexadecimal characters: `__ss_` + key + `_t` spends 15 of
+/// Minecraft's 16-character scoreboard-objective limit.
 pub(crate) fn allocate_schedule_objective_keys<'a, I>(
     paths: I,
     source: ScheduleKeySource,

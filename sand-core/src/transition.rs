@@ -30,6 +30,7 @@ pub(crate) struct GeneratedTransitionFunction {
     pub commands: Vec<String>,
 }
 
+pub(crate) mod builtin;
 mod join;
 pub(crate) mod observation;
 
@@ -49,8 +50,15 @@ pub(crate) fn resolve_unified_transition_plan(
     namespace: &str,
     handlers: &[TransitionHandler],
     join_handlers: &[&str],
+    death_handlers: &[&str],
+    respawn_handlers: &[&str],
+    level_handlers: &[&str],
 ) -> Result<TransitionPlan, String> {
     let mut plan = join::resolve(namespace, join_handlers);
+    merge_plan(
+        &mut plan,
+        builtin::resolve(namespace, death_handlers, respawn_handlers, level_handlers),
+    )?;
     merge_plan(&mut plan, resolve_transition_plan(namespace, handlers)?)?;
     let flows = crate::state::flow::drain_flows();
     merge_plan(

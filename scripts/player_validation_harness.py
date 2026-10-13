@@ -12,6 +12,7 @@ from vanilla_reload_harness import ValidationFailure
 
 class PlayerHarness(WorldGameplayHarness):
     players = ("SandAlpha", "SandBeta")
+    auto_respawn = False
 
     def prepare(self):
         super().prepare()
@@ -44,7 +45,8 @@ class PlayerHarness(WorldGameplayHarness):
                     process = subprocess.Popen([
                         sys.executable, "-u", str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
                         "127.0.0.1", str(self.port), "776", player, str(self.args.timeout * 4 + 90),
-                    ], stdout=log, stderr=subprocess.STDOUT)
+                    ] + (["--auto-respawn"] if self.auto_respawn else []),
+                        stdout=log, stderr=subprocess.STDOUT)
                     processes.append(process)
                     self.wait_for(re.compile(re.escape(player) + r" joined the game$"), "player-join", start)
                 yield

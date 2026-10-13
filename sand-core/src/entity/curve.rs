@@ -700,8 +700,8 @@ pub(crate) enum LoweredCurveOperation {
     ScoreToFixed {
         /// Destination fixed-point scratch objective.
         destination: String,
-        /// Existing numeric State objective.
-        source: String,
+        /// Existing State storage or an export-owned detector snapshot.
+        source: NumericObjective,
         /// Explicit bound source, or the lowering context for unbound inputs.
         source_holder: Option<String>,
         /// Number of source scoreboard units per logical unit.
@@ -970,6 +970,30 @@ pub(crate) enum NativeAttributeValue {
     Base,
 }
 
+/// Numeric storage identity retained until the exporting namespace is known.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NumericObjective {
+    Named(String),
+    Detector(crate::transition::builtin::DetectorScore),
+}
+
+impl NumericObjective {
+    fn key(&self) -> String {
+        match self {
+            Self::Named(name) => name.clone(),
+            // A space cannot occur in a valid physical objective name.
+            Self::Detector(score) => format!("detector {score:?}"),
+        }
+    }
+
+    pub(crate) fn resolve(&self, namespace: &str) -> String {
+        match self {
+            Self::Named(name) => name.clone(),
+            Self::Detector(score) => score.objective(namespace),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum CurveInput {
     Attribute {
@@ -982,7 +1006,7 @@ enum CurveInput {
         item: Box<sand_components::ItemPredicate>,
     },
     Score {
-        objective: String,
+        objective: NumericObjective,
         holder: Option<sand_commands::ScoreHolder>,
         storage_scale: i32,
         field: Option<super::state::StateFieldReference>,
@@ -1000,8 +1024,8 @@ impl CurveInput {
                 objective,
                 holder: Some(holder),
                 ..
-            } => format!("{holder} {objective}"),
-            Self::Score { objective, .. } => objective.clone(),
+            } => format!("{holder} {}", objective.key()),
+            Self::Score { objective, .. } => objective.key(),
             Self::Nbt { target, path } => format!("nbt {target} {path}"),
             Self::Attribute {
                 target,
@@ -1016,8 +1040,17 @@ impl CurveInput {
 
     fn score_objective(&self) -> &str {
         match self {
-            Self::Score { objective, .. } => objective,
-            Self::Nbt { .. } | Self::InventoryCount { .. } | Self::Attribute { .. } => {
+            Self::Score {
+                objective: NumericObjective::Named(objective),
+                ..
+            } => objective,
+            Self::Score {
+                objective: NumericObjective::Detector(_),
+                ..
+            }
+            | Self::Nbt { .. }
+            | Self::InventoryCount { .. }
+            | Self::Attribute { .. } => {
                 unreachable!("discrete mapping constructors require a State score")
             }
         }
@@ -1029,7 +1062,7 @@ impl CurveInput {
             _ => 1,
         };
         Self::Score {
-            objective: field.objective(),
+            objective: NumericObjective::Named(field.objective()),
             holder: None,
             storage_scale,
             field: Some(field.field_reference()),
@@ -1038,7 +1071,7 @@ impl CurveInput {
 
     fn raw(objective: impl Into<String>) -> Self {
         Self::Score {
-            objective: objective.into(),
+            objective: NumericObjective::Named(objective.into()),
             holder: None,
             storage_scale: 1,
             field: None,
@@ -1249,6 +1282,20 @@ impl StatCurve {
         }
     }
 
+    pub(crate) fn detector_score(
+        score: crate::transition::builtin::DetectorScore,
+        player: sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One>,
+    ) -> Self {
+        Self {
+            kind: CurveKind::Input(CurveInput::Score {
+                objective: NumericObjective::Detector(score),
+                holder: Some(sand_commands::ScoreHolder::entity(player)),
+                storage_scale: 1,
+                field: None,
+            }),
+        }
+    }
+
     pub(crate) fn direct_source_scale(&self) -> Option<i64> {
         match &self.kind {
             CurveKind::Input(CurveInput::Score { storage_scale, .. }) => {
@@ -1287,7 +1334,11 @@ impl StatCurve {
                 holder: Some(holder),
                 ..
             } if holder.to_string() != "@s" => unsupported = Some(holder.to_string()),
-            CurveInput::Nbt { .. }
+            CurveInput::Score {
+                objective: NumericObjective::Detector(_),
+                ..
+            }
+            | CurveInput::Nbt { .. }
             | CurveInput::InventoryCount { .. }
             | CurveInput::Attribute { .. } => unsupported = Some(input.key()),
             _ => {}
@@ -1996,7 +2047,11 @@ impl StatCurve {
     pub(crate) fn input_objectives(&self) -> BTreeSet<String> {
         let mut objectives = BTreeSet::new();
         self.visit_inputs(&mut |input| {
-            if let CurveInput::Score { objective, .. } = input {
+            if let CurveInput::Score {
+                objective: NumericObjective::Named(objective),
+                ..
+            } = input
+            {
                 objectives.insert(objective.clone());
             }
         });

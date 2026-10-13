@@ -79,6 +79,16 @@ fn tag_values(records: &[serde_json::Value], path: &str) -> Vec<String> {
         .collect()
 }
 
+fn objective<'a>(records: &'a [serde_json::Value], criterion: &str) -> &'a str {
+    function_content(records, "__sand_lifecycle_load")
+        .lines()
+        .find(|line| line.ends_with(&format!(" {criterion}")))
+        .unwrap_or_else(|| panic!("missing objective criterion {criterion}"))
+        .split_whitespace()
+        .nth(3)
+        .unwrap()
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum Phase {
     #[default]
@@ -195,42 +205,47 @@ fn two_players_progress_independently() {
 #[test]
 fn generated_state_machine_uses_phase_and_time_since_death() {
     let records = records();
+    let count = objective(&records, "deathCount");
+    let since = objective(&records, "minecraft.custom:minecraft.time_since_death");
+    let phase = objective(&records, "dummy");
     assert_eq!(
-        function_content(&records, "__sand_death_init"),
-        "scoreboard objectives add __sand_dc deathCount\n\
-         scoreboard objectives add __sand_tsd minecraft.custom:minecraft.time_since_death\n\
-         scoreboard objectives add __sand_rp dummy"
+        function_content(&records, "__sand_lifecycle_load")
+            .lines()
+            .count(),
+        3
     );
+    for name in [count, since, phase] {
+        assert!(name.len() <= 16);
+    }
     assert_eq!(
         function_content(&records, "__sand_respawn_check"),
-        "execute as @a[scores={__sand_rp=1,__sand_tsd=1..}] run function \
-         respawnpack:__sand_respawn_dispatch"
+        format!(
+            "execute if score @s {phase} matches 1 if score @s {since} matches 1.. run function respawnpack:__sand_respawn_dispatch"
+        )
     );
-
-    let death = function_content(&records, "__sand_death_check");
-    let respawn_pos = death
-        .find("function respawnpack:__sand_respawn_check")
-        .expect("coordinator invokes respawn check");
-    let death_pos = death
-        .find("scores={__sand_dc=1..}")
-        .expect("coordinator observes deaths");
-    let waiting_pos = death
-        .find("scoreboard players set @s __sand_rp 1")
-        .expect("death enters waiting phase as the selected player");
-    assert!(
-        respawn_pos < death_pos && death_pos < waiting_pos,
-        "{death}"
+    assert_eq!(
+        function_content(&records, "__sand_death_check"),
+        format!(
+            "function respawnpack:__sand_respawn_check\nexecute if score @s {count} matches 1.. run function respawnpack:__sand_death_dispatch"
+        )
+    );
+    assert_eq!(
+        function_content(&records, "__sand_death_dispatch"),
+        format!(
+            "scoreboard players set @s {count} 0\nscoreboard players set @s {phase} 1\nexecute at @s run function respawnpack:death_handler"
+        )
     );
 }
 
 #[test]
-fn every_respawn_handler_runs_once_before_the_phase_resets() {
+fn every_respawn_handler_runs_once_after_the_phase_is_consumed() {
     let records = records();
+    let phase = objective(&records, "dummy");
     assert_eq!(
         function_content(&records, "__sand_respawn_dispatch"),
-        "function respawnpack:respawn_handler_a\n\
-         function respawnpack:respawn_handler_b\n\
-         scoreboard players set @s __sand_rp 0"
+        format!(
+            "scoreboard players set @s {phase} 0\nexecute at @s run function respawnpack:respawn_handler_a\nexecute at @s run function respawnpack:respawn_handler_b"
+        )
     );
 }
 
@@ -238,7 +253,11 @@ fn every_respawn_handler_runs_once_before_the_phase_resets() {
 fn correctness_does_not_depend_on_function_tag_sorting() {
     let records = records();
     let tick = tag_values(&records, "tick");
-    assert!(tick.contains(&"respawnpack:__sand_death_check".to_string()));
+    assert!(tick.contains(&"respawnpack:__sand_lifecycle_tick".to_string()));
+    assert_eq!(
+        function_content(&records, "__sand_lifecycle_tick"),
+        "execute as @a run function respawnpack:__sand_death_check"
+    );
     assert!(
         !tick.contains(&"respawnpack:__sand_respawn_check".to_string()),
         "respawn ordering is an explicit function call, not a second tick-tag entry: {tick:?}"

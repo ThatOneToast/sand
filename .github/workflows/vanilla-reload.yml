@@ -23,6 +23,8 @@ on:
       - "scripts/player_validation_harness.py"
       - "scripts/validate_player_participants.py"
       - "scripts/validate_player_joins.py"
+      - "scripts/validate_detector_ownership.py"
+      - "sand-core/tests/builtin_detector_ownership.rs"
       - "sand-core/tests/join_lifecycle_export.rs"
       - "scripts/tests/test_player_validation_harness.py"
       - "scripts/mc_validation/run_bounded_item_event_proof.py"
@@ -178,6 +180,12 @@ jobs:
           python3 scripts/validate_bounded_state_writes.py \
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/bounded-state"
+      - name: Validate built-in detector ownership in both tick orders
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_detector_ownership.py \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'
@@ -212,6 +220,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/bounded-items
             target/vanilla-reload/${{ matrix.version }}/player-joins
             target/vanilla-reload/${{ matrix.version }}/bounded-state
+            target/vanilla-reload/${{ matrix.version }}/detector-ownership
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

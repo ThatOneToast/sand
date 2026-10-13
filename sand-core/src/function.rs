@@ -118,8 +118,9 @@ pub enum EventDispatch {
     /// All-deaths detection via the `deathCount` scoreboard criterion.
     ///
     /// Fires for every player death (mob, fall, fire, void, `/kill`, …).
-    /// Sand generates a `__sand_death_check` tick function and a
-    /// `__sand_death_init` load function (adds the `deathCount` objective).
+    /// The shared player lifecycle provisions a namespace-owned criterion
+    /// objective and consumes only this pack's observation before callbacks.
+    /// Other Sand datapacks observe their own independent death criteria.
     DeathTick,
 
     /// Tick-observed player joins, reconnects, and presence after load/reload.
@@ -249,16 +250,11 @@ pub enum EventDispatch {
 
     /// Tick-backed XP level-up detection.
     ///
-    /// Sand generates four Sand-owned scoreboard objectives and a dedicated
-    /// `__sand_xp_check` tick function. Handlers are called when a player's XP
-    /// level increases. The first tick after load/join initialises previous-level
-    /// state without firing. Level decreases do not fire the event.
-    ///
-    /// Objectives used (all ≤16 chars):
-    /// - `__sand_xp_lvl`   — current XP level (refreshed every tick)
-    /// - `__sand_xp_prev`  — previous XP level (last tick)
-    /// - `__sand_xp_delta` — current − previous
-    /// - `__sand_xp_seen`  — 0 until first tick; prevents spurious fire on join
+    /// The shared player lifecycle owns four namespace-specific snapshots:
+    /// current level, previous level, delta and first-observation state. Typed
+    /// event accessors resolve their numeric reads against the same export owner.
+    /// The first observation initializes the baseline without firing; existing
+    /// baselines survive load and reconnect. Decreases do not fire the event.
     XpLevelUp,
 
     /// Reusable tick-polled previous/current transition detection.

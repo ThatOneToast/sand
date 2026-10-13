@@ -331,7 +331,7 @@ pub(crate) fn render_lowered_curve(
                     &mut commands,
                     destination,
                     &source_holder,
-                    source,
+                    &source.resolve(context.owner.namespace()),
                     index,
                 );
                 append_scale_conversion(

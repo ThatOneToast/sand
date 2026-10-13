@@ -111,7 +111,10 @@ pub(crate) fn render_lowered_curve(
                 let helper_path = format!("{path}/inventory_{index}");
                 let count_command =
                     sand_commands::Inventory::of(sand_commands::Target::current_player())
-                        .try_clear_item_count(item.to_string(), 0)
+                        .try_clear_item_count(
+                            crate::ir::lower_item_predicate(item, context.owner).map_err(error)?,
+                            0,
+                        )
                         .map_err(error)?;
                 let helper = vec![
                     "execute unless entity @s[type=minecraft:player] run return fail".to_owned(),

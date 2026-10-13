@@ -673,7 +673,7 @@ pub(crate) enum LoweredCurveOperation {
     InventoryCountToFixed {
         destination: String,
         target: sand_commands::Selector,
-        item: sand_components::ItemId,
+        item: Box<sand_components::ItemPredicate>,
         scale: i64,
         rounding: RoundingPolicy,
         overflow: OverflowPolicy,
@@ -958,7 +958,7 @@ enum CurveKind {
 enum CurveInput {
     InventoryCount {
         target: sand_commands::Selector,
-        item: sand_components::ItemId,
+        item: Box<sand_components::ItemPredicate>,
     },
     Score {
         objective: String,
@@ -982,7 +982,7 @@ impl CurveInput {
             } => format!("{holder} {objective}"),
             Self::Score { objective, .. } => objective.clone(),
             Self::Nbt { target, path } => format!("nbt {target} {path}"),
-            Self::InventoryCount { target, item } => format!("inventory {target} {item}"),
+            Self::InventoryCount { target, item } => format!("inventory {target} {item:?}"),
         }
     }
 
@@ -1188,10 +1188,13 @@ impl StatCurve {
 
     pub(crate) fn inventory_count(
         target: sand_commands::Selector,
-        item: sand_components::ItemId,
+        item: impl Into<sand_components::ItemPredicate>,
     ) -> Self {
         Self {
-            kind: CurveKind::Input(CurveInput::InventoryCount { target, item }),
+            kind: CurveKind::Input(CurveInput::InventoryCount {
+                target,
+                item: Box::new(item.into()),
+            }),
         }
     }
 

@@ -17,8 +17,9 @@
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 mod item;
+pub(crate) use item::lower_item_predicate;
 #[doc(hidden)]
-pub use item::ItemMutation;
+pub use item::{ItemMatch, ItemMutation};
 mod numeric;
 #[doc(hidden)]
 pub use numeric::NumericWrite;
@@ -319,6 +320,10 @@ pub enum Cmd {
     #[doc(hidden)]
     ItemMutation(Box<ItemMutation>),
 
+    /// Evaluate a typed slot predicate in an owned condition helper.
+    #[doc(hidden)]
+    ItemMatch(Box<ItemMatch>),
+
     /// Evaluate a numeric comparison in its compiler-owned condition helper.
     #[doc(hidden)]
     NumericComparison(Box<NumericComparison>),
@@ -361,6 +366,7 @@ impl Cmd {
         Ok(match self {
             Self::NumericWrite(write) => return write.lower(owner),
             Self::ItemMutation(write) => return write.lower(owner),
+            Self::ItemMatch(query) => return query.lower(owner),
             Self::NumericComparison(comparison) => return comparison.lower(owner),
             Self::WithConditionResources { condition, run } => {
                 condition.register_owned_resources();
@@ -504,7 +510,7 @@ impl Cmd {
                 format!("execute {operation_text} run {run_text}")
             }
 
-            Self::ItemMutation(_) => {
+            Self::ItemMutation(_) | Self::ItemMatch(_) => {
                 return Err(sand_commands::CommandError::new(
                     "inventory write",
                     "item",

@@ -1019,9 +1019,10 @@ mod tests {
             })
         });
         let _ = crate::ir::test_support::emitted(commands);
-        let error = crate::compiler::export::functions::drain_dynamic_functions_into(
+        let error = crate::compiler::export::functions::drain_generated_resources_into(
             &mut Vec::new(),
             "game",
+            None,
         )
         .unwrap_err()
         .to_string();

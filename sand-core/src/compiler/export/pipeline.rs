@@ -27,7 +27,7 @@ use super::events::{
     resolve_custom_dispatch_backend, setup_objective_owner, tick_event_export_error,
     xp_advance_command, xp_score_commands,
 };
-use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
+use super::functions::{drain_generated_resources_into, resolve_local_refs};
 use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
 use super::lifecycle::{
     ensure_private_lifecycle_path_available, ensure_private_transition_path_available,
@@ -2595,7 +2595,7 @@ pub(crate) fn try_export_components_impl(
     // Must run AFTER every desc.make() call so branches registered by event
     // bodies, schedule bodies, armor handlers, etc. are all captured.
     // The loop handles chains: draining can trigger further registrations.
-    drain_dynamic_functions_into(&mut records, namespace)?;
+    drain_generated_resources_into(&mut records, namespace, ctx)?;
 
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // Must run after ComponentFactory and other make() calls so callbacks

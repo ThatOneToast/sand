@@ -56,7 +56,21 @@ fn cached_inventory_actions_export_typed_writes_and_guards_deterministically() {
     assert!(text.contains("reward"));
     assert!(text.contains("] 3"));
     assert!(text.contains("item replace entity @s hotbar.3 with air"));
-    assert!(text.contains("execute unless items entity @s weapon.mainhand * run item replace entity @s weapon.mainhand from entity @s weapon.offhand"), "{text}");
+    let copy = " run item replace entity @s weapon.mainhand from entity @s weapon.offhand";
+    let guards: Vec<_> = text.lines().filter(|line| line.ends_with(copy)).collect();
+    assert_eq!(guards.len(), 1, "one guarded copy operation");
+    let helper = guards[0]
+        .strip_prefix("execute unless function inventory_actions:")
+        .and_then(|line| line.strip_suffix(copy))
+        .expect("copy must require an empty main hand");
+    let predicate = records
+        .iter()
+        .find(|record| record["dir"] == "function" && record["path"] == helper)
+        .expect("guard owns its exported item predicate");
+    assert_eq!(
+        predicate["content"].as_str().unwrap().trim(),
+        "execute if items entity @s weapon.mainhand * run return 1\nreturn 0"
+    );
     assert!(text.contains("item replace block ~ ~ ~ container.0 from entity @s weapon.offhand"));
     assert!(!text.contains("data modify entity"));
     assert!(!text.contains("__sand_local:"));

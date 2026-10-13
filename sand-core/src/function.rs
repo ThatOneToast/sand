@@ -577,8 +577,27 @@ use std::cell::{Cell, RefCell};
 
 type DynFnEntry = (String, crate::ir::Actions);
 
+/// Resources owned by lowered gameplay IR, scoped to one export transaction.
+pub(crate) enum GeneratedResource {
+    Function(String, crate::ir::Actions),
+    Component(Box<dyn sand_components::DatapackComponent>),
+    Requirement {
+        owner: sand_components::ResourceLocation,
+        feature: sand_version::ComponentFeature,
+    },
+}
+
+impl GeneratedResource {
+    fn function(&self) -> Option<(&str, &crate::ir::Actions)> {
+        match self {
+            Self::Function(path, actions) => Some((path, actions)),
+            _ => None,
+        }
+    }
+}
+
 thread_local! {
-    static REGISTRY: RefCell<Vec<DynFnEntry>> = const { RefCell::new(Vec::new()) };
+    static REGISTRY: RefCell<Vec<GeneratedResource>> = const { RefCell::new(Vec::new()) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
     static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
     static GENERATED_OBJECTIVE_OWNERS: RefCell<std::collections::BTreeMap<String, GeneratedObjectiveOwner>> = const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -702,10 +721,12 @@ pub(crate) fn take_internal_score_temp_request() -> bool {
 pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
     let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
-        if !registry.iter().any(|(existing_path, existing_commands)| {
-            existing_path == &path && existing_commands.identity() == commands.identity()
-        }) {
-            registry.push((path, commands));
+        if !registry.iter().filter_map(GeneratedResource::function).any(
+            |(existing_path, existing_commands)| {
+                existing_path == path && existing_commands.identity() == commands.identity()
+            },
+        ) {
+            registry.push(GeneratedResource::Function(path, commands));
         }
     });
 }
@@ -715,40 +736,75 @@ pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
 pub fn register_dyn_fn_dedup(prefix: &str, commands: impl crate::IntoCommands) -> String {
     let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
-        if let Some((path, _)) = registry.iter().find(|(path, existing_commands)| {
-            path.starts_with(prefix) && existing_commands.identity() == commands.identity()
-        }) {
-            return path.clone();
+        if let Some((path, _)) = registry
+            .iter()
+            .filter_map(GeneratedResource::function)
+            .find(|(path, existing_commands)| {
+                path.starts_with(prefix) && existing_commands.identity() == commands.identity()
+            })
+        {
+            return path.to_owned();
         }
-
         let path = generated_function_path(prefix, &commands);
-        if !registry.iter().any(|(existing_path, existing_commands)| {
-            existing_path == &path && existing_commands.identity() == commands.identity()
-        }) {
-            registry.push((path.clone(), commands));
-        }
+        registry.push(GeneratedResource::Function(path.clone(), commands));
         path
     })
 }
 
-/// Drain all dynamically-registered anonymous functions registered on the
-/// *current thread*.
-///
-/// Called once by the component builder after all user functions have run
-/// for one export, so all `register_dyn_fn` calls made during that export
-/// (which runs synchronously on this thread) are guaranteed to have
-/// completed. Never observes or clears another thread's registrations.
-pub fn drain_dyn_fns() -> Vec<(String, crate::ir::Actions)> {
+/// Drain dynamically registered functions on this thread, leaving other owned
+/// resources for the export pipeline. Functions retain their typed actions.
+pub fn drain_dyn_fns() -> Vec<DynFnEntry> {
+    REGISTRY.with_borrow_mut(|registry| {
+        let mut functions = Vec::new();
+        let mut remaining = Vec::new();
+        for resource in std::mem::take(registry) {
+            match resource {
+                GeneratedResource::Function(path, actions) => functions.push((path, actions)),
+                resource => remaining.push(resource),
+            }
+        }
+        *registry = remaining;
+        functions
+    })
+}
+
+pub(crate) fn register_generated_component(
+    component: impl sand_components::DatapackComponent + 'static,
+) {
+    REGISTRY.with_borrow_mut(|registry| {
+        registry.push(GeneratedResource::Component(Box::new(component)))
+    });
+}
+
+pub(crate) fn require_generated_feature(
+    owner: &sand_components::ResourceLocation,
+    feature: sand_version::ComponentFeature,
+) {
+    REGISTRY.with_borrow_mut(|registry| {
+        registry.push(GeneratedResource::Requirement {
+            owner: owner.clone(),
+            feature,
+        })
+    });
+}
+
+pub(crate) fn drain_generated_resources() -> Vec<GeneratedResource> {
     REGISTRY.with_borrow_mut(std::mem::take)
 }
 
+pub(crate) fn generated_resource_path(prefix: &str, identity: &str) -> String {
+    format!("{prefix}/{}", stable_identity_key(identity))
+}
+
 fn stable_commands_key(commands: &crate::ir::Actions) -> String {
+    stable_identity_key(&commands.identity())
+}
+
+fn stable_identity_key(identity: &str) -> String {
     let mut h: u32 = 2_166_136_261;
-    for command in [commands.identity()] {
-        for b in command.bytes().chain(std::iter::once(0)) {
-            h ^= b as u32;
-            h = h.wrapping_mul(16_777_619);
-        }
+    for b in identity.bytes().chain(std::iter::once(0)) {
+        h ^= b as u32;
+        h = h.wrapping_mul(16_777_619);
     }
     format!("{h:08x}")
 }

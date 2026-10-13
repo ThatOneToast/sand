@@ -191,7 +191,7 @@ pub fn capability_facade_example() -> Actions {
     Target::players().each(|player| {
         let boots = player.equipment().slot(EquipmentSlot::Feet).unwrap();
         let first_hotbar_slot = player.inventory().hotbar(0).unwrap();
-        let wearing_boots = boots.matches("minecraft:leather_boots").unwrap();
+        let wearing_boots = boots.matches(vanilla::Item::LeatherBoots).unwrap();
         let speed = player
             .living()
             .give_effect(EffectId::Speed)

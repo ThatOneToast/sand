@@ -66,7 +66,7 @@ use crate::registry::{BiomeId, BlockId, DamageTypeId, DimensionId, EntityTypeId,
 /// let exact = IntRange::exact(3);
 /// assert_eq!(serde_json::to_value(&exact).unwrap(), json!(3));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::predicate::IntRange",
@@ -1648,7 +1648,7 @@ impl Serialize for BlockPredicate {
 ///     .raw_predicates(RawJson::new(json!({"minecraft:enchantments": {"levels": {"min": 1}}})));
 /// # Ok::<(), sand_components::SandError>(())
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::predicate::ItemPredicate",
@@ -1669,6 +1669,102 @@ pub struct ItemPredicate {
     raw_components: Option<RawJson>,
     raw_predicates: Option<RawJson>,
     _raw: Option<RawJson>,
+}
+
+/// Compiler boundary for native item arguments; authors use ItemPredicate.
+#[doc(hidden)]
+pub struct LoweredItemPredicate {
+    pub items: Option<Vec<ItemId>>,
+    pub constraints: Vec<String>,
+    pub requires_components: bool,
+}
+
+/// Compiler-only lowering shared by slot conditions and inventory counts.
+/// Multi-ID tag ownership is supplied by the exporter's resource registry.
+#[doc(hidden)]
+pub fn lower_item_predicate_for_command(
+    predicate: &ItemPredicate,
+) -> Result<LoweredItemPredicate, String> {
+    if predicate.is_raw() {
+        return Err("whole raw item-predicate JSON cannot be lowered to a native item argument; use typed fields or an explicit raw command predicate".into());
+    }
+    let json = predicate.render_for_advancement(None)?;
+    let mut constraints = Vec::new();
+    if let Some(count) = json.get("count") {
+        // The native sub-predicate accepts both exact integers and ranges,
+        // including zero/negative bounds that simply match no nonempty stack.
+        // Its codec uses signed 32-bit integers, unlike the generic IntRange.
+        let bounds = predicate
+            .count
+            .expect("serialized count retains its typed range");
+        if [bounds.min, bounds.max]
+            .into_iter()
+            .flatten()
+            .any(|bound| i32::try_from(bound).is_err())
+        {
+            return Err(
+                "item predicate.count: bounds must fit Minecraft's signed 32-bit integer range"
+                    .into(),
+            );
+        }
+        constraints.push(format!("minecraft:count~{count}"));
+    }
+    for (bag, operator) in [("components", '='), ("predicates", '~')] {
+        if let Some(object) = json.get(bag).and_then(Value::as_object) {
+            for (key, value) in object {
+                let key = if key.contains(':') {
+                    key.clone()
+                } else {
+                    format!("minecraft:{key}")
+                };
+                let key = key
+                    .parse::<crate::ResourceLocation>()
+                    .map_err(|error| format!("item predicate.{bag}: {error}"))?
+                    .to_string();
+                if key == "minecraft:count" {
+                    return Err(format!(
+                        "item predicate.{bag}.{key}: count is a native pseudo-component; use the typed count constraint"
+                    ));
+                }
+                let value = if bag == "predicates" && key == "minecraft:custom_data" {
+                    // JSON predicate codecs carry this SNBT as a string;
+                    // the native argument consumes the compound itself.
+                    value
+                        .as_str()
+                        .ok_or_else(|| {
+                            "item predicate.predicates.minecraft:custom_data must contain SNBT text"
+                                .to_string()
+                        })?
+                        .to_owned()
+                } else {
+                    if value.is_null() {
+                        return Err(format!(
+                            "item predicate.{bag}.{key}: null has no native SNBT representation"
+                        ));
+                    }
+                    value.to_string()
+                };
+                constraints.push(format!("{key}{operator}{value}"));
+            }
+        }
+    }
+    Ok(LoweredItemPredicate {
+        items: predicate.items.clone(),
+        constraints,
+        requires_components: predicate.count.is_some() || predicate.has_component_constraints(),
+    })
+}
+
+impl<T: Into<ItemId>> From<T> for ItemPredicate {
+    fn from(item: T) -> Self {
+        Self::id(item)
+    }
+}
+
+impl From<&ItemPredicate> for ItemPredicate {
+    fn from(predicate: &ItemPredicate) -> Self {
+        predicate.clone()
+    }
 }
 
 impl ItemPredicate {
@@ -3008,6 +3104,110 @@ mod tests {
     fn float_range_at_most() {
         let r = FloatRange::at_most(10.5);
         assert_eq!(serde_json::to_value(r).unwrap(), json!({"max": 10.5}));
+    }
+
+    #[test]
+    fn native_item_predicate_preserves_count_and_partial_identity() {
+        let predicate = ItemPredicate::id(item("diamond"))
+            .count_min(3)
+            .custom_data_key("pack:reward");
+        let lowered = lower_item_predicate_for_command(&predicate).unwrap();
+        assert_eq!(lowered.items.unwrap(), vec![item("diamond")]);
+        assert_eq!(
+            lowered.constraints,
+            vec![
+                "minecraft:count~{\"min\":3}",
+                "minecraft:custom_data~{\"pack:reward\":1b}",
+            ]
+        );
+        assert!(lowered.requires_components);
+    }
+
+    #[test]
+    fn native_item_predicate_uses_range_operator_for_all_count_constraints() {
+        for (predicate, expected) in [
+            (
+                ItemPredicate::new().count_min(2),
+                "minecraft:count~{\"min\":2}",
+            ),
+            (
+                ItemPredicate::new().count_max(5),
+                "minecraft:count~{\"max\":5}",
+            ),
+            (
+                ItemPredicate::new().count_range(2, 5),
+                "minecraft:count~{\"max\":5,\"min\":2}",
+            ),
+            (ItemPredicate::new().count_range(3, 3), "minecraft:count~3"),
+            (
+                ItemPredicate::new().count(IntRange::exact(0)),
+                "minecraft:count~0",
+            ),
+            (
+                ItemPredicate::new().count(IntRange::exact(-3)),
+                "minecraft:count~-3",
+            ),
+            (ItemPredicate::new().count_range(0, 0), "minecraft:count~0"),
+        ] {
+            let lowered = lower_item_predicate_for_command(&predicate).unwrap();
+            assert!(
+                lowered.requires_components,
+                "native count syntax needs the component profile"
+            );
+            assert_eq!(lowered.constraints, vec![expected]);
+        }
+    }
+
+    #[test]
+    fn native_item_predicate_rejects_count_bounds_outside_minecraft_integer_range() {
+        for predicate in [
+            ItemPredicate::new().count_min(i64::from(i32::MAX) + 1),
+            ItemPredicate::new().count_max(i64::from(i32::MIN) - 1),
+            ItemPredicate::new().count(IntRange::exact(i64::MAX)),
+        ] {
+            assert!(
+                lower_item_predicate_for_command(&predicate)
+                    .err()
+                    .unwrap()
+                    .contains("signed 32-bit")
+            );
+        }
+    }
+
+    #[test]
+    fn native_item_predicate_distinguishes_exact_and_partial_custom_data() {
+        let exact = ItemPredicate::new().raw_components(RawJson::new(serde_json::json!({
+            "minecraft:custom_data": {"reward": true}
+        })));
+        let exact = lower_item_predicate_for_command(&exact).unwrap();
+        assert_eq!(
+            exact.constraints,
+            vec!["minecraft:custom_data={\"reward\":true}"]
+        );
+        let partial = ItemPredicate::new().raw_predicates(RawJson::new(serde_json::json!({
+            "minecraft:custom_data": "{reward:1b}"
+        })));
+        let partial = lower_item_predicate_for_command(&partial).unwrap();
+        assert_eq!(
+            partial.constraints,
+            vec!["minecraft:custom_data~{reward:1b}"]
+        );
+    }
+
+    #[test]
+    fn native_item_predicate_rejects_unrepresentable_inputs() {
+        for predicate in [
+            ItemPredicate::raw(RawJson::new(serde_json::json!({"unsupported": true}))),
+            ItemPredicate::new().count_range(3, 1),
+            ItemPredicate::new().raw_components(RawJson::new(serde_json::json!({"bad]key": {}}))),
+            ItemPredicate::new()
+                .raw_components(RawJson::new(serde_json::json!({"minecraft:count": 3}))),
+            ItemPredicate::new().raw_predicates(RawJson::new(
+                serde_json::json!({"minecraft:custom_data": {"reward": true}}),
+            )),
+        ] {
+            assert!(lower_item_predicate_for_command(&predicate).is_err());
+        }
     }
 
     #[test]

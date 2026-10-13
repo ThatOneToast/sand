@@ -154,7 +154,7 @@ impl ContainerIndex {
     variant_fields(PlayerEquipment = ["The validated player armor equipment slot."], PlayerHotbar = ["The validated player hotbar index."], PlayerInventory = ["The validated player inventory index."], EntityEquipment(entity = "The explicit entity owning the equipment.", slot = "The validated equipment slot."), BlockContainer(position = "The block position owning the container.", slot = "The validated container slot."), ItemEntity = ["The explicit selector for the dropped-item entity."], EntityInventory(entity = "The explicit entity owning the inventory.", slot = "The typed discoverable inventory slot."), EntityEnderChest(entity = "The explicit entity owning the ender chest.", slot = "The validated ender-chest index.")),
     example = "let location = ItemLocation::PlayerMainHand;"
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ItemLocation {
     /// The player's currently-selected hotbar item (`SelectedItem`).
     PlayerMainHand,
@@ -424,18 +424,34 @@ impl ItemLocation {
         Condition::data_exists(&reference)
     }
 
-    /// True when the live slot contains no item.
+    /// True when the live slot contains no matching item.
+    /// This does not prove the target inventory exists; a failed positive read
+    /// also makes this negated condition true.
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::is_empty", summary = "Builds a runtime condition that this live slot has no matching item.", context = "The method delegates to the typed item-target model and can fail for NBT-only locations such as ender-chest entries.", minecraft = "Lowers to the negation of an execute-if-items wildcard match.", use_when = ["Branching when a live /item-addressable slot is empty"], avoid_when = ["Checking an NBT-only ender-chest entry"], returns = "An empty-slot condition or an unsupported-location error.", example = "let empty = ItemLocation::PlayerOffHand.is_empty()?;")]
     pub fn is_empty(&self) -> Result<Condition, ItemLocationError> {
-        Ok(!self.matches("*")?)
+        Ok(!self.matches(sand_components::ItemPredicate::new())?)
     }
 
-    /// Match a live slot through typed `execute if items` condition IR.
+    /// Match a live slot against the canonical typed item predicate.
     ///
-    /// `item` is the vanilla item-stack predicate argument (an item ID,
-    /// tag/wildcard, or component-bearing predicate syntax).
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::matches", summary = "Builds a typed runtime condition matching a live item slot against a Minecraft item predicate.", context = "This is the explicit bridge to vanilla item predicate syntax; prefer generated custom-item predicates when one exists.", minecraft = "Lowers to execute if items for an entity or block target.", use_when = ["Gating commands on a live stack's id, tag, or component predicate"], avoid_when = ["Matching an NBT-only ender-chest entry or a captured snapshot"], params(item = "The vanilla item predicate syntax to test."), returns = "A match condition or an unsupported-location error.", example = "let compass = ItemLocation::PlayerMainHand.matches(\"minecraft:compass\")?;")]
-    pub fn matches(&self, item: impl Into<String>) -> Result<Condition, ItemLocationError> {
+    /// Item IDs and generated vanilla items match by base identity. Use
+    /// [`sand_components::CustomItem::item_predicate`] to retain a custom item's
+    /// partial custom-data identity, or supply an [`sand_components::ItemPredicate`]
+    /// with count/component constraints. Predicate validation occurs during export.
+    /// Multi-ID predicates are one native query, with a generated typed item tag.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::matches", summary = "Matches a live slot against a canonical typed item predicate.", context = "Retains typed identity and constraints through Condition composition, including cached guards and repeated exports.", minecraft = "Lowers to one execute-if-items query; multi-ID predicates own a generated item tag.", use_when = ["Checking a live stack's identity, count, or custom data"], avoid_when = ["Matching NBT-only ender-chest entries or using unsupported native syntax"], params(item = "A typed item ID, generated vanilla item, or canonical ItemPredicate."), returns = "An owned match condition or an unsupported-location error.", example = "let item: sand::registry::ItemId = \"minecraft:compass\".parse()?; let compass = ItemLocation::PlayerMainHand.matches(item)?;")]
+    pub fn matches(
+        &self,
+        item: impl Into<sand_components::ItemPredicate>,
+    ) -> Result<Condition, ItemLocationError> {
+        self.item_target_slot()?;
+        Ok(Condition::item_matches(self.clone(), item.into()))
+    }
+
+    /// Explicit native item-predicate syntax for unsupported command features.
+    /// Prefer [`Self::matches`] for typed IDs, custom items, and component filters.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::matches_raw", summary = "Matches a live slot with explicit native item-predicate syntax.", context = "This escape hatch retains unsupported Minecraft syntax without presenting a command fragment as a typed identity.", minecraft = "Emits the supplied item argument in an execute-if-items condition.", use_when = ["A native item query is not represented by ItemPredicate"], avoid_when = ["Typed item IDs or predicate builders cover the query"], params(item = "The explicit native item argument."), returns = "A raw match condition or an unsupported-location error.", example = "let empty = !ItemLocation::PlayerOffHand.matches_raw(\"*\")?;")]
+    pub fn matches_raw(&self, item: impl Into<String>) -> Result<Condition, ItemLocationError> {
         let item = item.into();
         match self.item_target_slot()? {
             ItemCommandLocation::Entity { target, slot } => {
@@ -611,12 +627,14 @@ impl ItemLocation {
 }
 
 impl EntityInventory {
-    /// Count items with this identity in one player's inventory at runtime.
+    /// Count matching items in one player's inventory at runtime.
     ///
     /// The result is a canonical [`StatCurve`](crate::entity::StatCurve), usable
     /// in numeric State assignments, arithmetic, and comparisons. This follows
     /// vanilla `clear ... 0` counting, including the player crafting grid and carried cursor
-    /// stack, and removes no items. Open-container slots and ender chests are not counted. Components do not restrict this ID match.
+    /// stack, and removes no items. Open-container slots and ender chests are not counted. A typed item ID matches
+    /// its base identity; an ItemPredicate can constrain components and each
+    /// individual stack's count before matching quantities are summed.
     ///
     /// The target must be statically single; export rejects plural targets.
     /// A missing target or non-player executor fails the numeric read, while
@@ -625,24 +643,27 @@ impl EntityInventory {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::inventory::EntityInventory::count",
-        summary = "Read one player's item count as a canonical numeric expression.",
-        context = "Retains the item identity and inventory owner until numeric lowering; works with State writes, arithmetic, and Conditions.",
+        summary = "Read one player's matching item count as a canonical numeric expression.",
+        context = "Retains the canonical item predicate and inventory owner until numeric lowering; works with State writes, arithmetic, and Conditions.",
         minecraft = "Uses non-mutating clear with maximum count zero, preserving a single selected player. Missing or non-player targets fail; an empty match yields zero.",
-        use_when = ["Counting a typed item ID in a player's inventory"],
-        avoid_when = ["Matching custom components or counting multiple players together"],
-        params(item = "The typed item identity; component differences do not restrict the match."),
+        use_when = ["Counting a typed item ID or predicate in one player's inventory"],
+        avoid_when = ["Counting multiple players together or querying ender-chest contents"],
+        params(item = "A typed item ID, generated vanilla item, or ItemPredicate; custom items provide item_predicate()."),
         returns = "A runtime numeric expression with integer source units.",
         example = "let item: sand::registry::ItemId = \"minecraft:diamond\".parse()?; let diamonds = player.inventory().count(item);",
     )]
-    pub fn count(&self, item: impl Into<sand_components::ItemId>) -> crate::entity::StatCurve {
-        crate::entity::StatCurve::inventory_count(self.entity.clone(), item.into())
+    pub fn count(
+        &self,
+        item: impl Into<sand_components::ItemPredicate>,
+    ) -> crate::entity::StatCurve {
+        crate::entity::StatCurve::inventory_count(self.entity.clone(), item)
     }
 
-    /// Test whether one player's inventory contains this item ID.
+    /// Test whether one player's inventory contains a matching item.
     ///
     /// Returns the canonical [`Condition`], so presence composes with guards,
     /// other conditions, and negation. This is a positive [`Self::count`] check:
-    /// it has the same inventory coverage, ignores component differences, and
+    /// it has the same inventory coverage and per-stack predicate semantics, and
     /// never removes items. An empty inventory, missing target, or non-player
     /// target makes this condition false. Negating it therefore also accepts
     /// a missing or non-player target.
@@ -651,16 +672,16 @@ impl EntityInventory {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::inventory::EntityInventory::contains",
-        summary = "Test one player's inventory for a typed item identity.",
+        summary = "Test one player's inventory for a typed item predicate.",
         context = "Uses the canonical count expression and Condition, retaining ownership and generated helpers through cached guards.",
         minecraft = "Performs a non-mutating clear count and checks for a positive result; an absent or non-player target makes the condition false.",
         use_when = ["Gating gameplay on item presence in a player's inventory"],
-        avoid_when = ["Matching custom components, ender-chest entries, or open-container slots"],
-        params(item = "The typed item ID; components do not restrict this identity match."),
+        avoid_when = ["Querying ender-chest entries or open-container slots"],
+        params(item = "A typed item ID, generated vanilla item, or ItemPredicate."),
         returns = "A composable runtime presence condition.",
         example = "let item: sand::registry::ItemId = \"minecraft:diamond\".parse()?; let has_diamonds = player.inventory().contains(item);",
     )]
-    pub fn contains(&self, item: impl Into<sand_components::ItemId>) -> Condition {
+    pub fn contains(&self, item: impl Into<sand_components::ItemPredicate>) -> Condition {
         self.count(item).gt(0)
     }
 
@@ -1050,17 +1071,32 @@ mod tests {
         );
         assert_eq!(
             mainhand
-                .matches("minecraft:diamond_sword")
+                .matches_raw("minecraft:diamond_sword")
                 .unwrap()
                 .execute_commands(false, "say yes"),
             vec!["execute if items entity @s weapon.mainhand minecraft:diamond_sword run say yes"]
         );
+        let empty = mainhand
+            .is_empty()
+            .unwrap()
+            .execute_commands(false, "say empty");
+        let helper = empty[0]
+            .strip_prefix("execute unless function __sand_local:")
+            .and_then(|line| line.strip_suffix(" run say empty"))
+            .unwrap();
+        let (_, body) = crate::function::drain_dyn_fns()
+            .into_iter()
+            .find(|(path, _)| path == helper)
+            .expect("empty-slot condition owns its helper");
+        let body = body
+            .lower(&sand_components::ResourceLocation::new("test", helper).unwrap())
+            .unwrap();
         assert_eq!(
-            mainhand
-                .is_empty()
-                .unwrap()
-                .execute_commands(false, "say empty"),
-            vec!["execute unless items entity @s weapon.mainhand * run say empty"]
+            body,
+            vec![
+                "execute if items entity @s weapon.mainhand * run return 1",
+                "return 0",
+            ]
         );
     }
 

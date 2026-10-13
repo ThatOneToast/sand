@@ -133,10 +133,13 @@ class BoundedItemHarness(PlayerHarness):
         try:
             with self.clients():
                 self.send("scoreboard objectives add bevth_check dummy")
+                # The fixture deliberately consumes this external gate.
+                self.send("scoreboard objectives add p272_source dummy")
                 for player in self.players:
                     self.send(f"gamemode creative {player}")
                     self.send(f"tp {player} 0 80 0")
                     self.send(f"scoreboard players set {player} p272_source 0")
+                    self.check(f"{player}_SOURCE_DISABLED", f"if score {player} p272_source matches 0")
                 self.capture("SandAlpha", "minecraft:diamond_sword")
                 self.read("SandBeta", "BETA_NEVER_CAPTURED", present=False)
                 self.capture("SandBeta", "minecraft:golden_apple")

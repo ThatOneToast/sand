@@ -192,7 +192,10 @@ class PlayerParticipantHarness(PlayerHarness):
         try:
             self.check("BETA_NETHER", "in minecraft:the_nether if entity @a[name=SandBeta,distance=0..]")
             self.check("BETA_ACTOR_NETHER", "in minecraft:the_nether if entity @e[tag=paudit_actor_1]")
-            self.verify_dimension_damage("BETA_NETHER_HIT", "minecraft:the_nether")
+            self.verify_damage_ready("BETA_NETHER_HIT", "minecraft:the_nether", "SandBeta", 1)
+            # Nether chunk preparation can outlive vanilla's attacker memory.
+            # Establish Alpha's real relation immediately before consuming it.
+            self.verify_damage_ready("ALPHA_FAN_HIT", "minecraft:overworld", "SandAlpha", 0)
             self.send("tick freeze")
             for phase in (1, 2):
                 for field in ("fan_alpha_uuid", "fan_beta_uuid", "fan_alpha_item", "fan_beta_item"):
@@ -219,19 +222,20 @@ class PlayerParticipantHarness(PlayerHarness):
             self.send("execute in minecraft:the_nether as @e[tag=paudit_actor_1,limit=1] in minecraft:overworld run tp @s 3 80 2")
             self.send("execute in minecraft:overworld run tp SandBeta 3.5 80 0.5")
         self.check("BETA_RETURNED", "in minecraft:overworld if entity @a[name=SandBeta,distance=0..]")
-        self.verify_dimension_damage("BETA_RETURN_HIT", "minecraft:overworld")
+        self.verify_damage_ready("BETA_RETURN_HIT", "minecraft:overworld", "SandBeta", 1)
 
-    def verify_dimension_damage(self, phase, dimension):
+    def verify_damage_ready(self, phase, dimension, player, actor):
         # Entity position changes before the client acknowledges loading.
         # Retry rejected damage until one hit succeeds, then stop. Both the
         # outbound and return teleports must pass this readiness boundary.
+        # It also establishes a fresh attacker relation after slow world setup.
         deadline = time.monotonic() + self.args.timeout
         while time.monotonic() < deadline:
-            self.send(f"execute store success score #dimension_hit paudit_check in {dimension} run damage SandBeta 2 minecraft:generic by @e[tag=paudit_actor_1,limit=1]")
+            self.send(f"execute store success score #dimension_hit paudit_check in {dimension} run damage {player} 2 minecraft:generic by @e[tag=paudit_actor_{actor},limit=1]")
             if self.passed(phase, f"execute if score #dimension_hit paudit_check matches 1 run say __SAND_WORLD_{phase}_OK__"):
                 return
             time.sleep(0.1)
-        raise ValidationFailure("dimension-teleport", f"{phase}: player remained invulnerable in {dimension}")
+        raise ValidationFailure("damage-readiness", f"{phase}: no accepted hit for {player} in {dimension}")
 
     def verify_deaths(self):
         for player in self.players:

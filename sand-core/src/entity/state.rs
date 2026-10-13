@@ -1595,7 +1595,7 @@ impl FixedScoreAccessor {
         returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fixed_score_accessor_value: sand::entity::FixedScoreAccessor, value: f64)  {\n    let values = fixed_score_accessor_value.add(value);\n}",
     )]
-    #[must_use]
+    #[must_use = "collect this complete mutation action in a Sand function"]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, value: impl NumericStateSource) -> crate::ir::Actions {
         numeric_mutation(
@@ -1629,7 +1629,7 @@ impl FixedScoreAccessor {
         returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fixed_score_accessor_value: sand::entity::FixedScoreAccessor, value: f64)  {\n    let values = fixed_score_accessor_value.subtract(value);\n}",
     )]
-    #[must_use]
+    #[must_use = "collect this complete mutation action in a Sand function"]
     pub fn subtract(self, value: impl NumericStateSource) -> crate::ir::Actions {
         numeric_mutation(
             self.field,
@@ -1989,7 +1989,7 @@ impl<T: 'static> EntityScoreAccessor<T> {
         returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_score_accessor_value: sand::entity::EntityScoreAccessor < T >, value: i32)  {\n    let values = entity_score_accessor_value.add(value);\n}",
     )]
-    #[must_use]
+    #[must_use = "collect this complete mutation action in a Sand function"]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, value: impl NumericStateSource) -> crate::ir::Actions {
         let destination_scale = self.field.numeric_scale();
@@ -2023,7 +2023,7 @@ impl<T: 'static> EntityScoreAccessor<T> {
         returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_score_accessor_value: sand::entity::EntityScoreAccessor < T >, value: i32)  {\n    let values = entity_score_accessor_value.subtract(value);\n}",
     )]
-    #[must_use]
+    #[must_use = "collect this complete mutation action in a Sand function"]
     pub fn subtract(self, value: impl NumericStateSource) -> crate::ir::Actions {
         let destination_scale = self.field.numeric_scale();
         numeric_mutation(

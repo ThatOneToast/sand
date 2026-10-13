@@ -41,7 +41,11 @@ pub struct Attack {
 #[state_lifecycle]
 impl StateLifecycle for Attack {
     fn migrate(ctx: StateMigrate) -> Vec<String> {
-        vec![format!("say migrated attack {} -> {}", ctx.from(), ctx.to())]
+        vec![format!(
+            "say migrated attack {} -> {}",
+            ctx.from(),
+            ctx.to()
+        )]
     }
 }
 
@@ -113,9 +117,10 @@ impl CombatSystems {
     #[tick(every = 20)]
     fn regenerate(query: Combatants) {
         query.each(|entity| {
-            let mut commands = entity.combat.defense.armor.add(1);
-            commands.extend(entity.status(|status| status.poison_time.tick()));
-            commands
+            mcfunction![
+                entity.combat.defense.armor.add(1);
+                entity.status(|status| status.poison_time.tick());
+            ]
         });
     }
 
@@ -127,9 +132,10 @@ impl CombatSystems {
     #[event(AttackPulse)]
     fn attack(_event: AttackPulse, query: Combatants) {
         query.current(|entity| {
-            let mut commands = entity.combat.attack.damage.add(1);
-            commands.extend(entity.combat.attack.cooldown.start(Ticks::new(20)));
-            commands
+            mcfunction![
+                entity.combat.attack.damage.add(1);
+                entity.combat.attack.cooldown.start(Ticks::new(20));
+            ]
         });
     }
 }
@@ -204,8 +210,7 @@ pub struct ArmoredZombie {
 
 impl ArmoredZombie {
     fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
-    archetype
-        .adopt(Adoption::natural_and_external().every(Ticks::new(20)))
+        archetype.adopt(Adoption::natural_and_external().every(Ticks::new(20)))
     }
 }
 

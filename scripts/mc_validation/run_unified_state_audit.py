@@ -5,11 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import queue
 import re
 import secrets
-import shlex
 import shutil
 import socket
 import subprocess
@@ -19,9 +17,11 @@ import threading
 import time
 from pathlib import Path
 
+from local_rcon_server import write_properties
+from rcon_client import run_commands
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACK_DIR = REPO_ROOT / "examples" / "unified_state"
-RCON_CLIENT = Path(__file__).resolve().parent / "rcon_client.py"
 JOIN_CLIENT = Path(__file__).resolve().parent / "minimal_join_client.py"
 
 
@@ -43,14 +43,9 @@ def main() -> int:
 
     if args.build:
         subprocess.run(
-            ["cargo", "build", "-p", "sand-cli", "--bin", "sand"],
-            cwd=REPO_ROOT,
-            check=True,
-        )
-        subprocess.run(
-            [str(REPO_ROOT / "target/debug/sand"), "build"],
-            cwd=PACK_DIR,
-            check=True,
+            ["cargo", "run", "--manifest-path", str(REPO_ROOT / "sand-cli/Cargo.toml"),
+             "--bin", "sand", "--", "build"],
+            cwd=PACK_DIR, check=True,
         )
 
     dist = PACK_DIR / "dist/unified_state"
@@ -58,38 +53,55 @@ def main() -> int:
         print(f"missing {dist}; pass --build", file=sys.stderr)
         return 2
 
-    export = subprocess.run(
-        ["cargo", "run", "--quiet", "--bin", "sand_export"],
-        cwd=PACK_DIR,
-        env={**os.environ, "SAND_EXPORT_MC_VERSION": "26.2"},
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    records = json.loads(export)
+    # Inspect the exact datapack installed below, including CLI transformations.
+    function_root = dist / "data/unified_state/function"
     functions = {
-        record["path"]: record["content"]
-        for record in records
-        if record.get("dir") == "function"
+        path.relative_to(function_root).with_suffix("").as_posix(): path.read_text(encoding="utf-8")
+        for path in function_root.rglob("*.mcfunction")
     }
-    query = next(
-        content for path, content in functions.items() if path.startswith("sand/entity_query/")
-    )
+
+    def reachable(path: str, seen: set[str] | None = None) -> str:
+        seen = set() if seen is None else seen
+        if path in seen:
+            return ""
+        seen.add(path)
+        body = functions[path]
+        children = re.findall(r"(?:^| run )function unified_state:([a-z0-9_./-]+)", body, re.M)
+        return "\n".join([body, *(reachable(child, seen) for child in children)])
+
+    # The Combatants regeneration query also ticks its optional poison timer.
+    # Numeric writes are whole actions, so inspect their actual owned helpers.
+    regen_queries = [
+        (path, content) for path, content in functions.items()
+        if path.startswith("sand/entity_query/")
+        and re.search(r"scoreboard players remove @s \w+ 1", content)
+    ]
+    if len(regen_queries) != 1:
+        raise ValueError(f"expected one Combatants regeneration query, found {len(regen_queries)}")
+    query_path, query = regen_queries[0]
     attach = functions["attach_zombie_components"]
     load = functions["__sand_lifecycle_load"]
     player_init = functions["__sand_lifecycle_init"]
     system = functions["__sand_system_tick"]
-    shared_system_path = re.search(r"run function unified_state:([^\s]+)", system).group(1)
-    shared_system = functions[shared_system_path]
+    combat_scans = []
+    for line in system.splitlines():
+        call = re.search(r"run function unified_state:(__sand_system/[^\s]+)", line)
+        if call and f"function unified_state:{query_path}" in functions[call.group(1)].splitlines():
+            combat_scans.append((line, functions[call.group(1)]))
+    if len(combat_scans) != 1:
+        raise ValueError(f"expected one Combatants scan, found {len(combat_scans)}")
+    combat_scan, shared_system = combat_scans[0]
+    combat_selector = re.search(r"execute as (@e\[[^]]+\]) at @s", combat_scan).group(1)
+    combat_callbacks = re.findall(r"^function unified_state:(sand/entity_query/[^\s]+)$", shared_system, re.M)
 
-    armor = re.search(r"scoreboard players add @s (\w+) 1", query).group(1)
+    armor = re.search(r"scoreboard players add @s (\w+) 1", reachable(query_path)).group(1)
     dead_presence = re.search(
-        r"execute unless score @s (\w+) matches 1 run scoreboard players add", query
+        r"execute unless score @s (\w+) matches 1 run ", query
     ).group(1)
     attack_presence = re.search(
         r"execute if score @s (\w+) matches 1 run say migrated", attach
     ).group(1)
-    required = re.search(r"scores=\{([^}]+)\}", system).group(1).split(",")
+    required = re.search(r"scores=\{([^}]+)\}", combat_scan).group(1).split(",")
     required_objectives = [entry.split("=", 1)[0] for entry in required]
     defense_presence = next(item for item in required_objectives if item != attack_presence)
     attack_damage = re.search(
@@ -109,26 +121,7 @@ def main() -> int:
     shutil.copytree(dist, datapacks / "unified_state")
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
     server_port, rcon_port = available_port(), available_port()
-    (server_dir / "server.properties").write_text(
-        "\n".join(
-            [
-                "level-name=world",
-                "online-mode=false",
-                "enable-rcon=true",
-                f"rcon.password={rcon_token}",
-                f"rcon.port={rcon_port}",
-                f"server-port={server_port}",
-                "spawn-monsters=false",
-                "spawn-animals=false",
-                "generate-structures=false",
-                "view-distance=4",
-                "simulation-distance=4",
-                "sync-chunk-writes=false",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    write_properties(server_dir, server_port, rcon_port, rcon_token)
     process = subprocess.Popen(
         [args.java, "-jar", str(Path(args.jar).resolve()), "nogui"],
         cwd=server_dir,
@@ -148,22 +141,25 @@ def main() -> int:
     checks: dict[str, dict[str, str | bool]] = {}
 
     def command(*commands: str) -> str:
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(RCON_CLIENT),
-                "127.0.0.1",
-                str(rcon_port),
-                rcon_token,
-                *commands,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode:
-            raise RuntimeError(result.stdout + result.stderr)
-        return result.stdout
+        responses = run_commands("127.0.0.1", rcon_port, rcon_token, list(commands), timeout=30)
+        return "\n".join(f">>> {value}\n{response}" for value, response in zip(commands, responses))
+
+    def wait_ticks(ticks: int) -> None:
+        """Require server progress even when CI runs below its target tick rate."""
+        def gametime() -> int:
+            output = command("time query gametime")
+            match = re.search(r"The game time is (\d+) tick\(s\)", output)
+            if not match:
+                raise ValueError(f"missing game-time response: {output}")
+            return int(match.group(1))
+
+        start = gametime()
+        deadline = time.monotonic() + args.timeout
+        while time.monotonic() < deadline:
+            if gametime() - start >= ticks:
+                return
+            time.sleep(0.1)
+        raise TimeoutError(f"server did not advance {ticks} game ticks")
 
     def check(name: str, passed: bool, evidence: str) -> None:
         checks[name] = {"passed": passed, "evidence": evidence.strip()}
@@ -194,22 +190,15 @@ def main() -> int:
         check("datapack_loaded", "file/unified_state" in loaded, loaded)
         check(
             "compatible_systems_share_one_ordered_scan",
-            system.count("execute as ") == 1
-            and shared_system.count("function unified_state:sand/entity_query/") == 2,
-            system + "\n" + shared_system,
+            system.count("execute as ") == 2
+            and system.count(f"execute as {combat_selector} at @s") == 1
+            and len(combat_callbacks) == 2
+            and combat_callbacks[0] == query_path
+            and f"scoreboard players add @s {attack_damage} 1" in reachable(combat_callbacks[1]),
+            combat_scan + "\n" + shared_system,
         )
         clients = []
         for name in ("StateAuditOne", "StateAuditTwo"):
-            initialize_on_join = shlex.join(
-                [
-                    sys.executable,
-                    str(RCON_CLIENT),
-                    "127.0.0.1",
-                    str(rcon_port),
-                    rcon_token,
-                    "function unified_state:__sand_lifecycle_tick",
-                ]
-            )
             clients.append(
                 subprocess.Popen(
                     [
@@ -220,7 +209,6 @@ def main() -> int:
                         "776",
                         name,
                         "8",
-                        initialize_on_join,
                     ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -285,7 +273,7 @@ def main() -> int:
             "data modify storage rpg:state components.world.settings.difficulty set value 4",
             "reload",
         )
-        time.sleep(0.75)
+        wait_ticks(15)
         global_reload = command(
             f"scoreboard players get {global_holder} {global_wave}",
             "data get storage rpg:state components.world.settings.difficulty",
@@ -301,7 +289,7 @@ def main() -> int:
             "scoreboard objectives add audit_external dummy",
             'summon minecraft:zombie 0 200 0 {Tags:["state_audit"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}',
         )
-        attach_deadline = time.monotonic() + 5.0
+        attach_deadline = time.monotonic() + args.timeout
         initial_armor, initial_out = score(armor)
         while initial_armor is None and time.monotonic() < attach_deadline:
             time.sleep(0.25)
@@ -310,7 +298,7 @@ def main() -> int:
         command(
             'summon minecraft:zombie 2 200 0 {Tags:["state_audit_b"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}'
         )
-        time.sleep(1.25)
+        wait_ticks(30)
         uuid_output = command(
             "data get entity @e[tag=state_audit,limit=1] UUID",
             "data get entity @e[tag=state_audit_b,limit=1] UUID",
@@ -323,7 +311,7 @@ def main() -> int:
                 "execute as @e[tag=state_audit,limit=1] run function unified_state:mark_status_data",
                 "reload",
             )
-            time.sleep(0.75)
+            wait_ticks(15)
             keyed_values = command(
                 f"data get storage rpg:state {first_path}",
                 f"data get storage rpg:state {second_path}",
@@ -344,7 +332,7 @@ def main() -> int:
             keyed_values,
         )
         command("scoreboard players set @e[tag=state_audit,limit=1] audit_external 41")
-        time.sleep(1.25)
+        wait_ticks(30)
         ticked_armor, ticked_out = score(armor)
         check(
             "typed_query_system_ticks_owner",
@@ -363,7 +351,7 @@ def main() -> int:
 
         command(f"scoreboard players set @e[tag=state_audit] {dead_presence} 1")
         blocked_before, _ = score(armor)
-        time.sleep(1.25)
+        wait_ticks(30)
         blocked_after, blocked_out = score(armor)
         check(
             "forbidden_presence_filters_system",
@@ -403,6 +391,9 @@ def main() -> int:
                 detached_data,
             )
         command("kill @e[tag=state_audit]", "kill @e[tag=state_audit_b]")
+    except Exception as error:
+        check("audit_completed", False, str(error))
+        raise
     finally:
         try:
             command("stop")

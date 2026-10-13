@@ -86,6 +86,9 @@ jobs:
       - name: Workspace tests
         run: cargo test --workspace --all-features --verbose
 
+      - name: Standalone example tests and datapack builds
+        run: scripts/check-examples.sh
+
       - name: Portable program frontends and schema drift
         run: scripts/check-program.sh
 

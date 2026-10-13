@@ -15,9 +15,9 @@
 //! ## Build
 //!
 //! ```sh
-//! cargo run -p arcane_pack
-//! # or from the workspace root
-//! cargo run -p arcane_pack
+//! # From examples/arcane_pack:
+//! cargo test
+//! cargo run --manifest-path ../../sand-cli/Cargo.toml --bin sand -- build
 //! ```
 
 use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
@@ -74,7 +74,7 @@ pub fn load() {
         NbtCompound::new()
             .field("mana", 100)
             .field("school", "unbound")
-            .field("unlocked_spells", NbtValue::from(Vec::<NbtValue>::new())),
+            .field("unlocked_spells", Vec::<String>::new()),
     );
 
     cmd::tellraw(
@@ -135,9 +135,7 @@ pub fn cast_dash() {
             DASH.ready("@s"),
             SHIELD.of("@s").is_false()
         ])
-        .run(cmd::function(
-            ResourceLocation::new("arcane", "cast_dash/execute").unwrap(),
-        ));
+        .run(cmd::function(cast_dash_execute));
 }
 
 /// Internal: actually apply the dash effect (called by cast_dash via function ref).
@@ -161,9 +159,7 @@ pub fn cast_fireball() {
             FIREBALL.ready("@s"),
             SHIELD.of("@s").is_false(),
         ])
-        .run(cmd::function(
-            ResourceLocation::new("arcane", "cast_fireball/execute").unwrap(),
-        ));
+        .run(cmd::function(cast_fireball_execute));
 }
 
 /// Internal: actually apply the fireball effect (called by cast_fireball via function ref).
@@ -179,15 +175,11 @@ pub fn cast_fireball_execute() {
 pub fn toggle_shield() {
     TypedExecute::as_players_at_self()
         .when(all![MANA.of("@s").gte(10), SHIELD.of("@s").is_false()])
-        .run(cmd::function(
-            ResourceLocation::new("arcane", "toggle_shield/on").unwrap(),
-        ));
+        .run(cmd::function(toggle_shield_on));
 
     TypedExecute::as_players_at_self()
         .when(SHIELD.of("@s").is_true())
-        .run(cmd::function(
-            ResourceLocation::new("arcane", "toggle_shield/off").unwrap(),
-        ));
+        .run(cmd::function(toggle_shield_off));
 }
 
 /// Internal: turn shield on (called by toggle_shield via function ref).

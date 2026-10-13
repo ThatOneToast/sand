@@ -13,29 +13,8 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 echo "=== Workspace tests ==="
 cargo test --workspace --all-features
 
-echo "=== Canonical book_project (facade-only, MC 26.2) ==="
-cargo test --manifest-path examples/book_project/Cargo.toml
-(
-    cd examples/book_project
-    SAND_EXPORT_MC_VERSION=26.2 cargo run --bin sand_export |
-        python3 -c 'import json, sys; json.load(sys.stdin)'
-)
-
-echo "=== Participant runtime-validation audit pack (facade-only, MC 26.2, #265) ==="
-cargo test --manifest-path examples/participant_audit/Cargo.toml
-(
-    cd examples/participant_audit
-    SAND_EXPORT_MC_VERSION=26.2 cargo run --bin sand_export |
-        python3 -c 'import json, sys; json.load(sys.stdin)'
-)
-
-echo "=== RPG entity archetype audit pack (facade-only, MC 26.2, #295) ==="
-cargo test --manifest-path examples/rpg_entity/Cargo.toml
-(
-    cd examples/rpg_entity
-    SAND_EXPORT_MC_VERSION=26.2 cargo run --bin sand_export |
-        python3 -c 'import json, sys; json.load(sys.stdin)'
-)
+echo "=== Standalone example tests and datapack builds ==="
+scripts/check-examples.sh
 
 echo "=== External registration consumer (sand-only) ==="
 cargo fmt --manifest-path sand/tests/fixtures/registration/Cargo.toml -- --check

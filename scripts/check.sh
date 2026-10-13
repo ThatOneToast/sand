@@ -14,7 +14,7 @@ echo "=== Workspace tests ==="
 cargo test --workspace --all-features
 
 echo "=== Canonical book_project (facade-only, MC 26.2) ==="
-cargo build --manifest-path examples/book_project/Cargo.toml
+cargo test --manifest-path examples/book_project/Cargo.toml
 (
     cd examples/book_project
     SAND_EXPORT_MC_VERSION=26.2 cargo run --bin sand_export |

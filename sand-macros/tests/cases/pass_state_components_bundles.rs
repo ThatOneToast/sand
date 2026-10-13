@@ -75,7 +75,7 @@ impl SandEvent for CombatPulse {
 fn main() {
     let entity = EntityContext::<ZombieKind>::default();
     let bundle = BossCombat::on(entity);
-    let _: Vec<String> = bundle.combat.attack.damage.add(1);
+    let _: sand::command::Actions = bundle.combat.attack.damage.add(1);
     let _: Vec<String> = BossCombat::attach(entity);
     let _: Vec<String> = BossCombat::detach(entity);
     let _: Vec<String> = Boss::attach(entity);

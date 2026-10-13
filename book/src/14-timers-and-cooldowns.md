@@ -44,25 +44,22 @@ A timer exposes `elapsed()` and is restarted with an explicit duration:
 ```rust,ignore
 let traversal = Traversal::on(EntityContext::<PlayerKind>::default());
 
-traversal.stamina.add(10).into_iter().flat_map(|command| {
-    TypedExecute::as_players()
-        .when(all![
-            traversal.regen.elapsed(),
-            traversal.stamina.matches(..100).unwrap(),
-        ])
-        .run(command)
-}).collect::<Actions>();
+TypedExecute::as_players()
+    .when(all![
+        traversal.regen.elapsed(),
+        traversal.stamina.matches(..100).unwrap(),
+    ])
+    .run(traversal.stamina.add(10));
 
-traversal.regen.start(Ticks::seconds(2)).into_iter().flat_map(|command| {
-    TypedExecute::as_players()
-        .when(traversal.regen.elapsed())
-        .run(command)
-}).collect::<Actions>();
+TypedExecute::as_players()
+    .when(traversal.regen.elapsed())
+    .run(traversal.regen.start(Ticks::seconds(2)));
 ```
 
 The first statement acts on expiry only while stamina is below its cap. The
 second restarts the timer whenever it expires, independently of whether the
-first action ran.
+first action ran. Pass each complete write to `.run(...)`: its guard must be
+evaluated once, before any mutation or clamp changes the value being tested.
 
 Use `Cooldown` for an interval consumed by an action. Use `Timer` for a
 repeating interval that drives ongoing behavior. Both remain ordinary fields

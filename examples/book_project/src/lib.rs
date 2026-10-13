@@ -77,29 +77,15 @@ pub fn tick() {
 
     // Stamina regen pulse: when the regen timer expires, restore 10 stamina
     // to every player below the cap, then restart the timer.
-    state
-        .stamina
-        .add(10)
-        .into_iter()
-        .flat_map(|command| {
-            TypedExecute::as_players()
-                .when(all![
-                    state.regen.elapsed(),
-                    state.stamina.matches(..100).unwrap(),
-                ])
-                .run(command)
-        })
-        .collect::<Actions>();
-    state
-        .regen
-        .start(Ticks::seconds(2))
-        .into_iter()
-        .flat_map(|command| {
-            TypedExecute::as_players()
-                .when(state.regen.elapsed())
-                .run(command)
-        })
-        .collect::<Actions>();
+    TypedExecute::as_players()
+        .when(all![
+            state.regen.elapsed(),
+            state.stamina.matches(..100).unwrap(),
+        ])
+        .run(state.stamina.add(10));
+    TypedExecute::as_players()
+        .when(state.regen.elapsed())
+        .run(state.regen.start(Ticks::seconds(2)));
 
     // Exhaustion clears once stamina recovers past half.
     TypedExecute::as_players()
@@ -480,6 +466,23 @@ mod tests {
         content.lines().map(str::to_owned).collect()
     }
 
+    fn exported_functions() -> std::collections::BTreeMap<String, String> {
+        let records: Vec<serde_json::Value> = serde_json::from_str(
+            &sand::advanced::try_export_components_json("trail", "26.2").unwrap(),
+        )
+        .unwrap();
+        records
+            .into_iter()
+            .filter(|record| record["dir"] == "function")
+            .map(|record| {
+                (
+                    record["path"].as_str().unwrap().to_owned(),
+                    record["content"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
+    }
+
     #[test]
     fn load_seeds_storage() {
         let cmds = emitted(load());
@@ -512,20 +515,51 @@ mod tests {
                     && command.contains("You feel steady again.")),
             "recovery feedback: {recovery:?}"
         );
+        let functions = exported_functions();
+        let regen = functions["tick"]
+            .lines()
+            .filter(|line| line.contains("matches ..99"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            regen.len(),
+            1,
+            "regen must evaluate its guard once: {regen:?}"
+        );
+        let helper = regen[0].split_once(" run function trail:").unwrap().1;
+        let body = &functions[helper];
+        assert!(body.lines().any(|line| line.starts_with("scoreboard players add @s ") && line.ends_with(" 10")), "{body}");
         assert!(
-            cmds.iter().any(|command| command.contains("matches ..99")
-                && command.contains("run scoreboard players add @s ")
-                && command.ends_with(" 10")),
-            "stamina regeneration: {cmds:?}"
+            body.lines().any(
+                |line| line.contains("matches 101.. run scoreboard players set @s ")
+                    && line.ends_with(" 100")
+            ),
+            "{body}"
+        );
+        assert!(
+            !body.contains("matches ..99"),
+            "the clamp must not repeat the pre-write guard: {body}"
         );
     }
 
     #[test]
     fn grapple_execute_pays_stamina_and_plays_vfx() {
         let cmds = emitted(grapple_execute());
+        let functions = exported_functions();
+        let entry = &functions["grapple/execute"];
+        let helper = entry
+            .lines()
+            .next()
+            .unwrap()
+            .strip_prefix("function trail:")
+            .expect("owned stamina mutation");
+        let body = &functions[helper];
         assert!(
-            cmds.iter().any(|c| c.contains("scoreboard players remove")),
-            "pays stamina: {cmds:?}"
+            body.lines().any(|line| line
+                == format!(
+                    "scoreboard players remove @s {} 30",
+                    Traversal::stamina.objective()
+                )),
+            "pays stamina through a reachable helper: {body}"
         );
         assert!(
             cmds.iter().any(|c| c.contains("particle")),

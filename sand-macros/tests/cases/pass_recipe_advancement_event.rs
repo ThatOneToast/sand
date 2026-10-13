@@ -50,11 +50,11 @@ pub fn on_ate_chorus_fruit(event: Event<AteChorusFruitEvent>) {
 }
 
 fn main() {
-    let commands = actions_support::emitted(on_ate_chorus_fruit());
+    let commands = actions_support::reachable("recipe", "on_ate_chorus_fruit");
     assert!(
         commands
             .iter()
-            .any(|c| c.contains("scoreboard players add")),
+            .any(|c| c.starts_with("scoreboard players add @s ") && c.ends_with(" 1")),
         "expected str_stacks increment; got: {commands:?}"
     );
     assert!(
@@ -71,8 +71,9 @@ fn main() {
             if let sand_core::EventDispatch::Advancement { guard, .. } = descriptor.dispatch {
                 let guard_fn = guard.expect("guard must be registered");
                 let condition = guard_fn().expect("guard should return Some");
-                let guard_cmds =
-                    actions_support::emitted(sand_core::execute_when::unless(condition).then_one("return 0"));
+                let guard_cmds = actions_support::emitted(
+                    sand_core::execute_when::unless(condition).then_one("return 0"),
+                );
                 assert!(
                     guard_cmds
                         .iter()

@@ -27,3 +27,6 @@ sand = { path = "../../sand" }
 
 [build-dependencies]
 sand-build = { path = "../../sand-build" }
+
+[dev-dependencies]
+serde_json = "1.0"

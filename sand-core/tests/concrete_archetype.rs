@@ -50,6 +50,13 @@ pub fn spawn() {
     Seeker::summon(Vec3::here());
 }
 
+#[function("concrete:mutate")]
+fn mutate() {
+    let seeker = Seeker::on(EntityContext::<ZombieKind>::default());
+    seeker.combat.health.add(1);
+    seeker.growth.progression.level.add(1);
+}
+
 #[system(tick, every = 20)]
 fn seekers(query: Seeker) {
     query.each(|seeker| seeker.growth.progression.level.add(1));
@@ -89,8 +96,32 @@ fn concrete_declarations_export_the_canonical_composition_and_queries() {
         emitted(guard.combat.health.set(7))
     );
     assert!(emitted(seeker.combat.health.set(7))[0].contains(&Combat::health.objective()));
-    assert!(seeker.combat.health.add(1)[0].contains("scoreboard players add @s"));
-    assert!(seeker.growth.progression.level.add(1)[0].contains("scoreboard players add @s"));
+    let entry = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "mutate")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap();
+    let calls = entry.lines().collect::<Vec<_>>();
+    assert_eq!(calls.len(), 2);
+    for (call, objective) in calls
+        .iter()
+        .zip([Combat::health.objective(), Progression::level.objective()])
+    {
+        let path = call
+            .strip_prefix("function concrete:")
+            .expect("owned mutation helper");
+        let body = records
+            .iter()
+            .find(|r| r["dir"] == "function" && r["path"] == path)
+            .unwrap()["content"]
+            .as_str()
+            .unwrap();
+        assert_eq!(
+            body.lines().next().unwrap(),
+            format!("scoreboard players add @s {objective} 1")
+        );
+    }
     let _: EntityContext<ZombieKind> = seeker.entity();
     assert_ne!(
         Seeker::attach(Default::default()),

@@ -661,13 +661,6 @@ impl CustomData {
         Self::Raw(snbt)
     }
 
-    fn marker_key(&self) -> Option<&str> {
-        match self {
-            CustomData::Marker(key) => Some(key),
-            CustomData::Raw(_) => None,
-        }
-    }
-
     fn to_snbt(&self) -> String {
         match self {
             CustomData::Marker(key) => format!("{{{}:1b}}", snbt_compound_key(key)),
@@ -3423,93 +3416,112 @@ impl CustomItem {
 
     // ── Item predicate ────────────────────────────────────────────────────────
 
-    /// Build a Minecraft item predicate JSON for matching this item.
-    ///
-    /// Matches the base item type and, if a [`custom_data`](Self::custom_data) key was set,
-    /// also matches the `minecraft:custom_data` component.
-    ///
-    /// Use the result in advancement criteria, loot table conditions, or predicates.
-    /// The base Minecraft item ID this custom item is built on
-    /// (e.g. `"minecraft:white_wool"`), ignoring components.
+    /// The base item identifier, without components or validation.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::CustomItem::base_id",
         aliases = ["sand::prelude::CustomItem::base_id"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Build a Minecraft item predicate JSON for matching this item.",
-        context = "Build a Minecraft item predicate JSON for matching this item. Matches the base item type and, if a [`custom_data`](Self::custom_data) key was set, also matches the `minecraft:custom_data` component. Use the result in advancement criteria, loot table conditions, or predicates. The base Minecraft item ID this custom item is built on (e.g. `\"minecraft:white_wool\"`), ignoring components.",
-        minecraft = "Matches the base item type and, if a [`custom_data`](Self::custom_data) key was set, also matches the `minecraft:custom_data` component.",
-        use_when = ["Use the result in advancement criteria, loot table conditions, or predicates. The base Minecraft item ID this custom item is built on (e.g. `\"minecraft:white_wool\"`), ignoring components."],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "The string value produced to build a Minecraft item predicate JSON for matching this item.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: &sand::component::CustomItem)  {\n    let base_id = custom_item_value.base_id();\n}",
+        module = "sand::component", kind = "method",
+        summary = "Returns the base item identifier without components.",
+        context = "Construction accepts Display values; this accessor does not validate their identifier shape.",
+        minecraft = "The base identifier precedes the item component list.",
+        use_when = ["Inspecting the base identity of a custom item"],
+        avoid_when = ["Matching a custom item's marker; use item_predicate instead"],
+        returns = "The stored base identifier.",
+        example = "let base = CustomItem::new(\"minecraft:stick\"); assert_eq!(base.base_id(), \"minecraft:stick\");",
     )]
     pub fn base_id(&self) -> &str {
         &self.base
     }
 
-    /// Sets the Minecraft item predicate property on this typed custom item definition and returns the updated builder.
+    /// Build a canonical predicate for this item's base identity and custom data.
+    ///
+    /// Custom data uses partial matching, allowing unrelated keys added by other
+    /// packs. Display, durability, and other non-identity components are ignored.
+    /// Raw custom data supplied through [`Self::typed_custom_data`] is retained
+    /// as SNBT in the partial predicate; its syntax remains the author's responsibility.
+    ///
+    /// Returns a diagnostic for an invalid item definition or base identifier.
+    /// Raw component overrides of `custom_data` are rejected; use
+    /// [`Self::typed_custom_data`] so the identity has one unambiguous source.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::CustomItem::item_predicate",
         aliases = ["sand::prelude::CustomItem::item_predicate"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Sets the Minecraft item predicate property on this typed custom item definition and returns the updated builder.",
-        context = "Sets the Minecraft item predicate property on this typed custom item definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "Sets the Minecraft item predicate property on this typed custom item definition and returns the updated builder.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: &sand::component::CustomItem)  {\n    let item_predicate = custom_item_value.item_predicate();\n}",
+        module = "sand::component", kind = "method",
+        summary = "Builds a validated predicate for a custom item's identity.",
+        context = "Shares the canonical ItemPredicate model with advancement and loot consumers; invalid definitions return a diagnostic.",
+        minecraft = "Matches the base item and partially matches custom data, ignoring unrelated keys and cosmetic components.",
+        use_when = ["Recognizing a custom item in advancement or loot conditions"],
+        avoid_when = ["Requiring exact equality of every stack component"],
+        returns = "A canonical item predicate or an item-validation diagnostic.",
+        example = "let predicate = CustomItem::new(\"minecraft:stick\").custom_data(\"wand\").item_predicate()?;",
     )]
-    pub fn item_predicate(&self) -> TypedItemPredicate {
-        let mut pred = TypedItemPredicate::id(
-            self.base
-                .parse::<crate::ItemId>()
-                .expect("CustomItem base IDs are validated during construction"),
-        );
-        if let Some(key) = self.custom_data.as_ref().and_then(CustomData::marker_key) {
-            pred = pred.custom_data_key(key);
+    pub fn item_predicate(&self) -> SandResult<TypedItemPredicate> {
+        self.validate()?;
+        let base = self
+            .base
+            .parse::<crate::ItemId>()
+            .map_err(|error| item_component_error(&self.base, "base", error))?;
+        if self
+            .extra_components
+            .iter()
+            .any(|(key, _)| matches!(key.as_str(), "custom_data" | "minecraft:custom_data"))
+        {
+            return Err(item_component_error(
+                &self.base,
+                "custom_data",
+                "raw component overrides have ambiguous identity; use typed_custom_data instead",
+            ));
         }
-        pred
+        let mut predicate = TypedItemPredicate::id(base);
+        match &self.custom_data {
+            Some(CustomData::Marker(key)) => predicate = predicate.custom_data_key(key),
+            Some(CustomData::Raw(snbt)) => {
+                predicate = predicate.raw_predicates(crate::RawJson::new(serde_json::json!({
+                    "minecraft:custom_data": snbt.to_string()
+                })));
+            }
+            None => {}
+        }
+        Ok(predicate)
     }
 
     // ── Advancement helpers ───────────────────────────────────────────────────
 
-    /// Build an advancement that fires when the player right-clicks with this item.
+    /// Build an advancement for the vanilla using-item trigger.
     ///
-    /// The advancement uses the `UsingItem` trigger and calls `reward_fn` as its reward.
-    /// Register the result with `#[datapack_component]`.
+    /// The advancement uses `UsingItem` (active use, such as eating or blocking) and calls `reward_fn` as its reward; it is not a generic right-click event.
+    /// Register the result with `#[datapack_component]`. Item identity validation
+    /// errors from [`Self::item_predicate`] are returned to the caller.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::CustomItem::on_use_advancement",
         aliases = ["sand::prelude::CustomItem::on_use_advancement"],
         module = "sand::component",
         kind = "method",
-        summary = "Build an advancement that fires when the player right-clicks with this item.",
-        context = "Build an advancement that fires when the player right-clicks with this item. The advancement uses the `UsingItem` trigger and calls `reward_fn` as its reward. Register the result with `#[datapack_component]`.",
-        minecraft = "The advancement uses the `UsingItem` trigger and calls `reward_fn` as its reward. Register the result with `#[datapack_component]`.",
+        summary = "Build an advancement for the vanilla using-item trigger.",
+        context = "Build an advancement for the vanilla using-item trigger. The advancement uses `UsingItem` (active use, such as eating or blocking) and calls `reward_fn` as its reward; it is not a generic right-click event. Register the result with `#[datapack_component]`.",
+        minecraft = "The advancement uses `UsingItem` (active use, such as eating or blocking) and calls `reward_fn` as its reward; it is not a generic right-click event. Register the result with `#[datapack_component]`.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to build an advancement that fires when the player right-clicks with this item.", reward_fn = "The advancement uses the `UsingItem` trigger and calls `reward_fn` as its reward. Register the result with `#[datapack_component]`."),
-        returns = "The `Advancement` value produced to build an advancement that fires when the player right-clicks with this item.",
+        params(location = "The resource identifier for the generated using-item advancement.", reward_fn = "The advancement uses `UsingItem` (active use, such as eating or blocking) and calls `reward_fn` as its reward; it is not a generic right-click event. Register the result with `#[datapack_component]`."),
+        returns = "A use-item advancement, or the item identity validation diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: &sand::component::CustomItem, location: sand::ResourceLocation, reward_fn: sand::resource_ref::FunctionId)  {\n    let on_use_advancement = custom_item_value.on_use_advancement(location, reward_fn);\n}",
     )]
     pub fn on_use_advancement(
         &self,
         location: ResourceLocation,
         reward_fn: crate::registry::FunctionId,
-    ) -> Advancement {
-        Advancement::new(location)
+    ) -> SandResult<Advancement> {
+        Ok(Advancement::new(location)
             .criterion(
                 "used",
                 Criterion::new(AdvancementTrigger::UsingItem {
-                    item: Some(self.item_predicate()),
+                    item: Some(self.item_predicate()?),
                 }),
             )
-            .rewards(AdvancementRewards::new().function(reward_fn))
+            .rewards(AdvancementRewards::new().function(reward_fn)))
     }
 
     /// Build an advancement that fires when the player kills an entity.
@@ -4477,7 +4489,7 @@ mod tests {
     #[test]
     fn item_predicate_with_custom_data() {
         let item = CustomItem::new("minecraft:diamond_sword").custom_data("inferno_blade");
-        let pred = serde_json::to_value(item.item_predicate()).unwrap();
+        let pred = serde_json::to_value(item.item_predicate().unwrap()).unwrap();
         assert_eq!(
             pred["items"],
             serde_json::json!(["minecraft:diamond_sword"])
@@ -4493,13 +4505,65 @@ mod tests {
     #[test]
     fn item_predicate_without_custom_data() {
         let item = CustomItem::new("minecraft:diamond_sword");
-        let pred = serde_json::to_value(item.item_predicate()).unwrap();
+        let pred = serde_json::to_value(item.item_predicate().unwrap()).unwrap();
         assert_eq!(
             pred["items"],
             serde_json::json!(["minecraft:diamond_sword"])
         );
         assert!(pred.get("components").is_none());
         assert!(pred.get("predicates").is_none());
+    }
+
+    #[test]
+    fn item_predicate_reports_invalid_identity_without_panicking() {
+        for item in [
+            CustomItem::new("not a valid:item"),
+            CustomItem::new("minecraft:stick").custom_data(""),
+        ] {
+            assert!(item.item_predicate().is_err());
+            assert!(
+                item.on_use_advancement(
+                    ResourceLocation::new("test", "use_item").unwrap(),
+                    "test:reward".parse().unwrap(),
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn item_predicate_preserves_raw_custom_data_in_using_item_trigger() {
+        let payload = "{owner:{team:3},charges:7}";
+        let item = CustomItem::new("minecraft:stick")
+            .typed_custom_data(CustomData::raw(RawSnbt::new(payload)));
+        let predicate = serde_json::to_value(item.item_predicate().unwrap()).unwrap();
+        assert_eq!(
+            predicate,
+            serde_json::json!({
+                "items": ["minecraft:stick"],
+                "predicates": {"minecraft:custom_data": payload}
+            })
+        );
+        let advancement = item
+            .on_use_advancement(
+                ResourceLocation::new("test", "use_item").unwrap(),
+                "test:reward".parse().unwrap(),
+            )
+            .unwrap();
+        let json = crate::DatapackComponent::to_json(&advancement);
+        assert_eq!(json["criteria"]["used"]["conditions"]["item"], predicate);
+        assert_eq!(json["rewards"]["function"], "test:reward");
+    }
+
+    #[test]
+    fn item_predicate_rejects_raw_identity_overrides() {
+        for key in ["custom_data", "minecraft:custom_data"] {
+            let item = CustomItem::new("minecraft:stick")
+                .with_raw_component(RawComponent::new(key, "{secret:1b}"));
+            let error = item.item_predicate().unwrap_err().to_string();
+            assert!(error.contains("custom_data"), "{error}");
+            assert!(error.contains("typed_custom_data"), "{error}");
+        }
     }
 
     #[test]

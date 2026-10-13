@@ -13,6 +13,10 @@ These hand snapshots have the tracked observation's sampling time. The extended
 regression separately covers actual attacking-player weapon advancements, real
 killer/bridge inheritance, retained versus dropped death inventory, and composed
 tick participant forwarding. #429 corrects server-context capture in the latter.
+The two-player staged scenario now spans the Overworld and Nether, checks cleanup
+in all vanilla dimensions, and requires real damage/death events after dimension
+changes. #431 fixes missing teleport acknowledgments in the passive audit client;
+this does not add movement or combat input support.
 Rapid mixed-hit timing and client attack-input packets remain open; the historical
 direct-handler evidence below does not imply those are covered.
 

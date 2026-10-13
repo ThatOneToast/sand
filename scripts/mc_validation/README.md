@@ -82,7 +82,8 @@ Sand-side bug was found.
 
 `rcon_client.py` implements Source RCON. `minimal_join_client.py` is a passive,
 version-pinned Minecraft 26.2 client used by the real-player observation CI
-harness. Its corrected keep-alive handling now supports sustained sessions.
+harness. Its corrected keep-alive handling supports sustained sessions, and teleport
+acknowledgments complete server-directed dimension changes.
 It does not implement client-driven attacks, movement or inventory actions.
 Neither Python client is a dependency of an authored Sand datapack.
 
@@ -148,7 +149,9 @@ item compounds, player/mob armor reads, post-capture item changes, interleaved
 player isolation and reload. It runs through `../validate_player_participants.py`.
 It additionally checks real damage/kill weapon events, death/bridge inheritance,
 and composed tick participants. A frozen, single-step two-player scenario checks
-staged fan-in and absent named sources without relying on command arrival timing.
+staged fan-in and absent named sources with players in the Overworld and Nether,
+without relying on command arrival timing. Cleanup is checked in all vanilla
+dimensions, and a real death advancement must still fire after returning.
 Rapid mixed-hit timing, client attack-input packets and wider dimension cases
 remain outside these assertions. #265 remains open.
 

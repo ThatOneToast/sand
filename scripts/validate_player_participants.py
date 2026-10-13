@@ -2,7 +2,7 @@
 """Verify real-player attacker observations and equipment snapshots on 26.2.
 
 Uses normal advancement and tick dispatch, including real deaths and composed
-participants and attacking-player weapon snapshots. Rapid mixed-hit timing and
+participants across dimensions and attacking-player weapon snapshots. Rapid mixed-hit timing and
 client attack-input packets remain outside this audit.
 """
 from __future__ import annotations
@@ -34,8 +34,9 @@ class PlayerParticipantHarness(PlayerHarness):
         tags = set(re.findall(r"__sand_observed_[0-9a-f]+", text))
         if not tags:
             raise ValidationFailure("participant-cleanup", "no participant tags found in the fixture")
-        for index, tag in enumerate(sorted(tags)):
-            self.check(f"CLEANUP_{index}", f"unless entity @e[tag={tag}]")
+        for dimension in ("overworld", "the_nether", "the_end"):
+            for index, tag in enumerate(sorted(tags)):
+                self.check(f"CLEANUP_{dimension}_{index}", f"in minecraft:{dimension} unless entity @e[tag={tag}]")
 
     def equip(self, player, index):
         actor = f"@e[tag=paudit_actor_{index},limit=1]"
@@ -119,8 +120,26 @@ class PlayerParticipantHarness(PlayerHarness):
         for index, player in enumerate(self.players):
             self.equip(player, index)
             self.send(f"scoreboard players set {player} paudit_fan 0")
-        self.send("tick freeze")
+        self.load_test_chunk("minecraft:the_nether")
+        self.send("execute in minecraft:the_nether run fill -2 79 -2 8 83 3 minecraft:stone")
+        self.send("execute in minecraft:the_nether run fill -2 80 -2 8 82 3 minecraft:air")
+        self.send("execute as @e[tag=paudit_actor_1,limit=1] in minecraft:the_nether run tp @s 3 80 2")
+        self.send("execute in minecraft:the_nether run tp SandBeta 3.5 80 0.5")
         try:
+            self.check("BETA_NETHER", "in minecraft:the_nether if entity @a[name=SandBeta,distance=0..]")
+            self.check("BETA_ACTOR_NETHER", "in minecraft:the_nether if entity @e[tag=paudit_actor_1]")
+            # Teleport completion crosses a network boundary. Retry only
+            # rejected damage until one real hit succeeds, then stop; this
+            # fails clearly if the client never acknowledges the teleport.
+            deadline = time.monotonic() + self.args.timeout
+            while time.monotonic() < deadline:
+                self.send("execute store success score #dimension_hit paudit_check in minecraft:the_nether run damage SandBeta 2 minecraft:generic by @e[tag=paudit_actor_1,limit=1]")
+                if self.passed("BETA_NETHER_HIT", "execute if score #dimension_hit paudit_check matches 1 run say __SAND_WORLD_BETA_NETHER_HIT_OK__"):
+                    break
+                time.sleep(0.1)
+            else:
+                raise ValidationFailure("dimension-teleport", "player remained invulnerable after the Nether teleport")
+            self.send("tick freeze")
             for phase in (1, 2):
                 for field in ("fan_alpha_uuid", "fan_beta_uuid", "fan_alpha_item", "fan_beta_item"):
                     self.send(f"data remove storage paudit:audit state.{field}")
@@ -143,6 +162,11 @@ class PlayerParticipantHarness(PlayerHarness):
                 self.check_cleanup()
         finally:
             self.send("tick unfreeze")
+            self.send("execute in minecraft:the_nether as @e[tag=paudit_actor_1,limit=1] in minecraft:overworld run tp @s 3 80 2")
+            self.send("execute in minecraft:overworld run tp SandBeta 3.5 80 0.5")
+        self.check("BETA_RETURNED", "in minecraft:overworld if entity @a[name=SandBeta,distance=0..]")
+        # The following real death scenario also proves that returning from
+        # a dimension change did not leave the player permanently invulnerable.
 
     def verify_deaths(self):
         for player in self.players:

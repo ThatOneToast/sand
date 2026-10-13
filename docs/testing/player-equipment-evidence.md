@@ -84,12 +84,20 @@ capture must produce no attacker evidence. Generated-output regressions also
 check staged fan-in, absent-source scratch reset, global lifecycle placement,
 and bounded per-subject snapshot persistence and expiry.
 
-A real staged fan-in scenario freezes game ticking, queues both players, and
-advances exactly one tick. Both players must capture their own distinct attacker
+A real staged fan-in scenario places Alpha in the Overworld and Beta with its
+attacker in the Nether, freezes game ticking, queues both players, and advances
+exactly one tick. Both players must capture their own distinct attacker
 UUID and main-hand compound. A second single tick fires only the alternate
 parent: each named-source entity and item must then be absent, with no stale
 field copied from either player's previous occurrence. Ticking is resumed in a
-finally block, including on assertion failure.
+finally block, including on assertion failure, and Beta returns to the Overworld.
+Temporary-tag cleanup is checked in all three vanilla dimensions. A real hit in
+the Nether must succeed within the bounded setup timeout; the later death event
+after returning must also fire. The passive client acknowledges protocol-776
+position packets and loading after login/respawn. Without those acknowledgments,
+vanilla leaves a dimension-changing player invulnerable; the original probe
+failed the returning player's death assertion and the corrected client passes.
+Teleport acknowledgment does not implement movement or combat input.
 
 ## Weapon and death timing
 

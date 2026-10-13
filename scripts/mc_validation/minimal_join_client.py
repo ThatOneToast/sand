@@ -1,7 +1,7 @@
 """Minimal offline-mode client for Minecraft 26.2 (protocol 776) audits.
 
 Keeps a real ServerPlayer connected for the requested duration by handling the
-login/configuration handshake and keep-alive challenges. Packet IDs were read
+login/configuration handshake, keep-alive challenges, and teleport acknowledgments. Packet IDs were read
 from the 26.2 server's GameProtocols registry, not inferred from an older client.
 This is a passive test client: it does not implement movement, combat, inventory
 interaction, or rendering. Server-driven gameplay assertions belong in a harness.
@@ -133,6 +133,10 @@ CONFIG_CLIENTBOUND = {
 }
 PLAY_CLIENTBOUND_KEEP_ALIVE = 0x2C
 PLAY_CLIENTBOUND_LOGIN = 0x31
+PLAY_CLIENTBOUND_PLAYER_POSITION = 0x48
+PLAY_CLIENTBOUND_RESPAWN = 0x52
+PLAY_SERVERBOUND_ACCEPT_TELEPORTATION = 0x00
+PLAY_SERVERBOUND_PLAYER_LOADED = 0x2C
 PLAY_SERVERBOUND_KEEP_ALIVE = 0x1C
 
 
@@ -160,6 +164,7 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
     state = "login"
     deadline = time.monotonic() + run_seconds
     joined = False
+    loading = False
     while time.monotonic() < deadline:
         try:
             pid, data = conn.recv_packet(timeout=min(8, max(0.001, deadline - time.monotonic())))
@@ -219,7 +224,22 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
             if pid == PLAY_CLIENTBOUND_KEEP_ALIVE and len(data) == 8:
                 conn.send_packet(PLAY_SERVERBOUND_KEEP_ALIVE, data)
                 print("[play] keep_alive echoed")
+            elif pid == PLAY_CLIENTBOUND_PLAYER_POSITION:
+                # ClientboundPlayerPositionPacket starts with the teleport
+                # ID. Acknowledging it clears the server's changing-dimension
+                # state; without this, a teleported player remains invulnerable.
+                teleport_id, _ = read_varint_bytes(data, 0)
+                conn.send_packet(PLAY_SERVERBOUND_ACCEPT_TELEPORTATION, write_varint(teleport_id))
+                print(f"[play] acknowledged teleport {teleport_id}")
+                if loading:
+                    conn.send_packet(PLAY_SERVERBOUND_PLAYER_LOADED, b"")
+                    loading = False
+                    print("[play] player loaded")
+            elif pid == PLAY_CLIENTBOUND_RESPAWN:
+                loading = True
+                print("[play] respawn/dimension change")
             elif pid == PLAY_CLIENTBOUND_LOGIN:
+                loading = True
                 joined = True
                 print("[play] LOGIN (join game) packet received -- player entity should now exist")
                 if on_join is not None:

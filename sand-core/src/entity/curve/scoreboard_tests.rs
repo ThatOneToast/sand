@@ -1114,3 +1114,47 @@ fn inventory_numeric_reads_reject_plural_targets() {
     .unwrap();
     assert!(error.to_string().contains("inventory count"), "{error}");
 }
+
+#[test]
+fn inventory_numeric_expression_keeps_two_player_sources_distinct() {
+    use crate::entity::{FixedPoint, StatCurve};
+    let owner = "test:inventory_sum".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::self_();
+    let count = |player| {
+        crate::item::ItemLocation::entity(sand_commands::Selector::player(player))
+            .count(sand_components::ItemId::minecraft("diamond").unwrap())
+    };
+    let curve = StatCurve::add([count("Alice"), count("Bob")]);
+    let lowered = curve
+        .lower_scoreboard("result", "test:inventory_sum", FixedPoint::default())
+        .unwrap();
+    let rendered = render_lowered_curve(
+        NumericContext::new(&owner, &holder).unwrap(),
+        "inventory_sum",
+        &lowered,
+    )
+    .unwrap();
+    let mut machine = Machine::default();
+    for record in &rendered.records {
+        machine.1.insert(
+            format!("test:{}", record.path),
+            record.content.lines().map(str::to_owned).collect(),
+        );
+    }
+    machine.6.insert(
+        "Alice".into(),
+        BTreeMap::from([("minecraft:diamond".into(), 3)]),
+    );
+    machine.6.insert(
+        "Bob".into(),
+        BTreeMap::from([("minecraft:diamond".into(), 7)]),
+    );
+    assert!(machine.execute(&rendered.commands));
+    assert_eq!(machine.get("@s", "result"), 10_000);
+    machine.6.get_mut("Alice").unwrap().clear();
+    assert!(machine.execute(&rendered.commands));
+    assert_eq!(machine.get("@s", "result"), 7_000);
+    machine.6.remove("Bob");
+    assert!(!machine.execute(&rendered.commands));
+    assert_eq!(machine.get("@s", "result"), 7_000);
+}

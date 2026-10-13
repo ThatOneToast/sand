@@ -11,6 +11,7 @@ on:
       - "sand-core/src/condition.rs"
       - "sand-core/src/ir/**"
       - "sand-commands/src/blocks.rs"
+      - "sand-commands/src/selector.rs"
       - "sand-vanilla-audit/**"
       - "scripts/bench_runtime.py"
       - "scripts/validate_worldbuild_profiles.py"

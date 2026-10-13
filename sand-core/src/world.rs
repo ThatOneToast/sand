@@ -56,6 +56,62 @@ impl WorldContext {
         Self { _private: () }
     }
 
+    /// Selects players in the dimension where the actions execute.
+    ///
+    /// Returns the canonical Target, so filters, cardinality narrowing, and
+    /// [`crate::entity::TargetExecution::each`] retain their existing behavior.
+    /// Without an explicit distance filter, a zero minimum distance pins
+    /// selection to the execution dimension without a maximum radius. Add
+    /// `within_blocks` to bound nearby work.
+    /// Construction generates no scan. Iteration runs explicitly and binds
+    /// each selected entity's executor and position. This is not a persistent
+    /// dimension reference; use the target inside the intended dimension scope.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::world::WorldContext::players",
+        aliases = ["sand::prelude::WorldContext::players"],
+        module = "sand::world",
+        kind = "method",
+        summary = "Selects players in the current execution dimension.",
+        context = "Returns the canonical Target with its existing filters, cardinality, and typed iteration; no parallel world collection is introduced.",
+        minecraft = "A supplied distance filter constrains selection to the execution dimension; otherwise Sand adds distance=0.. without a maximum radius. Iteration establishes each selected entity's position and executor.",
+        use_when = ["Selecting players for dimension-scoped gameplay"],
+        avoid_when = ["Capturing a persistent dimension identity", "Creating implicit tick scans"],
+        returns = "A canonical typed target constrained to the current dimension.",
+        example = "use sand::prelude::*; let nearby = WorldContext::current().players().within_blocks(32.0);",
+    )]
+    pub fn players(&self) -> sand_commands::selector::Target<sand_commands::selector::PlayersOnly> {
+        sand_commands::selector::Target::players().in_current_dimension()
+    }
+
+    /// Selects loaded entities in the dimension where the actions execute.
+    ///
+    /// Returns the canonical Target, so filters, cardinality narrowing, and
+    /// [`crate::entity::TargetExecution::each`] retain their existing behavior.
+    /// Without an explicit distance filter, a zero minimum distance pins
+    /// selection to the execution dimension without a maximum radius. Add
+    /// `within_blocks` to bound nearby work.
+    /// Construction generates no scan. Iteration runs explicitly and binds
+    /// each selected entity's executor and position. This is not a persistent
+    /// dimension reference; use the target inside the intended dimension scope.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::world::WorldContext::entities",
+        aliases = ["sand::prelude::WorldContext::entities"],
+        module = "sand::world",
+        kind = "method",
+        summary = "Selects loaded entities in the current execution dimension.",
+        context = "Returns the canonical Target with its existing filters, cardinality, and typed iteration; no parallel world collection is introduced.",
+        minecraft = "A supplied distance filter constrains selection to the execution dimension; otherwise Sand adds distance=0.. without a maximum radius. Iteration establishes each selected entity's position and executor.",
+        use_when = ["Selecting loaded entities for dimension-scoped gameplay"],
+        avoid_when = ["Capturing a persistent dimension identity", "Creating implicit tick scans"],
+        returns = "A canonical typed target constrained to the current dimension.",
+        example = "use sand::prelude::*; let nearby = WorldContext::current().entities().within_blocks(32.0);",
+    )]
+    pub fn entities(&self) -> sand_commands::selector::Target<sand_commands::selector::AnyTarget> {
+        sand_commands::selector::Target::entities().in_current_dimension()
+    }
+
     /// Addresses a block using canonical absolute or relative block coordinates.
     /// Relative coordinates are resolved when the generated operation executes.
     #[sand_macros::api(
@@ -286,6 +342,28 @@ impl BlockContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::TargetExecution;
+
+    #[test]
+    fn world_targets_keep_canonical_filters_and_dimension_bounds() {
+        let world = WorldContext::current();
+        assert_eq!(world.players().to_string(), "@a[distance=0..]");
+        assert_eq!(world.entities().to_string(), "@e[distance=0..]");
+        assert_eq!(
+            world.players().within_blocks(32.0).to_string(),
+            "@a[distance=..32]"
+        );
+        assert_eq!(
+            world.entities().nearest().to_string(),
+            "@e[sort=nearest,limit=1,distance=0..]"
+        );
+        let lines = crate::ir::test_support::emitted(world.players().each(|_| {
+            world
+                .block(BlockPos::here())
+                .replace(crate::generated::Block::Stone)
+        }));
+        assert!(lines[0].starts_with("execute as @a[distance=0..] at @s run function "));
+    }
 
     #[test]
     fn dimension_macro_body_keeps_comment_nodes_as_comments() {

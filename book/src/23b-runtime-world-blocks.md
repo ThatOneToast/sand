@@ -51,6 +51,27 @@ A handle does not capture the dimension or resolve relative coordinates at Rust
 construction time. Keep its operations in the intended generated execution
 scope, just as with `EntityContext`.
 
+## Players and entities in the world context
+
+`world.players()` and `world.entities()` return the canonical `Target`. They
+select only the dimension where their generated actions run, including when
+used inside `in_dimension`. Unlike a bare `Target::players()`, the world player
+query cannot accidentally include players from other dimensions.
+
+```rust,ignore
+WorldContext::current().in_dimension(nether, |world| {
+    world.entities().tag("arena_enemy").within_blocks(32.0).each(|_| {
+        world.block(BlockPos::here()).replace(vanilla::Block::GoldBlock)
+    })
+});
+```
+
+Use the normal target filters, narrowing, and `each` execution API. Construction
+does nothing at runtime; iteration is explicit. There is no implicit tick scan
+or maximum radius. `within_blocks` bounds work around the current origin, and
+`each` then runs at each selected entity's own position. Queries retain the
+execution context at use, not the dimension where the Rust value was built.
+
 ## Loaded blocks and specialized capabilities
 
 A block address does not prove that its chunk is loaded, that the block is a

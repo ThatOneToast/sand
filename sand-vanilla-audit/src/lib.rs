@@ -827,3 +827,18 @@ pub fn audit_world_macro() {
         |_| format!("{}\n# dimension macro audit\n\nsetblock ~1 ~ ~ minecraft:lapis_block", args.line("setblock ~ ~ ~ $(block)").unwrap()),
     );
 }
+
+/// Select only current-dimension entities and bind each entity's position.
+#[function]
+pub fn audit_world_targets() {
+    WorldContext::current().in_dimension(
+        "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
+        |world| world.entities().tag("sand_world_probe").within_blocks(32.0).each(|entity| {
+            let visited = sand::entity::EntityTag::new("sand_world_visited").unwrap();
+            mcfunction![
+                entity.add_tag(&visited);
+                world.block(BlockPos::here()).replace(vanilla::Block::GoldBlock);
+            ]
+        }),
+    );
+}

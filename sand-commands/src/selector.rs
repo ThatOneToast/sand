@@ -32,13 +32,29 @@ use crate::validate;
 /// // @s
 /// assert_eq!(Target::self_().to_string(), "@s");
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[doc(hidden)]
 #[must_use = "selectors do nothing until passed to a command"]
 pub struct Selector {
     base: TargetBase,
     args: Vec<SelectorArg>,
     player_only: bool,
+    current_dimension: bool,
+}
+
+// Preserve existing unscoped identities used by owned-IR deduplication.
+impl fmt::Debug for Selector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug = f.debug_struct("Selector");
+        debug
+            .field("base", &self.base)
+            .field("args", &self.args)
+            .field("player_only", &self.player_only);
+        if self.current_dimension {
+            debug.field("current_dimension", &true);
+        }
+        debug.finish()
+    }
 }
 
 impl PartialEq for Selector {
@@ -183,6 +199,32 @@ impl<K, A> Target<K, A> {
     #[doc(hidden)]
     pub(crate) fn into_selector(self) -> Selector {
         self.raw
+    }
+
+    /// Restricts selection to the dimension where the command executes.
+    ///
+    /// This does not capture a dimension at construction. A typed distance
+    /// filter already establishes this restriction; otherwise rendering adds
+    /// `distance=0..`. Filters and cardinality narrowing preserve the scope.
+    /// Unchecked raw selector roots cannot prove this restriction and fail
+    /// validation; express their distance constraint explicitly in raw syntax.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Target::in_current_dimension",
+        aliases = ["sand::cmd::Target::in_current_dimension", "sand::prelude::Target::in_current_dimension", "sand::prelude::cmd::Target::in_current_dimension"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Restricts a canonical target to the current execution dimension.",
+        context = "Preserves target category, cardinality, and existing filters; world gameplay queries share this scope instead of introducing another query type.",
+        minecraft = "Uses an existing distance filter or adds distance=0.., which constrains vanilla selector evaluation to the execution dimension without an upper radius.",
+        use_when = ["Selecting players or entities only in the current dimension"],
+        avoid_when = ["Selecting players across all dimensions", "Refining an unchecked raw selector root"],
+        returns = "The target with an execution-dimension constraint.",
+        example = "let local = sand::command::Target::players().in_current_dimension().within_blocks(32.0);",
+    )]
+    pub fn in_current_dimension(mut self) -> Self {
+        self.raw.current_dimension = true;
+        self
     }
 
     /// Restricts the target to entities with `tag`.
@@ -815,6 +857,7 @@ impl Selector {
             base: TargetBase::NearestEntity,
             args: vec![],
             player_only: false,
+            current_dimension: false,
         }
     }
 
@@ -824,6 +867,7 @@ impl Selector {
             base: TargetBase::AllPlayers,
             args: vec![],
             player_only: true,
+            current_dimension: false,
         }
     }
 
@@ -833,6 +877,7 @@ impl Selector {
             base: TargetBase::AllEntities,
             args: vec![],
             player_only: false,
+            current_dimension: false,
         }
     }
 
@@ -842,6 +887,7 @@ impl Selector {
             base: TargetBase::NearestPlayer,
             args: vec![],
             player_only: true,
+            current_dimension: false,
         }
     }
 
@@ -851,6 +897,7 @@ impl Selector {
             base: TargetBase::Self_,
             args: vec![],
             player_only: false,
+            current_dimension: false,
         }
     }
 
@@ -860,6 +907,7 @@ impl Selector {
             base: TargetBase::RandomPlayer,
             args: vec![],
             player_only: true,
+            current_dimension: false,
         }
     }
 
@@ -869,6 +917,7 @@ impl Selector {
             base: TargetBase::Player(name.into()),
             args: vec![],
             player_only: true,
+            current_dimension: false,
         }
     }
 
@@ -882,6 +931,7 @@ impl Selector {
             base: TargetBase::Raw(selector.into()),
             args: vec![],
             player_only: false,
+            current_dimension: false,
         }
     }
 
@@ -892,6 +942,7 @@ impl Selector {
             base: TargetBase::RawSingle(selector.into()),
             args: vec![],
             player_only: false,
+            current_dimension: false,
         }
     }
 
@@ -1197,6 +1248,18 @@ impl Selector {
 
 impl fmt::Display for Selector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.current_dimension
+            && !self
+                .args
+                .iter()
+                .any(|arg| matches!(arg, SelectorArg::Distance(_)))
+        {
+            let mut scoped = self.clone();
+            scoped.current_dimension = false;
+            scoped.args.push(SelectorArg::Distance("0..".into()));
+            return scoped.fmt(f);
+        }
+
         let base = match &self.base {
             TargetBase::AllPlayers => "@a",
             TargetBase::AllEntities => "@e",
@@ -1273,6 +1336,16 @@ impl Selector {
 
 impl Validate for Selector {
     fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        if self.current_dimension
+            && matches!(self.base, TargetBase::Raw(_) | TargetBase::RawSingle(_))
+        {
+            return Err(CommandError::new(
+                "Selector",
+                "dimension",
+                "current-dimension scope requires a typed target root; include the distance constraint explicitly in raw selector syntax",
+            ));
+        }
+
         if matches!(self.base, TargetBase::Raw(_) | TargetBase::RawSingle(_))
             && self.args.is_empty()
         {
@@ -1997,6 +2070,44 @@ impl fmt::Display for GameMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn current_dimension_scope_composes_with_distance_and_cardinality() {
+        let profile = CommandProfile::unprofiled();
+        let local = Target::players().in_current_dimension();
+        assert_eq!(local.render(&profile).unwrap(), "@a[distance=0..]");
+        assert_eq!(
+            local.clone().within_blocks(32.0).render(&profile).unwrap(),
+            "@a[distance=..32]"
+        );
+        assert_eq!(
+            Target::players()
+                .within_blocks(32.0)
+                .in_current_dimension()
+                .render(&profile)
+                .unwrap(),
+            "@a[distance=..32]"
+        );
+        assert_eq!(
+            local.clone().nearest().render(&profile).unwrap(),
+            "@a[sort=nearest,limit=1,distance=0..]"
+        );
+        let erased: Selector = local.into();
+        assert_eq!(erased.render(&profile).unwrap(), "@a[distance=0..]");
+        assert_eq!(
+            Target::named("Alex")
+                .in_current_dimension()
+                .render(&profile)
+                .unwrap(),
+            "@a[name=Alex,distance=0..,limit=1]"
+        );
+        assert!(
+            Target::raw_many("@a[distance=..32]")
+                .in_current_dimension()
+                .render(&profile)
+                .is_err()
+        );
+    }
 
     #[test]
     fn base_selectors() {

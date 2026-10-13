@@ -78,13 +78,17 @@ ItemLocation::block(BlockPos::here())
     .copy_to(&Nbt::storage(ResourceLocation::new("trail", "cache").unwrap()).path("input"));
 
 let offhand = ItemLocation::entity(Target::self_()).offhand();
-offhand.replace_from(&selected)?;
+let actions = mcfunction![
+    offhand.replace_from(&selected)?;
+    player.helmet().set(ItemStack::new(ItemId::minecraft("diamond_helmet")?))?;
+    player.hotbar(3)?.clear()?;
+];
 ```
 
 Arbitrary player/entity inventory NBT writes are rejected: vanilla does not
 safely expose them through `/data modify entity`. Block-container NBT writes
 are supported. Use `.replace_from(...)` for live inventory mutation,
-`.copy_to(...)` for snapshots, and `.copy_from(...)` only where the location
+`.set(...)` and `.clear()` for typed slot writes, `.copy_to(...)` for snapshots, and `.copy_from(...)` only where the location
 supports NBT writes.
 
 `.matches(...)` and `.is_empty()` lower through typed `execute if items`

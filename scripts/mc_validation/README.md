@@ -122,8 +122,8 @@ results by category.
 | Stale-state cleanup (temporary observation tag) | ✅ Proven | Confirmed gone from the real entity after handler completion, not just removed in generated text. |
 | Weapon snapshot, absent-mainhand branch | ✅ Proven | A subject with no `SelectedItem` produces `weapon_present: 0b` live. |
 | Weapon/held-item snapshot, present branch (actual captured item) | ❌ **Not achieved** | Requires a real player client — see "#265 (this pass)" below for why a non-player stand-in doesn't work here. |
-| Player-triggered combat scenarios *driven by the real advancement criterion* | ❌ **Not proven** | See "What is not proven" below. |
-| Two independent player sessions | ✅ Proven for observations | The player-observation harness checks both players online, native health/effect transitions, isolated counts and reload through normal tick dispatch. Participant correlation is separate. |
+| Combat participants driven by the real advancement criterion | ✅ Attacker case proven | The player-participant audit verifies both attacker handlers against independent UUIDs. Killer/bridge and attacking-player weapon events remain separate. |
+| Two independent player sessions | ✅ Proven for observations | The player-observation harness checks both players online, native health/effect transitions, isolated counts and reload through normal tick dispatch. The player-participant audit separately verifies interleaved attacker and tracked-item ownership. |
 
 ## Sustained player sessions and remaining participant coverage
 
@@ -142,11 +142,12 @@ observation handlers or replacing Minecraft's read-only health criterion.
 The Vanilla reload workflow runs this audit. See
 [the observation evidence](../../docs/testing/player-observation-evidence.md).
 
-This does not establish the participant combat matrix: real advancement-driven
-attacker/killer capture, composed participant forwarding, repeated attacks,
-weapon/custom-data snapshots, empty-hand behavior and their reload boundaries
-still need dedicated assertions in `run_audit.py`. #265 remains open. The
-passive client fixes the connection prerequisite, not these separate proofs.
+The separate [equipment and participant audit](../../docs/testing/player-equipment-evidence.md)
+now covers advancement-driven attacker UUIDs, tracked participants, exact held
+item compounds, player/mob armor reads, post-capture item changes, interleaved
+player isolation and reload. It runs through `../validate_player_participants.py`.
+Killer/bridge events, attacking-player weapon-event timing, composed forwarding
+and rapid-hit cases still need their own assertions. #265 remains open.
 
 ## #269/#280: advancement-bridge parent → SandEvent child validation attempt
 

@@ -666,6 +666,8 @@ mod tests {
         let copy_guard = commands[2].split(" run ").next().unwrap();
         let mark_guard = commands[3].split(" run ").next().unwrap();
         assert_eq!(copy_guard, mark_guard);
+        assert_eq!(copy_guard, "execute if data entity @s equipment.offhand");
+        assert!(commands[2].ends_with("set from entity @s equipment.offhand"));
     }
 
     #[test]

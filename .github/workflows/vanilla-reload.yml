@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/vanilla-reload.yml"
       - "examples/book_project/**"
+      - "examples/participant_audit/**"
       - "sand-cli/**"
       - "sand-core/src/**"
       - "sand-macros/src/**"
@@ -17,6 +18,9 @@ on:
       - "scripts/validate_worldbuild_profiles.py"
       - "scripts/validate_world_gameplay.py"
       - "scripts/validate_player_observations.py"
+      - "scripts/player_validation_harness.py"
+      - "scripts/validate_player_participants.py"
+      - "scripts/tests/test_player_validation_harness.py"
       - "scripts/mc_validation/minimal_join_client.py"
       - "scripts/mc_validation/test_minimal_join_client.py"
       - "scripts/validate-vanilla-reload.sh"
@@ -131,6 +135,23 @@ jobs:
             --pack sand-vanilla-audit/dist/sand_audit \
             --output "target/vanilla-reload/${{ matrix.version }}/player-observations"
 
+      - name: Build participant regression pack
+        if: matrix.target == 'latest'
+        working-directory: examples/participant_audit
+        env:
+          SAND_MC_VERSION: ${{ matrix.version }}
+          SAND_STRICT_CODEGEN: "1"
+        run: cargo run --manifest-path ../../sand-cli/Cargo.toml -- build
+
+      - name: Validate real-player participants and equipment snapshots
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_player_participants.py \
+            --version "${{ matrix.version }}" \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --pack examples/participant_audit/dist/paudit \
+            --output "target/vanilla-reload/${{ matrix.version }}/player-participants"
+
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'
         run: |
@@ -160,6 +181,8 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/latest.log
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/player-observations
+            target/vanilla-reload/${{ matrix.version }}/player-participants
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit
+            examples/participant_audit/dist/paudit

@@ -82,6 +82,15 @@ struct ParticipantAudit {
     bridge_killer_uuid: String,
     bridge_weapon_present: bool,
     bridge_weapon_item: String,
+    /// Participant captures from a native-health observation, sampled by ticks.
+    tracked_subject_uuid: String,
+    tracked_attacker_uuid: String,
+    tracked_weapon_present: bool,
+    tracked_weapon_item: String,
+    tracked_offhand_present: bool,
+    tracked_offhand_item: String,
+    tracked_helmet_item: String,
+    tracked_attacker_helmet: String,
 }
 
 // ── Scoreboards ─────────────────────────────────────────────────────────────
@@ -92,6 +101,7 @@ static ATT2: ScoreVar<i32> = ScoreVar::new("paudit_att2");
 static KILL: ScoreVar<i32> = ScoreVar::new("paudit_kill");
 static WPN: ScoreVar<i32> = ScoreVar::new("paudit_wpn");
 static KWPN: ScoreVar<i32> = ScoreVar::new("paudit_kwpn");
+static TRACKED: ScoreVar<i32> = ScoreVar::new("paudit_tracked");
 /// Manually-set trigger for the #264 same-cycle composition scenario below
 /// (`scoreboard players set @s paudit_cmp_trg 1` over RCON/in-game).
 static COMPOSE_TRIGGER: ScoreVar<i32> = ScoreVar::new("paudit_cmp_trg");
@@ -129,6 +139,7 @@ pub fn init() {
     KILL.define();
     WPN.define();
     KWPN.define();
+    TRACKED.define();
     COMPOSE_TRIGGER.define();
     SEQ.set(SEQ_HOLDER, 0);
     ParticipantAudit::attacker_present().set(false);
@@ -149,18 +160,16 @@ pub fn audit_on_hurt_by_entity_a(event: Event<EntityDamagePlayerEvent>) {
     let attacker = event.attacker();
     ParticipantAudit::attacker_present().set(true);
     ParticipantAudit::subject_uuid().copy_from_entity(Target::self_(), "UUID");
-    attacker.execute_at(
-        ParticipantAudit::attacker_uuid().copy_from_entity(Target::self_(), "UUID"),
-    );
+    attacker
+        .execute_at(ParticipantAudit::attacker_uuid().copy_from_entity(Target::self_(), "UUID"));
 }
 
 #[on_event]
 pub fn audit_on_hurt_by_entity_b(event: Event<EntityDamagePlayerEvent>) {
     ATT2.add(Target::self_(), 1);
     let attacker = event.attacker();
-    attacker.execute_at(
-        ParticipantAudit::attacker_b_uuid().copy_from_entity(Target::self_(), "UUID"),
-    );
+    attacker
+        .execute_at(ParticipantAudit::attacker_b_uuid().copy_from_entity(Target::self_(), "UUID"));
 }
 
 /// `PlayerKillEvent` — correlated killer.
@@ -321,6 +330,58 @@ pub fn audit_on_special_kill(event: SpecialKillEvent) {
             weapon.copy_to(ParticipantAudit::bridge_weapon_item());
         ])
         .else_all(mcfunction![ParticipantAudit::bridge_weapon_present().set(false);]);
+}
+
+// ── Tracked-transition participant scenario (#265/#270) ─────────────────────
+
+struct ObservedHealthLoss;
+impl SandEvent for ObservedHealthLoss {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health()))
+            .decreased()
+    }
+
+    fn participants() -> sand::participant::EventParticipantPlan {
+        ParticipantBuilder::new()
+            .observe_entity(EntityParticipantRole::Attacker)
+            .observe_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
+            .observe_item(ItemParticipantRole::EquippedItem, ParticipantHand::OffHand)
+            .build()
+    }
+}
+
+/// Captures the observed player's last attacker and both held-item snapshots.
+/// These records have the observation's sampling time, not advancement timing.
+#[on_event]
+pub fn audit_on_observed_health_loss(event: ObservedHealthLoss) {
+    TRACKED.add(Target::self_(), 1);
+    ParticipantAudit::tracked_subject_uuid().copy_from_entity(Target::self_(), "UUID");
+    event.attacker().execute_at(
+        ParticipantAudit::tracked_attacker_uuid().copy_from_entity(Target::self_(), "UUID"),
+    );
+    ItemLocation::player_equipment(EquipmentSlot::Head)
+        .expect("head is a player armor slot")
+        .copy_to(&ParticipantAudit::tracked_helmet_item().path());
+    event.attacker().execute_at(
+        ItemLocation::entity_equipment(Target::self_(), EquipmentSlot::Head)
+            .expect("head is a living-entity equipment slot")
+            .copy_to(&ParticipantAudit::tracked_attacker_helmet().path())
+            .to_string(),
+    );
+    let weapon = event.weapon();
+    if_(weapon.is_present())
+        .then_all(mcfunction![
+            ParticipantAudit::tracked_weapon_present().set(true);
+            weapon.copy_to(ParticipantAudit::tracked_weapon_item());
+        ])
+        .else_all(mcfunction![ParticipantAudit::tracked_weapon_present().set(false);]);
+    let offhand = event.item(ItemParticipantRole::EquippedItem);
+    if_(offhand.is_present())
+        .then_all(mcfunction![
+            ParticipantAudit::tracked_offhand_present().set(true);
+            offhand.copy_to(ParticipantAudit::tracked_offhand_item());
+        ])
+        .else_all(mcfunction![ParticipantAudit::tracked_offhand_present().set(false);]);
 }
 
 // ── Export hook (required by `sand build`) ───────────────────────────────────

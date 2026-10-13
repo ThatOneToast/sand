@@ -54,6 +54,7 @@ fn every_audit_handler_is_present() {
         "audit_on_composed_child",
         "audit_on_composed_sibling",
         "audit_on_special_kill",
+        "audit_on_observed_health_loss",
     ] {
         assert!(
             paths.contains(&expected),
@@ -456,4 +457,47 @@ fn no_generated_body_contains_a_literal_placeholder() {
             record["path"]
         );
     }
+}
+
+#[test]
+fn tracked_health_loss_captures_participants_before_evidence_and_cleans_up_afterward() {
+    let records = records(&export());
+    let body = records
+        .iter()
+        .find(|record| {
+            record["dir"] == "function" && record["path"] == "audit_on_observed_health_loss"
+        })
+        .and_then(|record| record["content"].as_str())
+        .expect("tracked handler exists");
+    let capture = body
+        .find("execute on attacker run")
+        .expect("attacker capture");
+    let mainhand = body
+        .find("set from entity @s SelectedItem")
+        .expect("mainhand snapshot");
+    let offhand = body
+        .find("set from entity @s equipment.offhand")
+        .expect("offhand snapshot");
+    let evidence = body
+        .find("scoreboard players add @s paudit_tracked 1")
+        .expect("evidence counter");
+    let cleanup = body
+        .rfind("tag @e[tag=__sand_observed_")
+        .expect("participant cleanup");
+    assert!(
+        capture < evidence && mainhand < evidence && offhand < evidence && evidence < cleanup,
+        "{body}"
+    );
+    assert!(
+        records.iter().any(|record| {
+            record["dir"] == "function"
+                && record["path"]
+                    .as_str()
+                    .is_some_and(|path| path.starts_with("__sand_transition/"))
+                && record["content"].as_str().is_some_and(|body| {
+                    body.contains("function paudit:audit_on_observed_health_loss")
+                })
+        }),
+        "the normal observation sampler must call the handler"
+    );
 }

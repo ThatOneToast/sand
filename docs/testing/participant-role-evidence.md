@@ -431,10 +431,17 @@ subject, replacement with no remnants, absent-source presence clearing,
 `/reload` survival, macro-function usability after reload, per-subject
 expiry, and clean shutdown. All checks pass. The generated event path
 (pack load, `/reload`, the persist → load → expire wiring) is validated by
-`scripts/mc_validation/run_bounded_item_event_proof.py`.
+`scripts/mc_validation/run_bounded_item_event_proof.py`. Its current harness
+uses two connected passive players and real held items, with full snapshot
+comparisons against independently read player NBT. It checks an uncaptured
+subject, two consumers, frozen snapshots after equipment changes, replacement,
+absence, reload and isolated explicit expiry. Dispatch is controlled directly
+with normal tick coordination frozen; natural window expiry and combat input
+are not claimed. The prior armor-stand snapshot injection was invalid after
+subject-local capture moved into dispatch (#435).
 
 Note the distinction this file has always insisted on: the structural and
 exact-output tests above assert *generated command text* and cannot catch a
 backend that vanilla silently ignores — which is exactly how the entity-NBT
 defect survived a full green suite. The claims in this section rest on the
-RCON round-trips, not on those tests.
+real-server command round-trips, not on those tests.

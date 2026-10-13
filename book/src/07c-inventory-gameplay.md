@@ -82,3 +82,25 @@ slot writes reject it because vanilla has no corresponding item-command slot.
 There is no atomic move/transfer guarantee. Removal, custom-item count matching,
 and inventory-change observation remain separate capability work; use only the
 operations documented here as supported gameplay actions.
+
+## Custom-item identity
+
+`CustomItem::item_predicate()` builds the same typed `ItemPredicate` used by
+advancement and loot APIs. It returns a `Result`: invalid base IDs and invalid
+item definitions produce diagnostics rather than panicking.
+
+```rust,ignore
+let wand = CustomItem::new("minecraft:stick").custom_data("my_pack:wand");
+let identity = wand.item_predicate()?;
+```
+
+Identity matching checks the base item and partially matches its custom data.
+Other packs can add unrelated custom-data keys without breaking recognition;
+cosmetic components and durability are not identity constraints. Explicit raw
+custom data supplied with `typed_custom_data` is retained as an SNBT partial
+predicate. Raw component overrides of `custom_data` are rejected by this
+conversion because they bypass its identity source.
+
+`on_use_advancement` and `on_use_fn` also return a `Result`, propagating these
+identity diagnostics. They use vanilla's using-item trigger (for example,
+eating or blocking), which is not a general right-click event.

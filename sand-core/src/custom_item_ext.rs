@@ -15,13 +15,13 @@
 //! pub static SHOCKWAVE_SHIELD: CustomItemId = CustomItemId::new("minecraft:shield", "powers_shockwave");
 //!
 //! // Typed on_use with a #[function]-registered handler:
-//! fn build_advancements(item: &CustomItem) -> Vec<Advancement> {
-//!     vec![
+//! fn build_advancements(item: &CustomItem) -> sand_components::Result<Vec<Advancement>> {
+//!     Ok(vec![
 //!         item.on_use_fn(
 //!             ResourceLocation::new("my_pack", "items/shockwave/on_use"),
 //!             my_pack::on_shockwave_use, // fn() -> Actions
-//!         )
-//!     ]
+//!         )?
+//!     ])
 //! }
 //!
 //! // Quick execute check via CustomItemId:
@@ -43,8 +43,15 @@ pub trait CustomItemExt {
     /// Build a use-item advancement whose reward is a typed function ref.
     ///
     /// Identical to [`CustomItem::on_use_advancement`] but accepts any
-    /// [`FunctionRef`] — including `#[function]`-registered closures.
-    fn on_use_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement;
+    /// [`FunctionRef`] — including `#[function]`-registered closures. Invalid item
+    /// definitions return the same diagnostic as the canonical predicate conversion.
+    // Preserve the canonical Sand diagnostic used by the component conversion.
+    #[allow(clippy::result_large_err)]
+    fn on_use_fn(
+        &self,
+        location: ResourceLocation,
+        handler: impl FunctionRef,
+    ) -> sand_components::Result<Advancement>;
 
     /// Build a kill-entity advancement whose reward is a typed function ref.
     fn on_kill_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement;
@@ -80,7 +87,11 @@ pub trait CustomItemExt {
 }
 
 impl CustomItemExt for CustomItem {
-    fn on_use_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement {
+    fn on_use_fn(
+        &self,
+        location: ResourceLocation,
+        handler: impl FunctionRef,
+    ) -> sand_components::Result<Advancement> {
         self.on_use_advancement(location, handler.function_id())
     }
 
@@ -230,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_item_ext_on_use_fn_accepts_raw_string() {
+    fn custom_item_ext_on_use_fn_accepts_typed_function_id() {
         let item = CustomItem::new("minecraft:shield").custom_data("powers_shockwave");
         let adv = item.on_use_fn(
             ResourceLocation::new("my_pack", "items/shockwave/on_use").unwrap(),
@@ -238,8 +249,16 @@ mod tests {
                 .parse::<crate::FunctionId>()
                 .unwrap(),
         );
-        // Just verify it builds without panicking — the full JSON is tested in sand-components.
-        let _ = adv;
+        assert!(adv.is_ok());
+    }
+
+    #[test]
+    fn custom_item_ext_on_use_fn_propagates_identity_errors() {
+        let result = CustomItem::new("invalid item").on_use_fn(
+            ResourceLocation::new("test", "use_item").unwrap(),
+            "test:reward".parse::<crate::FunctionId>().unwrap(),
+        );
+        assert!(result.is_err());
     }
 
     #[test]

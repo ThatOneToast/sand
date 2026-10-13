@@ -1040,7 +1040,7 @@ mod tests {
 
         // The predicate a designer would use downstream (e.g. an advancement
         // criterion or loot condition) to recognize the crafted item.
-        let predicate = elevator.item_predicate();
+        let predicate = elevator.item_predicate().unwrap();
         let predicate_json = serde_json::to_value(&predicate).unwrap();
 
         // Same base item on both sides.

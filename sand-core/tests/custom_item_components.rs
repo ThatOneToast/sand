@@ -163,7 +163,7 @@ fn typed_stack_damage_unbreakable_custom_data_and_raw_escape_hatch() {
 #[test]
 fn custom_item_predicate_uses_typed_custom_data_marker() {
     let item = CustomItem::new("minecraft:stick").id("arcane:dash_wand");
-    let pred = serde_json::to_value(item.item_predicate()).unwrap();
+    let pred = serde_json::to_value(item.item_predicate().unwrap()).unwrap();
 
     assert_eq!(pred["items"], serde_json::json!(["minecraft:stick"]));
     // Partial-match predicate, not exact `components` equality — see #233.

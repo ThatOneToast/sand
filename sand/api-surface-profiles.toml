@@ -2,7 +2,7 @@
 # Selection uses the resolved `minecraft_version` embedded in both provider
 # catalogs, never an environment-variable guess. Adding a version requires a
 # separately reviewed deterministic baseline.
-# Owned slot writes add ItemLocation set/clear methods in inventory-source;
+# Native attribute-base reads add one method in entity-source;
 # every source scope remains enforced.
 schema_version = 1
 
@@ -12,12 +12,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 4921
+static_surface_items = 4922
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11021
+static_surface_items = 11022
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

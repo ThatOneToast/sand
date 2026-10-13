@@ -1414,6 +1414,26 @@ pub fn try_attribute_get(
     Ok(attribute_get(target, attribute, scale))
 }
 
+/// Read an attribute's configured base, excluding modifiers, at a finite scale.
+///
+/// Validates the same single-owner and identifier constraints as
+/// [`try_attribute_get`]. Minecraft truncates the scaled result toward zero;
+/// an absent owner or unsupported native attribute fails at runtime. A stored
+/// NaN base converts to zero under Minecraft's command-result conversion.
+pub fn try_attribute_base_get(
+    target: impl TargetArgument,
+    attribute: impl Into<String>,
+    scale: f64,
+) -> CommandResult<String> {
+    let target = target.into_target_selector();
+    crate::ScoreHolder::entity(target.clone())
+        .validate_single(&crate::CommandProfile::unprofiled())?;
+    let attribute = attribute.into();
+    validate::resource_location_shape(&attribute, "attribute_base_get", "attribute")?;
+    validate::finite(scale, "attribute_base_get", "scale")?;
+    Ok(format!("attribute {target} {attribute} base get {scale}"))
+}
+
 /// `attribute <target> <attribute> base set <value>` — set an attribute's base value.
 ///
 /// Raw/unchecked: accepts a non-finite value and any string attribute id.
@@ -1838,6 +1858,23 @@ mod tests {
     #[test]
     fn me_emote() {
         assert_eq!(me("waves"), "me waves");
+    }
+
+    #[test]
+    fn attribute_base_reads_validate_native_query_arguments() {
+        assert_eq!(
+            try_attribute_base_get(Selector::self_(), "minecraft:movement_speed", 1000.0).unwrap(),
+            "attribute @s minecraft:movement_speed base get 1000"
+        );
+        assert!(
+            try_attribute_base_get(Selector::all_entities(), "minecraft:max_health", 1.0).is_err()
+        );
+        assert!(try_attribute_base_get(Selector::self_(), "invalid attribute", 1.0).is_err());
+        for scale in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(
+                try_attribute_base_get(Selector::self_(), "minecraft:max_health", scale).is_err()
+            );
+        }
     }
 
     #[test]

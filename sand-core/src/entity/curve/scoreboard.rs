@@ -87,6 +87,7 @@ pub(crate) fn render_lowered_curve(
                 destination,
                 target,
                 attribute,
+                value: attribute_value,
                 scale,
                 overflow,
             } => {
@@ -105,7 +106,15 @@ pub(crate) fn render_lowered_curve(
                 let valid =
                     ObjectiveName::logical(format!("{}.attribute.{index}.valid", context.owner));
                 objectives.extend([value.clone(), valid.clone()]);
-                let command = sand_commands::builtins::try_attribute_get(
+                let read = match attribute_value {
+                    super::NativeAttributeValue::Effective => {
+                        sand_commands::builtins::try_attribute_get
+                    }
+                    super::NativeAttributeValue::Base => {
+                        sand_commands::builtins::try_attribute_base_get
+                    }
+                };
+                let command = read(
                     sand_commands::Selector::self_(),
                     attribute.as_str(),
                     *scale as f64,
@@ -1174,44 +1183,52 @@ mod tests {
 
     #[test]
     fn native_attributes_select_once_preserve_the_caller_and_guard_failed_reads() {
-        let owner = "game:attribute".parse().unwrap();
-        let expression = StatCurve::native_attribute(
-            sand_commands::Selector::all_entities()
-                .sort(sand_commands::SortOrder::Random)
-                .limit(1),
-            sand_components::item::AttributeType::MovementSpeed,
-        );
-        let lowered = expression
-            .lower_scoreboard("result", "game:attribute", FixedPoint::default())
+        for (kind, operation) in [
+            (super::super::NativeAttributeValue::Effective, "get"),
+            (super::super::NativeAttributeValue::Base, "base get"),
+        ] {
+            let owner = "game:attribute".parse().unwrap();
+            let expression = StatCurve::native_attribute(
+                sand_commands::Selector::all_entities()
+                    .sort(sand_commands::SortOrder::Random)
+                    .limit(1),
+                sand_components::item::AttributeType::MovementSpeed,
+                kind,
+            );
+            let lowered = expression
+                .lower_scoreboard("result", "game:attribute", FixedPoint::default())
+                .unwrap();
+            let working = ScoreHolder::fake("#caller");
+            let output = render_lowered_curve(
+                NumericContext::new(&owner, &working).unwrap(),
+                "numeric/read",
+                &lowered,
+            )
             .unwrap();
-        let working = ScoreHolder::fake("#caller");
-        let output = render_lowered_curve(
-            NumericContext::new(&owner, &working).unwrap(),
-            "numeric/read",
-            &lowered,
-        )
-        .unwrap();
-        let text = output.commands.join("\n");
-        assert_eq!(text.matches("execute as @e[").count(), 1);
-        assert!(text.contains("sort=random"));
-        assert!(text.contains("matches 1 run return fail"));
-        assert!(text.contains("matches -2147483648 run return fail"));
-        assert!(text.contains("matches 2147483647 run return fail"));
-        assert!(text.contains("scoreboard players operation #caller "));
-        let helpers = output
-            .records
-            .iter()
-            .map(|r| r.content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n");
-        assert_eq!(
-            helpers
-                .matches("run attribute @s minecraft:movement_speed get 1000")
-                .count(),
-            1
-        );
-        assert!(helpers.contains("store success score #attribute"));
-        assert!(helpers.contains("store result score #attribute"));
+            let text = output.commands.join("\n");
+            assert_eq!(text.matches("execute as @e[").count(), 1);
+            assert!(text.contains("sort=random"));
+            assert!(text.contains("matches 1 run return fail"));
+            assert!(text.contains("matches -2147483648 run return fail"));
+            assert!(text.contains("matches 2147483647 run return fail"));
+            assert!(text.contains("scoreboard players operation #caller "));
+            let helpers = output
+                .records
+                .iter()
+                .map(|r| r.content.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert_eq!(
+                helpers
+                    .matches(&format!(
+                        "run attribute @s minecraft:movement_speed {operation} 1000"
+                    ))
+                    .count(),
+                1
+            );
+            assert!(helpers.contains("store success score #attribute"));
+            assert!(helpers.contains("store result score #attribute"));
+        }
     }
 
     #[test]
@@ -1228,9 +1245,13 @@ mod tests {
                 sand_components::item::AttributeType::Custom("invalid attribute".into()),
             ),
         ] {
-            let lowered = StatCurve::native_attribute(target, attribute)
-                .lower_scoreboard("result", "game:attribute", FixedPoint::default())
-                .unwrap();
+            let lowered = StatCurve::native_attribute(
+                target,
+                attribute,
+                super::super::NativeAttributeValue::Effective,
+            )
+            .lower_scoreboard("result", "game:attribute", FixedPoint::default())
+            .unwrap();
             assert!(
                 render_lowered_curve(
                     NumericContext::new(&owner, &working).unwrap(),

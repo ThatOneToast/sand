@@ -24,11 +24,11 @@ use sand::build::{Spawn, TimeConfig, World, WorldBorder};
 let world = World::new()
     .spawn(Spawn::at(0, 100, 0))
     .border(WorldBorder::diameter(2000.0))
-    .gamerule("keepInventory", "true")
+    .gamerule("keep_inventory", "true")
     .time(TimeConfig::set(6000).frozen());
 ```
 
-produces:
+produces on Minecraft 26.2:
 
 ```mcfunction
 setworldspawn 0 100 0 0 0
@@ -37,10 +37,16 @@ worldborder set 2000
 worldborder damage amount 0.2
 worldborder warning distance 5
 worldborder warning time 15
-gamerule keepInventory true
+gamerule keep_inventory true
 time set 6000
-gamerule doDaylightCycle false
+gamerule advance_time false
 ```
+
+`TimeConfig::frozen()` selects the boolean time-advance rule from the target
+command schema (`advance_time` in Minecraft 26.2, `doDaylightCycle` in older
+versions). Build validation rejects targets without a supported rule. Explicit
+`World::gamerule` names remain caller-supplied and must match the target version.
+Freezing runs after those explicit gamerules and takes precedence.
 
 ## Merging with your own `Load` hooks
 

@@ -12,7 +12,7 @@ use sand::ResourceLocation;
 use sand::build::{
     BuildContext, Difficulty, Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator,
     FlatLayer, Generator, NoiseGenerator, SandBuild, Seed, ServerConfig, Spawn,
-    VanillaNoiseSettings, World, WorldResetPolicy,
+    TimeConfig, VanillaNoiseSettings, World, WorldResetPolicy,
 };
 
 fn build(ctx: &BuildContext) -> SandBuild {
@@ -60,14 +60,9 @@ fn build(ctx: &BuildContext) -> SandBuild {
                     Spawn::at(0, 65, 0)
                         .platform(ResourceLocation::new("minecraft", "stone").unwrap(), 4),
                 )
-                // Minecraft 26.2 renamed many gamerules to snake_case
-                // (e.g. `doDaylightCycle` -> `advance_time`); `World::gamerule`
-                // takes a free-form string Sand doesn't validate or translate,
-                // so pick the name that matches your target `mc_version`.
-                // Verified against a real Minecraft 26.2 server: the old
-                // camelCase name fails datapack load with a command parse
-                // error (see issue #358).
-                .gamerule("advance_time", "true")
+                // The frozen-time operation selects the target version's
+                // gamerule from Sand's generated Minecraft command schema.
+                .time(TimeConfig::set(6000).frozen())
                 .dimensions(Dimensions::new().with(overworld)),
         )
         .server(

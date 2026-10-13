@@ -47,6 +47,10 @@ pub struct WorldResource {
 /// time/weather commands) and its `minecraft:load` tag contribution.
 ///
 /// Returns an empty vec if no [`super::world::World`] was configured.
+///
+/// # Panics
+/// Panics if frozen time requests a gamerule absent from the generated target
+/// schema. Call [`SandBuild::validate`] before lowering to receive a diagnostic.
 #[api(
     registry = sand_api_contract,
     path = "sand::build::lower_world",
@@ -133,7 +137,11 @@ pub fn lower(namespace: &str, build: &SandBuild) -> Vec<WorldResource> {
     if let Some(time) = &world.time {
         commands.push(format!("time set {}", time.ticks));
         if time.freeze {
-            commands.push("gamerule doDaylightCycle false".to_string());
+            commands.push(
+                crate::cmd::WORLD_TIME_FREEZE_COMMAND
+                    .expect("validate SandBuild before lowering: target has no supported time-freeze gamerule")
+                    .to_string(),
+            );
         }
     }
     if let Some(weather) = &world.weather {
@@ -179,7 +187,7 @@ mod tests {
     use super::*;
     use crate::build::dimension::{Dimension, DimensionSlot, DimensionType, Dimensions};
     use crate::build::generator::{FlatGenerator, FlatLayer, Generator};
-    use crate::build::world::{Spawn, World, WorldBorder};
+    use crate::build::world::{Spawn, TimeConfig, World, WorldBorder};
     use sand_components::resource_location::ResourceLocation;
 
     #[test]
@@ -230,6 +238,38 @@ mod tests {
             .find(|r| r.namespace == "minecraft" && r.dir == "tags/function")
             .expect("load tag present");
         assert!(tag.content.contains("pack:__sand_world_init"));
+    }
+
+    #[test]
+    fn frozen_time_uses_the_target_command_and_runs_after_explicit_gamerules() {
+        let freeze_command = crate::cmd::WORLD_TIME_FREEZE_COMMAND
+            .expect("the generated test target supports frozen time");
+        let rule = freeze_command
+            .strip_prefix("gamerule ")
+            .unwrap()
+            .strip_suffix(" false")
+            .unwrap();
+        let enabled_command = format!("gamerule {rule} true");
+        let build = SandBuild::new().world(
+            World::new()
+                .gamerule(rule, "true")
+                .time(TimeConfig::set(6000).frozen()),
+        );
+        build.validate().unwrap();
+        let resources = lower("pack", &build);
+        let init = resources.iter().find(|r| r.dir == "function").unwrap();
+        assert_eq!(
+            init.content.lines().collect::<Vec<_>>(),
+            [enabled_command.as_str(), "time set 6000", freeze_command]
+        );
+    }
+
+    #[test]
+    fn initial_time_alone_does_not_change_the_daylight_cycle() {
+        let build = SandBuild::new().world(World::new().time(TimeConfig::set(6000)));
+        let resources = lower("pack", &build);
+        let init = resources.iter().find(|r| r.dir == "function").unwrap();
+        assert_eq!(init.content.trim(), "time set 6000");
     }
 
     #[test]

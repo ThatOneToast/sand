@@ -365,7 +365,10 @@ pub fn write_placeholder_codegen(out_dir: &Path, minecraft_version: &str) -> Res
          impl SoundEvent { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n",
     )?;
     std::fs::write(out_dir.join("block_states.rs"), "// Generation failed\n")?;
-    std::fs::write(out_dir.join("commands.rs"), "// Generation failed\n")?;
+    std::fs::write(
+        out_dir.join("commands.rs"),
+        "// Generation failed\n#[allow(dead_code)]\npub(crate) const WORLD_TIME_FREEZE_COMMAND: Option<&str> = None;\n",
+    )?;
     std::fs::write(
         out_dir.join("biomes.rs"),
         format!(

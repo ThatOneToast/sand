@@ -76,12 +76,29 @@ child only ever runs inside the parent's synchronous descendant call tree,
 so the borrowed reference stays valid for the child's entire execution.
 This works through an arbitrary-depth chain of plain `.after(...)`/
 `chain::<...>()` edges (grandchild can inherit directly from the original
-capturing ancestor), but is rejected at export — with a diagnostic naming
-exactly which edge broke the chain — through `after_any`/`after_all`
-fan-in, a bounded `.within(...)` window, or a second "inherit from an
-event that itself only inherits" hop. See
-`docs/testing/participant-role-evidence.md`'s propagation support matrix
-for the complete edge/role table.
+capturing ancestor). Tick-backed `after_any`/`after_all` children may also name
+one direct parent explicitly; an `after_any` occurrence from another parent
+leaves that named source absent. Ordinary borrowing cannot cross a bounded
+`.within(...)` window; item snapshots instead use the explicit bounded-item
+transport. Inheriting from an event that itself only inherits remains unsupported.
+See the propagation support matrix in `docs/testing/participant-role-evidence.md`.
+
+## Advancement rewards and tick staging
+
+An advancement-backed event dispatches its child chain synchronously from the
+advancement reward. Plain unbounded `chain::<E>()`/`after::<E>()` descendants,
+including nested children and siblings, keep that execution context.
+
+`after_any`, `after_all`, multiple occurrence clauses and `within` require the
+tick coordinator. Their sources must therefore be tick-backed: neither an
+advancement event nor a child that ultimately dispatches from one can supply
+such a dependency. Export rejects indirect paths too, naming the consumer,
+intermediate source and advancement ancestor. Adding an intermediate event
+does not queue an advancement occurrence for the next tick.
+
+A `while_::<E>()` query is different: it evaluates the provider's live condition
+without dispatching E or consuming its occurrence. It remains valid when its
+condition and lifecycle satisfy the persistent-provider contract.
 
 ## When *not* to chain
 

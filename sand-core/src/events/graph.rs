@@ -355,40 +355,66 @@ impl EventGraph {
     /// topological order.
     pub fn staged_events(&self) -> Result<Vec<StagedEvent>, GraphError> {
         let order = self.occurrence_topological_order()?;
-        let mut rank = BTreeMap::new();
-        for (index, name) in order.into_iter().enumerate() {
-            rank.insert(name, index);
-        }
-        let mut staged: Vec<StagedEvent> = self
-            .nodes
-            .values()
-            .filter_map(|node| match &node.origin {
-                NodeOrigin::Chained {
-                    occurrence,
-                    persistent,
-                    bounded,
-                    when,
-                    unless,
-                } if !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)])
-                    || !bounded.is_empty() =>
-                {
-                    Some(StagedEvent {
-                        child: node.type_name.to_string(),
-                        occurrence: occurrence.clone(),
-                        persistent: persistent.clone(),
-                        bounded: bounded.clone(),
-                        when: when.clone(),
-                        unless: unless.clone(),
-                    })
+        let mut advancement_origins: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+        let mut staged = Vec::new();
+        for name in &order {
+            let node = &self.nodes[name];
+            let NodeOrigin::Chained {
+                occurrence,
+                persistent,
+                bounded,
+                when,
+                unless,
+            } = &node.origin
+            else {
+                continue;
+            };
+            let is_staged = !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)])
+                || !bounded.is_empty();
+            let mut sources = BTreeSet::new();
+            for parent in occurrence.iter().flat_map(OccurrenceDependency::parents) {
+                if parent.is_advancement {
+                    sources.insert((parent.type_name, parent.type_name, "occurrence"));
+                } else if let Some(origins) = advancement_origins.get(parent.type_name) {
+                    sources.extend(
+                        origins
+                            .iter()
+                            .map(|origin| (parent.type_name, *origin, "occurrence")),
+                    );
                 }
-                _ => None,
-            })
-            .collect();
-        staged.sort_by(|left, right| {
-            rank[&left.child]
-                .cmp(&rank[&right.child])
-                .then_with(|| left.child.cmp(&right.child))
-        });
+            }
+            for dependency in bounded {
+                if let Some(origins) = advancement_origins.get(dependency.type_name) {
+                    sources.extend(
+                        origins
+                            .iter()
+                            .map(|origin| (dependency.type_name, *origin, "within")),
+                    );
+                }
+            }
+            if is_staged && let Some((source, ancestor, kind)) = sources.first() {
+                return Err(GraphError(format!(
+                    "SandEvent `{}` cannot stage its {kind} dependency on `{source}`: that source dispatches synchronously from advancement-backed `{ancestor}`, outside the tick coordinator. Use an unbounded single-parent `after::<{source}>()` chain, or a tick-backed source; advancement descendants cannot supply `after_any`, `after_all`, or `within` staging",
+                    node.type_name
+                )));
+            }
+            // Persistent while_ queries do not consume provider occurrences.
+            // Only actual occurrence/within edges propagate dispatch ownership.
+            advancement_origins.insert(
+                node.type_name,
+                sources.iter().map(|(_, ancestor, _)| *ancestor).collect(),
+            );
+            if is_staged {
+                staged.push(StagedEvent {
+                    child: node.type_name.to_string(),
+                    occurrence: occurrence.clone(),
+                    persistent: persistent.clone(),
+                    bounded: bounded.clone(),
+                    when: when.clone(),
+                    unless: unless.clone(),
+                });
+            }
+        }
         Ok(staged)
     }
 

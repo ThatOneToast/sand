@@ -82,7 +82,8 @@ Sand-side bug was found.
 
 `rcon_client.py` implements Source RCON. `minimal_join_client.py` is a passive,
 version-pinned Minecraft 26.2 client used by the real-player observation CI
-harness. Its corrected keep-alive handling now supports sustained sessions.
+harness. Its corrected keep-alive handling supports sustained sessions, and teleport
+acknowledgments complete server-directed dimension changes.
 It does not implement client-driven attacks, movement or inventory actions.
 Neither Python client is a dependency of an authored Sand datapack.
 
@@ -148,9 +149,15 @@ item compounds, player/mob armor reads, post-capture item changes, interleaved
 player isolation and reload. It runs through `../validate_player_participants.py`.
 It additionally checks real damage/kill weapon events, death/bridge inheritance,
 and composed tick participants. A frozen, single-step two-player scenario checks
-staged fan-in and absent named sources without relying on command arrival timing.
-Rapid mixed-hit timing, client attack-input packets and wider dimension cases
-remain outside these assertions. #265 remains open.
+staged fan-in and absent named sources with players in the Overworld and Nether,
+without relying on command arrival timing. Cleanup is checked in all vanilla
+dimensions, and a real death advancement must still fire after returning.
+A separate harness-owned control function applies three alternating-attacker hits
+synchronously and saves both handlers' UUIDs, both players' counters and cleanup
+results after each. Damage must succeed and game-time readings before/after must
+match; the control function never calls generated handlers or grants advancements.
+Freezing game time alone would not suffice because vanilla still ticks players. Mixed melee/projectile input, client attack-input
+packets and wider dimension cases remain outside these assertions. #265 remains open.
 
 ## #269/#280: advancement-bridge parent → SandEvent child validation attempt
 
@@ -328,3 +335,14 @@ the automated participant matrix is extended:
 
 Record the actual observed values (not just pass/fail) in
 `docs/testing/participant-role-evidence.md` once this manual pass runs.
+
+## Legacy RCON audit isolation
+
+The three legacy RCON scripts share `local_rcon_server.py` for their disposable
+server configuration. Both game and RCON listeners bind to `127.0.0.1`, and each
+script process generates a fresh credential. Vanilla requires that credential
+in `server.properties`; the file is owner-readable/writable inside the private
+temporary directory. Audit calls use the in-process RCON client, keeping the
+credential out of subprocess argument lists. These controls preserve the older
+scripts' limited evidence boundaries; real-player proof comes from the newer
+participant harness described above.

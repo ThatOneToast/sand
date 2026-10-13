@@ -2,8 +2,9 @@
 """Verify real-player attacker observations and equipment snapshots on 26.2.
 
 Uses normal advancement and tick dispatch, including real deaths and composed
-participants and attacking-player weapon snapshots. Rapid mixed-hit timing and
-client attack-input packets remain outside this audit.
+participants across dimensions, rapid alternating-attacker hits in one synchronous server
+invocation, and attacking-player weapon snapshots. Client attack-input packets and
+mixed melee/projectile combat remain outside this audit.
 """
 from __future__ import annotations
 
@@ -28,14 +29,43 @@ class PlayerParticipantHarness(PlayerHarness):
         self.send(f"execute store success score #different paudit_check run data modify storage paudit:oracle comparison set from {expected}")
         self.check(f"{name}_EQUAL", "if score #different paudit_check matches 0")
 
-    def check_cleanup(self):
+    def participant_tags(self):
         root = Path(self.args.pack) / "data/paudit/function"
         text = "\n".join(path.read_text() for path in root.rglob("*.mcfunction"))
-        tags = set(re.findall(r"__sand_observed_[0-9a-f]+", text))
+        tags = sorted(set(re.findall(r"__sand_observed_[0-9a-f]+", text)))
         if not tags:
             raise ValidationFailure("participant-cleanup", "no participant tags found in the fixture")
-        for index, tag in enumerate(sorted(tags)):
-            self.check(f"CLEANUP_{index}", f"unless entity @e[tag={tag}]")
+        return tags
+
+    def prepare(self):
+        super().prepare()
+        # A separate harness-owned input pack makes the rapid sequence one
+        # synchronous server invocation. It never invokes Sand's handlers or
+        # grants advancements: actual damage must trigger the generated path.
+        controls = self.server / "world/datapacks/paudit_controls"
+        functions = controls / "data/paudit_controls/function"
+        functions.mkdir(parents=True)
+        (controls / "pack.mcmeta").write_text((Path(self.args.pack) / "pack.mcmeta").read_text())
+        commands = ["execute store success score #rapid_clock_start paudit_check store result score #rapid_start paudit_check run time query gametime"]
+        for count, actor in enumerate((0, 1, 0), 1):
+            for field in ("attacker_uuid", "attacker_b_uuid"):
+                commands.append(f"data remove storage paudit:audit state.{field}")
+            commands.append(f"execute store success score #rapid_hit_{count} paudit_check run damage SandAlpha {count} minecraft:generic by @e[tag=paudit_actor_{actor},limit=1]")
+            for field in ("attacker_uuid", "attacker_b_uuid"):
+                commands.append(f"data modify storage paudit:oracle rapid_{count}_{field} set from storage paudit:audit state.{field}")
+            for objective in ("paudit_att1", "paudit_att2"):
+                for label, player in (("alpha", "SandAlpha"), ("beta", "SandBeta")):
+                    commands.append(f"scoreboard players operation #rapid_{label}_{count} {objective} = {player} {objective}")
+            absent = " ".join(f"unless entity @e[tag={tag}]" for tag in self.participant_tags())
+            for dimension in ("overworld", "the_nether", "the_end"):
+                commands.append(f"execute store success score #rapid_clean_{count}_{dimension} paudit_check in minecraft:{dimension} {absent}")
+        commands.append("execute store success score #rapid_clock_end paudit_check store result score #rapid_end paudit_check run time query gametime")
+        (functions / "rapid_hits.mcfunction").write_text("\n".join(commands) + "\n")
+
+    def check_cleanup(self):
+        for dimension in ("overworld", "the_nether", "the_end"):
+            for index, tag in enumerate(self.participant_tags()):
+                self.check(f"CLEANUP_{dimension}_{index}", f"in minecraft:{dimension} unless entity @e[tag={tag}]")
 
     def equip(self, player, index):
         actor = f"@e[tag=paudit_actor_{index},limit=1]"
@@ -115,12 +145,55 @@ class PlayerParticipantHarness(PlayerHarness):
             self.send(f"damage {player} 2 minecraft:generic by @e[tag=paudit_actor_{index},limit=1]")
             self.verify_composed_attacker(player)
 
+    def verify_rapid_attackers(self):
+        # Observe completed game ticks rather than assuming wall-clock speed.
+        # Increasing amounts then make all three synchronous hits valid.
+        self.send("execute store success score #rapid_clock_ready paudit_check store result score #rapid_ready paudit_check run time query gametime")
+        self.check("RAPID_COOLDOWN_CLOCK", "if score #rapid_clock_ready paudit_check matches 1")
+        self.send("scoreboard players add #rapid_ready paudit_check 21")
+        deadline = time.monotonic() + self.args.timeout
+        while time.monotonic() < deadline:
+            self.send("execute store success score #rapid_clock_ready paudit_check store result score #rapid_now paudit_check run time query gametime")
+            if self.passed("RAPID_COOLDOWN", "execute if score #rapid_clock_ready paudit_check matches 1 if score #rapid_now paudit_check >= #rapid_ready paudit_check run say __SAND_WORLD_RAPID_COOLDOWN_OK__"):
+                break
+            time.sleep(0.1)
+        else:
+            raise ValidationFailure("rapid-cooldown", "game time did not advance enough to clear earlier damage")
+        for objective in ("paudit_att1", "paudit_att2"):
+            self.send(f"scoreboard players set SandAlpha {objective} 0")
+            self.send(f"scoreboard players operation #rapid_beta {objective} = SandBeta {objective}")
+        for count in (1, 2, 3):
+            for field in ("attacker_uuid", "attacker_b_uuid"):
+                self.send(f"data remove storage paudit:oracle rapid_{count}_{field}")
+        self.send("function paudit_controls:rapid_hits")
+        for phase in ("start", "end"):
+            self.check(f"RAPID_CLOCK_{phase}", f"if score #rapid_clock_{phase} paudit_check matches 1")
+        self.check("RAPID_SAME_GAME_TICK", "if score #rapid_start paudit_check = #rapid_end paudit_check")
+        for count, actor in enumerate((0, 1, 0), 1):
+            self.check(f"RAPID_HIT_{count}", f"if score #rapid_hit_{count} paudit_check matches 1")
+            for objective in ("paudit_att1", "paudit_att2"):
+                self.check(f"RAPID_{objective}_{count}", f"if score #rapid_alpha_{count} {objective} matches {count}")
+                self.check(f"RAPID_BETA_{objective}_{count}", f"if score #rapid_beta_{count} {objective} = #rapid_beta {objective}")
+            for field in ("attacker_uuid", "attacker_b_uuid"):
+                self.equal_nbt(f"RAPID_{field}_{count}", f"storage paudit:oracle rapid_{count}_{field}", f"entity @e[tag=paudit_actor_{actor},limit=1] UUID")
+            for dimension in ("overworld", "the_nether", "the_end"):
+                self.check(f"RAPID_CLEAN_{count}_{dimension}", f"if score #rapid_clean_{count}_{dimension} paudit_check matches 1")
+        self.check_cleanup()
+
     def verify_staged_fan_in(self):
         for index, player in enumerate(self.players):
             self.equip(player, index)
             self.send(f"scoreboard players set {player} paudit_fan 0")
-        self.send("tick freeze")
+        self.load_test_chunk("minecraft:the_nether")
+        self.send("execute in minecraft:the_nether run fill -2 79 -2 8 83 3 minecraft:stone")
+        self.send("execute in minecraft:the_nether run fill -2 80 -2 8 82 3 minecraft:air")
+        self.send("execute as @e[tag=paudit_actor_1,limit=1] in minecraft:the_nether run tp @s 3 80 2")
+        self.send("execute in minecraft:the_nether run tp SandBeta 3.5 80 0.5")
         try:
+            self.check("BETA_NETHER", "in minecraft:the_nether if entity @a[name=SandBeta,distance=0..]")
+            self.check("BETA_ACTOR_NETHER", "in minecraft:the_nether if entity @e[tag=paudit_actor_1]")
+            self.verify_dimension_damage("BETA_NETHER_HIT", "minecraft:the_nether")
+            self.send("tick freeze")
             for phase in (1, 2):
                 for field in ("fan_alpha_uuid", "fan_beta_uuid", "fan_alpha_item", "fan_beta_item"):
                     self.send(f"data remove storage paudit:audit state.{field}")
@@ -143,6 +216,22 @@ class PlayerParticipantHarness(PlayerHarness):
                 self.check_cleanup()
         finally:
             self.send("tick unfreeze")
+            self.send("execute in minecraft:the_nether as @e[tag=paudit_actor_1,limit=1] in minecraft:overworld run tp @s 3 80 2")
+            self.send("execute in minecraft:overworld run tp SandBeta 3.5 80 0.5")
+        self.check("BETA_RETURNED", "in minecraft:overworld if entity @a[name=SandBeta,distance=0..]")
+        self.verify_dimension_damage("BETA_RETURN_HIT", "minecraft:overworld")
+
+    def verify_dimension_damage(self, phase, dimension):
+        # Entity position changes before the client acknowledges loading.
+        # Retry rejected damage until one hit succeeds, then stop. Both the
+        # outbound and return teleports must pass this readiness boundary.
+        deadline = time.monotonic() + self.args.timeout
+        while time.monotonic() < deadline:
+            self.send(f"execute store success score #dimension_hit paudit_check in {dimension} run damage SandBeta 2 minecraft:generic by @e[tag=paudit_actor_1,limit=1]")
+            if self.passed(phase, f"execute if score #dimension_hit paudit_check matches 1 run say __SAND_WORLD_{phase}_OK__"):
+                return
+            time.sleep(0.1)
+        raise ValidationFailure("dimension-teleport", f"{phase}: player remained invulnerable in {dimension}")
 
     def verify_deaths(self):
         for player in self.players:
@@ -228,6 +317,7 @@ class PlayerParticipantHarness(PlayerHarness):
             self.check("BETA_AFTER_ALPHA_EMPTY", "if score SandBeta paudit_tracked matches 1")
             self.verify_attacking_weapons()
             self.verify_composed_attackers()
+            self.verify_rapid_attackers()
             self.verify_staged_fan_in()
             self.verify_deaths()
             print("PASSED: real attackers and killers, composed participants, tracked snapshots, isolation and reload", flush=True)

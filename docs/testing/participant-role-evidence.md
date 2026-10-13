@@ -13,8 +13,14 @@ These hand snapshots have the tracked observation's sampling time. The extended
 regression separately covers actual attacking-player weapon advancements, real
 killer/bridge inheritance, retained versus dropped death inventory, and composed
 tick participant forwarding. #429 corrects server-context capture in the latter.
-Rapid mixed-hit timing and client attack-input packets remain open; the historical
-direct-handler evidence below does not imply those are covered.
+The two-player staged scenario now spans the Overworld and Nether, checks cleanup
+in all vanilla dimensions, and requires real damage/death events after dimension
+changes. #431 fixes missing teleport acknowledgments in the passive audit client;
+this does not add movement or combat input support.
+A synchronous server-function sequence also checks three accepted alternating-attacker hits,
+independent UUIDs, both actual advancement handlers and the other player's unchanged
+counters. Mixed melee/projectile input and client attack-input packets remain open;
+the historical direct-handler evidence below does not imply those are covered.
 
 
 Role-by-role audit of what vanilla Minecraft Java actually exposes for

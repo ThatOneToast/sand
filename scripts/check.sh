@@ -5,7 +5,7 @@ echo "=== Formatting ==="
 cargo fmt --all -- --check
 
 echo "=== Minimal Minecraft client regressions ==="
-python3 -m unittest scripts.mc_validation.test_minimal_join_client scripts.tests.test_player_validation_harness
+python3 -m unittest scripts.mc_validation.test_minimal_join_client scripts.tests.test_player_validation_harness scripts.mc_validation.test_local_rcon_server
 
 echo "=== Clippy ==="
 cargo clippy --workspace --all-targets --all-features -- -D warnings

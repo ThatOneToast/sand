@@ -40,6 +40,21 @@ class MinimalClientTests(unittest.TestCase):
         self.assertNotIn((0x1C, recipe_settings), sent)
         self.assertFalse(result, "briefly joining must not hide a later disconnect")
 
+    def test_teleports_are_acknowledged_after_join_and_dimension_change(self):
+        # Position packets start with a VarInt teleport ID in protocol 776.
+        # The remaining position/relative fields are not part of the reply.
+        positions = [client.write_varint(value) + b"position payload" for value in (1, 300, 301)]
+        _, sent = self.run_packets([
+            (2, b""), (3, b""), (0x31, b""), (0x48, positions[0]),
+            (0x52, b"respawn payload"), (0x48, positions[1]), (0x48, positions[2]),
+        ])
+        ids = [client.write_varint(i) for i in (1, 300, 301)]
+        replies = [(packet, payload) for packet, payload in sent
+                   if (packet == 0 and payload in ids) or packet == 0x2C]
+        self.assertEqual(replies, [
+            (0, ids[0]), (0x2C, b""), (0, ids[1]), (0x2C, b""), (0, ids[2]),
+        ], "acknowledge every position; complete loading once per login or respawn")
+
     def test_configuration_keep_alive_and_ping_are_answered(self):
         challenge, ping = struct.pack(">q", -45), struct.pack(">i", 19)
         result, sent = self.run_packets([(2, b""), (4, challenge), (5, ping)])

@@ -84,12 +84,39 @@ capture must produce no attacker evidence. Generated-output regressions also
 check staged fan-in, absent-source scratch reset, global lifecycle placement,
 and bounded per-subject snapshot persistence and expiry.
 
-A real staged fan-in scenario freezes game ticking, queues both players, and
-advances exactly one tick. Both players must capture their own distinct attacker
+A real staged fan-in scenario places Alpha in the Overworld and Beta with its
+attacker in the Nether, freezes game ticking, queues both players, and advances
+exactly one tick. Both players must capture their own distinct attacker
 UUID and main-hand compound. A second single tick fires only the alternate
 parent: each named-source entity and item must then be absent, with no stale
 field copied from either player's previous occurrence. Ticking is resumed in a
-finally block, including on assertion failure.
+finally block, including on assertion failure, and Beta returns to the Overworld.
+Temporary-tag cleanup is checked in all three vanilla dimensions. A real hit in
+the Nether and another after returning must each succeed within the bounded
+setup timeout, so both teleport acknowledgments complete before the death check. The passive client acknowledges protocol-776
+position packets and loading after login/respawn. Without those acknowledgments,
+vanilla leaves a dimension-changing player invulnerable; the original probe
+failed the returning player's death assertion and the corrected client passes.
+Teleport acknowledgment does not implement movement or combat input.
+
+## Rapid alternating attackers
+
+The audit observes 21 completed game ticks to let earlier damage cooldowns expire,
+then invokes a separate,
+harness-owned control function that applies three generic damage commands to
+Alpha from actors 0, 1, and 0. The amounts increase from 1 to 3 so subsequent hits
+do not depend on the hurt cooldown expiring. The function saves each handler's
+UUID output, both players' counters, damage success and cleanup results before
+applying the next hit. Both real advancement handlers must increment once per
+hit and capture the independently queried UUID of that hit's actor. Beta's
+counters must stay unchanged and temporary tags must be absent after each dispatch.
+
+The three hits run synchronously in one server function invocation, with successful
+game-time queries before and after required to match. The control pack only applies
+stimuli and copies evidence; it never calls Sand's generated handlers or grants
+advancements. Freezing game time alone would be insufficient because vanilla still
+ticks players. This controlled sequence does not prove mixed melee/projectile
+input or real client attack packets, and does not upgrade `Correlated` reliability.
 
 ## Weapon and death timing
 
@@ -116,7 +143,8 @@ grant an advancement, but the damage is server-directed rather than generated
 by a client's attack packet.
 
 The extended audit also exercises actual attacking-player damage/kill advancements,
-real player deaths, and tick-composed parent/child/sibling participants. Rapid
-mixed-attacker timing still requires its own assertions.
+real player deaths, tick-composed parent/child/sibling participants, and the
+controlled synchronous alternating-attacker sequence. Mixed melee/projectile
+combat still requires its own assertions.
 The two-player checks cover the controlled interleaving described above, not
 every concurrency or dimension case. #265 remains open.

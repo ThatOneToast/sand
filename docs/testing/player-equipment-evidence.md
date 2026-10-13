@@ -92,8 +92,8 @@ parent: each named-source entity and item must then be absent, with no stale
 field copied from either player's previous occurrence. Ticking is resumed in a
 finally block, including on assertion failure, and Beta returns to the Overworld.
 Temporary-tag cleanup is checked in all three vanilla dimensions. A real hit in
-the Nether must succeed within the bounded setup timeout; the later death event
-after returning must also fire. The passive client acknowledges protocol-776
+the Nether and another after returning must each succeed within the bounded
+setup timeout, so both teleport acknowledgments complete before the death check. The passive client acknowledges protocol-776
 position packets and loading after login/respawn. Without those acknowledgments,
 vanilla leaves a dimension-changing player invulnerable; the original probe
 failed the returning player's death assertion and the corrected client passes.
@@ -101,7 +101,8 @@ Teleport acknowledgment does not implement movement or combat input.
 
 ## Rapid alternating attackers
 
-The audit lets earlier damage cooldowns expire, then invokes a separate,
+The audit observes 21 completed game ticks to let earlier damage cooldowns expire,
+then invokes a separate,
 harness-owned control function that applies three generic damage commands to
 Alpha from actors 0, 1, and 0. The amounts increase from 1 to 3 so subsequent hits
 do not depend on the hurt cooldown expiring. The function saves each handler's

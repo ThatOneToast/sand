@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import json
 import queue
+import secrets
 import shutil
 import socket
 import subprocess
@@ -48,9 +49,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rcon_client  # noqa: E402
+from local_rcon_server import write_properties  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RCON_PASSWORD = "sand-bounded-rcon"
+RCON_PASSWORD = secrets.token_urlsafe(32)
 PACK_FORMAT = 107  # 26.2, per sand-core/src/version.rs
 
 TRANSCRIPT: list[str] = []
@@ -167,28 +169,7 @@ def main() -> int:
 
     server_port = available_port()
     rcon_port = available_port()
-    (server_dir / "server.properties").write_text(
-        "\n".join(
-            [
-                "level-name=world",
-                "online-mode=false",
-                "max-players=4",
-                "enable-rcon=true",
-                f"rcon.password={RCON_PASSWORD}",
-                f"rcon.port={rcon_port}",
-                f"server-port={server_port}",
-                "spawn-npcs=false",
-                "spawn-animals=false",
-                "spawn-monsters=false",
-                "generate-structures=false",
-                "view-distance=4",
-                "simulation-distance=4",
-                "sync-chunk-writes=false",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    write_properties(server_dir, server_port, rcon_port, RCON_PASSWORD)
 
     print(f"== Starting real Minecraft 26.2 server (port {server_port}, rcon {rcon_port}) ==")
     process = subprocess.Popen(

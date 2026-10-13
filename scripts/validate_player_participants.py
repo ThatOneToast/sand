@@ -146,9 +146,19 @@ class PlayerParticipantHarness(PlayerHarness):
             self.verify_composed_attacker(player)
 
     def verify_rapid_attackers(self):
-        # Earlier damage cooldowns expire before the sequence. Increasing
-        # amounts make all three hits valid without waiting between them.
-        time.sleep(1.2)
+        # Observe completed game ticks rather than assuming wall-clock speed.
+        # Increasing amounts then make all three synchronous hits valid.
+        self.send("execute store success score #rapid_clock_ready paudit_check store result score #rapid_ready paudit_check run time query gametime")
+        self.check("RAPID_COOLDOWN_CLOCK", "if score #rapid_clock_ready paudit_check matches 1")
+        self.send("scoreboard players add #rapid_ready paudit_check 21")
+        deadline = time.monotonic() + self.args.timeout
+        while time.monotonic() < deadline:
+            self.send("execute store success score #rapid_clock_ready paudit_check store result score #rapid_now paudit_check run time query gametime")
+            if self.passed("RAPID_COOLDOWN", "execute if score #rapid_clock_ready paudit_check matches 1 if score #rapid_now paudit_check >= #rapid_ready paudit_check run say __SAND_WORLD_RAPID_COOLDOWN_OK__"):
+                break
+            time.sleep(0.1)
+        else:
+            raise ValidationFailure("rapid-cooldown", "game time did not advance enough to clear earlier damage")
         for objective in ("paudit_att1", "paudit_att2"):
             self.send(f"scoreboard players set SandAlpha {objective} 0")
             self.send(f"scoreboard players operation #rapid_beta {objective} = SandBeta {objective}")
@@ -182,17 +192,7 @@ class PlayerParticipantHarness(PlayerHarness):
         try:
             self.check("BETA_NETHER", "in minecraft:the_nether if entity @a[name=SandBeta,distance=0..]")
             self.check("BETA_ACTOR_NETHER", "in minecraft:the_nether if entity @e[tag=paudit_actor_1]")
-            # Teleport completion crosses a network boundary. Retry only
-            # rejected damage until one real hit succeeds, then stop; this
-            # fails clearly if the client never acknowledges the teleport.
-            deadline = time.monotonic() + self.args.timeout
-            while time.monotonic() < deadline:
-                self.send("execute store success score #dimension_hit paudit_check in minecraft:the_nether run damage SandBeta 2 minecraft:generic by @e[tag=paudit_actor_1,limit=1]")
-                if self.passed("BETA_NETHER_HIT", "execute if score #dimension_hit paudit_check matches 1 run say __SAND_WORLD_BETA_NETHER_HIT_OK__"):
-                    break
-                time.sleep(0.1)
-            else:
-                raise ValidationFailure("dimension-teleport", "player remained invulnerable after the Nether teleport")
+            self.verify_dimension_damage("BETA_NETHER_HIT", "minecraft:the_nether")
             self.send("tick freeze")
             for phase in (1, 2):
                 for field in ("fan_alpha_uuid", "fan_beta_uuid", "fan_alpha_item", "fan_beta_item"):
@@ -219,8 +219,19 @@ class PlayerParticipantHarness(PlayerHarness):
             self.send("execute in minecraft:the_nether as @e[tag=paudit_actor_1,limit=1] in minecraft:overworld run tp @s 3 80 2")
             self.send("execute in minecraft:overworld run tp SandBeta 3.5 80 0.5")
         self.check("BETA_RETURNED", "in minecraft:overworld if entity @a[name=SandBeta,distance=0..]")
-        # The following real death scenario also proves that returning from
-        # a dimension change did not leave the player permanently invulnerable.
+        self.verify_dimension_damage("BETA_RETURN_HIT", "minecraft:overworld")
+
+    def verify_dimension_damage(self, phase, dimension):
+        # Entity position changes before the client acknowledges loading.
+        # Retry rejected damage until one hit succeeds, then stop. Both the
+        # outbound and return teleports must pass this readiness boundary.
+        deadline = time.monotonic() + self.args.timeout
+        while time.monotonic() < deadline:
+            self.send(f"execute store success score #dimension_hit paudit_check in {dimension} run damage SandBeta 2 minecraft:generic by @e[tag=paudit_actor_1,limit=1]")
+            if self.passed(phase, f"execute if score #dimension_hit paudit_check matches 1 run say __SAND_WORLD_{phase}_OK__"):
+                return
+            time.sleep(0.1)
+        raise ValidationFailure("dimension-teleport", f"{phase}: player remained invulnerable in {dimension}")
 
     def verify_deaths(self):
         for player in self.players:

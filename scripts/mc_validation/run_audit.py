@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import secrets
 import shutil
 import socket
 import subprocess
@@ -29,11 +30,14 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rcon_client  # noqa: E402
+from local_rcon_server import write_properties  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PACK_DIR = REPO_ROOT / "examples" / "participant_audit"
-RCON_CLIENT = Path(__file__).resolve().parent / "rcon_client.py"
 JOIN_CLIENT = Path(__file__).resolve().parent / "minimal_join_client.py"
-RCON_PASSWORD = "sand-audit-rcon"
+RCON_PASSWORD = secrets.token_urlsafe(32)
 
 
 def available_port() -> int:
@@ -43,15 +47,11 @@ def available_port() -> int:
 
 
 def rcon(host: str, port: int, *commands: str) -> list[str]:
-    result = subprocess.run(
-        [sys.executable, str(RCON_CLIENT), host, str(port), RCON_PASSWORD, *commands],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"RCON call failed: {result.stdout}\n{result.stderr}")
-    return result.stdout.splitlines()
+    responses = rcon_client.run_commands(host, port, RCON_PASSWORD, list(commands))
+    # Preserve the legacy CLI transcript format without exposing the fresh
+    # credential in a subprocess command line.
+    return "\n".join(f">>> {command}\n{response}" for command, response in zip(commands, responses)).splitlines()
+
 
 
 def main() -> int:
@@ -80,28 +80,7 @@ def main() -> int:
 
     server_port = available_port()
     rcon_port = available_port()
-    (server_dir / "server.properties").write_text(
-        "\n".join(
-            [
-                "level-name=world",
-                "online-mode=false",
-                "max-players=4",
-                "enable-rcon=true",
-                f"rcon.password={RCON_PASSWORD}",
-                f"rcon.port={rcon_port}",
-                f"server-port={server_port}",
-                "spawn-npcs=false",
-                "spawn-animals=false",
-                "spawn-monsters=false",
-                "generate-structures=false",
-                "view-distance=4",
-                "simulation-distance=4",
-                "sync-chunk-writes=false",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    write_properties(server_dir, server_port, rcon_port, RCON_PASSWORD)
 
     print(f"== Starting real Minecraft 26.2 server (port {server_port}, rcon {rcon_port}) ==")
     process = subprocess.Popen(

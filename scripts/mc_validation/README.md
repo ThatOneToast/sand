@@ -335,3 +335,14 @@ the automated participant matrix is extended:
 
 Record the actual observed values (not just pass/fail) in
 `docs/testing/participant-role-evidence.md` once this manual pass runs.
+
+## Legacy RCON audit isolation
+
+The three legacy RCON scripts share `local_rcon_server.py` for their disposable
+server configuration. Both game and RCON listeners bind to `127.0.0.1`, and each
+script process generates a fresh credential. Vanilla requires that credential
+in `server.properties`; the file is owner-readable/writable inside the private
+temporary directory. Audit calls use the in-process RCON client, keeping the
+credential out of subprocess argument lists. These controls preserve the older
+scripts' limited evidence boundaries; real-player proof comes from the newer
+participant harness described above.

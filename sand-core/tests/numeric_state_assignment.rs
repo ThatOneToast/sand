@@ -89,10 +89,10 @@ fn runtime_assignments_provision_scratch_before_lifecycle_and_export_stably() {
     let copied = helpers
         .iter()
         .find(|record| {
-            record["content"]
-                .as_str()
-                .unwrap()
-                .contains(&format!("= @s {}", Numbers::source.objective()))
+            record["content"].as_str().unwrap().contains(&format!(
+                "run scoreboard players get @s {}",
+                Numbers::source.objective()
+            ))
         })
         .unwrap();
     assert!(
@@ -102,10 +102,10 @@ fn runtime_assignments_provision_scratch_before_lifecycle_and_export_stably() {
     let converted = helpers
         .iter()
         .find(|record| {
-            record["content"]
-                .as_str()
-                .unwrap()
-                .contains(&format!("= @s {}", Numbers::fraction.objective()))
+            record["content"].as_str().unwrap().contains(&format!(
+                "run scoreboard players get @s {}",
+                Numbers::fraction.objective()
+            ))
         })
         .unwrap();
     let content = converted["content"].as_str().unwrap();

@@ -197,29 +197,12 @@ impl crate::RenderCommand for ItemReplaceCommand {
 // plain rendered `String`s once collected into a function body.
 #[derive(Debug, Clone)]
 pub(crate) enum InventoryCommandNode {
-    Give {
-        item: String,
-    },
-    GiveCount {
-        item: String,
-        count: u32,
-    },
+    Give { item: String },
+    GiveCount { item: String, count: u32 },
     Replace(ItemReplaceCommand),
-    ClearItem {
-        item: String,
-    },
-    ClearItemCount {
-        item: String,
-        // Retained for symmetry/debuggability with the other `*Count`
-        // variants even though `0` is deliberately never rejected — see
-        // `InventoryCommandNode::validate`.
-        #[allow(dead_code)]
-        count: u32,
-    },
-    Modify {
-        slot: ItemSlot,
-        modifier: String,
-    },
+    ClearItem { item: String },
+    ClearItemCount { item: String, count: u32 },
+    Modify { slot: ItemSlot, modifier: String },
 }
 
 impl InventoryCommandNode {
@@ -235,10 +218,11 @@ impl InventoryCommandNode {
             Self::ClearItem { item } => {
                 validate_item_predicate_str(item, "Inventory::clear_item", "item")
             }
-            Self::ClearItemCount { item, .. } => {
+            Self::ClearItemCount { item, count } => {
                 // A count of `0` is meaningful here — vanilla `clear` with an
                 // explicit `0` count reports the matching stack count without
                 // removing anything, so it is not rejected (see module docs).
+                validate_clear_count(*count, "Inventory::clear_item_count")?;
                 validate_item_predicate_str(item, "Inventory::clear_item_count", "item")
             }
             Self::Modify { slot, modifier } => {
@@ -349,6 +333,18 @@ fn validate_item_predicate_str(
         return Ok(());
     }
     validate::resource_location_shape(base.strip_prefix('#').unwrap_or(base), helper, field)?;
+    Ok(())
+}
+
+// Brigadier's non-negative integer argument is signed 32-bit, including zero.
+fn validate_clear_count(count: u32, helper: &'static str) -> CommandResult<()> {
+    if count > i32::MAX as u32 {
+        return Err(CommandError::new(
+            helper,
+            "count",
+            "must fit Minecraft's non-negative 32-bit integer range",
+        ));
+    }
     Ok(())
 }
 
@@ -755,7 +751,8 @@ impl Inventory {
     /// `clear <selector> <item> <count>` — remove up to `count` of an item.
     ///
     /// A count of `0` is meaningful vanilla syntax: it reports the matching
-    /// count without removing anything, so it is not rejected.
+    /// count without removing anything, so it is not rejected. Counts above
+    /// `i32::MAX` cannot be represented by Minecraft and fail validation.
     /// Never panics; use [`Inventory::try_clear_item_count`] to fail fast instead.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -779,15 +776,15 @@ impl Inventory {
         line
     }
 
-    /// Fallible [`Inventory::clear_item_count`] — validates the item ID, tag, or wildcard base.
+    /// Fallible [`Inventory::clear_item_count`] — validates the predicate base and count range.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Inventory::try_clear_item_count",
         aliases = ["sand::cmd::Inventory::try_clear_item_count", "sand::prelude::Inventory::try_clear_item_count", "sand::prelude::cmd::Inventory::try_clear_item_count"],
         module = "sand::command",
         kind = "method",
-        summary = "Fallible [`Inventory::clear_item_count`] — validates the item ID, tag, or wildcard base.",
-        context = "Fallible [`Inventory::clear_item_count`] — validates the item ID, tag, or wildcard base. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Fallible [`Inventory::clear_item_count`] — validates the predicate base and count range.",
+        context = "Fallible [`Inventory::clear_item_count`] — validates the predicate base and count range. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -801,6 +798,7 @@ impl Inventory {
         count: u32,
     ) -> CommandResult<String> {
         let item = item.into();
+        validate_clear_count(count, "Inventory::try_clear_item_count")?;
         validate_item_predicate_str(&item, "Inventory::try_clear_item_count", "item")?;
         Ok(self.clear_item_count(item, count))
     }
@@ -1194,6 +1192,32 @@ mod tests {
         }
         for predicate in ["", "#", "#Invalid:tag", "**", "#pack:bad tag"] {
             assert!(inv().try_clear_item_count(predicate, 0).is_err());
+        }
+    }
+
+    #[test]
+    fn clear_count_rejects_overflow_at_eager_and_export_boundaries() {
+        for count in [0, 1, i32::MAX as u32] {
+            assert!(
+                inv()
+                    .try_clear_item_count("minecraft:diamond", count)
+                    .is_ok()
+            );
+        }
+        for count in [i32::MAX as u32 + 1, u32::MAX] {
+            assert!(
+                inv()
+                    .try_clear_item_count("minecraft:diamond", count)
+                    .is_err()
+            );
+            assert!(
+                InventoryCommandNode::ClearItemCount {
+                    item: "minecraft:diamond".into(),
+                    count
+                }
+                .validate(&CommandProfile::unprofiled())
+                .is_err()
+            );
         }
     }
 

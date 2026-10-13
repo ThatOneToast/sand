@@ -81,8 +81,8 @@ runtime block at arbitrary coordinates.
 
 `ender_chest(index)` supports observation through the existing NBT view, but
 slot writes reject it because vanilla has no corresponding item-command slot.
-There is no atomic move/transfer guarantee. Removal
-and inventory-change observation remain separate capability work; use only the
+There is no atomic move/transfer guarantee.
+Inventory-change observation remains separate capability work; use only the
 operations documented here as supported gameplay actions.
 
 ## Custom-item identity
@@ -143,3 +143,16 @@ JSON cannot be translated safely to every native item argument and is rejected
 by typed inventory queries. Component/sub-predicate escape hatches still retain
 supported exact/partial semantics; their raw payloads remain the author's
 responsibility. Component filters require a verified item-component profile.
+
+## Bounded removal
+
+```rust,ignore
+let identity = wand.item_predicate()?;
+let consume_up_to_three = inventory.remove(&identity, 3);
+```
+
+Removal returns owned gameplay actions and shares the same per-stack filters
+and inventory coverage as `count`. It selects one player once, removes up to the
+requested quantity, and leaves unrelated items alone. If fewer items exist, it
+removes only those available. Zero removes nothing; amounts above `i32::MAX`
+fail export. This is not an atomic payment or an all-or-nothing transfer.

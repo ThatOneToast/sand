@@ -110,7 +110,7 @@ eating or blocking), which is not a general right-click event.
 `inventory.contains(item)` returns a canonical `Condition` for a typed item ID:
 
 ```rust,ignore
-let has_diamonds = player.inventory().contains(Item::Diamond);
+let has_diamonds = player.inventory().contains(vanilla::Item::Diamond);
 let actions = when(has_diamonds).then_all(["say Ready to trade"]);
 ```
 

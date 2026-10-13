@@ -117,7 +117,7 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
 /// [`CloneBlocks::try_build`]. The infallible [`Build::build`]/`Display`
 /// paths remain available as a documented raw/unchecked escape hatch for
 /// custom or future block-state syntax Sand does not yet model.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockState {
     block: String,
     props: BTreeMap<String, String>,

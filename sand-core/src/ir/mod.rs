@@ -16,6 +16,9 @@
 //!    retaining its existing authoring API and output.
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
+mod block;
+#[doc(hidden)]
+pub use block::{BlockMatch, BlockMutation};
 mod effect;
 #[doc(hidden)]
 pub use effect::EffectPresence;
@@ -327,6 +330,14 @@ pub enum Cmd {
     #[doc(hidden)]
     ItemMatch(Box<ItemMatch>),
 
+    /// Evaluate a typed block check in its owned helper.
+    #[doc(hidden)]
+    BlockMatch(Box<BlockMatch>),
+
+    /// Apply a typed runtime block mutation.
+    #[doc(hidden)]
+    BlockMutation(Box<BlockMutation>),
+
     /// Evaluate effect presence with an owned typed predicate resource.
     #[doc(hidden)]
     EffectPresence(Box<EffectPresence>),
@@ -375,6 +386,8 @@ impl Cmd {
             Self::ItemMutation(write) => return write.lower(owner),
             Self::ItemMatch(query) => return query.lower(owner),
             Self::EffectPresence(query) => return query.lower(owner),
+            Self::BlockMatch(query) => return query.lower(owner),
+            Self::BlockMutation(write) => return write.lower(owner),
             Self::NumericComparison(comparison) => return comparison.lower(owner),
             Self::WithConditionResources { condition, run } => {
                 condition.register_owned_resources();
@@ -515,9 +528,32 @@ impl Cmd {
                     error.field = format!("run.{}", error.field);
                     error
                 })?;
-                format!("execute {operation_text} run {run_text}")
+                // Raw/retained nodes can contain multiple physical lines.
+                // Scope every command while retaining macro substitution in
+                // the caller; comments and empty lines are not commands.
+                run_text
+                    .lines()
+                    .map(|line| {
+                        let line = line.trim_start();
+                        if line.is_empty() || line.starts_with('#') {
+                            line.to_owned()
+                        } else if let Some(command) = line.strip_prefix('$') {
+                            format!("$execute {operation_text} run {command}")
+                        } else {
+                            format!("execute {operation_text} run {line}")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
             }
 
+            Self::BlockMatch(_) | Self::BlockMutation(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "block gameplay",
+                    "operation",
+                    "block gameplay requires function export lowering",
+                ));
+            }
             Self::EffectPresence(_) => {
                 return Err(sand_commands::CommandError::new(
                     "effect presence",

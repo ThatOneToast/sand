@@ -54,6 +54,7 @@ pub(crate) fn collect_sand_player_state_predicates(
         ConditionKind::NumericCompare(_)
         | ConditionKind::ItemMatch(_)
         | ConditionKind::EffectPresence(_)
+        | ConditionKind::BlockMatch(_)
         | ConditionKind::Score { .. }
         | ConditionKind::ScoreCompare { .. }
         | ConditionKind::Flag { .. }

@@ -508,14 +508,14 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 4_648);
+    assert_eq!(declarations.len(), 4_659);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::Archetype"
     );
     assert_eq!(
         declarations.last().unwrap().canonical_path,
-        "sand::vfx::VfxStep::Sound::0"
+        "sand::world::WorldContext::in_dimension"
     );
     let predicate_new = declarations
         .iter()

@@ -149,6 +149,7 @@ pub(crate) enum ConditionKind {
     NumericCompare(Box<crate::ir::NumericComparison>),
     ItemMatch(Box<crate::ir::ItemMatch>),
     EffectPresence(Box<crate::ir::EffectPresence>),
+    BlockMatch(Box<crate::ir::BlockMatch>),
     /// `if score <selector> <objective> matches <range>`
     Score {
         selector: String,
@@ -222,6 +223,15 @@ impl Condition {
         }
     }
 
+    pub(crate) fn block_match(
+        position: sand_commands::BlockPos,
+        block: sand_commands::BlockState,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::BlockMatch(Box::new(crate::ir::BlockMatch { position, block })),
+        }
+    }
+
     pub(crate) fn effect_presence(
         target: sand_commands::Selector,
         effect: sand_components::EffectId,
@@ -258,6 +268,9 @@ impl Condition {
             ConditionKind::EffectPresence(query) => {
                 query.register();
             }
+            ConditionKind::BlockMatch(query) => {
+                query.register();
+            }
             ConditionKind::ScoreCompare { left, right, .. } => {
                 left.register_owned_setup();
                 right.register_owned_setup();
@@ -276,7 +289,8 @@ impl Condition {
         match &self.kind {
             ConditionKind::NumericCompare(_)
             | ConditionKind::ItemMatch(_)
-            | ConditionKind::EffectPresence(_) => true,
+            | ConditionKind::EffectPresence(_)
+            | ConditionKind::BlockMatch(_) => true,
             ConditionKind::Not(inner) => inner.has_owned_resources(),
             ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
                 conditions.iter().any(Self::has_owned_resources)
@@ -782,6 +796,7 @@ impl Condition {
             }
             ConditionKind::ItemMatch(query) => clause(ConditionIr::Function(query.register())),
             ConditionKind::EffectPresence(query) => clause(ConditionIr::Function(query.register())),
+            ConditionKind::BlockMatch(query) => clause(ConditionIr::Function(query.register())),
             ConditionKind::Score {
                 selector,
                 objective,

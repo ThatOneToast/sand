@@ -178,6 +178,22 @@ pub mod inventory {
     };
 }
 
+/// Runtime block gameplay in an explicit execution context.
+///
+/// Use [`build::World`] for generated-world configuration instead.
+#[api(
+    path = "sand::world", module = "sand",
+    summary = "Composes runtime block gameplay in the current execution context.",
+    context = "WorldContext and BlockContext reuse canonical positions, block states, Conditions, Actions, inventory locations, and NBT.",
+    minecraft = "Emits scoped block queries and mutations without loading chunks or implicitly scanning regions.",
+    use_when = ["Building runtime block and container mechanics"],
+    avoid_when = ["Configuring generated worlds; use build::World"],
+    example = "use sand::world::WorldContext;"
+)]
+pub mod world {
+    pub use sand_core::world::{BlockContext, WorldContext};
+}
+
 /// Predicate resources and the typed conditions used to build them.
 ///
 /// This is the canonical predicate API path. Prelude and component-module

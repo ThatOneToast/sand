@@ -15,7 +15,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
     assert_eq!(manifest.pending_scope_ceiling, 0);
-    assert_eq!(manifest.scopes.len(), 28);
+    assert_eq!(manifest.scopes.len(), 29);
     assert!(
         manifest
             .scopes
@@ -51,6 +51,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
                 "generated-effect-registry-enums",
                 "generated-event-markers",
                 "registration-source",
+                "world-source",
             ])
     );
     assert!(
@@ -87,11 +88,11 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         [
             (
                 "placeholder-codegen",
-                4_922,
+                4_933,
                 0,
                 "api-surface-baseline-placeholder.txt".to_owned(),
             ),
-            ("26.2", 11_022, 0, "api-surface-baseline.txt".to_owned(),),
+            ("26.2", 11_033, 0, "api-surface-baseline.txt".to_owned(),),
         ]
     );
 }

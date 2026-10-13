@@ -34,10 +34,10 @@ class MinimalClientTests(unittest.TestCase):
 
     def test_26_2_play_keep_alive_echoes_the_exact_challenge(self):
         challenge = struct.pack(">q", 0x123456789ABCDEF)
-        rotation = struct.pack(">ff", 90.0, 0.0)
-        result, sent = self.run_packets([(2, b""), (3, b""), (0x31, b""), (0x4C, rotation), (0x2C, challenge)])
+        recipe_settings = bytes([1, 0] * 4)
+        result, sent = self.run_packets([(2, b""), (3, b""), (0x31, b""), (0x4C, recipe_settings), (0x2C, challenge)])
         self.assertIn((0x1C, challenge), sent)
-        self.assertNotIn((0x1C, rotation), sent)
+        self.assertNotIn((0x1C, recipe_settings), sent)
         self.assertFalse(result, "briefly joining must not hide a later disconnect")
 
     def test_configuration_keep_alive_and_ping_are_answered(self):

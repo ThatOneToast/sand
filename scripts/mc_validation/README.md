@@ -338,7 +338,7 @@ Record the actual observed values (not just pass/fail) in
 
 ## Legacy RCON audit isolation
 
-The three legacy RCON scripts share `local_rcon_server.py` for their disposable
+The two legacy RCON scripts (`run_audit.py` and `run_bounded_item_proof.py`) share `local_rcon_server.py` for their disposable
 server configuration. Both game and RCON listeners bind to `127.0.0.1`, and each
 script process generates a fresh credential. Vanilla requires that credential
 in `server.properties`; the file is owner-readable/writable inside the private
@@ -346,3 +346,20 @@ temporary directory. Audit calls use the in-process RCON client, keeping the
 credential out of subprocess argument lists. These controls preserve the older
 scripts' limited evidence boundaries; real-player proof comes from the newer
 participant harness described above.
+
+## Real-player bounded item transport
+
+`run_bounded_item_event_proof.py --jar ~/.sand/cache/26.2/server.jar` exports
+the unmodified Rust bounded-item fixture and connects two passive players.
+Actual held items feed generated source capture; direct source/child/expiry
+dispatch isolates storage transport from event detection. The audit compares
+full snapshots with independent player NBT, including a never-captured subject,
+replacement, changed live equipment after capture, absence, two consumers,
+reload and expiry of one subject without disturbing another.
+
+This replaces the old armor-stand pre-capture injection, which became invalid
+when capture moved inside subject dispatch (#435). It reuses the shared
+loopback-only server/player harness with RCON disabled. Normal tick coordination
+is frozen during storage assertions; natural window expiry and client combat
+input are outside this proof. The latest-version vanilla CI job runs it and
+uploads server/client logs on failure.

@@ -21,6 +21,8 @@ on:
       - "scripts/player_validation_harness.py"
       - "scripts/validate_player_participants.py"
       - "scripts/tests/test_player_validation_harness.py"
+      - "scripts/mc_validation/run_bounded_item_event_proof.py"
+      - "sand-core/tests/event_chain_bounded_item_transport.rs"
       - "scripts/mc_validation/minimal_join_client.py"
       - "scripts/mc_validation/test_minimal_join_client.py"
       - "scripts/validate-vanilla-reload.sh"
@@ -152,6 +154,13 @@ jobs:
             --pack examples/participant_audit/dist/paudit \
             --output "target/vanilla-reload/${{ matrix.version }}/player-participants"
 
+      - name: Validate real-player bounded item transport
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/mc_validation/run_bounded_item_event_proof.py \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/bounded-items"
+
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'
         run: |
@@ -182,6 +191,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/player-participants
+            target/vanilla-reload/${{ matrix.version }}/bounded-items
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

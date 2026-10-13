@@ -1,90 +1,28 @@
 #!/usr/bin/env python3
-"""Validate the #272 bounded item-transport **event path** — the functions
-Sand actually generates — on a real Minecraft Java 26.2 server.
+"""Exercise generated bounded item transport with two real passive players.
 
-`run_bounded_item_proof.py` proves the raw storage primitive with a
-hand-written pack. This script is the follow-up: it materializes the pack
-*Sand exports* for `sand-core/tests/event_chain_bounded_item_transport.rs`
-and drives the generated persist/load/expire functions over RCON.
-
-What this proves, precisely:
-
-  * The exported pack loads on a real 26.2 server with no errors, and
-    survives `/reload` (parser/load evidence).
-  * Running the generated **source dispatch** function as a subject
-    allocates that subject a slot and persists the snapshot into
-    per-subject command storage (runtime behavior).
-  * Running the generated **child dispatch** function as a subject stages
-    *that subject's* copy into the scratch path the read accessors name,
-    and never another subject's (runtime behavior).
-  * Repeated source occurrence replaces atomically; an absent source clears
-    presence; the generated expiry function clears exactly one subject.
-
-What this does **not** prove: that a real player swinging a real weapon
-triggers the source event. That needs a real game client; this environment
-has none (see `scripts/mc_validation/README.md` on the 26.2 Play-phase
-client instability). Subjects here are armor stands acting as score
-holders, and the source's own item *capture* (#229/#267, validated
-separately) is stood in for by writing its snapshot storage directly — so
-what is exercised is the transport under test, not the capture feeding it.
-The `execute as @a` coordinator lines are likewise not exercised at
-runtime, because a zero-player world has no `@a`; their shape is covered by
-the exact-output tests.
-
-Usage:
-    python3 scripts/mc_validation/run_bounded_item_event_proof.py \
-        --jar ~/.sand/cache/26.2/server.jar
-
-The stdout-drain threading is load-bearing; see `run_audit.py`. Do not
-replace it with a bounded read or `break` out of it.
+The unmodified Rust export fixture supplies source/child/expiry functions.
+Real held items feed the source capture; controlled direct dispatch isolates
+transport from event detection. This does not prove combat input or automatic
+window expiry. Normal tick coordination is frozen during these storage checks.
 """
-
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import queue
-import secrets
-import shutil
-import socket
+from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import threading
-import time
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import rcon_client  # noqa: E402
-from local_rcon_server import write_properties  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from player_validation_harness import PlayerHarness
+from vanilla_reload_harness import ValidationFailure, RELOAD_START
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RCON_PASSWORD = secrets.token_urlsafe(32)
-PACK_FORMAT = 107  # 26.2, per sand-core/src/version.rs
+PACK_FORMAT = 107
 NS = "boundeditempack"
-
-TRANSCRIPT: list[str] = []
-
-
-def available_port() -> int:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
-
-
-def rcon(port: int, *commands: str) -> list[str]:
-    return rcon_client.run_commands("127.0.0.1", port, RCON_PASSWORD, list(commands))
-
-
-def run(port: int, *commands: str) -> list[str]:
-    out = rcon(port, *commands)
-    for cmd, response in zip(commands, out):
-        TRANSCRIPT.append(f"> {cmd}")
-        TRANSCRIPT.append(response)
-        print(f"> {cmd}\n{response}")
-    return out
-
 
 def export_records() -> list[dict]:
     """Run the exporter in its own process and return its records.
@@ -115,53 +53,6 @@ def export_records() -> list[dict]:
         text=True,
     )
     return json.loads(dump.read_text())
-
-
-def write_harness_functions(pack: Path, snap_key: str, source_dispatch: str) -> None:
-    """Drive a source occurrence *atomically*, in one tick.
-
-    The generated `__sand_event_check` runs every tick from the pack's own
-    tick tag and unconditionally resets the source's transient snapshot
-    storage to absence before re-capturing it. That is correct — in real
-    operation the capture and the persist happen in the same synchronous
-    call tree within one tick, which is exactly why persist is spliced into
-    the source's dispatch right after its occurrence mark.
-
-    A harness that writes the snapshot in one RCON call and invokes dispatch
-    in another straddles a possible tick boundary, and intermittently
-    observes the reset instead of its own write. So both steps live in one
-    function here: the item comes from `bevth:stage item` (a storage the
-    pack under test never touches, so writing it cannot race), and the
-    snapshot write and dispatch invocation are guaranteed same-tick.
-    """
-    fn = pack / "data" / "bevth" / "function"
-    fn.mkdir(parents=True, exist_ok=True)
-    # Function file names must be lowercase — Minecraft rejects any other
-    # resource path outright ("Invalid path in pack ... ignoring") — while
-    # entity tags are free-form, so the two cannot share a spelling.
-    for tag, suffix in (("subjA", "a"), ("subjB", "b")):
-        (fn / f"src_{suffix}.mcfunction").write_text(
-            "\n".join(
-                [
-                    f"data modify storage sand:__participants snap.{snap_key}.present set value 1b",
-                    f"data modify storage sand:__participants snap.{snap_key}.item set from storage bevth:stage item",
-                    f"execute as @e[tag={tag},limit=1] run function {NS}:{source_dispatch}",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-        (fn / f"src_absent_{suffix}.mcfunction").write_text(
-            "\n".join(
-                [
-                    f"data modify storage sand:__participants snap.{snap_key}.present set value 0b",
-                    f"data modify storage sand:__participants snap.{snap_key}.item set value {{}}",
-                    f"execute as @e[tag={tag},limit=1] run function {NS}:{source_dispatch}",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
 
 
 def write_pack(datapacks: Path, records: list[dict]) -> None:
@@ -199,274 +90,110 @@ def find(records: list[dict], prefix: str) -> str:
     return matches[0]
 
 
-def main() -> int:
+class BoundedItemHarness(PlayerHarness):
+    def __init__(self, args, records):
+        super().__init__(args)
+        functions = [r for r in records if r["dir"] == "function"]
+        self.entry = find(functions, "__sand_event_bounded_item_load/").split("/", 1)[1]
+        self.expire = find(functions, "__sand_event_bounded_item_expire/")
+        self.source = next(r["path"] for r in functions
+                           if r["path"].startswith("__sand_event_dispatch/")
+                           and "__sand_event_bounded_item_persist/" in r["content"])
+        self.children = sorted(r["path"] for r in functions
+                               if r["path"].startswith("__sand_event_dispatch/")
+                               and "__sand_event_bounded_item_load/" in r["content"])
+        if len(self.children) != 2:
+            raise ValidationFailure("fixture", "expected two independent bounded consumers")
+
+    def capture(self, player, item):
+        self.send(f"item replace entity {player} weapon.mainhand with {item}")
+        if item != "minecraft:air":
+            self.check(f"{player}_EQUIPPED", f'if data entity {player} SelectedItem{{id:"{item}"}}')
+            self.send(f"data modify storage bevth:oracle {player} set from entity {player} SelectedItem")
+        else:
+            self.check(f"{player}_EMPTY", f"unless data entity {player} SelectedItem")
+        self.send(f"execute as {player} at @s run function {NS}:{self.source}")
+
+    def read(self, player, phase, present=True, child=0):
+        self.send(f"execute as {player} at @s run function {NS}:{self.children[child]}")
+        path = f"storage sand:__bounded_item cur.{self.entry}"
+        self.check(f"{phase}_PRESENCE", f"if data {path}{{present:{1 if present else 0}b}}")
+        if present:
+            self.check(f"{phase}_ITEM", f"if data {path}.item.id")
+            self.check(f"{phase}_ORACLE", f"if data storage bevth:oracle {player}.id")
+            self.send(f"data modify storage bevth:oracle comparison set from {path}.item")
+            self.send(f"execute store success score #different bevth_check run data modify storage bevth:oracle comparison set from storage bevth:oracle {player}")
+            self.check(f"{phase}_EQUAL", "if score #different bevth_check matches 0")
+        else:
+            self.check(f"{phase}_NO_ITEM", f"unless data {path}.item.id")
+
+    def run_client(self):
+        self.load_test_chunk("minecraft:overworld")
+        self.send("tick freeze")
+        try:
+            with self.clients():
+                self.send("scoreboard objectives add bevth_check dummy")
+                for player in self.players:
+                    self.send(f"gamemode creative {player}")
+                    self.send(f"tp {player} 0 80 0")
+                    self.send(f"scoreboard players set {player} p272_source 0")
+                self.capture("SandAlpha", "minecraft:diamond_sword")
+                self.read("SandBeta", "BETA_NEVER_CAPTURED", present=False)
+                self.capture("SandBeta", "minecraft:golden_apple")
+                for player in self.players:
+                    self.check(f"{player}_SLOT", f"if score {player} sand_subj matches 1..")
+                self.check("DISTINCT_SLOTS", "unless score SandAlpha sand_subj = SandBeta sand_subj")
+                self.read("SandAlpha", "ALPHA")
+                self.read("SandBeta", "BETA")
+                self.read("SandAlpha", "ALPHA_AGAIN")
+                self.read("SandAlpha", "SECOND_CONSUMER", child=1)
+                self.send("item replace entity SandAlpha weapon.mainhand with minecraft:dirt")
+                self.check("ALPHA_LIVE_CHANGED", 'if data entity SandAlpha SelectedItem{id:"minecraft:dirt"}')
+                self.read("SandAlpha", "SNAPSHOT_FROZEN")
+                self.capture("SandAlpha", "minecraft:stone")
+                self.read("SandAlpha", "REPLACED")
+                self.read("SandBeta", "BETA_UNCHANGED")
+                self.capture("SandAlpha", "minecraft:air")
+                self.read("SandAlpha", "ABSENT", present=False)
+                self.read("SandBeta", "BETA_AFTER_ABSENT")
+                self.capture("SandAlpha", "minecraft:diamond_sword")
+                start = len(self.lines)
+                self.send("reload")
+                self.wait_for(RELOAD_START, "bounded-reload", start)
+                self.send("say __SAND_BOUNDED_RELOADED__")
+                self.wait_for(self.marker_pattern("__SAND_BOUNDED_RELOADED__"), "bounded-reload-complete", start)
+                self.read("SandAlpha", "ALPHA_RELOAD")
+                self.read("SandBeta", "BETA_RELOAD")
+                self.send(f"execute as SandAlpha at @s run function {NS}:{self.expire}")
+                self.read("SandAlpha", "EXPIRED", present=False)
+                self.read("SandBeta", "BETA_AFTER_EXPIRY")
+                print("PASSED: real held-item capture, per-player bounded transport, replacement, absence, reload and isolated expiry", flush=True)
+        finally:
+            self.send("tick unfreeze")
+
+
+def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", required=True)
     parser.add_argument("--java", default="java")
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--output")
     args = parser.parse_args()
-
-    print("== Exporting the pack under test ==")
+    args.version = "26.2"
+    args.op_player = None
+    args.client_command = None
     records = export_records()
-    functions = [r for r in records if r["dir"] == "function"]
-    load_fn = find(functions, "__sand_event_bounded_item_load/")
-    persist_fn = find(functions, "__sand_event_bounded_item_persist/")
-    expire_fn = find(functions, "__sand_event_bounded_item_expire/")
-    entry_key = load_fn.split("/", 1)[1]
-    # The source is the only dispatch function containing a persist call.
-    source_dispatch = next(
-        r["path"]
-        for r in functions
-        if r["path"].startswith("__sand_event_dispatch/")
-        and "__sand_event_bounded_item_persist/" in r["content"]
-    )
-    child_dispatches = sorted(
-        r["path"]
-        for r in functions
-        if r["path"].startswith("__sand_event_dispatch/")
-        and "__sand_event_bounded_item_load/" in r["content"]
-    )
-    # The source's own transient snapshot storage, read by the persist body.
-    persist_body = next(r["content"] for r in functions if r["path"] == persist_fn)
-    snap_key = persist_body.split("snap.")[1].split("{")[0]
-    print(f"entry key {entry_key}, source snapshot key {snap_key}")
-    print(f"source dispatch {source_dispatch}, children {child_dispatches}")
-
-    server_dir = Path(tempfile.mkdtemp(prefix="sand-bounded-event-proof-"))
-    datapacks = server_dir / "world" / "datapacks"
-    datapacks.mkdir(parents=True)
-    write_pack(datapacks, records)
-    write_harness_functions(datapacks / "bevt", snap_key, source_dispatch)
-    (server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
-
-    server_port = available_port()
-    rcon_port = available_port()
-    write_properties(server_dir, server_port, rcon_port, RCON_PASSWORD)
-
-    print(f"== Starting real Minecraft 26.2 server (port {server_port}, rcon {rcon_port}) ==")
-    process = subprocess.Popen(
-        [args.java, "-jar", str(Path(args.jar).resolve()), "nogui"],
-        cwd=server_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-    )
-    results: dict[str, str] = {}
-    log_lines: "queue.Queue[str]" = queue.Queue()
-    startup_errors: list[str] = []
-
-    def drain_server_stdout() -> None:
-        assert process.stdout
-        for line in process.stdout:
-            log_lines.put(line)
-
-    reader_thread = threading.Thread(target=drain_server_stdout, daemon=True)
-    reader_thread.start()
-
-    def load_for(tag: str) -> str:
-        """Run the generated child dispatch as `tag`'s subject, then read the
-        staged item back."""
-        run(rcon_port, f"execute as @e[tag={tag},limit=1] run function {NS}:{child_dispatches[0]}")
-        return run(rcon_port, f"data get storage sand:__bounded_item cur.{entry_key}.item")[0]
-
-    def staged_present() -> bool:
-        out = run(
-            rcon_port,
-            f"execute store success score #probe sand_subj if data storage sand:__bounded_item "
-            f"cur.{entry_key}{{present:1b}}",
-            "scoreboard players get #probe sand_subj",
-        )
-        return "has 1 " in out[1]
-
-    def persist_for(tag: str, item: str) -> None:
-        """Stage `item`, then fire the source occurrence for `tag` in one tick."""
-        suffix = "a" if tag == "subjA" else "b"
-        run(rcon_port, f"data modify storage bevth:stage item set value {item}")
-        run(rcon_port, f"function bevth:src_{suffix}")
-
-    def persist_absent_for(tag: str) -> None:
-        suffix = "a" if tag == "subjA" else "b"
-        run(rcon_port, f"function bevth:src_absent_{suffix}")
-
-    try:
-        deadline = time.monotonic() + args.timeout
-        ready = False
-        while time.monotonic() < deadline:
-            try:
-                line = log_lines.get(timeout=0.5)
-            except queue.Empty:
-                continue
-            print(line, end="")
-            if "Done (" in line and "For help" in line:
-                ready = True
-                break
-            if any(m in line for m in ("Exception", "ERROR", "Failed to load")):
-                startup_errors.append(line.strip())
-        results["startup"] = "PASS" if ready and not startup_errors else f"FAIL ({startup_errors[:3]})"
-        if not ready:
+    with tempfile.TemporaryDirectory(prefix="sand-bounded-pack-") as directory:
+        write_pack(Path(directory), records)
+        args.pack = str(Path(directory) / "bevt")
+        harness = BoundedItemHarness(args, records)
+        try:
+            harness.run()
+        except ValidationFailure as error:
+            print(f"FAILED: {error.phase}: {error}\nlog: {harness.log_path}", file=sys.stderr)
             return 1
-
-        def keep_draining_in_background() -> None:
-            while True:
-                try:
-                    print(log_lines.get(timeout=1), end="")
-                except queue.Empty:
-                    if not reader_thread.is_alive() and log_lines.empty():
-                        return
-
-        threading.Thread(target=keep_draining_in_background, daemon=True).start()
-
-        out = run(rcon_port, "datapack list")
-        results["datapack_loaded"] = "PASS" if "bevt" in "\n".join(out) else "FAIL"
-
-        # The load tag ran the generated setup, so the slot objective exists.
-        obj = run(rcon_port, "scoreboard objectives add sand_subj dummy")
-        results["slot_objective_created_by_pack"] = (
-            "PASS" if "already exists" in obj[0] else f"FAIL (setup did not run: {obj})"
-        )
-
-        print("\n== Subjects (armor stands standing in for players) ==")
-        # A freshly summoned entity is not reliably selector-matchable in the
-        # same RCON batch as its own summon in this 26.2 build — see
-        # `run_audit.py`'s combat-pair helper and the README. Summon in its
-        # own call, settle, then verify; retry the whole thing rather than
-        # reporting a spurious failure.
-        run(rcon_port, "forceload add 0 0")
-        selectable = False
-        for attempt in range(5):
-            run(rcon_port, "kill @e[tag=subjA]", "kill @e[tag=subjB]")
-            run(
-                rcon_port,
-                'summon armor_stand 0 200 0 {Tags:["subjA"],NoGravity:1b,PersistenceRequired:1b,Marker:1b}',
-            )
-            run(
-                rcon_port,
-                'summon armor_stand 2 200 0 {Tags:["subjB"],NoGravity:1b,PersistenceRequired:1b,Marker:1b}',
-            )
-            time.sleep(1.0)
-            sel = run(
-                rcon_port,
-                "execute as @e[tag=subjA,limit=1] run data get entity @s Tags",
-                "execute as @e[tag=subjB,limit=1] run data get entity @s Tags",
-            )
-            if "subjA" in sel[0] and "subjB" in sel[1]:
-                selectable = True
-                break
-            print(f"(subjects not selectable on attempt {attempt + 1}, retrying)")
-        # Every check below depends on this one; if it fails they all will,
-        # and that cascade is a harness/environment failure, not evidence
-        # about the feature.
-        results["subjects_selectable"] = "PASS" if selectable else "FAIL (never became selectable)"
-
-        print("\n== Source occurrence persists into per-subject storage ==")
-        persist_for("subjA", '{id:"minecraft:diamond_sword",count:1}')
-        slots = run(
-            rcon_port,
-            "execute as @e[tag=subjA,limit=1] run scoreboard players get @s sand_subj",
-        )
-        results["slot_allocated_on_first_occurrence"] = (
-            "PASS" if " has 1 " in slots[0] else f"FAIL ({slots})"
-        )
-
-        persist_for("subjB", '{id:"minecraft:golden_apple",count:3}')
-        slots_b = run(
-            rcon_port,
-            "execute as @e[tag=subjB,limit=1] run scoreboard players get @s sand_subj",
-        )
-        results["distinct_slots_per_subject"] = (
-            "PASS" if " has 2 " in slots_b[0] else f"FAIL ({slots_b})"
-        )
-
-        print("\n== Child dispatch stages the *reading* subject's own copy ==")
-        a = load_for("subjA")
-        results["child_reads_own_subject_snapshot"] = (
-            "PASS" if "diamond_sword" in a else f"FAIL ({a})"
-        )
-        results["staged_presence_flag_set"] = "PASS" if staged_present() else "FAIL"
-        b = load_for("subjB")
-        results["cross_subject_isolation"] = (
-            "PASS" if "golden_apple" in b and "diamond_sword" not in b else f"FAIL ({b})"
-        )
-        # Re-read A after B, to prove staging is not sticky.
-        a2 = load_for("subjA")
-        results["staging_is_not_sticky_between_consumers"] = (
-            "PASS" if "diamond_sword" in a2 and "golden_apple" not in a2 else f"FAIL ({a2})"
-        )
-
-        print("\n== Second consumer in the same cycle sees the same copy ==")
-        run(rcon_port, f"execute as @e[tag=subjA,limit=1] run function {NS}:{child_dispatches[1]}")
-        second = run(rcon_port, f"data get storage sand:__bounded_item cur.{entry_key}.item")[0]
-        results["second_consumer_not_starved"] = (
-            "PASS" if "diamond_sword" in second else f"FAIL ({second})"
-        )
-
-        print("\n== Repeated source occurrence replaces atomically ==")
-        persist_for("subjA", '{id:"minecraft:stone",count:64}')
-        replaced = load_for("subjA")
-        results["repeated_occurrence_replaces"] = (
-            "PASS" if "stone" in replaced and "diamond_sword" not in replaced else f"FAIL ({replaced})"
-        )
-        untouched = load_for("subjB")
-        results["replacement_does_not_disturb_other_subjects"] = (
-            "PASS" if "golden_apple" in untouched else f"FAIL ({untouched})"
-        )
-
-        print("\n== Absent item clears presence rather than leaving stale data ==")
-        persist_absent_for("subjA")
-        load_for("subjA")
-        results["absent_source_clears_presence"] = "PASS" if not staged_present() else "FAIL"
-
-        print("\n== Survives /reload ==")
-        persist_for("subjA", '{id:"minecraft:diamond_sword",count:1}')
-        rel = run(rcon_port, "reload")
-        time.sleep(3)
-        results["reload"] = "PASS" if "reload" in "\n".join(rel).lower() else f"FAIL ({rel})"
-        after = load_for("subjA")
-        results["survives_reload"] = "PASS" if "diamond_sword" in after else f"FAIL ({after})"
-        after_b = load_for("subjB")
-        results["isolation_survives_reload"] = (
-            "PASS" if "golden_apple" in after_b else f"FAIL ({after_b})"
-        )
-
-        print("\n== Generated expiry clears exactly one subject ==")
-        run(rcon_port, f"execute as @e[tag=subjA,limit=1] run function {NS}:{expire_fn}")
-        load_for("subjA")
-        results["expiry_clears_subject"] = "PASS" if not staged_present() else "FAIL"
-        surviving = load_for("subjB")
-        results["expiry_does_not_touch_other_subjects"] = (
-            "PASS" if "golden_apple" in surviving else f"FAIL ({surviving})"
-        )
-
-        run(rcon_port, "kill @e[tag=subjA]", "kill @e[tag=subjB]", "forceload remove all")
-
-    finally:
-        print("\n== Shutting down ==")
-        try:
-            rcon(rcon_port, "stop")
-        except Exception as exc:  # noqa: BLE001
-            print(f"(stop via rcon failed: {exc})")
-        try:
-            process.wait(timeout=45)
-            results["clean_shutdown"] = "PASS" if process.returncode == 0 else f"FAIL (exit {process.returncode})"
-        except subprocess.TimeoutExpired:
-            process.terminate()
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-            results["clean_shutdown"] = "FAIL (timeout)"
-        shutil.rmtree(server_dir, ignore_errors=True)
-
-    transcript_path = REPO_ROOT / "target" / "bounded_item_event_proof_transcript.txt"
-    transcript_path.parent.mkdir(parents=True, exist_ok=True)
-    transcript_path.write_text("\n".join(TRANSCRIPT) + "\n", encoding="utf-8")
-
-    print("\n===== RESULTS =====")
-    for name, value in results.items():
-        print(f"{name}: {value}")
-    print(f"\ntranscript: {transcript_path}")
-    return 0 if all(v.startswith("PASS") for v in results.values()) else 1
+        print(f"PASSED: Minecraft 26.2 bounded item event path; log: {harness.log_path}")
+    return 0
 
 
 if __name__ == "__main__":

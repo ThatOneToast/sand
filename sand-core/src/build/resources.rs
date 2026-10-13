@@ -242,9 +242,17 @@ mod tests {
 
     #[test]
     fn frozen_time_uses_the_target_command_and_runs_after_explicit_gamerules() {
+        let freeze_command = crate::cmd::WORLD_TIME_FREEZE_COMMAND
+            .expect("the generated test target supports frozen time");
+        let rule = freeze_command
+            .strip_prefix("gamerule ")
+            .unwrap()
+            .strip_suffix(" false")
+            .unwrap();
+        let enabled_command = format!("gamerule {rule} true");
         let build = SandBuild::new().world(
             World::new()
-                .gamerule("advance_time", "true")
+                .gamerule(rule, "true")
                 .time(TimeConfig::set(6000).frozen()),
         );
         build.validate().unwrap();
@@ -252,11 +260,7 @@ mod tests {
         let init = resources.iter().find(|r| r.dir == "function").unwrap();
         assert_eq!(
             init.content.lines().collect::<Vec<_>>(),
-            [
-                "gamerule advance_time true",
-                "time set 6000",
-                "gamerule advance_time false"
-            ]
+            [enabled_command.as_str(), "time set 6000", freeze_command]
         );
     }
 

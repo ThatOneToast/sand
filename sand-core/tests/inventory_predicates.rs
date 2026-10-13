@@ -64,7 +64,7 @@ fn cached_predicates_own_shared_tags_and_preserve_native_constraints() {
     );
     assert_eq!(tag["replace"], true);
     let argument = format!(
-        "#inventory_predicates:{}[minecraft:count={{\"min\":2}},minecraft:custom_data~{{reward:1b}}]",
+        "#inventory_predicates:{}[minecraft:count~{{\"min\":2}},minecraft:custom_data~{{reward:1b}}]",
         tags[0]["path"].as_str().unwrap()
     );
     let functions = records

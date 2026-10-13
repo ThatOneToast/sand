@@ -1691,7 +1691,8 @@ pub fn lower_item_predicate_for_command(
     let json = predicate.render_for_advancement(None)?;
     let mut constraints = Vec::new();
     if let Some(count) = json.get("count") {
-        constraints.push(format!("minecraft:count={count}"));
+        let operator = if count.is_object() { '~' } else { '=' };
+        constraints.push(format!("minecraft:count{operator}{count}"));
     }
     for (bag, operator) in [("components", '='), ("predicates", '~')] {
         if let Some(object) = json.get(bag).and_then(Value::as_object) {
@@ -3100,11 +3101,37 @@ mod tests {
         assert_eq!(
             lowered.constraints,
             vec![
-                "minecraft:count={\"min\":3}",
+                "minecraft:count~{\"min\":3}",
                 "minecraft:custom_data~{\"pack:reward\":1b}",
             ]
         );
         assert!(lowered.requires_components);
+    }
+
+    #[test]
+    fn native_item_predicate_uses_range_operator_for_bounds_and_exact_for_integers() {
+        for (predicate, expected) in [
+            (
+                ItemPredicate::new().count_min(2),
+                "minecraft:count~{\"min\":2}",
+            ),
+            (
+                ItemPredicate::new().count_max(5),
+                "minecraft:count~{\"max\":5}",
+            ),
+            (
+                ItemPredicate::new().count_range(2, 5),
+                "minecraft:count~{\"max\":5,\"min\":2}",
+            ),
+            (ItemPredicate::new().count_range(3, 3), "minecraft:count=3"),
+        ] {
+            assert_eq!(
+                lower_item_predicate_for_command(&predicate)
+                    .unwrap()
+                    .constraints,
+                vec![expected]
+            );
+        }
     }
 
     #[test]

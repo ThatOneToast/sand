@@ -2276,19 +2276,7 @@ impl Validate for Execute {
                     (*index, *kind, value.validate_single(profile))
                 }
                 ExecuteCheck::Objective { index, kind, value } => {
-                    let result = validate::no_whitespace_or_control(value, "Execute", "objective")
-                        .and_then(|_| {
-                            if value.len() <= 16 {
-                                Ok(value.as_str())
-                            } else {
-                                Err(CommandError::new(
-                                    "Execute",
-                                    "objective",
-                                    "objective names cannot exceed 16 characters",
-                                ))
-                            }
-                        })
-                        .map(|_| ());
+                    let result = crate::ObjectiveName::try_dynamic(value.clone()).map(|_| ());
                     (*index, *kind, result)
                 }
                 ExecuteCheck::ScoreRange { index, kind, value } => {
@@ -2765,7 +2753,7 @@ mod tests {
 
         assert!(
             Execute::new()
-                .if_score_matches("@s", "objective_is_too_long", "1..")
+                .if_score_matches("@s", "x".repeat(32_768), "1..")
                 .render(&profile)
                 .is_err()
         );

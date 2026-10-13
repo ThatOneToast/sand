@@ -215,7 +215,7 @@ fn generated_state_machine_uses_phase_and_time_since_death() {
         3
     );
     for name in [count, since, phase] {
-        assert!(name.len() <= 16);
+        assert!(sand::command::ObjectiveName::try_dynamic(name).is_ok());
     }
     assert_eq!(
         function_content(&records, "__sand_respawn_check"),

@@ -5156,7 +5156,7 @@ mod tests {
     }
 
     #[test]
-    fn xp_detector_objectives_are_bounded_stable_and_namespace_owned() {
+    fn xp_detector_objectives_are_valid_stable_and_namespace_owned() {
         use crate::transition::builtin::DetectorScore::*;
         let scores = [XpCurrent, XpPrevious, XpDelta, XpSeen];
         let names = |namespace| {
@@ -5169,7 +5169,10 @@ mod tests {
         let b = names("xp_b");
         assert_eq!(a.len(), 4);
         assert_eq!(a, names("xp_a"));
-        assert!(a.iter().all(|name| name.len() <= 16));
+        assert!(
+            a.iter()
+                .all(|name| sand_commands::ObjectiveName::try_dynamic(name.as_str()).is_ok())
+        );
         assert!(a.is_disjoint(&b));
     }
 

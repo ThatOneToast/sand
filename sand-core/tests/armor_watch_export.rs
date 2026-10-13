@@ -169,7 +169,9 @@ fn function_content(records: &[serde_json::Value], path: &str) -> String {
 fn armor_tag_keys(check_fn: &str) -> Vec<String> {
     let mut keys = Vec::new();
     for line in check_fn.lines() {
-        for token in line.split(|c: char| !c.is_ascii_alphanumeric() && c != '_') {
+        for token in
+            line.split(|c: char| !c.is_ascii_alphanumeric() && !matches!(c, '_' | '-' | '.'))
+        {
             if let Some(key) = token
                 .strip_prefix("__armor_")
                 .and_then(|rest| rest.strip_suffix("_now"))
@@ -213,29 +215,29 @@ fn legacy_short_hash_collision_payloads_keep_distinct_tag_pairs() {
     // ownership changes their hashes, but both filters and handler pairs must
     // remain independent.
     assert!(
-        check.contains("__armor_head_f45a51dc_now"),
+        check.contains("__armor_9_armorpack_head_f45a51dc_now"),
         "expected the base collision tag key to appear:\n{check}"
     );
     assert!(
-        check.contains("__armor_head_1ff786b0_now"),
+        check.contains("__armor_9_armorpack_head_1ff786b0_now"),
         "expected the disambiguated collision tag key to appear:\n{check}"
     );
     assert!(
-        check.contains("__armor_head_f45a51dc_had"),
+        check.contains("__armor_9_armorpack_head_f45a51dc_had"),
         "expected the base collision `_had` tag to appear:\n{check}"
     );
     assert!(
-        check.contains("__armor_head_1ff786b0_had"),
+        check.contains("__armor_9_armorpack_head_1ff786b0_had"),
         "expected the disambiguated collision `_had` tag to appear:\n{check}"
     );
 
     // Each handler function is referenced against its own tag pair, not the
     // other watch's tag pair.
     assert!(check.contains(
-        "execute as @a[tag=__armor_head_f45a51dc_now,tag=!__armor_head_f45a51dc_had] at @s run function armorpack:on_collision_fixture_a_equip"
+        "execute as @a[tag=__armor_9_armorpack_head_f45a51dc_now,tag=!__armor_9_armorpack_head_f45a51dc_had] at @s run function armorpack:on_collision_fixture_a_equip"
     ));
     assert!(check.contains(
-        "execute as @a[tag=__armor_head_1ff786b0_now,tag=!__armor_head_1ff786b0_had] at @s run function armorpack:on_collision_fixture_b_equip"
+        "execute as @a[tag=__armor_9_armorpack_head_1ff786b0_now,tag=!__armor_9_armorpack_head_1ff786b0_had] at @s run function armorpack:on_collision_fixture_b_equip"
     ));
 }
 
@@ -248,9 +250,12 @@ fn identical_filters_share_one_watcher_state() {
     let keys = armor_tag_keys(&check);
     // `on_any_feet_equip` and `on_any_feet_equip_second_handler` register
     // the identical (slot, None, None) tuple — the check function must
-    // contain exactly one `feet_*` tag key even though two handler paths
+    // contain exactly one namespaced `feet_*` tag key even though two handler paths
     // are registered against it.
-    let feet_keys: Vec<_> = keys.iter().filter(|k| k.starts_with("feet_")).collect();
+    let feet_keys: Vec<_> = keys
+        .iter()
+        .filter(|k| k.starts_with("9_armorpack_feet_"))
+        .collect();
     assert_eq!(
         feet_keys.len(),
         1,
@@ -295,7 +300,10 @@ fn generated_armor_tag_names_are_valid_and_bounded() {
 fn namespaced_hash_collisions_preserve_both_filter_handler_pairs() {
     let records: Vec<serde_json::Value> = serde_json::from_str(&export()).unwrap();
     let check = function_content(&records, "__sand_armor_check");
-    for (name, key) in [("a", "head_2cca71bb"), ("b", "head_7d5b547b")] {
+    for (name, key) in [
+        ("a", "9_armorpack_head_2cca71bb"),
+        ("b", "9_armorpack_head_7d5b547b"),
+    ] {
         assert!(check.contains(&format!(
             "execute as @a[tag=__armor_{key}_now,tag=!__armor_{key}_had] at @s run function armorpack:on_namespaced_collision_{name}_equip"
         )), "{check}");

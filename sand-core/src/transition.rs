@@ -54,6 +54,11 @@ pub(crate) fn resolve_unified_transition_plan(
     respawn_handlers: &[&str],
     level_handlers: &[&str],
 ) -> Result<TransitionPlan, String> {
+    sand_commands::ObjectiveName::try_dynamic(
+        builtin::DetectorScore::JoinLeaves.objective(namespace),
+    )
+    .map(|_| ())
+    .map_err(|error| error.to_string())?;
     let mut plan = join::resolve(namespace, join_handlers);
     merge_plan(
         &mut plan,

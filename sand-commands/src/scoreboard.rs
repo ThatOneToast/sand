@@ -451,6 +451,11 @@ impl ObjectiveName {
 
     /// Construct and immediately validate a runtime *exact* name.
     ///
+    /// Minecraft 26 accepts ASCII objective tokens longer than 16 characters;
+    /// the objective packet's UTF string limit is 32767. Exact names preserve
+    /// namespace identity. [`Self::logical`] retains its compact 16-character
+    /// generated-name policy.
+    ///
     /// Unlike [`ObjectiveName::logical`], this never falls back to hashing —
     /// an invalid name is rejected outright, per #146's requirement that
     /// "invalid short exact names are rejected rather than silently treated
@@ -509,7 +514,8 @@ impl ObjectiveName {
             emitted: Cow::Owned(name.clone()),
             logical: None,
         };
-        let emitted = if direct.validate(&CommandProfile::unprofiled()).is_ok() {
+        let emitted = if name.len() <= 16 && direct.validate(&CommandProfile::unprofiled()).is_ok()
+        {
             name.clone()
         } else {
             hash_objective_name(&name)
@@ -622,12 +628,12 @@ impl Validate for ObjectiveName {
             )
             .with_code("SAND-SCORE-OBJECTIVE"));
         }
-        if self.emitted.len() > 16 {
+        if self.emitted.len() > 32_767 {
             return Err(CommandError::new(
                 "ObjectiveName",
                 "name",
                 format!(
-                    "objective names cannot exceed 16 characters, got {} (logical name: {:?})",
+                    "objective names cannot exceed 32767 characters, got {} (logical name: {:?})",
                     self.emitted.len(),
                     self.logical_name()
                 ),
@@ -1035,19 +1041,19 @@ impl Objective {
     }
 
     /// Validate this objective's name against Minecraft's scoreboard-objective
-    /// grammar (non-empty, no whitespace/control characters, ≤16 characters).
+    /// grammar (non-empty ASCII token, at most 32767 characters).
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Objective::try_validate",
         aliases = ["sand::cmd::Objective::try_validate", "sand::prelude::Objective::try_validate", "sand::prelude::cmd::Objective::try_validate"],
         module = "sand::command",
         kind = "method",
-        summary = "Validate this objective's name against Minecraft's scoreboard-objective grammar (non-empty, no whitespace/control characters, ≤16 characters).",
-        context = "Validate this objective's name against Minecraft's scoreboard-objective grammar (non-empty, no whitespace/control characters, ≤16 characters). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Validate this objective's name against Minecraft 26's scoreboard-objective grammar (non-empty ASCII token, at most 32767 characters).",
+        context = "Validate this objective's name against Minecraft 26's scoreboard-objective grammar (non-empty ASCII token, at most 32767 characters). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "On success, the value produced to validate this objective's name against Minecraft's scoreboard-objective grammar (non-empty, no whitespace/control characters, ≤16 characters); otherwise, the documented validation or export diagnostic.",
+        returns = "On success, the value produced to validate this objective's name against Minecraft 26's scoreboard-objective grammar (non-empty ASCII token, at most 32767 characters); otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective)  {\n    let try_validate = objective_value.try_validate();\n}",
     )]
     pub fn try_validate(&self) -> CommandResult<()> {
@@ -2093,7 +2099,8 @@ mod tests {
     fn objective_and_holder_validation() {
         assert!(ObjectiveName::try_dynamic("").is_err());
         assert!(ObjectiveName::try_dynamic("has space").is_err());
-        assert!(ObjectiveName::try_dynamic("seventeen_chars_x").is_err());
+        assert!(ObjectiveName::try_dynamic("seventeen_chars_x").is_ok());
+        assert!(ObjectiveName::try_dynamic("x".repeat(32_768)).is_err());
         assert!(ScoreHolder::fake("fake holder").try_build().is_err());
         assert!(ScoreHolder::fake("@a").try_build().is_err());
         assert_eq!(ScoreHolder::fake("#total").try_build().unwrap(), "#total");
@@ -2103,6 +2110,19 @@ mod tests {
                 .unwrap(),
             "@e[modded_single=true]"
         );
+    }
+
+    #[test]
+    fn exact_objectives_preserve_full_namespaces_and_enforce_the_network_limit() {
+        let profile = CommandProfile::unprofiled();
+        for name in ["__sd_nyelfbnatvtz.c".to_owned(), "x".repeat(32_767)] {
+            let exact = ObjectiveName::try_dynamic(name.clone()).unwrap();
+            assert_eq!(exact.render(&profile).unwrap(), name);
+            assert!(!exact.is_hashed());
+        }
+        assert!(ObjectiveName::try_dynamic("x".repeat(32_768)).is_err());
+        // Compact generated identifiers retain their existing contract.
+        assert!(ObjectiveName::logical("x".repeat(200)).as_str().len() <= 16);
     }
 
     #[test]

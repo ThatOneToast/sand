@@ -288,7 +288,7 @@ impl StateSchema {
                     schema,
                     field: field.name.into(),
                     detail: format!(
-                        "objective `{objective}` collides with `{previous}` after Minecraft's 16-character limit"
+                        "objective `{objective}` collides with `{previous}` under Sand's compact generated-name policy"
                     ),
                 });
             }

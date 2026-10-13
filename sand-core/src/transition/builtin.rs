@@ -25,7 +25,7 @@ impl DetectorScore {
         format!("{namespace}:{family}")
     }
 
-    /// Five prefix bytes, ten hash digits and one role byte fit Minecraft's limit.
+    /// Preserve the full namespace between a fixed family prefix and role suffix.
     pub(crate) fn objective(self, namespace: &str) -> String {
         let (prefix, role) = match self {
             Self::JoinLeaves => ("__sj_", 'l'),
@@ -38,10 +38,7 @@ impl DetectorScore {
             Self::XpDelta => ("__sx_", 'd'),
             Self::XpSeen => ("__sx_", 's'),
         };
-        format!(
-            "{prefix}{}{role}",
-            super::tracker_key(&self.owner(namespace))
-        )
+        format!("{prefix}{namespace}.{role}")
     }
 }
 

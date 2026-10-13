@@ -665,14 +665,7 @@ mod score_objective_tests {
     use crate::ScoreHolder;
     #[test]
     fn score_map_keys_follow_canonical_objective_validation() {
-        for objective in [
-            "",
-            "bad/name",
-            "bad:name",
-            "bad$name",
-            "über",
-            "name_that_is_too_long",
-        ] {
+        for objective in ["", "bad/name", "bad:name", "bad$name", "über"] {
             let text = format!("@s[scores={{{objective}=1}}]");
             assert!(
                 ScoreHolder::compat(text.clone())
@@ -681,7 +674,12 @@ mod score_objective_tests {
                 "{text}"
             );
         }
-        for objective in ["points", "A_1-2.3+4", "sixteen_chars_16"] {
+        for objective in [
+            "points",
+            "A_1-2.3+4",
+            "sixteen_chars_16",
+            "long_exact_namespace_objective",
+        ] {
             let text = format!("@s[scores={{{objective}=1}}]");
             ScoreHolder::compat(text)
                 .validate_single(&CommandProfile::unprofiled())

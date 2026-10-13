@@ -97,12 +97,11 @@ pub(crate) fn schedule_export_error(message: impl Into<String>) -> ComponentExpo
     }
 }
 
-/// Reject any key whose generated objective names would exceed Minecraft's
-/// 16-character limit.
+/// Reject keys exceeding Sand's 16-character compact schedule-objective budget.
 ///
 /// Keys are 8 hex chars by construction, so `__ss_` (5) + 8 + `_t` (2) = 15
 /// always fits; this is an explicit guard so a future change to the key
-/// format cannot silently emit an objective Minecraft will refuse.
+/// format cannot silently change the compact generated-name contract.
 fn ensure_objective_names_fit(path: &str, key: &str) -> ExportResult<()> {
     let (obj_t, obj_p) = schedule_objective_names(key);
     if obj_t.len() > OBJECTIVE_NAME_LIMIT || obj_p.len() > OBJECTIVE_NAME_LIMIT {
@@ -128,7 +127,7 @@ fn ensure_objective_names_fit(path: &str, key: &str) -> ExportResult<()> {
 /// Schedules and [`super::armor::allocate_armor_tag_keys`] share the same
 /// export-local allocator. Deterministically salted rehash keeps objective
 /// keys at eight hexadecimal characters: `__ss_` + key + `_t` spends 15 of
-/// Minecraft's 16-character scoreboard-objective limit.
+/// Sand's 16-character compact objective budget.
 pub(crate) fn allocate_schedule_objective_keys<'a, I>(
     paths: I,
     source: ScheduleKeySource,

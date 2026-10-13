@@ -104,7 +104,12 @@ pub(crate) fn allocate_armor_tag_keys(
             } else {
                 format!("{owner}#{attempt}")
             };
-            format!("{}_{}", segments[owner], fnv1a_hex(&seed))
+            format!(
+                "{}_{namespace}_{}_{}",
+                namespace.len(),
+                segments[owner],
+                fnv1a_hex(&seed)
+            )
         },
         |_, _| Ok(()),
         |owner, previous, key| crate::component::ComponentExportError::ComponentValidation {

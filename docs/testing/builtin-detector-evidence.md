@@ -37,11 +37,12 @@ state.
 python3 scripts/validate_detector_ownership.py --jar "$HOME/.sand/cache/26.2/server.jar"
 ```
 
-The script exports the real `builtin_detector_ownership` Cargo fixture twice,
-writes both packs without changing their generated commands, and connects two
-passive clients to a disposable Minecraft 26.2 server. A final vanilla tick-tag
-pack supplies the generated tick entries in explicit order. A second disposable
-server repeats the audit with the opposite order.
+The script exports six namespaces from the real `builtin_detector_ownership`
+Cargo fixture: an ordinary pair and the two known collision pairs below. It
+writes each pair without changing generated commands and connects two passive
+clients to a disposable Minecraft 26.2 server. A final vanilla tick-tag pack
+supplies the generated tick entries in explicit order. Each pair is tested in
+both orders, using six disposable servers in total.
 
 For each player, the audit changes XP levels, equips and removes a real helmet,
 and kills the player. The passive client requests respawn in response to the
@@ -51,7 +52,7 @@ must remain unchanged. Counts must remain stable across five further game ticks.
 The audit also seeds old global scores and tags and verifies they remain intact;
 the vanilla time-since-death statistic may naturally increase.
 
-Export regressions check disjoint bounded objective names, deterministic
+Export regressions check disjoint exact objective names, deterministic
 concurrent exports, generated callback ordering, real armor hash collisions,
 private helper/objective collision rejection, and cached XP expressions reading
 their exporting namespace's detector scores. The latest-version vanilla workflow
@@ -73,3 +74,29 @@ kinds for both players, stable counts, and the legacy-state assertions. A separa
 protocol probe also completed two actual deaths and client-requested respawns
 while the other player remained alive; the protocol unit tests cover opt-in
 respawn requests and teleport acknowledgment after respawn.
+
+## Full namespace identities and modern objective names
+
+A short namespace hash cannot guarantee cross-pack isolation. Review supplied
+real collisions: `nyelfbnatvtz` / `njyi26nqugae` for the death tracker and
+`nncypr6h7` / `nvq5kzvwg` for the leather-helmet watcher. Regression cases retain
+both pairs. Both export regressions fail on the hash-based implementation.
+Actual server runs also lose the second pack's XP callback for the first pair
+and equip callback for the second pair. The server audit includes each pair in both tick orders; `--case`
+can select `standard`, `death-collision`, or `armor-collision` independently.
+
+Detector objectives now preserve the complete namespace between a fixed family
+prefix and role suffix. Armor tag identities include the namespace length and
+complete namespace before the collision-allocated watch key. Different valid
+namespaces therefore cannot collapse to the same physical identity.
+
+Minecraft 26.2 does not impose the historical 16-character objective limit.
+Its `ObjectiveArgument` parser reads an unquoted token; the objective packet uses
+`FriendlyByteBuf.readUtf/writeUtf` with a 32767-character limit. A real server
+probe accepted distinct names longer than 16 characters, including 262- and
+32767-character names, preserved their scores across reload, and sent them to connected clients as sidebar
+objectives. The canonical exact `ObjectiveName` validator follows that boundary,
+including unchanged ASCII-token restrictions; execute and text score references
+reuse it. Existing `ObjectiveName::logical` and generated State names retain the
+compact 16-character policy and their existing identities. Old compact detector
+scores are left untouched, like the legacy global names above.

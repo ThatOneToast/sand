@@ -55,7 +55,12 @@ fn detector_scores_are_export_owned_and_do_not_touch_legacy_globals() {
     assert_eq!(a_names.len(), 7);
     assert_eq!(b_names.len(), 7);
     assert!(a_names.is_disjoint(&b_names));
-    assert!(a_names.iter().chain(&b_names).all(|name| name.len() <= 16));
+    assert!(
+        a_names
+            .iter()
+            .chain(&b_names)
+            .all(|name| sand::command::ObjectiveName::try_dynamic(name.as_str()).is_ok())
+    );
     for record in a.iter().chain(&b) {
         let body = record["content"].as_str().unwrap();
         for legacy in [
@@ -93,12 +98,58 @@ fn detector_scores_are_export_owned_and_do_not_touch_legacy_globals() {
 #[ignore = "external live-server fixture export"]
 fn dump_detector_packs() {
     let output = std::env::var("SAND_DETECTOR_DUMP_PATH").expect("dump path");
-    std::fs::write(
-        output,
-        serde_json::to_vec(&serde_json::json!({
-            "detecta": records("detecta"), "detectb": records("detectb")
-        }))
-        .unwrap(),
-    )
-    .unwrap();
+    let namespaces = [
+        "detecta",
+        "detectb",
+        "nyelfbnatvtz",
+        "njyi26nqugae",
+        "nncypr6h7",
+        "nvq5kzvwg",
+    ];
+    let packs = namespaces
+        .into_iter()
+        .map(|namespace| (namespace, records(namespace)))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    std::fs::write(output, serde_json::to_vec(&packs).unwrap()).unwrap();
+}
+
+#[test]
+fn known_death_namespace_hash_collision_does_not_share_objectives() {
+    let a = records("nyelfbnatvtz");
+    let b = records("njyi26nqugae");
+    assert!(objectives(&a).is_disjoint(&objectives(&b)));
+}
+
+#[test]
+fn known_armor_namespace_hash_collision_does_not_share_tags() {
+    let tags = |namespace| {
+        records(namespace)
+            .into_iter()
+            .filter(|r| r["dir"] == "function")
+            .flat_map(|r| {
+                r["content"]
+                    .as_str()
+                    .unwrap()
+                    .split(|c: char| !c.is_ascii_alphanumeric() && !matches!(c, '_' | '-' | '.'))
+                    .filter(|token| token.starts_with("__armor_"))
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeSet<_>>()
+    };
+    let a = tags("nncypr6h7");
+    let b = tags("nvq5kzvwg");
+    assert!(!a.is_empty());
+    assert!(a.is_disjoint(&b));
+}
+
+#[test]
+fn long_namespace_identity_is_preserved_in_valid_exact_objectives() {
+    let namespace = "n".repeat(200);
+    let names = objectives(&records(&namespace));
+    assert_eq!(names.len(), 7);
+    for name in names {
+        assert!(name.contains(&namespace));
+        assert!(sand::command::ObjectiveName::try_dynamic(name).is_ok());
+    }
 }

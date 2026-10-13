@@ -14,7 +14,7 @@ from validate_player_joins import JoinHarness, write_pack
 from vanilla_reload_harness import ValidationFailure
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMESPACES = ("detecta", "detectb")
+NAMESPACE_PAIRS = (("detecta", "detectb"), ("nyelfbnatvtz", "njyi26nqugae"), ("nncypr6h7", "nvq5kzvwg"))
 EVENTS = ("level", "equip", "unequip", "death", "respawn")
 
 
@@ -39,14 +39,14 @@ class DetectorHarness(PlayerHarness):
     def prepare(self):
         super().prepare()
         source = Path(self.args.pack).parent
-        for pack in ("detectb", "tick_order"):
+        for pack in (self.order[1], "tick_order"):
             shutil.copytree(source / pack, self.server / "world/datapacks" / pack)
 
     def counts(self, phase, expected):
         for player in self.players:
             for event in EVENTS:
                 count = expected[player][event]
-                for namespace in NAMESPACES:
+                for namespace in self.order:
                     self.eventually(f"{phase}_{player}_{namespace}_{event}",
                                     f"if score #{namespace}:{player} audit_{event} matches {count}")
 
@@ -59,7 +59,7 @@ class DetectorHarness(PlayerHarness):
         for event in EVENTS:
             self.send(f"scoreboard objectives add audit_{event} dummy")
             for player in self.players:
-                for namespace in NAMESPACES:
+                for namespace in self.order:
                     self.send(f"scoreboard players set #{namespace}:{player} audit_{event} 0")
         with self.clients():
             self.send("gamemode survival @a")
@@ -120,11 +120,15 @@ def main():
     parser.add_argument("--java", default="java")
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--output")
+    parser.add_argument("--case", choices=("standard", "death-collision", "armor-collision"))
     args = parser.parse_args()
     args.version, args.op_player, args.client_command = "26.2", None, None
     packs = export_packs()
     output = args.output
-    for order in (NAMESPACES, tuple(reversed(NAMESPACES))):
+    pairs = NAMESPACE_PAIRS
+    if args.case:
+        pairs = (NAMESPACE_PAIRS[("standard", "death-collision", "armor-collision").index(args.case)],)
+    for order in [order for pair in pairs for order in (pair, tuple(reversed(pair)))]:
         with tempfile.TemporaryDirectory(prefix="sand-detector-packs-") as directory:
             root = Path(directory)
             for namespace, records in packs.items():
@@ -139,7 +143,7 @@ def main():
                 raise ValidationFailure("tick-order", "exported tick tag is missing")
             write_pack(root / "tick_order", [{"namespace": "minecraft", "dir": "tags/function",
                        "path": "tick", "ext": "json", "content": json.dumps({"replace": True, "values": values})}])
-            args.pack = str(root / "detecta")
+            args.pack = str(root / order[0])
             args.output = str(Path(output) / "-".join(order)) if output else None
             harness = DetectorHarness(args, packs, order)
             try:

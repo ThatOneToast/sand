@@ -573,7 +573,7 @@ impl EntityInventory {
         avoid_when = ["Matching custom components or counting multiple players together"],
         params(item = "The typed item identity; component differences do not restrict the match."),
         returns = "A runtime numeric expression with integer source units.",
-        example = "let diamonds = player.inventory().count(sand::vanilla::Item::Diamond);",
+        example = "let item: sand::component::ItemId = \"minecraft:diamond\".parse()?; let diamonds = player.inventory().count(item);",
     )]
     pub fn count(&self, item: impl Into<sand_components::ItemId>) -> crate::entity::StatCurve {
         crate::entity::StatCurve::inventory_count(self.entity.clone(), item.into())

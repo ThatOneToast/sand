@@ -46,9 +46,24 @@ fn placeholder_installation_supports_api_search_show_and_export() {
 
     let gamerule = run(&binary, &["api", "show", "sand::build::World::gamerule"]);
     assert!(gamerule.contains("GameRuleSetting"));
-    let setting = run(&binary, &["api", "show", "sand::build::GameRuleSetting"]);
-    assert!(setting.contains("fn configured"));
-    assert!(!setting.contains("gamerule_keep_inventory"));
+    let setting = run(
+        &binary,
+        &[
+            "api",
+            "show",
+            "sand::build::GameRuleSetting",
+            "--format",
+            "json",
+        ],
+    );
+    let setting: serde_json::Value = serde_json::from_str(&setting).expect("setting JSON contract");
+    assert_eq!(
+        setting["api"]["canonical_path"],
+        "sand::build::GameRuleSetting"
+    );
+    let example = setting["api"]["example"].as_str().expect("setting example");
+    assert!(example.contains("sand::build::GameRuleSetting"));
+    assert!(!example.contains("gamerule_keep_inventory"));
     let raw_setting = run(
         &binary,
         &["api", "show", "sand::build::GameRuleSetting::raw"],

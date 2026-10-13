@@ -41,7 +41,7 @@ fn placeholder_installation_supports_api_search_show_and_export() {
         &binary,
         &["api", "show", "sand::inventory::EntityInventory::count"],
     );
-    assert!(inventory_count.contains("sand::component::ItemId"));
+    assert!(inventory_count.contains("sand::registry::ItemId"));
     assert!(inventory_count.contains("minecraft:diamond"));
 
     let export = target.path().join("placeholder-api.json");

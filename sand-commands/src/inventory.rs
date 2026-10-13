@@ -62,9 +62,130 @@ use std::fmt;
 
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::ItemSlot;
-use crate::render::{CommandProfile, Validate};
+use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::{Selector, TargetArgument};
 use crate::validate;
+
+/// Compiler-owned address of one concrete Minecraft item slot.
+#[doc(hidden)]
+#[derive(Debug, Clone)]
+pub enum ItemCommandLocation {
+    Entity {
+        target: Selector,
+        slot: ItemSlot,
+    },
+    Block {
+        position: crate::BlockPos,
+        slot: ItemSlot,
+    },
+}
+
+impl ItemCommandLocation {
+    fn target_text(&self) -> String {
+        match self {
+            Self::Entity { target, .. } => format!("entity {target}"),
+            Self::Block { position, .. } => format!("block {position}"),
+        }
+    }
+
+    fn slot(&self) -> &ItemSlot {
+        match self {
+            Self::Entity { slot, .. } | Self::Block { slot, .. } => slot,
+        }
+    }
+
+    fn validate(&self, profile: &CommandProfile, source: bool) -> CommandResult<()> {
+        validate_write_slot(
+            self.slot(),
+            profile,
+            "inventory slot write",
+            if source {
+                "source slot"
+            } else {
+                "destination slot"
+            },
+        )?;
+        if let Self::Block { position, .. } = self {
+            position.validate(profile)?;
+        }
+        if let Self::Entity { target, .. } = self {
+            target.validate(profile)?;
+            if source {
+                crate::ScoreHolder::entity(target.clone())
+                    .validate_single(profile)
+                    .map_err(|_| {
+                        CommandError::new(
+                            "inventory copy",
+                            "source",
+                            "item copies require exactly one source entity",
+                        )
+                    })?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Source retained by the canonical item-replacement command.
+#[doc(hidden)]
+#[derive(Debug, Clone)]
+pub enum ItemReplaceSource {
+    /// Command-facing stack argument, validated by its semantic owner when typed.
+    Stack {
+        item: String,
+        count: Option<u32>,
+    },
+    Clear,
+    Location(ItemCommandLocation),
+}
+
+/// Shared typed command used by inventory command builders and gameplay IR.
+#[doc(hidden)]
+#[derive(Debug, Clone)]
+pub struct ItemReplaceCommand {
+    pub destination: ItemCommandLocation,
+    pub source: ItemReplaceSource,
+}
+
+impl Validate for ItemReplaceCommand {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.destination.validate(profile, false)?;
+        match &self.source {
+            ItemReplaceSource::Stack { item, count } => {
+                validate_item_str(item, "inventory slot set", "item")?;
+                if let Some(count) = count {
+                    validate::positive_u32(*count, "inventory slot set", "count")?;
+                }
+                Ok(())
+            }
+            ItemReplaceSource::Clear => Ok(()),
+            ItemReplaceSource::Location(source) => source.validate(profile, true),
+        }
+    }
+}
+
+impl crate::RenderCommand for ItemReplaceCommand {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        let prefix = format!(
+            "item replace {} {}",
+            self.destination.target_text(),
+            self.destination.slot()
+        );
+        let line = match &self.source {
+            ItemReplaceSource::Stack {
+                item,
+                count: Some(count),
+            } => format!("{prefix} with {item} {count}"),
+            ItemReplaceSource::Stack { item, count: None } => format!("{prefix} with {item}"),
+            ItemReplaceSource::Clear => format!("{prefix} with air"),
+            ItemReplaceSource::Location(source) => {
+                format!("{prefix} from {} {}", source.target_text(), source.slot())
+            }
+        };
+        register_inventory_line(&line, InventoryCommandNode::Replace(self.clone()));
+        line
+    }
+}
 
 // ── Pre-write export re-validation registry ─────────────────────────────────
 //
@@ -82,18 +203,7 @@ pub(crate) enum InventoryCommandNode {
         item: String,
         count: u32,
     },
-    Set {
-        slot: ItemSlot,
-        item: String,
-    },
-    SetCount {
-        slot: ItemSlot,
-        item: String,
-        count: u32,
-    },
-    ClearSlot {
-        slot: ItemSlot,
-    },
+    Replace(ItemReplaceCommand),
     ClearItem {
         item: String,
     },
@@ -104,10 +214,6 @@ pub(crate) enum InventoryCommandNode {
         // `InventoryCommandNode::validate`.
         #[allow(dead_code)]
         count: u32,
-    },
-    CopyFrom {
-        slot: ItemSlot,
-        source_slot: ItemSlot,
     },
     Modify {
         slot: ItemSlot,
@@ -124,29 +230,13 @@ impl InventoryCommandNode {
                 validate::positive_u32(*count, "Inventory::give_count", "count")?;
                 Ok(())
             }
-            Self::Set { slot, item } => {
-                validate_write_slot(slot, profile, "Inventory::set", "slot")?;
-                validate_item_str(item, "Inventory::set", "item")
-            }
-            Self::SetCount { slot, item, count } => {
-                validate_write_slot(slot, profile, "Inventory::set_count", "slot")?;
-                validate_item_str(item, "Inventory::set_count", "item")?;
-                validate::positive_u32(*count, "Inventory::set_count", "count")?;
-                Ok(())
-            }
-            Self::ClearSlot { slot } => {
-                validate_write_slot(slot, profile, "Inventory::clear_slot", "slot")
-            }
+            Self::Replace(command) => command.validate(profile),
             Self::ClearItem { item } => validate_item_str(item, "Inventory::clear_item", "item"),
             Self::ClearItemCount { item, .. } => {
                 // A count of `0` is meaningful here — vanilla `clear` with an
                 // explicit `0` count reports the matching stack count without
                 // removing anything, so it is not rejected (see module docs).
                 validate_item_str(item, "Inventory::clear_item_count", "item")
-            }
-            Self::CopyFrom { slot, source_slot } => {
-                validate_write_slot(slot, profile, "Inventory::copy_from", "slot")?;
-                validate_write_slot(source_slot, profile, "Inventory::copy_from", "source_slot")
             }
             Self::Modify { slot, modifier } => {
                 validate_write_slot(slot, profile, "Inventory::modify", "slot")?;
@@ -275,6 +365,16 @@ pub struct Inventory {
 }
 
 impl Inventory {
+    fn replace_command(&self, slot: ItemSlot, source: ItemReplaceSource) -> ItemReplaceCommand {
+        ItemReplaceCommand {
+            destination: ItemCommandLocation::Entity {
+                target: self.selector.clone(),
+                slot,
+            },
+            source,
+        }
+    }
+
     /// Create an inventory handle for the given entity selector.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -419,11 +519,14 @@ impl Inventory {
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let set = inventory_value.set(slot, item);\n}",
     )]
     pub fn set(&self, slot: impl Into<ItemSlot>, item: impl fmt::Display) -> String {
-        let slot = slot.into();
-        let item = item.to_string();
-        let line = format!("item replace entity {} {slot} with {item}", self.selector);
-        register_inventory_line(&line, InventoryCommandNode::Set { slot, item });
-        line
+        self.replace_command(
+            slot.into(),
+            ItemReplaceSource::Stack {
+                item: item.to_string(),
+                count: None,
+            },
+        )
+        .render_unchecked(&CommandProfile::unprofiled())
     }
 
     /// Fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and
@@ -484,14 +587,14 @@ impl Inventory {
         item: impl fmt::Display,
         count: u32,
     ) -> String {
-        let slot = slot.into();
-        let item = item.to_string();
-        let line = format!(
-            "item replace entity {} {slot} with {item} {count}",
-            self.selector
-        );
-        register_inventory_line(&line, InventoryCommandNode::SetCount { slot, item, count });
-        line
+        self.replace_command(
+            slot.into(),
+            ItemReplaceSource::Stack {
+                item: item.to_string(),
+                count: Some(count),
+            },
+        )
+        .render_unchecked(&CommandProfile::unprofiled())
     }
 
     /// Fallible [`Inventory::set_count`] — rejects out-of-range/wildcard
@@ -551,10 +654,8 @@ impl Inventory {
         example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >)  {\n    let clear_slot = inventory_value.clear_slot(slot);\n}",
     )]
     pub fn clear_slot(&self, slot: impl Into<ItemSlot>) -> String {
-        let slot = slot.into();
-        let line = format!("item replace entity {} {slot} with air", self.selector);
-        register_inventory_line(&line, InventoryCommandNode::ClearSlot { slot });
-        line
+        self.replace_command(slot.into(), ItemReplaceSource::Clear)
+            .render_unchecked(&CommandProfile::unprofiled())
     }
 
     /// Fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots.
@@ -729,15 +830,14 @@ impl Inventory {
         source: impl TargetArgument,
         source_slot: impl Into<ItemSlot>,
     ) -> String {
-        let source = source.into_target_selector();
-        let slot = slot.into();
-        let source_slot = source_slot.into();
-        let line = format!(
-            "item replace entity {} {slot} from entity {source} {source_slot}",
-            self.selector
-        );
-        register_inventory_line(&line, InventoryCommandNode::CopyFrom { slot, source_slot });
-        line
+        self.replace_command(
+            slot.into(),
+            ItemReplaceSource::Location(ItemCommandLocation::Entity {
+                target: source.into_target_selector(),
+                slot: source_slot.into(),
+            }),
+        )
+        .render_unchecked(&CommandProfile::unprofiled())
     }
 
     /// Fallible [`Inventory::copy_from`] — validates both the destination
@@ -764,17 +864,14 @@ impl Inventory {
         source: impl TargetArgument,
         source_slot: impl Into<ItemSlot>,
     ) -> CommandResult<String> {
-        let slot = slot.into();
-        let source_slot = source_slot.into();
-        let profile = CommandProfile::unprofiled();
-        validate_write_slot(&slot, &profile, "Inventory::try_copy_from", "slot")?;
-        validate_write_slot(
-            &source_slot,
-            &profile,
-            "Inventory::try_copy_from",
-            "source_slot",
-        )?;
-        Ok(self.copy_from(slot, source, source_slot))
+        self.replace_command(
+            slot.into(),
+            ItemReplaceSource::Location(ItemCommandLocation::Entity {
+                target: source.into_target_selector(),
+                slot: source_slot.into(),
+            }),
+        )
+        .render(&CommandProfile::unprofiled())
     }
 
     // ── Modify ────────────────────────────────────────────────────────────
@@ -1065,6 +1162,25 @@ mod tests {
     #[test]
     fn try_clear_item_rejects_malformed_item_id() {
         assert!(inv().try_clear_item("not valid").is_err());
+    }
+
+    #[test]
+    fn copy_from_rejects_plural_source_at_construction_and_export() {
+        assert!(
+            inv()
+                .try_copy_from(
+                    ItemSlot::MainHand,
+                    Selector::all_players(),
+                    ItemSlot::MainHand
+                )
+                .is_err()
+        );
+        let line = inv().copy_from(
+            ItemSlot::MainHand,
+            Selector::all_players(),
+            ItemSlot::MainHand,
+        );
+        assert!(validate_registered_line(&line, &CommandProfile::unprofiled()).is_err());
     }
 
     #[test]

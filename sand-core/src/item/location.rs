@@ -2,7 +2,8 @@
 //!
 //! [`ItemLocation`] names *where* an item stack lives — a player's hand, an
 //! equipment slot, an inventory index, a block container slot, or an item
-//! entity's own stack — without reading or mutating it. It is the addressing
+//! entity's own stack. Its methods build owned reads and writes; creating a
+//! location does not itself execute an operation. It is the addressing
 //! half of the item-snapshot model; [`super::snapshot::ItemSnapshot`] is the
 //! captured-data half.
 //!
@@ -30,6 +31,7 @@ use std::fmt;
 
 use sand_commands::coord::BlockPos;
 use sand_commands::execute_args::ItemSlot;
+use sand_commands::inventory::ItemCommandLocation;
 use sand_commands::nbt::{
     DataCommand, DataTarget, NbtPath, NbtRef, NbtRefLowering, ReadOnlyNbtRef, UntypedNbt,
 };
@@ -446,20 +448,77 @@ impl ItemLocation {
     }
 
     /// Copy a live stack using vanilla `/item replace ... from ...`.
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::replace_from", summary = "Builds a vanilla /item replace command between two typed live locations.", context = "Both endpoints must be /item-addressable; NBT-only locations fail instead of rendering an invalid command.", minecraft = "Renders item replace ... from ... using each location's validated target and slot.", use_when = ["Copying a live stack between player, entity, or block-container slots"], avoid_when = ["Copying arbitrary NBT or an ender-chest entry"], params(source = "The live source location."), returns = "The rendered item-replace command or an unsupported-location error.", example = "let command = ItemLocation::PlayerOffHand.replace_from(&ItemLocation::PlayerMainHand)?;")]
-    pub fn replace_from(&self, source: &ItemLocation) -> Result<String, ItemLocationError> {
-        let destination = self.item_target_slot()?;
-        let source = source.item_target_slot()?;
-        Ok(format!(
-            "item replace {} {} from {} {}",
-            destination.target_text(),
-            destination.slot(),
-            source.target_text(),
-            source.slot()
-        ))
+    ///
+    /// Returns owned actions for a function or gameplay guard. Components and
+    /// count are copied at runtime; copying an empty source clears the destination.
+    /// A missing source entity fails without writing. Entity sources must resolve to one entity;
+    /// destinations may select several. Unsupported NBT-only slots fail early,
+    /// while selector and command-profile validation runs during export.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::replace_from", summary = "Copies a live stack between two typed locations as owned gameplay actions.", context = "Both endpoints must be /item-addressable; NBT-only locations fail instead of rendering an invalid command.", minecraft = "Renders item replace ... from ... using each location's validated target and slot.", use_when = ["Copying a live stack between player, entity, or block-container slots"], avoid_when = ["Copying arbitrary NBT or an ender-chest entry"], params(source = "The live source location."), returns = "Owned inventory-copy actions or an unsupported-location diagnostic.", example = "let actions = ItemLocation::PlayerOffHand.replace_from(&ItemLocation::PlayerMainHand)?;")]
+    // Keep the canonical Sand diagnostic, as at the Actions export boundary.
+    #[allow(clippy::result_large_err)]
+    pub fn replace_from(
+        &self,
+        source: &ItemLocation,
+    ) -> sand_components::Result<crate::ir::Actions> {
+        self.item_target_slot()?;
+        source.item_target_slot()?;
+        Ok(crate::ir::ItemMutation::copy(self.clone(), source.clone()))
     }
 
-    fn item_target_slot(&self) -> Result<ItemCommandLocation, ItemLocationError> {
+    /// Replace this slot with a concrete typed item stack.
+    ///
+    /// Accepts generated vanilla items, typed item IDs, custom-item builders,
+    /// and [`ItemStack`](sand_components::ItemStack). The stack and location
+    /// remain owned by the returned [`Actions`](crate::ir::Actions) until export.
+    /// Player slots use Minecraft's item command, never direct player NBT writes.
+    /// NBT-only locations such as ender-chest entries are rejected.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::inventory::ItemLocation::set",
+        summary = "Replace a live inventory slot with a typed item stack as owned actions.",
+        context = "Uses the canonical ItemStack conversion and preserves the destination and components until export. Compose the returned Actions in a function or gameplay guard.",
+        minecraft = "Lowers through the shared typed item-replacement command for supported entity and block slots; player NBT is never mutated.",
+        use_when = ["Setting player equipment, inventory, or block-container slots"],
+        avoid_when = ["Writing an NBT-only ender-chest entry"],
+        params(item = "The concrete item stack, typed item ID, generated item, or custom-item builder."),
+        returns = "Owned slot-write actions, or an invalid-stack or unsupported-location diagnostic.",
+        example = "let item: sand::registry::ItemId = \"minecraft:diamond\".parse()?; let actions = sand::inventory::ItemLocation::PlayerOffHand.set(item)?;",
+    )]
+    // Keep the canonical Sand diagnostic, as at the Actions export boundary.
+    #[allow(clippy::result_large_err)]
+    pub fn set(
+        &self,
+        item: impl sand_components::IntoItemStack,
+    ) -> sand_components::Result<crate::ir::Actions> {
+        self.item_target_slot()?;
+        let stack = item.try_into_item_stack()?;
+        stack.validate()?;
+        Ok(crate::ir::ItemMutation::set(self.clone(), stack))
+    }
+
+    /// Empty this slot through an owned inventory action.
+    ///
+    /// Works for supported player, entity-equipment, and block-container slots.
+    /// NBT-only locations are rejected. The target is retained until export, so
+    /// cached actions remain valid across independent pack exports.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::inventory::ItemLocation::clear",
+        summary = "Empty a live inventory slot as owned gameplay actions.",
+        context = "Keeps the typed slot and owner attached until export and composes with other Actions and Conditions.",
+        minecraft = "Replaces the supported item slot with air through the canonical item command; does not write player entity NBT.",
+        use_when = ["Clearing a player's hand, equipment, inventory, or a block-container slot"],
+        avoid_when = ["Clearing an NBT-only ender-chest entry"],
+        returns = "Owned slot-clear actions or an unsupported-location diagnostic.",
+        example = "let actions = sand::inventory::ItemLocation::PlayerOffHand.clear()?;",
+    )]
+    // Keep the canonical Sand diagnostic, as at the Actions export boundary.
+    #[allow(clippy::result_large_err)]
+    pub fn clear(&self) -> sand_components::Result<crate::ir::Actions> {
+        self.item_target_slot()?;
+        Ok(crate::ir::ItemMutation::clear(self.clone()))
+    }
+
+    pub(crate) fn item_target_slot(&self) -> Result<ItemCommandLocation, ItemLocationError> {
         match self {
             Self::PlayerMainHand => Ok(ItemCommandLocation::Entity {
                 target: Selector::self_(),
@@ -693,26 +752,6 @@ impl EntityInventorySlot {
     }
 }
 
-enum ItemCommandLocation {
-    Entity { target: Selector, slot: ItemSlot },
-    Block { position: BlockPos, slot: ItemSlot },
-}
-
-impl ItemCommandLocation {
-    fn target_text(&self) -> String {
-        match self {
-            Self::Entity { target, .. } => format!("entity {target}"),
-            Self::Block { position, .. } => format!("block {position}"),
-        }
-    }
-
-    fn slot(&self) -> &ItemSlot {
-        match self {
-            Self::Entity { slot, .. } | Self::Block { slot, .. } => slot,
-        }
-    }
-}
-
 fn equipment_item_slot(slot: EquipmentSlot) -> Result<ItemSlot, ItemLocationError> {
     match slot {
         EquipmentSlot::Head => Ok(ItemSlot::Head),
@@ -810,9 +849,105 @@ impl fmt::Display for ItemLocationError {
 
 impl std::error::Error for ItemLocationError {}
 
+impl From<ItemLocationError> for sand_components::SandError {
+    fn from(error: ItemLocationError) -> Self {
+        Self::ComponentValidation {
+            location: "sand:inventory"
+                .parse()
+                .expect("static inventory diagnostic location"),
+            kind: "inventory".into(),
+            field: "location".into(),
+            message: error.to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typed_slot_writes_preserve_stack_components_and_count() {
+        let stack = sand_components::ItemStack::new("minecraft:diamond".parse().unwrap())
+            .count(3)
+            .component(sand_components::item::ItemComponent::custom_data_marker(
+                "reward",
+            ));
+        let expected = format!(
+            "item replace entity @s weapon.offhand with {} 3",
+            stack.custom_item().try_to_string().unwrap()
+        );
+        let actions = ItemLocation::PlayerOffHand.set(stack).unwrap();
+        assert_eq!(
+            actions.lower(&"test:write".parse().unwrap()).unwrap(),
+            vec![expected]
+        );
+        assert_eq!(
+            ItemLocation::PlayerOffHand
+                .clear()
+                .unwrap()
+                .lower(&"test:clear".parse().unwrap())
+                .unwrap(),
+            vec!["item replace entity @s weapon.offhand with air"]
+        );
+    }
+
+    #[test]
+    fn slot_writes_reject_invalid_stacks_and_unsupported_locations() {
+        for count in [0, 100] {
+            let stack =
+                sand_components::ItemStack::new("minecraft:diamond".parse().unwrap()).count(count);
+            assert!(ItemLocation::PlayerMainHand.set(stack).is_err());
+        }
+        let ender = ItemLocation::entity(Selector::self_())
+            .ender_chest(0)
+            .unwrap();
+        assert!(ender.clear().is_err());
+        assert!(
+            ender
+                .set(sand_components::ItemId::minecraft("diamond").unwrap())
+                .is_err()
+        );
+        assert!(ender.replace_from(&ItemLocation::PlayerMainHand).is_err());
+        assert!(ItemLocation::PlayerMainHand.replace_from(&ender).is_err());
+    }
+
+    #[test]
+    fn inventory_writes_validate_container_coordinates_for_both_endpoints() {
+        let invalid = ItemLocation::block(BlockPos::new(0.5, 0, 0))
+            .slot(0)
+            .unwrap();
+        let owner = "test:invalid_container".parse().unwrap();
+        assert!(invalid.clear().unwrap().lower(&owner).is_err());
+        assert!(
+            ItemLocation::PlayerOffHand
+                .replace_from(&invalid)
+                .unwrap()
+                .lower(&owner)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn slot_copies_reject_plural_sources_but_allow_plural_destinations() {
+        let plural = ItemLocation::entity(Selector::all_players()).mainhand();
+        let owner = "test:copy".parse().unwrap();
+        assert!(
+            ItemLocation::PlayerOffHand
+                .replace_from(&plural)
+                .unwrap()
+                .lower(&owner)
+                .is_err()
+        );
+        assert_eq!(
+            plural
+                .replace_from(&ItemLocation::PlayerMainHand)
+                .unwrap()
+                .lower(&owner)
+                .unwrap(),
+            vec!["item replace entity @a weapon.mainhand from entity @s weapon.mainhand"]
+        );
+    }
 
     #[test]
     fn main_hand_renders_selected_item() {
@@ -879,7 +1014,12 @@ mod tests {
 
         let block = ItemLocation::block(BlockPos::here()).slot(0).unwrap();
         assert_eq!(
-            block.replace_from(&mainhand).unwrap(),
+            block
+                .replace_from(&mainhand)
+                .unwrap()
+                .lower(&"test:copy".parse().unwrap())
+                .unwrap()
+                .join("\n"),
             "item replace block ~ ~ ~ container.0 from entity @s weapon.mainhand"
         );
         assert_eq!(

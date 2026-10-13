@@ -83,6 +83,27 @@ pub fn audit_command_media() {
         .particles(false);
 }
 
+/// Parser coverage for owned inventory actions on player and container slots.
+/// The load/reload harness parses this function without invoking it.
+#[function]
+pub fn audit_inventory_actions() {
+    Target::players().each(|player| {
+        let inventory = player.inventory();
+        let reward = ItemStack::new(item_id("diamond"))
+            .count(3)
+            .component(ItemComponent::custom_data_marker("audit_reward"));
+        mcfunction![
+            inventory.offhand().set(reward).unwrap();
+            inventory.hotbar(3).unwrap().clear().unwrap();
+            when(inventory.mainhand().is_empty().unwrap()).then(
+                inventory.mainhand().replace_from(&inventory.offhand()).unwrap()
+            );
+            ItemLocation::block(BlockPos::here()).slot(0).unwrap()
+                .replace_from(&inventory.offhand()).unwrap();
+        ]
+    });
+}
+
 #[function]
 pub fn semantic_placed_reward() {
     cmd::raw("advancement revoke @s only sand_audit:semantic_placed_block");

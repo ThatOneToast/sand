@@ -16,6 +16,9 @@
 //!    retaining its existing authoring API and output.
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
+mod item;
+#[doc(hidden)]
+pub use item::ItemMutation;
 mod numeric;
 #[doc(hidden)]
 pub use numeric::NumericWrite;
@@ -312,6 +315,10 @@ pub enum Cmd {
     #[doc(hidden)]
     NumericWrite(Box<NumericWrite>),
 
+    /// Retain inventory write intent and typed item values until export.
+    #[doc(hidden)]
+    ItemMutation(Box<ItemMutation>),
+
     /// Evaluate a numeric comparison in its compiler-owned condition helper.
     #[doc(hidden)]
     NumericComparison(Box<NumericComparison>),
@@ -353,6 +360,7 @@ impl Cmd {
     ) -> sand_commands::CommandResult<Vec<Self>> {
         Ok(match self {
             Self::NumericWrite(write) => return write.lower(owner),
+            Self::ItemMutation(write) => return write.lower(owner),
             Self::NumericComparison(comparison) => return comparison.lower(owner),
             Self::WithConditionResources { condition, run } => {
                 condition.register_owned_resources();
@@ -496,6 +504,13 @@ impl Cmd {
                 format!("execute {operation_text} run {run_text}")
             }
 
+            Self::ItemMutation(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "inventory write",
+                    "item",
+                    "inventory actions require function export lowering",
+                ));
+            }
             Self::NumericWrite(_) | Self::NumericComparison(_) => {
                 return Err(sand_commands::CommandError::new(
                     "numeric action",

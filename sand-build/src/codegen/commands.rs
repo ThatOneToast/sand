@@ -868,7 +868,7 @@ fn emit_gamerule_setting_conversion(code: &mut String, ev: &EmittedVariant, root
     let name = &ev.struct_name;
     writeln!(
         code,
-        "impl From<{name}> for crate::world::GameRuleSetting {{"
+        "impl From<{name}> for crate::build::GameRuleSetting {{"
     )
     .unwrap();
     writeln!(

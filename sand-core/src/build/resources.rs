@@ -256,7 +256,7 @@ mod tests {
         let enabled_command = format!("gamerule {rule} true");
         let build = SandBuild::new().world(
             World::new()
-                .gamerule(crate::world::GameRuleSetting::raw(rule, "true"))
+                .gamerule(crate::build::GameRuleSetting::raw(rule, "true"))
                 .time(TimeConfig::set(6000).frozen()),
         );
         build.validate().unwrap();

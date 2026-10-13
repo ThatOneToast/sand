@@ -11,15 +11,14 @@ use sand_commands::{CommandError, CommandResult};
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[sand_macros::api(
     registry = sand_api_contract,
-    path = "sand::world::GameRuleSetting",
-    aliases = ["sand::prelude::GameRuleSetting"],
-    module = "sand::world",
+    path = "sand::build::GameRuleSetting",
+    module = "sand::build",
     summary = "An owned gamerule assignment from a version-generated typed command builder.",
     context = "World configuration consumes the existing generated gamerule builders through Into<GameRuleSetting>, retaining boolean/integer types and schema bounds without another rule-name catalog.",
     minecraft = "Lowers to one gamerule setter in the world initialization function. Missing values and invalid numeric ranges fail build validation.",
     use_when = ["Configuring a world with a generated gamerule builder"],
     avoid_when = ["Querying a gamerule without assigning a value"],
-    example = "use sand::prelude::*; let setting: GameRuleSetting = cmd::gamerule_keep_inventory().value(true).into();",
+    example = "use sand::build::{GameRuleSetting, World}; fn configured(setting: GameRuleSetting) -> World { World::new().gamerule(setting) }",
 )]
 pub struct GameRuleSetting {
     name: String,
@@ -44,9 +43,8 @@ impl GameRuleSetting {
     /// The caller owns rule existence, value semantics, and version support.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::world::GameRuleSetting::raw",
-        aliases = ["sand::prelude::GameRuleSetting::raw"],
-        module = "sand::world",
+        path = "sand::build::GameRuleSetting::raw",
+        module = "sand::build",
         kind = "method",
         summary = "Creates an explicit raw gamerule assignment for unsupported server rules.",
         context = "Prefer generated gamerule builders for supported vanilla settings. Raw assignments retain token validation while leaving rule existence and value semantics to the author.",
@@ -55,7 +53,7 @@ impl GameRuleSetting {
         avoid_when = ["A generated gamerule builder can represent the assignment"],
         params(name = "The unsupported rule's single-token name.", value = "Its single-token value."),
         returns = "An owned raw setting validated when the world build is validated.",
-        example = "use sand::prelude::*; let setting = GameRuleSetting::raw(\"custom:round_limit\", \"5\");",
+        example = "use sand::build::GameRuleSetting; let setting = GameRuleSetting::raw(\"custom:round_limit\", \"5\");",
     )]
     pub fn raw(name: impl Into<String>, value: impl Into<String>) -> Self {
         Self {

@@ -22,7 +22,7 @@ pub use crate::{all, any, cmd, mcfunction};
 pub use crate::cmd::{Actions, ConditionedExecute, ExecuteExt, TypedExecute};
 pub use crate::condition::Condition;
 pub use crate::execute_when::{if_, unless, when};
-pub use crate::world::{BlockContext, GameRuleSetting, WorldContext};
+pub use crate::world::{BlockContext, WorldContext};
 
 // ── Command builders ──────────────────────────────────────────────────────────
 

@@ -462,14 +462,14 @@ pub enum WeatherConfig {
     minecraft = "Everything reachable from World lowers into the exported datapack, except WorldPreset (server-only, see its own docs).",
     use_when = ["Configuring the world an exported datapack ships"],
     avoid_when = ["Configuring sand run's own local server process; use ServerConfig"],
-    example = "use sand::build::{World, Spawn}; use sand::world::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().spawn(Spawn::at(0, 64, 0)).gamerule(rule) }"
+    example = "use sand::build::{World, Spawn}; use sand::build::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().spawn(Spawn::at(0, 64, 0)).gamerule(rule) }"
 )]
 pub struct World {
     pub(crate) seed: Option<Seed>,
     pub(crate) preset: WorldPreset,
     pub(crate) spawn: Option<Spawn>,
     pub(crate) border: Option<WorldBorder>,
-    pub(crate) gamerules: BTreeMap<String, crate::world::GameRuleSetting>,
+    pub(crate) gamerules: BTreeMap<String, crate::build::GameRuleSetting>,
     pub(crate) time: Option<TimeConfig>,
     pub(crate) weather: Option<WeatherConfig>,
     pub(crate) dimensions: Dimensions,
@@ -570,7 +570,7 @@ impl World {
     /// Supply `.value(...)` to assign a value; build validation rejects a query
     /// or an integer outside the generated schema bounds. Later assignments to
     /// the same rule replace earlier ones, including `minecraft:` aliases.
-    /// See [`crate::world::GameRuleSetting::raw`] for unsupported rules.
+    /// See [`crate::build::GameRuleSetting::raw`] for unsupported rules.
     ///
     /// Boolean and integer builders retain distinct value types:
     /// ```compile_fail
@@ -588,9 +588,9 @@ impl World {
         avoid_when = ["Setting the difficulty default; use ServerConfig::difficulty"],
         params(setting = "A generated gamerule builder with its value set, or an explicit GameRuleSetting::raw escape hatch."),
         returns = "This world with the gamerule set.",
-        example = "use sand::build::World; use sand::world::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().gamerule(rule) }"
+        example = "use sand::build::World; use sand::build::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().gamerule(rule) }"
     )]
-    pub fn gamerule(mut self, setting: impl Into<crate::world::GameRuleSetting>) -> Self {
+    pub fn gamerule(mut self, setting: impl Into<crate::build::GameRuleSetting>) -> Self {
         let setting = setting.into();
         self.gamerules.insert(setting.key().to_string(), setting);
         self
@@ -664,7 +664,7 @@ impl World {
         returns = "A map of canonical gamerule name to owned setting.",
         example = "assert!(World::new().gamerules().is_empty());"
     )]
-    pub fn gamerules(&self) -> &BTreeMap<String, crate::world::GameRuleSetting> {
+    pub fn gamerules(&self) -> &BTreeMap<String, crate::build::GameRuleSetting> {
         &self.gamerules
     }
 

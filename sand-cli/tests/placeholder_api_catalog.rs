@@ -46,9 +46,12 @@ fn placeholder_installation_supports_api_search_show_and_export() {
 
     let gamerule = run(&binary, &["api", "show", "sand::build::World::gamerule"]);
     assert!(gamerule.contains("GameRuleSetting"));
+    let setting = run(&binary, &["api", "show", "sand::build::GameRuleSetting"]);
+    assert!(setting.contains("fn configured"));
+    assert!(!setting.contains("gamerule_keep_inventory"));
     let raw_setting = run(
         &binary,
-        &["api", "show", "sand::world::GameRuleSetting::raw"],
+        &["api", "show", "sand::build::GameRuleSetting::raw"],
     );
     assert!(raw_setting.contains("unsupported"));
 

@@ -1751,7 +1751,7 @@ pub fn lower_item_predicate_for_command(
     Ok(LoweredItemPredicate {
         items: predicate.items.clone(),
         constraints,
-        requires_components: predicate.has_component_constraints(),
+        requires_components: predicate.count.is_some() || predicate.has_component_constraints(),
     })
 }
 
@@ -3149,12 +3149,12 @@ mod tests {
             ),
             (ItemPredicate::new().count_range(0, 0), "minecraft:count~0"),
         ] {
-            assert_eq!(
-                lower_item_predicate_for_command(&predicate)
-                    .unwrap()
-                    .constraints,
-                vec![expected]
+            let lowered = lower_item_predicate_for_command(&predicate).unwrap();
+            assert!(
+                lowered.requires_components,
+                "native count syntax needs the component profile"
             );
+            assert_eq!(lowered.constraints, vec![expected]);
         }
     }
 

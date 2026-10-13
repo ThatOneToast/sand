@@ -278,11 +278,10 @@ mod tests {
                 .iter()
                 .find(|record| record.path.starts_with("sand/numeric/"))
                 .unwrap();
-            assert!(
-                numeric
-                    .content
-                    .contains(&format!("= @s {}", input.objective()))
-            );
+            assert!(numeric.content.contains(&format!(
+                "run scoreboard players get @s {}",
+                input.objective()
+            )));
             let write = numeric
                 .content
                 .find("scoreboard players operation @s result =")
@@ -363,9 +362,10 @@ mod tests {
                     .find(|record| record.path.starts_with("sand/numeric/"))
                     .unwrap();
                 assert!(
-                    numeric
-                        .content
-                        .contains(&format!("= @s {}", source.objective())),
+                    numeric.content.contains(&format!(
+                        "run scoreboard players get @s {}",
+                        source.objective()
+                    )),
                     "source reads must retain the original executor before destination binding"
                 );
                 assert!(

@@ -266,19 +266,10 @@ pub trait AdvancementEvent {
 
     /// Which participant observations this event declares (#230).
     ///
-    /// Defaults to [`crate::participant::EventParticipantPlan::none`] — a
-    /// genuinely additive default; every existing `AdvancementEvent`
-    /// implementation is unaffected. Unlike [`crate::events::SandEvent::participants`]
-    /// (its tick-dispatch counterpart), a declared plan here **is**
-    /// automatically applied by the export pipeline: an advancement-backed
-    /// handler has no separate `EventSetup` pre/post-observation phase (its
-    /// generated body *is* the entire handler), so the compiler splices the
-    /// plan's setup commands at the start of the generated body and its
-    /// cleanup commands at the end — see
-    /// `sand-core/src/compiler/export/pipeline.rs`'s `EventDispatch::Advancement`
-    /// handling. Authors do not need to call
-    /// [`crate::events::EventSetup::with_participants`] themselves for this
-    /// dispatch kind.
+    /// Defaults to [`crate::participant::EventParticipantPlan::none`]. Sand automatically captures the plan around the
+    /// generated reward handler and its supported synchronous descendants.
+    /// Capture observes state after vanilla has fired the trigger; it cannot
+    /// reconstruct item data that vanilla already consumed or dropped.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::participants", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::participants"], module = "sand::event", summary = "Declares the event-time observations this event can expose.", context = "The plan is applied around generated handler execution, giving context access an explicit evidence and cleanup model.", minecraft = "Sand emits the storage observations and cleanup around the advancement reward function.", use_when = ["A custom event needs typed attacker, weapon, or other participant context"], avoid_when = ["The handler only needs its triggering player"], returns = "The participant observation plan, empty by default.", example = "fn participants() -> sand::participant::EventParticipantPlan { sand::participant::EventParticipantPlan::none() }")]
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()

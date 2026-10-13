@@ -94,12 +94,9 @@ pub enum EventDispatch {
         /// [`Condition`](crate::condition::Condition) via `execute_commands(true, "return 0")`.
         /// This correctly handles `Any` (OR) conditions as multiple guard lines.
         guard: Option<fn() -> Option<crate::condition::Condition>>,
-        /// This event's declared participant observations
-        /// (`AdvancementEvent::participants`, #230). The export pipeline
-        /// applies the plan automatically, splicing its setup commands at
-        /// the start of the generated body and its cleanup commands at the
-        /// end — see `sand-core/src/compiler/export/pipeline.rs`'s
-        /// `EventDispatch::Advancement` handling.
+        /// The canonical participant plan retained through dispatch lowering.
+        /// Each supported backend captures as the subject before handlers and
+        /// keeps evidence alive through its supported descendants.
         make_participants: fn() -> crate::participant::EventParticipantPlan,
         /// Canonical concrete type name (`std::any::type_name::<T>()`) of
         /// the `AdvancementEvent` type this handler subscribes to.

@@ -94,6 +94,13 @@ impl SandEvent for AnyA {
             .as_players()
             .when(Condition::raw("score @s p271_a matches 1"))
     }
+    fn setup() -> EventSetup {
+        EventSetup {
+            pre_observation: vec!["say global_pre_once".into()],
+            post_observation: vec!["say global_post_once".into()],
+            ..EventSetup::none()
+        }
+    }
     fn participants() -> EventParticipantPlan {
         ParticipantBuilder::new()
             .observe_entity(EntityParticipantRole::Attacker)
@@ -503,33 +510,59 @@ fn item_participant_propagates_through_after_any_same_cycle_borrowing_remains_va
 }
 
 #[test]
-fn cleanup_for_after_any_parents_is_deferred_until_after_every_synchronous_descendant() {
-    let content = all_function_content(&records());
-    // AnyA's own cleanup command (participant-plan post_observation, a tag
-    // removal) must textually appear after the multi-gate function that
-    // dispatches AnyChildFromA (and, transitively, NestedChild) — proving
-    // the coordinator's deferred-cleanup ordering (established by #264/#280
-    // for the sole-parent case) is preserved unchanged for after_any
-    // fan-in.
-    let child_key = {
-        let mut h: u32 = 2_166_136_261;
-        for b in std::any::type_name::<AnyChildFromA>().bytes() {
-            h ^= b as u32;
-            h = h.wrapping_mul(16_777_619);
-        }
-        format!("{h:08x}")
+fn staged_participants_are_reset_and_consumed_within_one_subject_cycle() {
+    let records = records();
+    let function = |path: &str| {
+        records
+            .iter()
+            .find(|record| record["dir"] == "function" && record["path"] == path)
+            .and_then(|record| record["content"].as_str())
+            .unwrap_or_else(|| panic!("missing function {path}"))
     };
-    let gate_marker = format!("__sand_event_multi_gate/{child_key}");
-    let cleanup_marker = "remove";
-    let gate_pos = content
-        .find(&gate_marker)
-        .expect("expected the after_any multi-gate function to be generated");
-    let cleanup_pos = content
-        .rfind(cleanup_marker)
-        .expect("expected a participant cleanup (tag removal) command to be generated");
+    let outer = function("__sand_event_cycle");
+    assert_eq!(
+        outer
+            .matches("execute as @a at @s run function multiparentpack:__sand_event_subject_cycle")
+            .count(),
+        1
+    );
+    assert!(!outer.contains("execute on attacker"));
+    let scan = outer
+        .find("execute as @a at @s run function multiparentpack:__sand_event_subject_cycle")
+        .unwrap();
+    assert_eq!(outer.matches("say global_pre_once").count(), 1);
+    assert_eq!(outer.matches("say global_post_once").count(), 1);
+    assert!(outer.find("say global_pre_once").unwrap() < scan);
+    assert!(scan < outer.find("say global_post_once").unwrap());
+    let subject = function("__sand_event_subject_cycle");
+    assert!(!subject.contains("global_pre_once") && !subject.contains("global_post_once"));
     assert!(
-        cleanup_pos > gate_pos,
-        "expected AnyA's participant cleanup to be deferred until after the after_any gate/dispatch: gate at {gate_pos}, cleanup at {cleanup_pos}\n{content}"
+        !subject.contains("execute as @a"),
+        "subject processing must not rescan other players: {subject}"
+    );
+    let first_check = subject
+        .find("function multiparentpack:__sand_event_check/")
+        .expect("root checks");
+    let last_gate = subject
+        .rfind("__sand_event_multi_gate/")
+        .expect("fan-in evaluation");
+    let first_cleanup = subject
+        .find("tag @e[tag=__sand_observed_")
+        .expect("reset stale entities");
+    let last_cleanup = subject
+        .rfind("tag @e[tag=__sand_observed_")
+        .expect("final entity cleanup");
+    assert!(
+        first_cleanup < first_check && last_gate < last_cleanup,
+        "{subject}"
+    );
+    assert!(
+        subject[..first_check].contains(".item set value {}"),
+        "non-firing item sources must start absent: {subject}"
+    );
+    assert!(
+        subject[last_gate..].contains(".item set value {}"),
+        "item evidence must be cleared before the next subject: {subject}"
     );
 }
 

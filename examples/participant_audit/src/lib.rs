@@ -91,6 +91,10 @@ struct ParticipantAudit {
     tracked_offhand_item: String,
     tracked_helmet_item: String,
     tracked_attacker_helmet: String,
+    fan_alpha_uuid: String,
+    fan_beta_uuid: String,
+    fan_alpha_item: String,
+    fan_beta_item: String,
 }
 
 // ── Scoreboards ─────────────────────────────────────────────────────────────
@@ -102,6 +106,9 @@ static KILL: ScoreVar<i32> = ScoreVar::new("paudit_kill");
 static WPN: ScoreVar<i32> = ScoreVar::new("paudit_wpn");
 static KWPN: ScoreVar<i32> = ScoreVar::new("paudit_kwpn");
 static TRACKED: ScoreVar<i32> = ScoreVar::new("paudit_tracked");
+static FAN_COUNT: ScoreVar<i32> = ScoreVar::new("paudit_fan");
+static FAN_ENTITY: ScoreVar<i32> = ScoreVar::new("paudit_fan_ent");
+static FAN_ITEM: ScoreVar<i32> = ScoreVar::new("paudit_fan_item");
 /// Manually-set trigger for the #264 same-cycle composition scenario below
 /// (`scoreboard players set @s paudit_cmp_trg 1` over RCON/in-game).
 static COMPOSE_TRIGGER: ScoreVar<i32> = ScoreVar::new("paudit_cmp_trg");
@@ -140,6 +147,9 @@ pub fn init() {
     WPN.define();
     KWPN.define();
     TRACKED.define();
+    FAN_COUNT.define();
+    FAN_ENTITY.define();
+    FAN_ITEM.define();
     COMPOSE_TRIGGER.define();
     SEQ.set(SEQ_HOLDER, 0);
     ParticipantAudit::attacker_present().set(false);
@@ -234,6 +244,7 @@ impl SandEvent for ComposedAttackerParent {
     fn participants() -> sand::participant::EventParticipantPlan {
         ParticipantBuilder::new()
             .observe_entity(EntityParticipantRole::Attacker)
+            .observe_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
             .build()
     }
 }
@@ -287,6 +298,56 @@ pub fn audit_on_composed_sibling(event: ComposedAttackerSibling) {
     );
 }
 
+// Staged fan-in exercises one named source being absent even though another
+// parent fired. Evidence fields are separate for the two audit subjects.
+struct ComposedAlternative;
+impl SandEvent for ComposedAlternative {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players().when(COMPOSE_TRIGGER.of("@s").eq(2))
+    }
+}
+
+#[on_event]
+pub fn audit_on_composed_alternative(_event: ComposedAlternative) {
+    COMPOSE_TRIGGER.set(Target::self_(), 0);
+}
+
+struct ComposedFanIn;
+impl SandEvent for ComposedFanIn {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::compose().after_any::<(ComposedAttackerParent, ComposedAlternative)>()
+    }
+    fn participants() -> sand::participant::EventParticipantPlan {
+        ParticipantBuilder::new()
+            .inherit_entity::<ComposedAttackerParent>(EntityParticipantRole::Attacker)
+            .inherit_item::<ComposedAttackerParent>(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
+            .build()
+    }
+}
+
+#[on_event]
+pub fn audit_on_composed_fan_in(event: ComposedFanIn) {
+    FAN_COUNT.add(Target::self_(), 1);
+    let attacker = event.attacker();
+    let weapon = event.weapon();
+    if_(Condition::entity(attacker.selector()))
+        .then_all(mcfunction![FAN_ENTITY.set(Target::self_(), 1);])
+        .else_all(mcfunction![FAN_ENTITY.set(Target::self_(), 0);]);
+    if_(weapon.is_present())
+        .then_all(mcfunction![FAN_ITEM.set(Target::self_(), 1);])
+        .else_all(mcfunction![FAN_ITEM.set(Target::self_(), 0);]);
+    if_(Condition::entity(Target::self_().tag("paudit_subject_0")))
+        .then_all(mcfunction![
+            attacker.execute_at(ParticipantAudit::fan_alpha_uuid().copy_from_entity(Target::self_(), "UUID"));
+            if_(weapon.is_present()).then_all(mcfunction![weapon.copy_to(ParticipantAudit::fan_alpha_item());]);
+        ]);
+    if_(Condition::entity(Target::self_().tag("paudit_subject_1")))
+        .then_all(mcfunction![
+            attacker.execute_at(ParticipantAudit::fan_beta_uuid().copy_from_entity(Target::self_(), "UUID"));
+            if_(weapon.is_present()).then_all(mcfunction![weapon.copy_to(ParticipantAudit::fan_beta_item());]);
+        ]);
+}
+
 // ── Advancement-bridge composition scenario (#269) ─────────────────────────
 //
 // `SpecialKillEvent` is a plain `SandEvent` chained after `PlayerKillEvent`
@@ -298,11 +359,10 @@ pub fn audit_on_composed_sibling(event: ComposedAttackerSibling) {
 // observes its own weapon snapshot — `@s` is the victim in `PlayerKillEvent`
 // (the killer is only reachable via correlated observation, never an exact
 // hand snapshot), so the weapon here is *this event's own* mainhand
-// capture, composed alongside the inherited entity in one plan. `PlayerKillEvent`
-// itself has no direct `#[on_event]` handler here — #240 Phase 6 still
-// requires a bridged advancement-backed parent's sole dependents to be
-// same-cycle chain children, not a mix of a direct handler and graph
-// composition.
+// capture, composed alongside the inherited entity in one plan. The direct
+// `audit_on_killed` handler and this composed child share the real advancement.
+// Vanilla drops the victim's inventory before firing this advancement unless
+// keep_inventory is enabled, so this snapshot can legitimately be absent.
 
 struct SpecialKillEvent;
 impl SandEvent for SpecialKillEvent {

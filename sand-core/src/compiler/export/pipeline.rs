@@ -21,9 +21,9 @@ use super::dialogs::{
     DialogCallbackExportReset, dialog_callback_export_lock, drain_dialog_callbacks_into,
 };
 use super::events::{
-    ChildPostObservation, CustomDispatchBackend, apply_participants_to_setup, build_child_edge,
-    build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
-    check_event_trigger, participant_accessor_panic_export_error, participant_plan_export_error,
+    ChildPostObservation, CustomDispatchBackend, build_child_edge, build_dispatch_function,
+    build_staged_occurrence_lines, build_staged_post_observation_line, check_event_trigger,
+    graph_event_setup, participant_accessor_panic_export_error, participant_plan_export_error,
     resolve_custom_dispatch_backend, setup_objective_owner, tick_event_export_error,
     xp_advance_command, xp_score_commands,
 };
@@ -355,7 +355,7 @@ pub(crate) fn try_export_components_impl(
         std::any::TypeId,
         &'static str,
         crate::events::TickEventDispatch,
-        crate::events::EventSetup,
+        crate::events::GraphEventSetup,
     )> = Vec::new();
     // Same-cycle chained SandEvents (#240) — a child event whose dispatch()
     // is `SandEventDispatch::chain::<Parent>()`. Merged into the same event
@@ -366,7 +366,7 @@ pub(crate) fn try_export_components_impl(
         std::any::TypeId,
         &'static str,
         crate::events::ChainEventDispatch,
-        crate::events::EventSetup,
+        crate::events::GraphEventSetup,
     )> = Vec::new();
     // Canonical SandEvent type ids with at least one direct #[on_event] handler
     // resolving to advancement-backed dispatch — used to reject combining a
@@ -374,13 +374,8 @@ pub(crate) fn try_export_components_impl(
     // event (#240 Phase 6; see the advancement-bridge collision check below).
     let mut advancement_handler_type_ids: std::collections::BTreeSet<std::any::TypeId> =
         std::collections::BTreeSet::new();
-    // #264: every graph-node-backed event's declared participant plan,
-    // reduced to just the role/source-label pairs
-    // `participant_transport::validate_participant_transport` needs —
-    // recorded here (Tick/Chain backends only; see that module's doc for
-    // why advancement-dispatched/bridge events are out of scope for
-    // inheritance sourcing) since the graph itself only retains rendered
-    // `EventSetup` commands, not the structured plan.
+    // Canonical participant roles for transport validation. Graph nodes also
+    // retain full plans, including recursively discovered parents.
     let mut participant_declarations: BTreeMap<
         &'static str,
         super::participant_transport::ParticipantDeclarations,
@@ -845,12 +840,7 @@ pub(crate) fn try_export_components_impl(
                             event_type_name(),
                             crate::events::TickEventDispatch::default()
                                 .when(crate::condition::Condition::raw(condition)),
-                            apply_participants_to_setup(
-                                make_setup(),
-                                plan,
-                                event_type_name(),
-                                desc.path,
-                            )?,
+                            graph_event_setup(make_setup(), plan, desc.path)?,
                         ));
                     }
                     CustomDispatchBackend::TickLifecycle(tick) => {
@@ -859,13 +849,9 @@ pub(crate) fn try_export_components_impl(
                         // by event_type_id so multiple handlers of the same
                         // event share one detector and one copy of setup().
                         //
-                        // The participant plan is merged into the setup here,
-                        // at every handler's own call site, the same way
-                        // `make_setup()` already is — downstream grouping
-                        // (`validate_consistent`) requires every handler of one
-                        // event type to produce an equal `EventSetup`, which
-                        // holds here because `apply_participants_to_setup` is a
-                        // deterministic pure function of `event_type_name()`.
+                        // Preserve both declarations for graph consistency checks;
+                        // participant capture is lowered inside subject dispatch,
+                        // while root lifecycle remains global.
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
@@ -884,12 +870,7 @@ pub(crate) fn try_export_components_impl(
                             event_type_id(),
                             event_type_name(),
                             tick,
-                            apply_participants_to_setup(
-                                make_setup(),
-                                plan,
-                                event_type_name(),
-                                desc.path,
-                            )?,
+                            graph_event_setup(make_setup(), plan, desc.path)?,
                         ));
                     }
                     CustomDispatchBackend::Chain(chain) => {
@@ -924,12 +905,7 @@ pub(crate) fn try_export_components_impl(
                             event_type_id(),
                             event_type_name(),
                             chain,
-                            apply_participants_to_setup(
-                                make_setup(),
-                                plan,
-                                event_type_name(),
-                                desc.path,
-                            )?,
+                            graph_event_setup(make_setup(), plan, desc.path)?,
                         ));
                     }
                 }
@@ -1334,12 +1310,31 @@ pub(crate) fn try_export_components_impl(
                 super::participant_transport::ParticipantDeclarations::from_plan(&plan),
             );
         }
+        // Include plans on parents discovered only through a dependent.
+        for node in graph.nodes.values() {
+            participant_declarations.insert(
+                node.type_name,
+                super::participant_transport::ParticipantDeclarations::from_plan(
+                    &node.setup.participants,
+                ),
+            );
+        }
         super::participant_transport::validate_participant_transport(
             &graph,
             &participant_declarations,
         )
         .map_err(|diagnostic| tick_event_export_error(diagnostic.to_string()))?;
 
+        let staged_events = graph
+            .staged_events()
+            .map_err(|e| tick_event_export_error(e.0))?;
+        let has_staged_composition = !staged_events.is_empty();
+        let subject_cycle = has_staged_composition
+            && graph
+                .nodes
+                .values()
+                .any(|node| !node.setup.participants.is_empty());
+        let cycle_subject = if subject_cycle { "@s" } else { "@a" };
         // #272: bounded (`.within(...)`) item-snapshot transport. Validated
         // separately from same-cycle transport above (opposite soundness
         // condition — see `participant_transport`'s module doc for why).
@@ -1508,7 +1503,7 @@ pub(crate) fn try_export_components_impl(
                 .entry(source_event.to_string())
                 .or_default()
                 .push(format!(
-                    "execute as @a {} if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}",
+                    "execute as {cycle_subject} {} if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}",
                     crate::participant::bounded_item::has_slot_guard()
                 ));
         }
@@ -1517,10 +1512,6 @@ pub(crate) fn try_export_components_impl(
             load: &bounded_item_load,
         };
 
-        let staged_events = graph
-            .staged_events()
-            .map_err(|e| tick_event_export_error(e.0))?;
-        let has_staged_composition = !staged_events.is_empty();
         let occurrence_marked = graph.occurrence_marked_nodes();
         let bounded_parents = graph.bounded_parents();
 
@@ -1574,6 +1565,7 @@ pub(crate) fn try_export_components_impl(
         let mut state_predicates: BTreeMap<&'static str, &'static str> = BTreeMap::new();
         let mut root_checks = Vec::new();
         let mut deferred_root_post_observation = Vec::new();
+        let mut global_root_pre_observation = Vec::new();
         for root in graph.roots() {
             let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
                 continue;
@@ -1694,7 +1686,7 @@ pub(crate) fn try_export_components_impl(
                         occurrence.as_slice(),
                         [crate::events::graph::OccurrenceDependency::After(_)]
                     ) && occurrence_marked.contains(node.type_name)
-                        && !node.setup.post_observation.is_empty() =>
+                        && !node.setup.lifecycle.post_observation.is_empty() =>
                 {
                     Some(node.type_name.to_string())
                 }
@@ -1707,7 +1699,7 @@ pub(crate) fn try_export_components_impl(
             .map_err(|e| tick_event_export_error(e.0))?
         {
             let node = &graph.nodes[&name];
-            if node.setup.post_observation.is_empty()
+            if node.setup.lifecycle.post_observation.is_empty()
                 || (!staged_by_child.contains_key(&name)
                     && !deferred_attempt_marked.contains(&name))
             {
@@ -1721,7 +1713,7 @@ pub(crate) fn try_export_components_impl(
                 path: path.clone(),
                 ext: "mcfunction".to_string(),
                 content_type: "text".to_string(),
-                content: node.setup.post_observation.join("\n"),
+                content: node.setup.lifecycle.post_observation.join("\n"),
             });
             deferred_post_refs.insert(name, format!("{namespace}:{path}"));
         }
@@ -1732,7 +1724,7 @@ pub(crate) fn try_export_components_impl(
         for node in graph.nodes.values() {
             let key = tick_event_resource_key(node.type_name);
             let mut setup_cmds: Vec<String> = Vec::new();
-            for cmd in &node.setup.objectives {
+            for cmd in &node.setup.lifecycle.objectives {
                 if !setup_cmds.contains(cmd) {
                     setup_cmds.push(cmd.clone());
                 }
@@ -1829,7 +1821,12 @@ pub(crate) fn try_export_components_impl(
             let key = tick_event_resource_key(root.type_name);
 
             let mut tick_cmds: Vec<String> = Vec::new();
-            tick_cmds.extend(root.setup.pre_observation.iter().cloned());
+            if subject_cycle {
+                global_root_pre_observation
+                    .extend(root.setup.lifecycle.pre_observation.iter().cloned());
+            } else {
+                tick_cmds.extend(root.setup.lifecycle.pre_observation.iter().cloned());
+            }
 
             let dispatch_ref = root_dispatch_ref
                 .get(root.type_name)
@@ -1839,7 +1836,7 @@ pub(crate) fn try_export_components_impl(
                 if let Some(guard) = &self_guard {
                     if has_staged_composition {
                         tick_cmds.push(format!(
-                            "execute as @a run scoreboard players set @s {guard} 0"
+                            "execute as {cycle_subject} run scoreboard players set @s {guard} 0"
                         ));
                     } else {
                         tick_cmds.push(format!("scoreboard players set @a {guard} 0"));
@@ -1847,12 +1844,18 @@ pub(crate) fn try_export_components_impl(
                 }
                 match &plans {
                     TickExecutionIrPlans::Unconditional => {
-                        tick_cmds.push(format!("execute as @a at @s run function {dispatch_ref}"));
+                        tick_cmds.push(format!(
+                            "execute as {cycle_subject} at @s run function {dispatch_ref}"
+                        ));
                     }
                     TickExecutionIrPlans::Plans(plans) => {
                         for plan in plans {
                             let mut execute = sand_commands::Execute::new()
-                                .as_(sand_commands::Selector::all_players())
+                                .as_(if subject_cycle {
+                                    sand_commands::Selector::self_()
+                                } else {
+                                    sand_commands::Selector::all_players()
+                                })
                                 .at(sand_commands::Selector::self_());
                             if let Some(guard) = &self_guard {
                                 execute = sand_commands::__private::execute_with_operation(
@@ -1879,9 +1882,10 @@ pub(crate) fn try_export_components_impl(
             }
 
             if has_staged_composition {
-                deferred_root_post_observation.extend(root.setup.post_observation.iter().cloned());
+                deferred_root_post_observation
+                    .extend(root.setup.lifecycle.post_observation.iter().cloned());
             } else {
-                tick_cmds.extend(root.setup.post_observation.iter().cloned());
+                tick_cmds.extend(root.setup.lifecycle.post_observation.iter().cloned());
             }
 
             if !tick_cmds.is_empty() {
@@ -1911,7 +1915,7 @@ pub(crate) fn try_export_components_impl(
             for name in &occurrence_marked {
                 let key = tick_event_resource_key(name);
                 coordinator.push(format!(
-                    "execute as @a run scoreboard players set @s se_{key}_o 0"
+                    "execute as {cycle_subject} run scoreboard players set @s se_{key}_o 0"
                 ));
             }
             for (staged, _) in &staged_evaluations {
@@ -1923,14 +1927,14 @@ pub(crate) fn try_export_components_impl(
                 }) {
                     let key = tick_event_resource_key(&staged.child);
                     coordinator.push(format!(
-                        "execute as @a run scoreboard players set @s se_{key}_m 0"
+                        "execute as {cycle_subject} run scoreboard players set @s se_{key}_m 0"
                     ));
                 }
             }
             for name in &deferred_attempt_marked {
                 let key = tick_event_resource_key(name);
                 coordinator.push(format!(
-                    "execute as @a run scoreboard players set @s se_{key}_c 0"
+                    "execute as {cycle_subject} run scoreboard players set @s se_{key}_c 0"
                 ));
             }
             coordinator.extend(
@@ -1977,10 +1981,10 @@ pub(crate) fn try_export_components_impl(
                 let key = tick_event_resource_key(name);
                 let mut lines = vec![
                     format!(
-                        "execute as @a if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
+                        "execute as {cycle_subject} if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
                     ),
                     format!(
-                        "execute as @a unless score @s se_{key}_o matches 1 unless score @s se_{key}_wa matches {age_sentinel}.. run scoreboard players add @s se_{key}_wa 1"
+                        "execute as {cycle_subject} unless score @s se_{key}_o matches 1 unless score @s se_{key}_wa matches {age_sentinel}.. run scoreboard players add @s se_{key}_wa 1"
                     ),
                 ];
                 // #272: bounded item transport expiry — cleared the moment
@@ -1988,7 +1992,7 @@ pub(crate) fn try_export_components_impl(
                 // window any `inherit_item_within` declared against it (see
                 // `bounded_item_max_window` above). Appended after the
                 // increment line above so it observes the just-incremented
-                // age, still within this same per-player `execute as @a`
+                // age, still within this same per-player `execute as {cycle_subject}`
                 // pass — which is what lets the expiry function bind `@s`'s
                 // own subject slot. Guarded on the subject actually having a
                 // slot, so players who never sourced this event are skipped
@@ -2007,6 +2011,7 @@ pub(crate) fn try_export_components_impl(
                     &evaluation_ref,
                     namespace,
                     &mut records,
+                    cycle_subject,
                 ));
                 if bounded_parents.contains(&staged.child) {
                     coordinator.extend(bounded_age_update(&staged.child));
@@ -2022,13 +2027,41 @@ pub(crate) fn try_export_components_impl(
                     continue;
                 };
                 if let Some(staged) = staged_by_child.get(&name) {
-                    coordinator.push(build_staged_post_observation_line(staged, post_ref));
+                    coordinator.push(build_staged_post_observation_line(
+                        staged,
+                        post_ref,
+                        cycle_subject,
+                    ));
                 } else {
                     let key = tick_event_resource_key(&name);
                     coordinator.push(format!(
-                        "execute as @a at @s if score @s se_{key}_c matches 1 run function {post_ref}"
+                        "execute as {cycle_subject} at @s if score @s se_{key}_c matches 1 run function {post_ref}"
                     ));
                 }
+            }
+            if subject_cycle {
+                let reset: Vec<String> = graph
+                    .nodes
+                    .values()
+                    .flat_map(|node| node.participant_cleanup.iter().cloned())
+                    .collect();
+                let mut subject_commands = reset.clone();
+                subject_commands.extend(coordinator);
+                subject_commands.extend(reset);
+                let subject_path = "__sand_event_subject_cycle";
+                ensure_private_lifecycle_path_available(&records, subject_path)?;
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: subject_path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
+                    content: subject_commands.join("\n"),
+                });
+                coordinator = global_root_pre_observation;
+                coordinator.push(format!(
+                    "execute as @a at @s run function {namespace}:{subject_path}"
+                ));
             }
             coordinator.extend(deferred_root_post_observation);
 

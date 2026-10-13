@@ -1,7 +1,6 @@
-//! Export coverage for `EventParticipantPlan`/`EventSetup::with_participants`
-//! (#230 Phase 10): proves the declarative plan API produces the exact same
-//! generated-command ordering contract as Phase 9's manual
-//! `observe_correlated_attacker` embedding through the real export pipeline.
+//! Export coverage for automatic `SandEvent::participants` integration.
+//! Capture must execute as the selected subject, while global lifecycle work
+//! remains outside the per-player handler tree.
 
 use sand_core::condition::Condition;
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
@@ -26,10 +25,8 @@ impl SandEvent for OnPlayerHurtViaPlan {
         EventSetup {
             objectives: vec!["scoreboard objectives add p10_plan_trigger dummy".into()],
             pre_observation: Vec::new(),
-            post_observation: vec!["scoreboard players set @s p10_plan_trigger 0".into()],
+            post_observation: vec!["scoreboard players set @a p10_plan_trigger 0".into()],
         }
-        .with_participants::<Self>(Self::participants())
-        .expect("the declared attacker observation is valid")
     }
 }
 
@@ -72,7 +69,7 @@ sand_core::inventory::submit! {
             make_tick: tick,
             make_chain: no_chain,
             make_tracked: || None,
-            make_participants: || sand_core::participant::EventParticipantPlan::none(),
+            make_participants: OnPlayerHurtViaPlan::participants,
             revoke: revoke_true,
             event_type_id: type_id,
             event_type_name: type_name,
@@ -104,31 +101,38 @@ fn check_key() -> String {
 }
 
 #[test]
-fn plan_setup_runs_before_condition_and_cleanup_runs_after_post_observation() {
+fn plan_capture_runs_inside_subject_dispatch_and_global_post_stays_outside() {
     let records = records();
-    let check = function(&records, &format!("__sand_event_check/{}", check_key()));
-
-    let plan_setup = check
-        .find("present set value 0b")
-        .expect("plan setup present");
-    let detection = check
-        .find("execute as @a at @s")
-        .expect("detection line present");
-    let post_observation_user = check
-        .find("scoreboard players set @s p10_plan_trigger 0")
-        .expect("existing post_observation command present");
-    let plan_cleanup = check
+    let key = check_key();
+    let check = function(&records, &format!("__sand_event_check/{key}"));
+    let dispatch = function(&records, &format!("__sand_event_dispatch/{key}"));
+    assert!(
+        !check.contains("execute on attacker"),
+        "server check cannot capture a subject: {check}"
+    );
+    let call = format!(
+        "execute as @a at @s if score @s p10_plan_trigger matches 1.. run function planpack:__sand_event_dispatch/{key}"
+    );
+    assert!(
+        check.contains(&call),
+        "capture wrapper must be called as the matched player: {check}"
+    );
+    assert!(
+        check.find(&call).unwrap()
+            < check
+                .find("scoreboard players set @a p10_plan_trigger 0")
+                .unwrap()
+    );
+    let capture = dispatch
+        .find("execute on attacker run")
+        .expect("subject capture");
+    let handler = dispatch
+        .find("function planpack:on_player_hurt_via_plan")
+        .expect("handler");
+    let cleanup = dispatch
         .find("tag @e[tag=__sand_observed_")
-        .expect("plan cleanup present");
-
-    assert!(
-        plan_setup < detection,
-        "plan setup must run before the condition test: {check}"
-    );
-    assert!(
-        post_observation_user < plan_cleanup,
-        "plan cleanup must run after existing post_observation commands: {check}"
-    );
+        .expect("cleanup");
+    assert!(capture < handler && handler < cleanup, "{dispatch}");
 }
 
 #[test]

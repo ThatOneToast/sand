@@ -53,6 +53,8 @@ fn every_audit_handler_is_present() {
         "audit_on_composed_parent",
         "audit_on_composed_child",
         "audit_on_composed_sibling",
+        "audit_on_composed_alternative",
+        "audit_on_composed_fan_in",
         "audit_on_special_kill",
         "audit_on_observed_health_loss",
     ] {
@@ -264,20 +266,18 @@ fn composed_scenario_child_and_sibling_reference_the_exact_parent_tag() {
     // #264: the whole point of `inherit_entity` is that the child/sibling
     // reference the *same* generated selector the parent's own setup
     // creates — not merely a "compatible" one. Extract the tag from the
-    // parent's own setup (`__sand_event_check/<key>`) and assert both
+    // parent's subject dispatch and assert both
     // dependents' bodies contain that exact substring.
     let records = records(&export());
     let check = records
         .iter()
         .find(|r| {
             r["dir"] == "function"
-                && r["path"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .starts_with("__sand_event_check/")
+                && r["content"].as_str().unwrap_or_default()
+                    .contains("function paudit:audit_on_composed_parent")
         })
         .and_then(|r| r["content"].as_str())
-        .expect("ComposedAttackerParent's own tick-check function must exist");
+        .expect("ComposedAttackerParent's subject dispatch must exist");
     let tag_start = check
         .find("__sand_observed_")
         .expect("parent setup must mark the correlated attacker with a tag");

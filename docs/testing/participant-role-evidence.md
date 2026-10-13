@@ -9,9 +9,12 @@ recorded UUIDs/item compounds, mainhand/offhand presence, typed armor reads,
 post-capture inventory edits, temporary-tag cleanup, interleaved ownership and
 reload. It reproduced and corrected obsolete equipment NBT paths.
 
-These hand snapshots have the tracked observation's sampling time. Killer,
-attacking-player weapon-event, composed and rapid-hit scenarios remain open;
-the historical direct-handler evidence below does not imply those are covered.
+These hand snapshots have the tracked observation's sampling time. The extended
+regression separately covers actual attacking-player weapon advancements, real
+killer/bridge inheritance, retained versus dropped death inventory, and composed
+tick participant forwarding. #429 corrects server-context capture in the latter.
+Rapid mixed-hit timing and client attack-input packets remain open; the historical
+direct-handler evidence below does not imply those are covered.
 
 
 Role-by-role audit of what vanilla Minecraft Java actually exposes for
@@ -28,8 +31,9 @@ already-implemented and tested vanilla-relation traversal
 contract (every reward function's `@s` is the triggering **player**, never
 a non-player entity — this is a structural fact of how advancement rewards
 dispatch, not something that varies per trigger), and Sand's existing item
-snapshot/location machinery (#229). No live 26.2 server was available in
-this environment — see "What has and has not been runtime-verified" below.
+snapshot/location machinery (#229). The original role audit was structural;
+the current real-server coverage is summarized above and linked to the repeatable
+harness. Historical findings below retain their original evidence boundaries.
 
 ## Role support matrix
 
@@ -42,7 +46,7 @@ this environment — see "What has and has not been runtime-verified" below.
 | Direct attacker | none | **Unavailable** (`NotSuppliedByTrigger`) | — | No `execute on <relation>` distinguishes "direct causing entity" (e.g. an arrow) from the credited attacker — vanilla's damage-source direct/causing distinction is not exposed as a queryable relation, only as NBT on a `DamageSource` compound Sand has no verified read path for. |
 | Victim | `PlayerDamageEntityEvent` (attacker's own player-hit-entity events) | **Unavailable** (`NotSuppliedByTrigger`) | — | `@s` for these events is already the attacker; there is no `execute on victim`-style relation from the attacker back to who they just hit. |
 | Interacted entity | interaction events (`InteractWithEntityEvent`, etc.) | **Unavailable** (`NotSuppliedByTrigger`) | — | Advancement reward functions bind `@s` to the player, never the interacted entity; no relation connects a player to "the entity it just interacted with." |
-| Hand (main/off) | any player-subject event | `ItemLocation::PlayerMainHand`/`PlayerOffHand` (exact NBT paths) | `Exact` (addressing), `ExactSnapshot` (captured item) | Always-valid, version-independent NBT paths on `@s` — see `sand-core/src/item/location.rs`'s module doc. Not correlation-dependent at all. |
+| Hand (main/off) | any player-subject event | `ItemLocation::PlayerMainHand`/`PlayerOffHand` (exact NBT paths) | `Exact` (addressing), `ExactSnapshot` (captured item) | Named paths on `@s` validated against the supported vanilla versions — see `sand-core/src/item/location.rs`'s module doc. Not correlation-dependent at all. |
 | Held item | any player-subject event | `EventParticipantPlan::observe_held_item` | `ExactSnapshot` | Same as Hand — a specific hand slot's item snapshot. |
 | Projectile | none | **Unavailable** (`NotSuppliedByTrigger`) | — | No player-subject advancement event binds `@s` to a projectile entity; `execute on origin` (see below) requires `@s` to already be the projectile. |
 | Projectile origin/shooter | none (not wired to any current event) | investigated, not implemented | — | `Relation::Origin` (`execute on origin`) is a real, already-implemented Sand relation — "the entity that fired/summoned this entity." It answers this role correctly **if** `@s` is already the projectile. No current Sand event family scopes `@s` to a projectile entity (all combat/interaction events are player-subject), so there is nothing to wire it into today. Adding an entity-scoped tick-polled projectile event family is a concrete, scoped future improvement (see follow-up issue), not something to fake from a player-subject event. |

@@ -1,66 +1,21 @@
-//! Declarative event participant plans (#230 Phase 10).
+//! Declarative participant observations for Sand events.
 //!
-//! [`EventParticipantPlan`] lets an event definition *declare* which
-//! participant observations it needs, instead of an author manually
-//! sequencing [`observe_correlated_attacker`](super::observation::observe_correlated_attacker)'s
-//! reset/mark/cleanup commands into [`crate::events::EventSetup`] by hand
-//! (the Phase 9 pattern, still available and unchanged). A plan is applied
-//! with one call:
+//! Declare observations through [`crate::events::SandEvent::participants`]. Sand retains the
+//! typed plan until dispatch lowering, captures it as the triggering subject,
+//! runs the handlers and supported descendants, then clears temporary evidence.
+//! Global [`crate::events::EventSetup`] commands are a separate lifecycle and
+//! must not capture subject-owned participants from the server tick context.
 //!
-//! ```rust,ignore
-//! impl SandEvent for HurtEvent {
-//!     fn participants() -> EventParticipantPlan {
-//!         EventParticipantPlan::new().observe_correlated_attacker()
-//!     }
-//!
-//!     fn setup() -> EventSetup {
-//!         EventSetup::none()
-//!             .with_participants::<Self>(Self::participants())
-//!             .expect("the participant plan is valid")
-//!     }
-//! }
-//! ```
-//!
-//! For **advancement-backed** events (`AdvancementEvent::participants`,
-//! #230), the export pipeline applies the plan automatically — no
-//! `setup()`/`with_participants` call needed at all; see
-//! `sand-core/src/event/mod.rs`'s `AdvancementEvent::participants` doc. The
-//! `SandEvent::participants()`/`with_participants` path above remains for
-//! tick-dispatch events, where `setup()` is still the author-defined
-//! integration point (`#[on_event]`/the tick coordinator do not inspect
-//! `participants()` automatically for this dispatch kind). Either way,
-//! `participants()` is a genuine, additive default trait method — existing
-//! implementations are unaffected, since the default returns
-//! [`EventParticipantPlan::none`].
-//!
-//! # Lifecycle ordering
-//!
-//! For a tick-backed event, one generated check function runs, in order:
-//! objectives are load-time only and don't participate here; then
-//! `pre_observation` (existing setup commands, then the plan's
-//! reset+mark/bind commands, via `.extend()` — appended, not prepended,
-//! so any existing prerequisite commands run first); then the condition
-//! test; then the handler dispatch and its synchronous descendants (all
-//! still inside the same generated function, so the plan's temporary tag
-//! is still present); then `post_observation` (existing commands, then the
-//! plan's cleanup commands, again appended at the end).
-//!
-//! Cleanup runs **after** existing `post_observation` commands, not
-//! before: `post_observation` always runs regardless of whether the
-//! condition matched this tick (see [`crate::events::TickEventDispatch`]),
-//! so it is the correct place for unconditional cleanup, and placing it
-//! last means any legitimate user `post_observation` logic still has
-//! access to the observed participant's tag before it's removed. Because
-//! Sand generates straight-line command sequences (no exception unwinding,
-//! no early return), cleanup is structurally unavoidable — it runs whether
-//! the participant was present or absent, whether the condition matched or
-//! not, and whether the handler ran or not, exactly as
-//! [`crate::item::ItemSnapshot`]'s own cleanup contract already documents
-//! for the same reason.
+//! Tick conditions select the subject before capture. Immediate descendants
+//! share their parent's synchronous binding. Staged graphs with participants
+//! finish one subject's cycle before advancing to the next subject, with scratch
+//! reset at both boundaries so a non-firing source cannot expose stale evidence.
+//! Advancement captures run after the vanilla trigger, which may already have
+//! changed the observed item (for example inventory dropped on player death).
 
 use std::collections::BTreeSet;
 
-use crate::events::{EventSetup, SandEvent, TickWindow};
+use crate::events::TickWindow;
 use crate::item::location::ItemLocation;
 use crate::item::snapshot::{ItemSnapshot, SnapshotError, SnapshotReliability, SnapshotSchema};
 use crate::participant::availability::{ParticipantAvailability, ParticipantUnavailableReason};
@@ -299,19 +254,19 @@ impl EventParticipantPlan {
     }
 
     /// Equivalent to [`new`](Self::new) — an explicit name for the "no
-    /// participants declared" plan, matching [`EventSetup::none`]'s naming.
+    /// participants declared" plan, matching [`crate::events::EventSetup::none`]'s naming.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::participant::EventParticipantPlan::none",
         aliases = ["sand::prelude::EventParticipantPlan::none"],
         module = "sand::participant",
         kind = "method",
-        summary = "Equivalent to [`new`](Self::new) — an explicit name for the \"no participants declared\" plan, matching [`EventSetup::none`]'s naming.",
-        context = "Equivalent to [`new`](Self::new) — an explicit name for the \"no participants declared\" plan, matching [`EventSetup::none`]'s naming. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        summary = "Equivalent to [`new`](Self::new) — an explicit name for the \"no participants declared\" plan, matching [`crate::events::EventSetup::none`]'s naming.",
+        context = "Equivalent to [`new`](Self::new) — an explicit name for the \"no participants declared\" plan, matching [`crate::events::EventSetup::none`]'s naming. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        returns = "An `EventParticipantPlan` equivalent to [`new`](Self::new) — an explicit name for the \"no participants declared\" plan, matching [`EventSetup::none`]'s naming.",
+        returns = "An `EventParticipantPlan` equivalent to [`new`](Self::new) — an explicit name for the \"no participants declared\" plan, matching [`crate::events::EventSetup::none`]'s naming.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let event_participant_plan = sand::participant::EventParticipantPlan::none();\n}",
     )]
     pub fn none() -> Self {
@@ -776,10 +731,8 @@ impl EventParticipantPlan {
     /// sequences for the given event type, at the fixed
     /// [`PARTICIPANT_STORAGE`] location every plan uses.
     ///
-    /// `pub(crate)` — reached both by [`EventSetup::with_participants`] (the
-    /// tick-dispatch integration path) and by the export pipeline's
-    /// automatic advancement-dispatch integration
-    /// (`sand-core/src/compiler/export/pipeline.rs`).
+    /// Used by graph discovery and advancement dispatch lowering. Keeping this
+    /// separate from global lifecycle commands preserves subject ownership.
     pub(crate) fn build(
         &self,
         event_label: &str,
@@ -791,10 +744,16 @@ impl EventParticipantPlan {
             match entry.source {
                 PlanSource::CorrelatedAttacker => {
                     let schema = ObservationSchema::new(PARTICIPANT_STORAGE, event_label);
+                    let reset_presence = format!(
+                        "data modify storage {} {}.present set value 0b",
+                        schema.storage(),
+                        schema.present_path(),
+                    );
                     let (commands, observation) =
                         observation::attacker_observation_setup(schema, entry.role);
                     setup_commands.extend(commands);
                     cleanup_commands.extend(observation.cleanup_commands());
+                    cleanup_commands.push(reset_presence);
                 }
                 // Zero commands — the source event's own plan already
                 // captured and owns cleanup of this binding; see
@@ -809,17 +768,13 @@ impl EventParticipantPlan {
                         PARTICIPANT_STORAGE,
                         &item_entry_label(event_label, *entry),
                     );
-                    let (_snapshot, commands) = ItemSnapshot::capture(
+                    let (snapshot, commands) = ItemSnapshot::capture(
                         &entry.location(),
                         schema,
                         SnapshotReliability::ExactPostTrigger,
                     )?;
-                    // Item snapshots have no cleanup step — the storage is
-                    // unconditionally reset (not removed) at the start of
-                    // every capture, so a stale value can never leak
-                    // through to the next invocation (see
-                    // `ItemSnapshot::capture`'s doc).
                     setup_commands.extend(commands);
+                    cleanup_commands.extend(snapshot.cleanup_commands());
                 }
                 // Zero commands — the source event's own capture already ran.
                 ItemPlanSource::Inherited { .. } => {}
@@ -1097,51 +1052,10 @@ fn item_entry_label(event_label: &str, entry: ItemPlanEntry) -> String {
     format!("{event_label}::item::{:?}::{:?}", entry.role, entry.hand())
 }
 
-impl EventSetup {
-    /// Apply `plan`'s generated commands to this setup: the plan's
-    /// reset+mark/bind commands are appended to `pre_observation`, and its
-    /// cleanup commands are appended to `post_observation` — see the
-    /// [module doc](self) for the exact ordering contract. `E` supplies the
-    /// deterministic `event_label` (via `std::any::type_name::<E>()`, the
-    /// same scheme [`crate::item::ItemSnapshot`] uses) so callers never
-    /// need to invent one.
-    ///
-    /// This is the tick-dispatch integration path — for advancement-backed
-    /// `SandEvent`s (`AdvancementEvent::participants`), the export pipeline
-    /// applies the plan automatically; see [`crate::event::AdvancementEvent::participants`].
-    ///
-    /// A no-op (returns `self` unchanged, `Ok`) when `plan.is_empty()`.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::events::EventSetup::with_participants",
-        module = "sand::events",
-        kind = "method",
-        summary = "Apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one.",
-        context = "Apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one. This is the tick-dispatch integration path — for advancement-backed `SandEvent`s (`AdvancementEvent::participants`), the export pipeline applies the plan automatically; see [`sand::event::AdvancementEvent::participants`]. A no-op (returns `self` unchanged, `Ok`) when `plan.is_empty()`.",
-        minecraft = "This is the tick-dispatch integration path — for advancement-backed `SandEvent`s (`AdvancementEvent::participants`), the export pipeline applies the plan automatically; see [`sand::event::AdvancementEvent::participants`].",
-        use_when = ["Defining, composing, or handling a typed Sand event"],
-        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(plan = "Apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one."),
-        returns = "On success, the value produced to apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::events::SandEvent + 'static>(event_setup_value: sand::events::EventSetup, plan: sand::participant::EventParticipantPlan)  {\n    let with_participants = event_setup_value.with_participants::<E>(plan);\n}",
-    )]
-    pub fn with_participants<E: SandEvent + 'static>(
-        mut self,
-        plan: EventParticipantPlan,
-    ) -> Result<Self, EventParticipantPlanError> {
-        if plan.is_empty() {
-            return Ok(self);
-        }
-        let (setup_commands, cleanup_commands) = plan.build(std::any::type_name::<E>())?;
-        self.pre_observation.extend(setup_commands);
-        self.post_observation.extend(cleanup_commands);
-        Ok(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::events::SandEvent;
     #[test]
     fn empty_plan_is_a_no_op() {
         let plan = EventParticipantPlan::none();
@@ -1190,76 +1104,35 @@ mod tests {
     }
 
     #[test]
-    fn with_participants_appends_setup_and_cleanup_around_existing_commands() {
-        let plan = EventParticipantPlan::new().observe_correlated_attacker();
-        let setup = EventSetup {
-            objectives: vec!["scoreboard objectives add p10_trigger dummy".into()],
-            pre_observation: vec!["say existing pre".into()],
-            post_observation: vec!["say existing post".into()],
-        };
-        struct TestEvent;
-        impl SandEvent for TestEvent {
-            fn dispatch() -> impl Into<crate::events::SandEventDispatch> {
-                crate::events::SandEventDispatch::tick().as_players()
-            }
-        }
-        let applied = setup.with_participants::<TestEvent>(plan).unwrap();
-
-        assert_eq!(applied.pre_observation[0], "say existing pre");
-        assert!(
-            applied.pre_observation.len() > 1,
-            "plan setup commands must be appended"
-        );
-        assert_eq!(applied.post_observation[0], "say existing post");
-        assert!(
-            applied.post_observation.len() > 1,
-            "plan cleanup commands must be appended"
-        );
-        assert!(
-            applied
-                .post_observation
-                .last()
-                .unwrap()
-                .starts_with("tag @e[tag=__sand_observed_")
-        );
-    }
-
-    #[test]
-    fn with_participants_is_a_no_op_for_an_empty_plan() {
-        let setup = EventSetup {
-            objectives: vec![],
-            pre_observation: vec!["say only".into()],
-            post_observation: vec![],
-        };
-        struct TestEvent;
-        impl SandEvent for TestEvent {
-            fn dispatch() -> impl Into<crate::events::SandEventDispatch> {
-                crate::events::SandEventDispatch::tick().as_players()
-            }
-        }
-        let applied = setup
-            .clone()
-            .with_participants::<TestEvent>(EventParticipantPlan::none())
-            .unwrap();
-        assert_eq!(applied, setup);
-    }
-
-    #[test]
-    fn with_participants_rejects_duplicate_role_before_generating_commands() {
+    fn plan_cleanup_clears_entity_presence_and_item_evidence() {
         let plan = EventParticipantPlan::new()
             .observe_correlated_attacker()
-            .observe_correlated_attacker();
-        struct TestEvent;
-        impl SandEvent for TestEvent {
-            fn dispatch() -> impl Into<crate::events::SandEventDispatch> {
-                crate::events::SandEventDispatch::tick().as_players()
-            }
-        }
-        let result = EventSetup::none().with_participants::<TestEvent>(plan);
-        assert!(matches!(
-            result,
-            Err(EventParticipantPlanError::DuplicateRole(_))
-        ));
+            .observe_weapon();
+        let (capture, cleanup) = plan.build("cleanup_regression").unwrap();
+        assert!(
+            capture
+                .iter()
+                .any(|line| line.contains("execute on attacker"))
+        );
+        assert!(capture.iter().any(|line| line.contains("SelectedItem")));
+        assert!(cleanup.iter().any(|line| line.starts_with("tag @e[tag=")));
+        assert_eq!(
+            cleanup
+                .iter()
+                .filter(|line| line.ends_with("present set value 0b"))
+                .count(),
+            2
+        );
+        assert!(
+            cleanup
+                .iter()
+                .any(|line| line.ends_with("item set value {}"))
+        );
+        assert!(
+            !cleanup
+                .iter()
+                .any(|line| line.contains("execute on attacker"))
+        );
     }
 
     #[test]
@@ -1291,15 +1164,11 @@ mod tests {
         }
 
         let plan = || EventParticipantPlan::new().observe_correlated_attacker();
-        let first = EventSetup::none()
-            .with_participants::<FirstEvent>(plan())
-            .unwrap();
-        let second = EventSetup::none()
-            .with_participants::<SecondEvent>(plan())
-            .unwrap();
+        let first = plan().build(std::any::type_name::<FirstEvent>()).unwrap();
+        let second = plan().build(std::any::type_name::<SecondEvent>()).unwrap();
 
         assert_ne!(
-            first.pre_observation, second.pre_observation,
+            first.0, second.0,
             "distinct event types must generate distinct schema keys even with identical storage and role"
         );
     }
@@ -1343,7 +1212,7 @@ mod tests {
     }
 
     #[test]
-    fn item_plan_build_generates_capture_commands_and_no_cleanup() {
+    fn item_plan_build_captures_and_clears_temporary_evidence() {
         let plan = EventParticipantPlan::new().observe_weapon();
         let (setup, cleanup) = plan.build("TestWeaponEvent").unwrap();
         assert!(!setup.is_empty());
@@ -1353,10 +1222,12 @@ mod tests {
                 .any(|cmd| cmd.contains("SelectedItem") || cmd.contains("data modify")),
             "expected item capture commands: {setup:?}"
         );
-        assert!(
-            cleanup.is_empty(),
-            "item snapshots reset on every capture, they have no separate cleanup step"
+        let snapshot = resolve_direct_item_snapshot(
+            "TestWeaponEvent",
+            ItemParticipantRole::Weapon,
+            ParticipantHand::MainHand,
         );
+        assert_eq!(cleanup, snapshot.cleanup_commands());
     }
 
     #[test]

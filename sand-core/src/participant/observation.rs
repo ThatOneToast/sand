@@ -245,7 +245,7 @@ impl ObservationSchema {
         &self.storage
     }
 
-    fn present_path(&self) -> String {
+    pub(crate) fn present_path(&self) -> String {
         format!("obs.{}", self.key)
     }
 

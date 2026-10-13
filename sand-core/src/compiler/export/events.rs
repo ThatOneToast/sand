@@ -78,6 +78,7 @@ pub(crate) fn setup_objective_owner<'a>(
 ) -> Option<&'a str> {
     graph.nodes.values().find_map(|node| {
         node.setup
+            .lifecycle
             .objectives
             .iter()
             .any(|command| command_declares_objective(command, objective))
@@ -98,8 +99,9 @@ pub(crate) enum ChildPostObservation {
 /// nested references always resolve), inheriting the current `@s`/position —
 /// never re-issuing `execute as @a`.
 ///
-/// This function never contains lifecycle (`pre_observation`/
-/// `post_observation`) commands, for either roots or chained nodes. Root
+/// Participant capture and cleanup surround the synchronous dispatch tree.
+/// Global lifecycle (`pre_observation`/
+/// `post_observation`) commands remain separate. Root
 /// lifecycle stays in the tick-check wrapper (run unconditionally every tick
 /// regardless of detection, established by the caller). A chained node's own
 /// lifecycle is wrapped around *its* condition test by its parent — see
@@ -134,13 +136,14 @@ pub(crate) fn build_dispatch_function(
         || !children.is_empty()
         || self_guard.is_some()
         || records_occurrence
-        || bounded_item_load.is_some();
+        || bounded_item_load.is_some()
+        || !node.participant_capture.is_empty();
 
     if !needs_wrapper {
         return format!("{namespace}:{}", node.handlers[0]);
     }
 
-    let mut cmds: Vec<String> = Vec::new();
+    let mut cmds: Vec<String> = node.participant_capture.clone();
     // #272: stage this subject's persisted bounded snapshot(s) into the
     // static scratch path the read accessors name, before anything in this
     // node's own call tree can read them. First in the function body, ahead
@@ -172,7 +175,7 @@ pub(crate) fn build_dispatch_function(
     for edge in &children {
         let child_node = &graph.nodes[&edge.child];
         let post_observation = if occurrence_marked.contains(&edge.child)
-            && !child_node.setup.post_observation.is_empty()
+            && !child_node.setup.lifecycle.post_observation.is_empty()
         {
             ChildPostObservation::DeferredByAttempt
         } else {
@@ -188,6 +191,10 @@ pub(crate) fn build_dispatch_function(
             bounded_item,
             records,
         ));
+    }
+
+    if !records_occurrence {
+        cmds.extend(node.participant_cleanup.iter().cloned());
     }
 
     let dispatch_path = format!("__sand_event_dispatch/{key}");
@@ -235,8 +242,8 @@ pub(crate) fn build_child_edge(
         bounded_item,
         records,
     );
-    let has_lifecycle = !child_node.setup.pre_observation.is_empty()
-        || !child_node.setup.post_observation.is_empty();
+    let has_lifecycle = !child_node.setup.lifecycle.pre_observation.is_empty()
+        || !child_node.setup.lifecycle.post_observation.is_empty();
 
     // Build the condition-gated dispatch line(s) that reach `dispatch_ref`,
     // shared by both the no-lifecycle (emitted directly into the caller's
@@ -338,7 +345,7 @@ pub(crate) fn build_child_edge(
     // only inside a function reached solely on success.
     let child_key = tick_event_resource_key(&edge.child);
     let mut observe_cmds: Vec<String> = Vec::new();
-    observe_cmds.extend(child_node.setup.pre_observation.iter().cloned());
+    observe_cmds.extend(child_node.setup.lifecycle.pre_observation.iter().cloned());
     if post_observation == ChildPostObservation::DeferredByAttempt {
         observe_cmds.push(format!("scoreboard players set @s se_{child_key}_c 1"));
     }
@@ -348,7 +355,7 @@ pub(crate) fn build_child_edge(
         records,
     ));
     if post_observation == ChildPostObservation::Inline {
-        observe_cmds.extend(child_node.setup.post_observation.iter().cloned());
+        observe_cmds.extend(child_node.setup.lifecycle.post_observation.iter().cloned());
     }
 
     let observe_path = format!("__sand_event_observe/{child_key}");
@@ -366,6 +373,7 @@ pub(crate) fn build_child_edge(
 pub(crate) fn build_staged_post_observation_line(
     staged: &crate::events::graph::StagedEvent,
     post_ref: &str,
+    subject: &str,
 ) -> String {
     if staged.occurrence.iter().any(|dependency| {
         matches!(
@@ -375,7 +383,7 @@ pub(crate) fn build_staged_post_observation_line(
     }) {
         let child_key = tick_event_resource_key(&staged.child);
         return format!(
-            "execute as @a at @s if score @s se_{child_key}_m matches 1 run function {post_ref}"
+            "execute as {subject} at @s if score @s se_{child_key}_m matches 1 run function {post_ref}"
         );
     }
 
@@ -396,7 +404,7 @@ pub(crate) fn build_staged_post_observation_line(
         }
     }
     format!(
-        "execute as @a at @s {} run function {post_ref}",
+        "execute as {subject} at @s {} run function {post_ref}",
         clauses.join(" ")
     )
 }
@@ -406,6 +414,7 @@ pub(crate) fn build_staged_occurrence_lines(
     evaluation_ref: &str,
     namespace: &str,
     records: &mut Vec<ComponentRecord>,
+    subject: &str,
 ) -> Vec<String> {
     let mut required = Vec::new();
     let mut any_parents = Vec::new();
@@ -429,7 +438,7 @@ pub(crate) fn build_staged_occurrence_lines(
 
     if any_parents.is_empty() {
         return vec![format!(
-            "execute as @a at @s {} run function {evaluation_ref}",
+            "execute as {subject} at @s {} run function {evaluation_ref}",
             required.join(" ")
         )];
     }
@@ -459,7 +468,7 @@ pub(crate) fn build_staged_occurrence_lines(
             clauses.extend(required.clone());
             clauses.push(format!("if score @s se_{parent_key}_o matches 1"));
             format!(
-                "execute as @a at @s {} run function {gate_ref}",
+                "execute as {subject} at @s {} run function {gate_ref}",
                 clauses.join(" ")
             )
         })
@@ -568,28 +577,19 @@ pub(crate) fn check_event_trigger(
         )
 }
 
-/// Merge `plan`'s generated commands into `setup`'s pre/post-observation
-/// (#230 automatic tick-dispatch integration) — a no-op returning `setup`
-/// unchanged when `plan.is_empty()`. `event_label` must be the event type's
-/// canonical name (`event_type_name()`), the same key
-/// [`crate::event::Event::entity`] reconstructs from, so a handler body can
-/// address what this merge bound.
-pub(crate) fn apply_participants_to_setup(
+/// Validate and retain the canonical participant plan separately from global
+/// lifecycle commands. Graph lowering chooses the subject capture boundary.
+pub(crate) fn graph_event_setup(
     setup: crate::events::EventSetup,
     plan: crate::participant::EventParticipantPlan,
-    event_label: &str,
     handler_path: &str,
-) -> ExportResult<crate::events::EventSetup> {
-    if plan.is_empty() {
-        return Ok(setup);
-    }
-    let (setup_commands, cleanup_commands) = plan
-        .build(event_label)
-        .map_err(|err| participant_plan_export_error(handler_path, err))?;
-    let mut setup = setup;
-    setup.pre_observation.extend(setup_commands);
-    setup.post_observation.extend(cleanup_commands);
-    Ok(setup)
+) -> ExportResult<crate::events::GraphEventSetup> {
+    plan.validate()
+        .map_err(|err| participant_plan_export_error(handler_path, err.into()))?;
+    Ok(crate::events::GraphEventSetup {
+        lifecycle: setup,
+        participants: plan,
+    })
 }
 
 /// Map an [`crate::participant::EventParticipantPlanError`] into a fallible

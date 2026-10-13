@@ -256,10 +256,17 @@ fn source_dispatch_binds_the_subject_slot_then_persists_right_after_its_occurren
     let source_key = key(std::any::type_name::<Source>());
     let dispatch = function(&records, &format!("__sand_event_dispatch/{source_key}"));
 
+    let snapshot = Source.weapon();
+    let item_path = snapshot.item_path();
+    let snapshot_base = item_path.as_str().strip_suffix(".item").unwrap();
     assert_eq!(
         dispatch,
         format!(
-            "scoreboard players set @s se_{source_key}_o 1\n\
+            "data modify storage sand:__participants {snapshot_base}.present set value 0b\n\
+             data modify storage sand:__participants {snapshot_base}.item set value {{}}\n\
+             execute if data entity @s SelectedItem run data modify storage sand:__participants {snapshot_base}.item set from entity @s SelectedItem\n\
+             execute if data entity @s SelectedItem run data modify storage sand:__participants {snapshot_base}.present set value 1b\n\
+             scoreboard players set @s se_{source_key}_o 1\n\
              execute unless score @s sand_subj matches -2147483648.. run function \
              boundeditempack:__sand_bounded_item_slot_alloc\n\
              execute store result storage sand:__bounded_item args.subject int 1 run scoreboard \
@@ -494,13 +501,13 @@ fn the_slot_objective_is_registered_on_load() {
 fn expiry_is_keyed_to_the_longest_declared_window_across_all_consumers() {
     let records = records();
     let source_key = key(std::any::type_name::<Source>());
-    let cycle = function(&records, "__sand_event_cycle");
+    let cycle = function(&records, "__sand_event_subject_cycle");
 
     // Expiry must run at the *longer* of the two declared windows
     // (LongBoundedChild's 100, not BoundedChild's 40) — the storage stays
     // valid for as long as the longest-lived consumer needs it.
     let expire_guard = format!(
-        "execute as @a if score @s sand_subj matches -2147483648.. if score @s se_{source_key}_wa matches {LONG_WINDOW_TICKS} run function boundeditempack:__sand_event_bounded_item_expire/"
+        "execute as @s if score @s sand_subj matches -2147483648.. if score @s se_{source_key}_wa matches {LONG_WINDOW_TICKS} run function boundeditempack:__sand_event_bounded_item_expire/"
     );
     assert!(
         cycle.contains(&expire_guard),
@@ -520,7 +527,7 @@ fn expiry_skips_subjects_that_never_sourced_an_occurrence() {
     // players get @s sand_subj` on an unset score would leave a stale
     // subject bound and expire *someone else's* storage.
     let records = records();
-    let cycle = function(&records, "__sand_event_cycle");
+    let cycle = function(&records, "__sand_event_subject_cycle");
     let expire_line = cycle
         .lines()
         .find(|l| l.contains("__sand_event_bounded_item_expire/"))
@@ -590,7 +597,7 @@ fn expiry_binds_the_subject_before_invoking_its_macro_body() {
 fn expiry_guard_runs_after_the_age_increment_line_for_the_same_source() {
     let records = records();
     let source_key = key(std::any::type_name::<Source>());
-    let cycle = function(&records, "__sand_event_cycle");
+    let cycle = function(&records, "__sand_event_subject_cycle");
     let increment_pos = cycle
         .find(&format!(
             "unless score @s se_{source_key}_o matches 1 unless score @s se_{source_key}_wa matches"
@@ -670,9 +677,9 @@ fn full_generated_bounded_item_wiring_snapshot() {
     let records = records();
     let key = entry_key();
     let source_key = key_of::<Source>();
-    let cycle = function(&records, "__sand_event_cycle");
+    let cycle = function(&records, "__sand_event_subject_cycle");
     assert!(cycle.contains(&format!(
-        "execute as @a if score @s sand_subj matches -2147483648.. if score @s se_{source_key}_wa \
+        "execute as @s if score @s sand_subj matches -2147483648.. if score @s se_{source_key}_wa \
          matches {LONG_WINDOW_TICKS} run function \
          boundeditempack:__sand_event_bounded_item_expire/"
     )));

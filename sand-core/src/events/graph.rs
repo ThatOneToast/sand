@@ -753,7 +753,9 @@ fn discover(
                     )));
                 }
                 let dependency_setup = (dependency.event_setup)();
-                if dependency_setup != GraphEventSetup::default() {
+                // A persistent query does not dispatch the provider, so its
+                // occurrence participant plan needs no capture or cleanup.
+                if dependency_setup.lifecycle != EventSetup::none() {
                     visiting.pop();
                     return Err(GraphError(format!(
                         "SandEvent `{type_name}` cannot evaluate persistent state `{dependency_type_name}`: its SandEvent::setup() is non-empty, but `while_` requires a directly queryable condition and never runs provider detector lifecycle; provision shared resources through typed state lifecycle or return an independently valid condition"

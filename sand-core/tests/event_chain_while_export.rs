@@ -3,8 +3,8 @@
 use sand_commands::Target;
 use sand_core::condition::Condition;
 use sand_core::events::{
-    ChainEventDispatch, EventSetup, PersistentSandEvent, PlayerSneakEvent, SandEvent,
-    SandEventDispatch, TickEventDispatch,
+    ChainEventDispatch, EventSetup, PersistentEventCondition, PersistentSandEvent,
+    PlayerSneakEvent, SandEvent, SandEventDispatch, TickEventDispatch,
 };
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
@@ -19,6 +19,23 @@ impl SandEvent for ParentOccurrence {
     }
 }
 
+// A provider's occurrence participants are irrelevant to a live predicate query.
+struct ParticipantProvider;
+impl SandEvent for ParticipantProvider {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players()
+    }
+
+    fn participants() -> sand_core::participant::EventParticipantPlan {
+        sand_core::participant::EventParticipantPlan::new().observe_correlated_attacker()
+    }
+}
+impl PersistentSandEvent for ParticipantProvider {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(Condition::entity(Target::self_().tag("provider_ready")))
+    }
+}
+
 struct WhileSneaking;
 
 impl SandEvent for WhileSneaking {
@@ -26,6 +43,7 @@ impl SandEvent for WhileSneaking {
         SandEventDispatch::chain::<ParentOccurrence>()
             .while_::<PlayerSneakEvent>()
             .while_::<PlayerSneakEvent>()
+            .while_::<ParticipantProvider>()
             .when(Condition::entity(Target::self_().tag("ready")))
             .unless(Condition::entity(Target::self_().tag("blocked")))
     }
@@ -104,7 +122,7 @@ fn persistent_state_is_a_distinct_live_child_condition() {
     let parent_dispatch = parent_dispatch["content"].as_str().expect("text function");
     assert!(parent_dispatch.contains("run function whilepack:on_parent_while_sneaking"));
     assert!(parent_dispatch.contains(
-        "if predicate whilepack:__sand/player_sneaking if entity @s[tag=ready] unless entity @s[tag=blocked]"
+        "if entity @s[tag=provider_ready] if predicate whilepack:__sand/player_sneaking if entity @s[tag=ready] unless entity @s[tag=blocked]"
     ), "unexpected parent dispatch: {parent_dispatch}");
     assert_eq!(
         parent_dispatch
@@ -135,6 +153,18 @@ fn persistent_state_is_a_distinct_live_child_condition() {
     assert!(records.iter().any(|record| {
         record["dir"] == "predicate" && record["path"] == "__sand/player_sneaking"
     }));
+    let participant_provider_key = expected_key(std::any::type_name::<ParticipantProvider>());
+    assert!(
+        !records.iter().any(|record| {
+            record["path"]
+                .as_str()
+                .is_some_and(|path| path.contains(&participant_provider_key))
+                || record["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("execute on attacker"))
+        }),
+        "a while-only provider must not export an occurrence detector or capture participants"
+    );
     let sneaking_key = expected_key(std::any::type_name::<PlayerSneakEvent>());
     assert!(
         !records.iter().any(|record| {

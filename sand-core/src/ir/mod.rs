@@ -528,11 +528,23 @@ impl Cmd {
                     error.field = format!("run.{}", error.field);
                     error
                 })?;
-                if let Some(command) = run_text.strip_prefix('$') {
-                    format!("$execute {operation_text} run {command}")
-                } else {
-                    format!("execute {operation_text} run {run_text}")
-                }
+                // Raw/retained nodes can contain multiple physical lines.
+                // Scope every command while retaining macro substitution in
+                // the caller; comments and empty lines are not commands.
+                run_text
+                    .lines()
+                    .map(|line| {
+                        let line = line.trim_start();
+                        if line.is_empty() || line.starts_with('#') {
+                            line.to_owned()
+                        } else if let Some(command) = line.strip_prefix('$') {
+                            format!("$execute {operation_text} run {command}")
+                        } else {
+                            format!("execute {operation_text} run {line}")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
             }
 
             Self::BlockMatch(_) | Self::BlockMutation(_) => {

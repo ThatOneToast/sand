@@ -133,7 +133,7 @@ fn dimension_macro_actions() {
     let dimension: sand::registry::DimensionId = "minecraft:the_nether".parse().unwrap();
     WorldContext::current().in_dimension(dimension, |world| {
         mcfunction![
-            args.line("setblock ~ ~ ~ $(block)").unwrap();
+            format!("{}\n# scoped comment\n\nsetblock ~1 ~ ~ minecraft:lapis_block", args.line("setblock ~ ~ ~ $(block)").unwrap());
             world.block(BlockPos::here()).replace(vanilla::Block::Stone);
         ]
     });
@@ -149,7 +149,7 @@ fn dimension_macro_actions_keep_the_argument_bearing_frame() {
         .unwrap();
     assert_eq!(
         function["content"],
-        "$execute in minecraft:the_nether run setblock ~ ~ ~ $(block)\nexecute in minecraft:the_nether run setblock ~ ~ ~ minecraft:stone"
+        "$execute in minecraft:the_nether run setblock ~ ~ ~ $(block)\n# scoped comment\n\nexecute in minecraft:the_nether run setblock ~1 ~ ~ minecraft:lapis_block\nexecute in minecraft:the_nether run setblock ~ ~ ~ minecraft:stone"
     );
     assert_eq!(
         json,

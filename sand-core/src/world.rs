@@ -288,6 +288,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn dimension_macro_body_keeps_comment_nodes_as_comments() {
+        let dimension: DimensionId = "minecraft:the_nether".parse().unwrap();
+        let actions = WorldContext::current().in_dimension(dimension, |_| {
+            Actions(vec![
+                Cmd::Comment("context".into()),
+                Cmd::Raw("$say $(value)".into()),
+            ])
+        });
+        assert_eq!(actions.0[0].try_render().unwrap(), "# context");
+        assert_eq!(
+            actions.0[1].try_render().unwrap(),
+            "$execute in minecraft:the_nether run say $(value)"
+        );
+    }
+
+    #[test]
     fn dimension_macro_early_return_is_diagnosed_instead_of_leaking_to_caller() {
         let args = crate::cmd::FunctionMacroArgs::new(["value"]).unwrap();
         let dimension: DimensionId = "minecraft:the_nether".parse().unwrap();

@@ -824,6 +824,6 @@ pub fn audit_world_macro() {
     let args = FunctionMacroArgs::new(["block"]).unwrap();
     WorldContext::current().in_dimension(
         "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
-        |_| args.line("setblock ~ ~ ~ $(block)").unwrap(),
+        |_| format!("{}\n# dimension macro audit\n\nsetblock ~1 ~ ~ minecraft:lapis_block", args.line("setblock ~ ~ ~ $(block)").unwrap()),
     );
 }

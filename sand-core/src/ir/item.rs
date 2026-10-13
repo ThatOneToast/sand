@@ -81,10 +81,17 @@ impl ItemMutation {
                     .validate_single(&CommandProfile::unprofiled())
                     .map_err(error)?;
                 let argument = lower_item_predicate(predicate, owner)?;
-                let line = sand_commands::Inventory::of(target.clone())
+                let line = sand_commands::Inventory::of(sand_commands::Target::current_player())
                     .try_clear_item_count(argument, *amount)
                     .map_err(error)?;
-                return Ok(crate::IntoCommands::into_commands(line).0);
+                return Ok(crate::IntoCommands::into_commands(line)
+                    .0
+                    .into_iter()
+                    .map(|run| Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::As(target.clone())],
+                        run: Box::new(run),
+                    })
+                    .collect());
             }
             ItemMutationOperation::Replace {
                 destination,

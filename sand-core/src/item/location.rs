@@ -958,7 +958,24 @@ mod tests {
             .unwrap();
         assert_eq!(
             commands,
-            vec!["clear @r minecraft:stick[minecraft:custom_data~{\"pack:wand\":1b}] 3"]
+            vec![
+                "execute as @r run clear @s minecraft:stick[minecraft:custom_data~{\"pack:wand\":1b}] 3"
+            ]
+        );
+    }
+
+    #[test]
+    fn inventory_removal_routes_scoped_entity_selectors_through_current_player() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let target = Selector::all_entities().tag("owner").limit(1);
+        let inventory = ItemLocation::entity(target);
+        let item = sand_components::ItemId::minecraft("diamond").unwrap();
+        assert_eq!(
+            inventory
+                .remove(item, 3)
+                .lower(&"test:remove".parse().unwrap())
+                .unwrap(),
+            vec!["execute as @e[tag=owner,limit=1] run clear @s minecraft:diamond 3"]
         );
     }
 
@@ -970,7 +987,7 @@ mod tests {
         let inventory = ItemLocation::entity(Selector::self_());
         assert_eq!(
             inventory.remove(item.clone(), 0).lower(&owner).unwrap(),
-            vec!["clear @s minecraft:diamond 0"]
+            vec!["execute as @s run clear @s minecraft:diamond 0"]
         );
         assert!(
             inventory

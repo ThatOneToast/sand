@@ -78,7 +78,7 @@ fn cached_predicates_own_shared_tags_and_preserve_native_constraints() {
     assert_eq!(
         functions
             .lines()
-            .filter(|line| *line == format!("clear @s {argument} 4"))
+            .filter(|line| *line == format!("execute as @s run clear @s {argument} 4"))
             .count(),
         1
     );

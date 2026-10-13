@@ -507,23 +507,36 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         crate::cmd::effect_clear(self.selector.clone())
     }
 
+    /// Reads the effective native attribute, including Minecraft modifiers, as
+    /// Sand's canonical numeric expression. The source is selected and read
+    /// once per evaluation; this is not the base value stored in entity NBT.
+    ///
+    /// Minecraft truncates the scaled result toward zero at the expression's
+    /// working precision (1000 units by default). Subsequent arithmetic and
+    /// assignment use the numeric engine's configured rounding. Missing entities
+    /// or attributes and saturated command results fail the evaluation, leaving
+    /// assignment destinations unchanged. Exact i32 boundary results are rejected
+    /// conservatively because they cannot be distinguished from saturation.
+    /// Vanilla attribute clamping remains authoritative, including its treatment
+    /// of non-finite base/modifier data. Archetype reconciliation cannot observe
+    /// this external source yet.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::attribute",
         aliases = ["sand::prelude::LivingEntity::attribute"],
         module = "sand::entity",
         kind = "method",
-        summary = "Reads a typed native attribute value.",
+        summary = "Reads an effective native attribute as a canonical numeric expression.",
         context = "Focused entity capability reached from an execution-scoped EntityContext or ScopedEntityRef; it stores no persistent entity identity and creates no state or lifecycle resources.",
         minecraft = "Delegates to Sand's canonical typed command, item, or NBT lowering for the entity selector carried by the handle.",
         use_when = ["Discovering legal operations on the current or scoped entity"],
         avoid_when = ["Keeping an entity identity across ticks"],
         example = "use sand::prelude::*;",
-        returns = "The requested capability value or canonical Minecraft command.",
+        returns = "A StatCurve usable in arithmetic, comparisons, and State assignments.",
         params(attribute = "The typed attribute used by this operation."),
     )]
-    pub fn attribute(&self, attribute: AttributeType) -> CommandResult<String> {
-        sand_commands::builtins::try_attribute_get(self.selector.clone(), attribute.as_str())
+    pub fn attribute(&self, attribute: AttributeType) -> super::StatCurve {
+        super::StatCurve::native_attribute(self.selector.clone(), attribute)
     }
 
     #[sand_macros::api(
@@ -1152,12 +1165,6 @@ mod tests {
             zombie
                 .transform()
                 .rotate(Rotation::absolute(f64::NAN, 0.0))
-                .is_err()
-        );
-        assert!(
-            zombie
-                .living()
-                .attribute(AttributeType::Custom("not namespaced".to_owned()))
                 .is_err()
         );
         assert!(

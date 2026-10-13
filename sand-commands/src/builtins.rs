@@ -1385,23 +1385,33 @@ impl Default for Damage {
 
 // ── Attributes ────────────────────────────────────────────────────────────────
 
-/// `attribute <target> <attribute> get` — get an attribute value.
+/// `attribute <target> <attribute> get <scale>` — get an effective attribute.
 ///
-/// Raw/unchecked: accepts any string attribute id. Prefer
-/// [`try_attribute_get`] on the validated path.
-pub fn attribute_get(target: impl TargetArgument, attribute: impl Into<String>) -> String {
-    format!("attribute {} {} get", target, attribute.into())
+/// Minecraft multiplies the effective value by `scale`, truncates toward zero,
+/// and returns a signed 32-bit result. Raw/unchecked: prefer [`try_attribute_get`]
+/// for selector, identifier, and finite-scale validation.
+pub fn attribute_get(
+    target: impl TargetArgument,
+    attribute: impl Into<String>,
+    scale: f64,
+) -> String {
+    format!("attribute {} {} get {scale}", target, attribute.into())
 }
 
-/// Fallible [`attribute_get`] — rejects an attribute id that isn't a valid
-/// `namespace:path` resource location.
+/// Fallible [`attribute_get`] — validates one target, a namespaced attribute ID,
+/// and a finite scale. An unsupported or absent native attribute fails at runtime.
 pub fn try_attribute_get(
     target: impl TargetArgument,
     attribute: impl Into<String>,
+    scale: f64,
 ) -> CommandResult<String> {
+    let target = target.into_target_selector();
+    crate::ScoreHolder::entity(target.clone())
+        .validate_single(&crate::CommandProfile::unprofiled())?;
     let attribute = attribute.into();
     validate::resource_location_shape(&attribute, "attribute_get", "attribute")?;
-    Ok(format!("attribute {target} {attribute} get"))
+    validate::finite(scale, "attribute_get", "scale")?;
+    Ok(attribute_get(target, attribute, scale))
 }
 
 /// `attribute <target> <attribute> base set <value>` — set an attribute's base value.
@@ -1833,8 +1843,8 @@ mod tests {
     #[test]
     fn attribute_get_test() {
         assert_eq!(
-            attribute_get(Selector::self_(), "minecraft:generic.max_health"),
-            "attribute @s minecraft:generic.max_health get"
+            attribute_get(Selector::self_(), "minecraft:generic.max_health", 1.0),
+            "attribute @s minecraft:generic.max_health get 1"
         );
     }
 
@@ -2225,11 +2235,23 @@ mod tests {
     }
 
     #[test]
-    fn try_attribute_get_rejects_malformed_attribute_id() {
-        assert!(try_attribute_get(Selector::self_(), "max_health").is_err());
+    fn attribute_reads_validate_scale_and_single_owner() {
+        for scale in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(try_attribute_get(Selector::self_(), "minecraft:gravity", scale).is_err());
+        }
+        assert!(try_attribute_get(Selector::all_entities(), "minecraft:max_health", 1.0).is_err());
         assert_eq!(
-            try_attribute_get(Selector::self_(), "minecraft:generic.max_health").unwrap(),
-            attribute_get(Selector::self_(), "minecraft:generic.max_health")
+            try_attribute_get(Selector::self_(), "minecraft:gravity", 1000.0).unwrap(),
+            "attribute @s minecraft:gravity get 1000"
+        );
+    }
+
+    #[test]
+    fn try_attribute_get_rejects_malformed_attribute_id() {
+        assert!(try_attribute_get(Selector::self_(), "max_health", 1.0).is_err());
+        assert_eq!(
+            try_attribute_get(Selector::self_(), "minecraft:generic.max_health", 1.0).unwrap(),
+            attribute_get(Selector::self_(), "minecraft:generic.max_health", 1.0)
         );
     }
 

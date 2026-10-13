@@ -124,7 +124,7 @@ impl ItemRarity {
     variant_fields(Custom = ["Any attribute not covered above (namespace:name format)."]),
 )]
 /// Minecraft entity attribute type for [`AttributeModifier`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AttributeType {
     /// Melee damage dealt by the entity.
     AttackDamage,

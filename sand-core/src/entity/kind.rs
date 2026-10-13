@@ -244,7 +244,7 @@ impl MutableLivingEntityKind for ZombieKind {}
     module = "sand::entity",
     summary = "An entity kind with vanilla equipment slots addressable through Sand's typed item-location API.",
     context = "This sealed capability is implemented for players and known living mobs with supported hand and armor slots. It is absent from MarkerKind and AnyEntity, where equipment legality is not statically known.",
-    minecraft = "Equipment access delegates to vanilla item locations: player Inventory entries for PlayerKind and ArmorItems/HandItems for supported non-player living kinds.",
+    minecraft = "Equipment access delegates to named equipment compounds on supported Minecraft versions; PlayerKind main-hand reads use SelectedItem.",
     use_when = ["Writing generic behavior that needs supported equipment slots"],
     avoid_when = ["Assuming an AnyEntity query contains only equipment-capable entities"],
     example = "use sand::entity::EquipmentEntityKind;",

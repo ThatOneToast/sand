@@ -1,5 +1,19 @@
 # Participant role evidence audit (#230)
 
+## Current real-player regression
+
+The [equipment and participant audit](player-equipment-evidence.md) now verifies
+actual advancement-driven attacker capture and tracked health-transition
+participants with two real Minecraft 26.2 players. It checks independently
+recorded UUIDs/item compounds, mainhand/offhand presence, typed armor reads,
+post-capture inventory edits, temporary-tag cleanup, interleaved ownership and
+reload. It reproduced and corrected obsolete equipment NBT paths.
+
+These hand snapshots have the tracked observation's sampling time. Killer,
+attacking-player weapon-event, composed and rapid-hit scenarios remain open;
+the historical direct-handler evidence below does not imply those are covered.
+
+
 Role-by-role audit of what vanilla Minecraft Java actually exposes for
 combat, interaction, and item participant context, and what backend (if
 any) Sand implements as a result. This is the internal, evidence-linked
@@ -161,8 +175,10 @@ not a mock), re-run after the `execute_at` fix above:
   the game`) across multiple independent runs.
 - `execute on attacker` relation existence and exact command output
   (`sand-core/src/entity/relation.rs`, pre-existing, structurally tested).
-- Item location NBT paths (`SelectedItem`, `Inventory[{Slot:-106b}]`, etc.)
-  — long-documented, structurally stable vanilla tags (#229).
+- Player main-hand reads use `SelectedItem`. Live probes found that offhand
+  and armor use named `equipment` compounds in Minecraft 26.2; the old
+  negative/armor `Inventory` indices did not resolve actual equipped stacks.
+  Non-player equipment compounds were also checked on 26.1 and 26.2.
 
 ### RCON-direct scenario invocation: what it proves and what it does not
 
@@ -218,17 +234,11 @@ pass:**
 - Held-item snapshot is the same underlying backend as weapon snapshot
   (`ItemLocation::PlayerMainHand`/`PlayerOffHand`, `EventParticipantPlan::observe_held_item`)
   — same status as above, not separately re-attempted.
-- Tracked-transition participant capture (#270's fix — a tracked-transition
-  event's own direct participant plan being applied around its handler
-  body) has structural/export coverage
-  (`sand-core/tests/tracked_event_participant_setup.rs`) but no dedicated
-  scenario in `examples/participant_audit` and was not added in this pass;
-  live evidence for it remains open.
 - The composed scenario's actual *firing* and its captured
   `compose_child_uuid`/`compose_sibling_uuid`: structural checks exist, but
   this participant audit has not yet exercised the complete live-player path.
-- Player-triggered combat scenarios driven through the actual advancement
-  criterion, including attacker/killer correlation and repeated hits, still
+- Actual advancement-driven attacker capture now passes in the equipment
+  audit. Killer correlation and repeated/rapid mixed-attacker timing still
   need dedicated live-player assertions. The former connection blocker is
   now fixed: the minimal client's keep-alive ID was wrong. A separate
   [player-observation audit](player-observation-evidence.md) now proves two
@@ -304,7 +314,7 @@ public code no longer has a reason to call them directly.
 | `.while_(...)` (persistent condition) | ❌ Rejected (also structurally impossible — see below) | ❌ Rejected | — | — | A `while_` parent is required to have an empty `EventSetup` (#240 Phase 6 precedent), so it can never carry a plan to inherit from in the first place; the validator's diagnostic names this. |
 | `.within(...)` (bounded cross-tick correlation) | ❌ Rejected (entity) | ✅ `inherit_item_within` (#272) | Preserved from source (`ExactSnapshot`/`ExactPostTrigger` qualifier unchanged) | `BoundedWindow` (new #272 lifetime — see below) | #272 adds an automatic bounded-item transport: on the source occurrence the export pipeline copies the source's `ItemSnapshot` into **command storage** (`sand:__bounded_item`), keyed per subject by a scoreboard-assigned integer slot substituted into the storage path by a function macro (`sand-core/src/participant/bounded_item.rs`); a consuming child stages its own subject's copy into a static scratch path before its handler runs, and expiry reuses the existing `.within(...)` age counter. An earlier revision used per-subject entity NBT; a live RCON round-trip proved vanilla silently drops custom top-level entity NBT keys, and the replacement backend is itself live-proven — see "Minecraft 26.2 validation status" below. Entity participants are still never safe to keep alive across a tick boundary with the current temporary-tag mechanism (see "Bounded entity decision" in the #264 PR description) and still always resolve unavailable/rejected — #272 explicitly does not attempt this; see its own PR description for the full rationale. |
 | Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ✅ `inherit_entity` (#269) | ✅ `inherit_item` (#269) | Unchanged from source | `SynchronousDescendants` | Fixed in #269/#280: the bridge parent's own `participants()` plan is now applied directly around its synthesized entry (setup after revoke, before every dependent; cleanup after every synchronous descendant) — see `sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs` for exact-output proof (siblings, a nested grandchild, and ordering). A grandchild reached through another same-cycle child may still `inherit_*` directly from the original bridge parent (multi-hop, not transitive). Real-server validation for this specific scenario (`PlayerKillEvent -> SpecialKillEvent`) via `scripts/mc_validation/run_audit.py`'s `advancement_bridge_rcon_direct_invocation`/`advancement_bridge_matches_real_attacker_uuid` checks: a real, non-mocked firing of the synthesized bridge entry function against a real, independently-verified combat attacker relationship, with `bridge_killer_uuid` confirmed to genuinely match the real attacker's UUID (see `docs/testing/participant-role-evidence.md`'s "What has and has not been runtime-verified" and `scripts/mc_validation/README.md`'s "#265 (this pass)" section for the full before/after, including a real `execute_at` bug this uncovered and fixed). |
-| Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | Same-cycle graph-parent bridging for tracked-transition `SandEvent`s remains unsupported and is unrelated to #270: #270 fixed a tracked-transition event's own *direct* participant plan being silently ignored by its dispatch backend (now applied around its own handler body — see `sand-core/tests/tracked_event_participant_setup.rs`); using a tracked event as a graph parent for another event's inheritance is still rejected by `discover()` (`sand-core/src/events/graph.rs`), unchanged. |
+| Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | Same-cycle graph-parent bridging for tracked-transition `SandEvent`s remains unsupported and is unrelated to #270: #270 fixed a tracked-transition event's own *direct* participant plan being silently ignored by its dispatch backend (now applied around its own handler body — see `examples/participant_audit/tests/deterministic_export.rs`); using a tracked event as a graph parent for another event's inheritance is still rejected by `discover()` (`sand-core/src/events/graph.rs`), unchanged. |
 
 Every rejection above is a real export-time diagnostic (`sand-core/src/compiler/export/participant_transport.rs`), not a silent downgrade — see `sand-core/tests/event_chain_participant_inheritance_diag_{after_any,within,transitive}.rs` for end-to-end proof each one actually surfaces through the real export pipeline.
 

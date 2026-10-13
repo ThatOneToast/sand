@@ -7,25 +7,18 @@
 //! half of the item-snapshot model; [`super::snapshot::ItemSnapshot`] is the
 //! captured-data half.
 //!
-//! # NBT path stability
+//! # Supported NBT layout
 //!
-//! Every location resolves to a vanilla entity/block-entity NBT path
-//! (`SelectedItem`, `Inventory[{Slot:N}]`, `ArmorItems[N]`, `HandItems[N]`,
-//! `Items[{Slot:N}]`, `Item`). These are long-stable *structural* NBT tags —
-//! unrelated to the 26+ item-component encoding, which affects
-//! only the *contents* of an item compound, not which entity/block-entity
-//! tag holds it. Rendering is therefore version-independent by design; no
-//! `VersionProfile` parameter is threaded through [`ItemLocation`] itself.
-//! This is a deliberate, documented simplification — see
-//! `ItemLocation::EntityEquipment`'s `Body` slot, which is explicitly
-//! unsupported below because its backing tag is genuinely uncertain across
-//! the supported version range, rather than guessed.
+//! Players expose their selected main-hand stack through `SelectedItem` and
+//! normal inventory slots through `Inventory[{Slot:N}]`. Offhand and armor
+//! stacks use named `equipment` compounds. Non-player living equipment uses
+//! the same named compounds, including `equipment.mainhand`.
 //!
-//! None of these paths have been independently runtime-verified against a
-//! live 26.1/26.2 server as part of this change. They are Sand's
-//! best-confidence encoding of long-documented vanilla structure, not a
-//! certified claim — see `docs/testing/participant-role-evidence.md` for
-//! what has and has not been verified on a real server.
+//! Equipment paths were checked on live 26.1/26.2 non-player entities and a
+//! live 26.2 player. The older `ArmorItems`/`HandItems` lists and player armor
+//! or offhand `Inventory` indices do not describe the supported layout.
+//! `Body` remains unsupported until its entity-kind behavior is validated.
+//! See `docs/testing/participant-role-evidence.md` for the runtime boundary.
 
 use std::fmt;
 
@@ -158,21 +151,24 @@ impl ContainerIndex {
 pub enum ItemLocation {
     /// The player's currently-selected hotbar item (`SelectedItem`).
     PlayerMainHand,
-    /// The player's offhand slot (`Inventory[{Slot:-106b}]`).
+    /// The player's offhand stack (`equipment.offhand` on supported Minecraft versions).
     PlayerOffHand,
-    /// A player armor slot. Only `Head`/`Chest`/`Legs`/`Feet` are
-    /// constructible — `Mainhand`/`Offhand` have their own dedicated
-    /// variants above, and `Body` does not apply to players. Construct via
-    /// [`ItemLocation::player_equipment`], which enforces this.
+    /// A player equipment slot. Prefer [`ItemLocation::player_equipment`],
+    /// which accepts only armor; hands have dedicated variants above.
+    /// Directly constructed hand slots read the same paths as those variants.
+    /// A directly constructed `Body` reads `equipment.body` without panicking,
+    /// but that compound is absent on players and item operations reject it.
     PlayerEquipment(EquipmentSlot),
     /// A player hotbar slot by validated index.
     PlayerHotbar(HotbarIndex),
     /// A player main-inventory-or-hotbar slot by validated index (the full
     /// `0..=35` vanilla `Inventory` range).
     PlayerInventory(InventoryIndex),
-    /// An equipment slot on an arbitrary living entity (`ArmorItems`/
-    /// `HandItems`), addressed by a typed target rather than assumed to be the
+    /// An equipment slot on a non-player living entity (`equipment.<slot>`),
+    /// addressed by a typed target rather than assumed to be the
     /// executing player. Construct via [`ItemLocation::entity_equipment`].
+    /// Direct construction with `Body` permits an NBT read of `equipment.body`,
+    /// whose availability is entity-dependent; item operations still reject it.
     EntityEquipment {
         entity: Selector,
         slot: EquipmentSlot,
@@ -303,7 +299,7 @@ impl ItemLocation {
     /// [`EquipmentSlot::Feet`] only. `Mainhand`/`Offhand` are rejected (use
     /// [`ItemLocation::PlayerMainHand`]/[`ItemLocation::PlayerOffHand`]);
     /// `Body` is rejected (it does not apply to a player).
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::player_equipment", summary = "Validates an armor location on the executing player.", context = "Main hand, offhand, and body are intentionally rejected so callers cannot generate ambiguous player equipment paths.", minecraft = "Maps head, chest, legs, or feet to the corresponding player Inventory entry.", use_when = ["Capturing or matching a player's armor slot"], avoid_when = ["Addressing a hand or non-player entity equipment"], params(slot = "The requested player armor equipment slot."), returns = "The validated player equipment location or a precise unsupported-location error.", example = "let helmet = ItemLocation::player_equipment(EquipmentSlot::Head)?;")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::player_equipment", summary = "Validates an armor location on the executing player.", context = "Main hand, offhand, and body are intentionally rejected so callers cannot generate ambiguous player equipment paths.", minecraft = "Maps head, chest, legs, or feet to the corresponding player equipment compound.", use_when = ["Capturing or matching a player's armor slot"], avoid_when = ["Addressing a hand or non-player entity equipment"], params(slot = "The requested player armor equipment slot."), returns = "The validated player equipment location or a precise unsupported-location error.", example = "let helmet = ItemLocation::player_equipment(EquipmentSlot::Head)?;")]
     pub fn player_equipment(slot: EquipmentSlot) -> Result<Self, ItemLocationError> {
         match slot {
             EquipmentSlot::Head
@@ -323,13 +319,12 @@ impl ItemLocation {
         }
     }
 
-    /// An equipment location on an arbitrary living entity. All
+    /// An equipment location on a non-player living entity. All
     /// [`EquipmentSlot`] variants are accepted except [`EquipmentSlot::Body`]
-    /// — its backing NBT tag differs from the stable `ArmorItems`/
-    /// `HandItems` structure used here in a way this phase has not verified
-    /// across the supported version range (see the module doc), so it is
+    /// — Sand has not verified its behavior across supported entity kinds
+    /// and versions (see the module doc), so it is
     /// rejected rather than guessed.
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity_equipment", summary = "Validates an equipment location on an explicitly selected entity.", context = "The constructor preserves entity ownership and rejects Body because Sand has not verified a stable backing NBT path for it.", minecraft = "Maps supported armor and hand slots to ArmorItems or HandItems on the selected entity.", use_when = ["Reading or matching equipment on a non-player entity"], avoid_when = ["Addressing the executing player's conventional armor slot"], params(entity = "The entity target owning the equipment.", slot = "The requested equipment slot."), returns = "The validated entity-equipment location or an unsupported-location error.", example = "let weapon = ItemLocation::entity_equipment(Target::entities().nearest(), EquipmentSlot::Mainhand)?;")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity_equipment", summary = "Validates an equipment location on an explicitly selected entity.", context = "The constructor preserves entity ownership and rejects Body because Sand has not verified a stable backing NBT path for it.", minecraft = "Maps supported armor and hand slots to named equipment compounds on the selected non-player entity.", use_when = ["Reading or matching equipment on a non-player entity"], avoid_when = ["Addressing the executing player's conventional armor slot"], params(entity = "The entity target owning the equipment.", slot = "The requested equipment slot."), returns = "The validated entity-equipment location or an unsupported-location error.", example = "let weapon = ItemLocation::entity_equipment(Target::entities().nearest(), EquipmentSlot::Mainhand)?;")]
     pub fn entity_equipment(
         entity: impl TargetArgument,
         slot: EquipmentSlot,
@@ -389,9 +384,7 @@ impl ItemLocation {
     }
 
     pub(crate) fn writable_nbt(&self) -> NbtRef<UntypedNbt> {
-        let (target, path) = self
-            .nbt_parts()
-            .expect("constructible ItemLocation variants always have NBT addressing");
+        let (target, path) = self.nbt_parts();
         NbtRef::__from_parts(target, NbtPath::new(path))
     }
 
@@ -579,22 +572,23 @@ impl ItemLocation {
         }
     }
 
-    fn nbt_parts(&self) -> Result<(DataTarget, String), ItemLocationError> {
-        Ok(match self {
+    fn nbt_parts(&self) -> (DataTarget, String) {
+        match self {
             Self::PlayerMainHand => (
                 DataTarget::entity(Selector::self_()),
                 "SelectedItem".to_string(),
             ),
             Self::PlayerOffHand => (
                 DataTarget::entity(Selector::self_()),
-                "Inventory[{Slot:-106b}]".to_string(),
+                equipment_nbt_path(EquipmentSlot::Offhand).to_string(),
             ),
             Self::PlayerEquipment(slot) => (
                 DataTarget::entity(Selector::self_()),
-                format!(
-                    "Inventory[{{Slot:{}b}}]",
-                    player_armor_inventory_slot(*slot)
-                ),
+                match slot {
+                    EquipmentSlot::Mainhand => "SelectedItem",
+                    _ => equipment_nbt_path(*slot),
+                }
+                .to_string(),
             ),
             Self::PlayerHotbar(index) => (
                 DataTarget::entity(Selector::self_()),
@@ -606,7 +600,7 @@ impl ItemLocation {
             ),
             Self::EntityEquipment { entity, slot } => (
                 DataTarget::entity(entity.clone()),
-                entity_equipment_path(*slot)?,
+                equipment_nbt_path(*slot).to_string(),
             ),
             Self::BlockContainer { position, slot } => (
                 DataTarget::block(position.clone()),
@@ -622,7 +616,7 @@ impl ItemLocation {
                 DataTarget::entity(entity.clone()),
                 format!("EnderItems[{{Slot:{}b}}]", slot.get()),
             ),
-        })
+        }
     }
 }
 
@@ -738,22 +732,22 @@ impl EntityInventory {
         self.location(EntityInventorySlot::OffHand)
     }
 
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::helmet", summary = "Selects the explicit entity's head equipment location.", context = "It is a named alternative to manually choosing an equipment slot.", minecraft = "Resolves to the head armor item slot and ArmorItems path.", use_when = ["Reading, matching, or replacing a selected entity's helmet"], avoid_when = ["Addressing the executing player's head slot"], returns = "The entity head-equipment location.", example = "let helmet = inventory.helmet();")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::helmet", summary = "Selects the explicit entity's head equipment location.", context = "It is a named alternative to manually choosing an equipment slot.", minecraft = "Resolves to the head armor item slot and equipment.head path.", use_when = ["Reading, matching, or replacing a selected entity's helmet"], avoid_when = ["Addressing the executing player's head slot"], returns = "The entity head-equipment location.", example = "let helmet = inventory.helmet();")]
     pub fn helmet(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Head)
     }
 
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::chestplate", summary = "Selects the explicit entity's chest equipment location.", context = "It keeps armor intent readable without exposing a raw NBT list index.", minecraft = "Resolves to the chest armor item slot and ArmorItems path.", use_when = ["Working with selected entity chest equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity chest-equipment location.", example = "let chest = inventory.chestplate();")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::chestplate", summary = "Selects the explicit entity's chest equipment location.", context = "It keeps armor intent readable without exposing a raw NBT list index.", minecraft = "Resolves to the chest armor item slot and equipment.chest path.", use_when = ["Working with selected entity chest equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity chest-equipment location.", example = "let chest = inventory.chestplate();")]
     pub fn chestplate(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Chest)
     }
 
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::leggings", summary = "Selects the explicit entity's leg equipment location.", context = "It names the semantic armor position rather than an ArmorItems list offset.", minecraft = "Resolves to the legs armor item slot and ArmorItems path.", use_when = ["Working with selected entity leg equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity legs-equipment location.", example = "let legs = inventory.leggings();")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::leggings", summary = "Selects the explicit entity's leg equipment location.", context = "It names the semantic armor position rather than a raw NBT path.", minecraft = "Resolves to the legs armor item slot and equipment.legs path.", use_when = ["Working with selected entity leg equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity legs-equipment location.", example = "let legs = inventory.leggings();")]
     pub fn leggings(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Legs)
     }
 
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::boots", summary = "Selects the explicit entity's feet equipment location.", context = "It names the semantic armor position rather than an ArmorItems list offset.", minecraft = "Resolves to the feet armor item slot and ArmorItems path.", use_when = ["Working with selected entity foot equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity feet-equipment location.", example = "let boots = inventory.boots();")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::boots", summary = "Selects the explicit entity's feet equipment location.", context = "It names the semantic armor position rather than a raw NBT path.", minecraft = "Resolves to the feet armor item slot and equipment.feet path.", use_when = ["Working with selected entity foot equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity feet-equipment location.", example = "let boots = inventory.boots();")]
     pub fn boots(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Feet)
     }
@@ -814,11 +808,11 @@ impl EntityInventorySlot {
     fn nbt_path(self) -> String {
         match self {
             Self::SelectedItem | Self::MainHand => "SelectedItem".to_string(),
-            Self::OffHand => "Inventory[{Slot:-106b}]".to_string(),
-            Self::Head => "Inventory[{Slot:103b}]".to_string(),
-            Self::Chest => "Inventory[{Slot:102b}]".to_string(),
-            Self::Legs => "Inventory[{Slot:101b}]".to_string(),
-            Self::Feet => "Inventory[{Slot:100b}]".to_string(),
+            Self::OffHand => equipment_nbt_path(EquipmentSlot::Offhand).to_string(),
+            Self::Head => equipment_nbt_path(EquipmentSlot::Head).to_string(),
+            Self::Chest => equipment_nbt_path(EquipmentSlot::Chest).to_string(),
+            Self::Legs => equipment_nbt_path(EquipmentSlot::Legs).to_string(),
+            Self::Feet => equipment_nbt_path(EquipmentSlot::Feet).to_string(),
             Self::Hotbar(index) => format!("Inventory[{{Slot:{}b}}]", index.get()),
             Self::MainInventory(index) => {
                 format!("Inventory[{{Slot:{}b}}]", index.get() + 9)
@@ -853,39 +847,19 @@ fn inventory_item_slot(index: InventoryIndex) -> ItemSlot {
     }
 }
 
-/// Vanilla `Inventory` list `Slot` values for player armor
-/// (`100`=feet, `101`=legs, `102`=chest, `103`=head).
-fn player_armor_inventory_slot(slot: EquipmentSlot) -> i32 {
+/// Named equipment compounds shared by players and non-player living entities
+/// on Sand's supported Minecraft versions. Players expose the selected hotbar
+/// main hand separately through `SelectedItem`.
+fn equipment_nbt_path(slot: EquipmentSlot) -> &'static str {
     match slot {
-        EquipmentSlot::Feet => 100,
-        EquipmentSlot::Legs => 101,
-        EquipmentSlot::Chest => 102,
-        EquipmentSlot::Head => 103,
-        // Unreachable via ItemLocation::player_equipment's validation, but
-        // exhaustively handled rather than panicking if ever reached
-        // through another path.
-        EquipmentSlot::Mainhand | EquipmentSlot::Offhand | EquipmentSlot::Body => 103,
+        EquipmentSlot::Feet => "equipment.feet",
+        EquipmentSlot::Legs => "equipment.legs",
+        EquipmentSlot::Chest => "equipment.chest",
+        EquipmentSlot::Head => "equipment.head",
+        EquipmentSlot::Mainhand => "equipment.mainhand",
+        EquipmentSlot::Offhand => "equipment.offhand",
+        EquipmentSlot::Body => "equipment.body",
     }
-}
-
-/// Vanilla `ArmorItems`/`HandItems` list index paths for non-player living
-/// entities. `Body` is rejected upstream by
-/// [`ItemLocation::entity_equipment`] and never reaches this function.
-fn entity_equipment_path(slot: EquipmentSlot) -> Result<String, ItemLocationError> {
-    Ok(match slot {
-        EquipmentSlot::Feet => "ArmorItems[0]".to_string(),
-        EquipmentSlot::Legs => "ArmorItems[1]".to_string(),
-        EquipmentSlot::Chest => "ArmorItems[2]".to_string(),
-        EquipmentSlot::Head => "ArmorItems[3]".to_string(),
-        EquipmentSlot::Mainhand => "HandItems[0]".to_string(),
-        EquipmentSlot::Offhand => "HandItems[1]".to_string(),
-        EquipmentSlot::Body => {
-            return Err(ItemLocationError::UnsupportedLocation {
-                location: "EntityEquipment(Body)".to_string(),
-                reason: "the Body equipment slot's backing NBT tag is not verified for this phase",
-            });
-        }
-    })
 }
 
 /// A validated, actionable diagnostic for [`ItemLocation`] construction or
@@ -1097,10 +1071,10 @@ mod tests {
     }
 
     #[test]
-    fn off_hand_renders_inventory_slot_negative_106() {
+    fn off_hand_renders_named_equipment_compound() {
         assert_eq!(
             ItemLocation::PlayerOffHand.nbt().get().to_string(),
-            "data get entity @s Inventory[{Slot:-106b}]"
+            "data get entity @s equipment.offhand"
         );
     }
 
@@ -1211,20 +1185,65 @@ mod tests {
     }
 
     #[test]
-    fn player_armor_slots_render_canonical_inventory_indices() {
+    fn player_armor_slots_render_named_equipment_compounds() {
         let cases = [
-            (EquipmentSlot::Feet, 100),
-            (EquipmentSlot::Legs, 101),
-            (EquipmentSlot::Chest, 102),
-            (EquipmentSlot::Head, 103),
+            (EquipmentSlot::Feet, "equipment.feet"),
+            (EquipmentSlot::Legs, "equipment.legs"),
+            (EquipmentSlot::Chest, "equipment.chest"),
+            (EquipmentSlot::Head, "equipment.head"),
         ];
         for (slot, expected) in cases {
             let location = ItemLocation::player_equipment(slot).unwrap();
+            assert_eq!(location.nbt().as_str(), expected, "{slot:?}");
+        }
+    }
+
+    #[test]
+    fn directly_constructed_equipment_has_non_panicking_nbt_reads() {
+        let destination = sand_commands::Nbt::storage_raw("test:equipment").path("item");
+        for (location, path) in [
+            (
+                ItemLocation::PlayerEquipment(EquipmentSlot::Mainhand),
+                "SelectedItem",
+            ),
+            (
+                ItemLocation::PlayerEquipment(EquipmentSlot::Offhand),
+                "equipment.offhand",
+            ),
+            (
+                ItemLocation::PlayerEquipment(EquipmentSlot::Body),
+                "equipment.body",
+            ),
+            (
+                ItemLocation::EntityEquipment {
+                    entity: Selector::self_(),
+                    slot: EquipmentSlot::Body,
+                },
+                "equipment.body",
+            ),
+        ] {
             assert_eq!(
-                location.nbt().as_str(),
-                format!("Inventory[{{Slot:{expected}b}}]"),
-                "{slot:?}"
+                location.nbt().get().to_string(),
+                format!("data get entity @s {path}")
             );
+            assert_eq!(
+                location.exists().execute_commands(false, "say present"),
+                vec![format!("execute if data entity @s {path} run say present")]
+            );
+            assert_eq!(
+                location.copy_to(&destination).to_string(),
+                format!("data modify storage test:equipment item set from entity @s {path}")
+            );
+        }
+        for location in [
+            ItemLocation::PlayerEquipment(EquipmentSlot::Body),
+            ItemLocation::EntityEquipment {
+                entity: Selector::self_(),
+                slot: EquipmentSlot::Body,
+            },
+        ] {
+            assert!(location.clear().is_err());
+            assert!(location.matches_raw("*").is_err());
         }
     }
 
@@ -1278,14 +1297,14 @@ mod tests {
     }
 
     #[test]
-    fn entity_equipment_renders_armor_and_hand_items() {
+    fn entity_equipment_renders_named_compounds() {
         let cases = [
-            (EquipmentSlot::Feet, "ArmorItems[0]"),
-            (EquipmentSlot::Legs, "ArmorItems[1]"),
-            (EquipmentSlot::Chest, "ArmorItems[2]"),
-            (EquipmentSlot::Head, "ArmorItems[3]"),
-            (EquipmentSlot::Mainhand, "HandItems[0]"),
-            (EquipmentSlot::Offhand, "HandItems[1]"),
+            (EquipmentSlot::Feet, "equipment.feet"),
+            (EquipmentSlot::Legs, "equipment.legs"),
+            (EquipmentSlot::Chest, "equipment.chest"),
+            (EquipmentSlot::Head, "equipment.head"),
+            (EquipmentSlot::Mainhand, "equipment.mainhand"),
+            (EquipmentSlot::Offhand, "equipment.offhand"),
         ];
         for (slot, expected) in cases {
             let location = ItemLocation::entity_equipment(Selector::self_(), slot).unwrap();

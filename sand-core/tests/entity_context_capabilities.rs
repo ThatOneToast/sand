@@ -45,7 +45,7 @@ fn target_each_composes_multiple_capability_families() {
         body.1,
         [
             "data get entity @s Pos",
-            "data get entity @s Inventory[{Slot:103b}]",
+            "data get entity @s equipment.head",
             "data get entity @s Inventory[{Slot:0b}]",
             "effect clear @s",
             "ride @s dismount",

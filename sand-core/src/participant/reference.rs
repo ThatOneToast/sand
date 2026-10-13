@@ -701,7 +701,7 @@ mod tests {
                 .nbt()
                 .get()
                 .to_string(),
-            "data get entity @s Inventory[{Slot:103b}]"
+            "data get entity @s equipment.head"
         );
 
         let entity = EntityParticipant::correlated(

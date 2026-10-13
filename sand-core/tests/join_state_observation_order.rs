@@ -1,4 +1,5 @@
 //! Joins share State initialization and run before owned observation sampling.
+use sand::events::OnJoinEvent;
 use sand::prelude::*;
 
 #[allow(dead_code)]
@@ -44,7 +45,7 @@ fn canonical_lifecycle_provisions_before_join_and_samples_after_join() {
     let join = tick.find("function join_state:__sand_join_check").unwrap();
     let observation = tick.find("function join_state:__sand_transition/").unwrap();
     assert!(init < join && join < observation, "{tick}");
-    assert!(content("__sand_lifecycle_init").contains(PlayerState::value.objective()));
+    assert!(content("__sand_lifecycle_init").contains(&PlayerState::value.objective()));
     let tick_tag = records
         .iter()
         .find(|r| {

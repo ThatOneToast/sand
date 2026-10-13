@@ -2,8 +2,9 @@
 """Verify real-player attacker observations and equipment snapshots on 26.2.
 
 Uses normal advancement and tick dispatch, including real deaths and composed
-participants across dimensions and attacking-player weapon snapshots. Rapid mixed-hit timing and
-client attack-input packets remain outside this audit.
+participants across dimensions, rapid alternating-attacker hits in a frozen game
+tick, and attacking-player weapon snapshots. Client attack-input packets and
+mixed melee/projectile combat remain outside this audit.
 """
 from __future__ import annotations
 
@@ -115,6 +116,33 @@ class PlayerParticipantHarness(PlayerHarness):
         for index, player in enumerate(self.players):
             self.send(f"damage {player} 2 minecraft:generic by @e[tag=paudit_actor_{index},limit=1]")
             self.verify_composed_attacker(player)
+
+    def verify_rapid_attackers(self):
+        # Let earlier damage cooldowns expire before freezing the game. Each
+        # subsequent hit is stronger so vanilla accepts it without advancing
+        # invulnerability ticks; require every damage command to succeed.
+        time.sleep(1.2)
+        for objective in ("paudit_att1", "paudit_att2"):
+            self.send(f"scoreboard players set SandAlpha {objective} 0")
+            self.send(f"scoreboard players operation #rapid_beta {objective} = SandBeta {objective}")
+        self.send("tick freeze")
+        try:
+            self.send("execute store success score #rapid_clock paudit_check store result score #rapid_start paudit_check run time query gametime")
+            self.check("RAPID_CLOCK_STARTED", "if score #rapid_clock paudit_check matches 1")
+            for count, actor in enumerate((0, 1, 0), 1):
+                self.send(f"execute store success score #rapid_hit paudit_check run damage SandAlpha {count} minecraft:generic by @e[tag=paudit_actor_{actor},limit=1]")
+                self.check(f"RAPID_HIT_{count}", "if score #rapid_hit paudit_check matches 1")
+                for objective in ("paudit_att1", "paudit_att2"):
+                    self.check(f"RAPID_{objective}_{count}", f"if score SandAlpha {objective} matches {count}")
+                    self.check(f"RAPID_BETA_{objective}_{count}", f"if score SandBeta {objective} = #rapid_beta {objective}")
+                for field in ("attacker_uuid", "attacker_b_uuid"):
+                    self.equal_nbt(f"RAPID_{field}_{count}", f"storage paudit:audit state.{field}", f"entity @e[tag=paudit_actor_{actor},limit=1] UUID")
+                self.check_cleanup()
+            self.send("execute store success score #rapid_clock paudit_check store result score #rapid_end paudit_check run time query gametime")
+            self.check("RAPID_CLOCK_FINISHED", "if score #rapid_clock paudit_check matches 1")
+            self.check("RAPID_SAME_GAME_TICK", "if score #rapid_start paudit_check = #rapid_end paudit_check")
+        finally:
+            self.send("tick unfreeze")
 
     def verify_staged_fan_in(self):
         for index, player in enumerate(self.players):
@@ -252,6 +280,7 @@ class PlayerParticipantHarness(PlayerHarness):
             self.check("BETA_AFTER_ALPHA_EMPTY", "if score SandBeta paudit_tracked matches 1")
             self.verify_attacking_weapons()
             self.verify_composed_attackers()
+            self.verify_rapid_attackers()
             self.verify_staged_fan_in()
             self.verify_deaths()
             print("PASSED: real attackers and killers, composed participants, tracked snapshots, isolation and reload", flush=True)

@@ -99,6 +99,21 @@ vanilla leaves a dimension-changing player invulnerable; the original probe
 failed the returning player's death assertion and the corrected client passes.
 Teleport acknowledgment does not implement movement or combat input.
 
+## Rapid alternating attackers
+
+The audit lets earlier damage cooldowns expire, freezes game ticks, then applies
+three accepted generic damage commands to Alpha from actors 0, 1, and 0. The
+amounts increase from 1 to 3 so vanilla accepts successive hits without advancing
+hurt cooldowns. Both real advancement handlers must increment once per hit and
+capture the independently queried UUID of that hit's actor. Beta's counters must
+stay unchanged and temporary tags must be absent after each dispatch.
+
+Successful game-time queries before and after the sequence must return the same
+value; the audit fails if the intended timing was not established. This proves
+alternating relation refresh within one frozen game tick. It does not prove
+mixed melee/projectile input or real client attack packets, and does not upgrade
+`Correlated` reliability.
+
 ## Weapon and death timing
 
 Each player damages and kills a separately summoned cow through `/damage ... by
@@ -124,7 +139,8 @@ grant an advancement, but the damage is server-directed rather than generated
 by a client's attack packet.
 
 The extended audit also exercises actual attacking-player damage/kill advancements,
-real player deaths, and tick-composed parent/child/sibling participants. Rapid
-mixed-attacker timing still requires its own assertions.
+real player deaths, tick-composed parent/child/sibling participants, and the
+controlled frozen-tick alternating-attacker sequence. Mixed melee/projectile
+combat still requires its own assertions.
 The two-player checks cover the controlled interleaving described above, not
 every concurrency or dimension case. #265 remains open.

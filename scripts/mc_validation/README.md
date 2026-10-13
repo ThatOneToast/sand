@@ -152,8 +152,10 @@ and composed tick participants. A frozen, single-step two-player scenario checks
 staged fan-in and absent named sources with players in the Overworld and Nether,
 without relying on command arrival timing. Cleanup is checked in all vanilla
 dimensions, and a real death advancement must still fire after returning.
-Rapid mixed-hit timing, client attack-input packets and wider dimension cases
-remain outside these assertions. #265 remains open.
+A separate frozen-tick sequence accepts three alternating-attacker hits and checks
+both handlers' UUIDs after each, unchanged counters for the other player, and equal
+game-time readings before/after. Mixed melee/projectile input, client attack-input
+packets and wider dimension cases remain outside these assertions. #265 remains open.
 
 ## #269/#280: advancement-bridge parent → SandEvent child validation attempt
 

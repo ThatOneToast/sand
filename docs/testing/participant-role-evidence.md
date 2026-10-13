@@ -17,8 +17,10 @@ The two-player staged scenario now spans the Overworld and Nether, checks cleanu
 in all vanilla dimensions, and requires real damage/death events after dimension
 changes. #431 fixes missing teleport acknowledgments in the passive audit client;
 this does not add movement or combat input support.
-Rapid mixed-hit timing and client attack-input packets remain open; the historical
-direct-handler evidence below does not imply those are covered.
+A frozen-game-tick sequence also checks three accepted alternating-attacker hits,
+independent UUIDs, both actual advancement handlers and the other player's unchanged
+counters. Mixed melee/projectile input and client attack-input packets remain open;
+the historical direct-handler evidence below does not imply those are covered.
 
 
 Role-by-role audit of what vanilla Minecraft Java actually exposes for

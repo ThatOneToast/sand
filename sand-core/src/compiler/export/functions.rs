@@ -271,7 +271,14 @@ mod tests {
         let export = |namespace: &str| {
             let _scope = crate::function::ExportFunctionRegistryScope::enter();
             let plan = resolve(namespace, &observations).unwrap();
-            assert_eq!(plan.tick_commands.len(), 3);
+            assert_eq!(plan.tick_commands.len(), 1);
+            assert_eq!(
+                plan.functions
+                    .iter()
+                    .filter(|f| f.path.starts_with("__sand_transition/"))
+                    .count(),
+                3
+            );
             let mut records = plan
                 .functions
                 .into_iter()

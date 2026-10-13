@@ -52,21 +52,20 @@ class WorldGameplayHarness(ServerHarness):
             time.sleep(0.1)
         raise ValidationFailure("world-load", f"test chunk did not load in {dimension}")
 
-    def check_observations(self) -> None:
+    def observation_sampler(self, handler: str) -> str:
         root = Path(self.args.pack) / "data" / "sand_audit" / "function"
+        paths = [path for path in (root / "__sand_transition").glob("*.mcfunction")
+                 if f"function sand_audit:{handler}" in path.read_text(encoding="utf-8")]
+        if len(paths) != 1:
+            raise ValidationFailure("observation-plan", f"expected one shared sampler for {handler}, got {paths}")
+        return "sand_audit:" + paths[0].relative_to(root).with_suffix("").as_posix()
 
-        def sampler(handler: str) -> str:
-            matches = [path for path in (root / "__sand_transition").glob("*.mcfunction")
-                       if f"function sand_audit:{handler}" in path.read_text(encoding="utf-8")]
-            if len(matches) != 1:
-                raise ValidationFailure("observation-plan", f"expected one shared sampler for {handler}, got {matches}")
-            return "sand_audit:" + matches[0].relative_to(root).with_suffix("").as_posix()
-
-        numeric = sampler("audit_health_changed")
-        if numeric != sampler("audit_health_lost") or numeric != sampler("audit_health_gained"):
+    def check_observations(self) -> None:
+        numeric = self.observation_sampler("audit_health_changed")
+        if numeric != self.observation_sampler("audit_health_lost") or numeric != self.observation_sampler("audit_health_gained"):
             raise ValidationFailure("observation-plan", "health consumers did not share one sample")
-        boolean = sampler("audit_health_low")
-        if boolean != sampler("audit_health_recovered"):
+        boolean = self.observation_sampler("audit_health_low")
+        if boolean != self.observation_sampler("audit_health_recovered"):
             raise ValidationFailure("observation-plan", "threshold consumers did not share one sample")
         # Drive the generated observer with controlled scores. Vanilla's health
         # criterion is read-only; native player health updates need live clients.
@@ -115,6 +114,52 @@ class WorldGameplayHarness(ServerHarness):
         self.check("OBS_BECAME_FALSE", f"in minecraft:overworld if score {targets['a']} sand_obs_back matches 1")
         print("PASSED: shared observation sampling, first baseline, numeric changes, missing samples, boolean transitions, and entity isolation", flush=True)
 
+    def check_public_observations(self) -> None:
+        health = self.observation_sampler("audit_native_health_changed")
+        effect = self.observation_sampler("audit_speed_started")
+        if health != self.observation_sampler("audit_native_health_lost") or effect != self.observation_sampler("audit_speed_stopped"):
+            raise ValidationFailure("public-observation-plan", "equivalent custom sources were not shared")
+        # Invoke player-scoped generated functions on one controlled living
+        # entity to prove native reads and transitions without a player client.
+        target = "@e[tag=sand_public_observer,limit=1]"
+        self.send('execute in minecraft:overworld run summon minecraft:cow 14 80 14 {Tags:["sand_public_observer"],NoAI:1b,NoGravity:1b,Invulnerable:1b}')
+        for objective in ("sand_obs_native", "sand_obs_nlost", "sand_obs_speed", "sand_obs_nspeed", "sand_obs_gold"):
+            self.send(f"scoreboard objectives add {objective} dummy")
+            self.send(f"execute in minecraft:overworld run scoreboard players set {target} {objective} 0")
+        def sample(function: str) -> None:
+            self.send(f"execute in minecraft:overworld as {target} at @s run function {function}")
+        def count(objective: str, value: int) -> None:
+            self.check(f"PUBLIC_{objective}_{value}", f"in minecraft:overworld if score {target} {objective} matches {value}")
+        sample(health)
+        sample(effect)
+        count("sand_obs_native", 0)
+        count("sand_obs_speed", 0)
+        self.send(f"execute in minecraft:overworld run data merge entity {target} {{Health:7.5f}}")
+        sample(health)
+        count("sand_obs_native", 1)
+        count("sand_obs_nlost", 1)
+        self.send(f"execute in minecraft:overworld run data merge entity {target} {{Health:9.0f}}")
+        sample(health)
+        count("sand_obs_native", 2)
+        count("sand_obs_nlost", 1)
+        self.send(f"execute in minecraft:overworld run effect give {target} minecraft:speed 60 0 true")
+        sample(effect)
+        sample(effect)
+        count("sand_obs_speed", 1)
+        self.send(f"execute in minecraft:overworld run effect clear {target} minecraft:speed")
+        sample(effect)
+        count("sand_obs_nspeed", 1)
+        self.send("execute in minecraft:overworld run setblock 14 79 14 minecraft:air")
+        coordinator = "sand_audit:__sand_observation_tick"
+        # Deliberately start at a different origin: each source must anchor to
+        # its observed entity rather than the server/function caller position.
+        self.send(f"execute in minecraft:overworld positioned 0 80 0 as {target} run function {coordinator}")
+        count("sand_obs_gold", 0)
+        self.send("execute in minecraft:overworld run setblock 14 79 14 minecraft:gold_block")
+        self.send(f"execute in minecraft:overworld positioned 0 80 0 as {target} run function {coordinator}")
+        count("sand_obs_gold", 1)
+        print("PASSED: public observations share native health/effect samples and anchor block conditions to the observed entity", flush=True)
+
     def run_client(self) -> None:
         self.send("scoreboard objectives add sand_rule_audit dummy")
         self.send("execute store result score #keep sand_rule_audit run gamerule keep_inventory")
@@ -161,6 +206,7 @@ class WorldGameplayHarness(ServerHarness):
         self.check("ENTITY_OTHER_BLOCK", "in minecraft:overworld if block 10 80 10 minecraft:air")
         self.check("MACRO_MULTILINE", "in minecraft:the_nether if block 3 80 2 minecraft:lapis_block")
         self.check_observations()
+        self.check_public_observations()
         print("PASSED: runtime block queries, writes, inventory, NBT, dimension scaling, caller context, and unloaded-block behavior", flush=True)
 
 

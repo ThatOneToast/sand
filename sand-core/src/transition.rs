@@ -2,12 +2,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{TrackedTransition, TransitionKind};
+#[cfg(test)]
+use crate::TrackedTransition;
+use crate::TransitionKind;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct TransitionHandler {
     pub path: String,
-    pub transition: TrackedTransition,
+    pub transition: crate::events::OwnedObservationDispatch,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -196,7 +198,7 @@ mod tests {
     ) -> TransitionHandler {
         TransitionHandler {
             path: path.to_string(),
-            transition: TrackedTransition::new(id, source, kind),
+            transition: TrackedTransition::new(id, source, kind).into(),
         }
     }
 

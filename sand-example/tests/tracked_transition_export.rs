@@ -104,9 +104,18 @@ fn proof_events_share_one_lifecycle_managed_tracker_and_export_stably() {
         "sneaking's own tracker declares exactly 3 private objectives (previous/current/seen)"
     );
     let tick = function(&records, "__sand_lifecycle_tick");
-    assert!(tick.contains(&format!(
-        "execute as @a run function transitionpack:{tracker_path}"
-    )));
+    assert!(tick.contains("execute as @a run function transitionpack:__sand_observation_tick"));
+    let observations = function(&records, "__sand_observation_tick");
+    assert_eq!(
+        observations
+            .lines()
+            .filter(
+                |line| *line == format!("execute at @s run function transitionpack:{tracker_path}")
+            )
+            .count(),
+        1,
+        "the shared observation scan must invoke sneaking exactly once"
+    );
     assert!(tag_values(&records, "load").contains(&"transitionpack:__sand_lifecycle_load".into()));
     assert!(tag_values(&records, "tick").contains(&"transitionpack:__sand_lifecycle_tick".into()));
 

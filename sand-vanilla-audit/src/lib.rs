@@ -407,6 +407,63 @@ pub fn audit_health_recovered(_: sand_core::event::Event<sand_core::events::Play
     cmd::raw("scoreboard players add @s sand_obs_back 1")
 }
 
+pub struct AuditNativeHealthChanged;
+impl SandEvent for AuditNativeHealthChanged {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health())).changed()
+    }
+}
+#[on_event]
+pub fn audit_native_health_changed(_: AuditNativeHealthChanged) {
+    cmd::raw("scoreboard players add @s sand_obs_native 1")
+}
+
+pub struct AuditNativeHealthLost;
+impl SandEvent for AuditNativeHealthLost {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health())).decreased()
+    }
+}
+#[on_event]
+pub fn audit_native_health_lost(_: AuditNativeHealthLost) {
+    cmd::raw("scoreboard players add @s sand_obs_nlost 1")
+}
+
+pub struct AuditSpeedStarted;
+impl SandEvent for AuditSpeedStarted {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|player| player.living().has_effect(EffectId::Speed)).became_true()
+    }
+}
+#[on_event]
+pub fn audit_speed_started(_: AuditSpeedStarted) {
+    cmd::raw("scoreboard players add @s sand_obs_speed 1")
+}
+
+pub struct AuditSpeedStopped;
+impl SandEvent for AuditSpeedStopped {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|player| player.living().has_effect(EffectId::Speed)).became_false()
+    }
+}
+#[on_event]
+pub fn audit_speed_stopped(_: AuditSpeedStopped) {
+    cmd::raw("scoreboard players add @s sand_obs_nspeed 1")
+}
+
+pub struct AuditStandingOnGold;
+impl SandEvent for AuditStandingOnGold {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|_player| {
+            WorldContext::current().block(BlockPos::below(1)).matches(vanilla::Block::GoldBlock)
+        }).became_true()
+    }
+}
+#[on_event]
+pub fn audit_standing_on_gold(_: AuditStandingOnGold) {
+    cmd::raw("scoreboard players add @s sand_obs_gold 1")
+}
+
 #[datapack_component]
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())

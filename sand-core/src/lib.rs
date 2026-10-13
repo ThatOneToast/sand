@@ -612,6 +612,8 @@ impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEv
 /// author-facing API surface.
 #[doc(hidden)]
 pub mod __private {
+    #[doc(hidden)]
+    pub use crate::events::observation::OwnedObservationDispatch;
     /// Macro bridge that retains a captured inline function body until export.
     pub fn owned_anonymous_function(
         prefix: String,
@@ -674,7 +676,7 @@ pub mod __private {
     #[doc(hidden)]
     pub fn event_dispatch_tracked(
         dispatch: crate::events::SandEventDispatch,
-    ) -> Option<crate::TrackedTransition> {
+    ) -> Option<crate::events::OwnedObservationDispatch> {
         dispatch.into_tracked()
     }
 

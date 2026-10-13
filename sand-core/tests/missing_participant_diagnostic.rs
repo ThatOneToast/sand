@@ -85,7 +85,7 @@ fn sand_tick() -> Option<sand_core::events::TickEventDispatch> {
 fn no_chain() -> Option<sand_core::events::ChainEventDispatch> {
     None
 }
-fn no_tracked() -> Option<sand_core::TrackedTransition> {
+fn no_tracked() -> Option<sand_core::__private::OwnedObservationDispatch> {
     None
 }
 fn revoke_true() -> bool {

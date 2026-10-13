@@ -622,7 +622,7 @@ pub(crate) fn try_export_components_impl(
                 });
                 transition_handlers.push(crate::transition::TransitionHandler {
                     path: desc.path.to_string(),
-                    transition: *transition,
+                    transition: (*transition).into(),
                 });
             }
 
@@ -2485,8 +2485,9 @@ pub(crate) fn try_export_components_impl(
         let mut transition_predicates = BTreeMap::new();
         let mut transition_effect_predicates: BTreeMap<String, &'static str> = BTreeMap::new();
         for handler in &transition_handlers {
-            if let crate::TrackedSource::BooleanCondition { condition, .. } =
-                handler.transition.source
+            if let crate::transition::observation::ObservationSource::Boolean(source) =
+                &handler.transition.observation.source
+                && let crate::condition::ConditionKind::Raw(condition) = source.kind()
             {
                 if let Some((path, flag)) = sand_player_state_predicate(condition) {
                     transition_predicates.insert(path, flag);

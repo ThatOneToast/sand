@@ -3108,7 +3108,7 @@ fn expand_event_with_path(
                 }
 
                 #[doc(hidden)]
-                fn #tracked_ident() -> ::std::option::Option<::sand::__private::TrackedTransition> {
+                fn #tracked_ident() -> ::std::option::Option<::sand::__private::OwnedObservationDispatch> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
                     ::sand::__private::event_dispatch_tracked(dispatch)

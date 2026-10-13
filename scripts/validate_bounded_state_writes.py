@@ -57,6 +57,7 @@ class BoundedWriteHarness(PlayerHarness):
         """Check both players immediately after one synchronous generated call."""
         self.send(f"function {NAMESPACE}:{function}")
         for player, expected in zip(self.players, (alpha, beta)):
+            self.send(f"scoreboard players get {player} {self.objective}")
             self.check(f"{function}_{player}_{expected}", f"if score {player} {self.objective} matches {expected}")
 
     def run_client(self):

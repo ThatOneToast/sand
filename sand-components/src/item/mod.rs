@@ -3458,6 +3458,13 @@ impl CustomItem {
         example = "let predicate = CustomItem::new(\"minecraft:stick\").custom_data(\"wand\").item_predicate()?;",
     )]
     pub fn item_predicate(&self) -> SandResult<TypedItemPredicate> {
+        self.identity_matcher()?
+            .try_render_for(matcher::ItemMatcherConsumer::Predicate, None)
+    }
+
+    // Keep identity construction separate from consumer/profile-aware lowering.
+    // All predicate conversion goes through the existing ItemMatcher seam.
+    fn identity_matcher(&self) -> SandResult<matcher::ItemMatcher> {
         self.validate()?;
         let base = self
             .base
@@ -3474,13 +3481,14 @@ impl CustomItem {
                 "raw component overrides have ambiguous identity; use typed_custom_data instead",
             ));
         }
-        let mut predicate = TypedItemPredicate::id(base);
+        let mut predicate = matcher::ItemMatcher::item(base);
         match &self.custom_data {
-            Some(CustomData::Marker(key)) => predicate = predicate.custom_data_key(key),
+            Some(CustomData::Marker(key)) => predicate = predicate.custom_data_partial(key),
             Some(CustomData::Raw(snbt)) => {
-                predicate = predicate.raw_predicates(crate::RawJson::new(serde_json::json!({
-                    "minecraft:custom_data": snbt.to_string()
-                })));
+                predicate =
+                    predicate.raw_predicates_partial(crate::RawJson::new(serde_json::json!({
+                        "minecraft:custom_data": snbt.to_string()
+                    })));
             }
             None => {}
         }
@@ -4553,6 +4561,34 @@ mod tests {
         let json = crate::DatapackComponent::to_json(&advancement);
         assert_eq!(json["criteria"]["used"]["conditions"]["item"], predicate);
         assert_eq!(json["rewards"]["function"], "test:reward");
+    }
+
+    #[test]
+    fn custom_identity_components_respect_the_export_profile() {
+        use crate::DatapackComponent;
+        let unknown = sand_version::VersionCaps::all_disabled();
+        for item in [
+            CustomItem::new("minecraft:stick").custom_data("wand"),
+            CustomItem::new("minecraft:stick")
+                .typed_custom_data(CustomData::raw(RawSnbt::new("{team:3}"))),
+        ] {
+            assert!(
+                item.identity_matcher()
+                    .unwrap()
+                    .try_render_for(
+                        matcher::ItemMatcherConsumer::InventoryCondition,
+                        Some(&unknown)
+                    )
+                    .is_err()
+            );
+            let advancement = item
+                .on_use_advancement(
+                    ResourceLocation::new("test", "use_item").unwrap(),
+                    "test:reward".parse().unwrap(),
+                )
+                .unwrap();
+            assert!(advancement.try_content_for(Some(&unknown)).is_err());
+        }
     }
 
     #[test]

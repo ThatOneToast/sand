@@ -1,43 +1,19 @@
-"""Minimal, best-effort Minecraft Java Edition client for #265 runtime
-validation — enough of the login → configuration → play handshake to make a
-real `ServerPlayerEntity` join a live server, driven by an offline-mode
-username (no Mojang auth).
+"""Minimal offline-mode client for Minecraft 26.2 (protocol 776) audits.
 
-# Status (honest, as of this tooling's introduction)
-
-- Handshake, Login, and the full Configuration phase are implemented and
-  **empirically confirmed working** against a real Minecraft Java 26.2
-  server: the server log shows `<name> logged in with entity id N` and
-  `<name> joined the game` on every run.
-- The Play phase is **not stable**: the connection is consistently dropped
-  by the server within roughly one tick of entering Play, before any
-  scripted follow-up (e.g. an RCON-driven damage event) can reliably land
-  inside the connection's live window. The exact missing serverbound
-  packet was not identified with confidence in the time available — no
-  official protocol documentation exists yet for this version (protocol
-  776); every packet id below was derived empirically against the real
-  server plus cross-referenced against `minecraft-data`'s closest published
-  reference (`pc/26.2/protocol.json` — 26.2 itself is not yet in that
-  dataset). Treat `PLAY_CLIENTBOUND_KEEP_ALIVE`/`PLAY_CLIENTBOUND_LOGIN`
-  below as best-effort, not authoritative.
-- Net effect: this client is real evidence that a player *can* join a real
-  26.2 server (useful on its own — see
-  `docs/testing/participant-role-evidence.md`), but is not yet a reliable
-  driver for scripted in-game combat scenarios. Extending it to a stable
-  Play-phase connection is tracked as follow-up scope, not attempted
-  further here per the "do not redesign, only smallest correctness fixes"
-  scope for this PR.
+Keeps a real ServerPlayer connected for the requested duration by handling the
+login/configuration handshake and keep-alive challenges. Packet IDs were read
+from the 26.2 server's GameProtocols registry, not inferred from an older client.
+This is a passive test client: it does not implement movement, combat, inventory
+interaction, or rendering. Server-driven gameplay assertions belong in a harness.
+An early disconnect is a failure even if the player briefly joined.
 
 Usage:
-    python3 minimal_join_client.py <host> <port> <protocol_version> \\
-        <username> [<run_seconds>] [<on_join_shell_command>]
+    python3 minimal_join_client.py <host> <port> 776 <username> [<run_seconds>]
 
-`<protocol_version>` for 26.2 is 776 (confirm via a status ping / the
-`minecraft-data` `protocolVersions.json` table if targeting a different
-version). `<on_join_shell_command>`, if given, runs via `bash -c` the
-instant the Play-phase join packet is observed — used to race an RCON
-command into the brief connected window.
+An optional final argument runs a shell command when the Play login arrives.
 """
+
+from contextlib import closing
 
 import socket
 import struct
@@ -133,10 +109,9 @@ class Conn:
         return pid, body[idx:]
 
 
-# Verified against minecraft-data pc/26.2/protocol.json (protocol 776 /
-# 26.2 itself is not yet published there, but empirical testing against a
-# live 26.2 server confirmed identical packet ids for every packet observed
-# below).
+# Minecraft 26.2's ConfigurationProtocols and GameProtocols registries.
+# Keep the supported protocol explicit: IDs are version-specific.
+SUPPORTED_PROTOCOL = 776
 CONFIG_CLIENTBOUND = {
     0x00: "cookie_request",
     0x01: "custom_payload",
@@ -156,15 +131,25 @@ CONFIG_CLIENTBOUND = {
     0x0F: "custom_report_details",
     0x10: "server_links",
 }
-PLAY_CLIENTBOUND_KEEP_ALIVE = 0x4C
+PLAY_CLIENTBOUND_KEEP_ALIVE = 0x2C
 PLAY_CLIENTBOUND_LOGIN = 0x31
 PLAY_SERVERBOUND_KEEP_ALIVE = 0x1C
 
 
 def main():
     host, port, protocol_version, username = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+    if protocol_version != SUPPORTED_PROTOCOL:
+        raise ValueError("This audit client supports Minecraft 26.2 / protocol 776 only")
+    run_seconds = float(sys.argv[5]) if len(sys.argv) > 5 else 30
+    if run_seconds <= 0:
+        raise ValueError("run_seconds must be positive")
+    on_join = sys.argv[6] if len(sys.argv) > 6 else None
     conn = Conn(host, port)
+    with closing(conn.sock):
+        return run_session(conn, host, port, protocol_version, username, run_seconds, on_join)
 
+
+def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None):
     payload = write_varint(protocol_version) + write_string(host) + struct.pack(">H", port) + write_varint(2)
     conn.send_packet(0x00, payload)
 
@@ -172,18 +157,17 @@ def main():
     payload = write_string(username) + offline_uuid.bytes
     conn.send_packet(0x00, payload)
 
-    run_seconds = float(sys.argv[5]) if len(sys.argv) > 5 else 30
     state = "login"
     deadline = time.monotonic() + run_seconds
     joined = False
     while time.monotonic() < deadline:
         try:
-            pid, data = conn.recv_packet(timeout=8)
+            pid, data = conn.recv_packet(timeout=min(8, max(0.001, deadline - time.monotonic())))
         except socket.timeout:
             continue
         except ConnectionError as e:
             print(f"stopped: {e}")
-            break
+            return False
 
         if state == "login":
             if pid == 0x03:
@@ -212,11 +196,15 @@ def main():
                 print("  sent client information")
             elif pid == 0x00:
                 print(f"[login] DISCONNECT: {data!r}")
-                break
+                return False
         elif state == "configuration":
             name = CONFIG_CLIENTBOUND.get(pid, f"unknown_0x{pid:02x}")
             print(f"[config] {name} len={len(data)}")
-            if name == "select_known_packs":
+            if name == "keep_alive":
+                conn.send_packet(0x04, data)
+            elif name == "ping":
+                conn.send_packet(0x05, data)
+            elif name == "select_known_packs":
                 # Echo the exact same known-packs list back (serverbound id 0x07).
                 conn.send_packet(0x07, data)
                 print("  -> replied select_known_packs (echo)")
@@ -226,7 +214,7 @@ def main():
                 state = "play"
             elif name == "disconnect":
                 print(f"  DISCONNECT payload: {data!r}")
-                break
+                return False
         elif state == "play":
             if pid == PLAY_CLIENTBOUND_KEEP_ALIVE and len(data) == 8:
                 conn.send_packet(PLAY_SERVERBOUND_KEEP_ALIVE, data)
@@ -234,15 +222,13 @@ def main():
             elif pid == PLAY_CLIENTBOUND_LOGIN:
                 joined = True
                 print("[play] LOGIN (join game) packet received -- player entity should now exist")
-                # Do not guess a Player Loaded packet id here. A wrong
-                # serverbound play id makes 26.2 drop the otherwise healthy
-                # offline-mode session before Sand's first tick can observe
-                # it. The server accepts this minimal client without that
-                # optional loading-screen acknowledgement.
-                if len(sys.argv) > 6:
+                if on_join is not None:
                     import subprocess
-                    print(f"  firing on-join command: {sys.argv[6]}")
-                    subprocess.run(["bash", "-c", sys.argv[6]])
+                    print(f"  firing on-join command: {on_join}")
+                    subprocess.run(["bash", "-c", on_join], check=True)
+            elif pid == 0x20:
+                print(f"[play] DISCONNECT payload: {data!r}")
+                return False
             else:
                 print(f"[play] packet id=0x{pid:02x} len={len(data)}")
 

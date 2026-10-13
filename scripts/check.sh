@@ -4,6 +4,9 @@ set -euo pipefail
 echo "=== Formatting ==="
 cargo fmt --all -- --check
 
+echo "=== Minimal Minecraft client regressions ==="
+python3 -m unittest scripts.mc_validation.test_minimal_join_client
+
 echo "=== Clippy ==="
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 

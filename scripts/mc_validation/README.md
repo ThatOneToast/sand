@@ -33,8 +33,8 @@ python3 scripts/mc_validation/run_unified_state_audit.py \
 The audit covers two players observed online together, independent player
 initialization, two UUID-keyed entity data records, nested bundle attachment,
 required/optional/forbidden queries, shared ordered system scans, migrations,
-reload preservation, and ownership-safe detachment. The tiny protocol clients
-still disconnect after the initial chunk stream, so the harness invokes the
+reload preservation, and ownership-safe detachment. That audit used the earlier
+clients, which disconnected after the initial chunk stream, so its harness invokes the
 generated lifecycle tick through RCON while both real player entities are
 online. That proves Sand's generated player lifecycle and multiplayer
 isolation; it does not pretend the tiny clients are full gameplay bots.
@@ -80,24 +80,17 @@ Sand-side bug was found.
 
 # Participant runtime-validation tooling (#265)
 
-**Status: experimental, isolated tooling.** `rcon_client.py` (stable,
-well-documented Source RCON protocol) is solid. `minimal_join_client.py` (a
-from-scratch, empirically reverse-engineered Minecraft protocol client for
-the very recent, undocumented 26.2 protocol) reliably logs a real player in
-but cannot yet hold a stable Play-phase connection — see "What is not
-proven" below. This directory:
+`rcon_client.py` implements Source RCON. `minimal_join_client.py` is a passive,
+version-pinned Minecraft 26.2 client used by the real-player observation CI
+harness. Its corrected keep-alive handling now supports sustained sessions.
+It does not implement client-driven attacks, movement or inventory actions.
+Neither Python client is a dependency of an authored Sand datapack.
 
-- is **not** required by any canonical Sand example or by normal CI (it is
-  never invoked from `scripts/check.sh` or the workspace test suite);
-- is isolated from `examples/participant_audit` (that pack is a normal,
-  façade-only, typed Sand datapack — see its own `src/lib.rs` — with no
-  dependency on this directory or on Python at all);
-- has focused unit tests for its stable, protocol-independent piece:
-  `python3 scripts/mc_validation/test_rcon_client.py -v` (stdlib
-  `unittest`, no external dependencies, exercises packet framing and the
-  auth-failure path against an in-process fake server — not a substitute
-  for the real-server evidence below, which is a separate, manually-run
-  procedure).
+Run the focused client regressions with
+`python3 -m unittest scripts.mc_validation.test_minimal_join_client -v`;
+`scripts/check.sh` includes them. RCON framing tests remain available through
+`python3 scripts/mc_validation/test_rcon_client.py -v`. Unit tests do not
+substitute for the real-server evidence below.
 
 Real Minecraft Java 26.2 runtime-validation tooling for the #230
 participant backends merged in #266. Run with:
@@ -130,70 +123,35 @@ results by category.
 | Weapon snapshot, absent-mainhand branch | ✅ Proven | A subject with no `SelectedItem` produces `weapon_present: 0b` live. |
 | Weapon/held-item snapshot, present branch (actual captured item) | ❌ **Not achieved** | Requires a real player client — see "#265 (this pass)" below for why a non-player stand-in doesn't work here. |
 | Player-triggered combat scenarios *driven by the real advancement criterion* | ❌ **Not proven** | See "What is not proven" below. |
-| Two independent player sessions | ❌ **Not proven** | Blocked by the same gap — see below. |
+| Two independent player sessions | ✅ Proven for observations | The player-observation harness checks both players online, native health/effect transitions, isolated counts and reload through normal tick dispatch. Participant correlation is separate. |
 
-## What is not proven, and exactly why
+## Sustained player sessions and remaining participant coverage
 
-The custom minimal client (`minimal_join_client.py`) reliably completes a
-real login and enters the Play state — but the server disconnects it
-(`lost connection: Timed out`, or occasionally a decode error while this
-tooling's packet-id guesses were still being corrected) within roughly one
-server tick of entering Play, consistently too fast for a scripted
-follow-up (e.g. an RCON-issued `/damage` targeting that player) to land
-before the connection drops.
+The previous immediate timeout had a concrete cause: the client listened for
+Play keep-alive packet `0x4c`, while Minecraft 26.2's `GameProtocols` registry
+assigns it `0x2c`. The serverbound response is `0x1c`. Correcting that ID passed
+sixty consecutive one-second server-side player-presence checks. The client
+now also fails on an early disconnect instead of reporting success merely
+because a login packet was received.
 
-Root cause was **not** conclusively identified in the time available:
+`../validate_player_observations.py` runs two real clients on a disposable,
+loopback-only server. It asserts silent first samples, native health and effect
+transitions, independent per-player counters, and preserved baselines across
+reload. It uses the generated datapack's normal tick entry, without calling
+observation handlers or replacing Minecraft's read-only health criterion.
+The Vanilla reload workflow runs this audit. See
+[the observation evidence](../../docs/testing/player-observation-evidence.md).
 
-- Minecraft Java 26.2 (protocol version 776) is recent enough that no
-  official protocol documentation exists yet, and `minecraft-data`'s
-  published protocol definitions do not yet cover it either (only the
-  version *number* is catalogued there; the closest full reference
-  available was `pc/26.2/protocol.json`, used to derive every packet id
-  in `minimal_join_client.py` — cross-checked empirically against the real
-  server's actual byte-level responses, not assumed).
-- Every packet id this tooling relies on (compression threshold, login
-  success, configuration select-known-packs/finish-configuration,
-  play-phase keep-alive/login) was independently confirmed correct by
-  observing the real server's behavior.
-- A real end-to-end RCON-triggered damage attempt against a joined bot was
-  attempted (see PR history) and did not reliably land before disconnect;
-  it is not included in `run_audit.py` because it does not yet produce
-  trustworthy results, and this PR's scope is validation tooling, not
-  protocol-client redesign.
-
-**Follow-up attempt (post-#264/#268 roadmap pass):** the server log for
-every disconnect reads `lost connection: Timed out`, at the exact same
-wall-clock second as the join line — never a decode error, never a delay.
-The leading theory going into this pass was a missing serverbound
-`player_loaded` (`0x2c`, no payload — a modern client sends this once its
-"Loading terrain..." screen closes) acknowledgement. `minimal_join_client.py`
-now sends `player_loaded` immediately upon receiving the Play `LOGIN`
-packet. **This did not fix the disconnect** — confirmed against a fresh
-server instance, same `Timed out` result, same timing. The client still
-receives a full burst of ~20 Play packets (chunk/spawn/inventory data)
-before the drop, so the disconnect is not blocking on the very first
-packet exchange — but whatever the server is actually waiting for remains
-unidentified. Sending `player_loaded` is kept in the client regardless (it
-is a real, correct part of the modern join sequence and does not hurt),
-but the theory that it alone was the missing piece is now falsified.
-Genuinely stabilizing this connection remains unsolved; see the current
-#265-tracking issue thread for whether further protocol-level debugging
-is worth pursuing versus an official/Fabric client approach (evaluated and
-found impractical in this environment — no display/GPU, no purchased
-Minecraft account for either client — see that issue for the full
-evaluation).
-
-**Do not extend the claims in `docs/testing/participant-role-evidence.md`
-beyond what this README documents.** When the Play-phase connection is made
-stable (tracked as follow-up), extend `run_audit.py` with the full combat
-scenario matrix from the #265 issue (repeated attacks, two concurrent
-subjects, weapon/custom-data snapshots, empty-hand behavior, `/reload`
-before/after) and update the evidence doc accordingly.
+This does not establish the participant combat matrix: real advancement-driven
+attacker/killer capture, composed participant forwarding, repeated attacks,
+weapon/custom-data snapshots, empty-hand behavior and their reload boundaries
+still need dedicated assertions in `run_audit.py`. #265 remains open. The
+passive client fixes the connection prerequisite, not these separate proofs.
 
 ## #269/#280: advancement-bridge parent → SandEvent child validation attempt
 
 `run_audit.py`'s `bridge_scenario_rcon_attempt` check tries a
-non-player-driven alternative to the blocked Play-phase connection above,
+non-player-driven alternative used before the Play-phase connection was fixed,
 specifically for the `PlayerKillEvent -> SpecialKillEvent` advancement-bridge
 scenario (#269): summon two RCON-controlled zombies, use vanilla's own
 `/damage ... by <entity>` to establish the exact combat "last attacker"
@@ -225,12 +183,8 @@ new ..." server confirmation. Ruled out, in order:
   to this command form — `execute as <selector> run ... @s` (the same idiom
   the real bridge invocation itself uses) did not reliably fix it either.
 
-Root cause not conclusively identified in the time available. This is the
-same class of "this specific undocumented 26.2 snapshot behaves unexpectedly
-for non-player-driven live scenarios" gap already documented at length above
-for `minimal_join_client.py`'s Play-phase instability — not a new, unrelated
-regression, but a second independent symptom of working against a
-bleeding-edge, undocumented protocol/command-grammar version. The check is
+That historical attempt did not identify a root cause. Its entity-selection
+symptom is separate from the now-corrected client keep-alive packet ID. The check is
 marked `PASS (attempted, not conclusive — ...)` in `run_audit.py`'s output
 (matching `player_join`'s existing convention for a best-effort, non-gating
 check) rather than failing the whole harness or silently claiming success.
@@ -306,8 +260,8 @@ As before, invoking the generated handler function directly over RCON
 real player) is real command execution against a real server, exercising
 the real implementation end-to-end — but it is not proof that a live
 player hit/kill fires the advancement criterion that leads here; that
-specific gap (a stable Play-phase client connection) is unchanged from
-the "What is not proven" section above.
+participant scenario still needs its own assertions even though sustained
+client connections now work.
 
 **`weapon_snapshot_present_branch` (an actual captured item) was
 attempted and not achieved**, for a different, non-timing reason: a
@@ -320,14 +274,13 @@ against the target's own data component schema, and `SelectedItem` is not
 a real component of a `zombie` (only of a player-controlled entity), so
 the merge is silently dropped server-side. Retrying did not help — this is
 not the same-tick lag from (1) above. A real player client is required for
-this specific branch; it remains blocked on the same Play-phase-stability
-gap as the rest of the player-driven scenarios.
+this specific branch; the corrected client enables a new attempt, but the
+observation audit does not exercise item snapshots.
 
-## Manual validation procedure (until the above is resolved)
+## Manual validation procedure for the remaining combat scenarios
 
-Until an automated client can hold a stable Play-phase connection, the
-combat/weapon scenarios require a **real Minecraft 26.2 client** (the
-official game, not a bot):
+A **real Minecraft 26.2 client** can exercise combat/weapon scenarios while
+the automated participant matrix is extended:
 
 1. `python3 scripts/mc_validation/run_audit.py --build --jar <server.jar>`
    confirms structural readiness first.

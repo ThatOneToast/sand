@@ -172,8 +172,8 @@ The checks above summon two real entities, use vanilla's own
 function directly over RCON — the identical generated commands a real
 advancement reward would call — rather than triggering the advancement
 criterion itself (`entity_hurt_player`/`entity_killed_player`, which
-require a real player victim; see "Not runtime-verified" below for why
-that path is still blocked). This is real command execution against a
+require a real player victim; see "Not runtime-verified" below for the
+remaining coverage). This is real command execution against a
 real running server, exercising the real implementation end-to-end
 (participant setup, the correlated capture, cleanup) with a real,
 independently-verifiable two-entity relation to check the result against —
@@ -224,25 +224,16 @@ pass:**
   (`sand-core/tests/tracked_event_participant_setup.rs`) but no dedicated
   scenario in `examples/participant_audit` and was not added in this pass;
   live evidence for it remains open.
-- The composed scenario's actual *firing*: it dispatches via
-  `SandEventDispatch::tick().as_players()`, which requires a real player
-  entity present as `@s` — the same stable-Play-phase-connection gap below
-  blocks summoning one under scripted control, so no evidence exists (in
-  either direction) for `compose_child_uuid`/`compose_sibling_uuid`
-  actually landing correctly at real runtime, only that the generated
-  commands reference the right tag structurally.
-- Player-triggered combat scenarios (a real player actually taking damage
-  from a real or summoned entity, driven through the real advancement
-  criterion rather than a direct RCON handler invocation). The minimal
-  client's Play-phase connection is not yet stable enough to survive long
-  enough for a scripted follow-up command to land reliably — see
-  `scripts/mc_validation/README.md`'s "What is not proven, and exactly
-  why" for the specific, honestly-documented gap (most likely one
-  additional serverbound acknowledgement packet this very recent protocol
-  version requires, not yet identified with confidence — no official
-  protocol documentation exists yet for protocol version 776).
-- Two independent concurrent player sessions — blocked by the same gap; a
-  single stable session was not achieved, so two was not attempted.
+- The composed scenario's actual *firing* and its captured
+  `compose_child_uuid`/`compose_sibling_uuid`: structural checks exist, but
+  this participant audit has not yet exercised the complete live-player path.
+- Player-triggered combat scenarios driven through the actual advancement
+  criterion, including attacker/killer correlation and repeated hits, still
+  need dedicated live-player assertions. The former connection blocker is
+  now fixed: the minimal client's keep-alive ID was wrong. A separate
+  [player-observation audit](player-observation-evidence.md) now proves two
+  sustained concurrent players, health/effect transitions and reload isolation.
+  That audit does not validate combat participants or item snapshots.
 - Whether `execute on attacker`'s "last attacker" memory is scoped exactly
   to the specific `EntityHurtPlayer`/`EntityKilledPlayer` criterion
   occurrence, vs. reflecting a slightly stale prior hit in edge cases

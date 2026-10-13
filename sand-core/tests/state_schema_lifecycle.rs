@@ -210,7 +210,7 @@ impl ShF9nHXYiX {
     fn current(_event: GroupedStatePulse, query: PlayerState) {
         query.current(|player| {
             let mut commands = player.mana.add(1);
-            commands.push(cmd::say("grouped current").to_string());
+            commands.extend([cmd::say("grouped current")]);
             commands
         });
     }
@@ -222,7 +222,7 @@ impl SxOoyj5PdK {
     fn current(_event: GroupedStatePulse, query: PlayerState) {
         query.current(|player| {
             let mut commands = player.mana.add(2);
-            commands.push(cmd::say("other grouped current").to_string());
+            commands.extend([cmd::say("other grouped current")]);
             commands
         });
     }
@@ -239,7 +239,7 @@ mod grouped_module_a {
         fn current(_event: GroupedStatePulse, query: PlayerState) {
             query.current(|player| {
                 let mut commands = player.mana.add(3);
-                commands.push(cmd::say("module a grouped current").to_string());
+                commands.extend([cmd::say("module a grouped current")]);
                 commands
             });
         }
@@ -257,7 +257,7 @@ mod grouped_module_b {
         fn current(_event: GroupedStatePulse, query: PlayerState) {
             query.current(|player| {
                 let mut commands = player.mana.add(4);
-                commands.push(cmd::say("module b grouped current").to_string());
+                commands.extend([cmd::say("module b grouped current")]);
                 commands
             });
         }
@@ -934,7 +934,7 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
     let wave = GlobalState::wave.objective();
     let holder = "#sand_state_test_global_state_e53d9a32";
     assert_eq!(
-        global.wave.add(1),
+        emitted(global.wave.add(1)),
         vec![format!("scoreboard players add {holder} {wave} 1")]
     );
     assert_eq!(
@@ -957,6 +957,13 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
     }));
 }
 
+#[function("entity_charge_mutation")]
+fn entity_charge_mutation() {
+    EntityRuntimeState::on(EntityContext::<AnyEntity>::default())
+        .charge
+        .add(2);
+}
+
 #[test]
 fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
     let entity = EntityRuntimeState::on(EntityContext::<AnyEntity>::default());
@@ -969,8 +976,16 @@ fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
     .to_owned();
     let charge = EntityRuntimeState::charge.objective();
     let charge_dirty = EntityRuntimeState::charge.dirty_objective();
+    let mutation_records = records();
+    let entry = function(&mutation_records, "entity_charge_mutation");
+    let helper = entry
+        .strip_prefix("function statepack:")
+        .expect("one owned mutation call");
     assert_eq!(
-        entity.charge.add(2),
+        function(&mutation_records, helper)
+            .lines()
+            .map(str::to_owned)
+            .collect::<Vec<_>>(),
         vec![
             format!("scoreboard players add @s {charge} 2"),
             format!(
@@ -1082,7 +1097,7 @@ fn player_and_global_commands_reference_only_provisioned_objectives() {
         player.timer.start(Ticks::new(5)),
         player.timer.tick(),
         player.dash.start(Ticks::new(10)),
-        global.wave.add(1),
+        emitted(global.wave.add(1)),
         vec![global.wave.get().command()],
     ]
     .concat();

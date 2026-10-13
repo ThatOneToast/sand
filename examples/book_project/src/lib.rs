@@ -77,29 +77,15 @@ pub fn tick() {
 
     // Stamina regen pulse: when the regen timer expires, restore 10 stamina
     // to every player below the cap, then restart the timer.
-    state
-        .stamina
-        .add(10)
-        .into_iter()
-        .flat_map(|command| {
-            TypedExecute::as_players()
-                .when(all![
-                    state.regen.elapsed(),
-                    state.stamina.matches(..100).unwrap(),
-                ])
-                .run(command)
-        })
-        .collect::<Actions>();
-    state
-        .regen
-        .start(Ticks::seconds(2))
-        .into_iter()
-        .flat_map(|command| {
-            TypedExecute::as_players()
-                .when(state.regen.elapsed())
-                .run(command)
-        })
-        .collect::<Actions>();
+    TypedExecute::as_players()
+        .when(all![
+            state.regen.elapsed(),
+            state.stamina.matches(..100).unwrap(),
+        ])
+        .run(state.stamina.add(10));
+    TypedExecute::as_players()
+        .when(state.regen.elapsed())
+        .run(state.regen.start(Ticks::seconds(2)));
 
     // Exhaustion clears once stamina recovers past half.
     TypedExecute::as_players()
@@ -512,11 +498,40 @@ mod tests {
                     && command.contains("You feel steady again.")),
             "recovery feedback: {recovery:?}"
         );
+        let records: Vec<serde_json::Value> = serde_json::from_str(
+            &sand::advanced::try_export_components_json("trail", "26.2").unwrap(),
+        )
+        .unwrap();
+        let function = |path: &str| {
+            records
+                .iter()
+                .find(|r| r["dir"] == "function" && r["path"] == path)
+                .unwrap_or_else(|| panic!("missing function {path}"))["content"]
+                .as_str()
+                .unwrap()
+        };
+        let regen = function("tick")
+            .lines()
+            .filter(|line| line.contains("matches ..99"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            regen.len(),
+            1,
+            "regen must evaluate its guard once: {regen:?}"
+        );
+        let helper = regen[0].split_once(" run function trail:").unwrap().1;
+        let body = function(helper);
+        assert!(body.lines().any(|line| line.starts_with("scoreboard players add @s ") && line.ends_with(" 10")), "{body}");
         assert!(
-            cmds.iter().any(|command| command.contains("matches ..99")
-                && command.contains("run scoreboard players add @s ")
-                && command.ends_with(" 10")),
-            "stamina regeneration: {cmds:?}"
+            body.lines().any(
+                |line| line.contains("matches 101.. run scoreboard players set @s ")
+                    && line.ends_with(" 100")
+            ),
+            "{body}"
+        );
+        assert!(
+            !body.contains("matches ..99"),
+            "the clamp must not repeat the pre-write guard: {body}"
         );
     }
 

@@ -1576,6 +1576,10 @@ impl FixedScoreAccessor {
     }
 
     /// Add a decimal value using the field's deterministic encoding.
+    ///
+    /// Returns one owned action containing the mutation, numeric conversion,
+    /// bounds enforcement and dirty-state updates. Pass it intact to
+    /// [`crate::TypedExecute::run`] so its guard is evaluated once.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::FixedScoreAccessor::add",
@@ -1588,12 +1592,12 @@ impl FixedScoreAccessor {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(value = "`value` provides the value being applied or compared used to add a decimal value using the field's deterministic encoding."),
-        returns = "The ordered values produced to add a decimal value using the field's deterministic encoding.",
+        returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fixed_score_accessor_value: sand::entity::FixedScoreAccessor, value: f64)  {\n    let values = fixed_score_accessor_value.add(value);\n}",
     )]
     #[must_use]
     #[allow(clippy::should_implement_trait)]
-    pub fn add(self, value: impl NumericStateSource) -> Vec<String> {
+    pub fn add(self, value: impl NumericStateSource) -> crate::ir::Actions {
         numeric_mutation(
             self.field,
             self.holder,
@@ -1606,6 +1610,10 @@ impl FixedScoreAccessor {
     }
 
     /// Subtract a decimal value using the field's deterministic encoding.
+    ///
+    /// Returns one owned action containing the mutation, numeric conversion,
+    /// bounds enforcement and dirty-state updates. Pass it intact to
+    /// [`crate::TypedExecute::run`] so its guard is evaluated once.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::FixedScoreAccessor::subtract",
@@ -1618,11 +1626,11 @@ impl FixedScoreAccessor {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(value = "`value` provides the value being applied or compared used to subtract a decimal value using the field's deterministic encoding."),
-        returns = "The ordered values produced to subtract a decimal value using the field's deterministic encoding.",
+        returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fixed_score_accessor_value: sand::entity::FixedScoreAccessor, value: f64)  {\n    let values = fixed_score_accessor_value.subtract(value);\n}",
     )]
     #[must_use]
-    pub fn subtract(self, value: impl NumericStateSource) -> Vec<String> {
+    pub fn subtract(self, value: impl NumericStateSource) -> crate::ir::Actions {
         numeric_mutation(
             self.field,
             self.holder,
@@ -1963,6 +1971,10 @@ impl<T: 'static> EntityScoreAccessor<T> {
     }
 
     /// Add a value, marking the source dirty for archetype-bound state.
+    ///
+    /// Returns one owned action containing the mutation, numeric conversion,
+    /// bounds enforcement and dirty-state updates. Pass it intact to
+    /// [`crate::TypedExecute::run`] so its guard is evaluated once.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityScoreAccessor::add",
@@ -1974,12 +1986,12 @@ impl<T: 'static> EntityScoreAccessor<T> {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(value = "`value` provides the value being applied or compared used to add a value, marking the source dirty for archetype-bound state."),
-        returns = "The ordered values produced to add a value, marking the source dirty for archetype-bound state.",
+        returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_score_accessor_value: sand::entity::EntityScoreAccessor < T >, value: i32)  {\n    let values = entity_score_accessor_value.add(value);\n}",
     )]
     #[must_use]
     #[allow(clippy::should_implement_trait)]
-    pub fn add(self, value: impl NumericStateSource) -> Vec<String> {
+    pub fn add(self, value: impl NumericStateSource) -> crate::ir::Actions {
         let destination_scale = self.field.numeric_scale();
         numeric_mutation(
             self.field,
@@ -1993,6 +2005,10 @@ impl<T: 'static> EntityScoreAccessor<T> {
     }
 
     /// Subtract a value, marking the source dirty for archetype-bound state.
+    ///
+    /// Returns one owned action containing the mutation, numeric conversion,
+    /// bounds enforcement and dirty-state updates. Pass it intact to
+    /// [`crate::TypedExecute::run`] so its guard is evaluated once.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityScoreAccessor::subtract",
@@ -2004,11 +2020,11 @@ impl<T: 'static> EntityScoreAccessor<T> {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(value = "`value` provides the value being applied or compared used to subtract a value, marking the source dirty for archetype-bound state."),
-        returns = "The ordered values produced to subtract a value, marking the source dirty for archetype-bound state.",
+        returns = "One owned action retaining the mutation, conversion, bounds enforcement and dirty-state updates under a single guard evaluation.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_score_accessor_value: sand::entity::EntityScoreAccessor < T >, value: i32)  {\n    let values = entity_score_accessor_value.subtract(value);\n}",
     )]
     #[must_use]
-    pub fn subtract(self, value: impl NumericStateSource) -> Vec<String> {
+    pub fn subtract(self, value: impl NumericStateSource) -> crate::ir::Actions {
         let destination_scale = self.field.numeric_scale();
         numeric_mutation(
             self.field,
@@ -3489,7 +3505,7 @@ fn numeric_mutation<F: EntityStateField + ComponentDirtyField>(
     source: impl NumericStateSource,
     destination_scale: i32,
     scratch_objective: String,
-) -> Vec<String> {
+) -> crate::ir::Actions {
     let objective = field.objective();
     let mut commands = Vec::new();
     source.append_numeric_operation(
@@ -3501,7 +3517,9 @@ fn numeric_mutation<F: EntityStateField + ComponentDirtyField>(
         operation,
     );
     append_mutation_bounds_and_dirty(field, holder, track_dirty, &objective, &mut commands);
-    commands
+    // A logical numeric mutation includes conversion, bounds and dirty writes.
+    // Keep that invariant intact even when callers iterate or guard actions.
+    crate::IntoCommands::into_commands(commands).into_single_action("state_mutation")
 }
 
 #[allow(clippy::too_many_arguments)] // Lowering keeps source and destination representations explicit.
@@ -3836,14 +3854,14 @@ mod tests {
         let positive = FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000)));
         let positive = positive.bind();
         assert_eq!(
-            positive.add(0.05)[0],
+            crate::ir::test_support::emitted_operation(positive.add(0.05))[0],
             format!(
                 "scoreboard players add @s {} 5",
                 FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000))).objective()
             )
         );
         assert_eq!(
-            positive.subtract(0.05)[0],
+            crate::ir::test_support::emitted_operation(positive.subtract(0.05))[0],
             format!(
                 "scoreboard players remove @s {} 5",
                 FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000))).objective()
@@ -3855,7 +3873,8 @@ mod tests {
     fn numeric_fields_add_typed_sources_and_track_reconciliation() {
         let health = EntityScore::<i32>::new("rpg", "mob", "health", 20, Some((0, 100)));
         let healing = EntityScore::<i32>::new("rpg", "mob", "healing", 2, Some((0, 10)));
-        let commands = health.bind().add(healing.bind());
+        let commands =
+            crate::ir::test_support::emitted_operation(health.bind().add(healing.bind()));
         assert_eq!(
             commands[0],
             format!(
@@ -3875,7 +3894,8 @@ mod tests {
 
         let multiplier = FixedScore::__new("rpg", "mob", "multiplier", 100, 125, None);
         let precise = FixedScore::__new("rpg", "mob", "precise", 1_000, 1_255, None);
-        let commands = multiplier.bind().add(precise.bind());
+        let commands =
+            crate::ir::test_support::emitted_operation(multiplier.bind().add(precise.bind()));
         let scratch = numeric_scratch_name("rpg", "mob");
         assert_eq!(
             commands[0],
@@ -3902,7 +3922,8 @@ mod tests {
         }));
 
         let very_precise = FixedScore::__new("rpg", "mob", "very_precise", 2_000_000_000, 0, None);
-        let commands = health.bind().add(very_precise.bind());
+        let commands =
+            crate::ir::test_support::emitted_operation(health.bind().add(very_precise.bind()));
         assert!(
             commands
                 .iter()

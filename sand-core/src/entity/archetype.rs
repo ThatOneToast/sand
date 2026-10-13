@@ -5570,18 +5570,19 @@ mod tests {
         )));
 
         let health = EntityScore::<i32>::new("rpg", "mob", "health", 20, None);
-        let commands = health.bind().add(target.bind());
+        let commands = crate::ir::test_support::emitted_operation(health.bind().add(target.bind()));
         assert!(
             commands
                 .iter()
                 .any(|command| command.contains("#divisor") && command.ends_with(" 100"))
         );
 
-        let commands = target.bind().add(1);
+        let commands = crate::ir::test_support::emitted_operation(target.bind().add(1));
         assert!(commands[0].starts_with("scoreboard players add @s "));
         assert!(commands[0].ends_with(" 100"));
 
-        let commands = target.bind().subtract(health.bind());
+        let commands =
+            crate::ir::test_support::emitted_operation(target.bind().subtract(health.bind()));
         assert!(
             commands
                 .iter()

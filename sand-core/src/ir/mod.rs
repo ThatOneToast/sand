@@ -843,6 +843,21 @@ mod nested_validation_tests {
 
 #[cfg(test)]
 pub(crate) mod test_support {
+    // Inspect the emitted entry and its owned helper, preserving the numeric
+    // encoding assertions now that a mutation is one callable operation.
+    pub(crate) fn emitted_operation(actions: impl crate::IntoCommands) -> Vec<String> {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let entry = crate::ir::test_support::emitted(actions);
+        let mut helpers = crate::ir::test_support::drain_emitted();
+        if helpers.is_empty() {
+            return entry;
+        }
+        assert_eq!(helpers.len(), 1, "one owned mutation helper");
+        let (path, commands) = helpers.pop().unwrap();
+        assert_eq!(entry, [format!("function __sand_local:{path}")]);
+        commands
+    }
+
     pub(crate) fn emitted(actions: impl crate::IntoCommands) -> Vec<String> {
         actions
             .into_commands()

@@ -528,7 +528,11 @@ impl Cmd {
                     error.field = format!("run.{}", error.field);
                     error
                 })?;
-                format!("execute {operation_text} run {run_text}")
+                if let Some(command) = run_text.strip_prefix('$') {
+                    format!("$execute {operation_text} run {command}")
+                } else {
+                    format!("execute {operation_text} run {run_text}")
+                }
             }
 
             Self::BlockMatch(_) | Self::BlockMutation(_) => {

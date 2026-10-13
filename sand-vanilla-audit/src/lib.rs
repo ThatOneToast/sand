@@ -817,3 +817,13 @@ pub fn audit_runtime_world_blocks() {
         .then_all(["say __SAND_WORLD_UNLOADED_FALSE__"]);
     world.block(BlockPos::here()).replace(vanilla::Block::Stone);
 }
+
+/// Keep function-macro arguments available across dimension-scoped actions.
+#[function]
+pub fn audit_world_macro() {
+    let args = FunctionMacroArgs::new(["block"]).unwrap();
+    WorldContext::current().in_dimension(
+        "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
+        |_| args.line("setblock ~ ~ ~ $(block)").unwrap(),
+    );
+}

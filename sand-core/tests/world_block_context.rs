@@ -126,3 +126,33 @@ fn cached_block_gameplay_keeps_dimension_inventory_data_and_condition_scope() {
     verify("second_world", &second);
     assert!(!second.contains("world_context:"));
 }
+
+#[sand_macros::function]
+fn dimension_macro_actions() {
+    let args = FunctionMacroArgs::new(["block"]).unwrap();
+    let dimension: sand::registry::DimensionId = "minecraft:the_nether".parse().unwrap();
+    WorldContext::current().in_dimension(dimension, |world| {
+        mcfunction![
+            args.line("setblock ~ ~ ~ $(block)").unwrap();
+            world.block(BlockPos::here()).replace(vanilla::Block::Stone);
+        ]
+    });
+}
+
+#[test]
+fn dimension_macro_actions_keep_the_argument_bearing_frame() {
+    let json = sand_core::try_export_components_json("world_macros").unwrap();
+    let records: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+    let function = records
+        .iter()
+        .find(|r| r["path"] == "dimension_macro_actions")
+        .unwrap();
+    assert_eq!(
+        function["content"],
+        "$execute in minecraft:the_nether run setblock ~ ~ ~ $(block)\nexecute in minecraft:the_nether run setblock ~ ~ ~ minecraft:stone"
+    );
+    assert_eq!(
+        json,
+        sand_core::try_export_components_json("world_macros").unwrap()
+    );
+}

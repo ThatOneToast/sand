@@ -79,6 +79,8 @@ class WorldGameplayHarness(ServerHarness):
         }
         for name, condition in checks.items():
             self.check(name, condition)
+        self.send('execute in minecraft:overworld positioned 16 80 16 run function sand_audit:audit_world_macro {block:"minecraft:diamond_block"}')
+        self.check("MACRO_ARGUMENT", "in minecraft:the_nether if block 2 80 2 minecraft:diamond_block")
         print("PASSED: runtime block queries, writes, inventory, NBT, dimension scaling, caller context, and unloaded-block behavior", flush=True)
 
 

@@ -84,6 +84,9 @@ impl WorldContext {
     /// relative positions use that resulting origin. The caller's executor is
     /// retained. A nested entity query may establish its own position/dimension.
     /// The body does not load chunks, and the surrounding caller is unchanged.
+    /// Straight-line function-macro actions stay in the argument-bearing caller.
+    /// A macro body that returns early is rejected at export; use an explicit
+    /// macro function with [`crate::cmd::FunctionMacroArgs::call_with`] instead.
     #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::world::WorldContext::in_dimension",
@@ -108,8 +111,23 @@ impl WorldContext {
         if body.0.is_empty() {
             return Actions::default();
         }
+        let operation = ExecuteOp::In(dimension.into().to_string());
+        // Macro substitution must happen in the argument-bearing function.
+        // Each straight-line command inherits the same caller origin, so each
+        // dimension modifier applies vanilla coordinate scaling exactly once.
+        if body.has_macro_lines() && !body.may_return_from_frame() {
+            return Actions(
+                body.0
+                    .into_iter()
+                    .map(|command| Cmd::Execute {
+                        operations: vec![operation.clone()],
+                        run: Box::new(command),
+                    })
+                    .collect(),
+            );
+        }
         Actions(vec![Cmd::Execute {
-            operations: vec![ExecuteOp::In(dimension.into().to_string())],
+            operations: vec![operation],
             run: Box::new(Cmd::AnonymousFunction {
                 prefix: "sand/world/dimension".into(),
                 body,
@@ -262,5 +280,23 @@ impl BlockContext {
 )]
     pub fn data(&self) -> Nbt {
         Nbt::block(self.position.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dimension_macro_early_return_is_diagnosed_instead_of_leaking_to_caller() {
+        let args = crate::cmd::FunctionMacroArgs::new(["value"]).unwrap();
+        let dimension: DimensionId = "minecraft:the_nether".parse().unwrap();
+        let actions = WorldContext::current()
+            .in_dimension(dimension, |_| args.line("return $(value)").unwrap());
+        let error = actions.0[0].try_render().unwrap_err().to_string();
+        assert!(
+            error.contains("macro lines cannot move into a helper"),
+            "{error}"
+        );
     }
 }

@@ -81,6 +81,14 @@ class WorldGameplayHarness(ServerHarness):
             self.check(name, condition)
         self.send('execute in minecraft:overworld positioned 16 80 16 run function sand_audit:audit_world_macro {block:"minecraft:diamond_block"}')
         self.check("MACRO_ARGUMENT", "in minecraft:the_nether if block 2 80 2 minecraft:diamond_block")
+        for dimension in ("minecraft:overworld", "minecraft:the_nether"):
+            self.send(f'execute in {dimension} run summon minecraft:armor_stand 10 80 10 {{Tags:["sand_world_probe"],NoGravity:1b}}')
+            self.send(f"execute in {dimension} run setblock 10 80 10 minecraft:air")
+        self.send("execute in minecraft:overworld positioned 8 80 8 run function sand_audit:audit_world_targets")
+        self.check("ENTITY_DIMENSION", "in minecraft:the_nether if entity @e[tag=sand_world_probe,tag=sand_world_visited,distance=0..]")
+        self.check("ENTITY_OTHER_DIMENSION", "in minecraft:overworld unless entity @e[tag=sand_world_probe,tag=sand_world_visited,distance=0..]")
+        self.check("ENTITY_POSITION", "in minecraft:the_nether if block 10 80 10 minecraft:gold_block")
+        self.check("ENTITY_OTHER_BLOCK", "in minecraft:overworld if block 10 80 10 minecraft:air")
         self.check("MACRO_MULTILINE", "in minecraft:the_nether if block 3 80 2 minecraft:lapis_block")
         print("PASSED: runtime block queries, writes, inventory, NBT, dimension scaling, caller context, and unloaded-block behavior", flush=True)
 

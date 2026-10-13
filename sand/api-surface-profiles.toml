@@ -2,8 +2,8 @@
 # Selection uses the resolved `minecraft_version` embedded in both provider
 # catalogs, never an environment-variable guess. Adding a version requires a
 # separately reviewed deterministic baseline.
-# Runtime world/block capabilities add eleven items in world-source;
-# every source scope remains enforced.
+# Runtime world/block capabilities add thirteen items in world-source;
+# canonical Target dimension scoping adds one command item. All scopes remain enforced.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -12,12 +12,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 4933
+static_surface_items = 4936
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11033
+static_surface_items = 11036
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

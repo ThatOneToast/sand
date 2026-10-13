@@ -40,9 +40,12 @@ fn main() {
     assert_eq!(load_cmds, ["say recipe state loaded"]);
 
     let tick_cmds = actions_support::emitted(tick());
-    assert!(!tick_cmds.is_empty(), "tick should emit at least one command");
+    assert!(
+        !tick_cmds.is_empty(),
+        "tick should emit at least one command"
+    );
 
-    let cast_cmds = actions_support::emitted(cast_bolt());
+    let cast_cmds = actions_support::reachable("recipe", "cast_bolt");
     assert!(
         cast_cmds
             .iter()

@@ -185,6 +185,7 @@ class PlayerParticipantHarness(PlayerHarness):
             self.equip(player, index)
             self.send(f"scoreboard players set {player} paudit_fan 0")
         self.load_test_chunk("minecraft:the_nether")
+        self.wait_for_attacker_absence("SandAlpha")
         self.send("execute in minecraft:the_nether run fill -2 79 -2 8 83 3 minecraft:stone")
         self.send("execute in minecraft:the_nether run fill -2 80 -2 8 82 3 minecraft:air")
         self.send("execute as @e[tag=paudit_actor_1,limit=1] in minecraft:the_nether run tp @s 3 80 2")
@@ -223,6 +224,20 @@ class PlayerParticipantHarness(PlayerHarness):
             self.send("execute in minecraft:overworld run tp SandBeta 3.5 80 0.5")
         self.check("BETA_RETURNED", "in minecraft:overworld if entity @a[name=SandBeta,distance=0..]")
         self.verify_damage_ready("BETA_RETURN_HIT", "minecraft:overworld", "SandBeta", 1)
+
+    def wait_for_attacker_absence(self, player):
+        # Exercise the slow-world-setup boundary on every run: an earlier
+        # combat relation must expire before fan-in establishes fresh input.
+        self.check(f"{player}_BEFORE_EXPIRY", f"if entity @a[name={player}]")
+        deadline = time.monotonic() + self.args.timeout
+        while time.monotonic() < deadline:
+            self.send("scoreboard players set #old_attacker paudit_check 0")
+            self.send(f"execute as {player} on attacker run scoreboard players set #old_attacker paudit_check 1")
+            phase = f"{player}_PRIOR_ATTACKER_EXPIRED"
+            if self.passed(phase, f"execute if score #old_attacker paudit_check matches 0 run say __SAND_WORLD_{phase}_OK__"):
+                return
+            time.sleep(0.1)
+        raise ValidationFailure("attacker-expiry", f"earlier attacker relation did not expire for {player}")
 
     def verify_damage_ready(self, phase, dimension, player, actor):
         # Entity position changes before the client acknowledges loading.

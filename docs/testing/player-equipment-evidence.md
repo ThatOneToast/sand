@@ -153,5 +153,6 @@ The fan-in setup refreshes Alpha's real attacker relation immediately before
 sampling. Vanilla clears that relation after 100 player ticks; waiting for
 Nether chunks can exceed that lifetime even though earlier damage succeeded.
 A deliberately delayed setup reproduces missing fan-in entity evidence with
-the prior harness. Refreshing the accepted hit preserves the original UUID
+the prior harness. CI now observes that the earlier relation has expired before
+establishing fresh input, so this boundary is exercised on every run. Refreshing the accepted hit preserves the original UUID
 and isolation assertions without extending the framework's lifetime claims.

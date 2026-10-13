@@ -8,8 +8,20 @@ use sand_components::{ItemStack, ResourceLocation};
 #[doc(hidden)]
 #[derive(Debug, Clone)]
 pub struct ItemMutation {
-    destination: ItemLocation,
-    source: ItemMutationSource,
+    operation: ItemMutationOperation,
+}
+
+#[derive(Debug, Clone)]
+enum ItemMutationOperation {
+    Replace {
+        destination: ItemLocation,
+        source: ItemMutationSource,
+    },
+    Remove {
+        target: sand_commands::Selector,
+        predicate: Box<sand_components::ItemPredicate>,
+        amount: u32,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -34,13 +46,59 @@ impl ItemMutation {
 
     fn actions(destination: ItemLocation, source: ItemMutationSource) -> Actions {
         Actions(vec![Cmd::ItemMutation(Box::new(Self {
-            destination,
-            source,
+            operation: ItemMutationOperation::Replace {
+                destination,
+                source,
+            },
+        }))])
+    }
+
+    pub(crate) fn remove(
+        target: sand_commands::Selector,
+        predicate: sand_components::ItemPredicate,
+        amount: u32,
+    ) -> Actions {
+        Actions(vec![Cmd::ItemMutation(Box::new(Self {
+            operation: ItemMutationOperation::Remove {
+                target,
+                predicate: Box::new(predicate),
+                amount,
+            },
         }))])
     }
 
     pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
-        let operation = match self.source {
+        let (destination, source) = match &self.operation {
+            ItemMutationOperation::Remove {
+                target,
+                predicate,
+                amount,
+            } => {
+                let error = |error: CommandError| {
+                    CommandError::new("inventory remove", "operation", format!("{owner}: {error}"))
+                };
+                sand_commands::ScoreHolder::entity(target.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .map_err(error)?;
+                let argument = lower_item_predicate(predicate, owner)?;
+                let line = sand_commands::Inventory::of(sand_commands::Target::current_player())
+                    .try_clear_item_count(argument, *amount)
+                    .map_err(error)?;
+                return Ok(crate::IntoCommands::into_commands(line)
+                    .0
+                    .into_iter()
+                    .map(|run| Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::As(target.clone())],
+                        run: Box::new(run),
+                    })
+                    .collect());
+            }
+            ItemMutationOperation::Replace {
+                destination,
+                source,
+            } => (destination, source),
+        };
+        let operation = match source {
             ItemMutationSource::Stack(_) => "inventory set",
             ItemMutationSource::Clear => "inventory clear",
             ItemMutationSource::Location(_) => "inventory copy",
@@ -48,11 +106,10 @@ impl ItemMutation {
         let error = |field, detail: String| {
             CommandError::new(operation, field, format!("{owner}: {detail}"))
         };
-        let destination = self
-            .destination
+        let destination = destination
             .item_target_slot()
             .map_err(|e| error("destination", e.to_string()))?;
-        let source = match &self.source {
+        let source = match source {
             ItemMutationSource::Stack(stack) => {
                 stack
                     .validate()

@@ -45,6 +45,8 @@ pub trait CustomItemExt {
     /// Identical to [`CustomItem::on_use_advancement`] but accepts any
     /// [`FunctionRef`] — including `#[function]`-registered closures. Invalid item
     /// definitions return the same diagnostic as the canonical predicate conversion.
+    // Preserve the canonical Sand diagnostic used by the component conversion.
+    #[allow(clippy::result_large_err)]
     fn on_use_fn(
         &self,
         location: ResourceLocation,

@@ -462,7 +462,7 @@ pub enum WeatherConfig {
     minecraft = "Everything reachable from World lowers into the exported datapack, except WorldPreset (server-only, see its own docs).",
     use_when = ["Configuring the world an exported datapack ships"],
     avoid_when = ["Configuring sand run's own local server process; use ServerConfig"],
-    example = "World::new().spawn(Spawn::at(0, 64, 0)).gamerule(sand::command::gamerule_keep_inventory().value(true));"
+    example = "use sand::build::{World, Spawn}; use sand::world::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().spawn(Spawn::at(0, 64, 0)).gamerule(rule) }"
 )]
 pub struct World {
     pub(crate) seed: Option<Seed>,
@@ -588,7 +588,7 @@ impl World {
         avoid_when = ["Setting the difficulty default; use ServerConfig::difficulty"],
         params(setting = "A generated gamerule builder with its value set, or an explicit GameRuleSetting::raw escape hatch."),
         returns = "This world with the gamerule set.",
-        example = "World::new().gamerule(sand::command::gamerule_keep_inventory().value(true));"
+        example = "use sand::build::World; use sand::world::GameRuleSetting; fn configured(rule: GameRuleSetting) -> World { World::new().gamerule(rule) }"
     )]
     pub fn gamerule(mut self, setting: impl Into<crate::world::GameRuleSetting>) -> Self {
         let setting = setting.into();

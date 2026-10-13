@@ -44,6 +44,14 @@ fn placeholder_installation_supports_api_search_show_and_export() {
     assert!(inventory_count.contains("sand::registry::ItemId"));
     assert!(inventory_count.contains("minecraft:diamond"));
 
+    let gamerule = run(&binary, &["api", "show", "sand::build::World::gamerule"]);
+    assert!(gamerule.contains("GameRuleSetting"));
+    let raw_setting = run(
+        &binary,
+        &["api", "show", "sand::world::GameRuleSetting::raw"],
+    );
+    assert!(raw_setting.contains("unsupported"));
+
     let export = target.path().join("placeholder-api.json");
     run(
         &binary,

@@ -16,6 +16,9 @@
 //!    retaining its existing authoring API and output.
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
+mod effect;
+#[doc(hidden)]
+pub use effect::EffectPresence;
 mod item;
 pub(crate) use item::lower_item_predicate;
 #[doc(hidden)]
@@ -324,6 +327,10 @@ pub enum Cmd {
     #[doc(hidden)]
     ItemMatch(Box<ItemMatch>),
 
+    /// Evaluate effect presence with an owned typed predicate resource.
+    #[doc(hidden)]
+    EffectPresence(Box<EffectPresence>),
+
     /// Evaluate a numeric comparison in its compiler-owned condition helper.
     #[doc(hidden)]
     NumericComparison(Box<NumericComparison>),
@@ -367,6 +374,7 @@ impl Cmd {
             Self::NumericWrite(write) => return write.lower(owner),
             Self::ItemMutation(write) => return write.lower(owner),
             Self::ItemMatch(query) => return query.lower(owner),
+            Self::EffectPresence(query) => return query.lower(owner),
             Self::NumericComparison(comparison) => return comparison.lower(owner),
             Self::WithConditionResources { condition, run } => {
                 condition.register_owned_resources();
@@ -510,6 +518,13 @@ impl Cmd {
                 format!("execute {operation_text} run {run_text}")
             }
 
+            Self::EffectPresence(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "effect presence",
+                    "condition",
+                    "effect conditions require function export lowering",
+                ));
+            }
             Self::ItemMutation(_) | Self::ItemMatch(_) => {
                 return Err(sand_commands::CommandError::new(
                     "inventory write",

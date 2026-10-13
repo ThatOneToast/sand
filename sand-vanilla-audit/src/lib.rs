@@ -780,3 +780,11 @@ pub fn audit_native_attribute_values() {
             .then_all(["say native attribute read"])
     });
 }
+
+/// Parse the owned entity-properties resource and effect condition helper.
+#[function]
+pub fn audit_living_effect_presence() {
+    Target::players().each(|player| {
+        when(player.living().has_effect(EffectId::Speed)).then_all(["say speed effect present"])
+    });
+}

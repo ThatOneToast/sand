@@ -48,7 +48,8 @@ Text::new("Inspect").hover_entity(
 Use `Instrument::description(TextComponent)` and
 `JukeboxSong::description(TextComponent)` for required resource descriptions.
 `raw_description(RawJson)` remains an explicit interoperability escape hatch;
-known text fields and nested interactions still receive shape validation.
+known text fields and nested interactions still receive shape validation, including
+atlas sprites, player-head objects, and their nested fallback text.
 
 Opaque compatibility is explicit: `Text::raw_json`,
 `TextComponent::selector_raw`, `hover_item_raw`, and `hover_entity_raw` render

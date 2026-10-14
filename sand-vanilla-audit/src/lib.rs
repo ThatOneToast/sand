@@ -769,6 +769,43 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         );
     }
     for (name, description) in [
+        (
+            "shadow_signed",
+            json!({"text": "Shadow", "shadow_color": -1}),
+        ),
+        (
+            "shadow_unsigned",
+            json!({"text": "Shadow", "shadow_color": 4294967295_u64}),
+        ),
+        (
+            "shadow_rgba",
+            json!({"text": "Shadow", "shadow_color": [1, 0.5, 0, 1]}),
+        ),
+        (
+            "shadow_wide",
+            json!({"text": "Shadow", "shadow_color": [2, -1, 0, 1]}),
+        ),
+        ("nbt_named", json!({"nbt": "CustomName", "entity": "Steve"})),
+        (
+            "nbt_uuid",
+            json!({"nbt": "CustomName", "entity": "123e4567-e89b-12d3-a456-426614174000"}),
+        ),
+        (
+            "selector_separator",
+            json!({"selector": "Steve", "separator": {"text": ", "}}),
+        ),
+        (
+            "object_atlas",
+            json!({"object": "atlas", "sprite": "block/stone", "fallback": {"text": "Stone"}}),
+        ),
+        (
+            "object_player",
+            json!({"object": "player", "player": "Steve", "hat": false}),
+        ),
+        (
+            "object_profile",
+            json!({"player": {"name": "Steve", "id": "123e4567-e89b-12d3-a456-426614174000"}, "fallback": {"text": "Player"}}),
+        ),
         ("nbt_entity", json!({"nbt": "CustomName", "entity": "@s"})),
         (
             "nbt_storage",

@@ -1596,16 +1596,7 @@ impl TextComponent {
                 })?;
             }
             TextContent::Selector { value, raw: false } => {
-                crate::render::validate_selector_token(value).map_err(|error| {
-                    text_error(
-                        "SAND-TEXT-SELECTOR",
-                        format!("{path}.selector"),
-                        format!(
-                            "{}; use `TextComponent::selector_raw(...)` for opaque syntax",
-                            error.message
-                        ),
-                    )
-                })?;
+                validate_json_entity_target(value, profile, &format!("{path}.selector"))?;
             }
             TextContent::Selector { raw: true, .. } => {}
             TextContent::Translate { key, with } => {
@@ -1984,6 +1975,25 @@ fn validate_json_interactions(
                 "expected a non-empty action name without whitespace",
             ));
         }
+        let click_action = matches!(
+            action,
+            "open_url"
+                | "open_file"
+                | "run_command"
+                | "suggest_command"
+                | "show_dialog"
+                | "change_page"
+                | "copy_to_clipboard"
+                | "custom"
+        );
+        let hover_action = matches!(action, "show_text" | "show_item" | "show_entity");
+        if (key == "click_event" && hover_action) || (key == "hover_event" && click_action) {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{event_path}.action"),
+                "action belongs to the other interaction family",
+            ));
+        }
         if key == "click_event" {
             let click = match action {
                 "run_command" => Some(ClickEvent::RunCommand(
@@ -2222,16 +2232,7 @@ fn validate_json_nbt_source(
         .ok_or_else(|| text_error("SAND-TEXT-SHAPE", &field, "expected a string NBT source"))?;
     match source {
         "block" => validate_json_block_source(value, profile, &field)?,
-        "entity" => {
-            validate_score_holder(value).map_err(|mut error| {
-                error.field = field.clone();
-                error
-            })?;
-            crate::render::validate_selector_token(value).map_err(|mut error| {
-                error.field = field.clone();
-                error
-            })?;
-        }
+        "entity" => validate_json_entity_target(value, profile, &field)?,
         "storage" => crate::validate::resource_location_shape(value, "TextComponent", "storage")
             .map(|_| ())
             .map_err(|mut error| {
@@ -2250,6 +2251,200 @@ fn validate_json_nbt_source(
             path,
             "interpret and plain cannot both be true",
         ));
+    }
+    Ok(())
+}
+
+/// Share typed target rules without treating literal names and UUIDs as selectors.
+fn validate_json_entity_target(
+    value: &str,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    let result = if value.starts_with('@') {
+        crate::render::validate_selector_token(value).map(|_| ())
+    } else if EntityHoverId::parse(value).is_ok() {
+        Ok(())
+    } else {
+        crate::Selector::player(value).validate(profile)
+    };
+    result.map_err(|error| text_error("SAND-TEXT-SELECTOR", path, error.message))
+}
+
+/// Validate vanilla identifiers while preserving an omitted default namespace.
+fn validate_json_identifier(value: &serde_json::Value, path: &str) -> CommandResult<()> {
+    let value = value.as_str().ok_or_else(|| {
+        text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "expected a resource identifier string",
+        )
+    })?;
+    let qualified = if value.contains(':') {
+        value.to_string()
+    } else {
+        format!("minecraft:{value}")
+    };
+    crate::validate::resource_location_shape(&qualified, "TextComponent", "id")
+        .map(|_| ())
+        .map_err(|mut error| {
+            error.field = path.to_string();
+            error
+        })
+}
+
+/// Check the profile shapes accepted by raw player-head text; retain extension members.
+fn validate_json_player_profile(value: &serde_json::Value, path: &str) -> CommandResult<()> {
+    let valid_name = |name: &serde_json::Value| {
+        name.as_str()
+            .is_some_and(|name| name.len() <= 16 && name.bytes().all(|c| c > 32 && c < 127))
+    };
+    if value.is_string() {
+        return if valid_name(value) {
+            Ok(())
+        } else {
+            Err(text_error(
+                "SAND-TEXT-SHAPE",
+                path,
+                "expected a player name of at most 16 printable ASCII characters",
+            ))
+        };
+    }
+    let profile = value.as_object().ok_or_else(|| {
+        text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "expected a player name or profile object",
+        )
+    })?;
+    if let Some(name) = profile.get("name")
+        && !valid_name(name)
+    {
+        return Err(text_error(
+            "SAND-TEXT-SHAPE",
+            format!("{path}.name"),
+            "invalid player name",
+        ));
+    }
+    if let Some(id) = profile.get("id") {
+        let valid = id
+            .as_str()
+            .is_some_and(|id| EntityHoverId::parse(id).is_ok())
+            || id.as_array().is_some_and(|parts| {
+                parts.len() == 4
+                    && parts
+                        .iter()
+                        .all(|part| part.as_i64().is_some_and(|v| i32::try_from(v).is_ok()))
+            });
+        if !valid {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.id"),
+                "expected a UUID string or four signed 32-bit UUID parts",
+            ));
+        }
+    }
+    if let Some(properties) = profile.get("properties") {
+        let valid = properties.as_object().is_some_and(|map| {
+            map.values().all(|values| {
+                values
+                    .as_array()
+                    .is_some_and(|values| values.iter().all(serde_json::Value::is_string))
+            })
+        }) || properties.as_array().is_some_and(|values| {
+            values.iter().all(|value| {
+                value.as_object().is_some_and(|property| {
+                    ["name", "value"]
+                        .iter()
+                        .all(|key| property.get(*key).is_some_and(serde_json::Value::is_string))
+                        && property
+                            .get("signature")
+                            .is_none_or(serde_json::Value::is_string)
+                })
+            })
+        });
+        if !valid {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.properties"),
+                "expected string-list properties or name/value/signature property records",
+            ));
+        }
+    }
+    for key in ["texture", "cape", "elytra"] {
+        if let Some(value) = profile.get(key) {
+            validate_json_identifier(value, &format!("{path}.{key}"))?;
+        }
+    }
+    if let Some(model) = profile.get("model")
+        && !matches!(model.as_str(), Some("wide" | "slim"))
+    {
+        return Err(text_error(
+            "SAND-TEXT-SHAPE",
+            format!("{path}.model"),
+            "expected wide or slim",
+        ));
+    }
+    Ok(())
+}
+
+/// Preserve current atlas and player-head components through explicit raw text.
+fn validate_json_object_content(
+    object: &serde_json::Map<String, serde_json::Value>,
+    profile: &CommandProfile,
+    path: &str,
+    depth: usize,
+) -> CommandResult<()> {
+    let kind = if let Some(kind) = object.get("object") {
+        kind.as_str().ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.object"),
+                "expected an object discriminator string",
+            )
+        })?
+    } else if object.contains_key("player") {
+        "player"
+    } else {
+        "atlas"
+    };
+    match kind {
+        "atlas" => {
+            let sprite = object.get("sprite").ok_or_else(|| {
+                text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.sprite"),
+                    "atlas text requires a sprite",
+                )
+            })?;
+            validate_json_identifier(sprite, &format!("{path}.sprite"))?;
+            if let Some(atlas) = object.get("atlas") {
+                validate_json_identifier(atlas, &format!("{path}.atlas"))?;
+            }
+        }
+        "player" => {
+            let player = object.get("player").ok_or_else(|| {
+                text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.player"),
+                    "player-head text requires a profile",
+                )
+            })?;
+            validate_json_player_profile(player, &format!("{path}.player"))?;
+            if let Some(hat) = object.get("hat")
+                && !hat.is_boolean()
+            {
+                return Err(text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.hat"),
+                    "expected a boolean",
+                ));
+            }
+        }
+        _ => {} // Explicit raw object variants can be extended by the target.
+    }
+    if let Some(fallback) = object.get("fallback") {
+        validate_json_text_inner(fallback, profile, &format!("{path}.fallback"), depth + 1)?;
     }
     Ok(())
 }
@@ -2284,11 +2479,18 @@ fn validate_json_text_inner(
         }
         serde_json::Value::Object(object) => {
             let content_keys = ["text", "translate", "score", "selector", "keybind", "nbt"];
-            let present = content_keys
+            let object_content = ["object", "sprite", "player"]
+                .iter()
+                .any(|key| object.contains_key(*key))
+                || object.get("type").and_then(serde_json::Value::as_str) == Some("object");
+            let mut present = content_keys
                 .iter()
                 .filter(|key| object.contains_key(**key))
                 .copied()
                 .collect::<Vec<_>>();
+            if object_content {
+                present.push("object");
+            }
             if present.len() > 1 {
                 return Err(text_error(
                     "SAND-TEXT-CONTENT",
@@ -2343,7 +2545,6 @@ fn validate_json_text_inner(
             for key in [
                 "text",
                 "translate",
-                "fallback",
                 "keybind",
                 "selector",
                 "nbt",
@@ -2388,6 +2589,40 @@ fn validate_json_text_inner(
                         "expected an array of text components",
                     ));
                 }
+            }
+            if let Some(shadow) = object.get("shadow_color") {
+                // Packed colors may use signed ARGB or its unsigned bit pattern.
+                // Vanilla's vector codec accepts finite channels outside 0..=1;
+                // color conversion handles those values rather than rejecting them.
+                let packed = shadow
+                    .as_i64()
+                    .is_some_and(|value| (i32::MIN as i64..=u32::MAX as i64).contains(&value));
+                let rgba = shadow.as_array().is_some_and(|channels| {
+                    channels.len() == 4
+                        && channels.iter().all(|channel| {
+                            channel
+                                .as_f64()
+                                .is_some_and(|value| (value as f32).is_finite())
+                        })
+                });
+                if !packed && !rgba {
+                    return Err(text_error(
+                        "SAND-TEXT-SHADOW-COLOR",
+                        format!("{path}.shadow_color"),
+                        "expected a 32-bit packed ARGB integer or four finite RGBA float channels",
+                    ));
+                }
+            }
+            if object_content {
+                validate_json_object_content(object, _profile, path, depth)?;
+            } else if let Some(fallback) = object.get("fallback")
+                && !fallback.is_string()
+            {
+                return Err(text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.fallback"),
+                    "expected a translation fallback string",
+                ));
             }
             if let Some(value) = object.get("score") {
                 let score = value.as_object().ok_or_else(|| {
@@ -2437,13 +2672,15 @@ fn validate_json_text_inner(
                 ));
             }
             if let Some(serde_json::Value::String(selector)) = object.get("selector") {
-                crate::render::validate_selector_token(selector).map_err(|error| {
-                    text_error(
-                        "SAND-TEXT-SELECTOR",
-                        format!("{path}.selector"),
-                        error.message,
-                    )
-                })?;
+                validate_json_entity_target(selector, _profile, &format!("{path}.selector"))?;
+                if let Some(separator) = object.get("separator") {
+                    validate_json_text_inner(
+                        separator,
+                        _profile,
+                        &format!("{path}.separator"),
+                        depth + 1,
+                    )?;
+                }
             }
             if let Some(serde_json::Value::Object(score)) = object.get("score") {
                 if let Some(serde_json::Value::String(name)) = score.get("name") {

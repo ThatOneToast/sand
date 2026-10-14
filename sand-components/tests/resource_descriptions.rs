@@ -25,6 +25,63 @@ fn described(value: Value) -> Vec<Box<dyn DatapackComponent>> {
 fn malformed_description_is_rejected_before_export() {
     for (value, field) in [
         (json!(42), "description"),
+        (
+            json!({"selector": "@s", "separator": 42}),
+            "description.separator",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "run_command", "command": "/say hi"}}),
+            "description.hover_event.action",
+        ),
+        (
+            json!({"text": "x", "click_event": {"action": "show_text", "value": "hint"}}),
+            "description.click_event.action",
+        ),
+        (json!({"object": "atlas"}), "description.sprite"),
+        (
+            json!({"object": "atlas", "sprite": 42}),
+            "description.sprite",
+        ),
+        (
+            json!({"object": "player", "player": 42}),
+            "description.player",
+        ),
+        (
+            json!({"object": "player", "player": {"id": "bad uuid"}}),
+            "description.player.id",
+        ),
+        (
+            json!({"object": "player", "player": "Steve", "hat": "yes"}),
+            "description.hat",
+        ),
+        (
+            json!({"object": "atlas", "sprite": "block/stone", "fallback": {"text": 42}}),
+            "description.fallback.text",
+        ),
+        (
+            json!({"text": "x", "shadow_color": "red"}),
+            "description.shadow_color",
+        ),
+        (
+            json!({"text": "x", "shadow_color": [1, 1, 1]}),
+            "description.shadow_color",
+        ),
+        (
+            json!({"text": "x", "shadow_color": [1, 1, "red", 1]}),
+            "description.shadow_color",
+        ),
+        (
+            json!({"text": "x", "shadow_color": 4294967296_u64}),
+            "description.shadow_color",
+        ),
+        (
+            json!({"text": "x", "shadow_color": -2147483649_i64}),
+            "description.shadow_color",
+        ),
+        (
+            json!({"text": "x", "shadow_color": [1e300, 0, 0, 1]}),
+            "description.shadow_color",
+        ),
         (json!({}), "description"),
         (json!({"bold": true}), "description"),
         (
@@ -213,6 +270,21 @@ fn jukebox_comparator_zero_is_valid() {
 fn explicit_text_shapes_round_trip() {
     for value in [
         json!("Name"),
+        json!({"nbt": "foo", "entity": "Steve"}),
+        json!({"nbt": "foo", "entity": "123e4567-e89b-12d3-a456-426614174000"}),
+        json!({"selector": "Steve", "separator": {"text": ", "}}),
+        json!({"nbt": "foo", "entity": "@s", "separator": 42}),
+        json!({"object": "atlas", "sprite": "block/stone", "fallback": {"text": "Stone"}}),
+        json!({"type": "object", "sprite": "minecraft:item/diamond"}),
+        json!({"object": "player", "player": "Steve", "hat": false}),
+        json!({"player": {"name": "Steve", "id": "123e4567-e89b-12d3-a456-426614174000"}, "fallback": ["Player ", {"text": "head"}]}),
+        json!({"player": {}}),
+        json!({"text": "x", "shadow_color": -1}),
+        json!({"text": "x", "shadow_color": 0}),
+        json!({"text": "x", "shadow_color": -2147483648_i64}),
+        json!({"text": "x", "shadow_color": 4294967295_u64}),
+        json!({"text": "x", "shadow_color": [1, 0.5, 0, 1]}),
+        json!({"text": "x", "shadow_color": [2, -1, 0, 1]}),
         json!({"nbt": "foo", "source": "mymod:custom", "mymod:data": "value"}),
         json!({"nbt": "foo", "entity": "@s"}),
         json!({"nbt": "foo", "entity": "@s", "interpret": "yes"}),
@@ -272,4 +344,15 @@ fn typed_descriptions_share_command_text_validation_and_json() {
         let error = resource.try_content().unwrap_err().to_string();
         assert!(error.contains("description.style.font"), "{error}");
     }
+}
+
+/// Literal player targets retain their typed identity through resource text validation.
+#[test]
+fn typed_named_selector_descriptions_are_valid() {
+    instrument()
+        .description(TextComponent::selector(
+            sand_commands::Target::named_player("Steve").to_string(),
+        ))
+        .try_content()
+        .unwrap();
 }

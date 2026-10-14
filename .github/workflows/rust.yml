@@ -72,7 +72,7 @@ jobs:
       - name: Vanilla harness orchestration tests
         run: |
           bash -n scripts/validate-vanilla-reload.sh
-          python3 -m unittest scripts.tests.test_vanilla_reload_harness scripts.mc_validation.test_minimal_join_client scripts.tests.test_player_validation_harness scripts.mc_validation.test_local_rcon_server scripts.mc_validation.test_unified_state_audit
+          python3 -m unittest scripts.tests.test_vanilla_reload_harness scripts.mc_validation.test_minimal_join_client scripts.tests.test_player_validation_harness scripts.mc_validation.test_local_rcon_server scripts.mc_validation.test_unified_state_audit scripts.tests.test_archetype_cost
 
       - name: Generated API health (latest verified ${{ steps.codegen-versions.outputs.latest }})
         env:

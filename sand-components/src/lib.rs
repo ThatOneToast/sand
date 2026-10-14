@@ -41,6 +41,7 @@ pub mod banner_pattern;
 pub mod chat_type;
 pub mod chicken_variant;
 pub mod component;
+mod component_text;
 pub mod cow_variant;
 pub mod damage_type;
 pub mod dialog;

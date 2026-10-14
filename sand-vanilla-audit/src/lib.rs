@@ -652,6 +652,24 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
         )
 }
 
+/// Vanilla codec coverage for typed, required instrument descriptions.
+#[datapack_component]
+pub fn audit_instrument() -> sand::component::Instrument {
+    sand::component::Instrument::new("sand_audit:horn".parse().unwrap())
+        .sound_event("minecraft:item.goat_horn.sound.0")
+        .description(Text::translate("instrument.sand_audit.horn"))
+}
+
+/// Vanilla codec coverage for song duration, description and comparator zero.
+#[datapack_component]
+pub fn audit_jukebox_song() -> sand::component::JukeboxSong {
+    sand::component::JukeboxSong::new("sand_audit:song".parse().unwrap())
+        .sound_event("minecraft:music_disc.13")
+        .song_length(178.0)
+        .comparator_output(0)
+        .description(Text::new("Sand audit song"))
+}
+
 #[datapack_component]
 pub fn audit_recipe() -> ShapedRecipe {
     ShapedRecipe::new("sand_audit:diamond".parse().unwrap())

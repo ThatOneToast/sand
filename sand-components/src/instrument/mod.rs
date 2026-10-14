@@ -11,16 +11,22 @@
 //! - `use_duration` must be finite and positive.
 //! - `range` must be finite and positive.
 //!
+//! - `description` is required and uses canonical text validation.
+//!
 //! # Example
 //! ```rust,ignore
 //! let horn = Instrument::new(rl)
 //!     .sound_event("minecraft:item.goat_horn.sound.0")
-//!     .use_duration(7)
+//!     .use_duration(7.0)
 //!     .range(256.0)
-//!     .description(serde_json::json!({"translate": "instrument.minecraft.ponder_goat_horn"}));
+//!     .description(TextComponent::translate("instrument.minecraft.ponder_goat_horn"));
 //! ```
 
+use sand_commands::TextComponent;
 use serde_json::Value;
+
+use crate::component_text::ComponentText;
+use crate::raw::RawJson;
 
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::error::Result as SandResult;
@@ -33,10 +39,11 @@ pub struct Instrument {
     sound_event: String,
     use_duration: f32,
     range: f32,
-    description: Option<Value>,
+    description: Option<ComponentText>,
 }
 
 impl Instrument {
+    /// Begin a resource definition; set its required sound and description before export.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -62,8 +69,23 @@ impl Instrument {
         self
     }
 
-    pub fn description(mut self, desc: Value) -> Self {
-        self.description = Some(desc);
+    /// Set the required display description using Sand's typed text model.
+    ///
+    /// Export validates text recursively and reports the resource and field
+    /// path on failure. Use [`Self::raw_description`] only for JSON text shapes
+    /// that [`TextComponent`] cannot express.
+    pub fn description(mut self, desc: TextComponent) -> Self {
+        self.description = Some(ComponentText::Typed(Box::new(desc)));
+        self
+    }
+
+    /// Set an explicit JSON text escape hatch for the required description.
+    ///
+    /// Export still applies the canonical text shape and known-field checks;
+    /// unknown extension fields are preserved. Prefer [`Self::description`]
+    /// for ordinary literal, translated or styled text.
+    pub fn raw_description(mut self, desc: RawJson) -> Self {
+        self.description = Some(ComponentText::Raw(desc));
         self
     }
 }
@@ -84,6 +106,15 @@ impl DatapackComponent for Instrument {
         )?;
         validation::require_positive_f32(&self.location, kind, "use_duration", self.use_duration)?;
         validation::require_positive_f32(&self.location, kind, "range", self.range)?;
+        let description = self.description.as_ref().ok_or_else(|| {
+            validation::error(
+                &self.location,
+                kind,
+                "description",
+                "description is required",
+            )
+        })?;
+        description.validate(&self.location, kind, "description")?;
         Ok(())
     }
 
@@ -104,7 +135,7 @@ impl DatapackComponent for Instrument {
         );
         map.insert("range".to_string(), serde_json::json!(self.range));
         if let Some(ref desc) = self.description {
-            map.insert("description".to_string(), desc.clone());
+            map.insert("description".to_string(), desc.to_json());
         }
         Value::Object(map)
     }
@@ -123,7 +154,9 @@ mod tests {
     }
 
     fn valid() -> Instrument {
-        Instrument::new(rl()).sound_event("minecraft:item.goat_horn.sound.0")
+        Instrument::new(rl())
+            .sound_event("minecraft:item.goat_horn.sound.0")
+            .description(TextComponent::new("Test horn"))
     }
 
     #[test]

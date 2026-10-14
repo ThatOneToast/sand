@@ -47,6 +47,10 @@ fn malformed_description_is_rejected_before_export() {
             "description.player",
         ),
         (
+            json!({"object": "player", "player": {"id": "123e4567-e89b-12d3-a456-426614174000"}}),
+            "description.player.id",
+        ),
+        (
             json!({"object": "player", "player": {"id": "bad uuid"}}),
             "description.player.id",
         ),
@@ -277,7 +281,7 @@ fn explicit_text_shapes_round_trip() {
         json!({"object": "atlas", "sprite": "block/stone", "fallback": {"text": "Stone"}}),
         json!({"type": "object", "sprite": "minecraft:item/diamond"}),
         json!({"object": "player", "player": "Steve", "hat": false}),
-        json!({"player": {"name": "Steve", "id": "123e4567-e89b-12d3-a456-426614174000"}, "fallback": ["Player ", {"text": "head"}]}),
+        json!({"player": {"name": "Steve", "id": [306070887, -392490285, -1537850778, 337068032]}, "fallback": ["Player ", {"text": "head"}]}),
         json!({"player": {}}),
         json!({"text": "x", "shadow_color": -1}),
         json!({"text": "x", "shadow_color": 0}),

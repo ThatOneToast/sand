@@ -2097,7 +2097,7 @@ fn validate_json_interactions(
                             return Err(text_error(
                                 "SAND-TEXT-HOVER-ENTITY",
                                 format!("{event_path}.uuid"),
-                                "expected a UUID string or four signed 32-bit UUID parts",
+                                "expected four signed 32-bit UUID parts",
                             ));
                         }
                         if let Some(name) = event.get("name") {
@@ -2327,20 +2327,17 @@ fn validate_json_player_profile(value: &serde_json::Value, path: &str) -> Comman
         ));
     }
     if let Some(id) = profile.get("id") {
-        let valid = id
-            .as_str()
-            .is_some_and(|id| EntityHoverId::parse(id).is_ok())
-            || id.as_array().is_some_and(|parts| {
-                parts.len() == 4
-                    && parts
-                        .iter()
-                        .all(|part| part.as_i64().is_some_and(|v| i32::try_from(v).is_ok()))
-            });
+        let valid = id.as_array().is_some_and(|parts| {
+            parts.len() == 4
+                && parts
+                    .iter()
+                    .all(|part| part.as_i64().is_some_and(|v| i32::try_from(v).is_ok()))
+        });
         if !valid {
             return Err(text_error(
                 "SAND-TEXT-SHAPE",
                 format!("{path}.id"),
-                "expected a UUID string or four signed 32-bit UUID parts",
+                "expected four signed 32-bit UUID parts",
             ));
         }
     }

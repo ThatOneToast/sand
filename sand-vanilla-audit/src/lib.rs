@@ -804,7 +804,7 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         ),
         (
             "object_profile",
-            json!({"player": {"name": "Steve", "id": "123e4567-e89b-12d3-a456-426614174000"}, "fallback": {"text": "Player"}}),
+            json!({"player": {"name": "Steve", "id": [306070887, -392490285, -1537850778, 337068032]}, "fallback": {"text": "Player"}}),
         ),
         ("nbt_entity", json!({"nbt": "CustomName", "entity": "@s"})),
         (

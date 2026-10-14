@@ -1,8 +1,21 @@
 # Sand Examples
 
-These examples are copyable reference files for a Sand project. They are not
-standalone crates; scaffold a project and paste the relevant code into
-`src/lib.rs`.
+The `.rs` files in this directory are copyable reference snippets. The project
+subdirectories below are standalone crates that build against this checkout.
+
+## Complete projects
+
+| Project | Purpose |
+| --- | --- |
+| [book_project](book_project/) | Canonical typed gameplay example used throughout the book. |
+| [unified_state](unified_state/) | State components, bundles, queries, systems, migrations, and archetype attachment. |
+| [rpg_entity](rpg_entity/) | Typed entity archetypes and deterministic export coverage. |
+| [participant_audit](participant_audit/) | Live event participants, equipment snapshots, and multiplayer regressions. |
+| [portable_counter](portable_counter/) | Rust frontend for the portable-program acceptance counter. |
+| [arcane_pack](arcane_pack/) | Advanced integration fixture with primitive scoreboard/storage controls and golden tests. |
+
+Start with `book_project` for new gameplay. `arcane_pack` deliberately retains
+lower-level interop coverage; it is not the canonical State authoring model.
 
 ## Typed Beginner Path
 
@@ -20,19 +33,33 @@ standalone crates; scaffold a project and paste the relevant code into
 - `interop_escape_hatches.rs` — the only beginner-facing raw command example; intentionally labeled as interop escape hatch.
 - `advancements.rs`, `recipes.rs`, `loot_tables.rs`, `predicates.rs`, `custom_items.rs`, `particle_effects.rs`, `player_join.rs` — legacy reference files for specific component types. Useful during migration, but new beginner docs should prefer the typed files above.
 
-## Quick Start
+## Build a project
+
+From the repository root:
 
 ```sh
-cargo run -p sand -- new my_pack
-cd my_pack
-# edit src/lib.rs using one of these examples
-cargo run -p sand -- build
+cd examples/book_project
+cargo test
+cargo run --manifest-path ../../sand-cli/Cargo.toml --bin sand -- build
 ```
+
+For a new project, follow [installing and creating a datapack](../book/src/01-installing-and-creating.md).
 
 ## Testing
 
-Golden tests for the attribute-first authoring patterns live in
-`sand-example/src/attribute_golden.rs` and the per-feature example modules
-in `sand-example/src/*.rs`. They assert exact command strings and
-JSON output for typed state, conditions, execute chains, text, storage, raw
-interop, and dialog components.
+`scripts/check-examples.sh` discovers every standalone project under `examples/`,
+runs its tests, and builds a server-ready datapack through the Sand CLI. Both
+`scripts/check.sh` and the Rust CI workflow invoke it, so a new example project
+receives the same coverage automatically.
+
+The unified-State real-server audit runs in the latest-version vanilla workflow.
+Run it locally with Minecraft 26.2 and Java 25:
+
+```sh
+python3 scripts/mc_validation/run_unified_state_audit.py --build \
+  --jar "$HOME/.sand/cache/26.2/server.jar"
+```
+
+Additional attribute and component golden tests live in `sand-example/src/`.
+They assert emitted commands and JSON for typed state, conditions, execution,
+text, storage, interop, and dialogs.

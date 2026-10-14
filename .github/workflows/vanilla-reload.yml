@@ -6,6 +6,11 @@ on:
       - ".github/workflows/vanilla-reload.yml"
       - "examples/book_project/**"
       - "examples/participant_audit/**"
+      - "examples/unified_state/**"
+      - "scripts/mc_validation/run_unified_state_audit.py"
+      - "scripts/mc_validation/test_unified_state_audit.py"
+      - "scripts/mc_validation/local_rcon_server.py"
+      - "scripts/mc_validation/rcon_client.py"
       - "sand-cli/**"
       - "sand-core/src/**"
       - "sand-macros/src/**"
@@ -187,6 +192,13 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
+      - name: Validate unified State example with real players and entities
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/mc_validation/run_unified_state_audit.py --build \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --evidence "target/vanilla-reload/${{ matrix.version }}/unified-state/evidence.json"
+
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'
         run: |
@@ -221,6 +233,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/player-joins
             target/vanilla-reload/${{ matrix.version }}/bounded-state
             target/vanilla-reload/${{ matrix.version }}/detector-ownership
+            target/vanilla-reload/${{ matrix.version }}/unified-state
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

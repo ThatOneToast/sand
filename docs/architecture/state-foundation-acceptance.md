@@ -32,3 +32,20 @@ macro implementation before `cargo check --workspace` moved the median from
 7.102s to 7.670s (+8.0%). The samples were tight, so this is a real, modest
 cost from the larger generated surface—not a performance win. It stays below a
 10% regression in both representative rebuilds.
+
+## Keeping the tutorial executable
+
+The example was repaired after API consolidation exposed missing standalone
+project coverage (#450). `scripts/check-examples.sh` now discovers and tests each
+example crate and builds its datapack through the CLI. The full repository check
+and Rust workflow both run it.
+
+The latest-version vanilla workflow runs
+`scripts/mc_validation/run_unified_state_audit.py --build`. The audit reads the
+installed CLI output, follows owned numeric-write helpers, and verifies that the
+two compatible Combatants systems share one ordered scan while the Health
+system retains its separate selector. Its runtime checks cover two simultaneous
+players, automatic initialization, two keyed-data owners, reload retention,
+migrations, filtering, reattachment and selective detach. Stability checks wait
+for actual game ticks. Evidence and server logs are written to the workflow's
+`unified-state/evidence.json` artifact on failure.

@@ -49,6 +49,10 @@ fn malformed_description_is_rejected_before_export() {
         ),
         (json!(true), "description"),
         (Value::Null, "description"),
+        (
+            json!({"score": {"name": "@s", "objective": "bad name"}}),
+            "description.score.objective",
+        ),
         (json!([false]), "description[0]"),
         (
             json!({"text": "name", "extra": [false]}),
@@ -107,6 +111,8 @@ fn jukebox_comparator_zero_is_valid() {
 fn explicit_text_shapes_round_trip() {
     for value in [
         json!("Name"),
+        json!({"score": {"name": "@s", "objective": "points"}}),
+        json!({"text": "Name", "italic": false, "font": "minecraft:default", "color": "gold"}),
         json!(["Name ", {"text": "suffix", "bold": true}]),
         json!({"translate": "resource.test.name", "mymod:style": true}),
     ] {

@@ -58,7 +58,11 @@ fn join_uses_private_leave_statistic_and_commits_before_reentrant_handlers() {
     );
     let names = objectives(&records);
     assert_eq!(names.len(), 2);
-    assert!(names.iter().all(|name| name.len() <= 16));
+    assert!(
+        names
+            .iter()
+            .all(|name| sand::command::ObjectiveName::try_dynamic(*name).is_ok())
+    );
     let reset = load
         .lines()
         .find_map(|l| l.strip_prefix("scoreboard players reset * "))
@@ -122,4 +126,16 @@ fn dump_join_packs() {
     let output = std::env::var("SAND_JOIN_DUMP_PATH").expect("dump path");
     let packs = serde_json::json!({"joina": records("joina"), "joinb": records("joinb")});
     std::fs::write(output, serde_json::to_vec(&packs).unwrap()).unwrap();
+}
+
+#[test]
+fn long_join_namespace_is_preserved_in_each_exact_objective() {
+    let namespace = "join_namespace_".repeat(12);
+    let records = records(&namespace);
+    let names = objectives(&records);
+    assert_eq!(names.len(), 2);
+    for name in names {
+        assert!(name.contains(&namespace));
+        assert!(sand::command::ObjectiveName::try_dynamic(name).is_ok());
+    }
 }

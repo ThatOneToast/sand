@@ -926,7 +926,7 @@ fn numeric_conditions_preserve_scale_exact_decimal_constants() {
             let _scope = crate::function::ExportFunctionRegistryScope::enter();
             let source = StatCurve {
                 kind: CurveKind::Input(CurveInput::Score {
-                    objective: "source".into(),
+                    objective: crate::entity::curve::NumericObjective::Named("source".into()),
                     holder: None,
                     storage_scale: 100,
                     field: None,

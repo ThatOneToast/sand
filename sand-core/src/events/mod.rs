@@ -2415,7 +2415,9 @@ pub struct FirstJoinEvent;
 ///
 /// The supported author-facing identity is `sand::events::OnDeathEvent`.
 ///
-/// Implemented via the `deathCount` scoreboard criterion. The handler runs as
+/// Implemented via a namespace-owned `deathCount` scoreboard criterion. Each
+/// datapack consumes its own observation, so other packs cannot suppress it.
+/// The handler runs as
 /// `@s` = the dying player.
 ///
 /// # Example
@@ -2436,8 +2438,8 @@ pub struct OnDeathEvent;
     aliases = ["sand::event::vanilla::OnRespawn"],
     module = "sand::events",
     summary = "Fires on the first Sand tick that observes the player active after death.",
-    context = "Fires on the first Sand tick that observes the player active after death. The supported author-facing identity is `sand::events::OnRespawnEvent`. Sand records a per-player waiting phase when `deathCount` observes a death. Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on death and increments it only while the player is alive; the event dispatches once that score is positive, then returns the phase to idle. The completion check runs before new death observation in one generated coordinator, so [`OnDeathEvent`] and this event cannot dispatch from the same death observation. This is a tick-boundary signal rather than the exact client respawn packet. Remaining on the death screen (including disconnecting while dead) leaves the statistic at zero and the lifecycle waiting. Immediate respawn is supported, but still dispatches no earlier than the next Sand observation cycle. Hardcore's post-death spectator transition counts as active again if vanilla begins incrementing the statistic. Ordinary dimension changes do not enter the waiting phase and therefore do not dispatch this event. A respawn and another death that both complete between Sand ticks can coalesce beca...",
-    minecraft = "Sand records a per-player waiting phase when `deathCount` observes a death. Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on death and increments it only while the player is alive; the event dispatches once that score is positive, then returns the phase to idle. The completion check runs before new death observation in one generated coordinator, so [`OnDeathEvent`] and this event cannot dispatch from the same death observation.",
+    context = "Fires on the first Sand tick that observes the player active after death. The supported author-facing identity is `sand::events::OnRespawnEvent`. Sand records a per-player waiting phase when `deathCount` observes a death. Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on death and increments it only while the player is alive; the phase returns to idle before dispatch once that score is positive. The completion check runs before new death observation in one generated coordinator, so [`OnDeathEvent`] and this event cannot dispatch from the same death observation. This is a tick-boundary signal rather than the exact client respawn packet. Remaining on the death screen (including disconnecting while dead) leaves the statistic at zero and the lifecycle waiting. Immediate respawn is supported, but still dispatches no earlier than the next Sand observation cycle. Hardcore's post-death spectator transition counts as active again if vanilla begins incrementing the statistic. Ordinary dimension changes do not enter the waiting phase and therefore do not dispatch this event. A respawn and another death that both complete between Sand ticks can coalesce beca...",
+    minecraft = "Sand records a per-player waiting phase when `deathCount` observes a death. Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on death and increments it only while the player is alive; the phase returns to idle before dispatch once that score is positive. The completion check runs before new death observation in one generated coordinator, so [`OnDeathEvent`] and this event cannot dispatch from the same death observation.",
     use_when = ["Registering a handler for this specific Minecraft or Sand runtime occurrence"],
     avoid_when = ["Representing mutable event data; read typed handler context or declared participants instead"],
     example = "#[sand::on_event]\nfn respawned(event: sand::event::Event<sand::events::OnRespawnEvent>) { sand::command::raw(\"say @s event fired\"); }",
@@ -2446,10 +2448,11 @@ pub struct OnDeathEvent;
 ///
 /// The supported author-facing identity is `sand::events::OnRespawnEvent`.
 ///
-/// Sand records a per-player waiting phase when `deathCount` observes a death.
+/// Sand records a namespace-owned per-player waiting phase when its own
+/// `deathCount` objective observes a death. Other packs cannot consume this phase.
 /// Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on
-/// death and increments it only while the player is alive; the event dispatches
-/// once that score is positive, then returns the phase to idle. The completion
+/// death and increments it only while the player is alive. Once that score is
+/// positive, Sand returns the phase to idle before dispatch. The completion
 /// check runs before new death observation in one generated coordinator, so
 /// [`OnDeathEvent`] and this event cannot dispatch from the same death
 /// observation.
@@ -3312,7 +3315,7 @@ impl SandEvent for FallFromHeightEvent {
     aliases = ["sand::event::vanilla::PlayerLevelsUp"],
     module = "sand::events",
     summary = "Fires when a player's XP level increases (gains one or more levels in a tick).",
-    context = "Fires when a player's XP level increases (gains one or more levels in a tick). The supported author-facing identity is `sand::events::PlayerLevelUpEvent`. Implemented as a Sand-generated tick-backed system — not an advancement. Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger. Sand generates four scoreboard objectives: - `__sand_xp_lvl`   — current XP level - `__sand_xp_prev`  — previous tick's XP level - `__sand_xp_delta` — current − previous - `__sand_xp_seen`  — join-safety flag (prevents false fire on first tick)",
+    context = "Fires when a player's XP level increases (gains one or more levels in a tick). The supported author-facing identity is `sand::events::PlayerLevelUpEvent`. Implemented as a Sand-generated tick-backed system — not an advancement. Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger. Each exporting namespace owns its XP current, previous, delta and first-observation baseline. Typed StatCurve helpers read the callback snapshot without exposing private physical scores.",
     minecraft = "Implemented as a Sand-generated tick-backed system — not an advancement. Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger.",
     use_when = ["Registering a handler for this specific Minecraft or Sand runtime occurrence"],
     avoid_when = ["Representing mutable event data; read typed handler context or declared participants instead"],
@@ -3325,15 +3328,15 @@ impl SandEvent for FallFromHeightEvent {
 /// Implemented as a Sand-generated tick-backed system — not an advancement.
 /// Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger.
 ///
-/// Sand generates four scoreboard objectives:
-/// - `__sand_xp_lvl`   — current XP level
-/// - `__sand_xp_prev`  — previous tick's XP level
-/// - `__sand_xp_delta` — current − previous
-/// - `__sand_xp_seen`  — join-safety flag (prevents false fire on first tick)
+/// Sand owns separate current, previous, delta and initialization scores for
+/// each exporting namespace. Other Sand packs cannot consume this pack's
+/// observation. Read snapshots through the typed helper methods below; private
+/// physical objective names are not an authoring contract.
 ///
 /// The handler fires once per player per tick where their level increased. Level
-/// decreases and same-level ticks do not fire. The first tick after a player
-/// joins only initialises the baseline and does not fire.
+/// decreases and same-level ticks do not fire. A player's first observation
+/// initializes the baseline without firing. Existing baselines survive reload
+/// and reconnect; an increase since the last observation is then reported.
 ///
 /// # Example
 ///
@@ -3351,99 +3354,101 @@ impl SandEvent for FallFromHeightEvent {
 /// ```
 pub struct PlayerLevelUpEvent;
 
-/// Sand-internal score objectives used by the XP level-up tick system.
-///
-/// These are named exactly so the component generator and `Event<PlayerLevelUpEvent>`
-/// helpers agree on the same objective names. All names are ≤16 characters.
-pub(crate) static SAND_XP_LVL: crate::state::score::ScoreVar<i32> =
-    crate::state::score::ScoreVar::new("__sand_xp_lvl");
-pub(crate) static SAND_XP_PREV: crate::state::score::ScoreVar<i32> =
-    crate::state::score::ScoreVar::new("__sand_xp_prev");
-pub(crate) static SAND_XP_DELTA: crate::state::score::ScoreVar<i32> =
-    crate::state::score::ScoreVar::new("__sand_xp_delta");
-
 impl PlayerLevelUpEvent {
-    /// Returns a [`ScoreRef`] for the player's current XP level this tick.
+    /// Read the player's current XP level as a typed numeric expression.
     ///
-    /// The objective `__sand_xp_lvl` is populated each tick by
-    /// `experience query @s levels`.
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// #[on_event]
-    /// pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
-    ///     let lvl = PlayerLevelUpEvent::current_level("@s");
-    /// }
-    /// ```
-    ///
-    /// [`ScoreRef`]: crate::state::score::ScoreRef
+    /// The value is sampled before level-up callbacks run. Pass the callback's `event.player()` target.
+    /// The snapshot belongs to the exporting datapack namespace; it is not a
+    /// live experience query. Compose the returned [`crate::entity::StatCurve`]
+    /// in a condition or numeric State assignment. Constructing it does not
+    /// read Minecraft state in Rust.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::PlayerLevelUpEvent::current_level",
         aliases = ["sand::event::vanilla::PlayerLevelsUp::current_level"],
         module = "sand::events",
         kind = "method",
-        summary = "Returns a [`ScoreRef`] for the player's current XP level this tick.",
-        context = "Returns a [`ScoreRef`] for the player's current XP level this tick. The objective `__sand_xp_lvl` is populated each tick by `experience query @s levels`. [`ScoreRef`]: sand::advanced::state::ScoreRef",
-        minecraft = "Sand synchronizes the current experience level during its generated tick observation.",
-        use_when = ["Defining, composing, or handling a typed Sand event"],
-        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(selector = "`selector` provides the Minecraft target selection used to return a [`ScoreRef`] for the player's current XP level this tick."),
-        returns = "Returns a [`ScoreRef`] for the player's current XP level this tick.",
-        example = "pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {\nlet lvl = PlayerLevelUpEvent::current_level(\"@s\");\n}",
+        summary = "Read the player's current XP level as a typed numeric expression.",
+        context = "The value is sampled before level-up callbacks run. The expression retains its namespace-owned detector identity until export and composes with StatCurve conditions and State assignments.",
+        minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
+        use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
+        avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
+        params(player = "The callback's typed player target, normally event.player()."),
+        returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::current_level(event.player()); }",
     )]
-    pub fn current_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
-        SAND_XP_LVL.of(selector)
+    #[must_use = "compose this snapshot in a numeric expression or condition"]
+    pub fn current_level(
+        player: sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One>,
+    ) -> crate::entity::StatCurve {
+        crate::entity::StatCurve::detector_score(
+            crate::transition::builtin::DetectorScore::XpCurrent,
+            player,
+        )
     }
 
-    /// Returns a [`ScoreRef`] for the player's XP level on the previous tick.
+    /// Read the player's previous XP level as a typed numeric expression.
     ///
-    /// The objective `__sand_xp_prev` holds the level from the preceding tick.
-    ///
-    /// [`ScoreRef`]: crate::state::score::ScoreRef
+    /// During a level-up callback this is the baseline from the preceding observation. Pass the callback's `event.player()` target.
+    /// The snapshot belongs to the exporting datapack namespace; it is not a
+    /// live experience query. Compose the returned [`crate::entity::StatCurve`]
+    /// in a condition or numeric State assignment. Constructing it does not
+    /// read Minecraft state in Rust.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::PlayerLevelUpEvent::previous_level",
         aliases = ["sand::event::vanilla::PlayerLevelsUp::previous_level"],
         module = "sand::events",
         kind = "method",
-        summary = "Returns a [`ScoreRef`] for the player's XP level on the previous tick.",
-        context = "Returns a [`ScoreRef`] for the player's XP level on the previous tick. The objective `__sand_xp_prev` holds the level from the preceding tick. [`ScoreRef`]: sand::advanced::state::ScoreRef",
-        minecraft = "Sand snapshots the player's experience level before its generated transition check.",
-        use_when = ["Defining, composing, or handling a typed Sand event"],
-        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(selector = "`selector` provides the Minecraft target selection used to return a [`ScoreRef`] for the player's XP level on the previous tick."),
-        returns = "Returns a [`ScoreRef`] for the player's XP level on the previous tick.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let previous_level = sand::events::PlayerLevelUpEvent::previous_level(selector);\n}",
+        summary = "Read the player's previous XP level as a typed numeric expression.",
+        context = "During a level-up callback this is the baseline from the preceding observation. The expression retains its namespace-owned detector identity until export and composes with StatCurve conditions and State assignments.",
+        minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
+        use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
+        avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
+        params(player = "The callback's typed player target, normally event.player()."),
+        returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::previous_level(event.player()); }",
     )]
-    pub fn previous_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
-        SAND_XP_PREV.of(selector)
+    #[must_use = "compose this snapshot in a numeric expression or condition"]
+    pub fn previous_level(
+        player: sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One>,
+    ) -> crate::entity::StatCurve {
+        crate::entity::StatCurve::detector_score(
+            crate::transition::builtin::DetectorScore::XpPrevious,
+            player,
+        )
     }
 
-    /// Returns a [`ScoreRef`] for the level delta this tick (current − previous).
+    /// Read the player's XP level increase as a typed numeric expression.
     ///
-    /// The objective `__sand_xp_delta` is always ≥ 1 when a handler fires,
-    /// since the handler only runs when the delta is positive.
-    ///
-    /// [`ScoreRef`]: crate::state::score::ScoreRef
+    /// During a level-up callback for this player, the value is current minus previous and is positive. Pass the callback's `event.player()` target.
+    /// The snapshot belongs to the exporting datapack namespace; it is not a
+    /// live experience query. Compose the returned [`crate::entity::StatCurve`]
+    /// in a condition or numeric State assignment. Constructing it does not
+    /// read Minecraft state in Rust.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::events::PlayerLevelUpEvent::level_delta",
         aliases = ["sand::event::vanilla::PlayerLevelsUp::level_delta"],
         module = "sand::events",
         kind = "method",
-        summary = "Returns a [`ScoreRef`] for the level delta this tick (current − previous).",
-        context = "Returns a [`ScoreRef`] for the level delta this tick (current − previous). The objective `__sand_xp_delta` is always ≥ 1 when a handler fires, since the handler only runs when the delta is positive. [`ScoreRef`]: sand::advanced::state::ScoreRef",
-        minecraft = "Sand derives it from the synchronized previous and current level scores.",
-        use_when = ["Defining, composing, or handling a typed Sand event"],
-        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(selector = "`selector` provides the Minecraft target selection used to return a [`ScoreRef`] for the level delta this tick (current − previous)."),
-        returns = "Returns a [`ScoreRef`] for the level delta this tick (current − previous).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let level_delta = sand::events::PlayerLevelUpEvent::level_delta(selector);\n}",
+        summary = "Read the player's XP level increase as a typed numeric expression.",
+        context = "During a level-up callback for this player, the value is current minus previous and is positive. The expression retains its namespace-owned detector identity until export and composes with StatCurve conditions and State assignments.",
+        minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
+        use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
+        avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
+        params(player = "The callback's typed player target, normally event.player()."),
+        returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::level_delta(event.player()); }",
     )]
-    pub fn level_delta(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
-        SAND_XP_DELTA.of(selector)
+    #[must_use = "compose this snapshot in a numeric expression or condition"]
+    pub fn level_delta(
+        player: sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One>,
+    ) -> crate::entity::StatCurve {
+        crate::entity::StatCurve::detector_score(
+            crate::transition::builtin::DetectorScore::XpDelta,
+            player,
+        )
     }
 }
 
@@ -5134,52 +5139,74 @@ mod tests {
         assert_eq!(id, "minecraft:tick");
     }
 
-    #[test]
-    fn xp_score_vars_have_valid_names() {
-        // Objective names must be ≤ 16 chars for Minecraft.
-        assert!(SAND_XP_LVL.objective_name().len() <= 16);
-        assert!(SAND_XP_PREV.objective_name().len() <= 16);
-        assert!(SAND_XP_DELTA.objective_name().len() <= 16);
+    fn emitted_xp_read(curve: crate::entity::StatCurve, namespace: &str) -> Vec<String> {
+        use crate::entity::curve::scoreboard::{NumericContext, render_lowered_curve};
+        let owner = sand_components::ResourceLocation::new(namespace, "read_xp").unwrap();
+        let holder = sand_commands::ScoreHolder::self_();
+        let lowered = curve
+            .lower_scoreboard("result", "read_xp", crate::entity::FixedPoint::default())
+            .unwrap();
+        render_lowered_curve(
+            NumericContext::new(&owner, &holder).unwrap(),
+            "read_xp",
+            &lowered,
+        )
+        .unwrap()
+        .commands
     }
 
     #[test]
-    fn xp_objective_names_are_stable() {
-        assert_eq!(SAND_XP_LVL.objective_name(), "__sand_xp_lvl");
-        assert_eq!(SAND_XP_PREV.objective_name(), "__sand_xp_prev");
-        assert_eq!(SAND_XP_DELTA.objective_name(), "__sand_xp_delta");
+    fn xp_detector_objectives_are_valid_stable_and_namespace_owned() {
+        use crate::transition::builtin::DetectorScore::*;
+        let scores = [XpCurrent, XpPrevious, XpDelta, XpSeen];
+        let names = |namespace| {
+            scores
+                .map(|score| score.objective(namespace))
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        let a = names("xp_a");
+        let b = names("xp_b");
+        assert_eq!(a.len(), 4);
+        assert_eq!(a, names("xp_a"));
+        assert!(
+            a.iter()
+                .all(|name| sand_commands::ObjectiveName::try_dynamic(name.as_str()).is_ok())
+        );
+        assert!(a.is_disjoint(&b));
     }
 
     #[test]
-    fn helper_current_level_generates_score_ref() {
-        let score_ref = PlayerLevelUpEvent::current_level("@s");
-        let operand = score_ref.operand();
-        assert_eq!(operand.selector, "@s");
-        assert_eq!(operand.objective, "__sand_xp_lvl");
-    }
-
-    #[test]
-    fn helper_previous_level_generates_score_ref() {
-        let score_ref = PlayerLevelUpEvent::previous_level("@s");
-        let operand = score_ref.operand();
-        assert_eq!(operand.selector, "@s");
-        assert_eq!(operand.objective, "__sand_xp_prev");
-    }
-
-    #[test]
-    fn helper_level_delta_generates_score_ref() {
-        let score_ref = PlayerLevelUpEvent::level_delta("@s");
-        let operand = score_ref.operand();
-        assert_eq!(operand.selector, "@s");
-        assert_eq!(operand.objective, "__sand_xp_delta");
+    fn xp_snapshot_helpers_read_the_exporting_packs_matching_owned_scores() {
+        use crate::transition::builtin::DetectorScore::*;
+        let player = sand_commands::Target::current_player;
+        for (curve, score) in [
+            (PlayerLevelUpEvent::current_level(player()), XpCurrent),
+            (PlayerLevelUpEvent::previous_level(player()), XpPrevious),
+            (PlayerLevelUpEvent::level_delta(player()), XpDelta),
+        ] {
+            for namespace in ["xp_a", "xp_b"] {
+                let commands = emitted_xp_read(curve.clone(), namespace);
+                assert!(
+                    commands.iter().any(|line| line.ends_with(&format!(
+                        "run scoreboard players get @s {}",
+                        score.objective(namespace)
+                    ))),
+                    "{commands:?}"
+                );
+                assert!(!commands.iter().any(|line| line.contains("__sand_xp_")));
+            }
+        }
     }
 
     #[test]
     fn player_levels_up_alias_is_same_type() {
-        // crate::event::vanilla::PlayerLevelsUp is just a type alias — verify it
-        // has the same helper methods available.
-        let score_ref = crate::event::vanilla::PlayerLevelsUp::current_level("@s");
-        let operand = score_ref.operand();
-        assert_eq!(operand.objective, "__sand_xp_lvl");
+        assert_eq!(
+            crate::event::vanilla::PlayerLevelsUp::current_level(
+                sand_commands::Target::current_player()
+            ),
+            PlayerLevelUpEvent::current_level(sand_commands::Target::current_player()),
+        );
     }
 
     #[test]

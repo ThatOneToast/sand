@@ -1,5 +1,5 @@
 //! Namespace-owned player join observations, including reconnects.
-use super::{GeneratedTransitionFunction, TransitionPlan, tracker_key};
+use super::{GeneratedTransitionFunction, TransitionPlan, builtin::DetectorScore};
 use std::collections::BTreeSet;
 
 pub(super) fn resolve(namespace: &str, handlers: &[&str]) -> TransitionPlan {
@@ -7,10 +7,9 @@ pub(super) fn resolve(namespace: &str, handlers: &[&str]) -> TransitionPlan {
     if handlers.is_empty() {
         return plan;
     }
-    let owner = format!("{namespace}:player_join");
-    let key = tracker_key(&owner);
-    let leaves = format!("__sj_{key}l");
-    let previous = format!("__sj_{key}p");
+    let owner = DetectorScore::JoinLeaves.owner(namespace);
+    let leaves = DetectorScore::JoinLeaves.objective(namespace);
+    let previous = DetectorScore::JoinPrevious.objective(namespace);
     let source = "minecraft.custom:minecraft.leave_game";
     for (objective, criterion) in [(&leaves, source), (&previous, "dummy")] {
         plan.load_commands

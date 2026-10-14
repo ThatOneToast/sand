@@ -2721,9 +2721,8 @@ fn expand_event_with_path(
         // PlayerLevelUpEvent / PlayerLevelsUp — tick-backed XP level-up detection
         //
         // Vanilla has no `minecraft:leveled_up` trigger. Sand generates its own
-        // scoreboard objectives (__sand_xp_lvl, __sand_xp_prev, __sand_xp_delta,
-        // __sand_xp_seen) and a `__sand_xp_check` tick function that fires all
-        // registered handlers when a player's XP level increases.
+        // namespace-owned XP snapshots through the shared player lifecycle,
+        // firing registered handlers when a player's observed level increases.
         "PlayerLevelUpEvent" | "PlayerLevelsUp" => {
             quote! {
                 #preamble

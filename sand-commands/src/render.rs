@@ -407,19 +407,9 @@ fn validate_function_command(tokens: &[TopLevelToken<'_>]) -> CommandResult<()> 
 }
 
 fn validate_objective_token(value: &str, field: &'static str) -> CommandResult<()> {
-    if value.is_empty()
-        || value.len() > 16
-        || matches!(value, "\"\"" | "''")
-        || value.chars().any(|c| c.is_whitespace() || c.is_control())
-    {
-        Err(CommandError::new(
-            "scoreboard",
-            field,
-            format!("invalid objective name `{value}`"),
-        ))
-    } else {
-        Ok(())
-    }
+    crate::ObjectiveName::try_dynamic(value.to_owned())
+        .map(|_| ())
+        .map_err(|error| CommandError::new("scoreboard", field, error.to_string()))
 }
 
 fn validate_selector_at(tokens: &[TopLevelToken<'_>], index: usize) -> CommandResult<()> {
@@ -708,6 +698,29 @@ mod tests {
                 validate_collected_line(line, &profile).unwrap(),
                 line,
                 "line must survive unchanged: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn collected_objectives_use_the_canonical_exact_name_boundary() {
+        let profile = CommandProfile::new("26.2", false);
+        for objective in ["__sd_nyelfbnatvtz.c".to_owned(), "x".repeat(32_767)] {
+            for line in [
+                format!("scoreboard objectives add {objective} dummy"),
+                format!("execute if score @s {objective} matches 1 run say valid"),
+                format!("scoreboard players operation @s {objective} = @s {objective}"),
+            ] {
+                assert_eq!(validate_collected_line(&line, &profile).unwrap(), line);
+            }
+        }
+        for objective in ["x".repeat(32_768), "bad:name".to_owned()] {
+            assert!(
+                validate_collected_line(
+                    &format!("scoreboard objectives add {objective} dummy"),
+                    &profile
+                )
+                .is_err()
             );
         }
     }

@@ -25,7 +25,7 @@ use super::events::{
     build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
     check_event_trigger, graph_event_setup, participant_accessor_panic_export_error,
     participant_plan_export_error, resolve_custom_dispatch_backend, setup_objective_owner,
-    tick_event_export_error, xp_advance_command, xp_score_commands,
+    tick_event_export_error,
 };
 use super::functions::{drain_generated_resources_into, resolve_local_refs};
 use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
@@ -935,173 +935,6 @@ pub(crate) fn try_export_components_impl(
             Vec::new(),
         ));
         entry.3.push((is_equip, desc.path));
-    }
-
-    // ── DeathTick + RespawnTick aggregation ───────────────────────────────────
-    death_tick_events.sort_by_key(|desc| desc.path);
-    respawn_tick_events.sort_by_key(|desc| desc.path);
-    let needs_death_check = !death_tick_events.is_empty() || !respawn_tick_events.is_empty();
-    if needs_death_check {
-        let init_path = "__sand_death_init";
-        let mut init_cmds = vec!["scoreboard objectives add __sand_dc deathCount".to_string()];
-        if !respawn_tick_events.is_empty() {
-            init_cmds.extend([
-                "scoreboard objectives add __sand_tsd minecraft.custom:minecraft.time_since_death"
-                    .to_string(),
-                "scoreboard objectives add __sand_rp dummy".to_string(),
-            ]);
-        }
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: init_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: init_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:load".to_string())
-            .or_default()
-            .push(format!("{namespace}:{init_path}"));
-
-        // A single coordinator owns both halves of the lifecycle. The respawn
-        // check runs before this tick's new death observation, so even when
-        // immediate respawn makes `time_since_death` positive quickly, the
-        // death and respawn handlers cannot dispatch from the same observation
-        // cycle. This explicit function call is the ordering mechanism; the
-        // relative order of minecraft:tick tag entries is irrelevant.
-        if !respawn_tick_events.is_empty() {
-            let respawn_dispatch_path = "__sand_respawn_dispatch";
-            let mut dispatch_cmds: Vec<String> = respawn_tick_events
-                .iter()
-                .map(|desc| format!("function {namespace}:{}", desc.path))
-                .collect();
-            dispatch_cmds.push("scoreboard players set @s __sand_rp 0".to_string());
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: respawn_dispatch_path.to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: dispatch_cmds.join("\n"),
-            });
-
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: "__sand_respawn_check".to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: format!(
-                    "execute as @a[scores={{__sand_rp=1,__sand_tsd=1..}}] \
-                     run function {namespace}:{respawn_dispatch_path}"
-                ),
-            });
-        }
-
-        let check_path = "__sand_death_check";
-        let mut check_cmds: Vec<String> = Vec::new();
-        if !respawn_tick_events.is_empty() {
-            check_cmds.push(format!("function {namespace}:__sand_respawn_check"));
-        }
-        check_cmds.push(
-            "execute as @a[scores={__sand_dc=1..}] run tag @s add __sand_just_died".to_string(),
-        );
-        check_cmds.push("scoreboard players set @a __sand_dc 0".to_string());
-        // Enter the waiting phase only after the respawn check above. The
-        // custom statistic is reset to zero by vanilla on death and increments
-        // only while the player is alive, so phase=1 + time_since_death=1..
-        // is the first observable post-death active-player state.
-        if !respawn_tick_events.is_empty() {
-            check_cmds.push(
-                "execute as @a[tag=__sand_just_died] run scoreboard players set @s __sand_rp 1"
-                    .to_string(),
-            );
-        }
-        for desc in &death_tick_events {
-            check_cmds.push(format!(
-                "execute as @a[tag=__sand_just_died] run function {namespace}:{}",
-                desc.path
-            ));
-        }
-        check_cmds.push("tag @a remove __sand_just_died".to_string());
-
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: check_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: check_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:tick".to_string())
-            .or_default()
-            .push(format!("{namespace}:{check_path}"));
-    }
-
-    // ── XpLevelUp aggregation ─────────────────────────────────────────────────
-    // Objectives (all ≤16 chars):
-    //   __sand_xp_lvl   — current XP level this tick
-    //   __sand_xp_prev  — XP level last tick
-    //   __sand_xp_delta — current − previous
-    //   __sand_xp_seen  — 0 until first tick (prevents spurious fire on join)
-    if !xp_level_up_events.is_empty() {
-        let xp_init_path = "__sand_xp_init";
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: xp_init_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: [
-                "scoreboard objectives add __sand_xp_lvl dummy",
-                "scoreboard objectives add __sand_xp_prev dummy",
-                "scoreboard objectives add __sand_xp_delta dummy",
-                "scoreboard objectives add __sand_xp_seen dummy",
-            ]
-            .join("\n"),
-        });
-        tag_map
-            .entry("minecraft:load".to_string())
-            .or_default()
-            .push(format!("{namespace}:{xp_init_path}"));
-
-        let xp_check_path = "__sand_xp_check";
-        // Tick flow:
-        // 1. Snapshot current XP level for all online players.
-        // 2. On first tick (seen=0), copy current to prev as a baseline;
-        //    then mark seen=1. Do NOT fire handlers yet.
-        // 3. Compute delta = current − prev.
-        // 4. Fire each handler for players whose delta ≥ 1 (level increased).
-        // 5. Update prev to current (covers both increases and decreases).
-        let handler_cmds: Vec<String> = xp_level_up_events
-            .iter()
-            .map(|desc| {
-                format!(
-                    "execute as @a[scores={{__sand_xp_delta=1..}}] at @s run function {namespace}:{}",
-                    desc.path
-                )
-            })
-            .collect();
-        let mut xp_cmds = xp_score_commands();
-        // Step 4 — fire handlers
-        xp_cmds.extend(handler_cmds);
-        // Step 5 — advance prev
-        xp_cmds.push(xp_advance_command());
-
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: xp_check_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: xp_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:tick".to_string())
-            .or_default()
-            .push(format!("{namespace}:{xp_check_path}"));
     }
 
     // ── TickPoll aggregation ──────────────────────────────────────────────────
@@ -2131,7 +1964,7 @@ pub(crate) fn try_export_components_impl(
     if !armor_watch_map.is_empty() {
         let armor_path = "__sand_armor_check";
         let mut armor_cmds: Vec<String> = Vec::new();
-        let armor_tag_keys = allocate_armor_tag_keys(&armor_watch_map);
+        let armor_tag_keys = allocate_armor_tag_keys(namespace, &armor_watch_map)?;
 
         for (key, (slot, item_id, custom_data_snbt, handlers)) in &armor_watch_map {
             let tag_key = &armor_tag_keys[key];
@@ -2510,6 +2343,18 @@ pub(crate) fn try_export_components_impl(
             namespace,
             &transition_handlers,
             &join_tick_events
+                .iter()
+                .map(|handler| handler.path)
+                .collect::<Vec<_>>(),
+            &death_tick_events
+                .iter()
+                .map(|handler| handler.path)
+                .collect::<Vec<_>>(),
+            &respawn_tick_events
+                .iter()
+                .map(|handler| handler.path)
+                .collect::<Vec<_>>(),
+            &xp_level_up_events
                 .iter()
                 .map(|handler| handler.path)
                 .collect::<Vec<_>>(),

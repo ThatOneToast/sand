@@ -1830,19 +1830,7 @@ fn validate_score_holder(value: &str) -> CommandResult<()> {
 }
 
 fn validate_objective(value: &str) -> CommandResult<()> {
-    if value.is_empty()
-        || value.len() > 16
-        || value.chars().any(|c| c.is_whitespace() || c.is_control())
-    {
-        return Err(CommandError::new(
-            "TextComponent",
-            "score.objective",
-            format!(
-                "objective names must be non-empty single tokens of at most 16 characters; got `{value}`"
-            ),
-        ));
-    }
-    Ok(())
+    crate::ObjectiveName::try_dynamic(value.to_owned()).map(|_| ())
 }
 
 fn is_named_color(value: &str) -> bool {

@@ -3,7 +3,7 @@
 //! Owns the generated-command builders for the SandEvent dependency graph
 //! (dispatch/edge/staged-occurrence functions), the custom-`SandEvent`
 //! dispatch backend resolution (#121), version-aware advancement trigger
-//! validation, and the XP level-up observation command sequences.
+//! validation. Built-in player observations belong to the shared transition lifecycle.
 #![allow(clippy::result_large_err)]
 
 use crate::events::graph::tick_event_resource_key;
@@ -29,26 +29,6 @@ pub(crate) struct BoundedItemCodegen<'a> {
     /// invoke the load macro function, prepended to that child's dispatch so
     /// its handler body can read the staged snapshot.
     pub(crate) load: &'a std::collections::BTreeMap<String, Vec<String>>,
-}
-
-pub(crate) fn xp_score_commands() -> Vec<String> {
-    vec![
-        "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
-            .to_string(),
-        "execute as @a unless score @s __sand_xp_seen matches 1 \
-         run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
-            .to_string(),
-        "scoreboard players set @a __sand_xp_seen 1".to_string(),
-        "execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl"
-            .to_string(),
-        "execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev"
-            .to_string(),
-    ]
-}
-
-pub(crate) fn xp_advance_command() -> String {
-    "execute as @a run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
-        .to_string()
 }
 
 /// Human-readable description of which part of two `SandEvent` definitions
@@ -644,30 +624,6 @@ mod tests {
     use sand_version::VersionCaps;
 
     use super::super::ExportCtx;
-
-    #[test]
-    fn xp_score_operations_are_lowered_per_player() {
-        let commands = super::xp_score_commands();
-        assert_eq!(commands, super::xp_score_commands());
-        assert_eq!(
-            commands,
-            vec![
-                "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
-                    .to_string(),
-                "execute as @a unless score @s __sand_xp_seen matches 1 run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
-                    .to_string(),
-                "scoreboard players set @a __sand_xp_seen 1".to_string(),
-                "execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl"
-                    .to_string(),
-                "execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev"
-                    .to_string(),
-            ]
-        );
-        assert_eq!(
-            super::xp_advance_command(),
-            "execute as @a run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
-        );
-    }
 
     #[test]
     fn custom_sand_event_advancement_trigger_validation_accepts_supported_trigger() {

@@ -26,10 +26,10 @@ class FakeConnection:
 
 
 class MinimalClientTests(unittest.TestCase):
-    def run_packets(self, packets):
+    def run_packets(self, packets, **options):
         conn = FakeConnection(packets)
         with contextlib.redirect_stdout(io.StringIO()):
-            result = client.run_session(conn, "localhost", 25565, 776, "Probe", 10)
+            result = client.run_session(conn, "localhost", 25565, 776, "Probe", 10, **options)
         return result, conn.sent
 
     def test_26_2_play_keep_alive_echoes_the_exact_challenge(self):
@@ -54,6 +54,22 @@ class MinimalClientTests(unittest.TestCase):
         self.assertEqual(replies, [
             (0, ids[0]), (0x2C, b""), (0, ids[1]), (0x2C, b""), (0, ids[2]),
         ], "acknowledge every position; complete loading once per login or respawn")
+
+    def test_respawn_request_is_opt_in(self):
+        _, sent = self.run_packets([(2, b""), (3, b""), (0x31, b""), (0x44, b"death")])
+        self.assertNotIn((0x0C, b"\x00"), sent)
+
+    def test_each_death_requests_one_respawn_and_completes_loading(self):
+        position = client.write_varint(42) + b"position"
+        _, sent = self.run_packets([
+            (2, b""), (3, b""), (0x31, b""),
+            (0x44, b"first death"), (0x68, struct.pack(">f", 0.0)),
+            (0x52, b"respawn"), (0x48, position), (0x44, b"second death"),
+        ], auto_respawn=True)
+        self.assertEqual([packet for packet in sent if packet[0] == 0x0C],
+                         [(0x0C, b"\x00"), (0x0C, b"\x00")])
+        self.assertIn((0x00, client.write_varint(42)), sent)
+        self.assertIn((0x2C, b""), sent)
 
     def test_configuration_keep_alive_and_ping_are_answered(self):
         challenge, ping = struct.pack(">q", -45), struct.pack(">i", 19)

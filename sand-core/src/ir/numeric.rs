@@ -477,12 +477,7 @@ mod tests {
 
     #[test]
     fn raw_numeric_inputs_are_validated_before_helper_emission() {
-        for input in [
-            "",
-            "bad objective",
-            "overlong_objective_name",
-            "bad\nobjective",
-        ] {
+        for input in ["", "bad objective", &"x".repeat(32_768), "bad\nobjective"] {
             for curve in [
                 StatCurve::input_raw(input),
                 StatCurve::lookup_raw(input, [(1, 2.0)], 0.0),

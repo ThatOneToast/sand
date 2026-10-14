@@ -71,7 +71,7 @@ use crate::state::storage::StorageField;
 
 // ── Name utilities ────────────────────────────────────────────────────────────
 
-/// Minecraft scoreboard objective names are limited to 16 characters.
+/// Sand keeps generated scoreboard objective names compact (at most 16 characters).
 ///
 /// Delegates to [`sand_commands::scoreboard::ObjectiveName::logical`] so
 /// `ScoreVar`'s generated objective names use the exact same deterministic

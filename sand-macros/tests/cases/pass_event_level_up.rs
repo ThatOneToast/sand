@@ -51,13 +51,8 @@ fn main() {
     assert!(found_level_up, "PlayerLevelUpEvent handler not found");
     assert!(found_alias, "PlayerLevelsUp handler not found");
 
-    // Helper methods should produce condition strings referencing the correct objectives.
-    // We verify via the gte condition which serializes the objective name.
-    let delta_ge_5 = PlayerLevelUpEvent::level_delta("@s").gte(5);
-    let cond_str = format!("{:?}", delta_ge_5);
-    // The condition captures the objective name __sand_xp_delta.
-    assert!(
-        cond_str.contains("__sand_xp_delta"),
-        "level_delta score ref should reference __sand_xp_delta, got: {cond_str}"
-    );
+    // Public snapshots compose through the canonical numeric/condition APIs.
+    let delta: StatCurve = PlayerLevelUpEvent::level_delta(Target::current_player());
+    let _: sand::command::Actions = TypedExecute::as_players()
+        .when(delta.gte(5)).run(cmd::say("large level increase"));
 }

@@ -2578,6 +2578,10 @@ impl<T> KeyedData<T> {
     }
 
     /// Replace the current owner's component-owned value.
+    ///
+    /// Values are staged as ordinary typed NBT before the UUID-keyed helper
+    /// runs, so text such as `$(name)` remains literal data. The staging,
+    /// write and cleanup form one function call when guarded by an execute.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::KeyedData::set",
@@ -2595,13 +2599,13 @@ impl<T> KeyedData<T> {
     )]
     #[must_use]
     pub fn set(self, value: impl Into<sand_commands::NbtValue>) -> Vec<String> {
-        keyed_data_call(
+        keyed_data_value_call(
             self.storage,
+            value.into(),
             format!(
-                "$data modify storage {} {} set value {}",
+                "$data modify storage {0} {1} set from storage {0} __sand_owner.value",
                 self.storage,
                 keyed_path(self.path),
-                value.into()
             ),
         )
     }
@@ -2681,13 +2685,23 @@ pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) ->
     }
     let owner_path = keyed_owner_path();
     let value_path = keyed_path(field.path);
+    // Existing defaults need only the ordinary UUID lookup and presence check.
+    // Stage the authored value only when initialization will actually write it.
+    let write = keyed_data_value_call(
+        field.storage,
+        sand_commands::NbtValue::raw(field.default_snbt),
+        format!(
+            "$data modify storage {0} {value_path} set from storage {0} __sand_owner.value",
+            field.storage,
+        ),
+    );
     keyed_data_call(
         field.storage,
         format!(
-            "$execute unless data storage {0} {owner_path} run data modify storage {0} owners append value {{uuid:{1},components:{{}}}}\n$execute unless data storage {0} {value_path} run data modify storage {0} {value_path} set value {2}",
+            "$execute unless data storage {0} {owner_path} run data modify storage {0} owners append value {{uuid:{1},components:{{}}}}\n$execute unless data storage {0} {value_path} run {2}",
             field.storage,
             keyed_uuid(),
-            field.default_snbt,
+            write[0],
         ),
     )
 }
@@ -2720,6 +2734,24 @@ fn keyed_owner_path() -> String {
 
 fn keyed_path(path: &str) -> String {
     format!("{}.{}", keyed_owner_path(), path)
+}
+
+// Keep arbitrary authored values outside macro source. Staging uses the
+// canonical typed data command so validation retains the original NBT value.
+// One outer call keeps a caller's condition from being re-evaluated between
+// the mutation and cleanup. Clear first as well, so an interrupted earlier
+// invocation cannot supply a stale payload if a later runtime write fails.
+fn keyed_data_value_call(
+    storage: &str,
+    value: sand_commands::NbtValue,
+    macro_body: String,
+) -> Vec<String> {
+    let staged = sand_commands::DataTarget::storage(storage).path("__sand_owner.value");
+    let mut commands = vec![staged.remove().to_string(), staged.set(value).to_string()];
+    commands.extend(keyed_data_call(storage, macro_body));
+    commands.push(staged.remove().to_string());
+    let path = crate::function::register_dyn_fn_dedup("sand/state_data/write", commands);
+    vec![format!("function __sand_local:{path}")]
 }
 
 fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
@@ -3937,9 +3969,77 @@ mod tests {
     }
 
     #[test]
+    fn keyed_data_values_never_enter_macro_source() {
+        use sand_commands::NbtValue;
+        for value in [
+            NbtValue::String("$(missing)".into()),
+            NbtValue::String("$(u0) \"quoted\" \\ path".into()),
+            NbtValue::List(vec![NbtValue::String("$(nested)".into())]),
+        ] {
+            let field = KeyedData::<String>::new("rpg:state", "components.stats.value");
+            let commands = field.set(value.clone());
+            assert_eq!(commands.len(), 1, "one guarded mutation frame");
+            let helpers = crate::ir::test_support::drain_emitted();
+            let emitted = commands
+                .iter()
+                .chain(helpers.iter().flat_map(|(_, body)| body));
+            assert!(emitted.clone().any(|line| line
+                == &format!("data modify storage rpg:state __sand_owner.value set value {value}")));
+            assert!(
+                emitted
+                    .filter(|line| line.starts_with('$'))
+                    .all(|line| !line.contains(&value.to_string()))
+            );
+            assert!(
+                helpers
+                    .iter()
+                    .flat_map(|(_, body)| body)
+                    .any(|line| { line.contains("set from storage rpg:state __sand_owner.value") })
+            );
+        }
+    }
+
+    #[test]
+    fn keyed_data_defaults_stage_literals_without_changing_global_defaults() {
+        let literal = "{note:\"$(missing)\",nested:[\"$(u0)\"]}";
+        let keyed = StateDataFieldDescriptor::keyed("rpg:state", "components.stats.value", literal);
+        let initialize = state_data_initialize_commands(keyed);
+        assert_eq!(
+            initialize.len(),
+            5,
+            "existing defaults only need UUID lookup"
+        );
+        let helpers = crate::ir::test_support::drain_emitted();
+        let emitted = helpers.iter().flat_map(|(_, body)| body);
+        assert!(
+            emitted.clone().any(|line| {
+                line.starts_with("$execute unless data storage rpg:state owners[")
+                    && line.contains(
+                        "components.stats.value run function __sand_local:sand/state_data/write/",
+                    )
+            }),
+            "literal staging must be conditional on the value being absent"
+        );
+        assert!(emitted.clone().any(|line| line
+            == &format!("data modify storage rpg:state __sand_owner.value set value {literal}")));
+        assert!(
+            emitted
+                .filter(|line| line.starts_with('$'))
+                .all(|line| !line.contains(literal))
+        );
+        let global = StateDataFieldDescriptor::new("rpg:state", "world.value", literal);
+        assert_eq!(
+            state_data_initialize_commands(global),
+            vec![format!(
+                "execute unless data storage rpg:state world.value run data modify storage rpg:state world.value set value {literal}"
+            )]
+        );
+    }
+
+    #[test]
     fn keyed_data_uses_uuid_macro_storage_without_entity_nbt_writes() {
         let field = KeyedData::<i32>::new("rpg:state", "components.\"stats\".xp");
-        let commands = field.set(7);
+        let commands = field.get();
         assert_eq!(commands.len(), 5);
         for (index, command) in commands[..4].iter().enumerate() {
             assert_eq!(

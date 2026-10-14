@@ -24,6 +24,7 @@ on:
       - "scripts/validate_world_gameplay.py"
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"
+      - "scripts/validate_keyed_literals.py"
       - "sand-core/tests/bounded_mutation_atomicity.rs"
       - "scripts/player_validation_harness.py"
       - "scripts/validate_player_participants.py"
@@ -199,6 +200,15 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --evidence "target/vanilla-reload/${{ matrix.version }}/unified-state/evidence.json"
 
+      - name: Validate literal keyed State values with real players and entities
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_keyed_literals.py \
+            --version "${{ matrix.version }}" \
+            --pack examples/unified_state/dist/unified_state \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/keyed-literals"
+
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'
         run: |
@@ -234,6 +244,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/bounded-state
             target/vanilla-reload/${{ matrix.version }}/detector-ownership
             target/vanilla-reload/${{ matrix.version }}/unified-state
+            target/vanilla-reload/${{ matrix.version }}/keyed-literals
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

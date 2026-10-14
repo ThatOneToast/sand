@@ -22,6 +22,9 @@ pub struct Progression {
     pub experience_multiplier: FixedScore,
     #[state(default_snbt = "{announcements:1b,title:\"Rookie\"}")]
     pub preferences: Data<serde_json::Value>,
+    /// Template text keeps dollar-parenthesis sequences as ordinary data.
+    #[state(default_snbt = r#""$(player)""#)]
+    pub template: Data<String>,
 }
 
 #[derive(State)]
@@ -67,6 +70,9 @@ pub struct Status {
     pub poison_time: Timer,
     #[state(default_snbt = "{stacks:0,note:\"clean\"}")]
     pub details: Data<serde_json::Value>,
+    /// Literal text can also resemble a generated UUID macro argument.
+    #[state(default_snbt = r#""$(u0)""#)]
+    pub template: Data<String>,
 }
 
 #[derive(State)]
@@ -172,6 +178,9 @@ pub struct World {
     pub wave: Score,
     #[state(default_snbt = "{difficulty:1,announcements:1b}")]
     pub settings: Data<serde_json::Value>,
+    /// Global data uses the same literal-value semantics as keyed data.
+    #[state(default_snbt = r#""$(global)""#)]
+    pub template: Data<String>,
 }
 
 #[function]
@@ -226,6 +235,41 @@ pub fn advance_world() {
     Progression::on(EntityContext::<PlayerKind>::default())
         .preferences
         .if_present(|| vec!["say preferences loaded".into()]);
+}
+
+const LITERAL_TEMPLATE: &str = r#"$(missing) $(u0) "quoted" \ path"#;
+
+fn literal_payload() -> sand::command::NbtValue {
+    use sand::command::{NbtCompound, NbtValue};
+    let mut nested = NbtCompound::new();
+    nested.insert("literal", "$(u0)");
+    nested.insert("quoted", r#""quoted" \ path"#);
+    let mut payload = NbtCompound::new();
+    payload.insert("text", LITERAL_TEMPLATE);
+    payload.insert("nested", NbtValue::Compound(nested));
+    NbtValue::Compound(payload)
+}
+
+/// Replace only the current player's text and nested preferences with literal data.
+#[function]
+pub fn set_player_literals() {
+    let state = Progression::on(EntityContext::<PlayerKind>::default());
+    state.template.set(LITERAL_TEMPLATE);
+    state.preferences.set(literal_payload());
+}
+
+/// Replace only the current zombie's text and nested component data.
+#[function]
+pub fn set_entity_literals() {
+    let state = Status::on(EntityContext::<ZombieKind>::default());
+    state.template.set(LITERAL_TEMPLATE);
+    state.details.set(literal_payload());
+}
+
+/// Store the same literal text without entity-keyed ownership.
+#[function]
+pub fn set_global_literal() {
+    World::global().template.set(LITERAL_TEMPLATE);
 }
 
 /// Export hook used by the isolated tutorial workspace.

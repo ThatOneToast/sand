@@ -156,7 +156,7 @@ mod tests {
     fn valid() -> Instrument {
         Instrument::new(rl())
             .sound_event("minecraft:item.goat_horn.sound.0")
-            .description(TextComponent::new("Test horn"))
+            .description(TextComponent::literal("Test horn"))
     }
 
     #[test]

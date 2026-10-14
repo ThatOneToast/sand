@@ -1289,7 +1289,7 @@ mod tests {
     fn valid_instrument_exports_deterministically() {
         let inst = sand_components::Instrument::new(test_rl("test", "horn"))
             .sound_event("minecraft:item.goat_horn.sound.0")
-            .description(sand_commands::TextComponent::new("Horn"));
+            .description(sand_commands::TextComponent::literal("Horn"));
         let a = component_to_record(&inst, None).unwrap();
         let b = component_to_record(&inst, None).unwrap();
         assert_eq!(a.content, b.content);
@@ -1302,7 +1302,7 @@ mod tests {
             .sound_event("minecraft:music.disc.13")
             .song_length(178.0)
             .comparator_output(5)
-            .description(sand_commands::TextComponent::new("Song"));
+            .description(sand_commands::TextComponent::literal("Song"));
         let a = component_to_record(&song, None).unwrap();
         let b = component_to_record(&song, None).unwrap();
         assert_eq!(a.content, b.content);

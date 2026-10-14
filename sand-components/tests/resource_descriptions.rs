@@ -74,7 +74,7 @@ fn jukebox_duration_uses_vanilla_field_name() {
 #[test]
 fn jukebox_comparator_zero_is_valid() {
     song()
-        .description(TextComponent::new("Silent comparator"))
+        .description(TextComponent::literal("Silent comparator"))
         .comparator_output(0)
         .try_content()
         .unwrap();
@@ -110,7 +110,7 @@ fn typed_descriptions_share_command_text_validation_and_json() {
             })
         );
     }
-    let invalid = TextComponent::new("Name").font("bad font");
+    let invalid = TextComponent::literal("Name").font("bad font");
     let resources: Vec<Box<dyn DatapackComponent>> = vec![
         Box::new(instrument().description(invalid.clone())),
         Box::new(song().description(invalid)),

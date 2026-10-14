@@ -177,7 +177,7 @@ mod tests {
             .sound_event("minecraft:music.disc.13")
             .song_length(178.0)
             .comparator_output(5)
-            .description(TextComponent::new("Test song"))
+            .description(TextComponent::literal("Test song"))
     }
 
     #[test]

@@ -70,7 +70,7 @@ def trace_counts(content: str) -> dict[str, int]:
 
 
 def pack_digest(pack: Path) -> str:
-    """Identify the exact input datapack independently of its checkout path."""
+    """Identify materialized datapack bytes independently of their checkout path."""
     digest = hashlib.sha256()
     for path in sorted(p for p in pack.rglob("*") if p.is_file()):
         relative = path.relative_to(pack).as_posix().encode()
@@ -97,6 +97,7 @@ def reconcile_target(pack: Path) -> tuple[str, str]:
 
 class IdleCostHarness(PlayerHarness):
     def __init__(self, args: argparse.Namespace, target: str, marker: str, digest: str):
+        """Record pack and server identities before starting the isolated harness."""
         super().__init__(args)
         self.target = target
         self.marker = marker
@@ -118,6 +119,7 @@ class IdleCostHarness(PlayerHarness):
         }
 
     def measure(self, count: int, sample: int) -> None:
+        """Retain one complete nested trace, rejecting missing probe completion."""
         start = len(self.lines)
         self.send("debug function sand_cost_probe:reconcile")
         self.send(f"say SAND_COST_TRACE_DONE_{count}_{sample}")
@@ -148,6 +150,7 @@ class IdleCostHarness(PlayerHarness):
         print(f"COST entities={count} sample={sample} commands={total} reconcile={total - 2}", flush=True)
 
     def run_client(self) -> None:
+        """Settle verified entity workloads with two connected passive players."""
         self.evidence["minecraft_version"] = verified_runtime_version(self.lines)
         self.send("forceload add 0 0")
         self.eventually("COST_CHUNK", "if loaded 0 100 0")
@@ -177,6 +180,7 @@ class IdleCostHarness(PlayerHarness):
 
 
 def main() -> int:
+    """Prepare an immutable measurement copy and retain evidence from the run."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pack", type=Path, default=REPO_ROOT / "examples/rpg_entity/dist/rpg")
     parser.add_argument("--jar", required=True)
@@ -185,11 +189,11 @@ def main() -> int:
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
-    target, marker = reconcile_target(args.pack)
-    digest = pack_digest(args.pack)
     with tempfile.TemporaryDirectory(prefix="sand-cost-probe-pack-") as directory:
         pack = Path(directory) / "rpg"
         shutil.copytree(args.pack, pack)
+        target, marker = reconcile_target(pack)
+        digest = pack_digest(pack)
         control = pack / "data/sand_cost_probe/function/reconcile.mcfunction"
         if control.exists():
             raise ValueError("input pack collides with the measurement control function")

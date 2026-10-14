@@ -638,7 +638,9 @@ a measurement function only to a disposable copy. Its fresh server directory
 contains `cost-evidence.json`, raw traces and both passive-player logs. Evidence
 includes the input datapack's content digest, server JAR digest, observed runtime
 version, callback identity, workload and per-function counts. The startup version
-must be exactly 26.2 before any measurement commands are sent. Failed runs retain incomplete evidence; malformed traces,
+must be exactly 26.2 before any measurement commands are sent. The input digest
+is computed from the copied pack before instrumentation, including materialized
+files from symlinked input directories. Failed runs retain incomplete evidence; malformed traces,
 missing adoption, and missing probe completion fail instead of producing a
 misleading lower cost. Trace-parser regressions run in `scripts/check.sh` and
 Rust CI.

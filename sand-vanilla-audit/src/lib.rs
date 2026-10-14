@@ -677,14 +677,46 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
     use serde_json::json;
     let mut registration = sand::registration::DatapackRegistration::new();
     for (name, field, event) in [
-        ("run_command", "click_event", json!({"action": "run_command", "command": "/say hello"})),
-        ("suggest_command", "click_event", json!({"action": "suggest_command", "command": "/tell @s "})),
-        ("open_url", "click_event", json!({"action": "open_url", "url": "https://example.com"})),
-        ("copy", "click_event", json!({"action": "copy_to_clipboard", "value": "copy"})),
-        ("page", "click_event", json!({"action": "change_page", "page": 1})),
-        ("text", "hover_event", json!({"action": "show_text", "value": {"text": "hint", "bold": true}})),
-        ("item", "hover_event", json!({"action": "show_item", "id": "minecraft:stone", "count": 99})),
-        ("entity", "hover_event", json!({"action": "show_entity", "id": "minecraft:zombie", "uuid": "123e4567-e89b-12d3-a456-426614174000", "name": {"text": "zombie"}})),
+        (
+            "run_command",
+            "click_event",
+            json!({"action": "run_command", "command": "/say hello"}),
+        ),
+        (
+            "suggest_command",
+            "click_event",
+            json!({"action": "suggest_command", "command": "/tell @s "}),
+        ),
+        (
+            "open_url",
+            "click_event",
+            json!({"action": "open_url", "url": "https://example.com"}),
+        ),
+        (
+            "copy",
+            "click_event",
+            json!({"action": "copy_to_clipboard", "value": "copy"}),
+        ),
+        (
+            "page",
+            "click_event",
+            json!({"action": "change_page", "page": 1}),
+        ),
+        (
+            "text",
+            "hover_event",
+            json!({"action": "show_text", "value": {"text": "hint", "bold": true}}),
+        ),
+        (
+            "item",
+            "hover_event",
+            json!({"action": "show_item", "id": "minecraft:stone", "count": 99}),
+        ),
+        (
+            "entity",
+            "hover_event",
+            json!({"action": "show_entity", "id": "minecraft:zombie", "uuid": "123e4567-e89b-12d3-a456-426614174000", "name": {"text": "zombie"}}),
+        ),
     ] {
         let mut description = json!({"text": "Raw interaction audit", "insertion": "audit"});
         description[field] = event;

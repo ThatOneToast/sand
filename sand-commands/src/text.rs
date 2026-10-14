@@ -2220,6 +2220,7 @@ fn validate_json_text_inner(
                 "nbt",
                 "color",
                 "font",
+                "insertion",
             ] {
                 if let Some(value) = object.get(key)
                     && !value.is_string()

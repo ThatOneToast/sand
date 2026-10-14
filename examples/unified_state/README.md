@@ -29,3 +29,17 @@ per-owner reload retention, migrations, and selective detach. Its stability
 checks wait for actual game ticks, so a slow server cannot pass by remaining
 idle. Add `--evidence path/to/evidence.json` to retain check results and the
 server log.
+
+The `template` fields and `set_*_literal*` functions demonstrate that strings such
+as `$(name)`, quotes and backslashes remain ordinary data in player, entity and
+global State. `scripts/validate_keyed_literals.py` checks natural player defaults,
+explicit entity attachment, nested values, independent owners, scratch cleanup,
+reload retention and selective detach against the CLI-built pack:
+
+```sh
+python3 scripts/validate_keyed_literals.py --version 26.2 \
+  --pack examples/unified_state/dist/unified_state \
+  --jar "$HOME/.sand/cache/26.2/server.jar"
+```
+
+The latest-version vanilla CI job runs this audit and retains failure evidence.

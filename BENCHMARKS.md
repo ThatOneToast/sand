@@ -669,6 +669,9 @@ exported reconcile callback.
 These numbers are **not MSPT, a complete tick budget, or the cost of due native
 observations, active timers, adoption, dirty updates or arbitrary archetypes**.
 Tracing itself adds I/O overhead, so its wall time is not a performance result.
+Trace entries are also not a one-to-one measure of vanilla’s internal command-
+sequence budget: do not divide the chain limit by 244 to infer a safe population.
+Large-workload runs must separately prove complete adoption and trace completion.
 The export-time cost report, representative mixed-workload steady-state MSPT
 and variance, and optimization phases of #424 remain outstanding. Preserve this
 baseline when evaluating the later idle-work changes rather than substituting

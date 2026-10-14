@@ -117,6 +117,6 @@ fn typed_descriptions_share_command_text_validation_and_json() {
     ];
     for resource in resources {
         let error = resource.try_content().unwrap_err().to_string();
-        assert!(error.contains("description.font"), "{error}");
+        assert!(error.contains("description.style.font"), "{error}");
     }
 }

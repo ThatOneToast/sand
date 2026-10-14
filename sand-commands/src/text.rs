@@ -2190,6 +2190,13 @@ fn validate_json_text_inner(
     match value {
         serde_json::Value::String(_) => Ok(()),
         serde_json::Value::Array(values) => {
+            if values.is_empty() {
+                return Err(text_error(
+                    "SAND-TEXT-SHAPE",
+                    path,
+                    "text arrays must not be empty",
+                ));
+            }
             for (index, child) in values.iter().enumerate() {
                 validate_json_text_inner(child, _profile, &format!("{path}[{index}]"), depth + 1)?;
             }
@@ -2332,6 +2339,13 @@ fn validate_json_text_inner(
             }
             for key in ["with", "extra"] {
                 if let Some(serde_json::Value::Array(children)) = object.get(key) {
+                    if key == "extra" && children.is_empty() {
+                        return Err(text_error(
+                            "SAND-TEXT-SHAPE",
+                            format!("{path}.extra"),
+                            "extra must be a non-empty array",
+                        ));
+                    }
                     for (index, child) in children.iter().enumerate() {
                         validate_json_text_inner(
                             child,

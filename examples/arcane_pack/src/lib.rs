@@ -459,9 +459,47 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
 mod tests {
     use super::*;
 
+    fn exported() -> Vec<serde_json::Value> {
+        serde_json::from_str(
+            &sand_core::try_export_components_json("arcane")
+                .expect("arcane components export should succeed"),
+        )
+        .expect("valid export JSON")
+    }
+
+    fn body(records: &[serde_json::Value], path: &str) -> Vec<String> {
+        records
+            .iter()
+            .find(|record| {
+                record["namespace"] == "arcane"
+                    && record["dir"] == "function"
+                    && record["path"] == path
+            })
+            .unwrap_or_else(|| panic!("missing exported function arcane:{path}"))["content"]
+            .as_str()
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect()
+    }
+
+    fn commands(path: &str) -> Vec<String> {
+        body(&exported(), path)
+    }
+
+    fn called_path(command: &str) -> &str {
+        command
+            .rsplit_once("function arcane:")
+            .expect("owned function call")
+            .1
+            .split_whitespace()
+            .next()
+            .expect("function path")
+    }
+
     #[test]
     fn load_defines_scoreboards_and_storage() {
-        let cmds = load();
+        let cmds = commands("load");
         assert!(
             cmds.iter()
                 .any(|c| c.contains("scoreboard objectives add mana"))
@@ -491,50 +529,46 @@ mod tests {
         assert!(cmds.iter().any(|c| c.contains("Datapack loaded")));
     }
 
-    // ── Enhanced cells dogfood — conditional branch semantics ─────────────────
-    //
-    // These three sub-checks are in one test function because they share the
-    // same `drain_dyn_fns()` registry (global mutable state), and parallel
-    // execution of separate tests would cause them to drain each other's entries.
-
     #[test]
     fn grant_enhanced_cells_branches() {
-        // Drain any leftover entries from other tests
-        sand_core::drain_dyn_fns();
-
-        let cmds = grant_enhanced_cells();
-        let fns = sand_core::drain_dyn_fns();
-
-        // ── Parent function structure ─────────────────────────────────────────
+        let records = exported();
+        let cmds = body(&records, "grant_enhanced_cells");
         assert_eq!(cmds[0], "say Enhanced cells was called", "first cmd");
+        assert_eq!(cmds.len(), 2, "parent: say + owned dispatcher: {cmds:?}");
+        let dispatcher_path = called_path(&cmds[1]);
+        assert!(dispatcher_path.starts_with("sand/branches/"));
+        let dispatcher = body(&records, dispatcher_path);
         assert_eq!(
-            cmds.len(),
-            3,
-            "parent: say + if-branch + unless-branch: {cmds:?}"
+            dispatcher.len(),
+            2,
+            "one test and an else fallback: {dispatcher:?}"
         );
-
         let flag_obj = HAS_ENHANCED_CELLS.objective_name();
+        assert!(dispatcher[0].starts_with(&format!(
+            "execute if score @s {flag_obj} matches 1 run return run function arcane:sand/branches/"
+        )), "selected then arm must return from the decision: {dispatcher:?}");
+        assert!(dispatcher[1].starts_with("return run function arcane:sand/branches/"));
+        let then_path = called_path(&dispatcher[0]);
+        let else_path = called_path(&dispatcher[1]);
+        assert_ne!(then_path, else_path);
+        assert_ne!(then_path, dispatcher_path);
+        assert_ne!(else_path, dispatcher_path);
+        let fns = [
+            (then_path, body(&records, then_path)),
+            (else_path, body(&records, else_path)),
+        ];
         assert!(
-            cmds[1].contains(&format!("execute if score @s {flag_obj} matches 1")),
-            "then arm should be 'if': {}",
-            cmds[1]
+            fns[0]
+                .1
+                .iter()
+                .any(|c| c.contains("already have enhanced cells"))
         );
         assert!(
-            cmds[2].contains(&format!("execute unless score @s {flag_obj} matches 1")),
-            "else arm should be 'unless': {}",
-            cmds[2]
+            fns[1]
+                .1
+                .iter()
+                .any(|c| c.contains("Granted enhanced cells"))
         );
-        assert!(
-            cmds[1].contains("function __sand_local:sand/branches/"),
-            "then arm calls branch fn"
-        );
-        assert!(
-            cmds[2].contains("function __sand_local:sand/branches/"),
-            "else arm calls branch fn"
-        );
-
-        // Exactly two branch functions registered for this one call
-        assert_eq!(fns.len(), 2, "exactly 2 branch fns: {fns:?}");
 
         // ── Already-have branch: message + return fail ────────────────────────
         let already = fns
@@ -588,7 +622,7 @@ mod tests {
 
     #[test]
     fn enhanced_cells_reflect_damage_uses_typed_lowering() {
-        let cmds = on_damaged_damage_nearby();
+        let cmds = commands("on_damaged_damage_nearby/body");
         assert_eq!(
             cmds,
             vec![
@@ -601,7 +635,7 @@ mod tests {
 
     #[test]
     fn tick_decrements_cooldowns_and_shows_actionbar() {
-        let cmds = tick();
+        let cmds = commands("tick");
         // Cooldown decrements
         assert!(
             cmds.iter()
@@ -630,7 +664,7 @@ mod tests {
 
     #[test]
     fn cast_dash_checks_mana_and_cooldown() {
-        let cmds = cast_dash();
+        let cmds = commands("cast_dash");
         // Should chain mana check + cooldown check + function call
         assert!(
             cmds.iter()
@@ -644,7 +678,7 @@ mod tests {
 
     #[test]
     fn cast_dash_execute_applies_effects() {
-        let cmds = cast_dash_execute();
+        let cmds = commands("cast_dash/execute");
         assert!(
             cmds.iter()
                 .any(|c| c.contains("scoreboard players remove") && c.contains("mana"))
@@ -658,7 +692,7 @@ mod tests {
 
     #[test]
     fn cast_fireball_checks_mana_and_cooldown() {
-        let cmds = cast_fireball();
+        let cmds = commands("cast_fireball");
         assert!(
             cmds.iter()
                 .any(|c| c.contains("score @s mana matches 30.."))
@@ -671,7 +705,7 @@ mod tests {
 
     #[test]
     fn cast_fireball_execute_applies_effects() {
-        let cmds = cast_fireball_execute();
+        let cmds = commands("cast_fireball/execute");
         assert!(
             cmds.iter()
                 .any(|c| c.contains("scoreboard players remove") && c.contains("mana"))
@@ -685,7 +719,7 @@ mod tests {
 
     #[test]
     fn toggle_shield_turns_on() {
-        let cmds = toggle_shield_on();
+        let cmds = commands("toggle_shield/on");
         assert!(
             cmds.iter()
                 .any(|c| c.contains("scoreboard players remove") && c.contains("mana"))
@@ -699,7 +733,7 @@ mod tests {
 
     #[test]
     fn toggle_shield_turns_off() {
-        let cmds = toggle_shield_off();
+        let cmds = commands("toggle_shield/off");
         assert!(cmds.iter().any(|c| c.contains("scoreboard players set")
             && c.contains("shield")
             && c.contains("0")));
@@ -725,8 +759,8 @@ mod tests {
     #[test]
     fn open_welcome_menu_shows_dialog() {
         assert_eq!(
-            open_welcome_menu(),
-            vec!["dialog show @s __sand_local:welcome".to_string()]
+            commands("open_welcome_menu"),
+            vec!["dialog show @s arcane:welcome".to_string()]
         );
     }
 

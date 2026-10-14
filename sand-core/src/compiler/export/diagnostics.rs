@@ -97,8 +97,8 @@ mod tests {
             sand_commands::EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
         let text = sand_commands::Text::new("Inspect")
             .gold()
-            .click_change_page(0)
-            .hover_entity_with_id(
+            .click_change_page(2)
+            .hover_entity(
                 entity_type,
                 entity_id,
                 sand_commands::Text::new("Undead").red(),
@@ -126,15 +126,15 @@ mod tests {
             .expect("validated tellraw prefix must be preserved");
         let value: serde_json::Value = serde_json::from_str(json).unwrap();
         assert_eq!(
-            value["clickEvent"],
-            serde_json::json!({"action": "change_page", "value": 0})
+            value["click_event"],
+            serde_json::json!({"action": "change_page", "page": 2})
         );
         assert_eq!(
-            value["hoverEvent"],
+            value["hover_event"],
             serde_json::json!({
                 "action": "show_entity",
-                "type": "minecraft:zombie",
-                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "id": "minecraft:zombie",
+                "uuid": "123e4567-e89b-12d3-a456-426614174000",
                 "name": {"text": "Undead", "color": "red"},
             })
         );

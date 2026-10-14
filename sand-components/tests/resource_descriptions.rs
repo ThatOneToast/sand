@@ -24,6 +24,12 @@ fn described(value: Value) -> Vec<Box<dyn DatapackComponent>> {
 fn malformed_description_is_rejected_before_export() {
     for (value, field) in [
         (json!(42), "description"),
+        (json!({}), "description"),
+        (json!({"bold": true}), "description"),
+        (
+            json!({"text": "x", "extra": [{"color": "gold"}]}),
+            "description.extra[0]",
+        ),
         (json!([]), "description"),
         (json!({"text": "x", "extra": []}), "description.extra"),
         (json!({"text": 42}), "description.text"),
@@ -76,6 +82,10 @@ fn malformed_description_is_rejected_before_export() {
             "description.hover_event.count",
         ),
         (json!({"translate": false}), "description.translate"),
+        (
+            json!({"translate": "song.name", "fallback": 42}),
+            "description.fallback",
+        ),
         (json!({"keybind": []}), "description.keybind"),
         (json!({"selector": {}}), "description.selector"),
         (json!({"nbt": 1}), "description.nbt"),
@@ -161,6 +171,9 @@ fn jukebox_comparator_zero_is_valid() {
 fn explicit_text_shapes_round_trip() {
     for value in [
         json!("Name"),
+        json!({"translate": "song.name", "fallback": "Song"}),
+        json!({"type": "mymod:custom", "value": "Name"}),
+        json!({"mymod:custom": "Name"}),
         json!({"translate": "resource.test.name", "with": []}),
         json!({"text": "x", "insertion": "name"}),
         json!({"text": "x", "click_event": {"action": "run_command", "command": "/say hello"}}),

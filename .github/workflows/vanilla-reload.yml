@@ -25,6 +25,7 @@ on:
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"
       - "scripts/validate_keyed_literals.py"
+      - "scripts/validate_text_interactions.py"
       - "sand-core/tests/bounded_mutation_atomicity.rs"
       - "scripts/player_validation_harness.py"
       - "scripts/validate_player_participants.py"
@@ -149,6 +150,15 @@ jobs:
             --pack sand-vanilla-audit/dist/sand_audit \
             --output "target/vanilla-reload/${{ matrix.version }}/player-observations"
 
+      - name: Validate typed text interaction codec round trips
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_text_interactions.py \
+            --version "${{ matrix.version }}" \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --pack sand-vanilla-audit/dist/sand_audit \
+            --output "target/vanilla-reload/${{ matrix.version }}/text-interactions"
+
       - name: Build participant regression pack
         if: matrix.target == 'latest'
         working-directory: examples/participant_audit
@@ -245,6 +255,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/detector-ownership
             target/vanilla-reload/${{ matrix.version }}/unified-state
             target/vanilla-reload/${{ matrix.version }}/keyed-literals
+            target/vanilla-reload/${{ matrix.version }}/text-interactions
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
             target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

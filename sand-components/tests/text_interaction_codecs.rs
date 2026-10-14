@@ -1,0 +1,132 @@
+use sand_commands::{CommandProfile, EntityHoverId, Text, TextComponent};
+use serde_json::{Value, json};
+
+fn rendered(text: TextComponent) -> Value {
+    text.try_to_json_value().unwrap()
+}
+
+#[test]
+fn typed_click_actions_use_current_codec_keys() {
+    for (text, expected) in [
+        (
+            Text::new("Run").click_run_command("/say hi"),
+            json!({"action": "run_command", "command": "/say hi"}),
+        ),
+        (
+            Text::new("Suggest").click_suggest_command("/tell @s "),
+            json!({"action": "suggest_command", "command": "/tell @s "}),
+        ),
+        (
+            Text::new("Visit").click_open_url("https://example.com"),
+            json!({"action": "open_url", "url": "https://example.com"}),
+        ),
+        (
+            Text::new("Copy").click_copy("value"),
+            json!({"action": "copy_to_clipboard", "value": "value"}),
+        ),
+        (
+            Text::new("Page").click_change_page(2),
+            json!({"action": "change_page", "page": 2}),
+        ),
+    ] {
+        let value = rendered(text);
+        assert_eq!(value["click_event"], expected);
+        assert!(value.get("clickEvent").is_none());
+    }
+}
+
+#[test]
+fn typed_hover_text_uses_current_value_field() {
+    let value = rendered(Text::new("Hover").hover_text(Text::new("Hint").gold()));
+    assert_eq!(
+        value["hover_event"],
+        json!({"action": "show_text", "value": {"text": "Hint", "color": "gold"}})
+    );
+    assert!(value.get("hoverEvent").is_none());
+}
+
+#[test]
+fn typed_hover_entity_uses_type_id_and_uuid_fields() {
+    let id = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
+    let entity_type = sand_components::EntityTypeId::minecraft("zombie").unwrap();
+    let value = rendered(Text::new("Entity").hover_entity(entity_type, id, Text::new("Undead")));
+    assert_eq!(
+        value["hover_event"],
+        json!({"action": "show_entity", "id": "minecraft:zombie", "uuid": "123e4567-e89b-12d3-a456-426614174000", "name": {"text": "Undead"}})
+    );
+}
+
+#[test]
+fn page_zero_is_rejected_before_rendering() {
+    assert!(
+        Text::new("Page")
+            .click_change_page(0)
+            .try_to_json_value()
+            .is_err()
+    );
+}
+
+#[test]
+fn malformed_current_interactions_have_located_errors() {
+    for (value, field) in [
+        (json!({"text": "x", "click_event": 42}), "text.click_event"),
+        (json!({"text": "x", "hover_event": 42}), "text.hover_event"),
+        (
+            json!({"text": "x", "click_event": {}}),
+            "text.click_event.action",
+        ),
+        (
+            json!({"text": "x", "click_event": {"action": "run_command", "value": "/say old"}}),
+            "text.click_event.command",
+        ),
+        (
+            json!({"text": "x", "click_event": {"action": "change_page", "page": 0}}),
+            "text.click_event.page",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "show_text", "value": {"text": 42}}}),
+            "text.hover_event.value.text",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "show_entity", "id": "minecraft:zombie"}}),
+            "text.hover_event.uuid",
+        ),
+    ] {
+        let error =
+            sand_commands::text::validate_json_text(&value, &CommandProfile::unprofiled(), "text")
+                .unwrap_err();
+        assert_eq!(error.field, field);
+    }
+}
+
+#[test]
+fn typed_interaction_numeric_bounds_match_vanilla() {
+    for page in [1, i32::MAX as u32] {
+        Text::new("Page")
+            .click_change_page(page)
+            .try_to_json_value()
+            .unwrap();
+    }
+    for page in [0, i32::MAX as u32 + 1, u32::MAX] {
+        assert!(
+            Text::new("Page")
+                .click_change_page(page)
+                .try_to_json_value()
+                .is_err()
+        );
+    }
+    for count in [1, 99] {
+        Text::new("Item")
+            .hover_item_with_count("minecraft:stone", count)
+            .try_to_json_value()
+            .unwrap();
+    }
+    for count in [0, 100, u32::MAX] {
+        assert!(
+            Text::new("Item")
+                .hover_item_with_count("minecraft:stone", count)
+                .try_to_json_value()
+                .is_err()
+        );
+    }
+}

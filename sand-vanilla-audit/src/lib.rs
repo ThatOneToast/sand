@@ -670,6 +670,48 @@ pub fn audit_jukebox_song() -> sand_core::JukeboxSong {
         .description(TextComponent::literal("Sand audit song"))
 }
 
+/// Typed interaction resources used by the vanilla text decode/encode audit.
+#[datapack_component]
+pub fn audit_typed_text_interactions() -> sand::registration::DatapackRegistration {
+    let mut registration = sand::registration::DatapackRegistration::new();
+    let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
+    for (name, description) in [
+        (
+            "run_command",
+            Text::new("Run").click_run_command("/say hello"),
+        ),
+        (
+            "suggest_command",
+            Text::new("Suggest").click_suggest_command("/tell @s "),
+        ),
+        (
+            "open_url",
+            Text::new("Visit").click_open_url("https://example.com"),
+        ),
+        ("copy", Text::new("Copy").click_copy("copy")),
+        ("page", Text::new("Page").click_change_page(2)),
+        (
+            "text",
+            Text::new("Hover").hover_text(Text::new("hint").bold(true)),
+        ),
+        (
+            "item",
+            Text::new("Item").hover_item_with_count("minecraft:stone", 3),
+        ),
+        (
+            "entity",
+            Text::new("Entity").hover_entity(entity_type_id("zombie"), uuid, Text::new("Undead")),
+        ),
+    ] {
+        registration = registration.component(
+            sand_core::Instrument::new(format!("sand_audit:typed_text/{name}").parse().unwrap())
+                .sound_event("minecraft:item.goat_horn.sound.0")
+                .description(description),
+        );
+    }
+    registration
+}
+
 /// Parser coverage for the explicit raw-text escape hatch and current interaction codecs.
 /// JSON is intentional here: this fixture checks raw inputs independently of typed rendering.
 #[datapack_component]

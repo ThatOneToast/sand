@@ -54,6 +54,21 @@ pub struct RegistryId<K> {
     marker: PhantomData<fn() -> K>,
 }
 
+impl<K> Clone for RegistryId<K> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<K> fmt::Debug for RegistryId<K> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("RegistryId").field(&self.value).finish()
+    }
+}
+
 impl<K> RegistryId<K> {
     #[doc(hidden)]
     pub fn new(value: impl Into<String>) -> CommandResult<Self> {

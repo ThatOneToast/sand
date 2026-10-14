@@ -338,7 +338,7 @@ fn canonical_26_2_tellraw_with_color_bold_hover_chain() {
     let cmd = tellraw(Selector::all_players(), msg);
     assert_eq!(
         cmd,
-        r#"tellraw @a {"bold":true,"color":"gold","hoverEvent":{"action":"show_text","contents":{"color":"gray","text":"A powerful foe"}},"text":"Boss Incoming"}"#
+        r#"tellraw @a {"bold":true,"color":"gold","hover_event":{"action":"show_text","value":{"color":"gray","text":"A powerful foe"}},"text":"Boss Incoming"}"#
     );
 }
 
@@ -369,7 +369,7 @@ fn canonical_26_2_actionbar_with_color_click_chain() {
     );
     assert_eq!(
         cmd,
-        r#"title @s actionbar {"clickEvent":{"action":"run_command","value":"/help"},"color":"aqua","text":"Click for info"}"#
+        r#"title @s actionbar {"click_event":{"action":"run_command","command":"/help"},"color":"aqua","text":"Click for info"}"#
     );
 }
 

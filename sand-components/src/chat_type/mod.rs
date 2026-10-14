@@ -644,8 +644,13 @@ impl ChatDecoration {
                             message: format!("style must be a JSON object, got `{value}`"),
                         });
                     }
+                    // A decoration style is not a complete text component.
+                    // Supply inert content only for shared validation; preserve
+                    // the original style object in the emitted resource.
+                    let mut styled_text = value.clone();
+                    styled_text["text"] = Value::String(String::new());
                     sand_commands::text::validate_json_text(
-                        value,
+                        &styled_text,
                         &sand_commands::CommandProfile::unprofiled(),
                         &format!("{path}.style"),
                     )

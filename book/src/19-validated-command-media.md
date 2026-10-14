@@ -30,7 +30,25 @@ Sand recursively checks selector and score fields, objectives, translation
 keys, keybinds, named/hex colors, fonts, click values, URLs, hover payloads,
 entity UUIDs, and nested `extra`/translation arguments. The same validator is
 used by tellraw, titles, actionbars, bossbar names, dialogs, advancements,
-item names/lore, and chat decoration.
+item names/lore, instrument and jukebox descriptions, and chat decoration.
+
+Typed click and hover builders emit the current Minecraft interaction codec
+(`click_event`/`hover_event`) for commands and resources. Book pages start at
+1, and hover-item counts must be in `1..=99`. Entity tooltips require a typed
+entity registry reference, an `EntityHoverId` UUID and a styled name:
+
+```rust,ignore
+Text::new("Inspect").hover_entity(
+    EntityType::Zombie,
+    EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000")?,
+    Text::new("Undead").gold(),
+);
+```
+
+Use `Instrument::description(TextComponent)` and
+`JukeboxSong::description(TextComponent)` for required resource descriptions.
+`raw_description(RawJson)` remains an explicit interoperability escape hatch;
+known text fields and nested interactions still receive shape validation.
 
 Opaque compatibility is explicit: `Text::raw_json`,
 `TextComponent::selector_raw`, `hover_item_raw`, and `hover_entity_raw` render

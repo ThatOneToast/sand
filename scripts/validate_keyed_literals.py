@@ -111,9 +111,13 @@ class KeyedLiteralHarness(PlayerHarness):
             self.check("GLOBAL_LITERAL", "if data storage rpg:state components.world" + json.dumps({"template": LITERAL}))
             self.check("STAGING_CLEAN", "unless data storage rpg:state __sand_owner.value")
 
+            # Vanilla executes the load tag on a game tick after reload.
+            # Keep ticks running until our load-completion marker arrives.
+            self.send("tick unfreeze")
             start = len(self.lines)
             self.send("reload")
             self.wait_for(self.marker_pattern(RELOADED), "literal-reload", start)
+            self.send("tick freeze")
             start = len(self.lines)
             self.send("tick sprint 20")
             self.wait_for("Sprint completed with", "post-reload-ticks", start)

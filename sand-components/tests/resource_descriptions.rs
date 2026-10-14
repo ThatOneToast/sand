@@ -24,6 +24,29 @@ fn described(value: Value) -> Vec<Box<dyn DatapackComponent>> {
 fn malformed_description_is_rejected_before_export() {
     for (value, field) in [
         (json!(42), "description"),
+        (json!({"text": 42}), "description.text"),
+        (json!({"translate": false}), "description.translate"),
+        (json!({"keybind": []}), "description.keybind"),
+        (json!({"selector": {}}), "description.selector"),
+        (json!({"nbt": 1}), "description.nbt"),
+        (json!({"text": "x", "color": 42}), "description.color"),
+        (json!({"text": "x", "font": false}), "description.font"),
+        (json!({"text": "x", "bold": "yes"}), "description.bold"),
+        (json!({"text": "x", "with": {}}), "description.with"),
+        (json!({"text": "x", "extra": "bad"}), "description.extra"),
+        (json!({"score": []}), "description.score"),
+        (
+            json!({"score": {"objective": "points"}}),
+            "description.score.name",
+        ),
+        (
+            json!({"score": {"name": "@s", "objective": false}}),
+            "description.score.objective",
+        ),
+        (
+            json!({"text": "x", "extra": [{"text": 42}]}),
+            "description.extra[0].text",
+        ),
         (json!(true), "description"),
         (Value::Null, "description"),
         (json!([false]), "description[0]"),

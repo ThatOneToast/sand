@@ -2039,6 +2039,74 @@ fn validate_json_text_inner(
                     format!("conflicting text content fields: {}", present.join(", ")),
                 ));
             }
+            // A present known field must have its schema type before value
+            // validation below. Pattern-matching only the expected variant
+            // silently accepted malformed values such as {"text": 42}.
+            for key in [
+                "text",
+                "translate",
+                "keybind",
+                "selector",
+                "nbt",
+                "color",
+                "font",
+            ] {
+                if let Some(value) = object.get(key)
+                    && !value.is_string()
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.{key}"),
+                        "expected a string",
+                    ));
+                }
+            }
+            for key in [
+                "bold",
+                "italic",
+                "underlined",
+                "strikethrough",
+                "obfuscated",
+            ] {
+                if let Some(value) = object.get(key)
+                    && !value.is_boolean()
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.{key}"),
+                        "expected a boolean",
+                    ));
+                }
+            }
+            for key in ["with", "extra"] {
+                if let Some(value) = object.get(key)
+                    && !value.is_array()
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.{key}"),
+                        "expected an array of text components",
+                    ));
+                }
+            }
+            if let Some(value) = object.get("score") {
+                let score = value.as_object().ok_or_else(|| {
+                    text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.score"),
+                        "expected an object",
+                    )
+                })?;
+                for key in ["name", "objective"] {
+                    if !score.get(key).is_some_and(serde_json::Value::is_string) {
+                        return Err(text_error(
+                            "SAND-TEXT-SHAPE",
+                            format!("{path}.score.{key}"),
+                            "expected a required string",
+                        ));
+                    }
+                }
+            }
             if let Some(serde_json::Value::String(color)) = object.get("color")
                 && !is_named_color(color)
                 && !is_hex_color(color)
@@ -2079,10 +2147,14 @@ fn validate_json_text_inner(
             }
             if let Some(serde_json::Value::Object(score)) = object.get("score") {
                 if let Some(serde_json::Value::String(name)) = score.get("name") {
-                    validate_score_holder(name)?;
+                    validate_score_holder(name).map_err(|error| {
+                        text_error(error.code, format!("{path}.score.name"), error.message)
+                    })?;
                 }
                 if let Some(serde_json::Value::String(objective)) = score.get("objective") {
-                    validate_objective(objective)?;
+                    validate_objective(objective).map_err(|error| {
+                        text_error(error.code, format!("{path}.score.objective"), error.message)
+                    })?;
                 }
             }
             for key in ["with", "extra"] {

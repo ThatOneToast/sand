@@ -1865,12 +1865,13 @@ fn is_hex_color(value: &str) -> bool {
 fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
     match click {
         ClickEvent::RunCommand(value) | ClickEvent::SuggestCommand(value)
-            if value.trim().is_empty() =>
+            if value.trim().is_empty()
+                || value.chars().any(|c| c < ' ' || c == '\u{7f}' || c == '§') =>
         {
             Err(text_error(
                 "SAND-TEXT-CLICK-COMMAND",
                 format!("{path}.click_event.value"),
-                "command click values must not be empty",
+                "command click values must be non-empty chat strings without control or section-sign characters",
             ))
         }
         ClickEvent::OpenUrl(value) => {
@@ -2002,6 +2003,175 @@ pub fn validate_json_text(
     path: &str,
 ) -> CommandResult<()> {
     validate_json_text_inner(value, profile, path, 0)
+}
+
+/// Require a known interaction's string member and retain its full JSON path.
+fn json_event_string<'a>(
+    event: &'a serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    path: &str,
+) -> CommandResult<&'a str> {
+    event
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.{key}"),
+                "expected a required string",
+            )
+        })
+}
+
+/// Validate the interaction actions modeled by Sand's canonical text API.
+/// Unknown action names and extension members remain explicit raw edges.
+fn validate_json_interactions(
+    object: &serde_json::Map<String, serde_json::Value>,
+    profile: &CommandProfile,
+    path: &str,
+    depth: usize,
+) -> CommandResult<()> {
+    for key in ["click_event", "hover_event"] {
+        let Some(value) = object.get(key) else {
+            continue;
+        };
+        let event_path = format!("{path}.{key}");
+        let event = value.as_object().ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                &event_path,
+                "expected an interaction object",
+            )
+        })?;
+        let action = json_event_string(event, "action", &event_path)?;
+        if action.is_empty() || action.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{event_path}.action"),
+                "expected a non-empty action name without whitespace",
+            ));
+        }
+        if key == "click_event" {
+            let click = match action {
+                "run_command" => Some(ClickEvent::RunCommand(
+                    json_event_string(event, "command", &event_path)?.into(),
+                )),
+                "suggest_command" => Some(ClickEvent::SuggestCommand(
+                    json_event_string(event, "command", &event_path)?.into(),
+                )),
+                "open_url" => Some(ClickEvent::OpenUrl(
+                    json_event_string(event, "url", &event_path)?.into(),
+                )),
+                "copy_to_clipboard" => Some(ClickEvent::CopyToClipboard(
+                    json_event_string(event, "value", &event_path)?.into(),
+                )),
+                "change_page" => {
+                    let page = event
+                        .get("page")
+                        .and_then(serde_json::Value::as_u64)
+                        .filter(|page| (1..=i32::MAX as u64).contains(page))
+                        .ok_or_else(|| {
+                            text_error(
+                                "SAND-TEXT-CLICK-PAGE",
+                                format!("{event_path}.page"),
+                                "expected a positive 32-bit integer",
+                            )
+                        })?;
+                    Some(ClickEvent::ChangePage(page as u32))
+                }
+                _ => None,
+            };
+            if let Some(click) = click {
+                validate_click(&click, path).map_err(|mut error| {
+                    let field = if action == "open_url" {
+                        "url"
+                    } else {
+                        "command"
+                    };
+                    error.field = format!("{event_path}.{field}");
+                    error
+                })?;
+            }
+        } else {
+            match action {
+                "show_text" => {
+                    let value = event.get("value").ok_or_else(|| {
+                        text_error(
+                            "SAND-TEXT-SHAPE",
+                            format!("{event_path}.value"),
+                            "expected a text component",
+                        )
+                    })?;
+                    validate_json_text_inner(
+                        value,
+                        profile,
+                        &format!("{event_path}.value"),
+                        depth + 1,
+                    )?;
+                }
+                "show_item" | "show_entity" => {
+                    let id = json_event_string(event, "id", &event_path)?;
+                    crate::validate::resource_location_shape(id, "TextComponent", "id").map_err(
+                        |mut error| {
+                            error.field = format!("{event_path}.id");
+                            error
+                        },
+                    )?;
+                    if action == "show_item" {
+                        if let Some(count) = event.get("count")
+                            && !count
+                                .as_u64()
+                                .is_some_and(|count| (1..=99).contains(&count))
+                        {
+                            return Err(text_error(
+                                "SAND-TEXT-HOVER-ITEM",
+                                format!("{event_path}.count"),
+                                "item hover count must be an integer in 1..=99",
+                            ));
+                        }
+                        if let Some(components) = event.get("components")
+                            && !components.is_object()
+                        {
+                            return Err(text_error(
+                                "SAND-TEXT-SHAPE",
+                                format!("{event_path}.components"),
+                                "expected a component patch object",
+                            ));
+                        }
+                    } else {
+                        let valid_uuid = event.get("uuid").is_some_and(|uuid| {
+                            uuid.as_str()
+                                .is_some_and(|uuid| EntityHoverId::parse(uuid).is_ok())
+                                || uuid.as_array().is_some_and(|parts| {
+                                    parts.len() == 4
+                                        && parts.iter().all(|part| {
+                                            part.as_i64()
+                                                .is_some_and(|value| i32::try_from(value).is_ok())
+                                        })
+                                })
+                        });
+                        if !valid_uuid {
+                            return Err(text_error(
+                                "SAND-TEXT-HOVER-ENTITY",
+                                format!("{event_path}.uuid"),
+                                "expected a UUID string or four signed 32-bit UUID parts",
+                            ));
+                        }
+                        if let Some(name) = event.get("name") {
+                            validate_json_text_inner(
+                                name,
+                                profile,
+                                &format!("{event_path}.name"),
+                                depth + 1,
+                            )?;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_json_text_inner(
@@ -2171,16 +2341,7 @@ fn validate_json_text_inner(
                     }
                 }
             }
-            if let Some(hover) = object.get("hoverEvent")
-                && let Some(contents) = hover.get("contents")
-            {
-                validate_json_text_inner(
-                    contents,
-                    _profile,
-                    &format!("{path}.hoverEvent.contents"),
-                    depth + 1,
-                )?;
-            }
+            validate_json_interactions(object, _profile, path, depth)?;
             Ok(())
         }
         _ => Err(text_error(

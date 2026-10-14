@@ -25,6 +25,54 @@ fn malformed_description_is_rejected_before_export() {
     for (value, field) in [
         (json!(42), "description"),
         (json!({"text": 42}), "description.text"),
+        (
+            json!({"text": "x", "click_event": {"action": "run_command", "command": "say\nhi"}}),
+            "description.click_event.command",
+        ),
+        (
+            json!({"text": "x", "insertion": 42}),
+            "description.insertion",
+        ),
+        (
+            json!({"text": "x", "click_event": 42}),
+            "description.click_event",
+        ),
+        (
+            json!({"text": "x", "hover_event": 42}),
+            "description.hover_event",
+        ),
+        (
+            json!({"text": "x", "click_event": {}}),
+            "description.click_event.action",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "show_text"}}),
+            "description.hover_event.value",
+        ),
+        (
+            json!({"text": "x", "click_event": {"action": "run_command", "value": "/say old"}}),
+            "description.click_event.command",
+        ),
+        (
+            json!({"text": "x", "click_event": {"action": "change_page", "page": 0}}),
+            "description.click_event.page",
+        ),
+        (
+            json!({"text": "x", "click_event": {"action": "open_url", "url": "bad url"}}),
+            "description.click_event.url",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "show_text", "value": {"text": 42}}}),
+            "description.hover_event.value.text",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "show_entity", "id": "minecraft:zombie"}}),
+            "description.hover_event.uuid",
+        ),
+        (
+            json!({"text": "x", "hover_event": {"action": "show_item", "id": "minecraft:stone", "count": 100}}),
+            "description.hover_event.count",
+        ),
         (json!({"translate": false}), "description.translate"),
         (json!({"keybind": []}), "description.keybind"),
         (json!({"selector": {}}), "description.selector"),
@@ -111,6 +159,17 @@ fn jukebox_comparator_zero_is_valid() {
 fn explicit_text_shapes_round_trip() {
     for value in [
         json!("Name"),
+        json!({"text": "x", "insertion": "name"}),
+        json!({"text": "x", "click_event": {"action": "run_command", "command": "/say hello"}}),
+        json!({"text": "x", "click_event": {"action": "suggest_command", "command": "/tell @s "}}),
+        json!({"text": "x", "click_event": {"action": "open_url", "url": "https://example.com"}}),
+        json!({"text": "x", "click_event": {"action": "copy_to_clipboard", "value": "copy"}}),
+        json!({"text": "x", "click_event": {"action": "change_page", "page": 1}}),
+        json!({"text": "x", "hover_event": {"action": "show_text", "value": {"text": "hint"}}}),
+        json!({"text": "x", "hover_event": {"action": "show_item", "id": "minecraft:stone", "count": 99}}),
+        json!({"text": "x", "hover_event": {"action": "show_entity", "id": "minecraft:zombie", "uuid": [0, 1, -2, 3], "name": {"text": "zombie"}}}),
+        json!({"text": "x", "hover_event": {"action": "show_entity", "id": "minecraft:zombie", "uuid": "123e4567-e89b-12d3-a456-426614174000"}}),
+        json!({"text": "x", "clickEvent": 42, "hoverEvent": 42}),
         json!({"score": {"name": "@s", "objective": "points"}}),
         json!({"text": "Name", "italic": false, "font": "minecraft:default", "color": "gold"}),
         json!(["Name ", {"text": "suffix", "bold": true}]),

@@ -31,6 +31,77 @@ def available_port() -> int:
         return int(listener.getsockname()[1])
 
 
+def reachable(functions: dict[str, str], path: str, seen: set[str] | None = None) -> str:
+    """Follow the actual owned helpers emitted for a query's whole actions."""
+    seen = set() if seen is None else seen
+    if path in seen:
+        return ""
+    seen.add(path)
+    body = functions[path]
+    children = re.findall(r"(?:^| run )function unified_state:([a-z0-9_./-]+)", body, re.M)
+    return "\n".join([body, *(reachable(functions, child, seen) for child in children)])
+
+
+def inspect_system_scans(functions: dict[str, str]) -> dict[str, str]:
+    """Identify the Combatants and Health callbacks independently of other scans."""
+    regen_queries = [
+        path for path, content in functions.items()
+        if path.startswith("sand/entity_query/")
+        and re.search(r"scoreboard players remove @s \w+ 1", content)
+    ]
+    if len(regen_queries) != 1:
+        raise ValueError(f"expected one Combatants regeneration query, found {len(regen_queries)}")
+    query_path = regen_queries[0]
+    attach = functions["attach_zombie_components"]
+    attack_damage = re.search(r"scoreboard players set @s (\w+) 2", attach).group(1)
+    health_defaults = re.findall(r"scoreboard players set @s (\w+) 20(?:\n|$)", attach)
+    if len(health_defaults) != 1:
+        raise ValueError("expected one Health current-value default")
+    health = health_defaults[0]
+    health_queries = [
+        path for path in functions if path.startswith("sand/entity_query/")
+        and f"scoreboard players add @s {health} 1" in reachable(functions, path).splitlines()
+    ]
+    if len(health_queries) != 1:
+        raise ValueError(f"expected one Health regeneration query, found {len(health_queries)}")
+    health_query = health_queries[0]
+
+    def scan_for(callback: str, label: str) -> tuple[str, str, str]:
+        scans = []
+        for line in functions["__sand_system_tick"].splitlines():
+            call = re.search(r"run function unified_state:(__sand_system/[^\s]+)", line)
+            if call and f"function unified_state:{callback}" in functions[call.group(1)].splitlines():
+                selector = re.search(r"execute as (@e\[[^]]+\]) at @s", line)
+                if not selector:
+                    raise ValueError(f"{label} callback is missing its entity selector")
+                scans.append((line, selector[1], functions[call.group(1)]))
+        if len(scans) != 1:
+            raise ValueError(f"expected one {label} scan, found {len(scans)}")
+        return scans[0]
+
+    combat_scan, combat_selector, shared_system = scan_for(query_path, "Combatants")
+    health_scan, health_selector, _ = scan_for(health_query, "Health")
+    if health_selector == combat_selector:
+        raise ValueError("Health and Combatants must use distinct selectors")
+    callbacks = re.findall(r"^function unified_state:(sand/entity_query/[^\s]+)$", shared_system, re.M)
+    if (len(callbacks) != 2 or callbacks[0] != query_path
+            or f"scoreboard players add @s {attack_damage} 1" not in reachable(functions, callbacks[1]).splitlines()):
+        raise ValueError("Combatants callbacks must retain regeneration then attack-training order")
+    if functions["__sand_system_tick"].count(f"execute as {combat_selector} at @s") != 1:
+        raise ValueError("Combatants callbacks must share exactly one selector scan")
+    return {
+        "query_path": query_path,
+        "combat_scan": combat_scan,
+        "combat_selector": combat_selector,
+        "shared_system": shared_system,
+        "health_query": health_query,
+        "health_scan": health_scan,
+        "health_selector": health_selector,
+        "health": health,
+        "attack_damage": attack_damage,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", required=True)
@@ -39,6 +110,25 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--evidence", type=Path)
     args = parser.parse_args()
+    result = {
+        "minecraft": "26.2", "java": args.java, "server_dir": None,
+        "objectives": {}, "checks": {}, "server_log": "",
+        "multiple_online_players": False,
+    }
+    try:
+        return run_audit(args, result)
+    except Exception as error:
+        result["checks"]["audit_completed"] = {"passed": False, "evidence": str(error)}
+        raise
+    finally:
+        if args.evidence:
+            args.evidence.parent.mkdir(parents=True, exist_ok=True)
+            args.evidence.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+            print(f"evidence: {args.evidence}")
+
+
+def run_audit(args: argparse.Namespace, result: dict) -> int:
+    """Build, inspect and exercise a pack while retaining failure evidence."""
     rcon_token = secrets.token_urlsafe(24)
 
     if args.build:
@@ -50,8 +140,7 @@ def main() -> int:
 
     dist = PACK_DIR / "dist/unified_state"
     if not dist.is_dir():
-        print(f"missing {dist}; pass --build", file=sys.stderr)
-        return 2
+        raise ValueError(f"missing {dist}; pass --build")
 
     # Inspect the exact datapack installed below, including CLI transformations.
     function_root = dist / "data/unified_state/function"
@@ -60,41 +149,15 @@ def main() -> int:
         for path in function_root.rglob("*.mcfunction")
     }
 
-    def reachable(path: str, seen: set[str] | None = None) -> str:
-        seen = set() if seen is None else seen
-        if path in seen:
-            return ""
-        seen.add(path)
-        body = functions[path]
-        children = re.findall(r"(?:^| run )function unified_state:([a-z0-9_./-]+)", body, re.M)
-        return "\n".join([body, *(reachable(child, seen) for child in children)])
-
-    # The Combatants regeneration query also ticks its optional poison timer.
-    # Numeric writes are whole actions, so inspect their actual owned helpers.
-    regen_queries = [
-        (path, content) for path, content in functions.items()
-        if path.startswith("sand/entity_query/")
-        and re.search(r"scoreboard players remove @s \w+ 1", content)
-    ]
-    if len(regen_queries) != 1:
-        raise ValueError(f"expected one Combatants regeneration query, found {len(regen_queries)}")
-    query_path, query = regen_queries[0]
+    scans = inspect_system_scans(functions)
+    query_path = scans["query_path"]
+    query = functions[query_path]
     attach = functions["attach_zombie_components"]
     load = functions["__sand_lifecycle_load"]
     player_init = functions["__sand_lifecycle_init"]
-    system = functions["__sand_system_tick"]
-    combat_scans = []
-    for line in system.splitlines():
-        call = re.search(r"run function unified_state:(__sand_system/[^\s]+)", line)
-        if call and f"function unified_state:{query_path}" in functions[call.group(1)].splitlines():
-            combat_scans.append((line, functions[call.group(1)]))
-    if len(combat_scans) != 1:
-        raise ValueError(f"expected one Combatants scan, found {len(combat_scans)}")
-    combat_scan, shared_system = combat_scans[0]
-    combat_selector = re.search(r"execute as (@e\[[^]]+\]) at @s", combat_scan).group(1)
-    combat_callbacks = re.findall(r"^function unified_state:(sand/entity_query/[^\s]+)$", shared_system, re.M)
+    combat_scan = scans["combat_scan"]
 
-    armor = re.search(r"scoreboard players add @s (\w+) 1", reachable(query_path)).group(1)
+    armor = re.search(r"scoreboard players add @s (\w+) 1", reachable(functions, query_path)).group(1)
     dead_presence = re.search(
         r"execute unless score @s (\w+) matches 1 run ", query
     ).group(1)
@@ -104,9 +167,7 @@ def main() -> int:
     required = re.search(r"scores=\{([^}]+)\}", combat_scan).group(1).split(",")
     required_objectives = [entry.split("=", 1)[0] for entry in required]
     defense_presence = next(item for item in required_objectives if item != attack_presence)
-    attack_damage = re.search(
-        r"scoreboard players set @s (\w+) 2", attach
-    ).group(1)
+    attack_damage = scans["attack_damage"]
     global_match = re.search(
         r"unless score (#[^ ]+) (\w+) matches .* players set \1 \2 1", load
     )
@@ -116,6 +177,7 @@ def main() -> int:
     )[-1]
 
     server_dir = Path(tempfile.mkdtemp(prefix="sand-unified-state-audit-"))
+    result["server_dir"] = str(server_dir)
     datapacks = server_dir / "world/datapacks"
     datapacks.mkdir(parents=True)
     shutil.copytree(dist, datapacks / "unified_state")
@@ -138,7 +200,7 @@ def main() -> int:
             logs.put(line)
 
     threading.Thread(target=drain, daemon=True).start()
-    checks: dict[str, dict[str, str | bool]] = {}
+    checks = result["checks"]
 
     def command(*commands: str) -> str:
         responses = run_commands("127.0.0.1", rcon_port, rcon_token, list(commands), timeout=30)
@@ -190,12 +252,8 @@ def main() -> int:
         check("datapack_loaded", "file/unified_state" in loaded, loaded)
         check(
             "compatible_systems_share_one_ordered_scan",
-            system.count("execute as ") == 2
-            and system.count(f"execute as {combat_selector} at @s") == 1
-            and len(combat_callbacks) == 2
-            and combat_callbacks[0] == query_path
-            and f"scoreboard players add @s {attack_damage} 1" in reachable(combat_callbacks[1]),
-            combat_scan + "\n" + shared_system,
+            scans["health_selector"] != scans["combat_selector"],
+            combat_scan + "\n" + scans["shared_system"] + "\n" + scans["health_scan"],
         )
         clients = []
         for name in ("StateAuditOne", "StateAuditTwo"):
@@ -404,12 +462,13 @@ def main() -> int:
         except subprocess.TimeoutExpired:
             process.kill()
         server_log = server_dir / "logs/latest.log"
-        result = {
+        result.update({
             "minecraft": "26.2",
             "java": args.java,
             "server_dir": str(server_dir),
             "objectives": {
                 "armor": armor,
+                "health": scans["health"],
                 "dead_presence": dead_presence,
                 "attack_presence": attack_presence,
                 "defense_presence": defense_presence,
@@ -424,11 +483,7 @@ def main() -> int:
             "multiple_online_players": checks.get(
                 "two_real_players_observed_online_together", {}
             ).get("passed", False),
-        }
-        if args.evidence:
-            args.evidence.parent.mkdir(parents=True, exist_ok=True)
-            args.evidence.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-            print(f"evidence: {args.evidence}")
+        })
 
     return 0 if checks and all(item["passed"] for item in checks.values()) else 1
 

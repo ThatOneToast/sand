@@ -8,6 +8,7 @@ on:
       - "examples/participant_audit/**"
       - "examples/unified_state/**"
       - "scripts/mc_validation/run_unified_state_audit.py"
+      - "scripts/mc_validation/test_unified_state_audit.py"
       - "scripts/mc_validation/local_rcon_server.py"
       - "scripts/mc_validation/rcon_client.py"
       - "sand-cli/**"

@@ -25,6 +25,17 @@ COMMAND = re.compile(r"^( *)\[C\] (.+)$")
 TRACE_FILE = re.compile(r"to output file (debug-trace-[a-zA-Z0-9_.-]+\.txt)$")
 
 
+def verified_runtime_version(lines: list[str]) -> str:
+    """Reject absent or mismatched startup identity before collecting samples."""
+    versions = {
+        match[1] for line in lines
+        if (match := re.search(r"Starting minecraft server version (\S+)$", line))
+    }
+    if versions != {"26.2"}:
+        raise ValueError(f"expected Minecraft 26.2 runtime, observed {sorted(versions)}")
+    return "26.2"
+
+
 def trace_counts(content: str) -> dict[str, int]:
     """Count actual [C] evaluations by the enclosing vanilla function frame.
 
@@ -89,10 +100,14 @@ class IdleCostHarness(PlayerHarness):
         super().__init__(args)
         self.target = target
         self.marker = marker
+        with Path(args.jar).open("rb") as server_jar:
+            jar_digest = hashlib.file_digest(server_jar, "sha256").hexdigest()
         self.evidence = {
             "schema_version": 1,
             "measurement": "vanilla_debug_function_command_evaluations",
-            "minecraft_version": args.version,
+            "target_minecraft_version": args.version,
+            "minecraft_version": None,
+            "server_jar_sha256": jar_digest,
             "input_pack_sha256": digest,
             "reconcile_function": target,
             "warmup_calls": 25,
@@ -133,6 +148,7 @@ class IdleCostHarness(PlayerHarness):
         print(f"COST entities={count} sample={sample} commands={total} reconcile={total - 2}", flush=True)
 
     def run_client(self) -> None:
+        self.evidence["minecraft_version"] = verified_runtime_version(self.lines)
         self.send("forceload add 0 0")
         self.eventually("COST_CHUNK", "if loaded 0 100 0")
         self.send("gamerule minecraft:advance_time false")

@@ -5,10 +5,33 @@ from pathlib import Path
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from measure_archetype_idle import pack_digest, reconcile_target, trace_counts
+from measure_archetype_idle import IdleCostHarness, pack_digest, reconcile_target, trace_counts, verified_runtime_version
 
 
 class TraceCounts(unittest.TestCase):
+    def test_wrong_or_missing_runtime_is_rejected_before_measurement(self):
+        for lines in (
+            ["[Server thread/INFO]: Starting minecraft server version 26.1"],
+            ["[Server thread/INFO]: Starting minecraft server version 26.2-snapshot"],
+            ["[Server thread/INFO]: Done (1s)! For help, type help"],
+        ):
+            with self.subTest(lines=lines):
+                harness = object.__new__(IdleCostHarness)
+                harness.lines = lines
+                harness.evidence = {"complete": False}
+                def no_commands(command):
+                    self.fail("measurement commands started before runtime validation")
+                harness.send = no_commands
+                with self.assertRaisesRegex(ValueError, "runtime"):
+                    harness.run_client()
+                self.assertFalse(harness.evidence["complete"])
+
+    def test_runtime_identity_accepts_exact_target_and_rejects_conflicting_versions(self):
+        line = "[Server thread/INFO]: Starting minecraft server version 26.2"
+        self.assertEqual(verified_runtime_version([line]), "26.2")
+        with self.assertRaisesRegex(ValueError, "runtime"):
+            verified_runtime_version([line, line.replace("26.2", "26.1")])
+
     def test_nested_and_sibling_frames_return_to_their_caller(self):
         trace = '''demo:root
     [F] demo:root size=3

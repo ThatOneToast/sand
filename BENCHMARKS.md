@@ -636,8 +636,9 @@ Use `--java /path/to/java` when Java 25 is not the default, or `--pack /path/to/
 to measure an already-built copy. The harness preserves the input pack and adds
 a measurement function only to a disposable copy. Its fresh server directory
 contains `cost-evidence.json`, raw traces and both passive-player logs. Evidence
-includes the input datapack's content digest, callback identity, workload and
-per-function counts. Failed runs retain incomplete evidence; malformed traces,
+includes the input datapack's content digest, server JAR digest, observed runtime
+version, callback identity, workload and per-function counts. The startup version
+must be exactly 26.2 before any measurement commands are sent. Failed runs retain incomplete evidence; malformed traces,
 missing adoption, and missing probe completion fail instead of producing a
 misleading lower cost. Trace-parser regressions run in `scripts/check.sh` and
 Rust CI.

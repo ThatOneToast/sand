@@ -2147,13 +2147,15 @@ fn validate_json_text_inner(
             }
             if let Some(serde_json::Value::Object(score)) = object.get("score") {
                 if let Some(serde_json::Value::String(name)) = score.get("name") {
-                    validate_score_holder(name).map_err(|error| {
-                        text_error(error.code, format!("{path}.score.name"), error.message)
+                    validate_score_holder(name).map_err(|mut error| {
+                        error.field = format!("{path}.score.name");
+                        error
                     })?;
                 }
                 if let Some(serde_json::Value::String(objective)) = score.get("objective") {
-                    validate_objective(objective).map_err(|error| {
-                        text_error(error.code, format!("{path}.score.objective"), error.message)
+                    validate_objective(objective).map_err(|mut error| {
+                        error.field = format!("{path}.score.objective");
+                        error
                     })?;
                 }
             }

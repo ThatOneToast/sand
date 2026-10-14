@@ -768,6 +768,32 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
                 .raw_description(sand::component::RawJson::new(description)),
         );
     }
+    for (name, description) in [
+        ("nbt_entity", json!({"nbt": "CustomName", "entity": "@s"})),
+        (
+            "nbt_storage",
+            json!({"nbt": "message", "storage": "sand_audit:text"}),
+        ),
+        (
+            "nbt_block",
+            json!({"nbt": "CustomName", "block": "~ ~0.5 -2"}),
+        ),
+        (
+            "nbt_local",
+            json!({"nbt": "CustomName", "block": "^ ^1.5 ^"}),
+        ),
+        (
+            "nbt_lenient",
+            json!({"nbt": "CustomName", "entity": "@s", "interpret": "yes"}),
+        ),
+    ] {
+        registration = registration.component(
+            sand_core::Instrument::new(format!("sand_audit:raw_text/{name}").parse().unwrap())
+                .sound_event("minecraft:item.goat_horn.sound.0")
+                .raw_description(sand_core::RawJson::new(description)),
+        );
+    }
+
     registration
 }
 

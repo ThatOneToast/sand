@@ -20,6 +20,7 @@ fn described(value: Value) -> Vec<Box<dyn DatapackComponent>> {
     ]
 }
 
+/// Reject malformed vanilla text before either registry resource can be published.
 #[test]
 fn malformed_description_is_rejected_before_export() {
     for (value, field) in [
@@ -89,6 +90,43 @@ fn malformed_description_is_rejected_before_export() {
         (json!({"keybind": []}), "description.keybind"),
         (json!({"selector": {}}), "description.selector"),
         (json!({"nbt": 1}), "description.nbt"),
+        (json!({"nbt": "foo"}), "description.source"),
+        (json!({"nbt": "", "entity": "@s"}), "description.nbt"),
+        (json!({"nbt": "foo[", "entity": "@s"}), "description.nbt"),
+        (
+            json!({"nbt": "foo", "source": "block", "entity": "@s"}),
+            "description.source",
+        ),
+        (
+            json!({"nbt": "foo", "entity": "@s", "interpret": true, "plain": true}),
+            "description",
+        ),
+        (json!({"text": "x", "type": "score"}), "description.score"),
+        (json!({"text": "x", "type": 42}), "description.type"),
+        (json!({"nbt": "foo", "entity": 42}), "description.entity"),
+        (json!({"nbt": "foo", "storage": []}), "description.storage"),
+        (json!({"nbt": "foo", "block": false}), "description.block"),
+        (
+            json!({"nbt": "foo", "storage": "bad id"}),
+            "description.storage",
+        ),
+        (
+            json!({"nbt": "foo", "block": "bad coordinates"}),
+            "description.block",
+        ),
+        (json!({"nbt": "foo", "block": "^ ~ ~"}), "description.block"),
+        (
+            json!({"nbt": "foo", "block": "1.5 0 0"}),
+            "description.block",
+        ),
+        (
+            json!({"nbt": "foo", "entity": "@invalid"}),
+            "description.entity",
+        ),
+        (
+            json!({"nbt": "foo", "entity": "@s", "storage": "test:data"}),
+            "description.source",
+        ),
         (json!({"text": "x", "color": 42}), "description.color"),
         (json!({"text": "x", "font": false}), "description.font"),
         (json!({"text": "x", "bold": "yes"}), "description.bold"),
@@ -132,6 +170,7 @@ fn malformed_description_is_rejected_before_export() {
     }
 }
 
+/// Both codecs require descriptions even when every sound field is valid.
 #[test]
 fn required_description_is_checked_before_export() {
     for resource in [
@@ -143,6 +182,7 @@ fn required_description_is_checked_before_export() {
     }
 }
 
+/// Compare complete JSON so a legacy duration key cannot silently return.
 #[test]
 fn jukebox_duration_uses_vanilla_field_name() {
     let resource = song().description(TextComponent::translate("song.test.theme"));
@@ -158,6 +198,7 @@ fn jukebox_duration_uses_vanilla_field_name() {
     );
 }
 
+/// Zero is a valid silent comparator value in the vanilla song codec.
 #[test]
 fn jukebox_comparator_zero_is_valid() {
     song()
@@ -167,10 +208,17 @@ fn jukebox_comparator_zero_is_valid() {
         .unwrap();
 }
 
+/// Raw compatibility preserves supported shapes and explicit extension payloads.
 #[test]
 fn explicit_text_shapes_round_trip() {
     for value in [
         json!("Name"),
+        json!({"nbt": "foo", "source": "mymod:custom", "mymod:data": "value"}),
+        json!({"nbt": "foo", "entity": "@s"}),
+        json!({"nbt": "foo", "entity": "@s", "interpret": "yes"}),
+        json!({"nbt": "foo", "storage": "test:data"}),
+        json!({"nbt": "foo", "block": "~ ~0.5 -2"}),
+        json!({"nbt": "foo", "block": "^ ^1.5 ^"}),
         json!({"translate": "song.name", "fallback": "Song"}),
         json!({"type": "mymod:custom", "value": "Name"}),
         json!({"mymod:custom": "Name"}),
@@ -198,6 +246,7 @@ fn explicit_text_shapes_round_trip() {
     }
 }
 
+/// Resource text uses the same styled model and located errors as command text.
 #[test]
 fn typed_descriptions_share_command_text_validation_and_json() {
     let text = TextComponent::translate("resource.test.name").color_hex("#abc123");

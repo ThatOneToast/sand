@@ -2107,6 +2107,153 @@ fn validate_json_interactions(
     Ok(())
 }
 
+/// Parse raw NBT text coordinates into the canonical coordinate model.
+/// Vanilla block sources permit fractional relative/local offsets, but absolute
+/// coordinates are signed integers (unlike generic Vec3 absolute positions).
+fn validate_json_block_source(
+    value: &str,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    use crate::coord::{Coord, Vec3};
+    let invalid = || {
+        text_error(
+            "SAND-TEXT-NBT",
+            path,
+            "expected three valid block coordinates",
+        )
+    };
+    let tokens = value.split(' ').collect::<Vec<_>>();
+    if tokens.len() != 3 {
+        return Err(invalid());
+    }
+    let mut coordinates = Vec::new();
+    for token in tokens {
+        let (prefix, number) = if let Some(number) = token.strip_prefix('~') {
+            ('~', number)
+        } else if let Some(number) = token.strip_prefix('^') {
+            ('^', number)
+        } else {
+            (' ', token)
+        };
+        let coordinate = if prefix == ' ' {
+            if token.is_empty() || !token.bytes().all(|c| c.is_ascii_digit() || c == b'-') {
+                return Err(invalid());
+            }
+            Coord::Absolute(token.parse::<i32>().map_err(|_| invalid())? as f64)
+        } else {
+            let number = if number.is_empty() {
+                0.0
+            } else {
+                if !number
+                    .bytes()
+                    .all(|c| c.is_ascii_digit() || matches!(c, b'-' | b'.'))
+                {
+                    return Err(invalid());
+                }
+                number.parse::<f64>().map_err(|_| invalid())?
+            };
+            if prefix == '~' {
+                Coord::Relative(number)
+            } else {
+                Coord::Local(number)
+            }
+        };
+        coordinates.push(coordinate);
+    }
+    Vec3::new(
+        coordinates[0].clone(),
+        coordinates[1].clone(),
+        coordinates[2].clone(),
+    )
+    .validate(profile)
+    .map_err(|mut error| {
+        error.field = path.to_string();
+        error
+    })
+}
+
+/// Validate the required source of the known NBT component variant.
+fn validate_json_nbt_source(
+    object: &serde_json::Map<String, serde_json::Value>,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    let sources = ["block", "entity", "storage"]
+        .into_iter()
+        .filter(|key| object.contains_key(*key))
+        .collect::<Vec<_>>();
+    if sources.is_empty()
+        && object
+            .get("source")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|kind| kind.contains(':') && !kind.starts_with("minecraft:"))
+    {
+        // Explicit extension sources are owned by the raw-text author.
+        return Ok(());
+    }
+    if sources.len() != 1 {
+        return Err(text_error(
+            "SAND-TEXT-NBT",
+            format!("{path}.source"),
+            "NBT text requires exactly one block, entity or storage source",
+        ));
+    }
+    let source = sources[0];
+    if let Some(kind) = object.get("source") {
+        let kind = kind.as_str().ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.source"),
+                "expected a string source discriminator",
+            )
+        })?;
+        if ["block", "entity", "storage"].contains(&kind) && kind != source {
+            return Err(text_error(
+                "SAND-TEXT-NBT",
+                format!("{path}.source"),
+                "source discriminator does not match its payload",
+            ));
+        }
+    }
+    let field = format!("{path}.{source}");
+    let value = object[source]
+        .as_str()
+        .ok_or_else(|| text_error("SAND-TEXT-SHAPE", &field, "expected a string NBT source"))?;
+    match source {
+        "block" => validate_json_block_source(value, profile, &field)?,
+        "entity" => {
+            validate_score_holder(value).map_err(|mut error| {
+                error.field = field.clone();
+                error
+            })?;
+            crate::render::validate_selector_token(value).map_err(|mut error| {
+                error.field = field.clone();
+                error
+            })?;
+        }
+        "storage" => crate::validate::resource_location_shape(value, "TextComponent", "storage")
+            .map(|_| ())
+            .map_err(|mut error| {
+                error.field = field;
+                error
+            })?,
+        _ => unreachable!(),
+    }
+    // These optional booleans are lenient in vanilla; only the decoded true
+    // combination is invalid. Do not reject values which vanilla defaults.
+    if object.get("interpret").and_then(serde_json::Value::as_bool) == Some(true)
+        && object.get("plain").and_then(serde_json::Value::as_bool) == Some(true)
+    {
+        return Err(text_error(
+            "SAND-TEXT-NBT",
+            path,
+            "interpret and plain cannot both be true",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_json_text_inner(
     value: &serde_json::Value,
     _profile: &CommandProfile,
@@ -2162,6 +2309,33 @@ fn validate_json_text_inner(
                     path,
                     "expected a text content field or an explicit namespaced extension component",
                 ));
+            }
+            if let Some(kind) = object.get("type") {
+                let kind = kind.as_str().ok_or_else(|| {
+                    text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.type"),
+                        "expected a string component discriminator",
+                    )
+                })?;
+                let content = match kind {
+                    "text" => Some("text"),
+                    "translatable" => Some("translate"),
+                    "score" => Some("score"),
+                    "selector" => Some("selector"),
+                    "keybind" => Some("keybind"),
+                    "nbt" => Some("nbt"),
+                    _ => None,
+                };
+                if let Some(content) = content
+                    && !object.contains_key(content)
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-CONTENT",
+                        format!("{path}.{content}"),
+                        "component discriminator requires its matching content field",
+                    ));
+                }
             }
             // A present known field must have its schema type before value
             // validation below. Pattern-matching only the expected variant
@@ -2303,6 +2477,13 @@ fn validate_json_text_inner(
                         )?;
                     }
                 }
+            }
+            if let Some(serde_json::Value::String(nbt)) = object.get("nbt") {
+                crate::nbt::validate_nbt_path(nbt).map_err(|mut error| {
+                    error.field = format!("{path}.nbt");
+                    error
+                })?;
+                validate_json_nbt_source(object, _profile, path)?;
             }
             validate_json_interactions(object, _profile, path, depth)?;
             Ok(())

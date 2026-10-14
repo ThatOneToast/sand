@@ -549,7 +549,7 @@ fn render_path_key(key: &str) -> String {
     }
 }
 
-fn validate_nbt_path(path: &str) -> CommandResult<()> {
+pub(crate) fn validate_nbt_path(path: &str) -> CommandResult<()> {
     if path.trim().is_empty() {
         return Err(data_error(
             "path",

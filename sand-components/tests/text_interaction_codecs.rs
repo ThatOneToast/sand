@@ -5,6 +5,7 @@ fn rendered(text: TextComponent) -> Value {
     text.try_to_json_value().unwrap()
 }
 
+/// Legacy interaction fields load but vanish during vanilla decoding.
 #[test]
 fn typed_click_actions_use_current_codec_keys() {
     for (text, expected) in [
@@ -35,6 +36,7 @@ fn typed_click_actions_use_current_codec_keys() {
     }
 }
 
+/// Styled hover text must live under the current value member.
 #[test]
 fn typed_hover_text_uses_current_value_field() {
     let value = rendered(Text::new("Hover").hover_text(Text::new("Hint").gold()));
@@ -45,6 +47,7 @@ fn typed_hover_text_uses_current_value_field() {
     assert!(value.get("hoverEvent").is_none());
 }
 
+/// Keep entity kind and UUID distinct while preserving a styled tooltip name.
 #[test]
 fn typed_hover_entity_uses_type_id_and_uuid_fields() {
     let id = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
@@ -56,6 +59,7 @@ fn typed_hover_entity_uses_type_id_and_uuid_fields() {
     );
 }
 
+/// Reject an invalid book page before producing resource or command output.
 #[test]
 fn page_zero_is_rejected_before_rendering() {
     assert!(
@@ -66,6 +70,7 @@ fn page_zero_is_rejected_before_rendering() {
     );
 }
 
+/// Identify the exact malformed member instead of rejecting an entire resource opaquely.
 #[test]
 fn malformed_current_interactions_have_located_errors() {
     for (value, field) in [
@@ -99,6 +104,7 @@ fn malformed_current_interactions_have_located_errors() {
     }
 }
 
+/// Exercise both inclusive codec bounds and their immediate invalid neighbors.
 #[test]
 fn typed_interaction_numeric_bounds_match_vanilla() {
     for page in [1, i32::MAX as u32] {

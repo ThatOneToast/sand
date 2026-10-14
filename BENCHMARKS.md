@@ -615,3 +615,60 @@ combined.
 **No implementation changes were made in this phase** — every candidate
 evaluated was either previously tried and ruled out, or structurally
 inapplicable to the actual code shape.
+
+## Idle archetype command baseline (#424 Phase 0, #447)
+
+`scripts/bench_runtime.sh --archetype-idle` measures **executed command
+entries** in vanilla's `debug function` trace for the CLI-built RPG example.
+It follows the actual nested function frames. The console's `Traced N
+command(s)` message only counts the root function's lines and must not be
+used as the expanded command count.
+
+Build the fixture, then measure it with Minecraft 26.2 and Java 25:
+
+```sh
+(cd examples/rpg_entity && cargo run --manifest-path ../../sand-cli/Cargo.toml --bin sand -- build)
+scripts/bench_runtime.sh --archetype-idle \
+  --jar "$HOME/.sand/cache/26.2/server.jar"
+```
+
+Use `--java /path/to/java` when Java 25 is not the default, or `--pack /path/to/rpg`
+to measure an already-built copy. The harness preserves the input pack and adds
+a measurement function only to a disposable copy. Its fresh server directory
+contains `cost-evidence.json`, raw traces and both passive-player logs. Evidence
+includes the input datapack's content digest, callback identity, workload and
+per-function counts. Failed runs retain incomplete evidence; malformed traces,
+missing adoption, and missing probe completion fail instead of producing a
+misleading lower cost. Trace-parser regressions run in `scripts/check.sh` and
+Rust CI.
+
+Measured on October 14, 2026 using the output at `088837ef`, Minecraft 26.2,
+Azul Java 25.0.3, Apple Silicon macOS, and two connected passive players:
+
+| Adopted idle zombies | Total traced command evaluations | Probe control | Reconcile evaluations | Samples |
+| --- | ---: | ---: | ---: | ---: |
+| 0 | 2 | 2 | 0 | 3 identical |
+| 1 | 246 | 2 | 244 | 3 identical |
+| 10 | 2,442 | 2 | 2,440 | 3 identical |
+
+The input pack SHA-256 is
+`15ce57b89fda322909af849a7b3547f1899b8cd0223fe3c6fc5aefa8190d4bea`.
+The per-entity breakdown is 196 evaluations in `reconcile`, 12 in `provision`,
+12 in `derive_refresh`, 22 in `refresh`, and 2 in `transitions`. The two control
+commands dispatch the selected entities and prove the trace reached completion.
+
+This confirms #447's **244 evaluations per idle entity** for the existing
+`WhenDirty` RPG archetype. A failed `execute if`/`unless` guard still counts as
+a command evaluation. The workload uses no-AI, persistent, invulnerable zombies,
+verifies their actual archetype membership, and settles initial/dirty state with
+25 reconcile calls before each group of samples. Game ticks are frozen to keep
+native observation cadence idle; these are direct calls to the unchanged
+exported reconcile callback.
+
+These numbers are **not MSPT, a complete tick budget, or the cost of due native
+observations, active timers, adoption, dirty updates or arbitrary archetypes**.
+Tracing itself adds I/O overhead, so its wall time is not a performance result.
+The export-time cost report, representative mixed-workload steady-state MSPT
+and variance, and optimization phases of #424 remain outstanding. Preserve this
+baseline when evaluating the later idle-work changes rather than substituting
+source-line counts or assuming conditional commands are free.

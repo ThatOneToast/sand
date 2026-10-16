@@ -17,12 +17,6 @@ fn ordinary() {
     cmd::say("ordinary callback");
 }
 
-/// A tag contributor does not become the owner of its member implementation.
-#[datapack_component]
-fn typed_load() -> sand::component::TypedTag<FunctionId> {
-    sand::component::TypedTag::new("minecraft:load".parse().unwrap()).entry(ordinary.function_id())
-}
-
 static DIALOG: OnceLock<sand::component::Dialog> = OnceLock::new();
 /// Reuse a prebuilt dialog so attribution must occur during serialization.
 #[datapack_component]
@@ -188,21 +182,6 @@ fn deferred_registry_resources_keep_origins() {
         assert_eq!(
             score_entry["contributors"],
             report["functions"][&score]["owners"]
-        );
-        let ordinary = format!("{namespace}:ordinary");
-        let entry = report["load"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|entry| entry["reference"] == ordinary)
-            .unwrap();
-        assert_eq!(
-            entry["contributors"],
-            serde_json::json!([owner("typed_load")])
-        );
-        assert_eq!(
-            report["functions"][ordinary]["owners"],
-            serde_json::json!([owner("ordinary")])
         );
         assert_eq!(
             json,

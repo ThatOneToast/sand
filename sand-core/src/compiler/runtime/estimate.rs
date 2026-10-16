@@ -82,6 +82,8 @@ pub(crate) struct Estimator<'a> {
     functions: &'a BTreeMap<String, String>,
     active: BTreeSet<String>,
     cache: BTreeMap<String, Summary>,
+    remaining_commands: usize,
+    command_depth: usize,
 }
 
 impl<'a> Estimator<'a> {
@@ -90,6 +92,8 @@ impl<'a> Estimator<'a> {
             functions,
             active: BTreeSet::new(),
             cache: BTreeMap::new(),
+            remaining_commands: 100_000,
+            command_depth: 0,
         }
     }
 
@@ -126,6 +130,11 @@ impl<'a> Estimator<'a> {
             .map(str::trim)
             .filter(|line| !line.is_empty() && !line.starts_with('#'))
         {
+            if self.remaining_commands == 0 {
+                work.add(Work::unknown("analysis work limit reached".into()));
+                returns = ReturnFlow::Maybe;
+                break;
+            }
             let summary = self.line(line);
             work.add(if returns == ReturnFlow::Maybe {
                 summary.work.optional()
@@ -145,11 +154,12 @@ impl<'a> Estimator<'a> {
         let summary = Summary { work, returns };
         // Cycle/depth results depend on the active call path. Never cache them
         // as though they were a context-independent function summary.
-        if !summary
-            .work
-            .unknown
-            .iter()
-            .any(|reason| reason.starts_with("recursive or"))
+        if self.remaining_commands > 0
+            && !summary
+                .work
+                .unknown
+                .iter()
+                .any(|reason| reason.starts_with("recursive or"))
         {
             self.cache.insert(id, summary.clone());
         }
@@ -164,6 +174,20 @@ impl<'a> Estimator<'a> {
     }
 
     fn line(&mut self, line: &str) -> Summary {
+        if self.remaining_commands == 0 {
+            return Self::unsupported("analysis work limit reached".into());
+        }
+        if self.command_depth >= 128 {
+            return Self::unsupported("command nesting analysis limit reached".into());
+        }
+        self.remaining_commands -= 1;
+        self.command_depth += 1;
+        let summary = self.line_inner(line);
+        self.command_depth -= 1;
+        summary
+    }
+
+    fn line_inner(&mut self, line: &str) -> Summary {
         use sand_commands::render::{
             collected_execute, collected_return_command, collected_tokens,
         };
@@ -335,5 +359,19 @@ mod tests {
         ]);
         let work = Estimator::new(&functions).function("demo:dimension");
         assert_eq!((work.minimum, work.maximum), (1, Some(2)));
+    }
+    /// Cyclic branching must not turn report generation into unbounded work.
+    #[test]
+    fn analysis_limit_keeps_unvisited_commands_unknown() {
+        let functions = BTreeMap::from([
+            ("demo:a".into(), "function demo:b\nfunction demo:b".into()),
+            ("demo:b".into(), "function demo:a\nfunction demo:a".into()),
+        ]);
+        let mut estimator = Estimator::new(&functions);
+        estimator.remaining_commands = 2;
+        let work = estimator.function("demo:a");
+        assert_eq!(work.maximum, None);
+        assert!(work.unknown.contains("analysis work limit reached"));
+        assert!(estimator.cache.is_empty());
     }
 }

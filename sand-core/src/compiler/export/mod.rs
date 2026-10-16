@@ -76,10 +76,11 @@ pub fn try_export_components_for_version(
 }
 
 /// Fallibly collect all inventory-registered components and return them as a
-/// JSON string for consumption by `sand build`.
+/// resource-only JSON string for inspection and compiler tests.
 ///
-/// This is the function the generated `sand_export` binary should call. On
-/// success it returns the JSON array of [`ComponentRecord`] objects as a
+/// Build integrations use [`crate::advanced::try_export_pack_json`] so runtime
+/// provenance travels with the resources. This resource-only API returns the
+/// JSON array of [`ComponentRecord`] objects as a
 /// `String`. On failure it returns a [`sand_components::error::SandError`] carrying the
 /// resource location, component kind, and validation field — **no panic, no
 /// backtrace**. The caller is responsible for printing a diagnostic to stderr
@@ -94,8 +95,9 @@ pub fn try_export_components_json(namespace: &str) -> ExportResult<String> {
 /// Version-aware fallible JSON export: collect all components and advancement-backed
 /// events, rejecting any that require features not available in the target version.
 ///
-/// This is the function the generated `sand_export` binary should call when a
-/// target version is known. On failure it returns a [`sand_components::error::SandError`]
+/// Use this resource-only form for version-aware inspection. Build exporters
+/// use [`crate::advanced::try_export_pack_json`] to include runtime analysis.
+/// On failure it returns a [`sand_components::error::SandError`]
 /// carrying the resource location, component kind, and version-gating context
 /// — no panic, no backtrace.
 pub fn try_export_components_json_for_version(

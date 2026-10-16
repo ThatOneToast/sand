@@ -1023,6 +1023,7 @@ mod tests {
             &mut Vec::new(),
             "game",
             None,
+            &mut Default::default(),
         )
         .unwrap_err()
         .to_string();

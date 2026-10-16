@@ -28,7 +28,7 @@ CASES = {
 
 class Probe(WorldGameplayHarness):
     def run_client(self):
-        """Verify populations and completed traces before comparing report ranges."
+        """Verify populations and completed traces before comparing report ranges."""
         verified_runtime_version(self.lines)
         self.load_test_chunk('minecraft:overworld')
         self.send('tick freeze')

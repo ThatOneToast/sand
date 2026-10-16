@@ -22,6 +22,7 @@ on:
       - "scripts/bench_runtime.py"
       - "scripts/validate_worldbuild_profiles.py"
       - "scripts/validate_world_gameplay.py"
+      - "scripts/validate_runtime_report.py"
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"
       - "scripts/validate_keyed_literals.py"
@@ -131,6 +132,14 @@ jobs:
             --version "${{ matrix.version }}" \
             --pack sand-vanilla-audit/dist/sand_audit \
             --output "target/vanilla-reload/${{ matrix.version }}"
+
+      - name: Compare runtime reports with completed vanilla command traces
+        if: matrix.version == '26.2'
+        run: |
+          python3 scripts/validate_runtime_report.py \
+            --binary target/debug/sand \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/runtime-report"
 
       - name: Validate runtime world and block gameplay
         if: matrix.target == 'latest'
@@ -247,6 +256,7 @@ jobs:
           path: |
             target/vanilla-reload/${{ matrix.version }}/latest.log
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
+            target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/player-participants
             target/vanilla-reload/${{ matrix.version }}/bounded-items

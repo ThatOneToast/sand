@@ -9,7 +9,9 @@ use super::{
 use crate::compiler::export::ComponentRecord;
 
 /// Compilation-local report. Counts describe explicit command evaluations for
-/// a successfully loaded function invocation, not MSPT or command-limit units.
+/// an uninterrupted invocation of a successfully loaded function, not MSPT or
+/// command-limit units. Runtime aborts and server budget exhaustion are outside
+/// this static model.
 #[derive(Debug, Clone, serde::Serialize)]
 #[sand_macros::api(
     registry = sand_api_contract, path = "sand::advanced::compiler::RuntimeReport", module = "sand::advanced::compiler",
@@ -125,7 +127,7 @@ impl RuntimeReport {
         let mut tick = Vec::new();
         let mut limitations = BTreeSet::from([
             "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.".into(),
-            "Estimates assume successfully loaded functions; external pack contributions and implicit resource-triggered callbacks are not fully analyzed.".into(),
+            "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.".into(),
             "Selector sites cover execute contexts and entity conditions, not selectors in terminal commands; sites are not runtime scan counts.".into(),
             "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.".into(),
         ]);

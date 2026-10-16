@@ -157,8 +157,15 @@ class IdleCostHarness(PlayerHarness):
             raise ValueError("trace must contain probe dispatch and completion evaluations")
         if self.workload == "level-up" and count:
             derivation = f"{self.target.rsplit('/', 1)[0]}/derive/0"
-            if not counts.get(derivation):
-                raise ValueError("level-up workload did not execute its dependent derivation")
+            derived_entities = sum(
+                1 for line in content.splitlines()
+                if (frame := FRAME.fullmatch(line)) and frame[2] == derivation
+            )
+            if derived_entities != count:
+                raise ValueError(
+                    "level-up workload did not execute its dependent derivation "
+                    f"once per entity: expected {count}, observed {derived_entities}"
+                )
         path = Path("traces") / f"entities-{count}-sample-{sample}.txt"
         (self.output / path).parent.mkdir(parents=True, exist_ok=True)
         (self.output / path).write_text(content)

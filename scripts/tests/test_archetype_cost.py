@@ -73,6 +73,9 @@ class TraceCounts(unittest.TestCase):
                 "debug function sand_cost_probe:reconcile",
             ])
             self.assertEqual(harness.evidence["samples"][0]["reconcile_evaluations"], 1)
+            with self.assertRaisesRegex(ValueError, "expected 2, observed 1"):
+                harness.measure(2, 0)
+            self.assertEqual(len(harness.evidence["samples"]), 1)
             (debug / "debug-trace-fixture.txt").write_text(trace.replace("rpg:entity/derive/0", "rpg:entity/unrelated"))
             with self.assertRaisesRegex(ValueError, "dependent derivation"):
                 harness.measure(1, 1)

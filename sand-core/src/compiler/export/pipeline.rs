@@ -121,6 +121,8 @@ fn invoke_event_handler_body(
     }
 }
 
+/// Run a registration factory under its semantic owner and translate panics into export errors.
+/// The temporary panic hook is isolated to this factory thread and restored before returning.
 fn invoke_component_factory(
     factory: &crate::function::ComponentFactory,
 ) -> ExportResult<crate::DatapackRegistration> {
@@ -162,6 +164,8 @@ fn invoke_component_factory(
     })
 }
 
+/// Lower a State system under its logical ID so deferred resources retain their caller.
+/// Validation diagnostics also identify the system that supplied the invalid body.
 fn lower_state_system_body(
     system: &crate::function::StateSystemDescriptor,
     namespace: &str,
@@ -188,6 +192,8 @@ fn lower_state_system_body(
         })
 }
 
+/// Collect registered resources and their runtime provenance within one isolated export.
+/// Deferred registries are drained before final validation and report construction.
 pub(crate) fn try_export_components_impl(
     namespace: &str,
     ctx: Option<&ExportCtx>,

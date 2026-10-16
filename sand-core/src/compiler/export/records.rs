@@ -43,6 +43,7 @@ impl ComponentRecord {
         }
     }
 
+    /// Construct a textual function record from ordered compiled commands.
     pub(crate) fn function(namespace: &str, path: &str, commands: Vec<String>) -> Self {
         Self {
             namespace: namespace.to_string(),
@@ -61,6 +62,7 @@ pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
 
 type OutputIdentity = (String, String, String, String);
 
+/// Identify a registered output for collision checks independently of its semantic owner.
 fn output_identity(record: &ComponentRecord) -> OutputIdentity {
     (
         record.namespace.clone(),
@@ -167,6 +169,8 @@ pub(crate) fn expand_with_nested(
     Ok(records)
 }
 
+/// Recursively validate a registration and its children while retaining serialization origins.
+/// Reject duplicate outputs before adding them to the collected record sequence.
 fn expand_registered_component(
     registered: RegisteredComponent,
     ctx: Option<&super::ExportCtx>,

@@ -412,6 +412,8 @@ pub(crate) fn build_staged_post_observation_line(
     )
 }
 
+/// Lower staged occurrence dependencies into subject-scoped evaluation guards.
+/// Any-parent gates retain the staged event subscribers as owners of generated helpers.
 pub(crate) fn build_staged_occurrence_lines(
     staged: &crate::events::graph::StagedEvent,
     evaluation_ref: &str,

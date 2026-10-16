@@ -43,6 +43,7 @@ pub(crate) fn transition_export_error(message: impl Into<String>) -> ComponentEx
     }
 }
 
+/// Reject a private tracker function that would overwrite an existing function record.
 pub(crate) fn ensure_private_transition_path_available(
     records: &[ComponentRecord],
     path: &str,

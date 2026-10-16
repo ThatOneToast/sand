@@ -696,6 +696,7 @@ impl Drop for ExportFunctionRegistryScope {
     }
 }
 
+/// Discard generated resources, origins, constants, and objective reservations between exports.
 fn clear_function_export_state() {
     REGISTRY.with_borrow_mut(|registry| {
         registry.resources.clear();
@@ -756,6 +757,8 @@ pub(crate) fn reserve_generated_objectives(
     })
 }
 
+/// Reserve compiler-managed numeric objectives and retain every requesting origin.
+/// Repeated requests share initialization while contributing all callers to its report ownership.
 pub(crate) fn request_numeric_objectives(
     objectives: impl IntoIterator<Item = sand_commands::ObjectiveName>,
 ) -> sand_commands::CommandResult<()> {
@@ -787,6 +790,7 @@ pub(crate) fn generated_function_path(prefix: &str, actions: &crate::ir::Actions
     format!("{prefix}/{}", stable_commands_key(actions))
 }
 
+/// Request shared temporary-score setup and attribute it to the current lowering scope.
 pub(crate) fn request_internal_score_temp() {
     record_score_origin();
     INTERNAL_SCORE_TEMP_REQUESTED.set(true);
@@ -859,6 +863,7 @@ pub fn drain_dyn_fns() -> Vec<DynFnEntry> {
     })
 }
 
+/// Queue a generated component with the active semantic origins for deferred serialization.
 pub(crate) fn register_generated_component(
     component: impl sand_components::DatapackComponent + 'static,
 ) {
@@ -870,6 +875,7 @@ pub(crate) fn register_generated_component(
     });
 }
 
+/// Retain a resource-specific version requirement for validation after generated resources drain.
 pub(crate) fn require_generated_feature(
     owner: &sand_components::ResourceLocation,
     feature: sand_version::ComponentFeature,
@@ -882,6 +888,7 @@ pub(crate) fn require_generated_feature(
     });
 }
 
+/// Take the current resource batch without discarding origins or resources registered while draining.
 pub(crate) fn drain_generated_resources() -> Vec<GeneratedResource> {
     REGISTRY.with_borrow_mut(|registry| std::mem::take(&mut registry.resources))
 }

@@ -1236,23 +1236,25 @@ impl TextComponent {
         self
     }
 
-    /// Show an item tooltip on hover using the existing raw item-ID path.
+    /// Show an item tooltip with an item identifier validated at export.
     ///
-    /// The resulting `show_item` JSON omits `count`. The item registry string is
-    /// retained verbatim for compatibility and is not validated by this builder.
+    /// The resulting `show_item` JSON omits `count`. Export validates the item
+    /// registry identifier, accepting an omitted `minecraft:` namespace. Use
+    /// [`Self::hover_item_raw`] for opaque tokens or [`Self::hover_item_with_count`]
+    /// to include an explicit count.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::text::TextComponent::hover_item",
         aliases = ["sand::cmd::TextComponent::hover_item", "sand::command::TextComponent::hover_item", "sand::prelude::TextComponent::hover_item", "sand::prelude::cmd::TextComponent::hover_item"],
         module = "sand::text",
         kind = "method",
-        summary = "Show an item tooltip on hover using the existing raw item-ID path.",
-        context = "Show an item tooltip on hover using the existing raw item-ID path. The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
-        minecraft = "The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
+        summary = "Show an item tooltip with an item identifier validated at export.",
+        context = "Show an item tooltip with an item identifier validated at export. The resulting `show_item` JSON omits `count`. Export validates the item registry identifier, accepting an omitted minecraft: namespace. Use hover_item_raw for opaque tokens or hover_item_with_count for an explicit count.",
+        minecraft = "The resulting `show_item` JSON omits `count`. Export validates the item registry identifier, accepting an omitted minecraft: namespace. Use hover_item_raw for opaque tokens or hover_item_with_count for an explicit count.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(item_id = "`item_id` is used to show an item tooltip on hover using the existing raw item-ID path."),
-        returns = "The `TextComponent` value with the documented change applied to show an item tooltip on hover using the existing raw item-ID path.",
+        params(item_id = "The item registry identifier; an omitted namespace defaults to minecraft."),
+        returns = "This text component with an item tooltip.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item_id: impl Into < String >)  {\n    let updated_text_component = text_component_value.hover_item(item_id);\n}",
     )]
     pub fn hover_item(mut self, item_id: impl Into<String>) -> Self {

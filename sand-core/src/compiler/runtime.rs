@@ -11,6 +11,9 @@ pub use report::RuntimeReport;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Canonical owner lookup for a function-tag membership.
+type TagContributors = BTreeMap<(String, String), BTreeSet<String>>;
+
 /// Semantic inputs for runtime reporting, before final resource publication.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct RuntimePlan {
@@ -22,7 +25,7 @@ pub(crate) struct RuntimePlan {
         serialize_with = "serialize_tag_contributors",
         deserialize_with = "deserialize_tag_contributors"
     )]
-    pub(crate) tag_contributors: BTreeMap<(String, String), BTreeSet<String>>,
+    pub(crate) tag_contributors: TagContributors,
     /// State-system groups after the canonical adjacent-scan fusion pass.
     pub(crate) systems: Vec<StateSystemRuntime>,
     /// Canonical archetype reports retained instead of reconstructed from paths.
@@ -77,7 +80,7 @@ impl RuntimePlan {
 /// JSON object keys cannot represent the canonical (tag, member) lookup key.
 /// Publish ordered records instead of stringifying that compound identity.
 fn serialize_tag_contributors<S: serde::Serializer>(
-    entries: &BTreeMap<(String, String), BTreeSet<String>>,
+    entries: &TagContributors,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     use serde::Serialize;
@@ -101,7 +104,7 @@ fn serialize_tag_contributors<S: serde::Serializer>(
 /// Restore the canonical compound-key lookup from ordered wire records.
 fn deserialize_tag_contributors<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
-) -> Result<BTreeMap<(String, String), BTreeSet<String>>, D::Error> {
+) -> Result<TagContributors, D::Error> {
     use serde::Deserialize;
     #[derive(Deserialize)]
     struct Entry {

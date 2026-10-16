@@ -14,6 +14,7 @@ pub(crate) struct Work {
 }
 
 impl Work {
+    /// Construct a known number of explicit command evaluations.
     fn exact(count: u64) -> Self {
         Self {
             minimum: count,
@@ -22,6 +23,7 @@ impl Work {
         }
     }
 
+    /// Preserve an unresolved cost without treating it as zero work.
     fn unknown(reason: String) -> Self {
         Self {
             minimum: 0,
@@ -30,6 +32,7 @@ impl Work {
         }
     }
 
+    /// Combine sequential work, retaining unknown causes and checked upper bounds.
     fn add(&mut self, other: Self) {
         self.minimum = self.minimum.saturating_add(other.minimum);
         self.maximum = self
@@ -43,17 +46,20 @@ impl Work {
         }
     }
 
+    /// A guard or an earlier return can skip this entire contribution.
     fn optional(mut self) -> Self {
         self.minimum = 0;
         self
     }
 
+    /// Remove the terminal entry already counted by its enclosing execute/return.
     fn without_entry(mut self) -> Self {
         self.minimum = self.minimum.saturating_sub(1);
         self.maximum = self.maximum.map(|maximum| maximum.saturating_sub(1));
         self
     }
 
+    /// Repeat nested work for an unknown number of selected execution contexts.
     fn unbounded(mut self, reason: String) -> Self {
         self.minimum = 0;
         if self.maximum != Some(0) {
@@ -87,6 +93,7 @@ pub(crate) struct Estimator<'a> {
 }
 
 impl<'a> Estimator<'a> {
+    /// Start an isolated analysis with a bounded traversal budget.
     pub(crate) fn new(functions: &'a BTreeMap<String, String>) -> Self {
         Self {
             functions,
@@ -97,10 +104,12 @@ impl<'a> Estimator<'a> {
         }
     }
 
+    /// Estimate one body invocation, excluding the caller's function command.
     pub(crate) fn function(&mut self, id: &str) -> Work {
         self.summary(id).work
     }
 
+    /// Follow explicit calls while retaining early-return flow and cycle uncertainty.
     fn summary(&mut self, id: &str) -> Summary {
         if id.starts_with('#') {
             return Self::unsupported(format!("function-tag return flow is not analyzed: {id}"));
@@ -166,6 +175,7 @@ impl<'a> Estimator<'a> {
         summary
     }
 
+    /// Unsupported control flow may return early as well as perform unknown work.
     fn unsupported(reason: String) -> Summary {
         Summary {
             work: Work::unknown(reason),
@@ -173,6 +183,7 @@ impl<'a> Estimator<'a> {
         }
     }
 
+    /// Bound nested execute/return analysis independently of function graph depth.
     fn line(&mut self, line: &str) -> Summary {
         if self.remaining_commands == 0 {
             return Self::unsupported("analysis work limit reached".into());
@@ -187,6 +198,7 @@ impl<'a> Estimator<'a> {
         summary
     }
 
+    /// Count the command entry plus explicit nested function and predicate work.
     fn line_inner(&mut self, line: &str) -> Summary {
         use sand_commands::render::{
             collected_execute, collected_return_command, collected_tokens,

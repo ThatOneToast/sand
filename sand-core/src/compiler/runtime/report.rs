@@ -60,6 +60,7 @@ struct SelectorSite {
     selector: String,
 }
 
+/// Record canonical execute selector operands while leaving quoted chat untouched.
 fn selector_sites(body: &str) -> Vec<SelectorSite> {
     let mut sites = Vec::new();
     for (index, line) in body.lines().enumerate() {
@@ -95,6 +96,7 @@ fn selector_sites(body: &str) -> Vec<SelectorSite> {
 }
 
 impl RuntimeReport {
+    /// Inspect final records without publishing metadata as a synthetic resource.
     pub(crate) fn collect(records: &[ComponentRecord], plan: &RuntimePlan) -> Self {
         let functions: BTreeMap<_, _> = records
             .iter()
@@ -249,6 +251,32 @@ mod tests {
                 (3, "at", "@s"),
                 (3, "if", "@a"),
                 (4, "as", "@a")
+            ]
+        );
+    }
+    /// Entity data/items, both score operands, and stores retain actual selectors.
+    #[test]
+    fn nested_entity_conditions_and_stores_keep_selector_operands() {
+        let sites = selector_sites(concat!(
+            "execute if data entity @s Health run say data\n",
+            "execute unless items entity @p weapon.mainhand minecraft:stick run say items\n",
+            "execute if score @s flag = @p flag run say score\n",
+            "execute store result entity @s Health float 1 run say store\n",
+            "execute store success score @a flag run say store\n",
+            "execute if data storage demo:state value run say @e",
+        ));
+        assert_eq!(
+            sites
+                .iter()
+                .map(|site| (site.line, site.operation.as_str(), site.selector.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                (1, "if", "@s"),
+                (2, "unless", "@p"),
+                (3, "if", "@s"),
+                (3, "if", "@p"),
+                (4, "store", "@s"),
+                (5, "store", "@a")
             ]
         );
     }

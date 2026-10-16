@@ -47,7 +47,7 @@ pub mod state {
     registry = sand_api_contract,
     path = "sand::advanced::try_export_pack_json",
     module = "sand::advanced",
-    summary = "Exports version-validated pack resources with runtime estimates and provenance.",
+    summary = "Exports version-validated JSON with pack resources, runtime estimates, and provenance.",
     context = "Custom build integrations need one fallible boundary from a project namespace and configured Minecraft target to the JSON stream consumed by Sand tooling.",
     minecraft = "Resolves the target release's pack and feature capabilities before serializing datapack resources.",
     use_when = ["Writing a custom sand_export hook", "Integrating Sand's component stream into another build tool"],

@@ -956,24 +956,27 @@ fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
 }
 
 pub fn export(namespace: &str, version: &str) {
-    let json = sand_core::advanced::try_export_pack_json(namespace, version).unwrap_or_else(
-        |error| {
+    let json =
+        sand_core::advanced::try_export_pack_json(namespace, version).unwrap_or_else(|error| {
             eprintln!("audit export failed: {error}");
             std::process::exit(1);
-        },
-    );
-
-    let mut records: Vec<sand_core::serde_json::Value> = sand_core::serde_json::from_str(&json)
-        .unwrap_or_else(|error| {
-            eprintln!("audit export failed: could not parse component JSON: {error}");
-            std::process::exit(1);
         });
-    merge_world_resources(&mut records, audit_world_build());
 
-    println!(
-        "{}",
-        sand_core::serde_json::to_string(&records).expect("records are always serializable")
-    );
+    let json = merge_world_export(&json).unwrap_or_else(|error| {
+        eprintln!("audit export failed: could not merge pack JSON: {error}");
+        std::process::exit(1);
+    });
+    println!("{json}");
+}
+
+/// Add the audit's world resources without discarding compiler report metadata.
+fn merge_world_export(json: &str) -> Result<String, sand_core::serde_json::Error> {
+    let mut export: sand_core::serde_json::Value = sand_core::serde_json::from_str(json)?;
+    let records = export["components"]
+        .as_array_mut()
+        .expect("the compiler pack export contains a component array");
+    merge_world_resources(records, audit_world_build());
+    sand_core::serde_json::to_string(&export)
 }
 
 fn merge_world_resources(
@@ -1027,6 +1030,22 @@ fn merge_world_resources(
 #[cfg(test)]
 mod world_build_audit_tests {
     use super::*;
+
+    /// The custom audit exporter must preserve the versioned build protocol.
+    #[test]
+    fn world_merge_preserves_the_export_envelope_and_runtime_report() {
+        let input = sand_core::serde_json::json!({
+            "schema_version": 1,
+            "components": [],
+            "runtime_report": {"schema_version": 1, "tick": []}
+        });
+        let merged = merge_world_export(&input.to_string()).unwrap();
+        let output: sand_core::serde_json::Value =
+            sand_core::serde_json::from_str(&merged).unwrap();
+        assert_eq!(output["schema_version"], input["schema_version"]);
+        assert_eq!(output["runtime_report"], input["runtime_report"]);
+        assert!(!output["components"].as_array().unwrap().is_empty());
+    }
 
     #[test]
     fn audit_includes_dimension_init_function_and_merged_load_tag() {

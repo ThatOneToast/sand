@@ -50,7 +50,9 @@ pub(crate) fn drain_generated_resources_into(
                         }],
                         ctx,
                     )?;
-                    for mut record in expanded {
+                    // This expansion owner is a resource-identity diagnostic,
+                    // not a semantic Rust owner for runtime attribution.
+                    for (_, mut record) in expanded {
                         // Numeric helpers can lower before their namespace is
                         // resolved; slot helpers lower with the final owner.
                         // Compare their shared resources by exported identity.

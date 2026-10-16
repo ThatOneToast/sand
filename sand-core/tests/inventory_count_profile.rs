@@ -12,7 +12,7 @@ fn queries() -> Actions {
 }
 
 sand_core::inventory::submit! {
-    sand_core::FunctionDescriptor {
+    sand_core::FunctionDescriptor { owner: module_path!(),
         context: sand::advanced::compiler::ExecutionContext::Server,
         path: "queries", make: queries,
     }

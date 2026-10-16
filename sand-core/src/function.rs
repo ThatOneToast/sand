@@ -14,6 +14,8 @@ pub(crate) const SAND_LOCAL_NS: &str = "__sand_local";
 ///   The exporter validates and lowers this body when collecting the function,
 ///   retaining structured operations through gameplay composition.
 pub struct FunctionDescriptor {
+    /// Logical Rust definition or explicitly named authoring site.
+    pub owner: &'static str,
     pub path: &'static str,
     pub context: crate::advanced::compiler::ExecutionContext,
     pub make: fn() -> crate::ir::Actions,

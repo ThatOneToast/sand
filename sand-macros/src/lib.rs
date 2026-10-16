@@ -1856,6 +1856,7 @@ fn expand_function(
 
         ::sand::__private::inventory::submit!(
             ::sand::__private::FunctionDescriptor {
+                owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                 path: #fn_name_str,
                 context: #context,
                 make: #factory_ident,
@@ -2102,6 +2103,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
         ::sand::__private::inventory::submit!(
             ::sand::__private::FunctionDescriptor {
+                owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                 path: #fn_name_str,
                 context: ::sand::advanced::compiler::ExecutionContext::Server,
                 make: #fn_make_ident,
@@ -3589,6 +3591,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
                     ::sand::__private::inventory::submit!(
                         ::sand::__private::FunctionDescriptor {
+                            owner: concat!(module_path!(), "::run_fn!(", #ns_lit, ":", #path_lit, ")"),
                             path: #path_lit,
                             context: ::sand::advanced::compiler::ExecutionContext::Server,
                             make: #fn_ident,

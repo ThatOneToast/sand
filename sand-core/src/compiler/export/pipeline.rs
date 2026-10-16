@@ -251,6 +251,7 @@ pub(crate) fn try_export_components_impl(
 
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
+        runtime.own_function(format!("{namespace}:{}", desc.path), desc.owner.into());
         function_contexts.insert(format!("{namespace}:{}", desc.path), desc.context);
         let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
             namespace, desc.path,
@@ -2515,7 +2516,6 @@ pub(crate) fn try_export_components_impl(
             let tag = resolve_local_refs(desc.tag, namespace);
             let function = format!("{}:{}", namespace, desc.function_path);
             runtime.contribute_tag(tag.clone(), function.clone(), desc.owner.into());
-            runtime.own_function(function.clone(), desc.owner.into());
             (tag, function)
         })
         .collect();

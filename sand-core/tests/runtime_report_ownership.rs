@@ -27,6 +27,11 @@ fn bundle() -> Bundle {
     Bundle("__sand_local:bundle".parse().unwrap())
 }
 
+#[function]
+fn ordinary_entry() {
+    cmd::say("ordinary");
+}
+
 #[datapack_component(Tick)]
 fn tick_entry() {
     cmd::say("tick");
@@ -53,6 +58,10 @@ fn expanded_resources_and_attribute_tags_keep_semantic_owners() {
         assert_eq!(
             report["functions"][format!("{namespace}:nested_body")]["owners"],
             serde_json::json!([owner("bundle")])
+        );
+        assert_eq!(
+            report["functions"][format!("{namespace}:ordinary_entry")]["owners"],
+            serde_json::json!([owner("ordinary_entry")])
         );
         for (tag, name) in [
             ("minecraft:tick", "tick_entry"),

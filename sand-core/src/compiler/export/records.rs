@@ -31,6 +31,18 @@ pub struct ComponentRecord {
 }
 
 impl ComponentRecord {
+    /// Normalize supported record layouts to the function-tag resource path.
+    pub(crate) fn function_tag_path(&self) -> Option<&str> {
+        if self.ext != "json" {
+            return None;
+        }
+        match self.dir.as_str() {
+            "tags/function" => Some(&self.path),
+            "tags" => self.path.strip_prefix("function/"),
+            _ => None,
+        }
+    }
+
     pub(crate) fn function(namespace: &str, path: &str, commands: Vec<String>) -> Self {
         Self {
             namespace: namespace.to_string(),

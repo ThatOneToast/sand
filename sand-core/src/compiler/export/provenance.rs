@@ -129,7 +129,10 @@ pub(crate) fn function_tag(
     origins: BTreeSet<crate::function::GeneratedOrigin>,
     runtime: &mut RuntimePlan,
 ) {
-    if record.dir != "tags/function" || record.ext != "json" || record.content_type != "text" {
+    let Some(path) = record.function_tag_path() else {
+        return;
+    };
+    if record.content_type != "text" {
         return;
     }
     let Ok(tag) = serde_json::from_str::<serde_json::Value>(&record.content) else {
@@ -138,10 +141,8 @@ pub(crate) fn function_tag(
     let Some(values) = tag["values"].as_array() else {
         return;
     };
-    let tag_id = super::functions::resolve_local_refs(
-        &format!("{}:{}", record.namespace, record.path),
-        namespace,
-    );
+    let tag_id =
+        super::functions::resolve_local_refs(&format!("{}:{path}", record.namespace), namespace);
     for value in values {
         if let Some(member) = value
             .as_str()

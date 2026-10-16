@@ -239,11 +239,10 @@ impl RuntimeReport {
                 record.namespace, record.path, record.content_type
             ));
         }
-        for record in records.iter().filter(|record| {
-            record.namespace == "minecraft"
-                && record.dir == "tags/function"
-                && matches!(record.path.as_str(), "tick" | "load")
-                && record.ext == "json"
+        for (record, phase) in records.iter().filter_map(|record| {
+            let phase = record.function_tag_path()?;
+            (record.namespace == "minecraft" && matches!(phase, "tick" | "load"))
+                .then_some((record, phase))
         }) {
             let values = if record.content_type == "text" {
                 serde_json::from_str::<serde_json::Value>(&record.content)
@@ -255,7 +254,7 @@ impl RuntimeReport {
             let Some(values) = values else {
                 limitations.insert(format!(
                     "minecraft:{} contents are unavailable or unsupported",
-                    record.path
+                    phase
                 ));
                 continue;
             };
@@ -264,17 +263,15 @@ impl RuntimeReport {
                     .as_str()
                     .or_else(|| value.get("id").and_then(|id| id.as_str()))
                 else {
-                    limitations.insert(format!(
-                        "minecraft:{} contains an unsupported entry",
-                        record.path
-                    ));
+                    limitations
+                        .insert(format!("minecraft:{} contains an unsupported entry", phase));
                     continue;
                 };
                 let required = value
                     .get("required")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(true);
-                let entries = if record.path == "tick" {
+                let entries = if phase == "tick" {
                     &mut tick
                 } else {
                     &mut load
@@ -284,7 +281,7 @@ impl RuntimeReport {
                     required,
                     contributors: plan
                         .tag_contributors
-                        .get(&(format!("minecraft:{}", record.path), reference.into()))
+                        .get(&(format!("minecraft:{}", phase), reference.into()))
                         .cloned()
                         .unwrap_or_default(),
                     evaluations: estimator.function(reference),
@@ -305,6 +302,59 @@ impl RuntimeReport {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Generic-directory tags agree with typed tags and published-file analysis.
+    #[test]
+    fn generic_function_tags_keep_lifecycle_entries_and_contributors() {
+        use crate::compiler::export::provenance;
+        use crate::function::GeneratedOrigin;
+
+        for phase in ["load", "tick"] {
+            let function = ComponentRecord::function("demo", "shared", vec!["say shared".into()]);
+            let mut tag = ComponentRecord {
+                namespace: "minecraft".into(),
+                dir: "tags".into(),
+                path: format!("function/{phase}"),
+                ext: "json".into(),
+                content_type: "text".into(),
+                content: r#"{"values":["demo:shared",{"id":"demo:shared","required":false}]}"#
+                    .into(),
+            };
+            let mut plan = RuntimePlan::default();
+            provenance::function_tag(
+                &tag,
+                "demo",
+                [GeneratedOrigin::Logical("demo:factory".into())].into(),
+                &mut plan,
+            );
+            plan.resolve_generated_owners();
+            let report = RuntimeReport::collect(&[function.clone(), tag.clone()], &plan);
+            let json = serde_json::to_value(&report).unwrap();
+            assert_eq!(json[phase][0]["reference"], "demo:shared");
+            assert_eq!(
+                json[phase][0]["contributors"],
+                serde_json::json!(["demo:factory"])
+            );
+            assert_eq!(json[phase][1]["required"], false);
+            let published = report.reanalyze(&BTreeMap::from([
+                (
+                    "data/demo/function/shared.mcfunction".into(),
+                    function.content.as_bytes().to_vec(),
+                ),
+                (
+                    format!("data/minecraft/tags/function/{phase}.json"),
+                    tag.content.as_bytes().to_vec(),
+                ),
+            ]));
+            assert_eq!(json, serde_json::to_value(published).unwrap());
+            tag.dir = "tags/function".into();
+            tag.path = phase.into();
+            assert_eq!(
+                json,
+                serde_json::to_value(RuntimeReport::collect(&[function, tag], &plan)).unwrap()
+            );
+        }
+    }
 
     /// Reporting preserves invocation order and separates tag contributors from
     /// the owners of shared implementation resources.

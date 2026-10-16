@@ -678,3 +678,42 @@ The export-time cost report, representative mixed-workload steady-state MSPT
 and variance, and optimization phases of #424 remain outstanding. Preserve this
 baseline when evaluating the later idle-work changes rather than substituting
 source-line counts or assuming conditional commands are free.
+
+### Runtime report calibration (Minecraft 26.2)
+
+The runtime report's explicit evaluation ranges were compared with 20 completed
+vanilla debug traces from a **Sand-compiled** portable fixture: ten control-flow
+shapes at verified populations of zero and three entities. All observed counts
+matched the independent expected-count table and fell inside their reported
+ranges. The disposable server also passed reload and clean shutdown.
+
+| Fixture | Observed with 0 entities | Observed with 3 entities | Report range |
+|---|---:|---:|---|
+| Ordinary command, true/false guard, or forked ordinary command | 1 | 1 | 1 |
+| Two calls to a one-command function | 4 | 4 | 4 |
+| Early return before another command | 1 | 1 | 1 |
+| Return-run calling a one-command function | 2 | 2 | 2 |
+| Two-command function predicate followed by an ordinary command | 3 | 3 | 3 |
+| Selector calling a one-command function | 1 | 4 | 1 to unknown |
+| Two nested selector forks calling that function | 1 | 10 | 1 to unknown |
+
+Counts exclude the probe wrapper's two entries. They count `[C]` evaluations,
+including nested function frames, rather than the console's root-command total.
+This is calibration of a static model, **not** a performance improvement, MSPT
+measurement, command-budget bound, or proof of complete implicit callback
+analysis. Selector locations in the report are source sites, not measured scan
+counts. Per-function estimates must not be summed into a whole-tick total.
+
+Reproduce using a fresh output directory:
+
+```sh
+cargo build -p sand-cli
+python3 scripts/validate_runtime_report.py \
+  --binary target/debug/sand \
+  --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --output /tmp/sand-runtime-report-evidence
+```
+
+Use Java 25 on `PATH` or pass `--java`. The output retains the portable fixture,
+compiled pack, static report, individual traces, server logs, and `evidence.json`.
+The vanilla CI workflow runs the same comparison for Minecraft 26.2.

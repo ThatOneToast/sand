@@ -1,4 +1,5 @@
 use sand_commands::{CommandProfile, EntityHoverId, Text, TextComponent};
+use sand_components::{DatapackComponent, Instrument, ResourceLocation};
 use serde_json::{Value, json};
 
 /// Validate typed text before comparing its serialized codec fields.
@@ -132,6 +133,35 @@ fn typed_interaction_numeric_bounds_match_vanilla() {
         assert!(
             Text::new("Item")
                 .hover_item_with_count("minecraft:stone", count)
+                .try_to_json_value()
+                .is_err()
+        );
+    }
+}
+
+/// Empty and whitespace-only chat strings survive both typed and raw codec paths.
+#[test]
+fn command_clicks_allow_empty_chat_strings_without_allowing_controls() {
+    for command in ["", " ", "/say hello"] {
+        for text in [
+            Text::new("Run").click_run_command(command),
+            Text::new("Suggest").click_suggest_command(command),
+        ] {
+            let json = text.try_to_json_value().unwrap();
+            assert_eq!(json["click_event"]["command"], command);
+            sand_commands::text::validate_json_text(&json, &CommandProfile::unprofiled(), "text")
+                .unwrap();
+            Instrument::new(ResourceLocation::new("test", "empty_command").unwrap())
+                .sound_event("minecraft:item.goat_horn.sound.0")
+                .description(text)
+                .try_content()
+                .unwrap();
+        }
+    }
+    for command in ["\n", "\t", "§", "\u{7f}"] {
+        assert!(
+            Text::new("Suggest")
+                .click_suggest_command(command)
                 .try_to_json_value()
                 .is_err()
         );

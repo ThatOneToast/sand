@@ -63,7 +63,15 @@ Numeric and boolean translation arguments in raw `with` arrays retain their JSON
 types. Text identifiers (including typed hover/font and raw NBT storage IDs) may omit the
 `minecraft:` namespace. URL validation checks URI syntax, including percent
 escapes, and permits HTTP(S). Explicit extension identifiers and item-hover
-component-patch keys (including `!` removals) still require valid identifier syntax. `open_file` is rejected by the server text codec.
+component-patch keys (including `!` removals) still require valid identifier syntax.
+`run_command` and `suggest_command` accept empty strings, while chat control and
+section-sign characters remain invalid. `open_file` is rejected by the server text codec.
+
+Raw NBT paths use the shared path parser, including quoted keys, signed list
+indices, all-elements selectors and SNBT match compounds. Player-profile property
+records are limited to 16 entries; name, value and signature strings have limits
+of 64, 32767 and 1024 UTF-16 units. The legacy property-map form limits distinct
+keys to 16 and retains its own string-list semantics.
 
 Opaque compatibility is explicit: `Text::raw_json`,
 `TextComponent::selector_raw`, `hover_item_raw`, and `hover_entity_raw` render

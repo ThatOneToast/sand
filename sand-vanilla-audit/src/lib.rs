@@ -676,6 +676,8 @@ pub fn audit_typed_text_interactions() -> sand::registration::DatapackRegistrati
     let mut registration = sand::registration::DatapackRegistration::new();
     let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
     for (name, description) in [
+        ("empty_suggest", Text::new("Clear suggestion").click_suggest_command("")),
+        ("empty_run", Text::new("Empty command").click_run_command("")),
         ("shorthand", Text::new("Default identifiers").font("default").hover_item("stone")),
         (
             "run_command",
@@ -787,6 +789,9 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
             json!({"text": "Shadow", "shadow_color": [2, -1, 0, 1]}),
         ),
         ("nbt_named", json!({"nbt": "CustomName", "entity": "Steve"})),
+        ("nbt_match", json!({"nbt":"foo[{a:1}].bar", "entity":"@s"})),
+        ("nbt_quoted", json!({"nbt":"'foo..bar'", "entity":"@s"})),
+        ("nbt_empty", json!({"nbt":"", "entity":"@s"})),
         ("nbt_all_elements", json!({"nbt":"foo[]", "entity":"@s"})),
         ("hover_component_patch", json!({"text":"Patch", "hover_event":{"action":"show_item", "id":"stone", "components":{"custom_name":{"text":"Patched"}, "!minecraft:lore":{}}}})),
         (

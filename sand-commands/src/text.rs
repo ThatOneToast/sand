@@ -1819,13 +1819,12 @@ fn is_hex_color(value: &str) -> bool {
 fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
     match click {
         ClickEvent::RunCommand(value) | ClickEvent::SuggestCommand(value)
-            if value.trim().is_empty()
-                || value.chars().any(|c| c < ' ' || c == '\u{7f}' || c == '§') =>
+            if value.chars().any(|c| c < ' ' || c == '\u{7f}' || c == '§') =>
         {
             Err(text_error(
                 "SAND-TEXT-CLICK-COMMAND",
                 format!("{path}.click_event.command"),
-                "command click values must be non-empty chat strings without control or section-sign characters",
+                "command click values must be chat strings without control or section-sign characters",
             ))
         }
         ClickEvent::OpenUrl(value) => {
@@ -2405,29 +2404,39 @@ fn validate_json_player_profile(value: &serde_json::Value, path: &str) -> Comman
         }
     }
     if let Some(properties) = profile.get("properties") {
+        let bounded_string = |value: &serde_json::Value, limit| {
+            value
+                .as_str()
+                .is_some_and(|text| text.encode_utf16().count() <= limit)
+        };
+        // Vanilla's legacy map alternative limits keys, not flattened values or
+        // their lengths. The record alternative uses the PROPERTY codec limits.
         let valid = properties.as_object().is_some_and(|map| {
-            map.values().all(|values| {
-                values
-                    .as_array()
-                    .is_some_and(|values| values.iter().all(serde_json::Value::is_string))
-            })
-        }) || properties.as_array().is_some_and(|values| {
-            values.iter().all(|value| {
-                value.as_object().is_some_and(|property| {
-                    ["name", "value"]
-                        .iter()
-                        .all(|key| property.get(*key).is_some_and(serde_json::Value::is_string))
-                        && property
-                            .get("signature")
-                            .is_none_or(serde_json::Value::is_string)
+            map.len() <= 16
+                && map.values().all(|values| {
+                    values
+                        .as_array()
+                        .is_some_and(|values| values.iter().all(serde_json::Value::is_string))
                 })
-            })
+        }) || properties.as_array().is_some_and(|values| {
+            values.len() <= 16
+                && values.iter().all(|value| {
+                    value.as_object().is_some_and(|property| {
+                        property.get("name").is_some_and(|v| bounded_string(v, 64))
+                            && property
+                                .get("value")
+                                .is_some_and(|v| bounded_string(v, 32767))
+                            && property
+                                .get("signature")
+                                .is_none_or(|v| bounded_string(v, 1024))
+                    })
+                })
         });
         if !valid {
             return Err(text_error(
                 "SAND-TEXT-SHAPE",
                 format!("{path}.properties"),
-                "expected string-list properties or name/value/signature property records",
+                "expected at most 16 string-list property keys or 16 property records (name/value/signature limits: 64/32767/1024 UTF-16 units)",
             ));
         }
     }

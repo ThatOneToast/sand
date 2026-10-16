@@ -742,3 +742,92 @@ fn raw_hover_item_component_patch_keys_are_valid_identifiers() {
         assert_eq!(resource.to_json()["description"], value);
     }
 }
+
+/// Parse path nodes instead of accepting any balanced bracket contents.
+#[test]
+fn resource_nbt_paths_use_the_current_path_grammar() {
+    for path in [
+        "foo[abc]",
+        "foo[+1]",
+        "foo[1.0]",
+        "foo[2147483648]",
+        "foo..bar",
+        "foo{a:}.bar",
+        "foo[0]{a:1}",
+        r#""a\n""#,
+        r#""""#,
+    ] {
+        for component in described(json!({"nbt":path,"entity":"@s"})) {
+            let error = component.try_content().unwrap_err();
+            assert!(
+                error.to_string().contains("description.nbt"),
+                "{path}: {error}"
+            );
+        }
+    }
+    for path in [
+        "foo[]",
+        "foo[-1]",
+        "foo.",
+        "foo.[0]",
+        r#""foo..bar""#,
+        "'foo.bar'",
+        "foo{a:1}.bar",
+        "{a:1}.bar",
+        "foo[{a:1}]",
+        "foo[{}]",
+        "foo{a:bool(1)}",
+        "",
+    ] {
+        for component in described(json!({"nbt":path,"entity":"@s"})) {
+            component
+                .try_content()
+                .unwrap_or_else(|e| panic!("{path}: {e}"));
+        }
+    }
+}
+
+/// Record-form profiles enforce Java string bounds and the 16-property maximum.
+#[test]
+fn player_profile_record_limits_match_the_codec() {
+    let property = json!({"name":"textures", "value":"x"});
+    let mut invalid = vec![json!(vec![property.clone(); 17])];
+    for (field, size) in [("name", 65), ("value", 32768), ("signature", 1025)] {
+        let mut record = property.clone();
+        record[field] = json!("x".repeat(size));
+        invalid.push(json!([record]));
+    }
+    invalid.push(json!([{"name":"😀".repeat(33),"value":"x"}]));
+    for properties in invalid {
+        for component in described(json!({"object":"player","player":{"properties":properties}})) {
+            let error = component.try_content().unwrap_err();
+            assert!(
+                error.to_string().contains("description.player.properties"),
+                "{error}"
+            );
+        }
+    }
+    for properties in [
+        json!(vec![property; 16]),
+        json!([{"name":"😀".repeat(32),"value":"x".repeat(32767),"signature":"x".repeat(1024)}]),
+    ] {
+        for component in described(json!({"object":"player","player":{"properties":properties}})) {
+            component.try_content().unwrap();
+        }
+    }
+}
+
+/// Legacy property maps limit distinct keys but retain unbounded string lists.
+#[test]
+fn player_profile_map_limits_do_not_inherit_record_limits() {
+    let properties: serde_json::Map<String, Value> =
+        (0..17).map(|i| (i.to_string(), json!(["x"]))).collect();
+    for component in described(json!({"object":"player","player":{"properties":properties}})) {
+        assert!(component.try_content().is_err());
+    }
+    let mut properties = serde_json::Map::new();
+    properties.insert("x".repeat(65), json!(vec!["x".repeat(32768); 17]));
+    for component in described(json!({"object":"player","player":{"properties":properties}})) {
+        component.try_content().unwrap();
+    }
+}

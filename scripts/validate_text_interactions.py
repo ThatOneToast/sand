@@ -17,6 +17,8 @@ from validate_world_gameplay import WorldGameplayHarness
 
 # Independent vanilla NBT oracles; do not derive expected keys from the export.
 EXPECTED = {
+    "empty_suggest": 'click_event{action:"suggest_command",command:""}',
+    "empty_run": 'click_event{action:"run_command",command:""}',
     "shorthand": 'hover_event{action:"show_item",id:"minecraft:stone"}',
     "run_command": 'click_event{action:"run_command",command:"/say hello"}',
     "suggest_command": 'click_event{action:"suggest_command",command:"/tell @s "}',

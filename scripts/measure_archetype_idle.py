@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Measure executed idle reconcile commands in the CLI-built RPG example.
+"""Measure idle or authored-write reconciliation in the CLI-built RPG example.
 
 Uses vanilla debug-function traces, including nested calls and failed guards.
 This measures command evaluations, not MSPT, complete tick cost, or due native
 observations. Frozen game time keeps the native observation cadence idle.
+The level-up workload mutates each verified entity before tracing reconciliation.
 """
 from __future__ import annotations
 
@@ -101,6 +102,7 @@ class IdleCostHarness(PlayerHarness):
         super().__init__(args)
         self.target = target
         self.marker = marker
+        self.workload = args.workload
         with Path(args.jar).open("rb") as server_jar:
             jar_digest = hashlib.file_digest(server_jar, "sha256").hexdigest()
         self.evidence = {
@@ -111,6 +113,8 @@ class IdleCostHarness(PlayerHarness):
             "server_jar_sha256": jar_digest,
             "input_pack_sha256": digest,
             "reconcile_function": target,
+            "workload": self.workload,
+            "mutation_function": "rpg:level_up" if self.workload == "level-up" else None,
             "warmup_calls": 25,
             "connected_players": 2,
             "game_ticks_frozen": True,
@@ -120,6 +124,8 @@ class IdleCostHarness(PlayerHarness):
 
     def measure(self, count: int, sample: int) -> None:
         """Retain one complete nested trace, rejecting missing probe completion."""
+        if self.workload == "level-up":
+            self.send("execute as @e[tag=sand_cost_probe] at @s run function rpg:level_up")
         start = len(self.lines)
         self.send("debug function sand_cost_probe:reconcile")
         self.send(f"say SAND_COST_TRACE_DONE_{count}_{sample}")
@@ -131,6 +137,10 @@ class IdleCostHarness(PlayerHarness):
         counts = trace_counts(content)
         if counts.get("sand_cost_probe:reconcile") != 2:
             raise ValueError("trace must contain probe dispatch and completion evaluations")
+        if self.workload == "level-up" and count:
+            derivation = f"{self.target.rsplit('/', 1)[0]}/derive/0"
+            if not counts.get(derivation):
+                raise ValueError("level-up workload did not execute its dependent derivation")
         path = Path("traces") / f"entities-{count}-sample-{sample}.txt"
         (self.output / path).parent.mkdir(parents=True, exist_ok=True)
         (self.output / path).write_text(content)
@@ -186,6 +196,8 @@ def main() -> int:
     parser.add_argument("--jar", required=True)
     parser.add_argument("--java", default="java")
     parser.add_argument("--timeout", type=float, default=90)
+    parser.add_argument("--workload", choices=("idle", "level-up"), default="idle",
+                        help="Trigger the RPG level-up action before each dirty-work sample.")
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
@@ -193,6 +205,8 @@ def main() -> int:
         pack = Path(directory) / "rpg"
         shutil.copytree(args.pack, pack)
         target, marker = reconcile_target(pack)
+        if args.workload == "level-up" and not (pack / "data/rpg/function/level_up.mcfunction").is_file():
+            raise ValueError("level-up workload requires the exported rpg:level_up function")
         digest = pack_digest(pack)
         control = pack / "data/sand_cost_probe/function/reconcile.mcfunction"
         if control.exists():

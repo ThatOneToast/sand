@@ -37,6 +37,65 @@ class TraceCounts(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "runtime"):
             verified_runtime_version([line, line.replace("26.2", "26.1")])
 
+    def test_dirty_workload_mutates_before_tracing_and_requires_derived_work(self):
+        """Exclude authored mutation cost and reject traces that never reconciled it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            debug = root / "server/debug"
+            debug.mkdir(parents=True)
+            trace = """    [F] sand_cost_probe:reconcile size=2
+        [C] execute as @e run function rpg:entity/reconcile
+        [F] rpg:entity/derive/0 size=1
+            [C] say derived
+        [C] say SAND_COST_MEASUREMENT_COMPLETE
+"""
+            (debug / "debug-trace-fixture.txt").write_text(trace)
+            harness = object.__new__(IdleCostHarness)
+            harness.server = root / "server"
+            harness.output = root / "output"
+            harness.lines = []
+            harness.target = "rpg:entity/reconcile"
+            harness.workload = "level-up"
+            harness.evidence = {"samples": []}
+            sent = []
+
+            def send(command):
+                """Simulate a completed trace announcement without starting a server."""
+                sent.append(command)
+                if command.startswith("debug function"):
+                    harness.lines.append("Traced 2 command(s) to output file debug-trace-fixture.txt")
+
+            harness.send = send
+            harness.wait_for = lambda *args: None
+            harness.measure(1, 0)
+            self.assertEqual(sent[:2], [
+                "execute as @e[tag=sand_cost_probe] at @s run function rpg:level_up",
+                "debug function sand_cost_probe:reconcile",
+            ])
+            self.assertEqual(harness.evidence["samples"][0]["reconcile_evaluations"], 1)
+            (debug / "debug-trace-fixture.txt").write_text(trace.replace("rpg:entity/derive/0", "rpg:entity/unrelated"))
+            with self.assertRaisesRegex(ValueError, "dependent derivation"):
+                harness.measure(1, 1)
+            self.assertEqual(len(harness.evidence["samples"]), 1)
+            harness.workload = "idle"
+            sent.clear()
+            harness.measure(1, 2)
+            self.assertEqual(sent[0], "debug function sand_cost_probe:reconcile")
+
+    def test_dirty_workload_rejects_a_pack_without_the_authored_entry(self):
+        """Fail before server startup when the requested mutation is unavailable."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scan = root / "data/rpg/function/__sand_entity/one/reconcile_scan.mcfunction"
+            scan.parent.mkdir(parents=True)
+            scan.write_text("execute as @e[type=minecraft:zombie,tag=owned] at @s run function rpg:__sand_entity/one/reconcile\n")
+            with patch("measure_archetype_idle.IdleCostHarness") as harness, patch.object(
+                sys, "argv", ["measure_archetype_idle", "--pack", str(root), "--jar", "unused.jar", "--workload", "level-up"]
+            ):
+                with self.assertRaisesRegex(ValueError, "rpg:level_up"):
+                    main()
+                harness.assert_not_called()
+
     def test_nested_and_sibling_frames_return_to_their_caller(self):
         """Attribute nested work correctly after returning to sibling and parent frames."""
         trace = '''demo:root

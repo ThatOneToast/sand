@@ -557,10 +557,13 @@ fn render_path_key(key: &str) -> String {
 
 /// Validate the shared Minecraft path grammar without emitting command text.
 pub(crate) fn validate_nbt_path(path: &str) -> CommandResult<()> {
-    if path.chars().any(char::is_control) || !path::valid(path) {
-        return Err(data_error("path", format!("malformed NBT path `{path}`")));
+    if path.chars().any(char::is_control) {
+        return Err(data_error(
+            "path",
+            "NBT paths cannot contain control characters",
+        ));
     }
-    Ok(())
+    path::validate(path).map_err(|reason| data_error("path", format!("{reason} in `{path}`")))
 }
 
 mod path;

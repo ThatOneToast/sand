@@ -1,41 +1,41 @@
 //! Minecraft NBT path nodes, shared by typed data paths and resource text.
 
 /// Parse every node and require complete consumption, including match compounds.
-pub(super) fn valid(mut rest: &str) -> bool {
+pub(super) fn validate(mut rest: &str) -> Result<(), &'static str> {
     let mut root = true;
     while !rest.is_empty() {
         match rest.as_bytes()[0] {
             b'{' if root => {
                 if !crate::selector::snbt::consume_compound(&mut rest) {
-                    return false;
+                    return Err("malformed NBT path node");
                 }
             }
             b'[' => {
                 rest = &rest[1..];
                 if rest.starts_with('{') {
                     if !crate::selector::snbt::consume_compound(&mut rest) {
-                        return false;
+                        return Err("malformed NBT path node");
                     }
                 } else if !rest.starts_with(']') {
                     let end = rest
                         .find(|c: char| !c.is_ascii_digit() && c != '-')
                         .unwrap_or(rest.len());
                     if rest[..end].parse::<i32>().is_err() {
-                        return false;
+                        return Err("malformed NBT path node");
                     }
                     rest = &rest[end..];
                 }
                 let Some(next) = rest.strip_prefix(']') else {
-                    return false;
+                    return Err("malformed NBT path node");
                 };
                 rest = next;
             }
             b'"' | b'\'' => {
                 if !quoted_key(&mut rest) {
-                    return false;
+                    return Err("malformed NBT path node");
                 }
                 if rest.starts_with('{') && !crate::selector::snbt::consume_compound(&mut rest) {
-                    return false;
+                    return Err("malformed NBT path node");
                 }
             }
             _ => {
@@ -43,23 +43,27 @@ pub(super) fn valid(mut rest: &str) -> bool {
                     .find([' ', '"', '\'', '[', ']', '.', '{', '}'])
                     .unwrap_or(rest.len());
                 if end == 0 {
-                    return false;
+                    return Err(if rest.starts_with('.') {
+                        "malformed empty path segment"
+                    } else {
+                        "malformed NBT path node"
+                    });
                 }
                 rest = &rest[end..];
                 if rest.starts_with('{') && !crate::selector::snbt::consume_compound(&mut rest) {
-                    return false;
+                    return Err("malformed NBT path node");
                 }
             }
         }
         root = false;
         if !rest.is_empty() && !rest.starts_with(['[', '{']) {
             let Some(next) = rest.strip_prefix('.') else {
-                return false;
+                return Err("malformed NBT path node");
             };
             rest = next;
         }
     }
-    true
+    Ok(())
 }
 
 /// Brigadier path keys only escape their delimiter or a backslash, unlike SNBT strings.

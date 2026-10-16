@@ -51,7 +51,10 @@ Use `Instrument::description(TextComponent)` and
 known text fields and nested interactions still receive shape validation, including
 atlas sprites, player-head objects, and their nested fallback text. Known click
 actions require their payloads; `custom` needs an identifier, and `show_dialog`
-needs a dialog reference or inline object. Raw hover identifiers may omit the
+needs a dialog reference or inline object. Known inline dialog variants check
+required actions, button fields, message/item bodies and input control shapes.
+Numeric and boolean translation arguments in raw `with` arrays retain their JSON
+types. Raw resource identifiers (including hover, font and NBT storage IDs) may omit the
 `minecraft:` namespace. URL validation checks URI syntax, including percent
 escapes, and permits HTTP(S). `open_file` is rejected by the server text codec.
 

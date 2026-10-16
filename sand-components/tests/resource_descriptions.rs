@@ -429,3 +429,126 @@ fn click_urls_reject_malformed_uri_syntax() {
         }
     }
 }
+
+/// Translation arguments preserve numeric and boolean values without permitting primitive roots.
+#[test]
+fn raw_translation_arguments_preserve_primitives() {
+    let value = json!({"translate":"key", "with":[7, 1.5, true, false, {"text":"suffix"}]});
+    for component in described(value.clone()) {
+        component.try_content().unwrap();
+        assert_eq!(component.to_json()["description"], value);
+    }
+    for value in [
+        json!(7),
+        json!(true),
+        json!({"translate":"key", "with":[null]}),
+    ] {
+        for component in described(value) {
+            assert!(component.try_content().is_err());
+        }
+    }
+}
+
+/// Every raw resource identifier accepts the vanilla default namespace.
+#[test]
+fn raw_storage_and_font_ids_accept_default_namespace() {
+    for value in [
+        json!({"nbt":"foo", "storage":"data"}),
+        json!({"text":"x", "font":"default"}),
+    ] {
+        for component in described(value.clone()) {
+            component.try_content().unwrap();
+            assert_eq!(component.to_json()["description"], value);
+        }
+    }
+}
+
+/// Explicit vanilla discriminators cannot silently fall back to inferred content.
+#[test]
+fn raw_unknown_vanilla_discriminators_are_rejected() {
+    for value in [
+        json!({"type":"literal", "text":"x"}),
+        json!({"type":"minecraft:literal", "text":"x"}),
+        json!({"type":"minecraft:text", "text":"x"}),
+        json!({"object":"unknown", "sprite":"block/stone"}),
+        json!({"nbt":"foo", "source":"unknown", "storage":"data"}),
+    ] {
+        for component in described(value) {
+            assert!(component.try_content().is_err());
+        }
+    }
+}
+
+/// Inline dialogs validate known variant requirements and button payloads.
+#[test]
+fn raw_inline_dialog_variants_require_valid_fields() {
+    for dialog in [
+        json!({"type":"multi_action", "title":"Menu"}),
+        json!({"type":"multi_action", "title":"Menu", "actions":[]}),
+        json!({"type":"multi_action", "title":"Menu", "actions":[{}]}),
+        json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "width":0}]}),
+        json!({"type":"confirmation", "title":"Confirm", "yes":{"label":"Yes"}}),
+        json!({"type":"dialog_list", "title":"Dialogs"}),
+        json!({"type":"server_links", "title":"Links", "columns":0}),
+        json!({"type":"notice", "title":"Info", "pause":"yes"}),
+        json!({"type":"notice", "title":"Info", "after_action":"none"}),
+        json!({"type":"notice", "title":"Info", "action":{"label":"Go", "action":{"type":"run_command"}}}),
+        json!({"type":"unknown", "title":"Info"}),
+    ] {
+        for component in
+            described(json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":dialog}}))
+        {
+            assert!(component.try_content().is_err(), "{dialog}");
+        }
+    }
+}
+
+/// All vanilla dialog variants preserve valid nested buttons, bodies and controls.
+#[test]
+fn raw_inline_dialog_variants_round_trip() {
+    for dialog in [
+        json!({"type":"confirmation", "title":"Confirm", "yes":{"label":"Yes"}, "no":{"label":"No"}}),
+        json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "tooltip":"Hint", "width":1024, "action":{"type":"run_command", "command":"/say hi"}}], "columns":1}),
+        json!({"type":"server_links", "title":"Links", "button_width":1, "exit_action":{"label":"Done"}}),
+        json!({"type":"dialog_list", "title":"Dialogs", "dialogs":[{"type":"notice", "title":"Nested"}]}),
+        json!({"type":"notice", "title":"Info", "pause":false, "after_action":"none", "external_title":"Open", "body":[
+            {"type":"plain_message", "contents":"Message", "width":1024},
+            {"type":"item", "item":{"id":"stone", "count":2}, "description":{"contents":"Stone", "width":100}, "show_tooltip":false, "width":256, "height":1}
+        ], "inputs":[
+            {"key":"flag", "type":"boolean", "label":"Flag", "initial":true},
+            {"key":"text", "type":"text", "label":"Text", "initial":"Hi", "multiline":{"height":512, "max_lines":2}},
+            {"key":"choice", "type":"single_option", "label":"Choice", "options":["first", {"id":"second", "display":"Second", "initial":true}]},
+            {"key":"range", "type":"number_range", "label":"Range", "start":10, "end":0, "initial":5, "step":0.5}
+        ]}),
+        json!({"type":"example:custom_dialog", "extension":"preserved"}),
+    ] {
+        let value = json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":dialog}});
+        for resource in described(value.clone()) {
+            resource.try_content().unwrap();
+            assert_eq!(resource.to_json()["description"], value);
+        }
+    }
+    for fields in [
+        json!({"body":{"type":"plain_message"}}),
+        json!({"body":{"type":"item", "item":{"id":"stone", "count":0}}}),
+        json!({"body":{"type":"item", "item":"stone", "height":257}}),
+        json!({"inputs":42}),
+        json!({"inputs":[{"key":"x", "type":"boolean", "label":"Flag", "initial":"yes"}]}),
+        json!({"inputs":[{"key":"x", "type":"text", "label":"Text", "max_length":0}]}),
+        json!({"inputs":[{"key":"x", "type":"single_option", "label":"Choice", "options":[]}]}),
+        json!({"inputs":[{"key":"x", "type":"single_option", "label":"Choice", "options":[{"id":"a", "initial":true}, {"id":"b", "initial":true}]}]}),
+        json!({"inputs":[{"key":"x", "type":"number_range", "label":"Range", "start":0, "end":10, "initial":11}]}),
+        json!({"inputs":[{"key":"x", "type":"number_range", "label":"Range", "start":0, "end":10, "step":0}]}),
+    ] {
+        let mut dialog = json!({"type":"notice", "title":"Info"});
+        dialog
+            .as_object_mut()
+            .unwrap()
+            .extend(fields.as_object().unwrap().clone());
+        for resource in
+            described(json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":dialog}}))
+        {
+            assert!(resource.try_content().is_err(), "{dialog}");
+        }
+    }
+}

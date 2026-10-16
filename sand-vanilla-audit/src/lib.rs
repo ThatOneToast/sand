@@ -807,6 +807,22 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         ("default_hover_item", json!({"text":"Item","hover_event":{"action":"show_item","id":"stone"}})),
         ("default_hover_entity", json!({"text":"Entity","hover_event":{"action":"show_entity","id":"zombie","uuid":[0,0,0,1]}})),
         ("escaped_url", json!({"text":"Link","click_event":{"action":"open_url","url":"HTTPS://example.com/café?q=%20#ok"}})),
+        ("dialog_confirmation", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"confirmation", "title":"Confirm", "yes":{"label":"Yes"}, "no":{"label":"No"}})}})),
+        ("dialog_multi_action", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "tooltip":"Hint", "width":1024, "action":{"type":"run_command", "command":"/say hi"}}], "columns":1})}})),
+        ("dialog_server_links", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"server_links", "title":"Links", "button_width":1, "exit_action":{"label":"Done"}})}})),
+        ("dialog_dialog_list", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"dialog_list", "title":"Dialogs", "dialogs":[{"type":"notice", "title":"Nested"}]})}})),
+        ("dialog_controls", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"notice", "title":"Info", "pause":false, "after_action":"none", "external_title":"Open", "body":[
+            {"type":"plain_message", "contents":"Message", "width":1024},
+            {"type":"item", "item":{"id":"stone", "count":2}, "description":{"contents":"Stone", "width":100}, "show_tooltip":false, "width":256, "height":1}
+        ], "inputs":[
+            {"key":"flag", "type":"boolean", "label":"Flag", "initial":true},
+            {"key":"text", "type":"text", "label":"Text", "initial":"Hi", "multiline":{"height":512, "max_lines":2}},
+            {"key":"choice", "type":"single_option", "label":"Choice", "options":["first", {"id":"second", "display":"Second", "initial":true}]},
+            {"key":"range", "type":"number_range", "label":"Range", "start":10, "end":0, "initial":5, "step":0.5}
+        ]})}})),
+        ("primitive_arguments", json!({"translate":"key", "with":[7, 1.5, true, false]})),
+        ("storage_shorthand", json!({"nbt":"foo", "storage":"data"})),
+        ("font_shorthand", json!({"text":"Font", "font":"default"})),
         (
             "object_profile",
             json!({"player": {"name": "Steve", "id": [306070887, -392490285, -1537850778, 337068032]}, "fallback": {"text": "Player"}}),

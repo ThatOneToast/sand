@@ -19,6 +19,9 @@
 //! let _cmd = format!("tellraw @a {msg}");
 //! ```
 
+mod dialog;
+use dialog::validate_json_dialog;
+
 use std::collections::BTreeMap;
 use std::{fmt, str::FromStr};
 
@@ -2042,28 +2045,7 @@ fn validate_json_interactions(
                             "expected a dialog identifier or inline dialog object",
                         )
                     })?;
-                    if let Some(inline) = dialog.as_object() {
-                        let kind = json_event_string(inline, "type", &dialog_path)?;
-                        validate_json_identifier(
-                            &serde_json::Value::String(kind.into()),
-                            &format!("{dialog_path}.type"),
-                        )?;
-                        let title = inline.get("title").ok_or_else(|| {
-                            text_error(
-                                "SAND-TEXT-SHAPE",
-                                format!("{dialog_path}.title"),
-                                "inline dialogs require a title",
-                            )
-                        })?;
-                        validate_json_text_inner(
-                            title,
-                            profile,
-                            &format!("{dialog_path}.title"),
-                            depth + 1,
-                        )?;
-                    } else {
-                        validate_json_identifier(dialog, &dialog_path)?;
-                    }
+                    validate_json_dialog(dialog, profile, &dialog_path, depth + 1)?;
                     None
                 }
                 "open_file" => {
@@ -2268,6 +2250,15 @@ fn validate_json_nbt_source(
                 "expected a string source discriminator",
             )
         })?;
+        if !["block", "entity", "storage"].contains(&kind)
+            && !(kind.contains(':') && !kind.starts_with("minecraft:"))
+        {
+            return Err(text_error(
+                "SAND-TEXT-NBT",
+                format!("{path}.source"),
+                "unknown vanilla NBT source discriminator",
+            ));
+        }
         if ["block", "entity", "storage"].contains(&kind) && kind != source {
             return Err(text_error(
                 "SAND-TEXT-NBT",
@@ -2283,12 +2274,7 @@ fn validate_json_nbt_source(
     match source {
         "block" => validate_json_block_source(value, profile, &field)?,
         "entity" => validate_json_entity_target(value, profile, &field)?,
-        "storage" => crate::validate::resource_location_shape(value, "TextComponent", "storage")
-            .map(|_| ())
-            .map_err(|mut error| {
-                error.field = field;
-                error
-            })?,
+        "storage" => validate_json_identifier(&object[source], &field)?,
         _ => unreachable!(),
     }
     // These optional booleans are lenient in vanilla; only the decoded true
@@ -2488,7 +2474,14 @@ fn validate_json_object_content(
                 ));
             }
         }
-        _ => {} // Explicit raw object variants can be extended by the target.
+        kind if kind.contains(':') && !kind.starts_with("minecraft:") => {}
+        _ => {
+            return Err(text_error(
+                "SAND-TEXT-CONTENT",
+                format!("{path}.object"),
+                "unknown vanilla object discriminator",
+            ));
+        }
     }
     if let Some(fallback) = object.get("fallback") {
         validate_json_text_inner(fallback, profile, &format!("{path}.fallback"), depth + 1)?;
@@ -2574,7 +2567,15 @@ fn validate_json_text_inner(
                     "selector" => Some("selector"),
                     "keybind" => Some("keybind"),
                     "nbt" => Some("nbt"),
-                    _ => None,
+                    "object" => None,
+                    kind if kind.contains(':') && !kind.starts_with("minecraft:") => None,
+                    _ => {
+                        return Err(text_error(
+                            "SAND-TEXT-CONTENT",
+                            format!("{path}.type"),
+                            "unknown vanilla component discriminator",
+                        ));
+                    }
                 };
                 if let Some(content) = content
                     && !object.contains_key(content)
@@ -2699,10 +2700,8 @@ fn validate_json_text_inner(
                     format!("expected a named Minecraft color or `#RRGGBB`, got `{color}`"),
                 ));
             }
-            if let Some(serde_json::Value::String(font)) = object.get("font") {
-                crate::validate::resource_location_shape(font, "TextComponent", "font").map_err(
-                    |error| text_error("SAND-TEXT-FONT", format!("{path}.font"), error.message),
-                )?;
+            if let Some(font) = object.get("font") {
+                validate_json_identifier(font, &format!("{path}.font"))?;
             }
             if let Some(serde_json::Value::String(key)) = object.get("translate") {
                 validate_non_blank_no_control(key, "translation key").map_err(|message| {
@@ -2753,6 +2752,9 @@ fn validate_json_text_inner(
                         ));
                     }
                     for (index, child) in children.iter().enumerate() {
+                        if key == "with" && (child.is_number() || child.is_boolean()) {
+                            continue;
+                        }
                         validate_json_text_inner(
                             child,
                             _profile,

@@ -4366,7 +4366,15 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 320);
+        assert_eq!(entries.len(), 322);
+        assert!(show(catalog, "sand::advanced::compiler::RuntimeReport").is_ok());
+        assert!(
+            show(
+                catalog,
+                "sand::advanced::compiler::CompiledPack::runtime_report"
+            )
+            .is_ok()
+        );
     }
 
     #[test]

@@ -9,7 +9,7 @@ pub(super) fn supported_compound(text: &str) -> bool {
 
 /// Consume one match compound using the same SNBT grammar as checked selectors.
 pub(crate) fn consume_compound(text: &mut &str) -> bool {
-    let mut parser = Parser { rest: *text };
+    let mut parser = Parser { rest: text };
     if !text.starts_with('{') || !parser.value(0) {
         return false;
     }

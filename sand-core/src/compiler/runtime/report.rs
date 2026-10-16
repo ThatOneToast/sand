@@ -292,4 +292,29 @@ mod tests {
             ]
         );
     }
+    /// Caller propagation must not multiply arbitrarily large diagnostic payloads.
+    #[test]
+    fn unresolved_diagnostics_are_bounded_without_claiming_known_costs() {
+        let commands = (0..40)
+            .map(|index| format!("function other:missing_{index}_{}", "x".repeat(4096)))
+            .collect();
+        let records = vec![
+            ComponentRecord::function("demo", "root", commands),
+            ComponentRecord::function("demo", "caller", vec!["function demo:root".into()]),
+        ];
+        let report = RuntimeReport::collect(&records, &RuntimePlan::default());
+        for id in ["demo:root", "demo:caller"] {
+            let cost = &report.functions[id];
+            assert_eq!(cost.evaluations.maximum, None);
+            assert!(serde_json::to_vec(cost).unwrap().len() < 4096, "{id}");
+            assert!(
+                cost.evaluations
+                    .unknown
+                    .iter()
+                    .any(|reason| reason.contains("additional unknown causes omitted"))
+            );
+        }
+        assert_eq!(report.functions["demo:root"].evaluations.minimum, 40);
+        assert_eq!(report.functions["demo:caller"].evaluations.minimum, 41);
+    }
 }

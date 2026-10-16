@@ -344,8 +344,8 @@ pub fn collected_return_command(line: &str) -> Option<&str> {
         .flatten()
 }
 
-// Recognize operation boundaries, not arbitrary tokens named `run`: holders,
-// objectives, NBT paths, and other arguments may legitimately have that name.
+/// Recognize operation boundaries, not arbitrary tokens named `run`: holders,
+/// objectives, NBT paths, and other arguments may legitimately have that name.
 fn execute_run_index(tokens: &[TopLevelToken<'_>]) -> Option<usize> {
     if !token_is(tokens, 0, "execute") {
         return None;
@@ -361,6 +361,7 @@ fn execute_run_index(tokens: &[TopLevelToken<'_>]) -> Option<usize> {
     None
 }
 
+/// Count a complete operation using the shared conservative execute grammar.
 fn execute_operation_width(tokens: &[TopLevelToken<'_>], index: usize) -> Option<usize> {
     let arg = |offset: usize| tokens.get(index + offset).map(|token| token.text);
     let width = match arg(0)? {

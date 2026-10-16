@@ -662,3 +662,25 @@ fn typed_description_identifiers_accept_default_namespace() {
         assert_eq!(resource.to_json()["description"], value);
     }
 }
+
+/// Unknown vanilla interaction actions fail while explicit raw extension actions remain available.
+#[test]
+fn raw_interaction_actions_require_known_vanilla_or_explicit_extension_names() {
+    for family in ["click_event", "hover_event"] {
+        for (action, valid) in [
+            ("bogus", false),
+            ("minecraft:bogus", false),
+            ("minecraft:run_command", false),
+            ("example:future_action", true),
+        ] {
+            let mut value = json!({"text":"x"});
+            value[family] = json!({"action":action, "extension":"preserved"});
+            for resource in described(value.clone()) {
+                assert_eq!(resource.try_content().is_ok(), valid, "{value}");
+                if valid {
+                    assert_eq!(resource.to_json()["description"], value);
+                }
+            }
+        }
+    }
+}

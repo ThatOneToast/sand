@@ -1951,7 +1951,7 @@ fn json_event_string<'a>(
 }
 
 /// Validate the interaction actions modeled by Sand's canonical text API.
-/// Unknown action names and extension members remain explicit raw edges.
+/// Only explicitly non-Minecraft action names remain raw extension edges.
 fn validate_json_interactions(
     object: &serde_json::Map<String, serde_json::Value>,
     profile: &CommandProfile,
@@ -1990,6 +1990,16 @@ fn validate_json_interactions(
                 | "custom"
         );
         let hover_action = matches!(action, "show_text" | "show_item" | "show_entity");
+        if !click_action
+            && !hover_action
+            && (!action.contains(':') || action.starts_with("minecraft:"))
+        {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{event_path}.action"),
+                "unknown vanilla interaction action",
+            ));
+        }
         if (key == "click_event" && hover_action) || (key == "hover_event" && click_action) {
             return Err(text_error(
                 "SAND-TEXT-SHAPE",

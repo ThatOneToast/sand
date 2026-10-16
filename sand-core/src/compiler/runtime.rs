@@ -11,6 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct RuntimePlan {
     /// Logical owners associated with a generated function's full resource id.
     pub(crate) function_owners: BTreeMap<String, BTreeSet<String>>,
+    /// Owners of tag-membership contributions; contributing an invocation does
+    /// not imply ownership of the referenced function's implementation.
+    pub(crate) tag_contributors: BTreeMap<(String, String), BTreeSet<String>>,
     /// State-system groups after the canonical adjacent-scan fusion pass.
     pub(crate) systems: Vec<StateSystemRuntime>,
     /// Canonical archetype reports retained instead of reconstructed from paths.
@@ -49,6 +52,14 @@ impl RuntimePlan {
     pub(crate) fn own_function(&mut self, function: String, owner: String) {
         self.function_owners
             .entry(function)
+            .or_default()
+            .insert(owner);
+    }
+
+    /// Retain every contributor to a deduplicated tag membership.
+    pub(crate) fn contribute_tag(&mut self, tag: String, function: String, owner: String) {
+        self.tag_contributors
+            .entry((tag, function))
             .or_default()
             .insert(owner);
     }

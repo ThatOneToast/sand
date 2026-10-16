@@ -82,6 +82,7 @@ pub(super) fn lower(
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
     };
     let mut entries = BTreeMap::new();
+    let mut runtime = crate::compiler::runtime::RuntimePlan::default();
     let mut load = Vec::new();
     let mut tick = Vec::new();
     let mut memberships = Vec::new();
@@ -105,6 +106,7 @@ pub(super) fn lower(
                 &owner,
                 &format!("/functions/{index}"),
             )?;
+            runtime.own_function(function.id.to_string(), owner.clone());
             entries.insert(function.id.to_string(), function.context);
         }
         for (phase, body, output) in [
@@ -125,12 +127,12 @@ pub(super) fn lower(
                     .map(|(index, line)| (owner.clone(), index, line)),
             );
         }
-        memberships.extend(
-            module
-                .tags
-                .iter()
-                .map(|tag| (tag.tag.to_string(), reference_id(&tag.function))),
-        );
+        for tag in &module.tags {
+            let tag_id = tag.tag.to_string();
+            let function = reference_id(&tag.function);
+            runtime.contribute_tag(tag_id.clone(), function.clone(), owner.clone());
+            memberships.push((tag_id, function));
+        }
     }
     let mut tag_map = BTreeMap::new();
     let lifecycle = lifecycle::assemble_lifecycle(
@@ -143,7 +145,6 @@ pub(super) fn lower(
         Vec::new(),
     )
     .map_err(|e| error(e.to_string()))?;
-    let mut runtime = crate::compiler::runtime::RuntimePlan::default();
     if !lifecycle.tick_owners.is_empty() {
         runtime.lifecycle_owners.insert(
             format!("{}:__sand_lifecycle_tick", program.pack.namespace),

@@ -315,13 +315,19 @@ pub(crate) fn try_export_components_impl(
         }
         for contribution in function_tags {
             let (tag, function) = contribution.into_parts();
-            registration_tag_entries.push((
-                resolve_local_refs(&tag.to_string(), namespace),
-                resolve_local_refs(&function.to_string(), namespace),
-            ));
+            let tag = resolve_local_refs(&tag.to_string(), namespace);
+            let function = resolve_local_refs(&function.to_string(), namespace);
+            runtime.contribute_tag(tag.clone(), function.clone(), factory.owner.to_string());
+            registration_tag_entries.push((tag, function));
         }
         for component in components {
             let record = component_to_record(component.as_ref(), ctx)?;
+            if record.dir == "function" && record.ext == "mcfunction" {
+                runtime.own_function(
+                    resolve_local_refs(&format!("{}:{}", record.namespace, record.path), namespace),
+                    factory.owner.to_string(),
+                );
+            }
             top_level.push(RegisteredComponent {
                 owner: factory.owner.to_string(),
                 component,

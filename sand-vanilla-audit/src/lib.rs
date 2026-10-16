@@ -1125,17 +1125,14 @@ pub fn audit_world_block_offsets() {
         .replace(vanilla::Block::Stone);
     world.block(BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(1.25)))
         .replace(vanilla::Block::GoldBlock);
-    for (position, label) in [
-        (BlockPos::new(Coord::rel_n(1.5), Coord::rel(), Coord::rel()), "Relative offset"),
-        (BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(2.25)), "Local offset"),
-    ] {
-        let chest = world.block(position);
-        let name = chest.data().typed_path::<String>(NbtPath::root("CustomName"));
-        mcfunction![
-            chest.replace(vanilla::Block::Chest);
-            name.set(label);
-        ];
-    }
+    let relative_chest = world.block(BlockPos::new(Coord::rel_n(1.5), Coord::rel(), Coord::rel()));
+    let relative_name = relative_chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+    relative_chest.replace(vanilla::Block::Chest);
+    relative_name.set("Relative offset");
+    let local_chest = world.block(BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(2.25)));
+    let local_name = local_chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+    local_chest.replace(vanilla::Block::Chest);
+    local_name.set("Local offset");
 }
 
 /// Keep function-macro arguments available across dimension-scoped actions.

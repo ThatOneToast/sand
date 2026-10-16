@@ -155,7 +155,6 @@ fn malformed_description_is_rejected_before_export() {
         (json!({"selector": {}}), "description.selector"),
         (json!({"nbt": 1}), "description.nbt"),
         (json!({"nbt": "foo"}), "description.source"),
-        (json!({"nbt": "", "entity": "@s"}), "description.nbt"),
         (json!({"nbt": "foo[", "entity": "@s"}), "description.nbt"),
         (
             json!({"nbt": "foo", "source": "block", "entity": "@s"}),

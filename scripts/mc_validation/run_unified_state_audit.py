@@ -31,6 +31,24 @@ def available_port() -> int:
         return int(listener.getsockname()[1])
 
 
+def wait_for_startup(process, logs: queue.Queue[str], timeout: float) -> tuple[bool, list[str]]:
+    """Wait for world startup and the RCON listener before issuing any commands."""
+    deadline = time.monotonic() + timeout
+    startup: list[str] = []
+    world_ready = rcon_ready = False
+    while time.monotonic() < deadline and process.poll() is None:
+        try:
+            line = logs.get(timeout=0.5)
+        except queue.Empty:
+            continue
+        startup.append(line)
+        world_ready |= "Done (" in line and "For help" in line
+        rcon_ready |= "RCON running on " in line
+        if world_ready and rcon_ready:
+            return True, startup
+    return False, startup
+
+
 def reachable(functions: dict[str, str], path: str, seen: set[str] | None = None) -> str:
     """Follow the actual owned helpers emitted for a query's whole actions."""
     seen = set() if seen is None else seen
@@ -233,17 +251,7 @@ def run_audit(args: argparse.Namespace, result: dict) -> int:
         return (int(match.group(1)) if match else None, output)
 
     try:
-        deadline = time.monotonic() + args.timeout
-        startup: list[str] = []
-        while time.monotonic() < deadline:
-            try:
-                line = logs.get(timeout=0.5)
-            except queue.Empty:
-                continue
-            startup.append(line)
-            if "Done (" in line and "For help" in line:
-                break
-        ready = any("Done (" in line and "For help" in line for line in startup)
+        ready, startup = wait_for_startup(process, logs, args.timeout)
         check("server_startup", ready, "".join(startup[-5:]))
         if not ready:
             return 1

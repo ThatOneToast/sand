@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_unified_state_audit as audit
@@ -24,6 +24,39 @@ def functions():
         "__sand_system/health": "function unified_state:sand/entity_query/heal",
         "__sand_system_tick": "execute as @e[tag=combat] at @s run function unified_state:__sand_system/combat\nexecute as @e[tag=health] at @s run function unified_state:__sand_system/health",
     }
+
+
+class StartupReadiness(unittest.TestCase):
+    def test_world_done_does_not_skip_delayed_rcon_startup(self):
+        done = 'Done (4.721s)! For help, type "help"'
+        listener = 'RCON running on 127.0.0.1:25578'
+        logs = Mock()
+        logs.get.side_effect = [done, audit.queue.Empty, listener]
+        ready, evidence = audit.wait_for_startup(Mock(poll=Mock(return_value=None)), logs, 5)
+        self.assertTrue(ready)
+        self.assertEqual(evidence, [done, listener])
+        self.assertEqual(logs.get.call_count, 3)
+
+    def test_listener_alone_is_not_a_ready_world(self):
+        logs = Mock()
+        logs.get.return_value = 'RCON running on 127.0.0.1:25578'
+        with patch.object(audit.time, "monotonic", side_effect=[0, 0, 2]):
+            ready, _ = audit.wait_for_startup(Mock(poll=Mock(return_value=None)), logs, 1)
+        self.assertFalse(ready)
+
+    def test_world_done_without_listener_times_out(self):
+        logs = Mock()
+        logs.get.return_value = 'Done (4.721s)! For help, type "help"'
+        with patch.object(audit.time, "monotonic", side_effect=[0, 0, 2]):
+            ready, _ = audit.wait_for_startup(Mock(poll=Mock(return_value=None)), logs, 1)
+        self.assertFalse(ready)
+
+    def test_process_exit_is_reported_without_waiting_for_timeout(self):
+        logs = Mock()
+        ready, evidence = audit.wait_for_startup(Mock(poll=Mock(return_value=1)), logs, 30)
+        self.assertFalse(ready)
+        self.assertEqual(evidence, [])
+        logs.get.assert_not_called()
 
 
 class SystemScans(unittest.TestCase):

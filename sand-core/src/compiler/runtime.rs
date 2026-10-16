@@ -5,16 +5,20 @@
 //! synthetic component or process-global side channel.
 
 mod estimate;
+mod report;
+
+pub(crate) use report::RuntimeReport;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Semantic inputs for runtime reporting, before final resource publication.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct RuntimePlan {
     /// Logical owners associated with a generated function's full resource id.
     pub(crate) function_owners: BTreeMap<String, BTreeSet<String>>,
     /// Owners of tag-membership contributions; contributing an invocation does
     /// not imply ownership of the referenced function's implementation.
+    #[serde(serialize_with = "serialize_tag_contributors")]
     pub(crate) tag_contributors: BTreeMap<(String, String), BTreeSet<String>>,
     /// State-system groups after the canonical adjacent-scan fusion pass.
     pub(crate) systems: Vec<StateSystemRuntime>,
@@ -26,7 +30,7 @@ pub(crate) struct RuntimePlan {
 }
 
 /// Logical ownership of a contribution in its emitted function text.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct CommandOrigin {
     /// Original registration or portable module id.
     pub(crate) owner: String,
@@ -37,7 +41,7 @@ pub(crate) struct CommandOrigin {
 }
 
 /// A lowered State-system group, including every owner sharing its scan.
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct StateSystemRuntime {
     /// Stable authored system ids, in execution order.
     pub(crate) owners: Vec<String>,
@@ -65,4 +69,28 @@ impl RuntimePlan {
             .or_default()
             .insert(owner);
     }
+}
+
+/// JSON object keys cannot represent the canonical (tag, member) lookup key.
+/// Publish ordered records instead of stringifying that compound identity.
+fn serialize_tag_contributors<S: serde::Serializer>(
+    entries: &BTreeMap<(String, String), BTreeSet<String>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::Serialize;
+    #[derive(Serialize)]
+    struct Entry<'a> {
+        tag: &'a str,
+        member: &'a str,
+        owners: &'a BTreeSet<String>,
+    }
+    entries
+        .iter()
+        .map(|((tag, member), owners)| Entry {
+            tag,
+            member,
+            owners,
+        })
+        .collect::<Vec<_>>()
+        .serialize(serializer)
 }

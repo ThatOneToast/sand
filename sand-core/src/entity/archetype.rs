@@ -426,7 +426,7 @@ impl Migration {
 }
 
 /// Cost and generated-resource summary for one archetype.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct EntityRuntimeReport {
     /// Archetype identifier.
     pub archetype: String,

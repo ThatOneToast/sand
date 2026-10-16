@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 /// A range of explicit command evaluations for one invocation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct Work {
     pub(crate) minimum: u64,
     pub(crate) maximum: Option<u64>,

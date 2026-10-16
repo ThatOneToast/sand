@@ -10,7 +10,7 @@ const MAX_UNKNOWN_REASON_BYTES: usize = 256;
 const OMITTED_REASONS: &str = "additional unknown causes omitted";
 
 /// A range of explicit command evaluations for one invocation.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Work {
     pub(crate) minimum: u64,
     pub(crate) maximum: Option<u64>,

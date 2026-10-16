@@ -12,7 +12,7 @@ use crate::compiler::export::ComponentRecord;
 /// an uninterrupted invocation of a successfully loaded function, not MSPT or
 /// command-limit units. Runtime aborts and server budget exhaustion are outside
 /// this static model.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[sand_macros::api(
     registry = sand_api_contract, path = "sand::advanced::compiler::RuntimeReport", module = "sand::advanced::compiler",
     summary = "Deterministic runtime estimates and compiler-owned provenance for one compiled pack.",
@@ -24,11 +24,14 @@ use crate::compiler::export::ComponentRecord;
 )]
 pub struct RuntimeReport {
     /// Version of this report's interpretation and serialized structure.
+    #[serde(deserialize_with = "report_version")]
     schema_version: u32,
     /// Compiler-owned origins and cadence before publication erases them.
     provenance: RuntimePlan,
     /// Ordered direct entries in this pack's minecraft:tick tag.
-    tick: Vec<TickEntry>,
+    tick: Vec<LifecycleEntry>,
+    /// Ordered direct entries in the final minecraft:load tag.
+    load: Vec<LifecycleEntry>,
     /// Function definitions, sorted by full resource id; shared definitions are
     /// listed once even when several owners or invocations refer to them.
     functions: BTreeMap<String, FunctionCost>,
@@ -36,15 +39,15 @@ pub struct RuntimeReport {
     limitations: BTreeSet<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-struct TickEntry {
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct LifecycleEntry {
     reference: String,
     required: bool,
     contributors: BTreeSet<String>,
     evaluations: Work,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct FunctionCost {
     owners: BTreeSet<String>,
     evaluations: Work,
@@ -53,7 +56,7 @@ struct FunctionCost {
 
 /// A lexical execution-context or entity-condition selector site. A site can
 /// execute zero, one, or many times; this is not a runtime scan count.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct SelectorSite {
     line: usize,
     operation: String,
@@ -107,7 +110,77 @@ fn selector_sites(body: &str) -> Vec<SelectorSite> {
     sites
 }
 
+/// A host must not interpret a different report schema as the current model.
+fn report_version<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u32, D::Error> {
+    let version = <u32 as serde::Deserialize>::deserialize(deserializer)?;
+    if version != 1 {
+        return Err(serde::de::Error::custom(
+            "unsupported runtime report schema version",
+        ));
+    }
+    Ok(version)
+}
+
 impl RuntimeReport {
+    /// Recompute costs and lifecycle entries from a host's final resource bytes.
+    ///
+    /// Use the same pack-relative path map as [`crate::advanced::compiler::CompiledPack::resources`]
+    /// after merging world-build resources or resolving copy-backed files. This
+    /// preserves collected semantic provenance and analyzes newly added functions;
+    /// new resources without provenance have empty owner sets. Unsupported UTF-8
+    /// remains an explicit limitation. This method performs no host I/O.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::advanced::compiler::RuntimeReport::reanalyze", module = "sand::advanced::compiler",
+        summary = "Recompute runtime estimates over final pack resources while retaining semantic provenance.",
+        context = "Host adapters merge world-build resources and resolve copied files before publishing a pack and its report.",
+        minecraft = "Analyzes final function bodies and lifecycle tags without changing any datapack bytes.",
+        use_when = ["Publishing a report after host-side resource assembly"],
+        avoid_when = ["Using unchanged CompiledPack resources, which already have a report"],
+        params(resources = "Final pack-relative paths and bytes, as in CompiledPack.resources."),
+        returns = "A report for the final resources with retained compiler provenance and explicit unknowns.",
+        example = "let report = pack.runtime_report.reanalyze(&pack.resources);"
+    )]
+    pub fn reanalyze(&self, resources: &BTreeMap<String, Vec<u8>>) -> Self {
+        let mut records = Vec::new();
+        let mut unavailable = BTreeSet::new();
+        for (file, bytes) in resources {
+            let Some((namespace, relative)) = file
+                .strip_prefix("data/")
+                .and_then(|path| path.split_once('/'))
+            else {
+                continue;
+            };
+            let identity = relative
+                .strip_prefix("function/")
+                .and_then(|path| path.strip_suffix(".mcfunction"))
+                .map(|path| ("function", path, "mcfunction"))
+                .or_else(|| {
+                    relative
+                        .strip_prefix("tags/function/")
+                        .and_then(|path| path.strip_suffix(".json"))
+                        .map(|path| ("tags/function", path, "json"))
+                });
+            let Some((dir, path, ext)) = identity else {
+                continue;
+            };
+            let Ok(content) = std::str::from_utf8(bytes) else {
+                unavailable.insert(format!("runtime resource is not UTF-8: {file}"));
+                continue;
+            };
+            records.push(ComponentRecord {
+                namespace: namespace.into(),
+                dir: dir.into(),
+                path: path.into(),
+                ext: ext.into(),
+                content_type: "text".into(),
+                content: content.into(),
+            });
+        }
+        let mut report = Self::collect(&records, &self.provenance);
+        report.limitations.extend(unavailable);
+        report
+    }
+
     /// Inspect final records without publishing metadata as a synthetic resource.
     pub(crate) fn collect(records: &[ComponentRecord], plan: &RuntimePlan) -> Self {
         let functions: BTreeMap<_, _> = records
@@ -139,6 +212,7 @@ impl RuntimeReport {
             })
             .collect();
         let mut tick = Vec::new();
+        let mut load = Vec::new();
         let mut limitations = BTreeSet::from([
             "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.".into(),
             "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.".into(),
@@ -149,7 +223,7 @@ impl RuntimeReport {
         for record in records.iter().filter(|record| {
             record.namespace == "minecraft"
                 && record.dir == "tags/function"
-                && record.path == "tick"
+                && matches!(record.path.as_str(), "tick" | "load")
                 && record.ext == "json"
         }) {
             let values = if record.content_type == "text" {
@@ -160,7 +234,10 @@ impl RuntimeReport {
                 None
             };
             let Some(values) = values else {
-                limitations.insert("minecraft:tick contents are unavailable or unsupported".into());
+                limitations.insert(format!(
+                    "minecraft:{} contents are unavailable or unsupported",
+                    record.path
+                ));
                 continue;
             };
             for value in values {
@@ -168,19 +245,27 @@ impl RuntimeReport {
                     .as_str()
                     .or_else(|| value.get("id").and_then(|id| id.as_str()))
                 else {
-                    limitations.insert("minecraft:tick contains an unsupported entry".into());
+                    limitations.insert(format!(
+                        "minecraft:{} contains an unsupported entry",
+                        record.path
+                    ));
                     continue;
                 };
                 let required = value
                     .get("required")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(true);
-                tick.push(TickEntry {
+                let entries = if record.path == "tick" {
+                    &mut tick
+                } else {
+                    &mut load
+                };
+                entries.push(LifecycleEntry {
                     reference: reference.into(),
                     required,
                     contributors: plan
                         .tag_contributors
-                        .get(&("minecraft:tick".into(), reference.into()))
+                        .get(&(format!("minecraft:{}", record.path), reference.into()))
                         .cloned()
                         .unwrap_or_default(),
                     evaluations: estimator.function(reference),
@@ -191,6 +276,7 @@ impl RuntimeReport {
             schema_version: 1,
             provenance: plan.clone(),
             tick,
+            load,
             functions: costs,
             limitations,
         }
@@ -317,5 +403,61 @@ mod tests {
         }
         assert_eq!(report.functions["demo:root"].evaluations.minimum, 40);
         assert_eq!(report.functions["demo:caller"].evaluations.minimum, 41);
+    }
+    /// Host-added world functions and lifecycle tags participate in final costs.
+    #[test]
+    fn final_resources_recompute_calls_and_load_entries_without_losing_owners() {
+        let records = vec![ComponentRecord::function(
+            "demo",
+            "tick",
+            vec!["function demo:__sand_world_init".into()],
+        )];
+        let mut plan = RuntimePlan::default();
+        plan.own_function("demo:tick".into(), "demo:module".into());
+        plan.contribute_tag(
+            "minecraft:tick".into(),
+            "demo:tick".into(),
+            "demo:module".into(),
+        );
+        let report = RuntimeReport::collect(&records, &plan);
+        assert_eq!(report.functions["demo:tick"].evaluations.maximum, None);
+        let decoded: RuntimeReport =
+            serde_json::from_value(serde_json::to_value(report).unwrap()).unwrap();
+        let resources = BTreeMap::from([
+            (
+                "data/demo/function/tick.mcfunction".into(),
+                b"function demo:__sand_world_init".to_vec(),
+            ),
+            (
+                "data/demo/function/__sand_world_init.mcfunction".into(),
+                b"say world init".to_vec(),
+            ),
+            (
+                "data/minecraft/tags/function/load.json".into(),
+                br#"{"values":["demo:__sand_world_init"]}"#.to_vec(),
+            ),
+            (
+                "data/minecraft/tags/function/tick.json".into(),
+                br#"{"values":["demo:tick"]}"#.to_vec(),
+            ),
+        ]);
+        let final_report = decoded.reanalyze(&resources);
+        assert_eq!(
+            final_report.functions["demo:tick"].evaluations.maximum,
+            Some(2)
+        );
+        assert_eq!(
+            final_report.functions["demo:tick"].owners,
+            BTreeSet::from(["demo:module".into()])
+        );
+        assert_eq!(final_report.load[0].reference, "demo:__sand_world_init");
+        assert_eq!(final_report.load[0].evaluations.maximum, Some(1));
+        assert_eq!(
+            final_report.tick[0].contributors,
+            BTreeSet::from(["demo:module".into()])
+        );
+        let mut wrong_version = serde_json::to_value(&final_report).unwrap();
+        wrong_version["schema_version"] = 2.into();
+        assert!(serde_json::from_value::<RuntimeReport>(wrong_version).is_err());
     }
 }

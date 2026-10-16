@@ -12,13 +12,16 @@ pub use report::RuntimeReport;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Semantic inputs for runtime reporting, before final resource publication.
-#[derive(Debug, Clone, Default, serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct RuntimePlan {
     /// Logical owners associated with a generated function's full resource id.
     pub(crate) function_owners: BTreeMap<String, BTreeSet<String>>,
     /// Owners of tag-membership contributions; contributing an invocation does
     /// not imply ownership of the referenced function's implementation.
-    #[serde(serialize_with = "serialize_tag_contributors")]
+    #[serde(
+        serialize_with = "serialize_tag_contributors",
+        deserialize_with = "deserialize_tag_contributors"
+    )]
     pub(crate) tag_contributors: BTreeMap<(String, String), BTreeSet<String>>,
     /// State-system groups after the canonical adjacent-scan fusion pass.
     pub(crate) systems: Vec<StateSystemRuntime>,
@@ -30,7 +33,7 @@ pub(crate) struct RuntimePlan {
 }
 
 /// Logical ownership of a contribution in its emitted function text.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct CommandOrigin {
     /// Original registration or portable module id.
     pub(crate) owner: String,
@@ -41,7 +44,7 @@ pub(crate) struct CommandOrigin {
 }
 
 /// A lowered State-system group, including every owner sharing its scan.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct StateSystemRuntime {
     /// Stable authored system ids, in execution order.
     pub(crate) owners: Vec<String>,
@@ -93,4 +96,25 @@ fn serialize_tag_contributors<S: serde::Serializer>(
         })
         .collect::<Vec<_>>()
         .serialize(serializer)
+}
+
+/// Restore the canonical compound-key lookup from ordered wire records.
+fn deserialize_tag_contributors<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BTreeMap<(String, String), BTreeSet<String>>, D::Error> {
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    struct Entry {
+        tag: String,
+        member: String,
+        owners: BTreeSet<String>,
+    }
+    let mut entries = BTreeMap::new();
+    for entry in Vec::<Entry>::deserialize(deserializer)? {
+        entries
+            .entry((entry.tag, entry.member))
+            .or_insert_with(BTreeSet::new)
+            .extend(entry.owners);
+    }
+    Ok(entries)
 }

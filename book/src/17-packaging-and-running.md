@@ -27,6 +27,9 @@ every registered component, validates it against the resolved version
 profile (chapter 16), and renders the full datapack JSON tree, printed to
 stdout as one versioned JSON object with `components` and `runtime_report`.
 `sand build --format json` includes that runtime report in its build result.
+The CLI reanalyzes the final resource bytes after world-build merging and
+copy-file resolution, including both load and tick entries. Host adapters can
+use `RuntimeReport::reanalyze` with the same resource map as `CompiledPack`.
 The report preserves ownership and cadence and estimates explicit command
 evaluations; its limitations and unknown costs must accompany any comparison.
 These counts assume uninterrupted execution of successfully loaded functions;

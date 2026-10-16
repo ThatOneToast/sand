@@ -47,7 +47,7 @@ struct BuildJsonOutput<'a> {
     minecraft_version: &'a str,
     profile: &'a str,
     component_count: usize,
-    runtime_report: serde_json::Value,
+    runtime_report: sand::advanced::compiler::RuntimeReport,
     datapack_output: String,
     datapack_changes: ChangeSummary,
     diagnostics: Vec<BuildJsonDiagnostic>,
@@ -345,6 +345,9 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         &records,
         worldbuild_output.as_ref(),
     )?;
+
+    // Analyze the final bytes, including world-build functions and copied files.
+    let runtime_report = runtime_report.reanalyze(&outputs);
 
     // Publish the fully validated output set as one staged transaction.
     // Ownership checks preserve unrelated files and reject edited outputs.
@@ -721,6 +724,59 @@ mod tests {
         let summary = super::publication::publish_pack(&pack_root, &release_outputs).unwrap();
         assert!(!stale.exists());
         assert_eq!(summary.removed, 1);
+    }
+
+    /// Reports describe world-build and copy-backed bytes in the published pack.
+    #[test]
+    fn runtime_report_analyzes_worldbuild_and_copied_functions() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("copied.mcfunction"), "say copied").unwrap();
+        let copied: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace":"audit", "dir":"function", "path":"copied", "ext":"mcfunction",
+            "content_type":"copy", "content":"copied.mcfunction"
+        }))
+        .unwrap();
+        let mut function = world_resource("function", "__sand_world_init", "say world init");
+        function.ext = "mcfunction".into();
+        let mut load = world_resource(
+            "tags/function",
+            "load",
+            r#"{"values":["audit:__sand_world_init"]}"#,
+        );
+        load.namespace = "minecraft".into();
+        let world = WorldBuildOutput {
+            resources: vec![function, load],
+            server_config: None,
+            seed: None,
+            level_type: None,
+        };
+        let outputs = prepare_datapack_outputs(
+            dir.path(),
+            &parse_config("audit").unwrap(),
+            61,
+            &[copied],
+            Some(&world),
+        )
+        .unwrap();
+        let program = sand::advanced::compiler::Compiler::decode(
+            include_bytes!("../../../tests/fixtures/program/counter.sand.json"),
+            &BTreeMap::new(),
+        )
+        .unwrap();
+        let original = sand::advanced::compiler::Compiler::compile(&program)
+            .unwrap()
+            .runtime_report;
+        let report = serde_json::to_value(original.reanalyze(&outputs)).unwrap();
+        assert_eq!(
+            report["functions"]["audit:__sand_world_init"]["evaluations"]["maximum"],
+            1
+        );
+        assert_eq!(
+            report["functions"]["audit:copied"]["evaluations"]["maximum"],
+            1
+        );
+        assert_eq!(report["load"][0]["reference"], "audit:__sand_world_init");
+        assert!(report["functions"].get("demo:tick").is_none());
     }
 
     #[test]
@@ -2004,7 +2060,7 @@ mod tests {
 struct PackExport {
     schema_version: u32,
     components: Vec<ComponentRecord>,
-    runtime_report: serde_json::Value,
+    runtime_report: sand::advanced::compiler::RuntimeReport,
 }
 
 fn decode_pack_export(stdout: &[u8]) -> Result<PackExport> {
@@ -2016,14 +2072,6 @@ fn decode_pack_export(stdout: &[u8]) -> Result<PackExport> {
             exported.schema_version
         );
     }
-    if exported
-        .runtime_report
-        .get("schema_version")
-        .and_then(|value| value.as_u64())
-        != Some(1)
-    {
-        bail!("unsupported or missing runtime report schema version");
-    }
     Ok(exported)
 }
 
@@ -2034,7 +2082,15 @@ mod pack_export_tests {
     /// A protocol mismatch must fail before any pack publication.
     #[test]
     fn exporter_protocol_requires_versioned_resources_and_report() {
-        let valid = serde_json::json!({"schema_version":1,"components":[],"runtime_report":{"schema_version":1,"tick":[]}});
+        let program = sand::advanced::compiler::Compiler::decode(
+            include_bytes!("../../../tests/fixtures/program/counter.sand.json"),
+            &BTreeMap::new(),
+        )
+        .unwrap();
+        let report = sand::advanced::compiler::Compiler::compile(&program)
+            .unwrap()
+            .runtime_report;
+        let valid = serde_json::json!({"schema_version":1,"components":[],"runtime_report":report});
         assert!(decode_pack_export(&serde_json::to_vec(&valid).unwrap()).is_ok());
         for invalid in [
             serde_json::json!([]),

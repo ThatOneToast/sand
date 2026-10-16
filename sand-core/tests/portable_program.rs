@@ -685,6 +685,7 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
             id: "demo:tick".parse().unwrap(),
         },
     })];
+    program.modules[0].tick = program.modules[0].load.clone();
     let pack = Compiler::compile(&program).unwrap();
     let report = serde_json::to_value(&pack.runtime_report).unwrap();
     let helpers: Vec<_> = report["functions"]

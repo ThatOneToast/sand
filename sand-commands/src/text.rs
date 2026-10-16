@@ -2251,7 +2251,7 @@ fn validate_json_nbt_source(
             )
         })?;
         if !["block", "entity", "storage"].contains(&kind)
-            && !(kind.contains(':') && !kind.starts_with("minecraft:"))
+            && (!kind.contains(':') || kind.starts_with("minecraft:"))
         {
             return Err(text_error(
                 "SAND-TEXT-NBT",

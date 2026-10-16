@@ -37,6 +37,6 @@ fn tick_membership() -> DatapackRegistration {
 
 /// Export this linked Rust frontend through Sand's supported collection hook.
 pub fn export() -> String {
-    sand::advanced::try_export_components_json("demo", "26.2")
+    sand::advanced::try_export_pack_json("demo", "26.2")
         .expect("the acceptance counter must compile")
 }

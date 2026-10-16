@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "join_b", id_override: None,
         make: || sand::component::IntoCommands::into_commands(vec![
             "execute if entity @s[name=SandAlpha] run scoreboard players add #__sand_local:SandAlpha join_b 1".to_string(),
@@ -15,6 +16,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "join_a", id_override: None,
         make: || sand::component::IntoCommands::into_commands(vec![
             "execute if entity @s[name=SandAlpha] run scoreboard players add #__sand_local:SandAlpha join_a 1".to_string(),

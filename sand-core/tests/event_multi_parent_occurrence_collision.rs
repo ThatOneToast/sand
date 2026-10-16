@@ -83,6 +83,7 @@ fn child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_multi_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(child_body()),

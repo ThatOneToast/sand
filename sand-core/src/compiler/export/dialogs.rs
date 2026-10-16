@@ -11,10 +11,23 @@ pub(crate) fn drain_dialog_callbacks_into(
     records: &mut Vec<ComponentRecord>,
     tag_map: &mut std::collections::BTreeMap<String, Vec<String>>,
     namespace: &str,
+    runtime: &mut crate::compiler::runtime::RuntimePlan,
 ) {
     let callbacks = sand_components::dialog::drain_dialog_callbacks();
     if callbacks.is_empty() {
         return;
+    }
+
+    let origins = crate::function::take_dialog_origins();
+    for (phase, path) in [
+        ("load", "__sand_dialog_init"),
+        ("tick", "__sand_dialog_tick"),
+    ] {
+        runtime.generated_lifecycle(
+            format!("{namespace}:{path}"),
+            phase,
+            super::functions::resolve_origins(origins.clone(), namespace),
+        );
     }
 
     let trigger = sand_components::dialog::SAND_DIALOG_TRIGGER;
@@ -125,7 +138,12 @@ mod tests {
 
         let mut records = Vec::new();
         let mut tag_map = std::collections::BTreeMap::new();
-        super::drain_dialog_callbacks_into(&mut records, &mut tag_map, "dialogpack");
+        super::drain_dialog_callbacks_into(
+            &mut records,
+            &mut tag_map,
+            "dialogpack",
+            &mut Default::default(),
+        );
 
         let init_recs: Vec<_> = records
             .iter()
@@ -177,7 +195,12 @@ mod tests {
 
         let mut records = Vec::new();
         let mut tag_map = std::collections::BTreeMap::new();
-        super::drain_dialog_callbacks_into(&mut records, &mut tag_map, "dialogpack");
+        super::drain_dialog_callbacks_into(
+            &mut records,
+            &mut tag_map,
+            "dialogpack",
+            &mut Default::default(),
+        );
 
         assert!(
             records.iter().all(|r| r.path != "__sand_dialog_init"),

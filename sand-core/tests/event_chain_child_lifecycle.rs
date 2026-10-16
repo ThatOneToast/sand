@@ -96,6 +96,7 @@ fn on_parent_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_parent",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_parent_body()),
@@ -144,6 +145,7 @@ fn on_single_plan_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_single_plan_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_single_plan_child_body()),
@@ -189,6 +191,7 @@ fn on_unconditional_lifecycle_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_unconditional_lifecycle_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_unconditional_lifecycle_child_body()),
@@ -236,6 +239,7 @@ fn on_multi_plan_lifecycle_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_multi_plan_lifecycle_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_multi_plan_lifecycle_child_body()),
@@ -281,6 +285,7 @@ fn on_unsatisfiable_lifecycle_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_unsatisfiable_lifecycle_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_unsatisfiable_lifecycle_child_body()),
@@ -339,6 +344,7 @@ fn on_nested_a_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_nested_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_nested_a_body()),
@@ -391,6 +397,7 @@ fn on_nested_b_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_nested_b",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_nested_b_body()),
@@ -433,6 +440,7 @@ fn on_nested_c_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_nested_c",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_nested_c_body()),

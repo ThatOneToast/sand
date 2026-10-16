@@ -918,10 +918,9 @@ pub fn audit_dialog() -> Dialog {
 /// world-build-generated dimension/function/tag resources. `sand-vanilla-audit`
 /// doesn't go through `sand-cli`'s `sand.build.rs` discovery (it has its own
 /// bespoke `export()` below), so this calls `sand_core::build` directly and
-/// merges the lowered `WorldResource`s into the same JSON array
-/// `try_export_components_json` produces -- both share byte-identical
-/// wire-format shapes (`namespace`/`dir`/`path`/`ext`/`content_type`/
-/// `content`) by design.
+/// merges the lowered `WorldResource`s into the versioned pack export. The
+/// component records share the world-resource wire format; the runtime report
+/// is reanalyzed after the merge so direct consumers see the added load work.
 fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
     use sand_core::build::{
         Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, Generator,
@@ -956,24 +955,56 @@ fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
 }
 
 pub fn export(namespace: &str, version: &str) {
-    let json = sand_core::advanced::try_export_components_json(namespace, version).unwrap_or_else(
-        |error| {
+    let json =
+        sand_core::advanced::try_export_pack_json(namespace, version).unwrap_or_else(|error| {
             eprintln!("audit export failed: {error}");
             std::process::exit(1);
-        },
-    );
-
-    let mut records: Vec<sand_core::serde_json::Value> = sand_core::serde_json::from_str(&json)
-        .unwrap_or_else(|error| {
-            eprintln!("audit export failed: could not parse component JSON: {error}");
-            std::process::exit(1);
         });
-    merge_world_resources(&mut records, audit_world_build());
 
-    println!(
-        "{}",
-        sand_core::serde_json::to_string(&records).expect("records are always serializable")
-    );
+    let json = merge_world_export(&json).unwrap_or_else(|error| {
+        eprintln!("audit export failed: could not merge pack JSON: {error}");
+        std::process::exit(1);
+    });
+    println!("{json}");
+}
+
+/// Add world resources and recompute costs while preserving compiler provenance.
+fn merge_world_export(json: &str) -> Result<String, sand_core::serde_json::Error> {
+    let mut export: sand_core::serde_json::Value = sand_core::serde_json::from_str(json)?;
+    let records = export["components"]
+        .as_array_mut()
+        .expect("the compiler pack export contains a component array");
+    merge_world_resources(records, audit_world_build());
+    let resources = records
+        .iter()
+        .filter(|record| {
+            record["content_type"] == "text"
+                || (record["content_type"] == "copy"
+                    && (record["dir"] == "function" || record["dir"] == "tags/function"))
+        })
+        .map(|record| {
+            let text = |key: &str| record[key].as_str().expect("compiler record field is text");
+            let bytes = if text("content_type") == "copy" {
+                std::fs::read(text("content")).map_err(sand_core::serde_json::Error::io)?
+            } else {
+                text("content").as_bytes().to_vec()
+            };
+            Ok((
+                format!(
+                    "data/{}/{}/{}.{}",
+                    text("namespace"),
+                    text("dir"),
+                    text("path"),
+                    text("ext")
+                ),
+                bytes,
+            ))
+        })
+        .collect::<Result<_, sand_core::serde_json::Error>>()?;
+    let report: sand_core::advanced::compiler::RuntimeReport =
+        sand_core::serde_json::from_value(export["runtime_report"].clone())?;
+    export["runtime_report"] = sand_core::serde_json::to_value(report.reanalyze(&resources))?;
+    sand_core::serde_json::to_string(&export)
 }
 
 fn merge_world_resources(
@@ -997,11 +1028,10 @@ fn merge_world_resources(
                     && record["path"] == "load"
                     && record["ext"] == "json"
             }) {
-                let mut content: sand_core::serde_json::Value =
-                    sand_core::serde_json::from_str(
-                        existing["content"].as_str().expect("tag content is text"),
-                    )
-                    .expect("ordinary load tag is valid JSON");
+                let mut content: sand_core::serde_json::Value = sand_core::serde_json::from_str(
+                    existing["content"].as_str().expect("tag content is text"),
+                )
+                .expect("ordinary load tag is valid JSON");
                 let values = content["values"]
                     .as_array_mut()
                     .expect("ordinary load tag has values");
@@ -1027,6 +1057,68 @@ fn merge_world_resources(
 #[cfg(test)]
 mod world_build_audit_tests {
     use super::*;
+
+    /// The custom audit exporter must preserve the versioned build protocol.
+    #[test]
+    fn world_merge_preserves_the_export_envelope_and_runtime_report() {
+        let input: sand_core::serde_json::Value = sand_core::serde_json::from_str(
+            &sand_core::advanced::try_export_pack_json("sand_audit", "26.2").unwrap(),
+        )
+        .unwrap();
+        let merged = merge_world_export(&input.to_string()).unwrap();
+        let output: sand_core::serde_json::Value =
+            sand_core::serde_json::from_str(&merged).unwrap();
+        assert_eq!(output["schema_version"], input["schema_version"]);
+        assert_eq!(
+            output["runtime_report"]["provenance"],
+            input["runtime_report"]["provenance"]
+        );
+        let world_init = "sand_audit:__sand_world_init";
+        assert!(
+            input["runtime_report"]["functions"]
+                .get(world_init)
+                .is_none()
+        );
+        let cost = &output["runtime_report"]["functions"][world_init]["evaluations"];
+        assert!(cost["minimum"].as_u64().unwrap() > 0);
+        assert_eq!(cost["minimum"], cost["maximum"]);
+        let load = output["runtime_report"]["load"].as_array().unwrap();
+        let entry = load
+            .iter()
+            .find(|entry| entry["reference"] == world_init)
+            .unwrap();
+        assert_eq!(&entry["evaluations"], cost);
+        assert!(!output["components"].as_array().unwrap().is_empty());
+    }
+
+    /// Copy-backed runtime resources must be resolved before replacing the report.
+    #[test]
+    fn world_merge_reports_copied_functions_and_rejects_missing_sources() {
+        let path = std::env::temp_dir().join(format!(
+            "sand-audit-report-{}.mcfunction",
+            std::process::id()
+        ));
+        std::fs::write(&path, "say copied\nsay twice\n").unwrap();
+        let mut input: sand_core::serde_json::Value = sand_core::serde_json::from_str(
+            &sand_core::advanced::try_export_pack_json("sand_audit", "26.2").unwrap(),
+        )
+        .unwrap();
+        input["components"]
+            .as_array_mut()
+            .unwrap()
+            .push(sand_core::serde_json::json!({
+                "namespace": "sand_audit", "dir": "function", "path": "copied",
+                "ext": "mcfunction", "content_type": "copy", "content": path.to_str().unwrap()
+            }));
+        let output: sand_core::serde_json::Value =
+            sand_core::serde_json::from_str(&merge_world_export(&input.to_string()).unwrap())
+                .unwrap();
+        let cost = &output["runtime_report"]["functions"]["sand_audit:copied"]["evaluations"];
+        assert_eq!(cost["minimum"], 2);
+        assert_eq!(cost["maximum"], 2);
+        std::fs::remove_file(path).unwrap();
+        assert!(merge_world_export(&input.to_string()).is_err());
+    }
 
     #[test]
     fn audit_includes_dimension_init_function_and_merged_load_tag() {

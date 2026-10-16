@@ -73,6 +73,7 @@ fn on_cycle_a_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_cycle_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_cycle_a_body()),

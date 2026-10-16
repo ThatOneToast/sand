@@ -60,7 +60,7 @@ fn body() -> Actions {
 }
 
 sand_core::inventory::submit! {
-    sand_core::FunctionDescriptor {
+    sand_core::FunctionDescriptor { owner: module_path!(),
         context: sand::advanced::compiler::ExecutionContext::Server,
         path: "cached_scores",
         make: body,
@@ -82,6 +82,7 @@ struct CachedTick;
 
 sand_core::inventory::submit! {
     sand_core::EventDescriptor {
+        owner: module_path!(),
         path: "cached_tick",
         id_override: None,
         make: Actions::default,

@@ -167,7 +167,7 @@ pub fn spawn() {
 /// Export hook used by the standard `sand_export` binary.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let json = sand::advanced::try_export_components_json(namespace, mc_version)
+    let json = sand::advanced::try_export_pack_json(namespace, mc_version)
         .unwrap_or_else(|error| panic!("entity archetype export failed: {error}"));
     println!("{json}");
 }

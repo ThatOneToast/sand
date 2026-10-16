@@ -77,7 +77,7 @@ fn body() -> Actions {
 }
 
 sand_core::inventory::submit! {
-    sand_core::FunctionDescriptor {
+    sand_core::FunctionDescriptor { owner: module_path!(),
         context: sand::advanced::compiler::ExecutionContext::Server,
         path: "numeric_guards",
         make: body,
@@ -99,6 +99,7 @@ fn tick() -> Option<sand_core::events::TickEventDispatch> {
 
 sand_core::inventory::submit! {
     sand_core::EventDescriptor {
+        owner: module_path!(),
         path: "numeric_tick",
         id_override: None,
         make: Actions::default,
@@ -187,6 +188,7 @@ macro_rules! custom_tick_handler {
     ($path:literal) => {
         sand_core::inventory::submit! {
             sand_core::EventDescriptor {
+                owner: module_path!(),
                 path: $path,
                 id_override: None,
                 make: Actions::default,
@@ -209,7 +211,7 @@ macro_rules! custom_tick_handler {
 custom_tick_handler!("custom_first_handler");
 custom_tick_handler!("custom_second_handler");
 sand_core::inventory::submit! {
-    sand_core::FunctionDescriptor {
+    sand_core::FunctionDescriptor { owner: module_path!(),
         context: sand::advanced::compiler::ExecutionContext::Server,
         path: "custom_value",
         make: || mcfunction![sand::command::return_cmd(1);],

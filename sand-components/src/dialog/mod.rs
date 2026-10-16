@@ -82,6 +82,13 @@ pub fn reset_dialog_callbacks_for_export() {
     registry.callbacks.clear();
 }
 
+/// Number of callbacks registered in the active export, for scoped provenance.
+/// Serialization registers each callback afresh, including cached dialog values.
+#[doc(hidden)]
+pub fn dialog_callback_count() -> usize {
+    callback_registry().lock().unwrap().callbacks.len()
+}
+
 /// Drain all registered dialog callbacks.
 ///
 /// Returns `(trigger_id, function_path)` pairs. Called by the exporter to

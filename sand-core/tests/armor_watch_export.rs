@@ -19,6 +19,7 @@ fn empty_body() -> Vec<String> {
 // folded to `_`.
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_ambiguous_colon_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Chest,
@@ -29,6 +30,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_ambiguous_underscore_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Chest,
@@ -43,6 +45,7 @@ sand_core::inventory::submit! {
 // algorithm): same slot, same item, different `sand` custom-data payload.
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_collision_fixture_a_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -53,6 +56,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_collision_fixture_a_unequip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -63,6 +67,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_collision_fixture_b_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -73,6 +78,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_collision_fixture_b_unequip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -86,6 +92,7 @@ sand_core::inventory::submit! {
 // stay independent of every filtered watch above.
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_any_feet_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Feet,
@@ -100,6 +107,7 @@ sand_core::inventory::submit! {
 // one `_now`/`_had` tag pair).
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_any_feet_equip_second_handler",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Feet,
@@ -112,6 +120,7 @@ sand_core::inventory::submit! {
 // These distinct filters both hash to 2cca71bb with namespace armorpack.
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_namespaced_collision_a_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -122,6 +131,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_namespaced_collision_a_unequip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -132,6 +142,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_namespaced_collision_b_equip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
@@ -142,6 +153,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
+        owner: module_path!(),
         path: "on_namespaced_collision_b_unequip",
         make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,

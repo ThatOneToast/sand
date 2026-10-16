@@ -11,7 +11,7 @@ fn counter(objective: &str) -> Vec<String> {
 macro_rules! event {
     ($path:literal, $dispatch:ident, $objective:literal) => {
         sand_core::inventory::submit! {
-            EventDescriptor { path: $path, id_override: None,
+            EventDescriptor { owner: module_path!(), path: $path, id_override: None,
                 make: || sand::component::IntoCommands::into_commands(counter($objective)),
                 dispatch: EventDispatch::$dispatch }
         }
@@ -23,7 +23,7 @@ event!("level", XpLevelUp, "audit_level");
 macro_rules! armor {
     ($path:literal, $kind:ident, $objective:literal) => {
         sand_core::inventory::submit! {
-            ArmorEventDescriptor { path: $path,
+            ArmorEventDescriptor { owner: module_path!(), path: $path,
                 make: || sand::component::IntoCommands::into_commands(counter($objective)),
                 slot: ArmorSlot::Head, kind: ArmorEventKind::$kind,
                 item_id: Some("minecraft:leather_helmet"), custom_data_snbt: None }

@@ -25,8 +25,11 @@ pub fn tick() {
 #[test]
 fn player_entries_initialize_state_before_the_body_on_every_export() {
     for _ in 0..2 {
-        let json = sand::advanced::try_export_components_json("entry", "26.2").unwrap();
-        let records: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+        let json = sand::advanced::try_export_pack_json("entry", "26.2").unwrap();
+        let records: Vec<serde_json::Value> = serde_json::from_value(
+            serde_json::from_str::<serde_json::Value>(&json).unwrap()["components"].clone(),
+        )
+        .unwrap();
         let content = |path: &str| {
             records
                 .iter()

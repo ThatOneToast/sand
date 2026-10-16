@@ -64,10 +64,47 @@ fn seekers(query: Seeker) {
 
 #[test]
 fn concrete_declarations_export_the_canonical_composition_and_queries() {
-    let first = sand::advanced::try_export_components_json("concrete", "26.2").unwrap();
-    let second = sand::advanced::try_export_components_json("concrete", "26.2").unwrap();
+    let first = sand::advanced::try_export_pack_json("concrete", "26.2").unwrap();
+    let second = sand::advanced::try_export_pack_json("concrete", "26.2").unwrap();
     assert_eq!(first, second);
-    let records: Vec<serde_json::Value> = serde_json::from_str(&first).unwrap();
+    let export: serde_json::Value = serde_json::from_str(&first).unwrap();
+    let report = &export["runtime_report"];
+    for (phase, path, owners) in [
+        (
+            "load",
+            "__sand_system_load",
+            serde_json::json!([format!("{}::seekers", module_path!())]),
+        ),
+        (
+            "tick",
+            "__sand_system_tick",
+            serde_json::json!([format!("{}::seekers", module_path!())]),
+        ),
+        (
+            "load",
+            "__sand_entity_load",
+            serde_json::json!(["concrete:guard", "concrete:seeker"]),
+        ),
+        (
+            "tick",
+            "__sand_entity_tick",
+            serde_json::json!(["concrete:guard", "concrete:seeker"]),
+        ),
+    ] {
+        let function = format!("concrete:{path}");
+        assert_eq!(report["functions"][&function]["owners"], owners, "{path}");
+        let entry = report[phase]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == function)
+            .unwrap();
+        assert_eq!(entry["contributors"], owners, "{phase} {path}");
+    }
+    let records: Vec<serde_json::Value> = serde_json::from_value(
+        serde_json::from_str::<serde_json::Value>(&first).unwrap()["components"].clone(),
+    )
+    .unwrap();
     let spawn = records
         .iter()
         .find(|record| record["path"] == "spawn" && record["dir"] == "function")
@@ -170,8 +207,11 @@ fn concrete_external_adoption_tag_matches_exported_scan_and_cleanup() {
     let tag = Seeker::external_adoption_tag();
     assert_ne!(tag, Guard::external_adoption_tag());
     assert_eq!(tag, Seeker::external_adoption_tag());
-    let export = sand::advanced::try_export_components_json("concrete", "26.2").unwrap();
-    let records: Vec<serde_json::Value> = serde_json::from_str(&export).unwrap();
+    let export = sand::advanced::try_export_pack_json("concrete", "26.2").unwrap();
+    let records: Vec<serde_json::Value> = serde_json::from_value(
+        serde_json::from_str::<serde_json::Value>(&export).unwrap()["components"].clone(),
+    )
+    .unwrap();
     let scan = format!(",tag={}]", tag.as_str());
     assert!(
         records

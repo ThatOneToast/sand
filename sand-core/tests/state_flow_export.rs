@@ -49,7 +49,7 @@ fn cached_transition() -> sand::command::Actions {
         .clone()
 }
 sand_core::inventory::submit! {
-    sand_core::FunctionDescriptor {
+    sand_core::FunctionDescriptor { owner: module_path!(),
         context: sand::advanced::compiler::ExecutionContext::Server,
         path: "cached_transition",
         make: cached_transition,

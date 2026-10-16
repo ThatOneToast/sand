@@ -47,6 +47,7 @@ struct BuildJsonOutput<'a> {
     minecraft_version: &'a str,
     profile: &'a str,
     component_count: usize,
+    runtime_report: sand::advanced::compiler::RuntimeReport,
     datapack_output: String,
     datapack_changes: ChangeSummary,
     diagnostics: Vec<BuildJsonDiagnostic>,
@@ -314,20 +315,10 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         )
     })?;
 
-    // 4. Parse component records
-    let records: Vec<ComponentRecord> = timings.record(Phase::RecordParsing, || {
-        serde_json::from_slice(&stdout).map_err(|e| {
-            let stdout = String::from_utf8_lossy(&stdout);
-            let hint = if stdout.trim_start().starts_with('[') && stdout.matches('[').count() > 1 {
-                "\n\nHint: the export binary printed more than one JSON value. \
-                 __sand_export must print exactly one JSON array \
-                 (from sand_core::export_components_json)."
-            } else {
-                ""
-            };
-            anyhow::anyhow!("failed to parse component export JSON: {}{}", e, hint)
-        })
-    })?;
+    // 4. Decode the versioned exporter envelope before validating resources.
+    let exported = timings.record(Phase::RecordParsing, || decode_pack_export(&stdout))?;
+    let records = exported.components;
+    let runtime_report = exported.runtime_report;
 
     // 4b. Compile and run the optional typed world build before any output is
     // written. This keeps ordinary component output and world-build output in
@@ -357,9 +348,11 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
 
     // Publish the fully validated output set as one staged transaction.
     // Ownership checks preserve unrelated files and reject edited outputs.
-    let change_summary = timings.record(Phase::DatapackWriting, || {
+    let published = timings.record(Phase::DatapackWriting, || {
         publication::publish_pack(&dist, &outputs)
     })?;
+    let runtime_report = runtime_report.reanalyze(&published.runtime_resources);
+    let change_summary = published.summary;
 
     write_server_config(&dist, worldbuild_output.as_ref())?;
 
@@ -454,6 +447,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                 minecraft_version: &mc_version,
                 profile: &profile,
                 component_count: records.len(),
+                runtime_report,
                 datapack_output: dist.display().to_string(),
                 datapack_changes: change_summary,
                 diagnostics,
@@ -728,7 +722,60 @@ mod tests {
         let release_outputs = prepare_datapack_outputs(dir.path(), &config, 61, &[], None).unwrap();
         let summary = super::publication::publish_pack(&pack_root, &release_outputs).unwrap();
         assert!(!stale.exists());
-        assert_eq!(summary.removed, 1);
+        assert_eq!(summary.summary.removed, 1);
+    }
+
+    /// Reports describe world-build and copy-backed bytes in the published pack.
+    #[test]
+    fn runtime_report_analyzes_worldbuild_and_copied_functions() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("copied.mcfunction"), "say copied").unwrap();
+        let copied: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace":"audit", "dir":"function", "path":"copied", "ext":"mcfunction",
+            "content_type":"copy", "content":"copied.mcfunction"
+        }))
+        .unwrap();
+        let mut function = world_resource("function", "__sand_world_init", "say world init");
+        function.ext = "mcfunction".into();
+        let mut load = world_resource(
+            "tags/function",
+            "load",
+            r#"{"values":["audit:__sand_world_init"]}"#,
+        );
+        load.namespace = "minecraft".into();
+        let world = WorldBuildOutput {
+            resources: vec![function, load],
+            server_config: None,
+            seed: None,
+            level_type: None,
+        };
+        let outputs = prepare_datapack_outputs(
+            dir.path(),
+            &parse_config("audit").unwrap(),
+            61,
+            &[copied],
+            Some(&world),
+        )
+        .unwrap();
+        let program = sand::advanced::compiler::Compiler::decode(
+            include_bytes!("../../../tests/fixtures/program/counter.sand.json"),
+            &std::collections::BTreeMap::new(),
+        )
+        .unwrap();
+        let original = sand::advanced::compiler::Compiler::compile(&program)
+            .unwrap()
+            .runtime_report;
+        let report = serde_json::to_value(original.reanalyze(&outputs)).unwrap();
+        assert_eq!(
+            report["functions"]["audit:__sand_world_init"]["evaluations"]["maximum"],
+            1
+        );
+        assert_eq!(
+            report["functions"]["audit:copied"]["evaluations"]["maximum"],
+            1
+        );
+        assert_eq!(report["load"][0]["reference"], "audit:__sand_world_init");
+        assert!(report["functions"].get("demo:tick").is_none());
     }
 
     #[test]
@@ -2003,5 +2050,56 @@ mod tests {
         )
         .unwrap();
         assert!(super::validate_output::validate_output_dir(&dist).is_ok());
+    }
+}
+
+/// The CLI carries compiler analysis without reconstructing provenance from paths.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PackExport {
+    schema_version: u32,
+    components: Vec<ComponentRecord>,
+    runtime_report: sand::advanced::compiler::RuntimeReport,
+}
+
+fn decode_pack_export(stdout: &[u8]) -> Result<PackExport> {
+    let exported: PackExport = serde_json::from_slice(stdout)
+        .context("failed to parse pack export JSON; sand_export must print exactly one object from sand::advanced::try_export_pack_json")?;
+    if exported.schema_version != 1 {
+        bail!(
+            "unsupported pack export schema version {}",
+            exported.schema_version
+        );
+    }
+    Ok(exported)
+}
+
+#[cfg(test)]
+mod pack_export_tests {
+    use super::*;
+
+    /// A protocol mismatch must fail before any pack publication.
+    #[test]
+    fn exporter_protocol_requires_versioned_resources_and_report() {
+        let program = sand::advanced::compiler::Compiler::decode(
+            include_bytes!("../../../tests/fixtures/program/counter.sand.json"),
+            &std::collections::BTreeMap::new(),
+        )
+        .unwrap();
+        let report = sand::advanced::compiler::Compiler::compile(&program)
+            .unwrap()
+            .runtime_report;
+        let valid = serde_json::json!({"schema_version":1,"components":[],"runtime_report":report});
+        assert!(decode_pack_export(&serde_json::to_vec(&valid).unwrap()).is_ok());
+        for invalid in [
+            serde_json::json!([]),
+            serde_json::json!({"schema_version":2,"components":[],"runtime_report":{"schema_version":1}}),
+            serde_json::json!({"schema_version":1,"components":[],"runtime_report":null}),
+        ] {
+            assert!(decode_pack_export(&serde_json::to_vec(&invalid).unwrap()).is_err());
+        }
+        let mut trailing = serde_json::to_vec(&valid).unwrap();
+        trailing.extend_from_slice(b" {} ");
+        assert!(decode_pack_export(&trailing).is_err());
     }
 }

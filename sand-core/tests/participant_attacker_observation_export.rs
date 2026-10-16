@@ -81,6 +81,7 @@ fn setup() -> EventSetup {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_player_hurt_check",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(body()),

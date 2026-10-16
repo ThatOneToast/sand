@@ -100,6 +100,7 @@ fn aaa_jump_handler_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "zzz_jump_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(zzz_jump_handler_body()),
@@ -120,6 +121,7 @@ sand_core::inventory::submit! {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "aaa_jump_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(aaa_jump_handler_body()),
@@ -159,6 +161,7 @@ fn every_tick_event_type_name() -> &'static str {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "every_tick_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(every_tick_handler_body()),
@@ -202,6 +205,7 @@ fn or_condition_event_type_name() -> &'static str {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "or_condition_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(or_condition_handler_body()),
@@ -257,6 +261,7 @@ fn never_fires_event_type_name() -> &'static str {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "never_fires_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(never_fires_handler_body()),

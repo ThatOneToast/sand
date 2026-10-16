@@ -323,6 +323,7 @@ pub(crate) fn clear_constant_setup() {
 }
 
 fn register_constant(objective: &str, holder: &str, value: i32) {
+    crate::function::record_score_origin();
     constants_registry().with_borrow_mut(|registry| {
         let key = (objective.to_string(), holder.to_string());
         if let Some(existing) = registry.get(&key) {

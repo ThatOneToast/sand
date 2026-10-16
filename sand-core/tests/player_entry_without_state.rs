@@ -14,8 +14,11 @@ pub fn player() {
 #[test]
 fn player_without_state_does_not_call_a_user_named_initializer() {
     for _ in 0..2 {
-        let json = sand::advanced::try_export_components_json("entry", "26.2").unwrap();
-        let records: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+        let json = sand::advanced::try_export_pack_json("entry", "26.2").unwrap();
+        let records: Vec<serde_json::Value> = serde_json::from_value(
+            serde_json::from_str::<serde_json::Value>(&json).unwrap()["components"].clone(),
+        )
+        .unwrap();
         let body = |path: &str| {
             records
                 .iter()

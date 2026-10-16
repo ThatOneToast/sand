@@ -142,6 +142,7 @@ macro_rules! submit_handler {
             }
             sand_core::inventory::submit! {
                 EventDescriptor {
+                    owner: module_path!(),
                     path: $path,
                     id_override: None,
                     make: || sand::component::IntoCommands::into_commands(body()),
@@ -196,6 +197,7 @@ fn parent_a_setup() -> EventSetup {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_parent_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(parent_a_body()),

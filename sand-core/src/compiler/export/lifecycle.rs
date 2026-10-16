@@ -43,6 +43,7 @@ pub(crate) fn transition_export_error(message: impl Into<String>) -> ComponentEx
     }
 }
 
+/// Reject a private tracker function that would overwrite an existing function record.
 pub(crate) fn ensure_private_transition_path_available(
     records: &[ComponentRecord],
     path: &str,
@@ -60,6 +61,45 @@ pub(crate) fn ensure_private_transition_path_available(
     Ok(())
 }
 
+/// Lifecycle output retained by both registered and portable frontends.
+pub(crate) struct LifecycleAssembly {
+    /// All automatic and explicit owners, including work without command spans.
+    load_contributors: std::collections::BTreeSet<String>,
+    init_contributors: std::collections::BTreeSet<String>,
+    tick_contributors: std::collections::BTreeSet<String>,
+    /// Initializer that player-context entry functions must invoke.
+    pub(crate) player_initializer: Option<String>,
+    /// Load-command spans and their original registration owners.
+    pub(crate) load_owners: Vec<crate::compiler::runtime::CommandOrigin>,
+    /// Tick-command spans and their original registration owners.
+    pub(crate) tick_owners: Vec<crate::compiler::runtime::CommandOrigin>,
+}
+
+impl LifecycleAssembly {
+    /// Apply phase-specific provenance identically for Rust and portable frontends.
+    pub(crate) fn attribute(
+        &self,
+        namespace: &str,
+        runtime: &mut crate::compiler::runtime::RuntimePlan,
+    ) {
+        for (phase, owners) in [
+            ("load", &self.load_contributors),
+            ("tick", &self.tick_contributors),
+        ] {
+            runtime.own_lifecycle(
+                format!("{namespace}:__sand_lifecycle_{phase}"),
+                phase,
+                owners.iter().cloned(),
+            );
+        }
+        if let Some(initializer) = &self.player_initializer {
+            for owner in &self.init_contributors {
+                runtime.own_function(initializer.clone(), owner.clone());
+            }
+        }
+    }
+}
+
 /// Assemble owned lifecycle contributions after frontend collection.
 pub(crate) fn assemble_lifecycle(
     namespace: &str,
@@ -69,7 +109,7 @@ pub(crate) fn assemble_lifecycle(
     mut registration_load_commands: Vec<(String, usize, String)>,
     mut registration_tick_commands: Vec<(String, usize, String)>,
     transition_global_tick_commands: Vec<String>,
-) -> ExportResult<Option<String>> {
+) -> ExportResult<LifecycleAssembly> {
     use std::collections::BTreeMap;
     registration_load_commands
         .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
@@ -133,6 +173,11 @@ pub(crate) fn assemble_lifecycle(
         .into_values()
         .map(|(_, command, _)| command)
         .collect();
+    let mut load_owners = Vec::new();
+    let mut load_first_line = 1 + load_cmds
+        .iter()
+        .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
+        .sum::<usize>();
     for (owner, _, command) in registration_load_commands {
         let mut parts = command.splitn(6, ' ');
         let parsed = match (
@@ -163,11 +208,17 @@ pub(crate) fn assemble_lifecycle(
                     )));
                 }
                 None => {
-                    registration_definitions.insert(objective, (criterion, owner));
+                    registration_definitions.insert(objective, (criterion, owner.clone()));
                 }
             }
         }
-        load_cmds.push(command);
+        append_owned_command(
+            &mut load_cmds,
+            &mut load_owners,
+            owner,
+            command,
+            &mut load_first_line,
+        );
     }
     load_cmds.append(&mut automatic.provision_commands);
     load_cmds.append(&mut automatic.global_init_commands);
@@ -216,11 +267,20 @@ pub(crate) fn assemble_lifecycle(
     tick_cmds.extend(automatic.entity_tick_commands);
     tick_cmds.extend(automatic.global_tick_commands);
     tick_cmds.extend(transition_global_tick_commands);
-    tick_cmds.extend(
-        registration_tick_commands
-            .into_iter()
-            .map(|(_, _, command)| command),
-    );
+    let mut tick_owners = Vec::new();
+    let mut first_line = 1 + tick_cmds
+        .iter()
+        .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
+        .sum::<usize>();
+    for (owner, _, command) in registration_tick_commands {
+        append_owned_command(
+            &mut tick_cmds,
+            &mut tick_owners,
+            owner,
+            command,
+            &mut first_line,
+        );
+    }
     if !tick_cmds.is_empty() {
         let path = "__sand_lifecycle_tick";
         ensure_private_lifecycle_path_available(records, path)?;
@@ -237,7 +297,39 @@ pub(crate) fn assemble_lifecycle(
             .or_default()
             .push(format!("{namespace}:{path}"));
     }
-    Ok((!automatic.player_init_commands.is_empty()).then(|| format!("{namespace}:{init_path}")))
+    let mut load_contributors = automatic.load_origins;
+    load_contributors.extend(load_owners.iter().map(|origin| origin.owner.clone()));
+    let mut tick_contributors = automatic.tick_origins;
+    tick_contributors.extend(tick_owners.iter().map(|origin| origin.owner.clone()));
+    Ok(LifecycleAssembly {
+        load_contributors,
+        init_contributors: automatic.init_origins,
+        tick_contributors,
+        player_initializer: (!automatic.player_init_commands.is_empty())
+            .then(|| format!("{namespace}:{init_path}")),
+        load_owners,
+        tick_owners,
+    })
+}
+
+/// Retain the original owner at the exact emitted line span for either phase.
+fn append_owned_command(
+    commands: &mut Vec<String>,
+    origins: &mut Vec<crate::compiler::runtime::CommandOrigin>,
+    owner: String,
+    command: String,
+    first_line: &mut usize,
+) {
+    let line_count = command.lines().count();
+    if line_count != 0 {
+        origins.push(crate::compiler::runtime::CommandOrigin {
+            owner,
+            first_line: *first_line,
+            line_count,
+        });
+    }
+    *first_line += command.bytes().filter(|byte| *byte == b'\n').count() + 1;
+    commands.push(command);
 }
 
 /// Initialize canonical player State at declared player-context entry points.
@@ -292,6 +384,97 @@ pub(crate) fn validate_server_lifecycle_tags(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod runtime_origin_tests {
+    use super::*;
+    use crate::compiler::runtime::CommandOrigin;
+    use crate::state::registry::AutomaticLifecycle;
+    use std::collections::BTreeMap;
+
+    /// Ownership follows emitted lines after sorting, including multiline bodies.
+    #[test]
+    fn lifecycle_origins_match_emitted_function_spans() {
+        let mut records = Vec::new();
+        let mut tags = BTreeMap::new();
+        let automatic = AutomaticLifecycle {
+            load_commands: vec!["scoreboard objectives add auto dummy".into()],
+            global_init_commands: vec!["say automatic init".into()],
+            global_tick_commands: vec!["say automatic\nsay next".into()],
+            ..AutomaticLifecycle::default()
+        };
+        let assembled = assemble_lifecycle(
+            "audit",
+            &mut records,
+            &mut tags,
+            automatic,
+            vec![
+                ("module:b".into(), 0, "say b load".into()),
+                ("module:a".into(), 0, "say a load\n# load comment\n".into()),
+            ],
+            vec![
+                ("module:b".into(), 0, "say b".into()),
+                ("module:a".into(), 1, "say a2".into()),
+                ("module:a".into(), 0, "say a1\n# retained comment\n".into()),
+            ],
+            Vec::new(),
+        )
+        .unwrap();
+        let load = records
+            .iter()
+            .find(|record| record.path == "__sand_lifecycle_load")
+            .unwrap();
+        assert_eq!(
+            load.content,
+            "scoreboard objectives add auto dummy\nsay a load\n# load comment\n\nsay b load\nsay automatic init"
+        );
+        assert_eq!(
+            assembled.load_owners,
+            vec![
+                CommandOrigin {
+                    owner: "module:a".into(),
+                    first_line: 2,
+                    line_count: 2
+                },
+                CommandOrigin {
+                    owner: "module:b".into(),
+                    first_line: 5,
+                    line_count: 1
+                },
+            ]
+        );
+        assert!(assembled.player_initializer.is_none());
+        let tick = records
+            .iter()
+            .find(|record| record.path == "__sand_lifecycle_tick")
+            .unwrap();
+        assert_eq!(
+            tick.content,
+            "say automatic\nsay next\nsay a1\n# retained comment\n\nsay a2\nsay b"
+        );
+        assert_eq!(
+            assembled.tick_owners,
+            vec![
+                CommandOrigin {
+                    owner: "module:a".into(),
+                    first_line: 3,
+                    line_count: 2
+                },
+                CommandOrigin {
+                    owner: "module:a".into(),
+                    first_line: 6,
+                    line_count: 1
+                },
+                CommandOrigin {
+                    owner: "module:b".into(),
+                    first_line: 7,
+                    line_count: 1
+                },
+            ]
+        );
+        assert_eq!(tags["minecraft:tick"], ["audit:__sand_lifecycle_tick"]);
+    }
 }
 
 #[cfg(test)]

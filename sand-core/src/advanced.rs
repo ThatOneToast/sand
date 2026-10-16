@@ -34,16 +34,20 @@ pub mod state {
     };
 }
 
-/// Collect registered components as JSON for a configured Minecraft version.
+/// Collect a versioned pack export with resources and runtime analysis.
+///
+/// The object contains `schema_version`, `components`, and `runtime_report`.
+/// The report describes explicit command evaluations and records unknown costs;
+/// it does not predict MSPT or Minecraft command-budget consumption.
 ///
 /// The raw version text belongs at the project-configuration boundary. Sand
 /// resolves it once, applies the matching Minecraft capability gates, and
 /// uses a conservative fallback for a parseable release it has not verified.
 #[api(
     registry = sand_api_contract,
-    path = "sand::advanced::try_export_components_json",
+    path = "sand::advanced::try_export_pack_json",
     module = "sand::advanced",
-    summary = "Exports registered Sand components as version-validated JSON.",
+    summary = "Exports version-validated JSON with pack resources, runtime estimates, and provenance.",
     context = "Custom build integrations need one fallible boundary from a project namespace and configured Minecraft target to the JSON stream consumed by Sand tooling.",
     minecraft = "Resolves the target release's pack and feature capabilities before serializing datapack resources.",
     use_when = ["Writing a custom sand_export hook", "Integrating Sand's component stream into another build tool"],
@@ -52,12 +56,12 @@ pub mod state {
         namespace = "The datapack namespace whose local resources are being exported.",
         mc_version = "The project configuration's Minecraft version text, such as 26.1 or 26.2."
     ),
-    returns = "Pretty JSON component records, or a validation and version-resolution error.",
-    example = "let json = sand::advanced::try_export_components_json(\"example\", \"26.2\")?;"
+    returns = "A JSON object with schema_version, components, and runtime_report, or a validation and version-resolution error.",
+    example = "let json = sand::advanced::try_export_pack_json(\"example\", \"26.2\")?;"
 )]
-pub fn try_export_components_json(namespace: &str, mc_version: &str) -> Result<String> {
+pub fn try_export_pack_json(namespace: &str, mc_version: &str) -> Result<String> {
     let resolved = crate::version::resolve_export_caps(mc_version)?;
-    Ok(crate::component::try_export_components_json_for_version(
+    Ok(crate::compiler::export::try_export_pack_json(
         namespace,
         &resolved.caps,
         &resolved.version,

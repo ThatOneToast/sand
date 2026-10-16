@@ -426,7 +426,7 @@ impl Migration {
 }
 
 /// Cost and generated-resource summary for one archetype.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct EntityRuntimeReport {
     /// Archetype identifier.
     pub archetype: String,
@@ -2288,6 +2288,7 @@ fn compile_definition_with_claims(
     _profile: &crate::version::VersionProfile,
     claims: &ComponentClaims,
 ) -> Result<CompiledArchetype, EntityDiagnostic> {
+    let _origin = crate::function::GeneratedOwnerScope::logical(&definition.id.to_string());
     let fields = ArchetypeFields::new(definition)?;
     validate_definition(definition)?;
 

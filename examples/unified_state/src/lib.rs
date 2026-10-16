@@ -275,7 +275,7 @@ pub fn set_global_literal() {
 /// Export hook used by the isolated tutorial workspace.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let json = sand::advanced::try_export_components_json(namespace, mc_version)
+    let json = sand::advanced::try_export_pack_json(namespace, mc_version)
         .unwrap_or_else(|error| panic!("unified State export failed: {error}"));
     println!("{json}");
 }

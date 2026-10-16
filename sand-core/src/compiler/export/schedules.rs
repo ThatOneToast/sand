@@ -186,6 +186,7 @@ pub(crate) fn emit_schedule_records_with(
     let mut tick_cmds: Vec<String> = Vec::new();
 
     for desc in schedules {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
         let hash = keys
             .get(desc.path)
             .expect("every schedule path receives an allocated key");
@@ -453,12 +454,14 @@ mod tests {
     #[test]
     fn failed_allocation_emits_no_records() {
         let a = crate::function::ScheduleDescriptor {
+            owner: module_path!(),
             path: "alpha",
             total_ticks: 20,
             every: 1,
             make: || crate::IntoCommands::into_commands(body()),
         };
         let b = crate::function::ScheduleDescriptor {
+            owner: module_path!(),
             path: "beta",
             total_ticks: 20,
             every: 1,
@@ -487,12 +490,14 @@ mod tests {
     #[test]
     fn colliding_emission_uses_distinct_objectives() {
         let a = crate::function::ScheduleDescriptor {
+            owner: module_path!(),
             path: "alpha",
             total_ticks: 20,
             every: 1,
             make: || crate::IntoCommands::into_commands(body()),
         };
         let b = crate::function::ScheduleDescriptor {
+            owner: module_path!(),
             path: "beta",
             total_ticks: 20,
             every: 1,

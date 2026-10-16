@@ -19,7 +19,7 @@ fn body() -> Actions {
     .clone()
 }
 sand_core::inventory::submit! {
-    sand_core::EventDescriptor { path: "level", id_override: None, make: body,
+    sand_core::EventDescriptor { owner: module_path!(), path: "level", id_override: None, make: body,
         dispatch: sand_core::EventDispatch::XpLevelUp }
 }
 

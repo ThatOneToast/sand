@@ -270,6 +270,7 @@ mod tests {
                 &mut records,
                 "test",
                 None,
+                &mut Default::default(),
             )
             .unwrap();
             let setup = crate::state::score::drain_internal_score_setup();
@@ -330,6 +331,7 @@ mod tests {
                 &mut records,
                 "test",
                 None,
+                &mut Default::default(),
             )
             .unwrap();
             let all = records
@@ -394,6 +396,7 @@ mod tests {
                     &mut records,
                     "test",
                     None,
+                    &mut Default::default(),
                 )
                 .unwrap();
                 let all = records
@@ -455,6 +458,7 @@ mod tests {
             &mut records,
             "test",
             None,
+            &mut Default::default(),
         )
         .unwrap();
         crate::compiler::export::records::validate_unique_output_identities(&records).unwrap();

@@ -590,6 +590,7 @@ pub(crate) fn resolve_state_flow_plan(
     let mut plan = crate::transition::TransitionPlan::default();
     let mut generated_paths = BTreeSet::new();
     for (_, mut flow) in by_id {
+        let _origin = crate::function::GeneratedOwnerScope::logical(&flow.id);
         validate_flow(&flow)?;
         flow.transitions
             .sort_by_key(|transition| (std::cmp::Reverse(transition.priority), transition.order));
@@ -644,6 +645,7 @@ pub(crate) fn resolve_state_flow_plan(
             commands.push(format!("scoreboard players set @s {lock} 1"));
             plan.functions
                 .push(crate::transition::GeneratedTransitionFunction {
+                    origins: [crate::function::GeneratedOrigin::Logical(flow.id.clone())].into(),
                     tracker_id: flow.id.clone(),
                     source: format!(
                         "{} {} -> {} priority {}",
@@ -716,6 +718,7 @@ pub(crate) fn resolve_state_flow_plan(
             }
             plan.functions
                 .push(crate::transition::GeneratedTransitionFunction {
+                    origins: [crate::function::GeneratedOrigin::Logical(flow.id.clone())].into(),
                     tracker_id: flow.id.clone(),
                     source: format!(
                         "{} tick state {} cadence {}",
@@ -729,6 +732,7 @@ pub(crate) fn resolve_state_flow_plan(
         insert_path(&mut generated_paths, &flow, &root)?;
         plan.functions
             .push(crate::transition::GeneratedTransitionFunction {
+                origins: [crate::function::GeneratedOrigin::Logical(flow.id.clone())].into(),
                 tracker_id: flow.id.clone(),
                 source: format!("state flow for {}", flow.state_type),
                 path: root,

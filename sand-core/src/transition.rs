@@ -24,10 +24,23 @@ pub(crate) struct TransitionPlan {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct GeneratedTransitionFunction {
+    /// Captured callback or canonical flow origins, independent of diagnostic labels.
+    pub origins: BTreeSet<crate::function::GeneratedOrigin>,
     pub tracker_id: String,
     pub source: String,
     pub path: String,
     pub commands: Vec<String>,
+}
+
+/// Preserve the exact authored callbacks consumed by a generated detector.
+pub(crate) fn callback_origins<'a>(
+    namespace: &str,
+    handlers: impl IntoIterator<Item = &'a str>,
+) -> BTreeSet<crate::function::GeneratedOrigin> {
+    handlers
+        .into_iter()
+        .map(|path| crate::function::GeneratedOrigin::Function(format!("{namespace}:{path}")))
+        .collect()
 }
 
 pub(crate) mod builtin;

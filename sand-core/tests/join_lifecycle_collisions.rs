@@ -9,6 +9,7 @@ static COLLISION: Mutex<Option<(bool, String)>> = Mutex::new(None);
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "joined", id_override: None,
         make: || sand::component::IntoCommands::into_commands(Vec::<String>::new()),
         dispatch: EventDispatch::JoinTick,

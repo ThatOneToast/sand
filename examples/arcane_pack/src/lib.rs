@@ -445,7 +445,7 @@ pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
 /// Invoked by the generated `sand_export` binary.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    match sand_core::advanced::try_export_components_json(namespace, mc_version) {
+    match sand_core::advanced::try_export_pack_json(namespace, mc_version) {
         Ok(json) => println!("{json}"),
         Err(e) => {
             eprintln!("sand export failed: {e}");

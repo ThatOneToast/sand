@@ -68,7 +68,7 @@ def main() -> int:
         text=True,
         check=True,
     ).stdout
-    records = json.loads(export)
+    records = json.loads(export)["components"]
     functions = {
         record["path"]: record["content"]
         for record in records

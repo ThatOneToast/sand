@@ -18,7 +18,7 @@ fn invalid_lifecycle_member() -> DatapackRegistration {
 #[test]
 fn registration_rejects_player_entries_in_server_lifecycle_tags() {
     for namespace in ["first", "second", "first"] {
-        let error = sand::advanced::try_export_components_json(namespace, "26.2")
+        let error = sand::advanced::try_export_pack_json(namespace, "26.2")
             .unwrap_err()
             .to_string();
         assert!(error.contains("minecraft:load"), "{error}");

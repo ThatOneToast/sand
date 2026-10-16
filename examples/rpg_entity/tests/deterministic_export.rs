@@ -28,8 +28,10 @@ fn repeated_exports_are_byte_identical() {
 
 #[test]
 fn export_contains_the_vertical_runtime() {
-    let records: Vec<serde_json::Value> =
-        serde_json::from_slice(&export()).expect("valid component JSON");
+    let pack: serde_json::Value = serde_json::from_slice(&export()).expect("valid pack JSON");
+    assert_eq!(pack["schema_version"], 1);
+    assert_eq!(pack["runtime_report"]["schema_version"], 1);
+    let records: Vec<serde_json::Value> = serde_json::from_value(pack["components"].clone()).expect("component array");
     let functions: Vec<_> = records
         .iter()
         .filter(|record| record["dir"] == "function")

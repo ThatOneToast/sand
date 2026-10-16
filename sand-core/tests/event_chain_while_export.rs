@@ -79,6 +79,7 @@ fn child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_parent_while_sneaking",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(child_body()),

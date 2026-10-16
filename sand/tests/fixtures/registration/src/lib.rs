@@ -56,7 +56,7 @@ fn facade_only_bundle_and_ordinary_component_export() {
         ComponentContent::Text("say ordinary".into())
     );
     // This is Sand's supported build hook, not an exporter-internal API.
-    let json = sand::advanced::try_export_components_json("consumer", "26.2").unwrap();
+    let json = sand::advanced::try_export_pack_json("consumer", "26.2").unwrap();
     for expected in [
         "say generic resource",
         "say alpha",

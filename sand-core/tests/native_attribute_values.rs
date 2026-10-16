@@ -30,7 +30,7 @@ fn cached_attribute_actions() -> Actions {
 }
 
 sand_core::inventory::submit! {
-    sand_core::FunctionDescriptor {
+    sand_core::FunctionDescriptor { owner: module_path!(),
         context: sand::advanced::compiler::ExecutionContext::Server,
         path: "snapshot", make: cached_attribute_actions,
     }

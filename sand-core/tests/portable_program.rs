@@ -614,3 +614,142 @@ fn resource_paths_reject_windows_reserved_segments_on_every_host() {
     program.modules[0].functions[0].id = "con:entry".parse().unwrap();
     assert!(Compiler::check(&program).is_err());
 }
+
+/// Runtime reports retain logical ownership without publishing synthetic resources.
+#[test]
+fn runtime_report_preserves_tick_contributors_and_unknown_fork_cost() {
+    let pack = Compiler::compile(&counter()).unwrap();
+    let report = serde_json::to_value(&pack.runtime_report).unwrap();
+    assert_eq!(report["schema_version"], 1);
+    let tick = report["tick"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["reference"] == "demo:tick")
+        .unwrap();
+    assert_eq!(
+        tick["contributors"],
+        serde_json::json!(["demo:counter_module"])
+    );
+    assert_eq!(
+        report["functions"]["demo:tick"]["owners"],
+        serde_json::json!(["demo:counter_module"])
+    );
+    assert!(tick["evaluations"]["maximum"].is_null());
+    assert!(
+        !tick["evaluations"]["unknown"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        !pack
+            .resources
+            .keys()
+            .any(|path| path.contains("runtime_report"))
+    );
+    let again = Compiler::compile(&counter()).unwrap();
+    assert_eq!(report, serde_json::to_value(again.runtime_report).unwrap());
+}
+
+/// Generated branches/player bodies and load spans retain their authored module.
+#[test]
+fn runtime_report_attributes_helpers_and_load_contributions() {
+    let mut program = counter();
+    let call = operation(Action::Call {
+        function: FunctionReference::Internal {
+            id: "demo:increment".parse().unwrap(),
+        },
+    });
+    program.modules[0].functions[0].body = vec![operation(Action::Players {
+        body: vec![call.clone(), call],
+    })];
+    let score = FieldReference {
+        state: "demo:counter".parse().unwrap(),
+        field: "value".into(),
+    };
+    program.modules[0].functions[1].body = vec![operation(Action::Branch {
+        condition: ScoreComparison {
+            score: score.clone(),
+            min: Some(0),
+            max: Some(0),
+        },
+        then: vec![operation(Action::ScoreSet {
+            score: score.clone(),
+            value: 1,
+        })],
+        otherwise: vec![operation(Action::ScoreSet { score, value: 2 })],
+    })];
+    program.modules[0].load = vec![operation(Action::Call {
+        function: FunctionReference::Internal {
+            id: "demo:tick".parse().unwrap(),
+        },
+    })];
+    program.modules[0].tick = program.modules[0].load.clone();
+    let pack = Compiler::compile(&program).unwrap();
+    let report = serde_json::to_value(&pack.runtime_report).unwrap();
+    let helpers: Vec<_> = report["functions"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .filter(|(id, _)| id.starts_with("demo:__sand_program/"))
+        .collect();
+    assert!(helpers.len() >= 4);
+    for (_, cost) in helpers {
+        assert_eq!(cost["owners"], serde_json::json!(["demo:counter_module"]));
+    }
+    for phase in ["load", "tick"] {
+        let id = format!("demo:__sand_lifecycle_{phase}");
+        assert_eq!(
+            report["functions"][&id]["owners"],
+            serde_json::json!(["demo:counter", "demo:counter_module"])
+        );
+        let entry = report[phase]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == id)
+            .unwrap();
+        assert_eq!(
+            entry["contributors"],
+            serde_json::json!(["demo:counter", "demo:counter_module"])
+        );
+    }
+    let spans = report["provenance"]["lifecycle_owners"]["demo:__sand_lifecycle_load"]
+        .as_array()
+        .unwrap();
+    assert_eq!(spans.len(), 1);
+    assert_eq!(spans[0]["owner"], "demo:counter_module");
+    let line = spans[0]["first_line"].as_u64().unwrap() as usize;
+    let body =
+        std::str::from_utf8(&pack.resources["data/demo/function/__sand_lifecycle_load.mcfunction"])
+            .unwrap();
+    assert_eq!(body.lines().nth(line - 1), Some("function demo:tick"));
+}
+
+/// State-only modules still contribute load, initialization, and tick infrastructure.
+#[test]
+fn automatic_state_lifecycle_keeps_state_and_module_origins() {
+    let pack = Compiler::compile(&counter()).unwrap();
+    let report = serde_json::to_value(&pack.runtime_report).unwrap();
+    let owners = serde_json::json!(["demo:counter", "demo:counter_module"]);
+    for path in [
+        "__sand_lifecycle_load",
+        "__sand_lifecycle_init",
+        "__sand_lifecycle_tick",
+    ] {
+        assert_eq!(
+            report["functions"][format!("demo:{path}")]["owners"],
+            owners
+        );
+    }
+    for phase in ["load", "tick"] {
+        let entry = report[phase]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == format!("demo:__sand_lifecycle_{phase}"))
+            .unwrap();
+        assert_eq!(entry["contributors"], owners);
+    }
+}

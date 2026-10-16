@@ -45,6 +45,7 @@ pub(super) fn resolve(namespace: &str, handlers: &[&str]) -> TransitionPlan {
     }
     for (path, commands) in [(check, check_commands), (dispatch, dispatch_commands)] {
         plan.functions.push(GeneratedTransitionFunction {
+            origins: super::callback_origins(namespace, handlers.iter().copied()),
             tracker_id: owner.clone(),
             source: source.to_string(),
             path: path.to_string(),

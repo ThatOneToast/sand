@@ -71,6 +71,7 @@ fn setup() -> EventSetup {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_held_item_check",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(body()),

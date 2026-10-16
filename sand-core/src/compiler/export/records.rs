@@ -31,6 +31,19 @@ pub struct ComponentRecord {
 }
 
 impl ComponentRecord {
+    /// Normalize supported record layouts to the function-tag resource path.
+    pub(crate) fn function_tag_path(&self) -> Option<&str> {
+        if self.ext != "json" {
+            return None;
+        }
+        match self.dir.as_str() {
+            "tags/function" => Some(&self.path),
+            "tags" => self.path.strip_prefix("function/"),
+            _ => None,
+        }
+    }
+
+    /// Construct a textual function record from ordered compiled commands.
     pub(crate) fn function(namespace: &str, path: &str, commands: Vec<String>) -> Self {
         Self {
             namespace: namespace.to_string(),
@@ -49,6 +62,7 @@ pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
 
 type OutputIdentity = (String, String, String, String);
 
+/// Identify a registered output for collision checks independently of its semantic owner.
 fn output_identity(record: &ComponentRecord) -> OutputIdentity {
     (
         record.namespace.clone(),
@@ -60,6 +74,8 @@ fn output_identity(record: &ComponentRecord) -> OutputIdentity {
 
 /// One resource returned by a logical registration owner.
 pub(crate) struct RegisteredComponent {
+    /// Semantic origins are separate from the diagnostic output owner.
+    pub(crate) origins: std::collections::BTreeSet<crate::function::GeneratedOrigin>,
     pub(crate) owner: String,
     pub(crate) component: Box<dyn DatapackComponent>,
     pub(crate) record: ComponentRecord,
@@ -138,7 +154,7 @@ pub(crate) fn component_to_record(
 pub(crate) fn expand_with_nested(
     mut top_level: Vec<RegisteredComponent>,
     ctx: Option<&super::ExportCtx>,
-) -> ExportResult<Vec<ComponentRecord>> {
+) -> ExportResult<Vec<(String, ComponentRecord)>> {
     top_level.sort_by(|left, right| {
         output_identity(&left.record)
             .cmp(&output_identity(&right.record))
@@ -153,11 +169,13 @@ pub(crate) fn expand_with_nested(
     Ok(records)
 }
 
+/// Recursively validate a registration and its children while retaining serialization origins.
+/// Reject duplicate outputs before adding them to the collected record sequence.
 fn expand_registered_component(
     registered: RegisteredComponent,
     ctx: Option<&super::ExportCtx>,
     seen: &mut std::collections::BTreeMap<OutputIdentity, String>,
-    records: &mut Vec<ComponentRecord>,
+    records: &mut Vec<(String, ComponentRecord)>,
 ) -> ExportResult<()> {
     let key = output_identity(&registered.record);
     if let Some(first_owner) = seen.get(&key) {
@@ -173,6 +191,7 @@ fn expand_registered_component(
     }
     seen.insert(key, registered.owner.clone());
 
+    let _origin = crate::function::GeneratedOwnerScope::origins(registered.origins.clone());
     let mut nested = registered
         .component
         .nested_components()
@@ -180,6 +199,7 @@ fn expand_registered_component(
         .map(|component| {
             let record = component_to_record(component.as_ref(), ctx)?;
             Ok(RegisteredComponent {
+                origins: registered.origins.clone(),
                 owner: registered.owner.clone(),
                 component,
                 record,
@@ -188,7 +208,7 @@ fn expand_registered_component(
         .collect::<ExportResult<Vec<_>>>()?;
     nested.sort_by_key(|registered| output_identity(&registered.record));
 
-    records.push(registered.record);
+    records.push((registered.owner, registered.record));
     for child in nested {
         expand_registered_component(child, ctx, seen, records)?;
     }
@@ -1416,6 +1436,7 @@ mod tests {
         let component: Box<dyn super::DatapackComponent> = Box::new(component);
         let record = component_to_record(component.as_ref(), None).unwrap();
         super::RegisteredComponent {
+            origins: Default::default(),
             owner: owner.to_string(),
             component,
             record,
@@ -1435,9 +1456,10 @@ mod tests {
 
         let records = super::expand_with_nested(top_level, None).unwrap();
         assert_eq!(records.len(), 3);
-        assert_eq!(records[0].path, "parent");
-        assert_eq!(records[1].path, "parent/child_a");
-        assert_eq!(records[2].path, "parent/child_b");
+        assert_eq!(records[0].1.path, "parent");
+        assert_eq!(records[1].1.path, "parent/child_a");
+        assert_eq!(records[2].1.path, "parent/child_b");
+        assert!(records.iter().all(|(owner, _)| owner == "parent_factory"));
     }
 
     #[test]

@@ -121,9 +121,12 @@ fn invoke_event_handler_body(
     }
 }
 
+/// Run a registration factory under its semantic owner and translate panics into export errors.
+/// The temporary panic hook is isolated to this factory thread and restored before returning.
 fn invoke_component_factory(
     factory: &crate::function::ComponentFactory,
 ) -> ExportResult<crate::DatapackRegistration> {
+    let _origin = crate::function::GeneratedOwnerScope::logical(factory.owner);
     let _guard = EXPORT_PANIC_HOOK_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -161,10 +164,13 @@ fn invoke_component_factory(
     })
 }
 
+/// Lower a State system under its logical ID so deferred resources retain their caller.
+/// Validation diagnostics also identify the system that supplied the invalid body.
 fn lower_state_system_body(
     system: &crate::function::StateSystemDescriptor,
     namespace: &str,
 ) -> ExportResult<Vec<String>> {
+    let _origin = crate::function::GeneratedOwnerScope::logical(system.id);
     (system.make)()
         .lower(&sand_components::ResourceLocation::new(
             namespace,
@@ -186,10 +192,12 @@ fn lower_state_system_body(
         })
 }
 
+/// Collect registered resources and their runtime provenance within one isolated export.
+/// Deferred registries are drained before final validation and report construction.
 pub(crate) fn try_export_components_impl(
     namespace: &str,
     ctx: Option<&ExportCtx>,
-) -> ExportResult<Vec<ComponentRecord>> {
+) -> ExportResult<super::CollectedPack> {
     use crate::function::{
         ArmorEventDescriptor, ArmorEventKind, ComponentFactory, EventDescriptor,
         FunctionDescriptor, FunctionTagDescriptor,
@@ -242,6 +250,7 @@ pub(crate) fn try_export_components_impl(
     let _dialog_callback_reset = DialogCallbackExportReset;
 
     let mut records: Vec<ComponentRecord> = Vec::new();
+    let mut runtime = crate::compiler::runtime::RuntimePlan::default();
     let mut function_contexts = BTreeMap::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut registration_load_commands: Vec<(String, usize, String)> = Vec::new();
@@ -250,6 +259,8 @@ pub(crate) fn try_export_components_impl(
 
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
+        runtime.own_function(format!("{namespace}:{}", desc.path), desc.owner.into());
         function_contexts.insert(format!("{namespace}:{}", desc.path), desc.context);
         let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
             namespace, desc.path,
@@ -300,6 +311,7 @@ pub(crate) fn try_export_components_impl(
         .collect::<ExportResult<Vec<_>>>()?;
     let mut top_level = Vec::new();
     for (factory, registration) in registrations {
+        let _origin = crate::function::GeneratedOwnerScope::logical(factory.owner);
         let (components, lifecycle, function_tags) = registration.into_parts();
         for (order, contribution) in lifecycle.into_iter().enumerate() {
             let entry = (
@@ -314,21 +326,39 @@ pub(crate) fn try_export_components_impl(
         }
         for contribution in function_tags {
             let (tag, function) = contribution.into_parts();
-            registration_tag_entries.push((
-                resolve_local_refs(&tag.to_string(), namespace),
-                resolve_local_refs(&function.to_string(), namespace),
-            ));
+            let tag = resolve_local_refs(&tag.to_string(), namespace);
+            let function = resolve_local_refs(&function.to_string(), namespace);
+            runtime.contribute_tag(tag.clone(), function.clone(), factory.owner.to_string());
+            registration_tag_entries.push((tag, function));
         }
         for component in components {
             let record = component_to_record(component.as_ref(), ctx)?;
             top_level.push(RegisteredComponent {
+                origins: [crate::function::GeneratedOrigin::Logical(
+                    factory.owner.into(),
+                )]
+                .into(),
                 owner: factory.owner.to_string(),
                 component,
                 record,
             });
         }
     }
-    records.extend(super::records::expand_with_nested(top_level, ctx)?);
+    for (owner, record) in super::records::expand_with_nested(top_level, ctx)? {
+        super::provenance::function_tag(
+            &record,
+            namespace,
+            [crate::function::GeneratedOrigin::Logical(owner.clone())].into(),
+            &mut runtime,
+        );
+        if record.dir == "function" && record.ext == "mcfunction" {
+            runtime.own_function(
+                resolve_local_refs(&format!("{}:{}", record.namespace, record.path), namespace),
+                owner,
+            );
+        }
+        records.push(record);
+    }
 
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
     use crate::events::TickExecutionIrPlans;
@@ -388,6 +418,8 @@ pub(crate) fn try_export_components_impl(
     let mut armor_watch_map: BTreeMap<ArmorWatchKey, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
+        let first_record = records.len();
         // Always emit the handler function body first. Routed through
         // `invoke_event_handler_body` (#280 item 2) rather than calling
         // `(desc.make)().lower(&sand_components::ResourceLocation::new(namespace, desc.path)?)?` directly, so a `MissingParticipantPanic` raised by
@@ -911,10 +943,20 @@ pub(crate) fn try_export_components_impl(
                 }
             }
         }
+        for record in &records[first_record..] {
+            if record.dir == "function" && record.ext == "mcfunction" {
+                runtime.own_function(
+                    format!("{}:{}", record.namespace, record.path),
+                    desc.owner.into(),
+                );
+            }
+        }
     }
 
     // ── ArmorEventDescriptors (legacy #[armor_event]) ─────────────────────────
     for desc in inventory::iter::<ArmorEventDescriptor>() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
+        runtime.own_function(format!("{namespace}:{}", desc.path), desc.owner.into());
         let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
             namespace, desc.path,
         )?)?;
@@ -959,6 +1001,11 @@ pub(crate) fn try_export_components_impl(
             });
         }
         let tick_path = "__sand_tick_check";
+        for (desc, _) in &tick_poll_events {
+            let function = format!("{namespace}:{tick_path}");
+            runtime.own_function(function.clone(), desc.owner.into());
+            runtime.contribute_tag("minecraft:tick".into(), function, desc.owner.into());
+        }
         let tick_cmds: Vec<String> = tick_poll_events
             .iter()
             .map(|(desc, condition)| {
@@ -1000,6 +1047,7 @@ pub(crate) fn try_export_components_impl(
     // deterministic staged coordinator; all dependency forms participate in
     // readable cycle validation.
     if !tick_lifecycle_events.is_empty() || !chain_events.is_empty() {
+        let graph_start = records.len();
         let mut resolved: BTreeMap<std::any::TypeId, crate::events::graph::EventNode> =
             BTreeMap::new();
         // Advancement-backed graph parents (#240 Phase 6) — never inserted
@@ -1064,6 +1112,8 @@ pub(crate) fn try_export_components_impl(
             nodes,
             advancement_bridges,
         };
+        let mut graph_runtime =
+            super::provenance::GraphRuntime::new(&graph, namespace, &mut runtime);
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
@@ -1154,6 +1204,7 @@ pub(crate) fn try_export_components_impl(
         let slot_alloc_path = "__sand_bounded_item_slot_alloc".to_string();
         let slot_alloc_function = format!("{namespace}:{slot_alloc_path}");
         if !bounded_item_transports.is_empty() {
+            let first_record = records.len();
             // One shared allocator and one shared slot objective for the
             // whole pack — subject identity is a property of the player, not
             // of any particular bounded entry.
@@ -1178,9 +1229,16 @@ pub(crate) fn try_export_components_impl(
                 .entry("minecraft:load".to_string())
                 .or_default()
                 .push(format!("{namespace}:{setup_path}"));
+            graph_runtime.records(
+                bounded_item_transports
+                    .iter()
+                    .map(|transport| transport.source_event),
+                &records[first_record..],
+            );
         }
 
         for (&(source_event, role, hand), &max_window) in &bounded_item_max_window {
+            let first_record = records.len();
             let schema =
                 crate::participant::bounded_item::BoundedItemSchema::new(source_event, role, hand);
             let source_snapshot =
@@ -1276,6 +1334,7 @@ pub(crate) fn try_export_components_impl(
                     "execute as {cycle_subject} {} if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}",
                     crate::participant::bounded_item::has_slot_guard()
                 ));
+            graph_runtime.records([source_event], &records[first_record..]);
         }
         let bounded_item_codegen = super::events::BoundedItemCodegen {
             persist: &bounded_item_persist,
@@ -1410,6 +1469,7 @@ pub(crate) fn try_export_components_impl(
                     &mut guarded_children,
                     bounded_item_codegen,
                     &mut records,
+                    &mut graph_runtime,
                 ))
             } else {
                 None
@@ -1431,9 +1491,11 @@ pub(crate) fn try_export_components_impl(
                 &mut guarded_children,
                 bounded_item_codegen,
                 &mut records,
+                &mut graph_runtime,
             );
             let key = tick_event_resource_key(&staged.child);
             let path = format!("__sand_event_multi_eval/{key}");
+            graph_runtime.function(&staged.child, namespace, &path);
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -1479,6 +1541,7 @@ pub(crate) fn try_export_components_impl(
             }
             let key = tick_event_resource_key(&name);
             let path = format!("__sand_event_multi_post/{key}");
+            graph_runtime.function(&name, namespace, &path);
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -1564,6 +1627,7 @@ pub(crate) fn try_export_components_impl(
             }
             if !setup_cmds.is_empty() {
                 let init_path = format!("__sand_event_setup/{key}");
+                graph_runtime.function(node.type_name, namespace, &init_path);
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
@@ -1662,6 +1726,7 @@ pub(crate) fn try_export_components_impl(
 
             if !tick_cmds.is_empty() {
                 let check_path = format!("__sand_event_check/{key}");
+                graph_runtime.function(root.type_name, namespace, &check_path);
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
@@ -1683,6 +1748,7 @@ pub(crate) fn try_export_components_impl(
         }
 
         if has_staged_composition {
+            let coordinator_start = records.len();
             let mut coordinator = Vec::new();
             for name in &occurrence_marked {
                 let key = tick_event_resource_key(name);
@@ -1784,6 +1850,7 @@ pub(crate) fn try_export_components_impl(
                     namespace,
                     &mut records,
                     cycle_subject,
+                    &mut graph_runtime,
                 ));
                 if bounded_parents.contains(&staged.child) {
                     coordinator.extend(bounded_age_update(&staged.child));
@@ -1851,6 +1918,16 @@ pub(crate) fn try_export_components_impl(
                 .entry("minecraft:tick".to_string())
                 .or_default()
                 .push(format!("{namespace}:{coordinator_path}"));
+            // Only tick roots participate; advancement-only trees are independent.
+            // Individual staged gates already retain their narrower node origins.
+            for record in &records[coordinator_start..] {
+                if record.path == coordinator_path || record.path == "__sand_event_subject_cycle" {
+                    graph_runtime.records(
+                        graph.roots().map(|root| root.type_name),
+                        std::slice::from_ref(record),
+                    );
+                }
+            }
         }
 
         // ── Advancement-backed graph parent bridge (#240 Phase 6) ──────────
@@ -1896,6 +1973,7 @@ pub(crate) fn try_export_components_impl(
                     &mut guarded_children,
                     bounded_item_codegen,
                     &mut records,
+                    &mut graph_runtime,
                 ));
             }
 
@@ -1919,6 +1997,7 @@ pub(crate) fn try_export_components_impl(
                 ),
             };
             let entry_path = format!("__sand_event_advancement_bridge/{key}");
+            graph_runtime.function(parent_name, namespace, &entry_path);
             let entry_ref = format!("{namespace}:{entry_path}");
             let advancement_id = format!("{namespace}:{entry_path}");
 
@@ -1958,11 +2037,20 @@ pub(crate) fn try_export_components_impl(
             );
             records.push(component_to_record(&advancement, ctx)?);
         }
+        graph_runtime.tags(&records[graph_start..], &tag_map);
     }
 
     // ── Armor check aggregation ───────────────────────────────────────────────
     if !armor_watch_map.is_empty() {
         let armor_path = "__sand_armor_check";
+        let owners = armor_watch_map
+            .values()
+            .flat_map(|(_, _, _, handlers)| handlers)
+            .flat_map(|(_, path)| runtime.function_owners.get(&format!("{namespace}:{path}")))
+            .flatten()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        runtime.own_lifecycle(format!("{namespace}:{armor_path}"), "tick", owners);
         let mut armor_cmds: Vec<String> = Vec::new();
         let armor_tag_keys = allocate_armor_tag_keys(namespace, &armor_watch_map)?;
 
@@ -2020,6 +2108,20 @@ pub(crate) fn try_export_components_impl(
     // sorted path order, so allocation is inventory-order independent), then
     // records are emitted in the inventory order collected above.
     emit_schedule_records(namespace, &schedules, &mut records, &mut tag_map)?;
+    for desc in &schedules {
+        for path in [
+            desc.path.to_owned(),
+            format!("{}_start", desc.path),
+            format!("{}_stop", desc.path),
+        ] {
+            runtime.own_function(format!("{namespace}:{path}"), desc.owner.into());
+        }
+        for (phase, path) in [("load", "__sand_sched_init"), ("tick", "__sand_sched_tick")] {
+            let function = format!("{namespace}:{path}");
+            runtime.own_function(function.clone(), desc.owner.into());
+            runtime.contribute_tag(format!("minecraft:{phase}"), function, desc.owner.into());
+        }
+    }
 
     // ── State systems ────────────────────────────────────────────────────────
     // Systems are immutable declarations. Build and sort them for each export
@@ -2100,6 +2202,18 @@ pub(crate) fn try_export_components_impl(
             .expect("every planned State system group receives a key")
             .clone();
         let path = format!("__sand_system/{key}");
+        let function = format!("{namespace}:{path}");
+        for id in &ids {
+            runtime.own_function(function.clone(), (*id).to_owned());
+        }
+        runtime
+            .systems
+            .push(crate::compiler::runtime::StateSystemRuntime {
+                owners: ids.iter().map(|id| (*id).to_owned()).collect(),
+                function,
+                every,
+                selector: selector.clone(),
+            });
         let content = if selector.is_some() {
             commands
                 .iter()
@@ -2137,6 +2251,13 @@ pub(crate) fn try_export_components_impl(
     }
     if !system_load.is_empty() {
         let path = "__sand_system_load";
+        let owners = runtime
+            .systems
+            .iter()
+            .filter(|system| system.every > 1)
+            .flat_map(|system| system.owners.iter().cloned())
+            .collect::<Vec<_>>();
+        runtime.own_lifecycle(format!("{namespace}:{path}"), "load", owners);
         ensure_private_lifecycle_path_available(&records, path)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -2153,6 +2274,12 @@ pub(crate) fn try_export_components_impl(
     }
     if !system_tick.is_empty() {
         let path = "__sand_system_tick";
+        let owners = runtime
+            .systems
+            .iter()
+            .flat_map(|system| system.owners.iter().cloned())
+            .collect::<Vec<_>>();
+        runtime.own_lifecycle(format!("{namespace}:{path}"), "tick", owners);
         ensure_private_lifecycle_path_available(&records, path)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -2210,6 +2337,15 @@ pub(crate) fn try_export_components_impl(
         }
         for compiled in compiled_archetypes {
             let owner = compiled.report.archetype.clone();
+            for record in &compiled.records {
+                if record.dir == "function" && record.ext == "mcfunction" {
+                    runtime.own_function(
+                        format!("{}:{}", record.namespace, record.path),
+                        owner.clone(),
+                    );
+                }
+            }
+            runtime.archetypes.push(compiled.report);
             for record in compiled.records {
                 let key = (
                     record.namespace.clone(),
@@ -2223,6 +2359,18 @@ pub(crate) fn try_export_components_impl(
                     )));
                 }
                 records.push(record);
+            }
+            for (phase, functions) in [
+                ("load", &compiled.load_functions),
+                ("tick", &compiled.tick_functions),
+            ] {
+                if !functions.is_empty() {
+                    runtime.own_lifecycle(
+                        format!("{namespace}:__sand_entity_{phase}"),
+                        phase,
+                        [owner.clone()],
+                    );
+                }
             }
             load_functions.extend(compiled.load_functions);
             tick_functions.extend(compiled.tick_functions);
@@ -2360,7 +2508,33 @@ pub(crate) fn try_export_components_impl(
                 .collect::<Vec<_>>(),
         )
         .map_err(transition_export_error)?;
+        let transition_origins = transition_plan
+            .functions
+            .iter()
+            .flat_map(|function| function.origins.iter().cloned())
+            .collect::<std::collections::BTreeSet<_>>();
+        if !transition_plan.load_commands.is_empty() || !transition_plan.reload_commands.is_empty()
+        {
+            runtime.generated_lifecycle(
+                format!("{namespace}:__sand_lifecycle_load"),
+                "load",
+                transition_origins.clone(),
+            );
+        }
+        if !transition_plan.tick_commands.is_empty()
+            || !transition_plan.global_tick_commands.is_empty()
+        {
+            runtime.generated_lifecycle(
+                format!("{namespace}:__sand_lifecycle_tick"),
+                "tick",
+                transition_origins,
+            );
+        }
         for generated in &transition_plan.functions {
+            runtime.generated_function(
+                format!("{namespace}:{}", generated.path),
+                generated.origins.iter().cloned(),
+            );
             transition_private_metadata.insert(
                 generated.path.clone(),
                 (generated.tracker_id.clone(), generated.source.clone()),
@@ -2414,7 +2588,7 @@ pub(crate) fn try_export_components_impl(
             .player_tick_commands
             .extend(transition_plan.tick_commands);
         let transition_global_tick_commands = transition_plan.global_tick_commands;
-        let player_initializer = super::lifecycle::assemble_lifecycle(
+        let lifecycle = super::lifecycle::assemble_lifecycle(
             namespace,
             &mut records,
             &mut tag_map,
@@ -2423,10 +2597,23 @@ pub(crate) fn try_export_components_impl(
             registration_tick_commands,
             transition_global_tick_commands,
         )?;
+        lifecycle.attribute(namespace, &mut runtime);
+        if !lifecycle.load_owners.is_empty() {
+            runtime.lifecycle_owners.insert(
+                format!("{namespace}:__sand_lifecycle_load"),
+                lifecycle.load_owners,
+            );
+        }
+        if !lifecycle.tick_owners.is_empty() {
+            runtime.lifecycle_owners.insert(
+                format!("{namespace}:__sand_lifecycle_tick"),
+                lifecycle.tick_owners,
+            );
+        }
         super::lifecycle::initialize_player_entries(
             &mut records,
             &function_contexts,
-            player_initializer.as_deref(),
+            lifecycle.player_initializer.as_deref(),
         );
     }
 
@@ -2434,14 +2621,14 @@ pub(crate) fn try_export_components_impl(
     // Must run AFTER every desc.make() call so branches registered by event
     // bodies, schedule bodies, armor handlers, etc. are all captured.
     // The loop handles chains: draining can trigger further registrations.
-    drain_generated_resources_into(&mut records, namespace, ctx)?;
+    drain_generated_resources_into(&mut records, namespace, ctx, &mut runtime)?;
 
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // Must run after ComponentFactory and other make() calls so callbacks
     // registered while constructing dialog components are not missed. The
     // export-scope lock/reset guards are acquired at the top of this
     // function — see `_dialog_callback_lock` / `_dialog_callback_reset`.
-    drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace);
+    drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace, &mut runtime);
 
     // ── Compiler-managed score constants / expression temporaries ───────────
     // Structured helper lowering can allocate numeric working objectives.
@@ -2449,6 +2636,11 @@ pub(crate) fn try_export_components_impl(
     let score_setup = crate::state::score::drain_internal_score_setup();
     if !score_setup.is_empty() {
         let path = "__sand_score_init";
+        runtime.generated_lifecycle(
+            format!("{namespace}:{path}"),
+            "load",
+            super::functions::resolve_origins(crate::function::take_score_origins(), namespace),
+        );
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
@@ -2470,10 +2662,10 @@ pub(crate) fn try_export_components_impl(
     // entries so load/tick infrastructure exists before user functions run.
     let mut user_tag_entries: Vec<(String, String)> = inventory::iter::<FunctionTagDescriptor>()
         .map(|desc| {
-            (
-                desc.tag.to_string(),
-                format!("{}:{}", namespace, desc.function_path),
-            )
+            let tag = resolve_local_refs(desc.tag, namespace);
+            let function = format!("{}:{}", namespace, desc.function_path);
+            runtime.contribute_tag(tag.clone(), function.clone(), desc.owner.into());
+            (tag, function)
         })
         .collect();
     user_tag_entries.append(&mut registration_tag_entries);
@@ -2553,7 +2745,8 @@ pub(crate) fn try_export_components_impl(
     );
     validate_function_records(&mut records, &command_profile)?;
 
-    Ok(records)
+    runtime.resolve_generated_owners();
+    Ok(super::CollectedPack { records, runtime })
 }
 
 /// Recognize only the exact scan shape produced by typed Target and
@@ -2716,6 +2909,7 @@ mod action_owner_tests {
             ),
         ] {
             let descriptor = EventDescriptor {
+                owner: module_path!(),
                 path: "on_event",
                 id_override: None,
                 make: invalid_body,

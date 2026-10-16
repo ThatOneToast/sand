@@ -692,12 +692,6 @@ impl RenderCommand for Rotation {
     }
 }
 
-fn coord_value(coord: &Coord) -> f64 {
-    match coord {
-        Coord::Absolute(value) | Coord::Relative(value) | Coord::Local(value) => *value,
-    }
-}
-
 fn validate_triplet(
     x: &Coord,
     y: &Coord,

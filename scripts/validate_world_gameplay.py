@@ -161,6 +161,7 @@ class WorldGameplayHarness(ServerHarness):
         print("PASSED: public observations share native health/effect samples and anchor block conditions to the observed entity", flush=True)
 
     def run_client(self) -> None:
+        """Verify exported world actions, scoped queries, and block offsets on vanilla."""
         self.send("scoreboard objectives add sand_rule_audit dummy")
         self.send("execute store result score #keep sand_rule_audit run gamerule keep_inventory")
         self.send("execute store result score #ticks sand_rule_audit run gamerule random_tick_speed")

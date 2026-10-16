@@ -148,6 +148,9 @@ impl RuntimeReport {
                 .strip_prefix("data/")
                 .and_then(|path| path.split_once('/'))
             else {
+                if file.contains("/data/") && file.contains("/function/") {
+                    unavailable.insert(format!("overlay runtime resource is not analyzed: {file}"));
+                }
                 continue;
             };
             let identity = relative

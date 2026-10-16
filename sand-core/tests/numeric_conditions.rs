@@ -99,6 +99,7 @@ fn tick() -> Option<sand_core::events::TickEventDispatch> {
 
 sand_core::inventory::submit! {
     sand_core::EventDescriptor {
+        owner: module_path!(),
         path: "numeric_tick",
         id_override: None,
         make: Actions::default,
@@ -187,6 +188,7 @@ macro_rules! custom_tick_handler {
     ($path:literal) => {
         sand_core::inventory::submit! {
             sand_core::EventDescriptor {
+                owner: module_path!(),
                 path: $path,
                 id_override: None,
                 make: Actions::default,

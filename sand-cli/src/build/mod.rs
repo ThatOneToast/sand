@@ -346,14 +346,13 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         worldbuild_output.as_ref(),
     )?;
 
-    // Analyze the final bytes, including world-build functions and copied files.
-    let runtime_report = runtime_report.reanalyze(&outputs);
-
     // Publish the fully validated output set as one staged transaction.
     // Ownership checks preserve unrelated files and reject edited outputs.
-    let change_summary = timings.record(Phase::DatapackWriting, || {
+    let published = timings.record(Phase::DatapackWriting, || {
         publication::publish_pack(&dist, &outputs)
     })?;
+    let runtime_report = runtime_report.reanalyze(&published.runtime_resources);
+    let change_summary = published.summary;
 
     write_server_config(&dist, worldbuild_output.as_ref())?;
 
@@ -723,7 +722,7 @@ mod tests {
         let release_outputs = prepare_datapack_outputs(dir.path(), &config, 61, &[], None).unwrap();
         let summary = super::publication::publish_pack(&pack_root, &release_outputs).unwrap();
         assert!(!stale.exists());
-        assert_eq!(summary.removed, 1);
+        assert_eq!(summary.summary.removed, 1);
     }
 
     /// Reports describe world-build and copy-backed bytes in the published pack.

@@ -72,6 +72,7 @@ fn on_legacy_b_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_legacy_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_legacy_a_body()),
@@ -91,6 +92,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_legacy_b",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_legacy_b_body()),
@@ -130,6 +132,7 @@ fn on_legacy_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_legacy_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_legacy_child_body()),
@@ -188,6 +191,7 @@ fn on_legacy_orphan_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_legacy_orphan_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_legacy_orphan_child_body()),
@@ -228,6 +232,7 @@ fn on_legacy_no_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_legacy_no_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_legacy_no_child_body()),

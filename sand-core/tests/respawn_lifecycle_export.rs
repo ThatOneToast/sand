@@ -16,6 +16,7 @@ fn respawn_handler_b() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "death_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(death_handler()),
@@ -27,6 +28,7 @@ sand_core::inventory::submit! {
 // independent of inventory/linker registration order.
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "respawn_handler_b",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(respawn_handler_b()),
@@ -36,6 +38,7 @@ sand_core::inventory::submit! {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "respawn_handler_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(respawn_handler_a()),

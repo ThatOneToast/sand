@@ -80,11 +80,16 @@ fn execute(input: InputArgs, output: Option<PathBuf>, include_files: bool) -> se
             return serde_json::json!({"schema_version":1,"success":false,"diagnostics":diagnostics});
         }
     };
-    if let Some(destination) = &output
-        && let Err(error) = crate::build::publication::publish_pack(destination, &pack.resources)
-    {
-        return serde_json::json!({"schema_version":1,"success":false,"diagnostics":[input::error("SAND_PROGRAM_PUBLICATION", &destination.display().to_string(), error)]});
-    }
+    let runtime_report = if let Some(destination) = &output {
+        match crate::build::publication::publish_pack(destination, &pack.resources) {
+            Ok(published) => pack.runtime_report.reanalyze(&published.runtime_resources),
+            Err(error) => {
+                return serde_json::json!({"schema_version":1,"success":false,"diagnostics":[input::error("SAND_PROGRAM_PUBLICATION", &destination.display().to_string(), error)]});
+            }
+        }
+    } else {
+        pack.runtime_report.clone()
+    };
     let files: Vec<_> = pack
         .resources
         .iter()
@@ -92,7 +97,7 @@ fn execute(input: InputArgs, output: Option<PathBuf>, include_files: bool) -> se
         .collect();
     let mut response = serde_json::json!({"schema_version":1,"success":true,"target":pack.target,"diagnostics":pack.diagnostics,"files":files,"output":output});
     response["runtime_report"] =
-        serde_json::to_value(&pack.runtime_report).expect("runtime report serializes");
+        serde_json::to_value(&runtime_report).expect("runtime report serializes");
     if include_files {
         response["file_contents"] = serde_json::to_value(
             pack.resources

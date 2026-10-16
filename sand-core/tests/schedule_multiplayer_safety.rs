@@ -13,6 +13,7 @@ fn interval_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     ScheduleDescriptor {
+        owner: module_path!(),
         path: "every_tick_schedule",
         total_ticks: 20,
         every: 1,
@@ -22,6 +23,7 @@ sand_core::inventory::submit! {
 
 sand_core::inventory::submit! {
     ScheduleDescriptor {
+        owner: module_path!(),
         path: "interval_schedule",
         total_ticks: 80,
         every: 5,

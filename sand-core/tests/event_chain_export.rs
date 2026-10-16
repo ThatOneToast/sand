@@ -101,6 +101,7 @@ fn on_parent_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_parent",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_parent_body()),
@@ -143,6 +144,7 @@ fn on_single_cond_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_single_cond_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_single_cond_child_body()),
@@ -182,6 +184,7 @@ fn on_unconditional_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_unconditional_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_unconditional_child_body()),
@@ -225,6 +228,7 @@ fn on_or_cond_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_or_cond_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_or_cond_child_body()),
@@ -278,6 +282,7 @@ fn on_distinct_b_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_distinct_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_distinct_a_body()),
@@ -297,6 +302,7 @@ sand_core::inventory::submit! {
 }
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_distinct_b",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_distinct_b_body()),
@@ -364,6 +370,7 @@ fn on_orphan_child_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_orphan_child",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(on_orphan_child_body()),

@@ -65,6 +65,7 @@ fn body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "on_custom_advancement_with_weapon",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(body()),

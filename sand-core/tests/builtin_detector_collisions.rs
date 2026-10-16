@@ -9,18 +9,19 @@ static COLLISION: Mutex<Option<(bool, String)>> = Mutex::new(None);
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "died", id_override: None,
         make: || sand::component::IntoCommands::into_commands(Vec::<String>::new()),
         dispatch: EventDispatch::DeathTick,
     }
 }
 sand_core::inventory::submit! {
-    EventDescriptor { path: "respawned", id_override: None,
+    EventDescriptor { owner: module_path!(), path: "respawned", id_override: None,
         make: || sand::component::IntoCommands::into_commands(Vec::<String>::new()),
         dispatch: EventDispatch::RespawnTick }
 }
 sand_core::inventory::submit! {
-    EventDescriptor { path: "leveled", id_override: None,
+    EventDescriptor { owner: module_path!(), path: "leveled", id_override: None,
         make: || sand::component::IntoCommands::into_commands(Vec::<String>::new()),
         dispatch: EventDispatch::XpLevelUp }
 }

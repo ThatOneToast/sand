@@ -50,6 +50,7 @@ fn invalid_advancement_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "invalid_advancement",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(invalid_advancement_body()),
@@ -112,6 +113,7 @@ fn invalid_sand_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "invalid_sand",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(invalid_sand_body()),

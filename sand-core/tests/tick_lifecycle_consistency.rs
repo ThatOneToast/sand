@@ -43,6 +43,7 @@ fn conflicting_setup() -> EventSetup {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "first_shared_event_handler",
         id_override: None,
         make: || sand::command::Actions::default(),
@@ -63,6 +64,7 @@ sand_core::inventory::submit! {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "conflicting_shared_event_handler",
         id_override: None,
         make: || sand::command::Actions::default(),

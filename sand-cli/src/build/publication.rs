@@ -17,6 +17,13 @@ use super::output_manifest::{
     ChangeSummary, OutputManifest, read_ownership, reject_symlink_ancestors, validate_resource_path,
 };
 
+/// Published counts and the runtime bytes captured from the completed staging tree.
+#[derive(Debug)]
+pub struct PublishedPack {
+    pub summary: ChangeSummary,
+    pub runtime_resources: BTreeMap<String, Vec<u8>>,
+}
+
 /// Publishes a complete, already compiled pack and preserves unrelated files.
 ///
 /// Existing generated files must still match their ownership hashes. An
@@ -25,11 +32,12 @@ use super::output_manifest::{
 /// rejected. On an ordinary staging or installation error the prior pack is
 /// retained (or restored); if restoration itself fails, the error names the
 /// backup that must be recovered. No crash or concurrent-writer atomicity is
-/// claimed. The returned counts describe generated resources only.
+/// claimed. Returned counts describe generated resources only; runtime bytes
+/// include preserved functions and tags from the completed staging tree.
 pub fn publish_pack(
     destination: &Path,
     resources: &BTreeMap<String, Vec<u8>>,
-) -> Result<ChangeSummary> {
+) -> Result<PublishedPack> {
     publish_with_install(destination, resources, |stage, destination| {
         std::fs::rename(stage, destination).context("install staged pack")
     })
@@ -39,7 +47,7 @@ fn publish_with_install(
     destination: &Path,
     resources: &BTreeMap<String, Vec<u8>>,
     install: impl FnOnce(&Path, &Path) -> Result<()>,
-) -> Result<ChangeSummary> {
+) -> Result<PublishedPack> {
     // Resolve relative paths explicitly so that a bare directory name has a
     // usable parent, and reject lexical traversal before any filesystem work.
     ensure!(
@@ -168,6 +176,30 @@ fn publish_with_install(
         let mut summary = manifest.finish()?;
         summary.removed += removed;
         restore_directories(directories)?;
+        // Capture runtime inputs before installation, so read failures leave
+        // the previous pack intact and the report sees preserved files too.
+        let mut runtime_resources = BTreeMap::new();
+        for entry in walkdir::WalkDir::new(&stage).follow_links(false) {
+            let entry = entry.context("inspect staged runtime resources")?;
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let relative = entry.path().strip_prefix(&stage)?;
+            let Some(parts) = relative
+                .components()
+                .map(|part| part.as_os_str().to_str())
+                .collect::<Option<Vec<_>>>()
+            else {
+                continue;
+            };
+            let path = parts.join("/");
+            if (path.starts_with("data/") || path.contains("/data/"))
+                && path.contains("/function/")
+                && (path.ends_with(".mcfunction") || path.ends_with(".json"))
+            {
+                runtime_resources.insert(path.to_owned(), std::fs::read(entry.path())?);
+            }
+        }
         let had_previous = destination.exists();
         if had_previous {
             std::fs::rename(&destination, &backup).context("back up previous pack")?;
@@ -186,7 +218,10 @@ fn publish_with_install(
             }
             return Err(error);
         }
-        Ok(summary)
+        Ok(PublishedPack {
+            summary,
+            runtime_resources,
+        })
     })();
     // Never erase the sole surviving good pack after a rollback failure.
     if !rollback_failed {
@@ -336,6 +371,48 @@ mod tests {
             .collect()
     }
 
+    /// The reported input snapshot includes preserved runtime files and excludes stale output.
+    #[test]
+    fn published_runtime_snapshot_includes_preserved_files() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let pack = temp.path().join("pack");
+        publish_pack(
+            &pack,
+            &resources(&[("data/demo/function/stale.mcfunction", "say old")]),
+        )
+        .unwrap();
+        let preserved = [
+            ("data/external/function/load.mcfunction", "say preserved"),
+            (
+                "data/minecraft/tags/function/load.json",
+                r#"{"values":["external:load"]}"#,
+            ),
+            (
+                "overlay/data/external/function/extra.mcfunction",
+                "say overlay",
+            ),
+        ];
+        for (path, body) in preserved {
+            let file = pack.join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, body).unwrap();
+        }
+        let published = publish_pack(
+            &pack,
+            &resources(&[("data/demo/function/new.mcfunction", "say new")]),
+        )
+        .unwrap();
+        assert_eq!(published.runtime_resources.len(), 4);
+        for (path, body) in preserved {
+            assert_eq!(published.runtime_resources[path], body.as_bytes());
+        }
+        assert!(
+            !published
+                .runtime_resources
+                .contains_key("data/demo/function/stale.mcfunction")
+        );
+    }
+
     #[test]
     fn rebuild_preserves_unrelated_files_and_prunes_owned_stale_files() {
         let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
@@ -349,7 +426,7 @@ mod tests {
         let summary =
             publish_pack(&pack, &resources(&[("data/a", "one"), ("new", "two")])).unwrap();
         assert_eq!(
-            summary,
+            summary.summary,
             ChangeSummary {
                 written: 1,
                 unchanged: 1,
@@ -397,8 +474,8 @@ mod tests {
             manifest
         );
         let summary = publish_pack(&pack, &new).unwrap();
-        assert_eq!(summary.removed, 1);
-        assert_eq!(summary.written, 1);
+        assert_eq!(summary.summary.removed, 1);
+        assert_eq!(summary.summary.written, 1);
         assert_eq!(
             std::fs::read(pack.join(new.keys().next().unwrap())).unwrap(),
             b"say new"
@@ -448,8 +525,8 @@ mod tests {
             manifest
         );
         let summary = publish_pack(&pack, &new).unwrap();
-        assert_eq!(summary.removed, 1);
-        assert_eq!(summary.written, 1);
+        assert_eq!(summary.summary.removed, 1);
+        assert_eq!(summary.summary.written, 1);
         assert_eq!(std::fs::read(pack.join(parent)).unwrap(), b"say new");
     }
 

@@ -382,6 +382,8 @@ impl TrackedTransition {
 /// - `make` — factory that returns owned [`Actions`](crate::ir::Actions) for export
 /// - `dispatch` — advancement, special generated system, tick poll, or tracked transition
 pub struct EventDescriptor {
+    /// Logical Rust definition that owns this runtime contribution.
+    pub owner: &'static str,
     pub path: &'static str,
     pub id_override: Option<&'static str>,
     pub make: fn() -> crate::ir::Actions,
@@ -424,6 +426,8 @@ inventory::collect!(EventDescriptor);
 /// function mypack:my_effect_stop
 /// ```
 pub struct ScheduleDescriptor {
+    /// Logical Rust definition that owns this runtime contribution.
+    pub owner: &'static str,
     /// Resource location path (no namespace), e.g. `"my_effect"`.
     pub path: &'static str,
     /// Total duration in ticks. Counts down every tick regardless of `every`.
@@ -514,6 +518,8 @@ pub enum ArmorEventKind {
 /// At export time, all descriptors are combined into a single
 /// `__sand_armor_check` mcfunction registered to `minecraft:tick`.
 pub struct ArmorEventDescriptor {
+    /// Logical Rust definition that owns this runtime contribution.
+    pub owner: &'static str,
     /// Function path (no namespace), e.g. `"on_boots_equip"`.
     pub path: &'static str,
     /// Factory that returns the authored actions for the handler.

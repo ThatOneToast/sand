@@ -45,6 +45,7 @@ macro_rules! submit_collision {
     ($path:literal, $make:ident, $type_id:ident) => {
         sand_core::inventory::submit! {
             EventDescriptor {
+                owner: module_path!(),
                 path: $path,
                 id_override: None,
                 make: || sand::component::IntoCommands::into_commands($make()),

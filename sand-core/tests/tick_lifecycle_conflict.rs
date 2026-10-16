@@ -65,6 +65,7 @@ fn handler_b_body() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "conflicting_handler_a",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(handler_a_body()),
@@ -85,6 +86,7 @@ sand_core::inventory::submit! {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "conflicting_handler_b",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(handler_b_body()),

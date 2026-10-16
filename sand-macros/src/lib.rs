@@ -2643,6 +2643,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2662,6 +2663,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2682,6 +2684,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2705,6 +2708,7 @@ fn expand_event_with_path(
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2731,6 +2735,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2745,6 +2750,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2759,6 +2765,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2783,6 +2790,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2811,6 +2819,7 @@ fn expand_event_with_path(
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2871,6 +2880,7 @@ fn expand_event_with_path(
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -2938,6 +2948,7 @@ fn expand_event_with_path(
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -3009,6 +3020,7 @@ fn expand_event_with_path(
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -3137,6 +3149,7 @@ fn expand_event_with_path(
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                     path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
@@ -3464,6 +3477,7 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
         }
 
         ::sand::__private::inventory::submit!(::sand::__private::ArmorEventDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
             path: #fn_name_str,
             make: #factory_ident,
             slot: #slot_expr,
@@ -3775,6 +3789,7 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
         }
 
         ::sand::__private::inventory::submit!(::sand::__private::ScheduleDescriptor {
+                    owner: concat!(module_path!(), "::", stringify!(#fn_name)),
             path: #fn_name_str,
             total_ticks: #total_ticks,
             every: #every,

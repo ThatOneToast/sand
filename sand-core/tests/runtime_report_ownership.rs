@@ -32,6 +32,21 @@ fn ordinary_entry() {
     cmd::say("ordinary");
 }
 
+#[on_event]
+fn joined(_event: Event<sand::events::OnJoinEvent>) {
+    cmd::say("joined");
+}
+
+#[sand::schedule(ticks = 60, every = 5)]
+fn scheduled() {
+    cmd::say("scheduled");
+}
+
+#[sand::armor_event(Equip, slot = Head, item = "minecraft:diamond_helmet")]
+fn equipped() {
+    cmd::say("equipped");
+}
+
 #[datapack_component(Tick)]
 fn tick_entry() {
     cmd::say("tick");
@@ -63,6 +78,21 @@ fn expanded_resources_and_attribute_tags_keep_semantic_owners() {
             report["functions"][format!("{namespace}:ordinary_entry")]["owners"],
             serde_json::json!([owner("ordinary_entry")])
         );
+        for (path, name) in [
+            ("joined", "joined"),
+            ("equipped", "equipped"),
+            ("scheduled", "scheduled"),
+            ("scheduled_start", "scheduled"),
+            ("scheduled_stop", "scheduled"),
+            ("__sand_sched_init", "scheduled"),
+            ("__sand_sched_tick", "scheduled"),
+        ] {
+            assert_eq!(
+                report["functions"][format!("{namespace}:{path}")]["owners"],
+                serde_json::json!([owner(name)]),
+                "missing owner for {path}"
+            );
+        }
         for (tag, name) in [
             ("minecraft:tick", "tick_entry"),
             ("minecraft:load", "load_entry"),

@@ -398,6 +398,7 @@ pub(crate) fn try_export_components_impl(
     let mut armor_watch_map: BTreeMap<ArmorWatchKey, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
+        let first_record = records.len();
         // Always emit the handler function body first. Routed through
         // `invoke_event_handler_body` (#280 item 2) rather than calling
         // `(desc.make)().lower(&sand_components::ResourceLocation::new(namespace, desc.path)?)?` directly, so a `MissingParticipantPanic` raised by
@@ -921,10 +922,19 @@ pub(crate) fn try_export_components_impl(
                 }
             }
         }
+        for record in &records[first_record..] {
+            if record.dir == "function" && record.ext == "mcfunction" {
+                runtime.own_function(
+                    format!("{}:{}", record.namespace, record.path),
+                    desc.owner.into(),
+                );
+            }
+        }
     }
 
     // ── ArmorEventDescriptors (legacy #[armor_event]) ─────────────────────────
     for desc in inventory::iter::<ArmorEventDescriptor>() {
+        runtime.own_function(format!("{namespace}:{}", desc.path), desc.owner.into());
         let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
             namespace, desc.path,
         )?)?;
@@ -2030,6 +2040,20 @@ pub(crate) fn try_export_components_impl(
     // sorted path order, so allocation is inventory-order independent), then
     // records are emitted in the inventory order collected above.
     emit_schedule_records(namespace, &schedules, &mut records, &mut tag_map)?;
+    for desc in &schedules {
+        for path in [
+            desc.path.to_owned(),
+            format!("{}_start", desc.path),
+            format!("{}_stop", desc.path),
+        ] {
+            runtime.own_function(format!("{namespace}:{path}"), desc.owner.into());
+        }
+        for (phase, path) in [("load", "__sand_sched_init"), ("tick", "__sand_sched_tick")] {
+            let function = format!("{namespace}:{path}");
+            runtime.own_function(function.clone(), desc.owner.into());
+            runtime.contribute_tag(format!("minecraft:{phase}"), function, desc.owner.into());
+        }
+    }
 
     // ── State systems ────────────────────────────────────────────────────────
     // Systems are immutable declarations. Build and sort them for each export
@@ -2759,6 +2783,7 @@ mod action_owner_tests {
             ),
         ] {
             let descriptor = EventDescriptor {
+                owner: module_path!(),
                 path: "on_event",
                 id_override: None,
                 make: invalid_body,

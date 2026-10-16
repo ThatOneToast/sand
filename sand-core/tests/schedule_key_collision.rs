@@ -19,6 +19,7 @@ macro_rules! schedule {
     ($path:literal, $total:expr, $every:expr) => {
         sand_core::inventory::submit! {
             ScheduleDescriptor {
+                owner: module_path!(),
                 path: $path,
                 total_ticks: $total,
                 every: $every,

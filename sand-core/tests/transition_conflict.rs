@@ -6,6 +6,7 @@ fn empty_handler() -> Vec<String> {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "boolean_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(empty_handler()),
@@ -22,6 +23,7 @@ sand_core::inventory::submit! {
 
 sand_core::inventory::submit! {
     EventDescriptor {
+        owner: module_path!(),
         path: "score_handler",
         id_override: None,
         make: || sand::component::IntoCommands::into_commands(empty_handler()),

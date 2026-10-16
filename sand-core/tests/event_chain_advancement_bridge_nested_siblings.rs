@@ -63,6 +63,7 @@ macro_rules! submit_chain_handler {
             }
             sand_core::inventory::submit! {
                 EventDescriptor {
+                    owner: module_path!(),
                     path: $path,
                     id_override: None,
                     make: || sand::component::IntoCommands::into_commands(body()),

@@ -82,6 +82,7 @@ struct CachedTick;
 
 sand_core::inventory::submit! {
     sand_core::EventDescriptor {
+        owner: module_path!(),
         path: "cached_tick",
         id_override: None,
         make: Actions::default,

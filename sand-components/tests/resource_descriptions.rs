@@ -624,3 +624,41 @@ fn raw_dialog_command_templates_validate_variables() {
         }
     }
 }
+
+/// Only non-Minecraft namespaces identify unsupported extension content.
+#[test]
+fn raw_extension_components_exclude_reserved_minecraft_keys() {
+    for (value, valid) in [
+        (json!({"minecraft:bogus":true}), false),
+        (json!({"example:future":true}), true),
+        (json!({"text":"x", "minecraft:metadata":true}), true),
+        // Empty brackets select every list element; they are not an invalid index.
+        (json!({"nbt":"foo[]", "entity":"@s"}), true),
+    ] {
+        for resource in described(value.clone()) {
+            assert_eq!(resource.try_content().is_ok(), valid, "{value}");
+            if valid {
+                assert_eq!(resource.to_json()["description"], value);
+            }
+        }
+    }
+}
+
+/// Typed text and resource descriptions share raw text's default-namespace semantics.
+#[test]
+fn typed_description_identifiers_accept_default_namespace() {
+    let text = TextComponent::literal("x")
+        .font("default")
+        .hover_item("stone");
+    let value = text.try_to_json_value().unwrap();
+    assert_eq!(value["font"], "default");
+    assert_eq!(value["hover_event"]["id"], "stone");
+    let resources: Vec<Box<dyn DatapackComponent>> = vec![
+        Box::new(instrument().description(text.clone())),
+        Box::new(song().description(text)),
+    ];
+    for resource in resources {
+        resource.try_content().unwrap();
+        assert_eq!(resource.to_json()["description"], value);
+    }
+}

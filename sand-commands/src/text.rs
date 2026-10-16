@@ -1638,15 +1638,13 @@ impl TextComponent {
             ));
         }
         if let Some(font) = &self.font {
-            crate::validate::resource_location_shape(font, "TextComponent", "font").map_err(
-                |error| {
-                    text_error(
-                        "SAND-TEXT-FONT",
-                        format!("{path}.style.font"),
-                        error.message,
-                    )
-                },
-            )?;
+            validate_text_identifier(font, &format!("{path}.style.font")).map_err(|error| {
+                text_error(
+                    "SAND-TEXT-FONT",
+                    format!("{path}.style.font"),
+                    error.message,
+                )
+            })?;
         }
         if let Some(click) = &self.click_event {
             validate_click(click, path)?;
@@ -1870,14 +1868,13 @@ fn validate_hover(
             text.validate_inner(profile, &format!("{path}.hover_event.value"), depth)
         }
         TextHoverEvent::Public(HoverEvent::ShowItem { id, count }) => {
-            crate::validate::resource_location_shape(id, "TextComponent", "hover.item.id")
-                .map_err(|error| {
-                    text_error(
-                        "SAND-TEXT-HOVER-ITEM",
-                        format!("{path}.hover_event.id"),
-                        error.message,
-                    )
-                })?;
+            validate_text_identifier(id, &format!("{path}.hover_event.id")).map_err(|error| {
+                text_error(
+                    "SAND-TEXT-HOVER-ITEM",
+                    format!("{path}.hover_event.id"),
+                    error.message,
+                )
+            })?;
             if count.is_some_and(|count| !(1..=99).contains(&count)) {
                 return Err(text_error(
                     "SAND-TEXT-HOVER-ITEM",
@@ -2316,6 +2313,11 @@ fn validate_json_identifier(value: &serde_json::Value, path: &str) -> CommandRes
             "expected a resource identifier string",
         )
     })?;
+    validate_text_identifier(value, path)
+}
+
+/// Share default-namespace validation across typed and raw text identifiers.
+fn validate_text_identifier(value: &str, path: &str) -> CommandResult<()> {
     let qualified = if value.contains(':') {
         value.to_string()
     } else {
@@ -2540,7 +2542,9 @@ fn validate_json_text_inner(
             }
             // Style metadata alone does not identify a component. Preserve
             // explicit namespaced extension content for raw interoperability.
-            let extension_content = object.keys().any(|key| key.contains(':'))
+            let extension_content = object
+                .keys()
+                .any(|key| key.contains(':') && !key.starts_with("minecraft:"))
                 || object
                     .get("type")
                     .and_then(serde_json::Value::as_str)

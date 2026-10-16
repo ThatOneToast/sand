@@ -60,7 +60,7 @@ variable names are accepted by the current codec; dynamic command templates
 require at least one complete `$(name)` placeholder.
 
 Numeric and boolean translation arguments in raw `with` arrays retain their JSON
-types. Raw resource identifiers (including hover, font and NBT storage IDs) may omit the
+types. Text identifiers (including typed hover/font and raw NBT storage IDs) may omit the
 `minecraft:` namespace. URL validation checks URI syntax, including percent
 escapes, and permits HTTP(S). `open_file` is rejected by the server text codec.
 

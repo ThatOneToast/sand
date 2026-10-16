@@ -676,6 +676,7 @@ pub fn audit_typed_text_interactions() -> sand::registration::DatapackRegistrati
     let mut registration = sand::registration::DatapackRegistration::new();
     let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
     for (name, description) in [
+        ("shorthand", Text::new("Default identifiers").font("default").hover_item("stone")),
         (
             "run_command",
             Text::new("Run").click_run_command("/say hello"),
@@ -786,6 +787,7 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
             json!({"text": "Shadow", "shadow_color": [2, -1, 0, 1]}),
         ),
         ("nbt_named", json!({"nbt": "CustomName", "entity": "Steve"})),
+        ("nbt_all_elements", json!({"nbt":"foo[]", "entity":"@s"})),
         (
             "nbt_uuid",
             json!({"nbt": "CustomName", "entity": "123e4567-e89b-12d3-a456-426614174000"}),

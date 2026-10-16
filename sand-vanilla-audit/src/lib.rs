@@ -788,6 +788,7 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         ),
         ("nbt_named", json!({"nbt": "CustomName", "entity": "Steve"})),
         ("nbt_all_elements", json!({"nbt":"foo[]", "entity":"@s"})),
+        ("hover_component_patch", json!({"text":"Patch", "hover_event":{"action":"show_item", "id":"stone", "components":{"custom_name":{"text":"Patched"}, "!minecraft:lore":{}}}})),
         (
             "nbt_uuid",
             json!({"nbt": "CustomName", "entity": "123e4567-e89b-12d3-a456-426614174000"}),

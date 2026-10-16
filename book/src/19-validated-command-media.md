@@ -62,7 +62,8 @@ require at least one complete `$(name)` placeholder.
 Numeric and boolean translation arguments in raw `with` arrays retain their JSON
 types. Text identifiers (including typed hover/font and raw NBT storage IDs) may omit the
 `minecraft:` namespace. URL validation checks URI syntax, including percent
-escapes, and permits HTTP(S). `open_file` is rejected by the server text codec.
+escapes, and permits HTTP(S). Explicit extension identifiers and item-hover
+component-patch keys (including `!` removals) still require valid identifier syntax. `open_file` is rejected by the server text codec.
 
 Opaque compatibility is explicit: `Text::raw_json`,
 `TextComponent::selector_raw`, `hover_item_raw`, and `hover_entity_raw` render

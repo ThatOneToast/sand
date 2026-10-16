@@ -1990,10 +1990,9 @@ fn validate_json_interactions(
                 | "custom"
         );
         let hover_action = matches!(action, "show_text" | "show_item" | "show_entity");
-        if !click_action
-            && !hover_action
-            && (!action.contains(':') || action.starts_with("minecraft:"))
-        {
+        let extension_action =
+            validate_extension_identifier(action, &format!("{event_path}.action"))?;
+        if !click_action && !hover_action && !extension_action {
             return Err(text_error(
                 "SAND-TEXT-SHAPE",
                 format!("{event_path}.action"),
@@ -2111,14 +2110,20 @@ fn validate_json_interactions(
                                 "item hover count must be an integer in 1..=99",
                             ));
                         }
-                        if let Some(components) = event.get("components")
-                            && !components.is_object()
-                        {
-                            return Err(text_error(
-                                "SAND-TEXT-SHAPE",
-                                format!("{event_path}.components"),
-                                "expected a component patch object",
-                            ));
+                        if let Some(components) = event.get("components") {
+                            let components = components.as_object().ok_or_else(|| {
+                                text_error(
+                                    "SAND-TEXT-SHAPE",
+                                    format!("{event_path}.components"),
+                                    "expected a component patch object",
+                                )
+                            })?;
+                            for key in components.keys() {
+                                validate_text_identifier(
+                                    key.strip_prefix('!').unwrap_or(key),
+                                    &format!("{event_path}.components[{key:?}]"),
+                                )?;
+                            }
                         }
                     } else {
                         let valid_uuid = event.get("uuid").is_some_and(|uuid| {
@@ -2232,12 +2237,13 @@ fn validate_json_nbt_source(
         .into_iter()
         .filter(|key| object.contains_key(*key))
         .collect::<Vec<_>>();
-    if sources.is_empty()
-        && object
-            .get("source")
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|kind| kind.contains(':') && !kind.starts_with("minecraft:"))
-    {
+    let extension_source = object
+        .get("source")
+        .and_then(serde_json::Value::as_str)
+        .map(|kind| validate_extension_identifier(kind, &format!("{path}.source")))
+        .transpose()?
+        .unwrap_or(false);
+    if sources.is_empty() && extension_source {
         // Explicit extension sources are owned by the raw-text author.
         return Ok(());
     }
@@ -2257,9 +2263,7 @@ fn validate_json_nbt_source(
                 "expected a string source discriminator",
             )
         })?;
-        if !["block", "entity", "storage"].contains(&kind)
-            && (!kind.contains(':') || kind.starts_with("minecraft:"))
-        {
+        if !["block", "entity", "storage"].contains(&kind) && !extension_source {
             return Err(text_error(
                 "SAND-TEXT-NBT",
                 format!("{path}.source"),
@@ -2339,6 +2343,15 @@ fn validate_text_identifier(value: &str, path: &str) -> CommandResult<()> {
             error.field = path.to_string();
             error
         })
+}
+
+/// Recognize explicit extension identifiers only after checking their shared grammar.
+fn validate_extension_identifier(value: &str, path: &str) -> CommandResult<bool> {
+    let extension = value.contains(':') && !value.starts_with("minecraft:");
+    if extension {
+        validate_text_identifier(value, path)?;
+    }
+    Ok(extension)
 }
 
 /// Check the profile shapes accepted by raw player-head text; retain extension members.
@@ -2453,6 +2466,7 @@ fn validate_json_object_content(
     } else {
         "atlas"
     };
+    let extension_kind = validate_extension_identifier(kind, &format!("{path}.object"))?;
     match kind {
         "atlas" => {
             let sprite = object.get("sprite").ok_or_else(|| {
@@ -2486,7 +2500,7 @@ fn validate_json_object_content(
                 ));
             }
         }
-        kind if kind.contains(':') && !kind.starts_with("minecraft:") => {}
+        _ if extension_kind => {}
         _ => {
             return Err(text_error(
                 "SAND-TEXT-CONTENT",
@@ -2552,13 +2566,16 @@ fn validate_json_text_inner(
             }
             // Style metadata alone does not identify a component. Preserve
             // explicit namespaced extension content for raw interoperability.
-            let extension_content = object
-                .keys()
-                .any(|key| key.contains(':') && !key.starts_with("minecraft:"))
-                || object
-                    .get("type")
-                    .and_then(serde_json::Value::as_str)
-                    .is_some_and(|kind| kind.contains(':') && !kind.starts_with("minecraft:"));
+            let extension_type = object
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .map(|kind| validate_extension_identifier(kind, &format!("{path}.type")))
+                .transpose()?
+                .unwrap_or(false);
+            let mut extension_content = extension_type;
+            for key in object.keys() {
+                extension_content |= validate_extension_identifier(key, &format!("{path}.{key}"))?;
+            }
             if present.is_empty() && !extension_content {
                 return Err(text_error(
                     "SAND-TEXT-CONTENT",
@@ -2582,7 +2599,7 @@ fn validate_json_text_inner(
                     "keybind" => Some("keybind"),
                     "nbt" => Some("nbt"),
                     "object" => None,
-                    kind if kind.contains(':') && !kind.starts_with("minecraft:") => None,
+                    _ if extension_type => None,
                     _ => {
                         return Err(text_error(
                             "SAND-TEXT-CONTENT",

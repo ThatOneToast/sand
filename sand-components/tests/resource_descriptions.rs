@@ -684,3 +684,61 @@ fn raw_interaction_actions_require_known_vanilla_or_explicit_extension_names() {
         }
     }
 }
+
+/// Explicit raw extension names still require valid resource-identifier syntax.
+#[test]
+fn raw_extension_identifiers_validate_their_namespace_and_path() {
+    for id in ["bad!:future", ":future", "example:", "example:bad?path"] {
+        for value in [
+            json!({"text":"x", "click_event":{"action":id}}),
+            json!({"text":"x", "hover_event":{"action":id}}),
+            json!({"type":id, "payload":true}),
+            json!({"object":id}),
+            json!({"nbt":"foo", "source":id}),
+            Value::Object(serde_json::Map::from_iter([(id.into(), json!(true))])),
+        ] {
+            for resource in described(value.clone()) {
+                assert!(resource.try_content().is_err(), "{value}");
+            }
+        }
+    }
+    for value in [
+        json!({"type":"example:future", "payload":true}),
+        json!({"object":"example:future"}),
+        json!({"nbt":"foo", "source":"example:future"}),
+        json!({"example:future":true}),
+    ] {
+        for resource in described(value.clone()) {
+            resource.try_content().unwrap();
+            assert_eq!(resource.to_json()["description"], value);
+        }
+    }
+}
+
+/// Item-hover patches validate set and removal identifiers without rewriting raw values.
+#[test]
+fn raw_hover_item_component_patch_keys_are_valid_identifiers() {
+    for key in [
+        "bad id",
+        "bad!:name",
+        "minecraft:",
+        "!",
+        "!!minecraft:custom_name",
+    ] {
+        let patch = serde_json::Map::from_iter([(key.into(), json!({}))]);
+        for resource in described(json!({"text":"x", "hover_event":{
+            "action":"show_item", "id":"stone", "components":patch
+        }})) {
+            assert!(resource.try_content().is_err(), "{key}");
+        }
+    }
+    let value = json!({"text":"x", "hover_event":{
+        "action":"show_item", "id":"stone", "components":{
+            "custom_name":{"text":"Patched"}, "!minecraft:lore":{}
+        }
+    }});
+    for resource in described(value.clone()) {
+        resource.try_content().unwrap();
+        assert_eq!(resource.to_json()["description"], value);
+    }
+}

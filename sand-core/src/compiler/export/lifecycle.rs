@@ -60,6 +60,14 @@ pub(crate) fn ensure_private_transition_path_available(
     Ok(())
 }
 
+/// Lifecycle output retained by both registered and portable frontends.
+pub(crate) struct LifecycleAssembly {
+    /// Initializer that player-context entry functions must invoke.
+    pub(crate) player_initializer: Option<String>,
+    /// Tick-command spans and their original registration owners.
+    pub(crate) tick_owners: Vec<crate::compiler::runtime::CommandOrigin>,
+}
+
 /// Assemble owned lifecycle contributions after frontend collection.
 pub(crate) fn assemble_lifecycle(
     namespace: &str,
@@ -69,7 +77,7 @@ pub(crate) fn assemble_lifecycle(
     mut registration_load_commands: Vec<(String, usize, String)>,
     mut registration_tick_commands: Vec<(String, usize, String)>,
     transition_global_tick_commands: Vec<String>,
-) -> ExportResult<Option<String>> {
+) -> ExportResult<LifecycleAssembly> {
     use std::collections::BTreeMap;
     registration_load_commands
         .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
@@ -216,11 +224,23 @@ pub(crate) fn assemble_lifecycle(
     tick_cmds.extend(automatic.entity_tick_commands);
     tick_cmds.extend(automatic.global_tick_commands);
     tick_cmds.extend(transition_global_tick_commands);
-    tick_cmds.extend(
-        registration_tick_commands
-            .into_iter()
-            .map(|(_, _, command)| command),
-    );
+    let mut tick_owners = Vec::new();
+    let mut first_line = 1 + tick_cmds
+        .iter()
+        .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
+        .sum::<usize>();
+    for (owner, _, command) in registration_tick_commands {
+        let line_count = command.lines().count();
+        if line_count != 0 {
+            tick_owners.push(crate::compiler::runtime::CommandOrigin {
+                owner,
+                first_line,
+                line_count,
+            });
+        }
+        first_line += command.bytes().filter(|byte| *byte == b'\n').count() + 1;
+        tick_cmds.push(command);
+    }
     if !tick_cmds.is_empty() {
         let path = "__sand_lifecycle_tick";
         ensure_private_lifecycle_path_available(records, path)?;
@@ -237,7 +257,11 @@ pub(crate) fn assemble_lifecycle(
             .or_default()
             .push(format!("{namespace}:{path}"));
     }
-    Ok((!automatic.player_init_commands.is_empty()).then(|| format!("{namespace}:{init_path}")))
+    Ok(LifecycleAssembly {
+        player_initializer: (!automatic.player_init_commands.is_empty())
+            .then(|| format!("{namespace}:{init_path}")),
+        tick_owners,
+    })
 }
 
 /// Initialize canonical player State at declared player-context entry points.
@@ -292,6 +316,69 @@ pub(crate) fn validate_server_lifecycle_tags(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod runtime_origin_tests {
+    use super::*;
+    use crate::compiler::runtime::CommandOrigin;
+    use crate::state::registry::AutomaticLifecycle;
+    use std::collections::BTreeMap;
+
+    /// Ownership follows emitted lines after sorting, including multiline bodies.
+    #[test]
+    fn lifecycle_origins_match_emitted_function_spans() {
+        let mut records = Vec::new();
+        let mut tags = BTreeMap::new();
+        let automatic = AutomaticLifecycle {
+            global_tick_commands: vec!["say automatic\nsay next".into()],
+            ..AutomaticLifecycle::default()
+        };
+        let assembled = assemble_lifecycle(
+            "audit",
+            &mut records,
+            &mut tags,
+            automatic,
+            Vec::new(),
+            vec![
+                ("module:b".into(), 0, "say b".into()),
+                ("module:a".into(), 1, "say a2".into()),
+                ("module:a".into(), 0, "say a1\n# retained comment\n".into()),
+            ],
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(assembled.player_initializer.is_none());
+        let tick = records
+            .iter()
+            .find(|record| record.path == "__sand_lifecycle_tick")
+            .unwrap();
+        assert_eq!(
+            tick.content,
+            "say automatic\nsay next\nsay a1\n# retained comment\n\nsay a2\nsay b"
+        );
+        assert_eq!(
+            assembled.tick_owners,
+            vec![
+                CommandOrigin {
+                    owner: "module:a".into(),
+                    first_line: 3,
+                    line_count: 2
+                },
+                CommandOrigin {
+                    owner: "module:a".into(),
+                    first_line: 6,
+                    line_count: 1
+                },
+                CommandOrigin {
+                    owner: "module:b".into(),
+                    first_line: 7,
+                    line_count: 1
+                },
+            ]
+        );
+        assert_eq!(tags["minecraft:tick"], ["audit:__sand_lifecycle_tick"]);
+    }
 }
 
 #[cfg(test)]

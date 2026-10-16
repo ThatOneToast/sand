@@ -8,10 +8,16 @@ use crate::compiler::export::{
 use crate::ir::{Cmd, ScorePlayersOp};
 use std::collections::BTreeMap;
 
+/// Portable resource bytes and the same runtime provenance used by Rust export.
+pub(super) struct LoweredProgram {
+    pub(super) resources: BTreeMap<String, Vec<u8>>,
+    pub(super) runtime: crate::compiler::runtime::RuntimePlan,
+}
+
 pub(super) fn lower(
     program: &Program,
     target: &crate::version::VersionProfile,
-) -> Result<BTreeMap<String, Vec<u8>>, Vec<Diagnostic>> {
+) -> Result<LoweredProgram, Vec<Diagnostic>> {
     let error = |error: String| vec![Diagnostic::error("SAND_PROGRAM_LOWER", "", "", error)];
     let states: Vec<_> = program
         .modules
@@ -127,7 +133,7 @@ pub(super) fn lower(
         );
     }
     let mut tag_map = BTreeMap::new();
-    let player_initializer = lifecycle::assemble_lifecycle(
+    let lifecycle = lifecycle::assemble_lifecycle(
         &program.pack.namespace,
         &mut lower.records,
         &mut tag_map,
@@ -137,10 +143,17 @@ pub(super) fn lower(
         Vec::new(),
     )
     .map_err(|e| error(e.to_string()))?;
+    let mut runtime = crate::compiler::runtime::RuntimePlan::default();
+    if !lifecycle.tick_owners.is_empty() {
+        runtime.lifecycle_owners.insert(
+            format!("{}:__sand_lifecycle_tick", program.pack.namespace),
+            lifecycle.tick_owners,
+        );
+    }
     lifecycle::initialize_player_entries(
         &mut lower.records,
         &entries,
-        player_initializer.as_deref(),
+        lifecycle.player_initializer.as_deref(),
     );
     tags::assemble_tags(
         &program.pack.namespace,
@@ -168,7 +181,10 @@ pub(super) fn lower(
             record.content.into_bytes(),
         )?;
     }
-    Ok(output)
+    Ok(LoweredProgram {
+        resources: output,
+        runtime,
+    })
 }
 
 fn insert_output(

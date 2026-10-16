@@ -130,10 +130,10 @@ impl Compiler {
 )]
     pub fn compile(program: &Program) -> Result<CompiledPack, Vec<Diagnostic>> {
         let target = validate::validate(program)?;
-        let resources = lower::lower(program, &target)?;
+        let lowered = lower::lower(program, &target)?;
         Ok(CompiledPack {
             target: target.resolved_name().into(),
-            resources,
+            resources: lowered.resources,
             diagnostics: Vec::new(),
         })
     }

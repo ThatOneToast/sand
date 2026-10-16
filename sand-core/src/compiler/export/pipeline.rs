@@ -189,7 +189,7 @@ fn lower_state_system_body(
 pub(crate) fn try_export_components_impl(
     namespace: &str,
     ctx: Option<&ExportCtx>,
-) -> ExportResult<Vec<ComponentRecord>> {
+) -> ExportResult<super::CollectedPack> {
     use crate::function::{
         ArmorEventDescriptor, ArmorEventKind, ComponentFactory, EventDescriptor,
         FunctionDescriptor, FunctionTagDescriptor,
@@ -242,6 +242,7 @@ pub(crate) fn try_export_components_impl(
     let _dialog_callback_reset = DialogCallbackExportReset;
 
     let mut records: Vec<ComponentRecord> = Vec::new();
+    let mut runtime = crate::compiler::runtime::RuntimePlan::default();
     let mut function_contexts = BTreeMap::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut registration_load_commands: Vec<(String, usize, String)> = Vec::new();
@@ -2100,6 +2101,18 @@ pub(crate) fn try_export_components_impl(
             .expect("every planned State system group receives a key")
             .clone();
         let path = format!("__sand_system/{key}");
+        let function = format!("{namespace}:{path}");
+        for id in &ids {
+            runtime.own_function(function.clone(), (*id).to_owned());
+        }
+        runtime
+            .systems
+            .push(crate::compiler::runtime::StateSystemRuntime {
+                owners: ids.iter().map(|id| (*id).to_owned()).collect(),
+                function,
+                every,
+                selector: selector.clone(),
+            });
         let content = if selector.is_some() {
             commands
                 .iter()
@@ -2210,6 +2223,15 @@ pub(crate) fn try_export_components_impl(
         }
         for compiled in compiled_archetypes {
             let owner = compiled.report.archetype.clone();
+            for record in &compiled.records {
+                if record.dir == "function" && record.ext == "mcfunction" {
+                    runtime.own_function(
+                        format!("{}:{}", record.namespace, record.path),
+                        owner.clone(),
+                    );
+                }
+            }
+            runtime.archetypes.push(compiled.report);
             for record in compiled.records {
                 let key = (
                     record.namespace.clone(),
@@ -2414,7 +2436,7 @@ pub(crate) fn try_export_components_impl(
             .player_tick_commands
             .extend(transition_plan.tick_commands);
         let transition_global_tick_commands = transition_plan.global_tick_commands;
-        let player_initializer = super::lifecycle::assemble_lifecycle(
+        let lifecycle = super::lifecycle::assemble_lifecycle(
             namespace,
             &mut records,
             &mut tag_map,
@@ -2423,10 +2445,16 @@ pub(crate) fn try_export_components_impl(
             registration_tick_commands,
             transition_global_tick_commands,
         )?;
+        if !lifecycle.tick_owners.is_empty() {
+            runtime.lifecycle_owners.insert(
+                format!("{namespace}:__sand_lifecycle_tick"),
+                lifecycle.tick_owners,
+            );
+        }
         super::lifecycle::initialize_player_entries(
             &mut records,
             &function_contexts,
-            player_initializer.as_deref(),
+            lifecycle.player_initializer.as_deref(),
         );
     }
 
@@ -2553,7 +2581,7 @@ pub(crate) fn try_export_components_impl(
     );
     validate_function_records(&mut records, &command_profile)?;
 
-    Ok(records)
+    Ok(super::CollectedPack { records, runtime })
 }
 
 /// Recognize only the exact scan shape produced by typed Target and

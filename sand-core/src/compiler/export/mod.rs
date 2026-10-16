@@ -27,6 +27,12 @@ pub use self::records::{ComponentRecord, ExportResult};
 
 use sand_version::VersionCaps;
 
+/// One collection result; reporting metadata is separate from datapack records.
+pub(crate) struct CollectedPack {
+    pub(crate) records: Vec<ComponentRecord>,
+    pub(crate) runtime: crate::compiler::runtime::RuntimePlan,
+}
+
 /// Version-aware export context — carries the resolved capability set and the
 /// requested version string for diagnostics.
 pub(crate) struct ExportCtx<'a> {
@@ -45,7 +51,7 @@ pub(crate) struct ExportCtx<'a> {
 /// `VersionProfile` is known so that version-gated components are rejected
 /// before any pack output is written.
 pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecord>> {
-    pipeline::try_export_components_impl(namespace, None)
+    pipeline::try_export_components_impl(namespace, None).map(|pack| pack.records)
 }
 
 /// Version-aware fallible export: collect all inventory-registered components,
@@ -66,7 +72,7 @@ pub fn try_export_components_for_version(
         requested_version,
         is_fallback,
     };
-    pipeline::try_export_components_impl(namespace, Some(&ctx))
+    pipeline::try_export_components_impl(namespace, Some(&ctx)).map(|pack| pack.records)
 }
 
 /// Fallibly collect all inventory-registered components and return them as a

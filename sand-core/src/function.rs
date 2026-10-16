@@ -589,6 +589,7 @@ pub(crate) enum GeneratedOrigin {
     Function(String),
 }
 
+/// Export-local resources and the currently active registration origin.
 struct GeneratedRegistry {
     resources: Vec<GeneratedResource>,
     origin: Option<GeneratedOrigin>,
@@ -598,10 +599,12 @@ struct GeneratedRegistry {
 pub(crate) struct GeneratedOwnerScope(Option<GeneratedOrigin>);
 
 impl GeneratedOwnerScope {
+    /// Attribute registrations to the authored definition until this scope ends.
     pub(crate) fn logical(owner: &str) -> Self {
         Self::enter(GeneratedOrigin::Logical(owner.to_owned()))
     }
 
+    /// Keep an authored origin, or capture the helper currently being lowered.
     pub(crate) fn function(owner: &sand_components::ResourceLocation) -> Self {
         let origin = REGISTRY.with_borrow(|registry| match &registry.origin {
             Some(GeneratedOrigin::Logical(owner)) => GeneratedOrigin::Logical(owner.clone()),
@@ -610,6 +613,7 @@ impl GeneratedOwnerScope {
         Self::enter(origin)
     }
 
+    /// Save the surrounding origin so nested lowering restores it on drop.
     fn enter(origin: GeneratedOrigin) -> Self {
         Self(REGISTRY.with_borrow_mut(|registry| registry.origin.replace(origin)))
     }

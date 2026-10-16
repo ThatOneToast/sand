@@ -64,6 +64,7 @@ fn custom_entry() {
 
 // Preconstruct and replay identical nested IR from two distinct authored owners.
 static SHARED: std::sync::OnceLock<Actions> = std::sync::OnceLock::new();
+/// Reuse nested helpers before and during repeated export registration scopes.
 fn shared_actions() -> Actions {
     SHARED
         .get_or_init(|| {
@@ -96,11 +97,13 @@ sand_core::inventory::submit! {
     }
 }
 
+/// Contribute one owner to the shared tick-poll coordinator.
 #[on_event(item = "minecraft:stone")]
 fn holding_stone(_event: Event<sand::events::HoldingItemEvent>) {
     cmd::say("holding stone");
 }
 
+/// Contribute a distinct owner to the same tick-poll coordinator.
 #[on_event(item = "minecraft:diamond")]
 fn holding_diamond(_event: Event<sand::events::HoldingItemEvent>) {
     cmd::say("holding diamond");

@@ -64,6 +64,8 @@ pub(crate) fn ensure_private_transition_path_available(
 pub(crate) struct LifecycleAssembly {
     /// Initializer that player-context entry functions must invoke.
     pub(crate) player_initializer: Option<String>,
+    /// Load-command spans and their original registration owners.
+    pub(crate) load_owners: Vec<crate::compiler::runtime::CommandOrigin>,
     /// Tick-command spans and their original registration owners.
     pub(crate) tick_owners: Vec<crate::compiler::runtime::CommandOrigin>,
 }
@@ -141,6 +143,11 @@ pub(crate) fn assemble_lifecycle(
         .into_values()
         .map(|(_, command, _)| command)
         .collect();
+    let mut load_owners = Vec::new();
+    let mut load_first_line = 1 + load_cmds
+        .iter()
+        .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
+        .sum::<usize>();
     for (owner, _, command) in registration_load_commands {
         let mut parts = command.splitn(6, ' ');
         let parsed = match (
@@ -171,11 +178,17 @@ pub(crate) fn assemble_lifecycle(
                     )));
                 }
                 None => {
-                    registration_definitions.insert(objective, (criterion, owner));
+                    registration_definitions.insert(objective, (criterion, owner.clone()));
                 }
             }
         }
-        load_cmds.push(command);
+        append_owned_command(
+            &mut load_cmds,
+            &mut load_owners,
+            owner,
+            command,
+            &mut load_first_line,
+        );
     }
     load_cmds.append(&mut automatic.provision_commands);
     load_cmds.append(&mut automatic.global_init_commands);
@@ -230,16 +243,13 @@ pub(crate) fn assemble_lifecycle(
         .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
         .sum::<usize>();
     for (owner, _, command) in registration_tick_commands {
-        let line_count = command.lines().count();
-        if line_count != 0 {
-            tick_owners.push(crate::compiler::runtime::CommandOrigin {
-                owner,
-                first_line,
-                line_count,
-            });
-        }
-        first_line += command.bytes().filter(|byte| *byte == b'\n').count() + 1;
-        tick_cmds.push(command);
+        append_owned_command(
+            &mut tick_cmds,
+            &mut tick_owners,
+            owner,
+            command,
+            &mut first_line,
+        );
     }
     if !tick_cmds.is_empty() {
         let path = "__sand_lifecycle_tick";
@@ -260,8 +270,29 @@ pub(crate) fn assemble_lifecycle(
     Ok(LifecycleAssembly {
         player_initializer: (!automatic.player_init_commands.is_empty())
             .then(|| format!("{namespace}:{init_path}")),
+        load_owners,
         tick_owners,
     })
+}
+
+/// Retain the original owner at the exact emitted line span for either phase.
+fn append_owned_command(
+    commands: &mut Vec<String>,
+    origins: &mut Vec<crate::compiler::runtime::CommandOrigin>,
+    owner: String,
+    command: String,
+    first_line: &mut usize,
+) {
+    let line_count = command.lines().count();
+    if line_count != 0 {
+        origins.push(crate::compiler::runtime::CommandOrigin {
+            owner,
+            first_line: *first_line,
+            line_count,
+        });
+    }
+    *first_line += command.bytes().filter(|byte| *byte == b'\n').count() + 1;
+    commands.push(command);
 }
 
 /// Initialize canonical player State at declared player-context entry points.
@@ -331,6 +362,8 @@ mod runtime_origin_tests {
         let mut records = Vec::new();
         let mut tags = BTreeMap::new();
         let automatic = AutomaticLifecycle {
+            load_commands: vec!["scoreboard objectives add auto dummy".into()],
+            global_init_commands: vec!["say automatic init".into()],
             global_tick_commands: vec!["say automatic\nsay next".into()],
             ..AutomaticLifecycle::default()
         };
@@ -339,7 +372,10 @@ mod runtime_origin_tests {
             &mut records,
             &mut tags,
             automatic,
-            Vec::new(),
+            vec![
+                ("module:b".into(), 0, "say b load".into()),
+                ("module:a".into(), 0, "say a load\n# load comment\n".into()),
+            ],
             vec![
                 ("module:b".into(), 0, "say b".into()),
                 ("module:a".into(), 1, "say a2".into()),
@@ -348,6 +384,29 @@ mod runtime_origin_tests {
             Vec::new(),
         )
         .unwrap();
+        let load = records
+            .iter()
+            .find(|record| record.path == "__sand_lifecycle_load")
+            .unwrap();
+        assert_eq!(
+            load.content,
+            "scoreboard objectives add auto dummy\nsay a load\n# load comment\n\nsay b load\nsay automatic init"
+        );
+        assert_eq!(
+            assembled.load_owners,
+            vec![
+                CommandOrigin {
+                    owner: "module:a".into(),
+                    first_line: 2,
+                    line_count: 2
+                },
+                CommandOrigin {
+                    owner: "module:b".into(),
+                    first_line: 5,
+                    line_count: 1
+                },
+            ]
+        );
         assert!(assembled.player_initializer.is_none());
         let tick = records
             .iter()

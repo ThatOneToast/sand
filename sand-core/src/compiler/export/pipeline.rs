@@ -2451,6 +2451,12 @@ pub(crate) fn try_export_components_impl(
             registration_tick_commands,
             transition_global_tick_commands,
         )?;
+        if !lifecycle.load_owners.is_empty() {
+            runtime.lifecycle_owners.insert(
+                format!("{namespace}:__sand_lifecycle_load"),
+                lifecycle.load_owners,
+            );
+        }
         if !lifecycle.tick_owners.is_empty() {
             runtime.lifecycle_owners.insert(
                 format!("{namespace}:__sand_lifecycle_tick"),

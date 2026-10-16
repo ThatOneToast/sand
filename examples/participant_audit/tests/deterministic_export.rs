@@ -25,7 +25,10 @@ fn export() -> String {
 }
 
 fn records(json: &str) -> Vec<serde_json::Value> {
-    serde_json::from_str(json).expect("valid export JSON")
+    let export: serde_json::Value = serde_json::from_str(json).expect("valid export JSON");
+    assert_eq!(export["schema_version"], 1);
+    assert_eq!(export["runtime_report"]["schema_version"], 1);
+    serde_json::from_value(export["components"].clone()).expect("component array")
 }
 
 #[test]

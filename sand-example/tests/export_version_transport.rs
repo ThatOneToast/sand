@@ -29,9 +29,9 @@ fn export_binary_requires_and_uses_runtime_version_transport() {
         "{}",
         String::from_utf8_lossy(&valid.stderr)
     );
-    assert!(
-        String::from_utf8_lossy(&valid.stdout)
-            .trim_start()
-            .starts_with('[')
-    );
+    let export: serde_json::Value =
+        serde_json::from_slice(&valid.stdout).expect("versioned pack JSON");
+    assert_eq!(export["schema_version"], 1);
+    assert!(export["components"].is_array());
+    assert_eq!(export["runtime_report"]["schema_version"], 1);
 }

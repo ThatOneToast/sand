@@ -76,13 +76,13 @@ pub(super) fn lower(
     let mut lower = Lower {
         namespace: program.pack.namespace.clone(),
         helper_keys,
+        runtime: crate::compiler::runtime::RuntimePlan::default(),
         records: Vec::new(),
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
     };
     let mut entries = BTreeMap::new();
-    let mut runtime = crate::compiler::runtime::RuntimePlan::default();
     let mut load = Vec::new();
     let mut tick = Vec::new();
     let mut memberships = Vec::new();
@@ -106,7 +106,6 @@ pub(super) fn lower(
                 &owner,
                 &format!("/functions/{index}"),
             )?;
-            runtime.own_function(function.id.to_string(), owner.clone());
             entries.insert(function.id.to_string(), function.context);
         }
         for (phase, body, output) in [
@@ -130,7 +129,9 @@ pub(super) fn lower(
         for tag in &module.tags {
             let tag_id = tag.tag.to_string();
             let function = reference_id(&tag.function);
-            runtime.contribute_tag(tag_id.clone(), function.clone(), owner.clone());
+            lower
+                .runtime
+                .contribute_tag(tag_id.clone(), function.clone(), owner.clone());
             memberships.push((tag_id, function));
         }
     }
@@ -145,8 +146,14 @@ pub(super) fn lower(
         Vec::new(),
     )
     .map_err(|e| error(e.to_string()))?;
+    if !lifecycle.load_owners.is_empty() {
+        lower.runtime.lifecycle_owners.insert(
+            format!("{}:__sand_lifecycle_load", program.pack.namespace),
+            lifecycle.load_owners,
+        );
+    }
     if !lifecycle.tick_owners.is_empty() {
-        runtime.lifecycle_owners.insert(
+        lower.runtime.lifecycle_owners.insert(
             format!("{}:__sand_lifecycle_tick", program.pack.namespace),
             lifecycle.tick_owners,
         );
@@ -172,7 +179,8 @@ pub(super) fn lower(
         "pack.mcmeta".into(),
         serde_json::to_vec_pretty(&metadata).expect("metadata serializes"),
     )?;
-    let runtime_report = crate::compiler::runtime::RuntimeReport::collect(&lower.records, &runtime);
+    let runtime_report =
+        crate::compiler::runtime::RuntimeReport::collect(&lower.records, &lower.runtime);
     for record in lower.records {
         insert_output(
             &mut output,
@@ -279,6 +287,7 @@ fn helper(namespace: &str, key: &str, path: &str, role: &str) -> String {
     format!("{namespace}:__sand_program/{key}/{path}/{role}")
 }
 struct Lower {
+    runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
     helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
@@ -307,6 +316,7 @@ impl Lower {
             )]);
         }
         self.bytes += content.len();
+        self.runtime.own_function(id.to_owned(), module.to_owned());
         let (namespace, path) = id.split_once(':').expect("validated/generated identity");
         self.records.push(ComponentRecord {
             namespace: namespace.into(),

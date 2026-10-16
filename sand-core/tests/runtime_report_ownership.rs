@@ -47,6 +47,12 @@ fn equipped() {
     cmd::say("equipped");
 }
 
+/// A second armor subscription must share coordinator ownership.
+#[sand::armor_event(Unequip, slot = Head, item = "minecraft:diamond_helmet")]
+fn unequipped() {
+    cmd::say("unequipped");
+}
+
 #[datapack_component(Tick)]
 fn tick_entry() {
     cmd::say("tick");
@@ -167,6 +173,16 @@ fn expanded_resources_and_attribute_tags_keep_semantic_owners() {
             );
             assert_eq!(report["functions"][&id]["owners"], shared_owners, "{id}");
         }
+        let armor = format!("{namespace}:__sand_armor_check");
+        let armor_owners = serde_json::json!([owner("equipped"), owner("unequipped")]);
+        assert_eq!(report["functions"][&armor]["owners"], armor_owners);
+        let armor_tick = report["tick"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == armor)
+            .unwrap();
+        assert_eq!(armor_tick["contributors"], armor_owners);
         let coordinator = format!("{namespace}:__sand_tick_check");
         let event_owners = serde_json::json!([owner("holding_diamond"), owner("holding_stone")]);
         assert_eq!(report["functions"][&coordinator]["owners"], event_owners);

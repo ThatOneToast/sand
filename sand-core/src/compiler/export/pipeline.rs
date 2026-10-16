@@ -1031,6 +1031,7 @@ pub(crate) fn try_export_components_impl(
     // deterministic staged coordinator; all dependency forms participate in
     // readable cycle validation.
     if !tick_lifecycle_events.is_empty() || !chain_events.is_empty() {
+        let graph_start = records.len();
         let mut resolved: BTreeMap<std::any::TypeId, crate::events::graph::EventNode> =
             BTreeMap::new();
         // Advancement-backed graph parents (#240 Phase 6) — never inserted
@@ -1095,6 +1096,8 @@ pub(crate) fn try_export_components_impl(
             nodes,
             advancement_bridges,
         };
+        let mut graph_runtime =
+            super::provenance::GraphRuntime::new(&graph, namespace, &mut runtime);
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
@@ -1185,6 +1188,7 @@ pub(crate) fn try_export_components_impl(
         let slot_alloc_path = "__sand_bounded_item_slot_alloc".to_string();
         let slot_alloc_function = format!("{namespace}:{slot_alloc_path}");
         if !bounded_item_transports.is_empty() {
+            let first_record = records.len();
             // One shared allocator and one shared slot objective for the
             // whole pack — subject identity is a property of the player, not
             // of any particular bounded entry.
@@ -1209,9 +1213,16 @@ pub(crate) fn try_export_components_impl(
                 .entry("minecraft:load".to_string())
                 .or_default()
                 .push(format!("{namespace}:{setup_path}"));
+            graph_runtime.records(
+                bounded_item_transports
+                    .iter()
+                    .map(|transport| transport.source_event),
+                &records[first_record..],
+            );
         }
 
         for (&(source_event, role, hand), &max_window) in &bounded_item_max_window {
+            let first_record = records.len();
             let schema =
                 crate::participant::bounded_item::BoundedItemSchema::new(source_event, role, hand);
             let source_snapshot =
@@ -1307,6 +1318,7 @@ pub(crate) fn try_export_components_impl(
                     "execute as {cycle_subject} {} if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}",
                     crate::participant::bounded_item::has_slot_guard()
                 ));
+            graph_runtime.records([source_event], &records[first_record..]);
         }
         let bounded_item_codegen = super::events::BoundedItemCodegen {
             persist: &bounded_item_persist,
@@ -1441,6 +1453,7 @@ pub(crate) fn try_export_components_impl(
                     &mut guarded_children,
                     bounded_item_codegen,
                     &mut records,
+                    &mut graph_runtime,
                 ))
             } else {
                 None
@@ -1462,9 +1475,11 @@ pub(crate) fn try_export_components_impl(
                 &mut guarded_children,
                 bounded_item_codegen,
                 &mut records,
+                &mut graph_runtime,
             );
             let key = tick_event_resource_key(&staged.child);
             let path = format!("__sand_event_multi_eval/{key}");
+            graph_runtime.function(&staged.child, namespace, &path);
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -1510,6 +1525,7 @@ pub(crate) fn try_export_components_impl(
             }
             let key = tick_event_resource_key(&name);
             let path = format!("__sand_event_multi_post/{key}");
+            graph_runtime.function(&name, namespace, &path);
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -1595,6 +1611,7 @@ pub(crate) fn try_export_components_impl(
             }
             if !setup_cmds.is_empty() {
                 let init_path = format!("__sand_event_setup/{key}");
+                graph_runtime.function(node.type_name, namespace, &init_path);
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
@@ -1693,6 +1710,7 @@ pub(crate) fn try_export_components_impl(
 
             if !tick_cmds.is_empty() {
                 let check_path = format!("__sand_event_check/{key}");
+                graph_runtime.function(root.type_name, namespace, &check_path);
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
@@ -1714,6 +1732,7 @@ pub(crate) fn try_export_components_impl(
         }
 
         if has_staged_composition {
+            let coordinator_start = records.len();
             let mut coordinator = Vec::new();
             for name in &occurrence_marked {
                 let key = tick_event_resource_key(name);
@@ -1815,6 +1834,7 @@ pub(crate) fn try_export_components_impl(
                     namespace,
                     &mut records,
                     cycle_subject,
+                    &mut graph_runtime,
                 ));
                 if bounded_parents.contains(&staged.child) {
                     coordinator.extend(bounded_age_update(&staged.child));
@@ -1882,6 +1902,16 @@ pub(crate) fn try_export_components_impl(
                 .entry("minecraft:tick".to_string())
                 .or_default()
                 .push(format!("{namespace}:{coordinator_path}"));
+            // Only tick roots participate; advancement-only trees are independent.
+            // Individual staged gates already retain their narrower node origins.
+            for record in &records[coordinator_start..] {
+                if record.path == coordinator_path || record.path == "__sand_event_subject_cycle" {
+                    graph_runtime.records(
+                        graph.roots().map(|root| root.type_name),
+                        std::slice::from_ref(record),
+                    );
+                }
+            }
         }
 
         // ── Advancement-backed graph parent bridge (#240 Phase 6) ──────────
@@ -1927,6 +1957,7 @@ pub(crate) fn try_export_components_impl(
                     &mut guarded_children,
                     bounded_item_codegen,
                     &mut records,
+                    &mut graph_runtime,
                 ));
             }
 
@@ -1950,6 +1981,7 @@ pub(crate) fn try_export_components_impl(
                 ),
             };
             let entry_path = format!("__sand_event_advancement_bridge/{key}");
+            graph_runtime.function(parent_name, namespace, &entry_path);
             let entry_ref = format!("{namespace}:{entry_path}");
             let advancement_id = format!("{namespace}:{entry_path}");
 
@@ -1989,11 +2021,20 @@ pub(crate) fn try_export_components_impl(
             );
             records.push(component_to_record(&advancement, ctx)?);
         }
+        graph_runtime.tags(&records[graph_start..], &tag_map);
     }
 
     // ── Armor check aggregation ───────────────────────────────────────────────
     if !armor_watch_map.is_empty() {
         let armor_path = "__sand_armor_check";
+        let owners = armor_watch_map
+            .values()
+            .flat_map(|(_, _, _, handlers)| handlers)
+            .flat_map(|(_, path)| runtime.function_owners.get(&format!("{namespace}:{path}")))
+            .flatten()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        runtime.own_lifecycle(format!("{namespace}:{armor_path}"), "tick", owners);
         let mut armor_cmds: Vec<String> = Vec::new();
         let armor_tag_keys = allocate_armor_tag_keys(namespace, &armor_watch_map)?;
 
@@ -2194,6 +2235,13 @@ pub(crate) fn try_export_components_impl(
     }
     if !system_load.is_empty() {
         let path = "__sand_system_load";
+        let owners = runtime
+            .systems
+            .iter()
+            .filter(|system| system.every > 1)
+            .flat_map(|system| system.owners.iter().cloned())
+            .collect::<Vec<_>>();
+        runtime.own_lifecycle(format!("{namespace}:{path}"), "load", owners);
         ensure_private_lifecycle_path_available(&records, path)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -2210,6 +2258,12 @@ pub(crate) fn try_export_components_impl(
     }
     if !system_tick.is_empty() {
         let path = "__sand_system_tick";
+        let owners = runtime
+            .systems
+            .iter()
+            .flat_map(|system| system.owners.iter().cloned())
+            .collect::<Vec<_>>();
+        runtime.own_lifecycle(format!("{namespace}:{path}"), "tick", owners);
         ensure_private_lifecycle_path_available(&records, path)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -2289,6 +2343,18 @@ pub(crate) fn try_export_components_impl(
                     )));
                 }
                 records.push(record);
+            }
+            for (phase, functions) in [
+                ("load", &compiled.load_functions),
+                ("tick", &compiled.tick_functions),
+            ] {
+                if !functions.is_empty() {
+                    runtime.own_lifecycle(
+                        format!("{namespace}:__sand_entity_{phase}"),
+                        phase,
+                        [owner.clone()],
+                    );
+                }
             }
             load_functions.extend(compiled.load_functions);
             tick_functions.extend(compiled.tick_functions);
@@ -2490,12 +2556,28 @@ pub(crate) fn try_export_components_impl(
             transition_global_tick_commands,
         )?;
         if !lifecycle.load_owners.is_empty() {
+            runtime.own_lifecycle(
+                format!("{}:__sand_lifecycle_load", namespace),
+                "load",
+                lifecycle
+                    .load_owners
+                    .iter()
+                    .map(|origin| origin.owner.clone()),
+            );
             runtime.lifecycle_owners.insert(
                 format!("{namespace}:__sand_lifecycle_load"),
                 lifecycle.load_owners,
             );
         }
         if !lifecycle.tick_owners.is_empty() {
+            runtime.own_lifecycle(
+                format!("{}:__sand_lifecycle_tick", namespace),
+                "tick",
+                lifecycle
+                    .tick_owners
+                    .iter()
+                    .map(|origin| origin.owner.clone()),
+            );
             runtime.lifecycle_owners.insert(
                 format!("{namespace}:__sand_lifecycle_tick"),
                 lifecycle.tick_owners,

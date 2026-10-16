@@ -147,12 +147,28 @@ pub(super) fn lower(
     )
     .map_err(|e| error(e.to_string()))?;
     if !lifecycle.load_owners.is_empty() {
+        lower.runtime.own_lifecycle(
+            format!("{}:__sand_lifecycle_load", program.pack.namespace),
+            "load",
+            lifecycle
+                .load_owners
+                .iter()
+                .map(|origin| origin.owner.clone()),
+        );
         lower.runtime.lifecycle_owners.insert(
             format!("{}:__sand_lifecycle_load", program.pack.namespace),
             lifecycle.load_owners,
         );
     }
     if !lifecycle.tick_owners.is_empty() {
+        lower.runtime.own_lifecycle(
+            format!("{}:__sand_lifecycle_tick", program.pack.namespace),
+            "tick",
+            lifecycle
+                .tick_owners
+                .iter()
+                .map(|origin| origin.owner.clone()),
+        );
         lower.runtime.lifecycle_owners.insert(
             format!("{}:__sand_lifecycle_tick", program.pack.namespace),
             lifecycle.tick_owners,

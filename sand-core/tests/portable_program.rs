@@ -697,6 +697,23 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
     for (_, cost) in helpers {
         assert_eq!(cost["owners"], serde_json::json!(["demo:counter_module"]));
     }
+    for phase in ["load", "tick"] {
+        let id = format!("demo:__sand_lifecycle_{phase}");
+        assert_eq!(
+            report["functions"][&id]["owners"],
+            serde_json::json!(["demo:counter_module"])
+        );
+        let entry = report[phase]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == id)
+            .unwrap();
+        assert_eq!(
+            entry["contributors"],
+            serde_json::json!(["demo:counter_module"])
+        );
+    }
     let spans = report["provenance"]["lifecycle_owners"]["demo:__sand_lifecycle_load"]
         .as_array()
         .unwrap();

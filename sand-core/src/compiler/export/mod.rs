@@ -19,6 +19,7 @@ pub(crate) mod lifecycle;
 pub(crate) mod participant_transport;
 pub(crate) mod pipeline;
 pub(crate) mod predicates;
+pub(crate) mod provenance;
 pub(crate) mod records;
 pub(crate) mod schedules;
 pub(crate) mod tags;

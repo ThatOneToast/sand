@@ -110,6 +110,7 @@ pub(crate) fn build_dispatch_function(
     guarded_children: &mut std::collections::BTreeSet<String>,
     bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
+    runtime: &mut super::provenance::GraphRuntime<'_>,
 ) -> String {
     let node = &graph.nodes[name];
     let key = tick_event_resource_key(node.type_name);
@@ -180,6 +181,7 @@ pub(crate) fn build_dispatch_function(
             guarded_children,
             bounded_item,
             records,
+            runtime,
         ));
     }
 
@@ -190,6 +192,7 @@ pub(crate) fn build_dispatch_function(
     }
 
     let dispatch_path = format!("__sand_event_dispatch/{key}");
+    runtime.function(name, namespace, &dispatch_path);
     records.push(ComponentRecord {
         namespace: namespace.to_string(),
         dir: "function".to_string(),
@@ -223,6 +226,7 @@ pub(crate) fn build_child_edge(
     guarded_children: &mut std::collections::BTreeSet<String>,
     bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
+    runtime: &mut super::provenance::GraphRuntime<'_>,
 ) -> String {
     let child_node = &graph.nodes[&edge.child];
     let child_ref = build_dispatch_function(
@@ -235,7 +239,9 @@ pub(crate) fn build_child_edge(
         guarded_children,
         bounded_item,
         records,
+        runtime,
     );
+    let first_record = records.len();
     let has_lifecycle = !child_node.setup.lifecycle.pre_observation.is_empty()
         || !child_node.setup.lifecycle.post_observation.is_empty();
 
@@ -330,7 +336,9 @@ pub(crate) fn build_child_edge(
         // No ordering concern — the condition test (and any multi-plan
         // guard) can be emitted directly into the parent's own command list,
         // exactly as before.
-        return conditional_dispatch_lines(&child_ref, guarded_children, records).join("\n");
+        let commands = conditional_dispatch_lines(&child_ref, guarded_children, records).join("\n");
+        runtime.records([edge.child.as_str()], &records[first_record..]);
+        return commands;
     }
 
     // The child owns pre_observation/post_observation: wrap the condition
@@ -361,6 +369,7 @@ pub(crate) fn build_child_edge(
         content_type: "text".to_string(),
         content: observe_cmds.join("\n"),
     });
+    runtime.records([edge.child.as_str()], &records[first_record..]);
     format!("function {namespace}:{observe_path}")
 }
 
@@ -409,6 +418,7 @@ pub(crate) fn build_staged_occurrence_lines(
     namespace: &str,
     records: &mut Vec<ComponentRecord>,
     subject: &str,
+    runtime: &mut super::provenance::GraphRuntime<'_>,
 ) -> Vec<String> {
     let mut required = Vec::new();
     let mut any_parents = Vec::new();
@@ -441,6 +451,7 @@ pub(crate) fn build_staged_occurrence_lines(
     let guard = format!("se_{child_key}_m");
     let gate_path = format!("__sand_event_multi_gate/{child_key}");
     let gate_ref = format!("{namespace}:{gate_path}");
+    runtime.function(&staged.child, namespace, &gate_path);
     records.push(ComponentRecord {
         namespace: namespace.to_string(),
         dir: "function".to_string(),

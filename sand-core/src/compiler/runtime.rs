@@ -71,6 +71,19 @@ impl RuntimePlan {
             .insert(owner);
     }
 
+    /// Attribute a generated coordinator and the lifecycle entry it contributes.
+    pub(crate) fn own_lifecycle(
+        &mut self,
+        function: String,
+        phase: &str,
+        owners: impl IntoIterator<Item = String>,
+    ) {
+        for owner in owners {
+            self.own_function(function.clone(), owner.clone());
+            self.contribute_tag(format!("minecraft:{phase}"), function.clone(), owner);
+        }
+    }
+
     /// Retain exact registration origins, including late replays of shared helpers.
     pub(crate) fn generated_function(
         &mut self,

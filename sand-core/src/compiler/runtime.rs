@@ -4,6 +4,8 @@
 //! This input belongs to one compilation and never enters the datapack as a
 //! synthetic component or process-global side channel.
 
+mod estimate;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Semantic inputs for runtime reporting, before final resource publication.

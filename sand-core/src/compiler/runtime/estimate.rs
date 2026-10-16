@@ -1,0 +1,339 @@
+//! Conservative explicit-call estimates, separate from Minecraft's command budget.
+//!
+//! These estimates do not measure MSPT, selector search cost, or terminal-command
+//! multiplicity. Resource-triggered callbacks require separate graph edges.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+/// A range of explicit command evaluations for one invocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Work {
+    pub(crate) minimum: u64,
+    pub(crate) maximum: Option<u64>,
+    pub(crate) unknown: BTreeSet<String>,
+}
+
+impl Work {
+    fn exact(count: u64) -> Self {
+        Self {
+            minimum: count,
+            maximum: Some(count),
+            unknown: BTreeSet::new(),
+        }
+    }
+
+    fn unknown(reason: String) -> Self {
+        Self {
+            minimum: 0,
+            maximum: None,
+            unknown: BTreeSet::from([reason]),
+        }
+    }
+
+    fn add(&mut self, other: Self) {
+        self.minimum = self.minimum.saturating_add(other.minimum);
+        self.maximum = self
+            .maximum
+            .zip(other.maximum)
+            .and_then(|(a, b)| a.checked_add(b));
+        self.unknown.extend(other.unknown);
+        if self.maximum.is_none() && self.unknown.is_empty() {
+            self.unknown
+                .insert("evaluation count exceeds the report's integer range".into());
+        }
+    }
+
+    fn optional(mut self) -> Self {
+        self.minimum = 0;
+        self
+    }
+
+    fn without_entry(mut self) -> Self {
+        self.minimum = self.minimum.saturating_sub(1);
+        self.maximum = self.maximum.map(|maximum| maximum.saturating_sub(1));
+        self
+    }
+
+    fn unbounded(mut self, reason: String) -> Self {
+        self.minimum = 0;
+        if self.maximum != Some(0) {
+            self.maximum = None;
+            self.unknown.insert(reason);
+        }
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReturnFlow {
+    Never,
+    Maybe,
+    Always,
+}
+
+#[derive(Debug, Clone)]
+struct Summary {
+    work: Work,
+    returns: ReturnFlow,
+}
+
+/// Analyze immutable collected function bodies with deterministic memoization.
+pub(crate) struct Estimator<'a> {
+    functions: &'a BTreeMap<String, String>,
+    active: BTreeSet<String>,
+    cache: BTreeMap<String, Summary>,
+}
+
+impl<'a> Estimator<'a> {
+    pub(crate) fn new(functions: &'a BTreeMap<String, String>) -> Self {
+        Self {
+            functions,
+            active: BTreeSet::new(),
+            cache: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn function(&mut self, id: &str) -> Work {
+        self.summary(id).work
+    }
+
+    fn summary(&mut self, id: &str) -> Summary {
+        if id.starts_with('#') {
+            return Self::unsupported(format!("function-tag return flow is not analyzed: {id}"));
+        }
+        let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
+        let Ok(id) = sand_components::ResourceLocation::new(namespace, path) else {
+            return Self::unsupported(format!("unknown function reference: {id}"));
+        };
+        let id = id.to_string();
+        if let Some(summary) = self.cache.get(&id) {
+            return summary.clone();
+        }
+        if self.active.contains(&id) || self.active.len() >= 128 {
+            return Self::unsupported(format!("recursive or excessively deep call graph: {id}"));
+        }
+        let Some(body) = self.functions.get(&id).cloned() else {
+            return Self::unsupported(format!("external or unavailable function: {id}"));
+        };
+        if body.lines().any(|line| line.trim_start().starts_with('$')) {
+            return Self::unsupported(format!("macro instantiation is not analyzed: {id}"));
+        }
+        self.active.insert(id.clone());
+        let mut work = Work::exact(0);
+        let mut returns = ReturnFlow::Never;
+        for line in body
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        {
+            let summary = self.line(line);
+            work.add(if returns == ReturnFlow::Maybe {
+                summary.work.optional()
+            } else {
+                summary.work
+            });
+            match summary.returns {
+                ReturnFlow::Always => {
+                    returns = ReturnFlow::Always;
+                    break;
+                }
+                ReturnFlow::Maybe => returns = ReturnFlow::Maybe,
+                ReturnFlow::Never => {}
+            }
+        }
+        self.active.remove(&id);
+        let summary = Summary { work, returns };
+        // Cycle/depth results depend on the active call path. Never cache them
+        // as though they were a context-independent function summary.
+        if !summary
+            .work
+            .unknown
+            .iter()
+            .any(|reason| reason.starts_with("recursive or"))
+        {
+            self.cache.insert(id, summary.clone());
+        }
+        summary
+    }
+
+    fn unsupported(reason: String) -> Summary {
+        Summary {
+            work: Work::unknown(reason),
+            returns: ReturnFlow::Maybe,
+        }
+    }
+
+    fn line(&mut self, line: &str) -> Summary {
+        use sand_commands::render::{
+            collected_execute, collected_return_command, collected_tokens,
+        };
+        let Some(tokens) = collected_tokens(line) else {
+            let mut summary = Self::unsupported(format!("unsupported command grammar: {line}"));
+            summary.work.minimum = 1;
+            return summary;
+        };
+        let mut work = Work::exact(1);
+        let mut returns = ReturnFlow::Never;
+        match tokens.first().copied() {
+            Some("function") if tokens.len() == 2 => work.add(self.summary(tokens[1]).work),
+            Some("function") => work.add(Work::unknown(format!(
+                "function arguments are not analyzed: {line}"
+            ))),
+            Some("return") => {
+                returns = ReturnFlow::Always;
+                if let Some(command) = collected_return_command(line) {
+                    work = self.line(command).work;
+                } else if tokens.len() != 2
+                    || (tokens[1] != "fail" && tokens[1].parse::<i32>().is_err())
+                {
+                    work.add(Work::unknown(format!("unsupported return grammar: {line}")));
+                    returns = ReturnFlow::Maybe;
+                }
+            }
+            Some("execute") => {
+                let Some(execute) = collected_execute(line) else {
+                    work.add(Work::unknown(format!(
+                        "unsupported execute grammar: {line}"
+                    )));
+                    return Summary {
+                        work,
+                        returns: ReturnFlow::Maybe,
+                    };
+                };
+                let tail = self.line(execute.command);
+                let mut optional = false;
+                let mut unbounded = false;
+                for operation in execute.operations {
+                    let args = operation.arguments;
+                    if matches!(operation.keyword, "if" | "unless") {
+                        if args.first() == Some(&"function") {
+                            let mut predicate = self.summary(args[1]).work;
+                            if optional {
+                                predicate = predicate.optional();
+                            }
+                            if unbounded {
+                                predicate = predicate
+                                    .unbounded(format!("unknown selector multiplicity: {line}"));
+                            }
+                            work.add(predicate);
+                        }
+                        optional = true;
+                    } else if matches!(operation.keyword, "as" | "at" | "on")
+                        || (matches!(operation.keyword, "positioned" | "rotated")
+                            && args.first() == Some(&"as"))
+                        || (operation.keyword == "facing" && args.first() == Some(&"entity"))
+                    {
+                        optional = true;
+                        // Cardinality is deliberately unknown until the report
+                        // supplies a supported selector/context assumption.
+                        unbounded = true;
+                    } else {
+                        // A known context operation can still fail at runtime,
+                        // for example when a referenced dimension is absent.
+                        optional = true;
+                    }
+                }
+                let mut nested = tail.work.without_entry();
+                if optional {
+                    nested = nested.optional();
+                }
+                if unbounded {
+                    nested = nested.unbounded(format!("unknown selector multiplicity: {line}"));
+                }
+                work.add(nested);
+                if tail.returns != ReturnFlow::Never {
+                    returns = ReturnFlow::Maybe;
+                }
+            }
+            Some("advancement") if tokens.get(1) == Some(&"grant") => {
+                work.add(Work::unknown(
+                    "advancement reward callbacks require resource-graph analysis".into(),
+                ));
+            }
+            _ => {}
+        }
+        Summary { work, returns }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Repeated calls count repeatedly even when one resource is shared.
+    #[test]
+    fn repeated_calls_and_returns_follow_observable_evaluations() {
+        let functions = BTreeMap::from([
+            ("demo:leaf".into(), "say leaf".into()),
+            (
+                "demo:twice".into(),
+                "function demo:leaf\nfunction demo:leaf".into(),
+            ),
+            (
+                "demo:return".into(),
+                "return run function demo:leaf\nsay unreachable".into(),
+            ),
+            (
+                "demo:conditional".into(),
+                "execute if score @s flag matches 1 run return 1\nsay maybe".into(),
+            ),
+        ]);
+        let mut estimator = Estimator::new(&functions);
+        assert_eq!(estimator.function("demo:twice"), Work::exact(4));
+        assert_eq!(estimator.function("demo:return"), Work::exact(2));
+        let conditional = estimator.function("demo:conditional");
+        assert_eq!((conditional.minimum, conditional.maximum), (1, Some(2)));
+    }
+
+    /// Unknown calls, macros, tags and implicit rewards never become zero cost.
+    #[test]
+    fn unresolved_work_remains_explicit() {
+        let functions = BTreeMap::from([
+            ("demo:external".into(), "function other:missing".into()),
+            ("demo:cycle".into(), "function demo:cycle".into()),
+            ("demo:macro".into(), "$say $(value)".into()),
+            ("demo:tag".into(), "function #demo:handlers".into()),
+            (
+                "demo:reward".into(),
+                "advancement grant @a only demo:rewarded".into(),
+            ),
+        ]);
+        let mut estimator = Estimator::new(&functions);
+        for id in functions.keys() {
+            let estimate = estimator.function(id);
+            assert_eq!(estimate.maximum, None, "{id}");
+            assert!(!estimate.unknown.is_empty(), "{id}");
+        }
+    }
+
+    /// A forked ordinary terminal still contributes one debug command entry.
+    #[test]
+    fn selector_work_is_not_terminal_execution_multiplicity() {
+        let functions = BTreeMap::from([
+            ("demo:ordinary".into(), "execute as @e run say hello".into()),
+            ("demo:leaf".into(), "say leaf".into()),
+            (
+                "demo:call".into(),
+                "execute as @e run function demo:leaf".into(),
+            ),
+        ]);
+        let mut estimator = Estimator::new(&functions);
+        assert_eq!(estimator.function("demo:ordinary"), Work::exact(1));
+        let calls = estimator.function("demo:call");
+        assert_eq!((calls.minimum, calls.maximum), (1, None));
+    }
+
+    /// Context modifiers do not prove that the nested call will run.
+    #[test]
+    fn context_changes_keep_optional_nested_work() {
+        let functions = BTreeMap::from([
+            ("demo:leaf".into(), "say leaf".into()),
+            (
+                "demo:dimension".into(),
+                "execute in demo:world run function demo:leaf".into(),
+            ),
+        ]);
+        let work = Estimator::new(&functions).function("demo:dimension");
+        assert_eq!((work.minimum, work.maximum), (1, Some(2)));
+    }
+}

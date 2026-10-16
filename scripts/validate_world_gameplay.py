@@ -205,6 +205,12 @@ class WorldGameplayHarness(ServerHarness):
         self.check("ENTITY_POSITION", "in minecraft:the_nether if block 10 80 10 minecraft:gold_block")
         self.check("ENTITY_OTHER_BLOCK", "in minecraft:overworld if block 10 80 10 minecraft:air")
         self.check("MACRO_MULTILINE", "in minecraft:the_nether if block 3 80 2 minecraft:lapis_block")
+        # Decimal origins avoid execute positioned's integer X/Z centering.
+        self.send("execute in minecraft:overworld positioned 0.0 100.0 0.0 rotated 0 0 run function sand_audit:audit_world_block_offsets")
+        self.check("BLOCK_RELATIVE_FRACTION", "in minecraft:overworld if block 0 100 0 minecraft:stone")
+        self.check("BLOCK_LOCAL_FRACTION", "in minecraft:overworld if block 0 100 1 minecraft:gold_block")
+        self.check("BLOCK_RELATIVE_DATA", 'in minecraft:overworld if data block 1 100 0 {CustomName:"Relative offset"}')
+        self.check("BLOCK_LOCAL_DATA", 'in minecraft:overworld if data block 0 100 2 {CustomName:"Local offset"}')
         self.check_observations()
         self.check_public_observations()
         print("PASSED: runtime block queries, writes, inventory, NBT, dimension scaling, caller context, and unloaded-block behavior", flush=True)

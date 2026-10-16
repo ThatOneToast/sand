@@ -1117,6 +1117,27 @@ pub fn audit_runtime_world_blocks() {
     world.block(BlockPos::here()).replace(vanilla::Block::Stone);
 }
 
+/// Resolve fractional relative and local block offsets through the world API.
+#[function]
+pub fn audit_world_block_offsets() {
+    let world = WorldContext::current();
+    world.block(BlockPos::new(Coord::rel_n(0.5), Coord::rel(), Coord::rel()))
+        .replace(vanilla::Block::Stone);
+    world.block(BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(1.25)))
+        .replace(vanilla::Block::GoldBlock);
+    for (position, label) in [
+        (BlockPos::new(Coord::rel_n(1.5), Coord::rel(), Coord::rel()), "Relative offset"),
+        (BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(2.25)), "Local offset"),
+    ] {
+        let chest = world.block(position);
+        let name = chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+        mcfunction![
+            chest.replace(vanilla::Block::Chest);
+            name.set(label);
+        ];
+    }
+}
+
 /// Keep function-macro arguments available across dimension-scoped actions.
 #[function]
 pub fn audit_world_macro() {

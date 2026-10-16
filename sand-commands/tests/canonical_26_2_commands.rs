@@ -319,6 +319,40 @@ fn canonical_26_2_block_setblock_fill_clone() {
     assert_eq!(clone_cmd, "clone 0 60 0 5 65 5 20 60 0 masked force");
 }
 
+/// Verified with Minecraft 26.2 BlockPosArgument and actual setblock probes
+/// (2026-10-14): relative fractions and local triplets resolve to block cells.
+#[test]
+fn canonical_26_2_block_position_offsets() {
+    use sand_commands::{Coord, RenderCommand};
+    for (position, expected, expected_data) in [
+        (
+            BlockPos::new(Coord::rel_n(0.5), Coord::rel(), Coord::rel_n(-1.25)),
+            "setblock ~0.5 ~ ~-1.25 minecraft:stone",
+            "data get block ~0.5 ~ ~-1.25 Items",
+        ),
+        (
+            BlockPos::new(Coord::local_n(0.5), Coord::local(), Coord::local_n(1.25)),
+            "setblock ^0.5 ^ ^1.25 minecraft:stone",
+            "data get block ^0.5 ^ ^1.25 Items",
+        ),
+    ] {
+        assert_eq!(
+            SetBlock::new(position.clone(), "minecraft:stone")
+                .try_build()
+                .unwrap(),
+            expected
+        );
+        assert_eq!(
+            sand_commands::nbt::DataTarget::block(position)
+                .path("Items")
+                .get()
+                .try_render(&sand_commands::CommandProfile::unprofiled())
+                .unwrap(),
+            expected_data
+        );
+    }
+}
+
 // ── Text output: tellraw / title / actionbar / bossbar ───────────────────────
 //
 // Verified against https://minecraft.wiki/w/Commands/tellraw,

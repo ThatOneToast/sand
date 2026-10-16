@@ -30,14 +30,15 @@ higher-level position type (`Vec3`, `Vec2`, `Rotation`, `BlockPos`) is built
 from `Coord`s and shares one validator: non-finite values (`NaN`, `±inf`)
 are rejected before they can reach generated command text.
 
-`BlockPos` and `Vec3` are deliberately different types with different
-grammars — `BlockPos` (used by `setblock`/`fill`/`clone`/block-targeted
-`data`) requires integer absolute or relative coordinates and rejects local
-(`^`) coordinates, while `Vec3` (used by commands with generic position
-grammar, such as `execute positioned`, `particle`, `summon`, `tp`) accepts
-fractional and local coordinates. Do not reuse `BlockPos` as a generic
-fractional/local position, and do not reuse `Vec3` where a command's grammar
-actually requires integer block coordinates.
+`BlockPos` (used by `setblock`/`fill`/`clone`/block-targeted `data`) requires
+signed 32-bit integer absolute coordinates. Relative (`~`) offsets may be
+fractional, and local (`^`) triplets may also be fractional. Minecraft resolves
+the offsets from the execution position and floors the result to a block.
+Local axes cannot be mixed with absolute or relative axes.
+
+`Vec3` additionally accepts fractional absolute coordinates for commands such
+as `execute positioned`, `particle`, `summon`, and `tp`. Choose the position
+type required by the command; both share finite-value and mixed-mode checks.
 
 ## Selectors and typed targets
 

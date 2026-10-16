@@ -1112,13 +1112,17 @@ mod tests {
         assert!(cmd.try_build().is_err());
     }
 
+    /// Clone block-position arguments accept complete local-coordinate triplets.
     #[test]
-    fn clone_try_build_rejects_local_coordinates() {
+    fn clone_try_build_accepts_local_coordinates() {
         let cmd = CloneBlocks::new(
             BlockPos::new(Coord::local_n(1), Coord::local_n(2), Coord::local_n(3)),
             BlockPos::absolute(5, 68, 5),
             BlockPos::absolute(10, 64, 0),
         );
-        assert!(cmd.try_build().is_err());
+        assert_eq!(
+            cmd.try_build().unwrap(),
+            "clone ^1 ^2 ^3 5 68 5 10 64 0 replace normal"
+        );
     }
 }

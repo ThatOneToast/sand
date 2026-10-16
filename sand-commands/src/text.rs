@@ -2163,14 +2163,14 @@ fn validate_json_interactions(
 }
 
 /// Parse raw NBT text coordinates into the canonical coordinate model.
-/// Vanilla block sources permit fractional relative/local offsets, but absolute
-/// coordinates are signed integers (unlike generic Vec3 absolute positions).
+/// Lexing preserves vanilla integer spelling for absolute axes; the canonical
+/// BlockPos model checks bounds, finite offsets and mixed coordinate modes.
 fn validate_json_block_source(
     value: &str,
     profile: &CommandProfile,
     path: &str,
 ) -> CommandResult<()> {
-    use crate::coord::{Coord, Vec3};
+    use crate::coord::{BlockPos, Coord};
     let invalid = || {
         text_error(
             "SAND-TEXT-NBT",
@@ -2216,7 +2216,7 @@ fn validate_json_block_source(
         };
         coordinates.push(coordinate);
     }
-    Vec3::new(
+    BlockPos::new(
         coordinates[0].clone(),
         coordinates[1].clone(),
         coordinates[2].clone(),

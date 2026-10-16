@@ -91,6 +91,16 @@ struct TopLevelToken<'a> {
     start: usize,
 }
 
+/// Inspect top-level arguments without splitting quoted or structured data.
+///
+/// Compiler analyses share this lexical boundary with collected validation.
+/// Tokens are borrowed from the original line. `None` denotes unsupported or
+/// unbalanced structure, not an empty command or proof of zero runtime work.
+#[doc(hidden)]
+pub fn collected_tokens(line: &str) -> Option<Vec<&str>> {
+    tokenize_top_level(line).map(|tokens| tokens.into_iter().map(|token| token.text).collect())
+}
+
 /// Split only on whitespace outside quotes and balanced structured arguments.
 /// Returning `None` means the input uses structure this conservative tokenizer
 /// cannot prove; callers must preserve the raw line after integrity checks.
@@ -269,6 +279,62 @@ pub fn collected_execute_command(line: &str) -> Option<&str> {
     Some(&line[tokens.get(index + 1)?.start..])
 }
 
+/// Borrowed lexical view of one recognized collected execute operation.
+///
+/// This is compiler inspection data, not an authoring API or proof that an
+/// operation succeeds at runtime. Arguments retain quoted/structured tokens.
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CollectedExecuteOperation<'a> {
+    /// Operation keyword, such as `as`, `if`, or `store`.
+    pub keyword: &'a str,
+    /// Complete top-level argument tokens, excluding the operation keyword.
+    pub arguments: Vec<&'a str>,
+}
+
+/// Recognized execute operations and their terminal command, in source order.
+///
+/// Conditions may invoke functions before the terminal command. Forking and
+/// failure semantics belong to consumers of this lexical view; this structure
+/// makes no claims about entity populations or execution cost.
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CollectedExecute<'a> {
+    /// Operations before the terminal `run` keyword.
+    pub operations: Vec<CollectedExecuteOperation<'a>>,
+    /// Original executable tail after `run`, preserving its exact spelling.
+    pub command: &'a str,
+}
+
+/// Inspect an execute chain using the same grammar as collected validation.
+///
+/// Unknown or incomplete operation grammar returns `None`. An argument named
+/// `run` is never treated as an operation boundary. Callers must retain unknown
+/// work explicitly rather than interpreting failure to parse as zero work.
+#[doc(hidden)]
+pub fn collected_execute(line: &str) -> Option<CollectedExecute<'_>> {
+    let tokens = tokenize_top_level(line)?;
+    let run = execute_run_index(&tokens)?;
+    let command = &line[tokens.get(run + 1)?.start..];
+    let mut index = 1;
+    let mut operations = Vec::new();
+    while index < run {
+        let width = execute_operation_width(&tokens, index)?;
+        operations.push(CollectedExecuteOperation {
+            keyword: tokens[index].text,
+            arguments: tokens[index + 1..index + width]
+                .iter()
+                .map(|token| token.text)
+                .collect(),
+        });
+        index += width;
+    }
+    Some(CollectedExecute {
+        operations,
+        command,
+    })
+}
+
 /// Locate a collected `return run` command's executable tail.
 #[doc(hidden)]
 pub fn collected_return_command(line: &str) -> Option<&str> {
@@ -286,50 +352,57 @@ fn execute_run_index(tokens: &[TopLevelToken<'_>]) -> Option<usize> {
     }
     let mut index = 1;
     while index < tokens.len() {
-        let arg = |offset: usize| tokens.get(index + offset).map(|token| token.text);
-        let width = match arg(0)? {
-            "run" => return Some(index),
-            "as" | "at" | "align" | "anchored" | "in" | "on" | "summon" => 2,
-            "positioned" => match arg(1)? {
-                "as" | "over" => 3,
-                _ => 4,
-            },
-            "rotated" => 3,
-            "facing" => 4,
-            "if" | "unless" => match arg(1)? {
-                "entity" | "predicate" | "dimension" | "function" => 3,
-                "stopwatch" => 4,
-                "loaded" => 5,
-                "block" | "biome" => 6,
-                "blocks" => 12,
-                "score" => match arg(4)? {
-                    "matches" => 6,
-                    "=" | "<" | ">" | "<=" | ">=" => 7,
-                    _ => return None,
-                },
-                "data" => match arg(2)? {
-                    "entity" | "storage" => 5,
-                    "block" => 7,
-                    _ => return None,
-                },
-                "items" => match arg(2)? {
-                    "entity" => 6,
-                    "block" => 8,
-                    _ => return None,
-                },
-                _ => return None,
-            },
-            "store" if matches!(arg(1)?, "result" | "success") => match arg(2)? {
-                "score" | "bossbar" => 5,
-                "entity" | "storage" => 7,
-                "block" => 9,
-                _ => return None,
-            },
-            _ => return None,
-        };
+        if token_is(tokens, index, "run") {
+            return Some(index);
+        }
+        let width = execute_operation_width(tokens, index)?;
         index += width;
     }
     None
+}
+
+fn execute_operation_width(tokens: &[TopLevelToken<'_>], index: usize) -> Option<usize> {
+    let arg = |offset: usize| tokens.get(index + offset).map(|token| token.text);
+    let width = match arg(0)? {
+        "as" | "at" | "align" | "anchored" | "in" | "on" | "summon" => 2,
+        "positioned" => match arg(1)? {
+            "as" | "over" => 3,
+            _ => 4,
+        },
+        "rotated" => 3,
+        "facing" => 4,
+        "if" | "unless" => match arg(1)? {
+            "entity" | "predicate" | "dimension" | "function" => 3,
+            "stopwatch" => 4,
+            "loaded" => 5,
+            "block" | "biome" => 6,
+            "blocks" => 12,
+            "score" => match arg(4)? {
+                "matches" => 6,
+                "=" | "<" | ">" | "<=" | ">=" => 7,
+                _ => return None,
+            },
+            "data" => match arg(2)? {
+                "entity" | "storage" => 5,
+                "block" => 7,
+                _ => return None,
+            },
+            "items" => match arg(2)? {
+                "entity" => 6,
+                "block" => 8,
+                _ => return None,
+            },
+            _ => return None,
+        },
+        "store" if matches!(arg(1)?, "result" | "success") => match arg(2)? {
+            "score" | "bossbar" => 5,
+            "entity" | "storage" => 7,
+            "block" => 9,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    (index + width <= tokens.len()).then_some(width)
 }
 
 fn validate_execute_command(
@@ -831,6 +904,72 @@ mod nearest_entity_tests {
                 )
                 .is_err()
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod execution_inspection_tests {
+    use super::*;
+
+    /// Preserve predicate calls and independent entity-selection operations.
+    #[test]
+    fn execution_view_keeps_operations_in_order() {
+        let parsed = collected_execute("execute as @e[tag=actor] if function demo:ready at @e[tag=target] run function demo:act").unwrap();
+        assert_eq!(parsed.command, "function demo:act");
+        assert_eq!(
+            parsed.operations,
+            vec![
+                CollectedExecuteOperation {
+                    keyword: "as",
+                    arguments: vec!["@e[tag=actor]"]
+                },
+                CollectedExecuteOperation {
+                    keyword: "if",
+                    arguments: vec!["function", "demo:ready"]
+                },
+                CollectedExecuteOperation {
+                    keyword: "at",
+                    arguments: vec!["@e[tag=target]"]
+                },
+            ]
+        );
+    }
+
+    /// Quoted data and score identifiers named run remain opaque arguments.
+    #[test]
+    fn execution_view_does_not_guess_from_argument_keywords() {
+        let line = r#"execute if score run run matches 1 if data storage demo:state values[{text:"run now"}] run say run"#;
+        let parsed = collected_execute(line).unwrap();
+        assert_eq!(parsed.command, "say run");
+        assert_eq!(
+            parsed.operations[0].arguments,
+            ["score", "run", "run", "matches", "1"]
+        );
+        assert_eq!(
+            parsed.operations[1].arguments,
+            [
+                "data",
+                "storage",
+                "demo:state",
+                r#"values[{text:"run now"}]"#
+            ]
+        );
+        assert_eq!(collected_execute_command(line), Some(parsed.command));
+    }
+
+    /// Unknown and incomplete commands cannot yield a misleading cost model.
+    #[test]
+    fn execution_view_rejects_unknown_or_incomplete_grammar() {
+        for line in [
+            "say run",
+            "execute custom run say hello",
+            "execute as",
+            "execute as @s run",
+            "execute if score @s value matches",
+            "execute if data storage demo:state { run say nope",
+        ] {
+            assert!(collected_execute(line).is_none(), "{line}");
         }
     }
 }

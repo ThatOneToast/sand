@@ -760,7 +760,7 @@ mod tests {
         .unwrap();
         let program = sand::advanced::compiler::Compiler::decode(
             include_bytes!("../../../tests/fixtures/program/counter.sand.json"),
-            &BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
         )
         .unwrap();
         let original = sand::advanced::compiler::Compiler::compile(&program)
@@ -2084,7 +2084,7 @@ mod pack_export_tests {
     fn exporter_protocol_requires_versioned_resources_and_report() {
         let program = sand::advanced::compiler::Compiler::decode(
             include_bytes!("../../../tests/fixtures/program/counter.sand.json"),
-            &BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
         )
         .unwrap();
         let report = sand::advanced::compiler::Compiler::compile(&program)

@@ -708,7 +708,7 @@ performs timer bookkeeping during an otherwise settled direct reconcile call.
 The baseline input hash is the unchanged hash above. The candidate input SHA-256
 is `59a83712f3484e0e0140566001059eab7a3e2e15c3a11cea80cba2db05363f55`.
 The unchanged `scripts/mc_validation/run_entity_archetype_audit.py` passes all
-24 checks, including shared/native health behavior, cadence, migration, reload,
+24 checks, including State/native health behavior, cadence, migration, reload,
 cleanup and removal.
 
 Reproduce the active workload against either exported pack with:

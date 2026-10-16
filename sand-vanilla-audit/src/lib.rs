@@ -811,6 +811,7 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         ("dialog_multi_action", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "tooltip":"Hint", "width":1024, "action":{"type":"run_command", "command":"/say hi"}}], "columns":1})}})),
         ("dialog_server_links", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"server_links", "title":"Links", "button_width":1, "exit_action":{"label":"Done"}})}})),
         ("dialog_dialog_list", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"dialog_list", "title":"Dialogs", "dialogs":[{"type":"notice", "title":"Nested"}]})}})),
+        ("dialog_variables", json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":{"type":"notice", "title":"Variables", "inputs":[{"key":"λ١_中文", "type":"boolean", "label":"Flag"}, {"key":"", "type":"text", "label":"Empty key"}], "action":{"label":"Go", "action":{"type":"dynamic/run_command", "template":"say $(λ١_中文) $()"}}}}})),
         ("dialog_controls", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"notice", "title":"Info", "pause":false, "after_action":"none", "external_title":"Open", "body":[
             {"type":"plain_message", "contents":"Message", "width":1024},
             {"type":"item", "item":{"id":"stone", "count":2}, "description":{"contents":"Stone", "width":100}, "show_tooltip":false, "width":256, "height":1}

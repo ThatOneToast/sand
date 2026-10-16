@@ -552,3 +552,75 @@ fn raw_inline_dialog_variants_round_trip() {
         }
     }
 }
+
+/// Input keys follow Java's BMP letter/decimal-digit grammar, including empty names.
+#[test]
+fn raw_dialog_input_keys_match_vanilla_variables() {
+    for (key, valid) in [
+        ("player_1", true),
+        ("", true),
+        ("λ١_中文", true),
+        ("bad-key", false),
+        ("bad key", false),
+        ("Ⅳ", false),
+        ("½", false),
+        ("a\u{301}", false),
+        ("𐐀", false),
+    ] {
+        let value = json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":{
+            "type":"notice", "title":"Input", "inputs":[{"key":key,"type":"boolean","label":"Flag"}]
+        }}});
+        for resource in described(value.clone()) {
+            let result = resource.try_content();
+            assert_eq!(result.is_ok(), valid, "{key:?}: {result:?}");
+            if valid {
+                assert_eq!(resource.to_json()["description"], value);
+            } else {
+                assert_eq!(
+                    match result.unwrap_err() {
+                        sand_components::SandError::ComponentValidation { field, .. } => field,
+                        error => panic!("unexpected error: {error}"),
+                    },
+                    "description.click_event.dialog.inputs[0].key"
+                );
+            }
+        }
+    }
+}
+
+/// Dynamic command templates require complete variables with the same input-key grammar.
+#[test]
+fn raw_dialog_command_templates_validate_variables() {
+    for (template, valid) in [
+        ("say $(player_1)", true),
+        ("say $(λ١_中文) $()", true),
+        ("say $literal $(x) $", true),
+        ("say hi", false),
+        ("say $(bad-key)", false),
+        ("say $(x", false),
+        ("say $(x) $(", false),
+        ("say $(Ⅳ)", false),
+        ("say $(𐐀)", false),
+    ] {
+        let value = json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":{
+            "type":"notice", "title":"Action", "action":{"label":"Go", "action":{
+                "type":"dynamic/run_command", "template":template
+            }}
+        }}});
+        for resource in described(value.clone()) {
+            let result = resource.try_content();
+            assert_eq!(result.is_ok(), valid, "{template:?}: {result:?}");
+            if valid {
+                assert_eq!(resource.to_json()["description"], value);
+            } else {
+                assert_eq!(
+                    match result.unwrap_err() {
+                        sand_components::SandError::ComponentValidation { field, .. } => field,
+                        error => panic!("unexpected error: {error}"),
+                    },
+                    "description.click_event.dialog.action.action.template"
+                );
+            }
+        }
+    }
+}

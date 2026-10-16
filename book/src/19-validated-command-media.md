@@ -53,6 +53,12 @@ atlas sprites, player-head objects, and their nested fallback text. Known click
 actions require their payloads; `custom` needs an identifier, and `show_dialog`
 needs a dialog reference or inline object. Known inline dialog variants check
 required actions, button fields, message/item bodies and input control shapes.
+
+Raw inline dialog input keys and dynamic command templates follow Minecraft’s
+Java 25 variable grammar: BMP letters, decimal digits and underscores. Empty
+variable names are accepted by the current codec; dynamic command templates
+require at least one complete `$(name)` placeholder.
+
 Numeric and boolean translation arguments in raw `with` arrays retain their JSON
 types. Raw resource identifiers (including hover, font and NBT storage IDs) may omit the
 `minecraft:` namespace. URL validation checks URI syntax, including percent

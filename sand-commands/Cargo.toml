@@ -17,6 +17,8 @@ iri-string = "0.7"
 thiserror = "2"
 # Unicode 16 names match the Java 25 baseline used by Minecraft 26.
 unicode_names2 = "2"
+# Match Java 25 Character categories; newer Unicode data changes accepted keys.
+unicode-general-category = "=1.1.0"
 sand-version = { path = "../sand-version" }
 sand-api-contract = { path = "../sand-api-contract" }
 sand-macros = { path = "../sand-macros" }

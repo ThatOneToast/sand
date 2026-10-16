@@ -6,6 +6,56 @@ use super::{
 };
 use crate::{CommandProfile, CommandResult};
 
+/// Match Minecraft's UTF-16 Character.isLetterOrDigit variable-name check.
+/// Empty names are valid in the 26.2 codec; supplementary letters are not.
+fn validate_variable_name(value: &str, path: &str) -> CommandResult<()> {
+    use unicode_general_category::{GeneralCategory, get_general_category};
+    if value.chars().all(|ch| {
+        ch == '_'
+            || (ch <= '\u{ffff}'
+                && matches!(
+                    get_general_category(ch),
+                    GeneralCategory::UppercaseLetter
+                        | GeneralCategory::LowercaseLetter
+                        | GeneralCategory::TitlecaseLetter
+                        | GeneralCategory::ModifierLetter
+                        | GeneralCategory::OtherLetter
+                        | GeneralCategory::DecimalNumber
+                ))
+    }) {
+        Ok(())
+    } else {
+        Err(text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "expected a template variable containing BMP letters, decimal digits or underscores",
+        ))
+    }
+}
+
+/// Require at least one complete macro variable, using the input-key grammar.
+fn validate_command_template(mut value: &str, path: &str) -> CommandResult<()> {
+    let mut has_variable = false;
+    while let Some(start) = value.find("$(") {
+        value = &value[start + 2..];
+        let end = value
+            .find(')')
+            .ok_or_else(|| text_error("SAND-TEXT-SHAPE", path, "unterminated template variable"))?;
+        validate_variable_name(&value[..end], path)?;
+        has_variable = true;
+        value = &value[end + 1..];
+    }
+    if has_variable {
+        Ok(())
+    } else {
+        Err(text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "dynamic command templates require at least one variable",
+        ))
+    }
+}
+
 /// Require a JSON field while retaining the complete resource diagnostic path.
 fn json_required<'a>(
     object: &'a serde_json::Map<String, serde_json::Value>,
@@ -270,7 +320,10 @@ fn validate_json_dialog_button(
         let kind = kind.strip_prefix("minecraft:").unwrap_or(kind);
         match kind {
             "dynamic/run_command" => {
-                json_event_string(action, "template", &path)?;
+                validate_command_template(
+                    json_event_string(action, "template", &path)?,
+                    &format!("{path}.template"),
+                )?;
             }
             "dynamic/custom" => {
                 validate_json_identifier(
@@ -407,7 +460,10 @@ fn validate_json_dialog_input(
     let input = value
         .as_object()
         .ok_or_else(|| text_error("SAND-TEXT-SHAPE", path, "expected an input object"))?;
-    json_event_string(input, "key", path)?;
+    validate_variable_name(
+        json_event_string(input, "key", path)?,
+        &format!("{path}.key"),
+    )?;
     let kind = json_event_string(input, "type", path)?;
     validate_json_identifier(
         &serde_json::Value::String(kind.into()),

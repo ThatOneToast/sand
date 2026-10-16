@@ -4796,12 +4796,12 @@ mod tests {
         .definition();
         let claims = component_claims(&[first.clone(), second.clone()]);
         let compiled = compile_definition_with_claims(&first, &profile(), &claims).unwrap();
-        let reconcile = compiled
+        let raw_reconcile = compiled
             .records
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
-        let reconcile = with_change_bodies(reconcile, &compiled.records);
+        let reconcile = with_change_bodies(raw_reconcile, &compiled.records);
         let second_marker = initialized_tag(&second.id.to_string());
         let first_pending = dirty_pending_name(
             &LEVEL.dirty_objective(),
@@ -4867,7 +4867,7 @@ mod tests {
             "scoreboard players set @s {} 0",
             LEVEL.dirty_objective()
         )));
-        assert!(!reconcile.content.lines().any(|line| {
+        assert!(!raw_reconcile.content.lines().any(|line| {
             line == format!("scoreboard players set @s {} 0", LEVEL.dirty_objective())
         }));
         let cleanup = compiled

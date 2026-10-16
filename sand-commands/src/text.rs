@@ -19,10 +19,13 @@
 //! let _cmd = format!("tellraw @a {msg}");
 //! ```
 
+mod dialog;
+use dialog::validate_json_dialog;
+
 use std::collections::BTreeMap;
 use std::{fmt, str::FromStr};
 
-use crate::resource::{EntityType as EntityTypeRegistry, RegistryReference};
+use crate::resource::{EntityType as EntityTypeRegistry, RegistryId, RegistryReference};
 
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
@@ -134,8 +137,8 @@ pub enum ClickEvent {
     CopyToClipboard(#[doc = "Copy text to the clipboard."] String),
     /// Emit `change_page` with a numeric page value (written books only).
     ///
-    /// The value is serialized unchanged. Minecraft book pages are normally
-    /// one-indexed, but Sand retains page `0` for backward compatibility.
+    /// Book pages are one-indexed; validation rejects zero and values above
+    /// the positive 32-bit integer range accepted by Minecraft.
     ChangePage(#[doc = "Emit `change_page` with a numeric page value (written books only)."] u32),
 }
 
@@ -150,8 +153,8 @@ pub enum ClickEvent {
     use_when = ["Building player-visible text with typed styling or interactions"],
     avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
     example = "use sand::text::HoverEvent;",
-    variants(ShowEntity = "Show a legacy entity tooltip using raw strings, including a plain name.", ShowItem = "Show an item tooltip using a raw item registry string and optional count.", ShowText = "Show another text component as a tooltip."),
-    variant_fields(ShowEntity(entity_type = "`entity_type` provides the entity type when show a legacy entity tooltip using raw strings, including a plain name.", id = "`id` optionally provides the identifier when show a legacy entity tooltip using raw strings, including a plain name.", name = "`name` provides the name when show a legacy entity tooltip using raw strings, including a plain name."), ShowItem(count = "`count` optionally provides the count when show an item tooltip using a raw item registry string and optional count.", id = "`id` provides the identifier when show an item tooltip using a raw item registry string and optional count."), ShowText = ["Show another text component as a tooltip."]),
+    variants(ShowEntity = "Show an entity tooltip with a typed entity kind, required UUID and styled name.", ShowItem = "Show an item tooltip using a raw item registry string and optional count.", ShowText = "Show another text component as a tooltip."),
+    variant_fields(ShowEntity(entity_type = "The typed registry identifier of the entity kind.", id = "The validated UUID required by the entity tooltip codec.", name = "The styled name displayed in the entity tooltip."), ShowItem(count = "`count` optionally provides the count when show an item tooltip using a raw item registry string and optional count.", id = "`id` provides the identifier when show an item tooltip using a raw item registry string and optional count."), ShowText = ["Show another text component as a tooltip."]),
 )]
 /// A hover event attached to a [`TextComponent`].
 #[derive(Debug, Clone)]
@@ -160,26 +163,25 @@ pub enum HoverEvent {
     ShowText(#[doc = "Show another text component as a tooltip."] Box<TextComponent>),
     /// Show an item tooltip using a raw item registry string and optional count.
     ///
-    /// This existing compatibility representation does not validate the item
-    /// ID. The count is omitted from JSON when it is [`None`].
+    /// Validation checks the item identifier and the vanilla count range
+    /// `1..=99`. The default count is omitted when it is [`None`].
     ShowItem {
         #[doc = "`id` provides the identifier when show an item tooltip using a raw item registry string and optional count."]
         id: String,
         #[doc = "`count` optionally provides the count when show an item tooltip using a raw item registry string and optional count."]
         count: Option<u32>,
     },
-    /// Show a legacy entity tooltip using raw strings, including a plain name.
+    /// Show an entity tooltip with a typed entity kind, required UUID and styled name.
     ///
-    /// New code should use [`TextComponent::hover_entity`] or
-    /// [`TextComponent::hover_entity_with_id`] so the entity type is typed, the
-    /// optional UUID is validated, and the name remains a styled component.
+    /// Use [`TextComponent::hover_entity`] to construct this value from a
+    /// registry reference and a validated [`EntityHoverId`].
     ShowEntity {
-        /// `name` provides the name when show a legacy entity tooltip using raw strings, including a plain name.
-        name: String,
-        /// `entity_type` provides the entity type when show a legacy entity tooltip using raw strings, including a plain name.
-        entity_type: String,
-        /// `id` optionally provides the identifier when show a legacy entity tooltip using raw strings, including a plain name.
-        id: Option<String>,
+        /// Styled name displayed in the tooltip.
+        name: Box<TextComponent>,
+        /// Registry identifier of the entity kind.
+        entity_type: RegistryId<EntityTypeRegistry>,
+        /// Required identity of the entity shown in the tooltip.
+        id: EntityHoverId,
     },
 }
 
@@ -290,11 +292,10 @@ enum TextHoverEvent {
         id: String,
         count: Option<u32>,
     },
-    ShowEntityText {
+    RawShowEntity {
         name: Box<TextComponent>,
         entity_type: String,
         id: Option<String>,
-        raw: bool,
     },
 }
 
@@ -1184,9 +1185,8 @@ impl TextComponent {
 
     /// Emit a `change_page` click event for a page inside a written book.
     ///
-    /// Minecraft only applies this click action in book contexts and normally
-    /// treats pages as one-indexed. The value is serialized unchanged, including
-    /// `0`, to preserve the existing event model's compatibility behavior.
+    /// Minecraft only applies this click action in book contexts. Pages are
+    /// one-indexed, and validation rejects zero or values above `i32::MAX`.
     ///
     /// ```
     /// use sand_commands::Text;
@@ -1200,8 +1200,8 @@ impl TextComponent {
         module = "sand::text",
         kind = "method",
         summary = "Emit a `change_page` click event for a page inside a written book.",
-        context = "Emit a `change_page` click event for a page inside a written book. Minecraft only applies this click action in book contexts and normally treats pages as one-indexed. The value is serialized unchanged, including `0`, to preserve the existing event model's compatibility behavior.",
-        minecraft = "Minecraft only applies this click action in book contexts and normally treats pages as one-indexed. The value is serialized unchanged, including `0`, to preserve the existing event model's compatibility behavior.",
+        context = "Emit a `change_page` click event for a page inside a written book. Minecraft only applies this click action in book contexts. Pages are one-indexed, and validation rejects zero or values above i32::MAX.",
+        minecraft = "Minecraft only applies this click action in book contexts. Pages are one-indexed, and validation rejects zero or values above i32::MAX.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(page = "`page` supplies a `change_page` click event for a page inside a written book."),
@@ -1236,23 +1236,25 @@ impl TextComponent {
         self
     }
 
-    /// Show an item tooltip on hover using the existing raw item-ID path.
+    /// Show an item tooltip with an item identifier validated at export.
     ///
-    /// The resulting `show_item` JSON omits `count`. The item registry string is
-    /// retained verbatim for compatibility and is not validated by this builder.
+    /// The resulting `show_item` JSON omits `count`. Export validates the item
+    /// registry identifier, accepting an omitted `minecraft:` namespace. Use
+    /// [`Self::hover_item_raw`] for opaque tokens or [`Self::hover_item_with_count`]
+    /// to include an explicit count.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::text::TextComponent::hover_item",
         aliases = ["sand::cmd::TextComponent::hover_item", "sand::command::TextComponent::hover_item", "sand::prelude::TextComponent::hover_item", "sand::prelude::cmd::TextComponent::hover_item"],
         module = "sand::text",
         kind = "method",
-        summary = "Show an item tooltip on hover using the existing raw item-ID path.",
-        context = "Show an item tooltip on hover using the existing raw item-ID path. The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
-        minecraft = "The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
+        summary = "Show an item tooltip with an item identifier validated at export.",
+        context = "Show an item tooltip with an item identifier validated at export. The resulting `show_item` JSON omits `count`. Export validates the item registry identifier, accepting an omitted minecraft: namespace. Use hover_item_raw for opaque tokens or hover_item_with_count for an explicit count.",
+        minecraft = "The resulting `show_item` JSON omits `count`. Export validates the item registry identifier, accepting an omitted minecraft: namespace. Use hover_item_raw for opaque tokens or hover_item_with_count for an explicit count.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(item_id = "`item_id` is used to show an item tooltip on hover using the existing raw item-ID path."),
-        returns = "The `TextComponent` value with the documented change applied to show an item tooltip on hover using the existing raw item-ID path.",
+        params(item_id = "The item registry identifier; an omitted namespace defaults to minecraft."),
+        returns = "This text component with an item tooltip.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item_id: impl Into < String >)  {\n    let updated_text_component = text_component_value.hover_item(item_id);\n}",
     )]
     pub fn hover_item(mut self, item_id: impl Into<String>) -> Self {
@@ -1265,10 +1267,9 @@ impl TextComponent {
 
     /// Show an item tooltip with an explicit stack count on hover.
     ///
-    /// The item registry string and count are serialized unchanged. Item-ID and
-    /// stack-size validation belong to the broader text validation work tracked
-    /// in #152; this builder exposes the count-bearing shape already modeled by
-    /// [`HoverEvent::ShowItem`] without changing the count-free output.
+    /// Export validates the item registry identifier and requires a count in
+    /// `1..=99`, matching the vanilla hover-item codec. Use [`Self::hover_item`]
+    /// for the default count or [`Self::hover_item_raw`] for unsupported input.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::text::TextComponent::hover_item_with_count",
@@ -1276,7 +1277,7 @@ impl TextComponent {
         module = "sand::text",
         kind = "method",
         summary = "Show an item tooltip with an explicit stack count on hover.",
-        context = "Show an item tooltip with an explicit stack count on hover. The item registry string and count are serialized unchanged. Item-ID and stack-size validation belong to the broader text validation work tracked in #152; this builder exposes the count-bearing shape already modeled by [`HoverEvent::ShowItem`] without changing the count-free output.",
+        context = "Show an item tooltip with an explicit stack count on hover. Export validates the item registry identifier and requires a count in 1..=99. Use hover_item for the default count or hover_item_raw for unsupported input.",
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
@@ -1292,40 +1293,6 @@ impl TextComponent {
         self
     }
 
-    /// Show an entity tooltip without a UUID on hover.
-    ///
-    /// The entity type must be one of Sand's typed registry identifiers. The
-    /// displayed name remains a full text component, so styling and translation
-    /// data are preserved.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::text::TextComponent::hover_entity",
-        aliases = ["sand::cmd::TextComponent::hover_entity", "sand::command::TextComponent::hover_entity", "sand::prelude::TextComponent::hover_entity", "sand::prelude::cmd::TextComponent::hover_entity"],
-        module = "sand::text",
-        kind = "method",
-        summary = "Show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.",
-        context = "Show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
-        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
-        use_when = ["Building player-visible text with typed styling or interactions"],
-        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(entity_type = "`entity_type` is used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.", name = "`name` is used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved."),
-        returns = "The `TextComponent` value with the documented change applied to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::resource_ref::RegistryReference<sand::resource_ref::EntityTypeRegistry>, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity(entity_type, name);\n}",
-    )]
-    pub fn hover_entity(
-        mut self,
-        entity_type: impl RegistryReference<EntityTypeRegistry>,
-        name: TextComponent,
-    ) -> Self {
-        self.hover_event = Some(TextHoverEvent::ShowEntityText {
-            name: Box::new(name),
-            entity_type: entity_type.registry_id().to_string(),
-            id: None,
-            raw: false,
-        });
-        self
-    }
-
     /// Show an entity tooltip with a validated UUID on hover.
     ///
     /// `id` is the entity UUID shown in the hover payload, not a namespaced
@@ -1335,8 +1302,8 @@ impl TextComponent {
     /// styled `name` is serialized as a complete text component.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::text::TextComponent::hover_entity_with_id",
-        aliases = ["sand::cmd::TextComponent::hover_entity_with_id", "sand::command::TextComponent::hover_entity_with_id", "sand::prelude::TextComponent::hover_entity_with_id", "sand::prelude::cmd::TextComponent::hover_entity_with_id"],
+        path = "sand::text::TextComponent::hover_entity",
+        aliases = ["sand::cmd::TextComponent::hover_entity", "sand::command::TextComponent::hover_entity", "sand::prelude::TextComponent::hover_entity", "sand::prelude::cmd::TextComponent::hover_entity"],
         module = "sand::text",
         kind = "method",
         summary = "Show an entity tooltip with a validated UUID on hover.",
@@ -1346,26 +1313,25 @@ impl TextComponent {
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(entity_type = "`entity_type` is used to show an entity tooltip with a validated UUID on hover.", id = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.", name = "Parse user-provided UUID text with [`EntityHoverId::parse`] first. The styled `name` is serialized as a complete text component."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip with a validated UUID on hover.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::resource_ref::RegistryReference<sand::resource_ref::EntityTypeRegistry>, id: sand::text::EntityHoverId, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_with_id(entity_type, id, name);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::resource_ref::RegistryReference<sand::resource_ref::EntityTypeRegistry>, id: sand::text::EntityHoverId, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity(entity_type, id, name);\n}",
     )]
-    pub fn hover_entity_with_id(
+    pub fn hover_entity(
         mut self,
         entity_type: impl RegistryReference<EntityTypeRegistry>,
         id: EntityHoverId,
         name: TextComponent,
     ) -> Self {
-        self.hover_event = Some(TextHoverEvent::ShowEntityText {
+        self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowEntity {
             name: Box::new(name),
-            entity_type: entity_type.registry_id().to_string(),
-            id: Some(id.to_string()),
-            raw: false,
-        });
+            entity_type: entity_type.registry_id(),
+            id,
+        }));
         self
     }
 
     /// Show an entity tooltip using unchecked raw entity type and UUID strings.
     ///
-    /// Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is
+    /// Prefer [`Self::hover_entity`]. This is
     /// an explicit compatibility escape hatch for legacy or version-specific
     /// values Sand cannot model. Neither raw string is validated; the styled
     /// `name` is still serialized as a complete text component.
@@ -1376,11 +1342,11 @@ impl TextComponent {
         module = "sand::text",
         kind = "method",
         summary = "Show an entity tooltip using unchecked raw entity type and UUID strings.",
-        context = "Show an entity tooltip using unchecked raw entity type and UUID strings. Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component.",
+        context = "Show an entity tooltip using unchecked raw entity type and UUID strings. Prefer [`Self::hover_entity`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component.",
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
-        use_when = ["Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."],
+        use_when = ["Prefer [`Self::hover_entity`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(entity_type = "`entity_type` is used to show an entity tooltip using unchecked raw entity type and UUID strings.", id = "`id` provides the typed resource identifier or location used to show an entity tooltip using unchecked raw entity type and UUID strings.", name = "Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."),
+        params(entity_type = "`entity_type` is used to show an entity tooltip using unchecked raw entity type and UUID strings.", id = "`id` provides the typed resource identifier or location used to show an entity tooltip using unchecked raw entity type and UUID strings.", name = "Prefer [`Self::hover_entity`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip using unchecked raw entity type and UUID strings.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl Into < String >, id: Option < String >, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_raw(entity_type, id, name);\n}",
     )]
@@ -1390,11 +1356,10 @@ impl TextComponent {
         id: Option<String>,
         name: TextComponent,
     ) -> Self {
-        self.hover_event = Some(TextHoverEvent::ShowEntityText {
+        self.hover_event = Some(TextHoverEvent::RawShowEntity {
             name: Box::new(name),
             entity_type: entity_type.into(),
             id,
-            raw: true,
         });
         self
     }
@@ -1488,26 +1453,26 @@ impl TextComponent {
             obj["insertion"] = serde_json::json!(ins);
         }
         if let Some(ev) = &self.click_event {
-            obj["clickEvent"] = match ev {
+            obj["click_event"] = match ev {
                 ClickEvent::RunCommand(s) => {
-                    serde_json::json!({"action": "run_command", "value": s})
+                    serde_json::json!({"action": "run_command", "command": s})
                 }
                 ClickEvent::SuggestCommand(s) => {
-                    serde_json::json!({"action": "suggest_command", "value": s})
+                    serde_json::json!({"action": "suggest_command", "command": s})
                 }
-                ClickEvent::OpenUrl(s) => serde_json::json!({"action": "open_url", "value": s}),
+                ClickEvent::OpenUrl(s) => serde_json::json!({"action": "open_url", "url": s}),
                 ClickEvent::CopyToClipboard(s) => {
                     serde_json::json!({"action": "copy_to_clipboard", "value": s})
                 }
                 ClickEvent::ChangePage(p) => {
-                    serde_json::json!({"action": "change_page", "value": p})
+                    serde_json::json!({"action": "change_page", "page": p})
                 }
             };
         }
         if let Some(ev) = &self.hover_event {
-            obj["hoverEvent"] = match ev {
+            obj["hover_event"] = match ev {
                 TextHoverEvent::Public(HoverEvent::ShowText(t)) => {
-                    serde_json::json!({"action": "show_text", "contents": t.to_json_value()})
+                    serde_json::json!({"action": "show_text", "value": t.to_json_value()})
                 }
                 TextHoverEvent::Public(HoverEvent::ShowItem { id, count }) => {
                     let mut h = serde_json::json!({"action": "show_item", "id": id});
@@ -1527,14 +1492,13 @@ impl TextComponent {
                     name,
                     entity_type,
                     id,
-                }) => {
-                    let mut h = serde_json::json!({"action": "show_entity", "name": name, "type": entity_type});
-                    if let Some(i) = id {
-                        h["id"] = serde_json::json!(i);
-                    }
-                    h
-                }
-                TextHoverEvent::ShowEntityText {
+                }) => serde_json::json!({
+                    "action": "show_entity",
+                    "name": name.to_json_value(),
+                    "id": entity_type.to_string(),
+                    "uuid": id.to_string(),
+                }),
+                TextHoverEvent::RawShowEntity {
                     name,
                     entity_type,
                     id,
@@ -1543,10 +1507,10 @@ impl TextComponent {
                     let mut h = serde_json::json!({
                         "action": "show_entity",
                         "name": name.to_json_value(),
-                        "type": entity_type,
+                        "id": entity_type,
                     });
                     if let Some(i) = id {
-                        h["id"] = serde_json::json!(i);
+                        h["uuid"] = serde_json::json!(i);
                     }
                     h
                 }
@@ -1637,16 +1601,7 @@ impl TextComponent {
                 })?;
             }
             TextContent::Selector { value, raw: false } => {
-                crate::render::validate_selector_token(value).map_err(|error| {
-                    text_error(
-                        "SAND-TEXT-SELECTOR",
-                        format!("{path}.selector"),
-                        format!(
-                            "{}; use `TextComponent::selector_raw(...)` for opaque syntax",
-                            error.message
-                        ),
-                    )
-                })?;
+                validate_json_entity_target(value, profile, &format!("{path}.selector"))?;
             }
             TextContent::Selector { raw: true, .. } => {}
             TextContent::Translate { key, with } => {
@@ -1685,15 +1640,13 @@ impl TextComponent {
             ));
         }
         if let Some(font) = &self.font {
-            crate::validate::resource_location_shape(font, "TextComponent", "font").map_err(
-                |error| {
-                    text_error(
-                        "SAND-TEXT-FONT",
-                        format!("{path}.style.font"),
-                        error.message,
-                    )
-                },
-            )?;
+            validate_text_identifier(font, &format!("{path}.style.font")).map_err(|error| {
+                text_error(
+                    "SAND-TEXT-FONT",
+                    format!("{path}.style.font"),
+                    error.message,
+                )
+            })?;
         }
         if let Some(click) = &self.click_event {
             validate_click(click, path)?;
@@ -1862,41 +1815,49 @@ fn is_hex_color(value: &str) -> bool {
         && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+/// Validate shared typed and raw click payloads against the server text codec.
 fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
     match click {
         ClickEvent::RunCommand(value) | ClickEvent::SuggestCommand(value)
-            if value.trim().is_empty() =>
+            if value.chars().any(|c| c < ' ' || c == '\u{7f}' || c == '§') =>
         {
             Err(text_error(
                 "SAND-TEXT-CLICK-COMMAND",
-                format!("{path}.click_event.value"),
-                "command click values must not be empty",
+                format!("{path}.click_event.command"),
+                "command click values must be chat strings without control or section-sign characters",
             ))
         }
         ClickEvent::OpenUrl(value) => {
-            let remainder = value
-                .strip_prefix("https://")
-                .or_else(|| value.strip_prefix("http://"));
-            if remainder.is_none_or(|rest| {
-                rest.is_empty()
-                    || rest.starts_with('/')
-                    || rest.chars().any(|c| c.is_whitespace() || c.is_control())
-            }) {
+            let valid = iri_string::types::IriStr::new(value).is_ok_and(|uri| {
+                let scheme = uri.scheme_str();
+                let target = &value[scheme.len() + 1..];
+                (scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https"))
+                    && !target.split('#').next().unwrap_or_default().is_empty()
+                    && target != "//"
+                    && !value.chars().any(|c| c.is_whitespace() || c.is_control())
+            });
+            if !valid {
                 Err(text_error(
                     "SAND-TEXT-CLICK-URL",
-                    format!("{path}.click_event.value"),
+                    format!("{path}.click_event.url"),
                     format!(
-                        "open_url requires a non-empty `http://` or `https://` target without whitespace; got `{value}`"
+                        "open_url requires a valid HTTP(S) URI without whitespace; got `{value}`"
                     ),
                 ))
             } else {
                 Ok(())
             }
         }
+        ClickEvent::ChangePage(page) if *page == 0 || *page > i32::MAX as u32 => Err(text_error(
+            "SAND-TEXT-CLICK-PAGE",
+            format!("{path}.click_event.page"),
+            "book page must be a positive 32-bit integer",
+        )),
         _ => Ok(()),
     }
 }
 
+/// Validate typed hover payloads and recurse into their displayed text.
 fn validate_hover(
     hover: &TextHoverEvent,
     profile: &CommandProfile,
@@ -1905,65 +1866,31 @@ fn validate_hover(
 ) -> CommandResult<()> {
     match hover {
         TextHoverEvent::Public(HoverEvent::ShowText(text)) => {
-            text.validate_inner(profile, &format!("{path}.hover_event.contents"), depth)
+            text.validate_inner(profile, &format!("{path}.hover_event.value"), depth)
         }
         TextHoverEvent::Public(HoverEvent::ShowItem { id, count }) => {
-            crate::validate::resource_location_shape(id, "TextComponent", "hover.item.id")
-                .map_err(|error| {
-                    text_error(
-                        "SAND-TEXT-HOVER-ITEM",
-                        format!("{path}.hover_event.contents.id"),
-                        error.message,
-                    )
-                })?;
-            if count.is_some_and(|count| count == 0) {
+            validate_text_identifier(id, &format!("{path}.hover_event.id")).map_err(|error| {
+                text_error(
+                    "SAND-TEXT-HOVER-ITEM",
+                    format!("{path}.hover_event.id"),
+                    error.message,
+                )
+            })?;
+            if count.is_some_and(|count| !(1..=99).contains(&count)) {
                 return Err(text_error(
                     "SAND-TEXT-HOVER-ITEM",
-                    format!("{path}.hover_event.contents.count"),
-                    "item hover count must be greater than zero when present",
+                    format!("{path}.hover_event.count"),
+                    "item hover count must be in 1..=99 when present",
                 ));
             }
             Ok(())
         }
         TextHoverEvent::RawShowItem { .. } => Ok(()),
-        TextHoverEvent::Public(HoverEvent::ShowEntity {
-            name: _,
-            entity_type,
-            id,
-        }) => validate_entity_hover(entity_type, id.as_deref(), path),
-        TextHoverEvent::ShowEntityText {
-            name,
-            entity_type,
-            id,
-            raw,
-        } => {
-            if !raw {
-                validate_entity_hover(entity_type, id.as_deref(), path)?;
-            }
-            name.validate_inner(profile, &format!("{path}.hover_event.contents.name"), depth)
+        TextHoverEvent::Public(HoverEvent::ShowEntity { name, .. })
+        | TextHoverEvent::RawShowEntity { name, .. } => {
+            name.validate_inner(profile, &format!("{path}.hover_event.name"), depth)
         }
     }
-}
-
-fn validate_entity_hover(entity_type: &str, id: Option<&str>, path: &str) -> CommandResult<()> {
-    crate::validate::resource_location_shape(entity_type, "TextComponent", "hover.entity.type")
-        .map_err(|error| {
-            text_error(
-                "SAND-TEXT-HOVER-ENTITY",
-                format!("{path}.hover_event.contents.type"),
-                error.message,
-            )
-        })?;
-    if let Some(id) = id {
-        EntityHoverId::parse(id).map_err(|error| {
-            text_error(
-                "SAND-TEXT-HOVER-ENTITY",
-                format!("{path}.hover_event.contents.id"),
-                error.message,
-            )
-        })?;
-    }
-    Ok(())
 }
 
 /// Export-scoped registry family holding this module's rendered
@@ -1995,13 +1922,608 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
 /// Validate a component-owned JSON text value.
 ///
 /// This bridges advancement and chat-style `serde_json::Value` fields into
-/// the same recursive validator used by typed command text.
+/// the same recursive validator used by typed command text. Objects need a
+/// content field; namespaced extension fields or a namespaced `type` remain
+/// explicit raw escape hatches for component types outside Sand's model.
 pub fn validate_json_text(
     value: &serde_json::Value,
     profile: &CommandProfile,
     path: &str,
 ) -> CommandResult<()> {
     validate_json_text_inner(value, profile, path, 0)
+}
+
+/// Require a known interaction's string member and retain its full JSON path.
+fn json_event_string<'a>(
+    event: &'a serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    path: &str,
+) -> CommandResult<&'a str> {
+    event
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.{key}"),
+                "expected a required string",
+            )
+        })
+}
+
+/// Validate the interaction actions modeled by Sand's canonical text API.
+/// Only explicitly non-Minecraft action names remain raw extension edges.
+fn validate_json_interactions(
+    object: &serde_json::Map<String, serde_json::Value>,
+    profile: &CommandProfile,
+    path: &str,
+    depth: usize,
+) -> CommandResult<()> {
+    for key in ["click_event", "hover_event"] {
+        let Some(value) = object.get(key) else {
+            continue;
+        };
+        let event_path = format!("{path}.{key}");
+        let event = value.as_object().ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                &event_path,
+                "expected an interaction object",
+            )
+        })?;
+        let action = json_event_string(event, "action", &event_path)?;
+        if action.is_empty() || action.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{event_path}.action"),
+                "expected a non-empty action name without whitespace",
+            ));
+        }
+        let click_action = matches!(
+            action,
+            "open_url"
+                | "open_file"
+                | "run_command"
+                | "suggest_command"
+                | "show_dialog"
+                | "change_page"
+                | "copy_to_clipboard"
+                | "custom"
+        );
+        let hover_action = matches!(action, "show_text" | "show_item" | "show_entity");
+        let extension_action =
+            validate_extension_identifier(action, &format!("{event_path}.action"))?;
+        if !click_action && !hover_action && !extension_action {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{event_path}.action"),
+                "unknown vanilla interaction action",
+            ));
+        }
+        if (key == "click_event" && hover_action) || (key == "hover_event" && click_action) {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{event_path}.action"),
+                "action belongs to the other interaction family",
+            ));
+        }
+        if key == "click_event" {
+            let click = match action {
+                "run_command" => Some(ClickEvent::RunCommand(
+                    json_event_string(event, "command", &event_path)?.into(),
+                )),
+                "suggest_command" => Some(ClickEvent::SuggestCommand(
+                    json_event_string(event, "command", &event_path)?.into(),
+                )),
+                "open_url" => Some(ClickEvent::OpenUrl(
+                    json_event_string(event, "url", &event_path)?.into(),
+                )),
+                "copy_to_clipboard" => Some(ClickEvent::CopyToClipboard(
+                    json_event_string(event, "value", &event_path)?.into(),
+                )),
+                "change_page" => {
+                    let page = event
+                        .get("page")
+                        .and_then(serde_json::Value::as_u64)
+                        .filter(|page| (1..=i32::MAX as u64).contains(page))
+                        .ok_or_else(|| {
+                            text_error(
+                                "SAND-TEXT-CLICK-PAGE",
+                                format!("{event_path}.page"),
+                                "expected a positive 32-bit integer",
+                            )
+                        })?;
+                    Some(ClickEvent::ChangePage(page as u32))
+                }
+                "custom" => {
+                    let id = json_event_string(event, "id", &event_path)?;
+                    validate_json_identifier(
+                        &serde_json::Value::String(id.into()),
+                        &format!("{event_path}.id"),
+                    )?;
+                    None
+                }
+                "show_dialog" => {
+                    let dialog_path = format!("{event_path}.dialog");
+                    let dialog = event.get("dialog").ok_or_else(|| {
+                        text_error(
+                            "SAND-TEXT-SHAPE",
+                            &dialog_path,
+                            "expected a dialog identifier or inline dialog object",
+                        )
+                    })?;
+                    validate_json_dialog(dialog, profile, &dialog_path, depth + 1)?;
+                    None
+                }
+                "open_file" => {
+                    json_event_string(event, "path", &event_path)?;
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{event_path}.action"),
+                        "open_file is not allowed in server-provided text",
+                    ));
+                }
+                _ => None,
+            };
+            if let Some(click) = click {
+                validate_click(&click, path).map_err(|mut error| {
+                    let field = if action == "open_url" {
+                        "url"
+                    } else {
+                        "command"
+                    };
+                    error.field = format!("{event_path}.{field}");
+                    error
+                })?;
+            }
+        } else {
+            match action {
+                "show_text" => {
+                    let value = event.get("value").ok_or_else(|| {
+                        text_error(
+                            "SAND-TEXT-SHAPE",
+                            format!("{event_path}.value"),
+                            "expected a text component",
+                        )
+                    })?;
+                    validate_json_text_inner(
+                        value,
+                        profile,
+                        &format!("{event_path}.value"),
+                        depth + 1,
+                    )?;
+                }
+                "show_item" | "show_entity" => {
+                    let id = json_event_string(event, "id", &event_path)?;
+                    validate_json_identifier(
+                        &serde_json::Value::String(id.into()),
+                        &format!("{event_path}.id"),
+                    )?;
+                    if action == "show_item" {
+                        if let Some(count) = event.get("count")
+                            && !count
+                                .as_u64()
+                                .is_some_and(|count| (1..=99).contains(&count))
+                        {
+                            return Err(text_error(
+                                "SAND-TEXT-HOVER-ITEM",
+                                format!("{event_path}.count"),
+                                "item hover count must be an integer in 1..=99",
+                            ));
+                        }
+                        if let Some(components) = event.get("components") {
+                            let components = components.as_object().ok_or_else(|| {
+                                text_error(
+                                    "SAND-TEXT-SHAPE",
+                                    format!("{event_path}.components"),
+                                    "expected a component patch object",
+                                )
+                            })?;
+                            for key in components.keys() {
+                                validate_text_identifier(
+                                    key.strip_prefix('!').unwrap_or(key),
+                                    &format!("{event_path}.components[{key:?}]"),
+                                )?;
+                            }
+                        }
+                    } else {
+                        let valid_uuid = event.get("uuid").is_some_and(|uuid| {
+                            uuid.as_str()
+                                .is_some_and(|uuid| EntityHoverId::parse(uuid).is_ok())
+                                || uuid.as_array().is_some_and(|parts| {
+                                    parts.len() == 4
+                                        && parts.iter().all(|part| {
+                                            part.as_i64()
+                                                .is_some_and(|value| i32::try_from(value).is_ok())
+                                        })
+                                })
+                        });
+                        if !valid_uuid {
+                            return Err(text_error(
+                                "SAND-TEXT-HOVER-ENTITY",
+                                format!("{event_path}.uuid"),
+                                "expected a UUID string or four signed 32-bit UUID parts",
+                            ));
+                        }
+                        if let Some(name) = event.get("name") {
+                            validate_json_text_inner(
+                                name,
+                                profile,
+                                &format!("{event_path}.name"),
+                                depth + 1,
+                            )?;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Parse raw NBT text coordinates into the canonical coordinate model.
+/// Vanilla block sources permit fractional relative/local offsets, but absolute
+/// coordinates are signed integers (unlike generic Vec3 absolute positions).
+fn validate_json_block_source(
+    value: &str,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    use crate::coord::{Coord, Vec3};
+    let invalid = || {
+        text_error(
+            "SAND-TEXT-NBT",
+            path,
+            "expected three valid block coordinates",
+        )
+    };
+    let tokens = value.split(' ').collect::<Vec<_>>();
+    if tokens.len() != 3 {
+        return Err(invalid());
+    }
+    let mut coordinates = Vec::new();
+    for token in tokens {
+        let (prefix, number) = if let Some(number) = token.strip_prefix('~') {
+            ('~', number)
+        } else if let Some(number) = token.strip_prefix('^') {
+            ('^', number)
+        } else {
+            (' ', token)
+        };
+        let coordinate = if prefix == ' ' {
+            if token.is_empty() || !token.bytes().all(|c| c.is_ascii_digit() || c == b'-') {
+                return Err(invalid());
+            }
+            Coord::Absolute(token.parse::<i32>().map_err(|_| invalid())? as f64)
+        } else {
+            let number = if number.is_empty() {
+                0.0
+            } else {
+                if !number
+                    .bytes()
+                    .all(|c| c.is_ascii_digit() || matches!(c, b'-' | b'.'))
+                {
+                    return Err(invalid());
+                }
+                number.parse::<f64>().map_err(|_| invalid())?
+            };
+            if prefix == '~' {
+                Coord::Relative(number)
+            } else {
+                Coord::Local(number)
+            }
+        };
+        coordinates.push(coordinate);
+    }
+    Vec3::new(
+        coordinates[0].clone(),
+        coordinates[1].clone(),
+        coordinates[2].clone(),
+    )
+    .validate(profile)
+    .map_err(|mut error| {
+        error.field = path.to_string();
+        error
+    })
+}
+
+/// Validate the required source of the known NBT component variant.
+fn validate_json_nbt_source(
+    object: &serde_json::Map<String, serde_json::Value>,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    let sources = ["block", "entity", "storage"]
+        .into_iter()
+        .filter(|key| object.contains_key(*key))
+        .collect::<Vec<_>>();
+    let extension_source = object
+        .get("source")
+        .and_then(serde_json::Value::as_str)
+        .map(|kind| validate_extension_identifier(kind, &format!("{path}.source")))
+        .transpose()?
+        .unwrap_or(false);
+    if sources.is_empty() && extension_source {
+        // Explicit extension sources are owned by the raw-text author.
+        return Ok(());
+    }
+    if sources.len() != 1 {
+        return Err(text_error(
+            "SAND-TEXT-NBT",
+            format!("{path}.source"),
+            "NBT text requires exactly one block, entity or storage source",
+        ));
+    }
+    let source = sources[0];
+    if let Some(kind) = object.get("source") {
+        let kind = kind.as_str().ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.source"),
+                "expected a string source discriminator",
+            )
+        })?;
+        if !["block", "entity", "storage"].contains(&kind) && !extension_source {
+            return Err(text_error(
+                "SAND-TEXT-NBT",
+                format!("{path}.source"),
+                "unknown vanilla NBT source discriminator",
+            ));
+        }
+        if ["block", "entity", "storage"].contains(&kind) && kind != source {
+            return Err(text_error(
+                "SAND-TEXT-NBT",
+                format!("{path}.source"),
+                "source discriminator does not match its payload",
+            ));
+        }
+    }
+    let field = format!("{path}.{source}");
+    let value = object[source]
+        .as_str()
+        .ok_or_else(|| text_error("SAND-TEXT-SHAPE", &field, "expected a string NBT source"))?;
+    match source {
+        "block" => validate_json_block_source(value, profile, &field)?,
+        "entity" => validate_json_entity_target(value, profile, &field)?,
+        "storage" => validate_json_identifier(&object[source], &field)?,
+        _ => unreachable!(),
+    }
+    // These optional booleans are lenient in vanilla; only the decoded true
+    // combination is invalid. Do not reject values which vanilla defaults.
+    if object.get("interpret").and_then(serde_json::Value::as_bool) == Some(true)
+        && object.get("plain").and_then(serde_json::Value::as_bool) == Some(true)
+    {
+        return Err(text_error(
+            "SAND-TEXT-NBT",
+            path,
+            "interpret and plain cannot both be true",
+        ));
+    }
+    Ok(())
+}
+
+/// Share typed target rules without treating literal names and UUIDs as selectors.
+fn validate_json_entity_target(
+    value: &str,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    let result = if value.starts_with('@') {
+        crate::render::validate_selector_token(value).map(|_| ())
+    } else if EntityHoverId::parse(value).is_ok() {
+        Ok(())
+    } else {
+        crate::Selector::player(value).validate(profile)
+    };
+    result.map_err(|error| text_error("SAND-TEXT-SELECTOR", path, error.message))
+}
+
+/// Validate vanilla identifiers while preserving an omitted default namespace.
+fn validate_json_identifier(value: &serde_json::Value, path: &str) -> CommandResult<()> {
+    let value = value.as_str().ok_or_else(|| {
+        text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "expected a resource identifier string",
+        )
+    })?;
+    validate_text_identifier(value, path)
+}
+
+/// Share default-namespace validation across typed and raw text identifiers.
+fn validate_text_identifier(value: &str, path: &str) -> CommandResult<()> {
+    let qualified = if value.contains(':') {
+        value.to_string()
+    } else {
+        format!("minecraft:{value}")
+    };
+    crate::validate::resource_location_shape(&qualified, "TextComponent", "id")
+        .map(|_| ())
+        .map_err(|mut error| {
+            error.field = path.to_string();
+            error
+        })
+}
+
+/// Recognize explicit extension identifiers only after checking their shared grammar.
+fn validate_extension_identifier(value: &str, path: &str) -> CommandResult<bool> {
+    let extension = value.contains(':') && !value.starts_with("minecraft:");
+    if extension {
+        validate_text_identifier(value, path)?;
+    }
+    Ok(extension)
+}
+
+/// Check the profile shapes accepted by raw player-head text; retain extension members.
+fn validate_json_player_profile(value: &serde_json::Value, path: &str) -> CommandResult<()> {
+    let valid_name = |name: &serde_json::Value| {
+        name.as_str()
+            .is_some_and(|name| name.len() <= 16 && name.bytes().all(|c| c > 32 && c < 127))
+    };
+    if value.is_string() {
+        return if valid_name(value) {
+            Ok(())
+        } else {
+            Err(text_error(
+                "SAND-TEXT-SHAPE",
+                path,
+                "expected a player name of at most 16 printable ASCII characters",
+            ))
+        };
+    }
+    let profile = value.as_object().ok_or_else(|| {
+        text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "expected a player name or profile object",
+        )
+    })?;
+    if let Some(name) = profile.get("name")
+        && !valid_name(name)
+    {
+        return Err(text_error(
+            "SAND-TEXT-SHAPE",
+            format!("{path}.name"),
+            "invalid player name",
+        ));
+    }
+    if let Some(id) = profile.get("id") {
+        let valid = id.as_array().is_some_and(|parts| {
+            parts.len() == 4
+                && parts
+                    .iter()
+                    .all(|part| part.as_i64().is_some_and(|v| i32::try_from(v).is_ok()))
+        });
+        if !valid {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.id"),
+                "expected four signed 32-bit UUID parts",
+            ));
+        }
+    }
+    if let Some(properties) = profile.get("properties") {
+        let bounded_string = |value: &serde_json::Value, limit| {
+            value
+                .as_str()
+                .is_some_and(|text| text.encode_utf16().count() <= limit)
+        };
+        // Vanilla's legacy map alternative limits keys, not flattened values or
+        // their lengths. The record alternative uses the PROPERTY codec limits.
+        let valid = properties.as_object().is_some_and(|map| {
+            map.len() <= 16
+                && map.values().all(|values| {
+                    values
+                        .as_array()
+                        .is_some_and(|values| values.iter().all(serde_json::Value::is_string))
+                })
+        }) || properties.as_array().is_some_and(|values| {
+            values.len() <= 16
+                && values.iter().all(|value| {
+                    value.as_object().is_some_and(|property| {
+                        property.get("name").is_some_and(|v| bounded_string(v, 64))
+                            && property
+                                .get("value")
+                                .is_some_and(|v| bounded_string(v, 32767))
+                            && property
+                                .get("signature")
+                                .is_none_or(|v| bounded_string(v, 1024))
+                    })
+                })
+        });
+        if !valid {
+            return Err(text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.properties"),
+                "expected at most 16 string-list property keys or 16 property records (name/value/signature limits: 64/32767/1024 UTF-16 units)",
+            ));
+        }
+    }
+    for key in ["texture", "cape", "elytra"] {
+        if let Some(value) = profile.get(key) {
+            validate_json_identifier(value, &format!("{path}.{key}"))?;
+        }
+    }
+    if let Some(model) = profile.get("model")
+        && !matches!(model.as_str(), Some("wide" | "slim"))
+    {
+        return Err(text_error(
+            "SAND-TEXT-SHAPE",
+            format!("{path}.model"),
+            "expected wide or slim",
+        ));
+    }
+    Ok(())
+}
+
+/// Preserve current atlas and player-head components through explicit raw text.
+fn validate_json_object_content(
+    object: &serde_json::Map<String, serde_json::Value>,
+    profile: &CommandProfile,
+    path: &str,
+    depth: usize,
+) -> CommandResult<()> {
+    let kind = if let Some(kind) = object.get("object") {
+        kind.as_str().ok_or_else(|| {
+            text_error(
+                "SAND-TEXT-SHAPE",
+                format!("{path}.object"),
+                "expected an object discriminator string",
+            )
+        })?
+    } else if object.contains_key("player") {
+        "player"
+    } else {
+        "atlas"
+    };
+    let extension_kind = validate_extension_identifier(kind, &format!("{path}.object"))?;
+    match kind {
+        "atlas" => {
+            let sprite = object.get("sprite").ok_or_else(|| {
+                text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.sprite"),
+                    "atlas text requires a sprite",
+                )
+            })?;
+            validate_json_identifier(sprite, &format!("{path}.sprite"))?;
+            if let Some(atlas) = object.get("atlas") {
+                validate_json_identifier(atlas, &format!("{path}.atlas"))?;
+            }
+        }
+        "player" => {
+            let player = object.get("player").ok_or_else(|| {
+                text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.player"),
+                    "player-head text requires a profile",
+                )
+            })?;
+            validate_json_player_profile(player, &format!("{path}.player"))?;
+            if let Some(hat) = object.get("hat")
+                && !hat.is_boolean()
+            {
+                return Err(text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.hat"),
+                    "expected a boolean",
+                ));
+            }
+        }
+        _ if extension_kind => {}
+        _ => {
+            return Err(text_error(
+                "SAND-TEXT-CONTENT",
+                format!("{path}.object"),
+                "unknown vanilla object discriminator",
+            ));
+        }
+    }
+    if let Some(fallback) = object.get("fallback") {
+        validate_json_text_inner(fallback, profile, &format!("{path}.fallback"), depth + 1)?;
+    }
+    Ok(())
 }
 
 fn validate_json_text_inner(
@@ -2020,6 +2542,13 @@ fn validate_json_text_inner(
     match value {
         serde_json::Value::String(_) => Ok(()),
         serde_json::Value::Array(values) => {
+            if values.is_empty() {
+                return Err(text_error(
+                    "SAND-TEXT-SHAPE",
+                    path,
+                    "text arrays must not be empty",
+                ));
+            }
             for (index, child) in values.iter().enumerate() {
                 validate_json_text_inner(child, _profile, &format!("{path}[{index}]"), depth + 1)?;
             }
@@ -2027,17 +2556,181 @@ fn validate_json_text_inner(
         }
         serde_json::Value::Object(object) => {
             let content_keys = ["text", "translate", "score", "selector", "keybind", "nbt"];
-            let present = content_keys
+            let object_content = ["object", "sprite", "player"]
+                .iter()
+                .any(|key| object.contains_key(*key))
+                || object.get("type").and_then(serde_json::Value::as_str) == Some("object");
+            let mut present = content_keys
                 .iter()
                 .filter(|key| object.contains_key(**key))
                 .copied()
                 .collect::<Vec<_>>();
+            if object_content {
+                present.push("object");
+            }
             if present.len() > 1 {
                 return Err(text_error(
                     "SAND-TEXT-CONTENT",
                     path,
                     format!("conflicting text content fields: {}", present.join(", ")),
                 ));
+            }
+            // Style metadata alone does not identify a component. Preserve
+            // explicit namespaced extension content for raw interoperability.
+            let extension_type = object
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .map(|kind| validate_extension_identifier(kind, &format!("{path}.type")))
+                .transpose()?
+                .unwrap_or(false);
+            let mut extension_content = extension_type;
+            for key in object.keys() {
+                extension_content |= validate_extension_identifier(key, &format!("{path}.{key}"))?;
+            }
+            if present.is_empty() && !extension_content {
+                return Err(text_error(
+                    "SAND-TEXT-CONTENT",
+                    path,
+                    "expected a text content field or an explicit namespaced extension component",
+                ));
+            }
+            if let Some(kind) = object.get("type") {
+                let kind = kind.as_str().ok_or_else(|| {
+                    text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.type"),
+                        "expected a string component discriminator",
+                    )
+                })?;
+                let content = match kind {
+                    "text" => Some("text"),
+                    "translatable" => Some("translate"),
+                    "score" => Some("score"),
+                    "selector" => Some("selector"),
+                    "keybind" => Some("keybind"),
+                    "nbt" => Some("nbt"),
+                    "object" => None,
+                    _ if extension_type => None,
+                    _ => {
+                        return Err(text_error(
+                            "SAND-TEXT-CONTENT",
+                            format!("{path}.type"),
+                            "unknown vanilla component discriminator",
+                        ));
+                    }
+                };
+                if let Some(content) = content
+                    && !object.contains_key(content)
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-CONTENT",
+                        format!("{path}.{content}"),
+                        "component discriminator requires its matching content field",
+                    ));
+                }
+            }
+            // A present known field must have its schema type before value
+            // validation below. Pattern-matching only the expected variant
+            // silently accepted malformed values such as {"text": 42}.
+            for key in [
+                "text",
+                "translate",
+                "keybind",
+                "selector",
+                "nbt",
+                "color",
+                "font",
+                "insertion",
+            ] {
+                if let Some(value) = object.get(key)
+                    && !value.is_string()
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.{key}"),
+                        "expected a string",
+                    ));
+                }
+            }
+            for key in [
+                "bold",
+                "italic",
+                "underlined",
+                "strikethrough",
+                "obfuscated",
+            ] {
+                if let Some(value) = object.get(key)
+                    && !value.is_boolean()
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.{key}"),
+                        "expected a boolean",
+                    ));
+                }
+            }
+            for key in ["with", "extra"] {
+                if let Some(value) = object.get(key)
+                    && !value.is_array()
+                {
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.{key}"),
+                        "expected an array of text components",
+                    ));
+                }
+            }
+            if let Some(shadow) = object.get("shadow_color") {
+                // Packed colors may use signed ARGB or its unsigned bit pattern.
+                // Vanilla's vector codec accepts finite channels outside 0..=1;
+                // color conversion handles those values rather than rejecting them.
+                let packed = shadow
+                    .as_i64()
+                    .is_some_and(|value| (i32::MIN as i64..=u32::MAX as i64).contains(&value));
+                let rgba = shadow.as_array().is_some_and(|channels| {
+                    channels.len() == 4
+                        && channels.iter().all(|channel| {
+                            channel
+                                .as_f64()
+                                .is_some_and(|value| (value as f32).is_finite())
+                        })
+                });
+                if !packed && !rgba {
+                    return Err(text_error(
+                        "SAND-TEXT-SHADOW-COLOR",
+                        format!("{path}.shadow_color"),
+                        "expected a 32-bit packed ARGB integer or four finite RGBA float channels",
+                    ));
+                }
+            }
+            if object_content {
+                validate_json_object_content(object, _profile, path, depth)?;
+            } else if let Some(fallback) = object.get("fallback")
+                && !fallback.is_string()
+            {
+                return Err(text_error(
+                    "SAND-TEXT-SHAPE",
+                    format!("{path}.fallback"),
+                    "expected a translation fallback string",
+                ));
+            }
+            if let Some(value) = object.get("score") {
+                let score = value.as_object().ok_or_else(|| {
+                    text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{path}.score"),
+                        "expected an object",
+                    )
+                })?;
+                for key in ["name", "objective"] {
+                    if !score.get(key).is_some_and(serde_json::Value::is_string) {
+                        return Err(text_error(
+                            "SAND-TEXT-SHAPE",
+                            format!("{path}.score.{key}"),
+                            "expected a required string",
+                        ));
+                    }
+                }
             }
             if let Some(serde_json::Value::String(color)) = object.get("color")
                 && !is_named_color(color)
@@ -2049,10 +2742,8 @@ fn validate_json_text_inner(
                     format!("expected a named Minecraft color or `#RRGGBB`, got `{color}`"),
                 ));
             }
-            if let Some(serde_json::Value::String(font)) = object.get("font") {
-                crate::validate::resource_location_shape(font, "TextComponent", "font").map_err(
-                    |error| text_error("SAND-TEXT-FONT", format!("{path}.font"), error.message),
-                )?;
+            if let Some(font) = object.get("font") {
+                validate_json_identifier(font, &format!("{path}.font"))?;
             }
             if let Some(serde_json::Value::String(key)) = object.get("translate") {
                 validate_non_blank_no_control(key, "translation key").map_err(|message| {
@@ -2069,25 +2760,43 @@ fn validate_json_text_inner(
                 ));
             }
             if let Some(serde_json::Value::String(selector)) = object.get("selector") {
-                crate::render::validate_selector_token(selector).map_err(|error| {
-                    text_error(
-                        "SAND-TEXT-SELECTOR",
-                        format!("{path}.selector"),
-                        error.message,
-                    )
-                })?;
+                validate_json_entity_target(selector, _profile, &format!("{path}.selector"))?;
+                if let Some(separator) = object.get("separator") {
+                    validate_json_text_inner(
+                        separator,
+                        _profile,
+                        &format!("{path}.separator"),
+                        depth + 1,
+                    )?;
+                }
             }
             if let Some(serde_json::Value::Object(score)) = object.get("score") {
                 if let Some(serde_json::Value::String(name)) = score.get("name") {
-                    validate_score_holder(name)?;
+                    validate_score_holder(name).map_err(|mut error| {
+                        error.field = format!("{path}.score.name");
+                        error
+                    })?;
                 }
                 if let Some(serde_json::Value::String(objective)) = score.get("objective") {
-                    validate_objective(objective)?;
+                    validate_objective(objective).map_err(|mut error| {
+                        error.field = format!("{path}.score.objective");
+                        error
+                    })?;
                 }
             }
             for key in ["with", "extra"] {
                 if let Some(serde_json::Value::Array(children)) = object.get(key) {
+                    if key == "extra" && children.is_empty() {
+                        return Err(text_error(
+                            "SAND-TEXT-SHAPE",
+                            format!("{path}.extra"),
+                            "extra must be a non-empty array",
+                        ));
+                    }
                     for (index, child) in children.iter().enumerate() {
+                        if key == "with" && (child.is_number() || child.is_boolean()) {
+                            continue;
+                        }
                         validate_json_text_inner(
                             child,
                             _profile,
@@ -2097,16 +2806,14 @@ fn validate_json_text_inner(
                     }
                 }
             }
-            if let Some(hover) = object.get("hoverEvent")
-                && let Some(contents) = hover.get("contents")
-            {
-                validate_json_text_inner(
-                    contents,
-                    _profile,
-                    &format!("{path}.hoverEvent.contents"),
-                    depth + 1,
-                )?;
+            if let Some(serde_json::Value::String(nbt)) = object.get("nbt") {
+                crate::nbt::validate_nbt_path(nbt).map_err(|mut error| {
+                    error.field = format!("{path}.nbt");
+                    error
+                })?;
+                validate_json_nbt_source(object, _profile, path)?;
             }
+            validate_json_interactions(object, _profile, path, depth)?;
             Ok(())
         }
         _ => Err(text_error(
@@ -2380,7 +3087,7 @@ mod tests {
     fn click_run_command() {
         let t = Text::new("Click me").click_run_command("/say hi");
         let s = t.to_string();
-        assert!(s.contains("\"clickEvent\""), "got: {s}");
+        assert!(s.contains("\"click_event\""), "got: {s}");
         assert!(s.contains("\"run_command\""), "got: {s}");
         assert!(s.contains("/say hi"), "got: {s}");
     }
@@ -2407,19 +3114,20 @@ mod tests {
         assert!(s.contains("\"copy_to_clipboard\""), "got: {s}");
     }
 
+    /// Page clicks retain surrounding style and sibling components.
     #[test]
-    fn click_change_page_preserves_page_zero_styling_and_siblings() {
+    fn click_change_page_preserves_page_styling_and_siblings() {
         let value: serde_json::Value = serde_json::from_str(
             &Text::new("Next page")
                 .gold()
-                .click_change_page(0)
+                .click_change_page(2)
                 .then(Text::new("!").bold(true))
                 .to_string(),
         )
         .unwrap();
         assert_eq!(
-            value["clickEvent"],
-            serde_json::json!({"action": "change_page", "value": 0})
+            value["click_event"],
+            serde_json::json!({"action": "change_page", "page": 2})
         );
         assert_eq!(value["color"], "gold");
         assert_eq!(
@@ -2435,7 +3143,7 @@ mod tests {
         let tooltip = Text::new("Tooltip").gray();
         let t = Text::new("Hover me").hover_text(tooltip);
         let s = t.to_string();
-        assert!(s.contains("\"hoverEvent\""), "got: {s}");
+        assert!(s.contains("\"hover_event\""), "got: {s}");
         assert!(s.contains("\"show_text\""), "got: {s}");
         assert!(s.contains("Tooltip"), "got: {s}");
     }
@@ -2457,7 +3165,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            value["hoverEvent"],
+            value["hover_event"],
             serde_json::json!({
                 "action": "show_item",
                 "id": "minecraft:diamond",
@@ -2477,8 +3185,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(value["color"], "blue");
-        assert_eq!(value["hoverEvent"]["id"], "example:component_bearing_item");
-        assert_eq!(value["hoverEvent"]["count"], 64);
+        assert_eq!(value["hover_event"]["id"], "example:component_bearing_item");
+        assert_eq!(value["hover_event"]["count"], 64);
         assert_eq!(value["extra"][0]["italic"], true);
     }
 
@@ -2487,34 +3195,35 @@ mod tests {
         let id = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
         let value: serde_json::Value = serde_json::from_str(
             &Text::new("Zombie")
-                .hover_entity_with_id(Zombie, id, Text::new("Undead").red())
+                .hover_entity(Zombie, id, Text::new("Undead").red())
                 .to_string(),
         )
         .unwrap();
         assert_eq!(
-            value["hoverEvent"],
+            value["hover_event"],
             serde_json::json!({
                 "action": "show_entity",
-                "type": "minecraft:zombie",
-                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "id": "minecraft:zombie",
+                "uuid": "123e4567-e89b-12d3-a456-426614174000",
                 "name": {"text": "Undead", "color": "red"},
             })
         );
     }
 
+    /// The explicit unchecked entity-hover endpoint preserves legacy raw output.
     #[test]
-    fn hover_entity_without_id_omits_id() {
+    fn raw_hover_entity_without_uuid_remains_an_explicit_escape_hatch() {
         let value: serde_json::Value = serde_json::from_str(
             &Text::new("Zombie")
-                .hover_entity(Zombie, Text::new("Undead"))
+                .hover_entity_raw("minecraft:zombie", None, Text::new("Undead"))
                 .to_string(),
         )
         .unwrap();
         assert_eq!(
-            value["hoverEvent"],
+            value["hover_event"],
             serde_json::json!({
                 "action": "show_entity",
-                "type": "minecraft:zombie",
+                "id": "minecraft:zombie",
                 "name": {"text": "Undead"},
             })
         );
@@ -2540,9 +3249,9 @@ mod tests {
                 .to_string(),
         )
         .unwrap();
-        assert_eq!(value["hoverEvent"]["type"], "modded:future/entity");
-        assert_eq!(value["hoverEvent"]["id"], "version-specific-id");
-        assert_eq!(value["hoverEvent"]["name"]["color"], "light_purple");
+        assert_eq!(value["hover_event"]["id"], "modded:future/entity");
+        assert_eq!(value["hover_event"]["uuid"], "version-specific-id");
+        assert_eq!(value["hover_event"]["name"]["color"], "light_purple");
     }
 
     // ── New: insertion ────────────────────────────────────────────────────────
@@ -2566,7 +3275,7 @@ mod tests {
         let s = t.to_string();
         assert!(s.contains("\"text\":\"Click me\""), "got: {s}");
         assert!(s.contains("\"color\":\"green\""), "got: {s}");
-        assert!(s.contains("\"hoverEvent\""), "got: {s}");
-        assert!(s.contains("\"clickEvent\""), "got: {s}");
+        assert!(s.contains("\"hover_event\""), "got: {s}");
+        assert!(s.contains("\"click_event\""), "got: {s}");
     }
 }

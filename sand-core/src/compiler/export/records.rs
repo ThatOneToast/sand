@@ -1134,11 +1134,41 @@ mod tests {
         let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
             .sound_event("minecraft:music.disc.13")
             .song_length(10.0)
-            .comparator_output(0);
+            .comparator_output(16);
         let err = component_to_record(&song, None).unwrap_err().to_string();
         assert!(err.contains("test:theme"), "{err}");
         assert!(err.contains("jukebox_song"), "{err}");
         assert!(err.contains("comparator_output"), "{err}");
+    }
+
+    /// Malformed descriptions cannot enter the compiler resource records.
+    #[test]
+    fn malformed_resource_descriptions_fail_at_record_boundary() {
+        let resources: Vec<Box<dyn DatapackComponent>> = vec![
+            Box::new(
+                sand_components::Instrument::new(test_rl("test", "horn"))
+                    .sound_event("minecraft:item.goat_horn.sound.0")
+                    .raw_description(sand_components::RawJson::new(serde_json::json!(42))),
+            ),
+            Box::new(
+                sand_components::JukeboxSong::new(test_rl("test", "song"))
+                    .sound_event("minecraft:music_disc.13")
+                    .song_length(178.0)
+                    .raw_description(sand_components::RawJson::new(serde_json::json!(42))),
+            ),
+        ];
+        for resource in resources {
+            let error = component_to_record(resource.as_ref(), None)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains(&resource.resource_location().to_string()),
+                "{error}"
+            );
+            assert!(error.contains(resource.component_dir()), "{error}");
+            assert!(error.contains("[field: description]"), "{error}");
+            assert!(error.contains("SAND-TEXT-SHAPE"), "{error}");
+        }
     }
 
     #[test]
@@ -1259,7 +1289,8 @@ mod tests {
     #[test]
     fn valid_instrument_exports_deterministically() {
         let inst = sand_components::Instrument::new(test_rl("test", "horn"))
-            .sound_event("minecraft:item.goat_horn.sound.0");
+            .sound_event("minecraft:item.goat_horn.sound.0")
+            .description(sand_commands::TextComponent::literal("Horn"));
         let a = component_to_record(&inst, None).unwrap();
         let b = component_to_record(&inst, None).unwrap();
         assert_eq!(a.content, b.content);
@@ -1271,7 +1302,8 @@ mod tests {
         let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
             .sound_event("minecraft:music.disc.13")
             .song_length(178.0)
-            .comparator_output(5);
+            .comparator_output(5)
+            .description(sand_commands::TextComponent::literal("Song"));
         let a = component_to_record(&song, None).unwrap();
         let b = component_to_record(&song, None).unwrap();
         assert_eq!(a.content, b.content);

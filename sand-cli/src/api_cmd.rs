@@ -3954,7 +3954,7 @@ mod tests {
             .unwrap();
         assert!(click_copy.parameters[0].description.contains("clipboard"));
         let hover = catalog
-            .find("sand::text::TextComponent::hover_entity_with_id")
+            .find("sand::text::TextComponent::hover_entity")
             .unwrap();
         assert!(hover.parameters[1].description.contains("entity UUID"));
         let into_event = catalog

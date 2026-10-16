@@ -725,10 +725,11 @@ mod tests {
     fn entity_type_id_builds_typed_text_hover() {
         let text = sand_commands::Text::new("Inspect").hover_entity(
             EntityTypeId::minecraft("zombie").unwrap(),
+            sand_commands::EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap(),
             sand_commands::Text::new("Undead"),
         );
         let value: serde_json::Value = serde_json::from_str(&text.to_string()).unwrap();
-        assert_eq!(value["hoverEvent"]["type"], "minecraft:zombie");
-        assert_eq!(value["hoverEvent"]["name"]["text"], "Undead");
+        assert_eq!(value["hover_event"]["id"], "minecraft:zombie");
+        assert_eq!(value["hover_event"]["name"]["text"], "Undead");
     }
 }

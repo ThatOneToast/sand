@@ -9,7 +9,9 @@
 //!   (a `#namespace:path` tag reference is rejected — the field is
 //!   serialized as a single concrete sound event, not a tag).
 //! - `song_length` must be finite and positive.
-//! - `comparator_output` must be in `1..=15`.
+//! - `comparator_output` must be in `0..=15`.
+//!
+//! - `description` is required and uses canonical text validation.
 //!
 //! # Example
 //! ```rust,ignore
@@ -17,10 +19,14 @@
 //!     .sound_event("my_pack:music.custom_track")
 //!     .song_length(180.0)
 //!     .comparator_output(5)
-//!     .description(serde_json::json!({"translate": "jukebox_song.my_pack.custom_track"}));
+//!     .description(TextComponent::translate("jukebox_song.my_pack.custom_track"));
 //! ```
 
+use sand_commands::TextComponent;
 use serde_json::Value;
+
+use crate::component_text::ComponentText;
+use crate::raw::RawJson;
 
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::error::Result as SandResult;
@@ -32,12 +38,13 @@ pub struct JukeboxSong {
     location: ResourceLocation,
     sound_event: String,
     song_length: f32,
-    /// Redstone comparator output level (1–15).
+    /// Redstone comparator output level (0–15).
     comparator_output: u8,
-    description: Option<Value>,
+    description: Option<ComponentText>,
 }
 
 impl JukeboxSong {
+    /// Begin a song definition; set its sound, positive length and description before export.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -53,19 +60,37 @@ impl JukeboxSong {
         self
     }
 
+    /// Set the finite, positive duration in seconds.
+    ///
+    /// Minecraft receives this value in its `length_in_seconds` field.
     pub fn song_length(mut self, seconds: f32) -> Self {
         self.song_length = seconds;
         self
     }
 
-    /// Set the redstone comparator output level (1–15).
+    /// Set the redstone comparator output level (0–15).
     pub fn comparator_output(mut self, output: u8) -> Self {
         self.comparator_output = output;
         self
     }
 
-    pub fn description(mut self, desc: Value) -> Self {
-        self.description = Some(desc);
+    /// Set the required display description using Sand's typed text model.
+    ///
+    /// Export validates text recursively and reports the resource and field
+    /// path on failure. Use [`Self::raw_description`] only for JSON text shapes
+    /// that [`TextComponent`] cannot express.
+    pub fn description(mut self, desc: TextComponent) -> Self {
+        self.description = Some(ComponentText::Typed(Box::new(desc)));
+        self
+    }
+
+    /// Set an explicit JSON text escape hatch for the required description.
+    ///
+    /// Export still applies the canonical text shape and known-field checks;
+    /// unknown extension fields are preserved. Prefer [`Self::description`]
+    /// for ordinary literal, translated or styled text.
+    pub fn raw_description(mut self, desc: RawJson) -> Self {
+        self.description = Some(ComponentText::Raw(desc));
         self
     }
 }
@@ -90,9 +115,18 @@ impl DatapackComponent for JukeboxSong {
             kind,
             "comparator_output",
             self.comparator_output as u32,
-            1,
+            0,
             15,
         )?;
+        let description = self.description.as_ref().ok_or_else(|| {
+            validation::error(
+                &self.location,
+                kind,
+                "description",
+                "description is required",
+            )
+        })?;
+        description.validate(&self.location, kind, "description")?;
         Ok(())
     }
 
@@ -108,7 +142,7 @@ impl DatapackComponent for JukeboxSong {
             Value::String(self.sound_event.clone()),
         );
         map.insert(
-            "song_length".to_string(),
+            "length_in_seconds".to_string(),
             serde_json::json!(self.song_length),
         );
         map.insert(
@@ -116,7 +150,7 @@ impl DatapackComponent for JukeboxSong {
             serde_json::json!(self.comparator_output),
         );
         if let Some(ref desc) = self.description {
-            map.insert("description".to_string(), desc.clone());
+            map.insert("description".to_string(), desc.to_json());
         }
         Value::Object(map)
     }
@@ -143,6 +177,7 @@ mod tests {
             .sound_event("minecraft:music.disc.13")
             .song_length(178.0)
             .comparator_output(5)
+            .description(TextComponent::literal("Test song"))
     }
 
     #[test]
@@ -210,10 +245,11 @@ mod tests {
         assert!(song.validate().is_err());
     }
 
+    /// Vanilla permits silent comparator output for a song.
     #[test]
-    fn comparator_output_zero_is_rejected() {
+    fn comparator_output_zero_is_accepted() {
         let song = valid().comparator_output(0);
-        assert!(song.validate().is_err());
+        assert!(song.validate().is_ok());
     }
 
     #[test]
@@ -249,7 +285,7 @@ mod tests {
         let song = valid();
         let json = song.to_json();
         assert_eq!(json["sound_event"], "minecraft:music.disc.13");
-        assert_eq!(json["song_length"], 178.0);
+        assert_eq!(json["length_in_seconds"], 178.0);
         assert_eq!(json["comparator_output"], 5);
     }
 

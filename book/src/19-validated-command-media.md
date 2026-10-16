@@ -30,7 +30,48 @@ Sand recursively checks selector and score fields, objectives, translation
 keys, keybinds, named/hex colors, fonts, click values, URLs, hover payloads,
 entity UUIDs, and nested `extra`/translation arguments. The same validator is
 used by tellraw, titles, actionbars, bossbar names, dialogs, advancements,
-item names/lore, and chat decoration.
+item names/lore, instrument and jukebox descriptions, and chat decoration.
+
+Typed click and hover builders emit the current Minecraft interaction codec
+(`click_event`/`hover_event`) for commands and resources. Book pages start at
+1, and hover-item counts must be in `1..=99`. Entity tooltips require a typed
+entity registry reference, an `EntityHoverId` UUID and a styled name:
+
+```rust,ignore
+Text::new("Inspect").hover_entity(
+    EntityType::Zombie,
+    EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000")?,
+    Text::new("Undead").gold(),
+);
+```
+
+Use `Instrument::description(TextComponent)` and
+`JukeboxSong::description(TextComponent)` for required resource descriptions.
+`raw_description(RawJson)` remains an explicit interoperability escape hatch;
+known text fields and nested interactions still receive shape validation, including
+atlas sprites, player-head objects, and their nested fallback text. Known click
+actions require their payloads; `custom` needs an identifier, and `show_dialog`
+needs a dialog reference or inline object. Known inline dialog variants check
+required actions, button fields, message/item bodies and input control shapes.
+
+Raw inline dialog input keys and dynamic command templates follow Minecraft’s
+Java 25 variable grammar: BMP letters, decimal digits and underscores. Empty
+variable names are accepted by the current codec; dynamic command templates
+require at least one complete `$(name)` placeholder.
+
+Numeric and boolean translation arguments in raw `with` arrays retain their JSON
+types. Text identifiers (including typed hover/font and raw NBT storage IDs) may omit the
+`minecraft:` namespace. URL validation checks URI syntax, including percent
+escapes, and permits HTTP(S). Explicit extension identifiers and item-hover
+component-patch keys (including `!` removals) still require valid identifier syntax.
+`run_command` and `suggest_command` accept empty strings, while chat control and
+section-sign characters remain invalid. `open_file` is rejected by the server text codec.
+
+Raw NBT paths use the shared path parser, including quoted keys, signed list
+indices, all-elements selectors and SNBT match compounds. Player-profile property
+records are limited to 16 entries; name, value and signature strings have limits
+of 64, 32767 and 1024 UTF-16 units. The legacy property-map form limits distinct
+keys to 16 and retains its own string-list semantics.
 
 Opaque compatibility is explicit: `Text::raw_json`,
 `TextComponent::selector_raw`, `hover_item_raw`, and `hover_entity_raw` render

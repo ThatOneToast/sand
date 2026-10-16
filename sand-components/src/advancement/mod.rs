@@ -2,7 +2,8 @@ pub mod trigger_coverage;
 
 use std::collections::HashMap;
 
-use sand_commands::{CommandProfile, TextComponent};
+use crate::component_text::ComponentText;
+use sand_commands::TextComponent;
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
@@ -182,44 +183,6 @@ impl Serialize for AdvancementIcon {
 
 // ── AdvancementDisplay ────────────────────────────────────────────────────────
 
-enum AdvancementText {
-    Typed(Box<TextComponent>),
-    Raw(RawJson),
-}
-
-impl AdvancementText {
-    fn validate(&self, location: &ResourceLocation, field: &str) -> crate::error::Result<()> {
-        let error = match self {
-            Self::Typed(text) => text.validate_at_path(&CommandProfile::unprofiled(), field),
-            Self::Raw(text) => sand_commands::text::validate_json_text(
-                text.as_value(),
-                &CommandProfile::unprofiled(),
-                field,
-            ),
-        };
-        error.map_err(|error| crate::error::SandError::ComponentValidation {
-            location: location.clone(),
-            kind: "advancement".to_string(),
-            field: error.field,
-            message: format!("error[{}] {}", error.code, error.message),
-        })
-    }
-}
-
-impl Serialize for AdvancementText {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::Typed(text) => {
-                let value = text
-                    .try_to_json_value()
-                    .map_err(serde::ser::Error::custom)?;
-                value.serialize(serializer)
-            }
-            Self::Raw(text) => text.serialize(serializer),
-        }
-    }
-}
-
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::component::AdvancementDisplay",
@@ -235,8 +198,8 @@ impl Serialize for AdvancementText {
 /// The display information shown for an advancement in the advancement screen and toast.
 pub struct AdvancementDisplay {
     icon: AdvancementIcon,
-    title: AdvancementText,
-    description: AdvancementText,
+    title: ComponentText,
+    description: ComponentText,
     background: Option<String>,
     frame: AdvancementFrame,
     show_toast: bool,
@@ -275,8 +238,8 @@ impl AdvancementDisplay {
     pub fn new(icon: AdvancementIcon, title: TextComponent, description: TextComponent) -> Self {
         Self {
             icon,
-            title: AdvancementText::Typed(Box::new(title)),
-            description: AdvancementText::Typed(Box::new(description)),
+            title: ComponentText::Typed(Box::new(title)),
+            description: ComponentText::Typed(Box::new(description)),
             background: None,
             frame: AdvancementFrame::Task,
             show_toast: true,
@@ -304,8 +267,8 @@ impl AdvancementDisplay {
     pub fn raw_text(icon: AdvancementIcon, title: RawJson, description: RawJson) -> Self {
         Self {
             icon,
-            title: AdvancementText::Raw(title),
-            description: AdvancementText::Raw(description),
+            title: ComponentText::Raw(title),
+            description: ComponentText::Raw(description),
             background: None,
             frame: AdvancementFrame::Task,
             show_toast: true,
@@ -331,7 +294,7 @@ impl AdvancementDisplay {
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, title: sand::component::RawJson)  {\n    let updated_advancement_display = advancement_display_value.raw_title(title);\n}",
     )]
     pub fn raw_title(mut self, title: RawJson) -> Self {
-        self.title = AdvancementText::Raw(title);
+        self.title = ComponentText::Raw(title);
         self
     }
 
@@ -355,7 +318,7 @@ impl AdvancementDisplay {
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, description: sand::component::RawJson)  {\n    let updated_advancement_display = advancement_display_value.raw_description(description);\n}",
     )]
     pub fn raw_description(mut self, description: RawJson) -> Self {
-        self.description = AdvancementText::Raw(description);
+        self.description = ComponentText::Raw(description);
         self
     }
 
@@ -3707,10 +3670,12 @@ impl DatapackComponent for Advancement {
             validate_resource_id(&display.icon.id, "display.icon.id")
                 .map_err(split_validation_message)
                 .map_err(|(field, message)| self.validation_error(field, message))?;
-            display.title.validate(&self.location, "display.title")?;
+            display
+                .title
+                .validate(&self.location, "advancement", "display.title")?;
             display
                 .description
-                .validate(&self.location, "display.description")?;
+                .validate(&self.location, "advancement", "display.description")?;
             if let Some(background) = &display.background {
                 validate_resource_id(background, "display.background")
                     .map_err(split_validation_message)

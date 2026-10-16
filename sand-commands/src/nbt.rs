@@ -515,6 +515,12 @@ impl NbtPath {
         if self.raw {
             return Ok(());
         }
+        if self.value.is_empty() {
+            return Err(data_error(
+                "path",
+                "NBT paths cannot be empty; use a location-level operation for root data",
+            ));
+        }
         validate_nbt_path(&self.value)
     }
 }
@@ -549,69 +555,18 @@ fn render_path_key(key: &str) -> String {
     }
 }
 
-fn validate_nbt_path(path: &str) -> CommandResult<()> {
-    if path.trim().is_empty() {
+/// Validate the shared Minecraft path grammar without emitting command text.
+pub(crate) fn validate_nbt_path(path: &str) -> CommandResult<()> {
+    if path.chars().any(char::is_control) {
         return Err(data_error(
             "path",
-            "NBT paths cannot be empty; use a location-level operation for root data",
+            "NBT paths cannot contain control characters",
         ));
     }
-    if path != path.trim() || path.chars().any(char::is_control) {
-        return Err(data_error(
-            "path",
-            format!(
-                "malformed NBT path `{path}`: leading/trailing whitespace and controls are invalid"
-            ),
-        ));
-    }
-    let mut quote = false;
-    let mut escaped = false;
-    let mut brackets = 0_i32;
-    let mut braces = 0_i32;
-    for character in path.chars() {
-        if quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == '"' {
-                quote = false;
-            }
-            continue;
-        }
-        match character {
-            '"' => quote = true,
-            '[' => brackets += 1,
-            ']' => {
-                brackets -= 1;
-                if brackets < 0 {
-                    return Err(data_error("path", format!("unbalanced `]` in `{path}`")));
-                }
-            }
-            '{' => braces += 1,
-            '}' => {
-                braces -= 1;
-                if braces < 0 {
-                    return Err(data_error("path", format!("unbalanced `}}` in `{path}`")));
-                }
-            }
-            _ => {}
-        }
-    }
-    if quote || brackets != 0 || braces != 0 {
-        return Err(data_error(
-            "path",
-            format!("unbalanced quoted key, list index, or match compound in `{path}`"),
-        ));
-    }
-    if path.contains("..") || path.starts_with('.') || path.ends_with('.') {
-        return Err(data_error(
-            "path",
-            format!("malformed empty path segment in `{path}`"),
-        ));
-    }
-    Ok(())
+    path::validate(path).map_err(|reason| data_error("path", format!("{reason} in `{path}`")))
 }
+
+mod path;
 
 /// Canonical typed location for vanilla `data` commands.
 #[derive(Debug, Clone)]
@@ -1984,6 +1939,53 @@ mod tests {
         assert_eq!(
             cache.remove().to_string(),
             "data remove storage my_pack:cache items"
+        );
+    }
+
+    /// Typed command paths share node parsing with resource text and retain explicit root operations.
+    #[test]
+    fn checked_paths_validate_nodes_and_preserve_quoted_keys() {
+        for path in [
+            "foo[abc]",
+            "foo[+1]",
+            "foo[2147483648]",
+            "foo{a:}",
+            "foo[0]{a:1}",
+            "",
+        ] {
+            assert!(
+                Nbt::storage_raw("test:data")
+                    .path(path)
+                    .get()
+                    .try_render(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{path}"
+            );
+        }
+        for path in [
+            "foo[]",
+            "foo[-1]",
+            "foo[{a:1}]",
+            "{a:1}.foo",
+            "foo.",
+            "'quoted.key'",
+            r#""quoted..key""#,
+        ] {
+            assert_eq!(
+                Nbt::storage_raw("test:data")
+                    .path(path)
+                    .get()
+                    .try_render(&CommandProfile::unprofiled())
+                    .unwrap(),
+                format!("data get storage test:data {path}")
+            );
+        }
+        assert!(
+            Nbt::storage_raw("test:data")
+                .path(NbtPath::new("root").key("quoted..key"))
+                .get()
+                .try_render(&CommandProfile::unprofiled())
+                .is_ok()
         );
     }
 

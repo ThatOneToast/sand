@@ -652,6 +652,218 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
         )
 }
 
+/// Vanilla codec coverage for typed, required instrument descriptions.
+#[datapack_component]
+pub fn audit_instrument() -> sand_core::Instrument {
+    sand_core::Instrument::new("sand_audit:horn".parse().unwrap())
+        .sound_event("minecraft:item.goat_horn.sound.0")
+        .description(TextComponent::translate("instrument.sand_audit.horn"))
+}
+
+/// Vanilla codec coverage for song duration, description and comparator zero.
+#[datapack_component]
+pub fn audit_jukebox_song() -> sand_core::JukeboxSong {
+    sand_core::JukeboxSong::new("sand_audit:song".parse().unwrap())
+        .sound_event("minecraft:music_disc.13")
+        .song_length(178.0)
+        .comparator_output(0)
+        .description(TextComponent::literal("Sand audit song"))
+}
+
+/// Typed interaction resources used by the vanilla text decode/encode audit.
+#[datapack_component]
+pub fn audit_typed_text_interactions() -> sand::registration::DatapackRegistration {
+    let mut registration = sand::registration::DatapackRegistration::new();
+    let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
+    for (name, description) in [
+        ("empty_suggest", Text::new("Clear suggestion").click_suggest_command("")),
+        ("empty_run", Text::new("Empty command").click_run_command("")),
+        ("shorthand", Text::new("Default identifiers").font("default").hover_item("stone")),
+        (
+            "run_command",
+            Text::new("Run").click_run_command("/say hello"),
+        ),
+        (
+            "suggest_command",
+            Text::new("Suggest").click_suggest_command("/tell @s "),
+        ),
+        (
+            "open_url",
+            Text::new("Visit").click_open_url("https://example.com"),
+        ),
+        ("copy", Text::new("Copy").click_copy("copy")),
+        ("page", Text::new("Page").click_change_page(2)),
+        (
+            "text",
+            Text::new("Hover").hover_text(Text::new("hint").bold(true)),
+        ),
+        (
+            "item",
+            Text::new("Item").hover_item_with_count("minecraft:stone", 3),
+        ),
+        (
+            "entity",
+            Text::new("Entity").hover_entity(entity_type_id("zombie"), uuid, Text::new("Undead")),
+        ),
+    ] {
+        registration = registration.component(
+            sand_core::Instrument::new(format!("sand_audit:typed_text/{name}").parse().unwrap())
+                .sound_event("minecraft:item.goat_horn.sound.0")
+                .description(description),
+        );
+    }
+    registration
+}
+
+/// Parser coverage for the explicit raw-text escape hatch and current interaction codecs.
+/// JSON is intentional here: this fixture checks raw inputs independently of typed rendering.
+#[datapack_component]
+pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration {
+    use serde_json::json;
+    let mut registration = sand::registration::DatapackRegistration::new();
+    for (name, field, event) in [
+        (
+            "run_command",
+            "click_event",
+            json!({"action": "run_command", "command": "/say hello"}),
+        ),
+        (
+            "suggest_command",
+            "click_event",
+            json!({"action": "suggest_command", "command": "/tell @s "}),
+        ),
+        (
+            "open_url",
+            "click_event",
+            json!({"action": "open_url", "url": "https://example.com"}),
+        ),
+        (
+            "copy",
+            "click_event",
+            json!({"action": "copy_to_clipboard", "value": "copy"}),
+        ),
+        (
+            "page",
+            "click_event",
+            json!({"action": "change_page", "page": 1}),
+        ),
+        (
+            "text",
+            "hover_event",
+            json!({"action": "show_text", "value": {"text": "hint", "bold": true}}),
+        ),
+        (
+            "item",
+            "hover_event",
+            json!({"action": "show_item", "id": "minecraft:stone", "count": 99}),
+        ),
+        (
+            "entity",
+            "hover_event",
+            json!({"action": "show_entity", "id": "minecraft:zombie", "uuid": "123e4567-e89b-12d3-a456-426614174000", "name": {"text": "zombie"}}),
+        ),
+    ] {
+        let mut description = json!({"text": "Raw interaction audit", "insertion": "audit"});
+        description[field] = event;
+        registration = registration.component(
+            sand_core::Instrument::new(format!("sand_audit:raw_text/{name}").parse().unwrap())
+                .sound_event("minecraft:item.goat_horn.sound.0")
+                .raw_description(sand::component::RawJson::new(description)),
+        );
+    }
+    for (name, description) in [
+        (
+            "shadow_signed",
+            json!({"text": "Shadow", "shadow_color": -1}),
+        ),
+        (
+            "shadow_unsigned",
+            json!({"text": "Shadow", "shadow_color": 4294967295_u64}),
+        ),
+        (
+            "shadow_rgba",
+            json!({"text": "Shadow", "shadow_color": [1, 0.5, 0, 1]}),
+        ),
+        (
+            "shadow_wide",
+            json!({"text": "Shadow", "shadow_color": [2, -1, 0, 1]}),
+        ),
+        ("nbt_named", json!({"nbt": "CustomName", "entity": "Steve"})),
+        ("nbt_match", json!({"nbt":"foo[{a:1}].bar", "entity":"@s"})),
+        ("nbt_quoted", json!({"nbt":"'foo..bar'", "entity":"@s"})),
+        ("nbt_empty", json!({"nbt":"", "entity":"@s"})),
+        ("nbt_all_elements", json!({"nbt":"foo[]", "entity":"@s"})),
+        ("hover_component_patch", json!({"text":"Patch", "hover_event":{"action":"show_item", "id":"stone", "components":{"custom_name":{"text":"Patched"}, "!minecraft:lore":{}}}})),
+        (
+            "nbt_uuid",
+            json!({"nbt": "CustomName", "entity": "123e4567-e89b-12d3-a456-426614174000"}),
+        ),
+        (
+            "selector_separator",
+            json!({"selector": "Steve", "separator": {"text": ", "}}),
+        ),
+        (
+            "object_atlas",
+            json!({"object": "atlas", "sprite": "block/stone", "fallback": {"text": "Stone"}}),
+        ),
+        (
+            "object_player",
+            json!({"object": "player", "player": "Steve", "hat": false}),
+        ),
+        ("custom_click", json!({"text":"Custom","click_event":{"action":"custom","id":"sand_audit:click","payload":{"x":1}}})),
+        ("inline_dialog", json!({"text":"Dialog","click_event":{"action":"show_dialog","dialog":{"type":"minecraft:notice","title":{"text":"Hello"}}}})),
+        ("default_hover_item", json!({"text":"Item","hover_event":{"action":"show_item","id":"stone"}})),
+        ("default_hover_entity", json!({"text":"Entity","hover_event":{"action":"show_entity","id":"zombie","uuid":[0,0,0,1]}})),
+        ("escaped_url", json!({"text":"Link","click_event":{"action":"open_url","url":"HTTPS://example.com/café?q=%20#ok"}})),
+        ("dialog_confirmation", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"confirmation", "title":"Confirm", "yes":{"label":"Yes"}, "no":{"label":"No"}})}})),
+        ("dialog_multi_action", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "tooltip":"Hint", "width":1024, "action":{"type":"run_command", "command":"/say hi"}}], "columns":1})}})),
+        ("dialog_server_links", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"server_links", "title":"Links", "button_width":1, "exit_action":{"label":"Done"}})}})),
+        ("dialog_dialog_list", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"dialog_list", "title":"Dialogs", "dialogs":[{"type":"notice", "title":"Nested"}]})}})),
+        ("dialog_variables", json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":{"type":"notice", "title":"Variables", "inputs":[{"key":"λ١_中文", "type":"boolean", "label":"Flag"}, {"key":"", "type":"text", "label":"Empty key"}], "action":{"label":"Go", "action":{"type":"dynamic/run_command", "template":"say $(λ١_中文) $()"}}}}})),
+        ("dialog_controls", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"notice", "title":"Info", "pause":false, "after_action":"none", "external_title":"Open", "body":[
+            {"type":"plain_message", "contents":"Message", "width":1024},
+            {"type":"item", "item":{"id":"stone", "count":2}, "description":{"contents":"Stone", "width":100}, "show_tooltip":false, "width":256, "height":1}
+        ], "inputs":[
+            {"key":"flag", "type":"boolean", "label":"Flag", "initial":true},
+            {"key":"text", "type":"text", "label":"Text", "initial":"Hi", "multiline":{"height":512, "max_lines":2}},
+            {"key":"choice", "type":"single_option", "label":"Choice", "options":["first", {"id":"second", "display":"Second", "initial":true}]},
+            {"key":"range", "type":"number_range", "label":"Range", "start":10, "end":0, "initial":5, "step":0.5}
+        ]})}})),
+        ("primitive_arguments", json!({"translate":"key", "with":[7, 1.5, true, false]})),
+        ("storage_shorthand", json!({"nbt":"foo", "storage":"data"})),
+        ("font_shorthand", json!({"text":"Font", "font":"default"})),
+        (
+            "object_profile",
+            json!({"player": {"name": "Steve", "id": [306070887, -392490285, -1537850778, 337068032]}, "fallback": {"text": "Player"}}),
+        ),
+        ("nbt_entity", json!({"nbt": "CustomName", "entity": "@s"})),
+        (
+            "nbt_storage",
+            json!({"nbt": "message", "storage": "sand_audit:text"}),
+        ),
+        (
+            "nbt_block",
+            json!({"nbt": "CustomName", "block": "~ ~0.5 -2"}),
+        ),
+        (
+            "nbt_local",
+            json!({"nbt": "CustomName", "block": "^ ^1.5 ^"}),
+        ),
+        (
+            "nbt_lenient",
+            json!({"nbt": "CustomName", "entity": "@s", "interpret": "yes"}),
+        ),
+    ] {
+        registration = registration.component(
+            sand_core::Instrument::new(format!("sand_audit:raw_text/{name}").parse().unwrap())
+                .sound_event("minecraft:item.goat_horn.sound.0")
+                .raw_description(sand_core::RawJson::new(description)),
+        );
+    }
+
+    registration
+}
+
 #[datapack_component]
 pub fn audit_recipe() -> ShapedRecipe {
     ShapedRecipe::new("sand_audit:diamond".parse().unwrap())

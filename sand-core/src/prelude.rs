@@ -269,7 +269,7 @@ mod tests {
         let entity_type = EntityTypeId::minecraft("zombie").unwrap();
         let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
         let text = Text::new("Inspect")
-            .hover_entity_with_id(entity_type, uuid, Text::new("Undead"))
+            .hover_entity(entity_type, uuid, Text::new("Undead"))
             .click_change_page(1);
         let json = text.to_string();
         assert!(json.contains(r#""action":"show_entity""#));

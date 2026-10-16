@@ -2,7 +2,7 @@
 
 mod java_names;
 mod parse;
-mod snbt;
+pub(crate) mod snbt;
 
 use std::fmt;
 use std::marker::PhantomData;

@@ -164,6 +164,9 @@ impl RuntimeReport {
                         .map(|path| ("tags/function", path, "json"))
                 });
             let Some((dir, path, ext)) = identity else {
+                if file.contains("/data/") && file.contains("/function/") {
+                    unavailable.insert(format!("overlay runtime resource is not analyzed: {file}"));
+                }
                 continue;
             };
             let Ok(content) = std::str::from_utf8(bytes) else {
@@ -350,6 +353,41 @@ mod tests {
             serde_json::to_value(RuntimeReport::collect(&records, &plan)).unwrap()
         );
     }
+    /// Overlay directories can themselves be named data; valid root paths remain analyzable.
+    #[test]
+    fn overlay_locations_remain_explicit_without_hiding_root_functions() {
+        let report =
+            RuntimeReport::collect(&[], &RuntimePlan::default()).reanalyze(&BTreeMap::from([
+                (
+                    "overlay/data/demo/function/extra.mcfunction".into(),
+                    b"say overlay".to_vec(),
+                ),
+                (
+                    "data/data/demo/function/extra.mcfunction".into(),
+                    b"say data overlay".to_vec(),
+                ),
+                (
+                    "data/demo/function/data/valid.mcfunction".into(),
+                    b"say root".to_vec(),
+                ),
+            ]));
+        assert_eq!(
+            report.functions["demo:data/valid"].evaluations.maximum,
+            Some(1)
+        );
+        for path in [
+            "overlay/data/demo/function/extra.mcfunction",
+            "data/data/demo/function/extra.mcfunction",
+        ] {
+            assert!(
+                report
+                    .limitations
+                    .iter()
+                    .any(|reason| reason.contains(path))
+            );
+        }
+    }
+
     /// File-backed functions stay visible and unknown until the host supplies bytes.
     #[test]
     fn copy_backed_functions_are_unknown_until_materialized() {

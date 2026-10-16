@@ -674,7 +674,7 @@ Tracing itself adds I/O overhead, so its wall time is not a performance result.
 Trace entries are also not a one-to-one measure of vanilla’s internal command-
 sequence budget: do not divide the chain limit by 244 to infer a safe population.
 Large-workload runs must separately prove complete adoption and trace completion.
-The export-time cost report, representative mixed-workload steady-state MSPT
+Whole-tick cost aggregation, representative mixed-workload steady-state MSPT
 and variance, and optimization phases of #424 remain outstanding. Preserve this
 baseline when evaluating the later idle-work changes rather than substituting
 source-line counts or assuming conditional commands are free.
@@ -685,7 +685,8 @@ The runtime report's explicit evaluation ranges were compared with 20 completed
 vanilla debug traces from a **Sand-compiled** portable fixture: ten control-flow
 shapes at verified populations of zero and three entities. All observed counts
 matched the independent expected-count table and fell inside their reported
-ranges. The disposable server also passed reload and clean shutdown.
+ranges. The harness also asserts each calibrated minimum and maximum exactly,
+including unknown upper bounds for selector-forked function calls. The disposable server also passed reload and clean shutdown.
 
 | Fixture | Observed with 0 entities | Observed with 3 entities | Report range |
 |---|---:|---:|---|

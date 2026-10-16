@@ -69,8 +69,8 @@ fn main() {
             aliases: BTreeSet::new(),
         },
         ContractIdentity {
-            identity: "sand::advanced::try_export_components_json".into(),
-            canonical_path: "sand::advanced::try_export_components_json".into(),
+            identity: "sand::advanced::try_export_pack_json".into(),
+            canonical_path: "sand::advanced::try_export_pack_json".into(),
             aliases: BTreeSet::new(),
         },
     ];

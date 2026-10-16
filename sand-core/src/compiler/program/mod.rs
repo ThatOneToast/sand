@@ -6,6 +6,7 @@ mod lower;
 pub(crate) mod model;
 mod validate;
 
+pub use crate::compiler::runtime::RuntimeReport;
 pub use diagnostic::Diagnostic;
 pub use model::{
     Action, ExecutionContext, FieldReference, Function, FunctionReference, Module, ModuleSource,
@@ -23,7 +24,7 @@ use std::collections::BTreeMap;
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(target = "Target for this portable definition.", resources = "Resources for this portable definition.", diagnostics = "Diagnostics for this portable definition."),
+ fields(target = "Target for this portable definition.", resources = "Resources for this portable definition.", diagnostics = "Diagnostics for this portable definition.", runtime_report = "Runtime estimates and compiler-owned provenance."),
 )]
 pub struct CompiledPack {
     /// Exact verified Minecraft target used for compilation.
@@ -32,6 +33,8 @@ pub struct CompiledPack {
     pub resources: BTreeMap<String, Vec<u8>>,
     /// Nonfatal diagnostics; v1 currently emits none on success.
     pub diagnostics: Vec<Diagnostic>,
+    /// Runtime estimates and provenance, separate from published datapack files.
+    pub runtime_report: RuntimeReport,
 }
 
 /// Stateless portable compiler; repeated and concurrent calls share no state.
@@ -135,6 +138,7 @@ impl Compiler {
             target: target.resolved_name().into(),
             resources: lowered.resources,
             diagnostics: Vec::new(),
+            runtime_report: lowered.runtime_report,
         })
     }
 

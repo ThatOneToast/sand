@@ -30,7 +30,7 @@ impl Seeker {
 }
 #[test]
 fn configuration_uses_canonical_membership_and_retains_the_declaration() {
-    let expected = sand::advanced::try_export_components_json("decl", "26.2").unwrap();
+    let expected = sand::advanced::try_export_pack_json("decl", "26.2").unwrap();
     for (mode, diagnostic) in [
         (1, "SAND-ENTITY-COMPONENT"),
         (2, "SAND-ARCHETYPE-DECLARATION"),
@@ -38,14 +38,14 @@ fn configuration_uses_canonical_membership_and_retains_the_declaration() {
         (4, "SAND-ENTITY-COMPONENT"),
     ] {
         MODE.set(mode);
-        let error = sand::advanced::try_export_components_json("decl", "26.2")
+        let error = sand::advanced::try_export_pack_json("decl", "26.2")
             .unwrap_err()
             .to_string();
         assert!(error.contains(diagnostic), "{error}");
         assert!(error.contains("decl:seeker"), "{error}");
         MODE.set(0);
         assert_eq!(
-            sand::advanced::try_export_components_json("decl", "26.2").unwrap(),
+            sand::advanced::try_export_pack_json("decl", "26.2").unwrap(),
             expected
         );
     }

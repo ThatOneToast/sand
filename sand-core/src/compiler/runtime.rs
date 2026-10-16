@@ -7,7 +7,7 @@
 mod estimate;
 mod report;
 
-pub(crate) use report::RuntimeReport;
+pub use report::RuntimeReport;
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -123,7 +123,7 @@ pub fn player_join_advancement() -> sand_core::Advancement {
 /// constructor functions to run before `main`.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    match sand_core::advanced::try_export_components_json(namespace, mc_version) {
+    match sand_core::advanced::try_export_pack_json(namespace, mc_version) {
         Ok(json) => println!("{json}"),
         Err(e) => {
             eprintln!("sand export failed: {e}");

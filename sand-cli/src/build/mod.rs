@@ -47,6 +47,7 @@ struct BuildJsonOutput<'a> {
     minecraft_version: &'a str,
     profile: &'a str,
     component_count: usize,
+    runtime_report: serde_json::Value,
     datapack_output: String,
     datapack_changes: ChangeSummary,
     diagnostics: Vec<BuildJsonDiagnostic>,
@@ -314,20 +315,10 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         )
     })?;
 
-    // 4. Parse component records
-    let records: Vec<ComponentRecord> = timings.record(Phase::RecordParsing, || {
-        serde_json::from_slice(&stdout).map_err(|e| {
-            let stdout = String::from_utf8_lossy(&stdout);
-            let hint = if stdout.trim_start().starts_with('[') && stdout.matches('[').count() > 1 {
-                "\n\nHint: the export binary printed more than one JSON value. \
-                 __sand_export must print exactly one JSON array \
-                 (from sand_core::export_components_json)."
-            } else {
-                ""
-            };
-            anyhow::anyhow!("failed to parse component export JSON: {}{}", e, hint)
-        })
-    })?;
+    // 4. Decode the versioned exporter envelope before validating resources.
+    let exported = timings.record(Phase::RecordParsing, || decode_pack_export(&stdout))?;
+    let records = exported.components;
+    let runtime_report = exported.runtime_report;
 
     // 4b. Compile and run the optional typed world build before any output is
     // written. This keeps ordinary component output and world-build output in
@@ -454,6 +445,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                 minecraft_version: &mc_version,
                 profile: &profile,
                 component_count: records.len(),
+                runtime_report,
                 datapack_output: dist.display().to_string(),
                 datapack_changes: change_summary,
                 diagnostics,
@@ -2004,4 +1996,33 @@ mod tests {
         .unwrap();
         assert!(super::validate_output::validate_output_dir(&dist).is_ok());
     }
+}
+
+/// The CLI carries compiler analysis without reconstructing provenance from paths.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PackExport {
+    schema_version: u32,
+    components: Vec<ComponentRecord>,
+    runtime_report: serde_json::Value,
+}
+
+fn decode_pack_export(stdout: &[u8]) -> Result<PackExport> {
+    let exported: PackExport = serde_json::from_slice(stdout)
+        .context("failed to parse pack export JSON; sand_export must print exactly one object from sand::advanced::try_export_pack_json")?;
+    if exported.schema_version != 1 {
+        bail!(
+            "unsupported pack export schema version {}",
+            exported.schema_version
+        );
+    }
+    if exported
+        .runtime_report
+        .get("schema_version")
+        .and_then(|value| value.as_u64())
+        != Some(1)
+    {
+        bail!("unsupported or missing runtime report schema version");
+    }
+    Ok(exported)
 }

@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 /// Portable resource bytes and the same runtime provenance used by Rust export.
 pub(super) struct LoweredProgram {
     pub(super) resources: BTreeMap<String, Vec<u8>>,
-    pub(super) runtime: crate::compiler::runtime::RuntimePlan,
+    pub(super) runtime_report: crate::compiler::runtime::RuntimeReport,
 }
 
 pub(super) fn lower(
@@ -172,6 +172,7 @@ pub(super) fn lower(
         "pack.mcmeta".into(),
         serde_json::to_vec_pretty(&metadata).expect("metadata serializes"),
     )?;
+    let runtime_report = crate::compiler::runtime::RuntimeReport::collect(&lower.records, &runtime);
     for record in lower.records {
         insert_output(
             &mut output,
@@ -184,7 +185,7 @@ pub(super) fn lower(
     }
     Ok(LoweredProgram {
         resources: output,
-        runtime,
+        runtime_report,
     })
 }
 

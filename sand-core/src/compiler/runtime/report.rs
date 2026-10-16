@@ -10,8 +10,17 @@ use crate::compiler::export::ComponentRecord;
 
 /// Compilation-local report. Counts describe explicit command evaluations for
 /// a successfully loaded function invocation, not MSPT or command-limit units.
-#[derive(Debug, serde::Serialize)]
-pub(crate) struct RuntimeReport {
+#[derive(Debug, Clone, serde::Serialize)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::RuntimeReport", module = "sand::advanced::compiler",
+    summary = "Deterministic runtime estimates and compiler-owned provenance for one compiled pack.",
+    context = "Serialize this report to inspect ordered tick entries, per-function explicit evaluation ranges, ownership, cadence, and limitations.",
+    minecraft = "Counts explicit command evaluations under successful function loading, not MSPT or command-budget units; unknown work remains explicit.",
+    use_when = ["Inspecting generated runtime work in tools and regression tests"],
+    avoid_when = ["Predicting server performance without runtime measurement"],
+    example = "let pack = sand::advanced::compiler::Compiler::compile(&program)?; let report = serde_json::to_value(&pack.runtime_report)?;"
+)]
+pub struct RuntimeReport {
     /// Version of this report's interpretation and serialized structure.
     schema_version: u32,
     /// Compiler-owned origins and cadence before publication erases them.
@@ -25,7 +34,7 @@ pub(crate) struct RuntimeReport {
     limitations: BTreeSet<String>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 struct TickEntry {
     reference: String,
     required: bool,
@@ -33,7 +42,7 @@ struct TickEntry {
     evaluations: Work,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 struct FunctionCost {
     owners: BTreeSet<String>,
     evaluations: Work,

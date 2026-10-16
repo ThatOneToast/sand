@@ -440,7 +440,7 @@ pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
 // ANCHOR: export_hook
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    match sand::advanced::try_export_components_json(namespace, mc_version) {
+    match sand::advanced::try_export_pack_json(namespace, mc_version) {
         Ok(json) => println!("{json}"),
         Err(e) => {
             eprintln!("sand export failed: {e}");
@@ -467,10 +467,10 @@ mod tests {
     }
 
     fn exported_functions() -> std::collections::BTreeMap<String, String> {
-        let records: Vec<serde_json::Value> = serde_json::from_str(
-            &sand::advanced::try_export_components_json("trail", "26.2").unwrap(),
-        )
-        .unwrap();
+        let export: serde_json::Value = serde_json::from_str(
+            &sand::advanced::try_export_pack_json("trail", "26.2").unwrap(),
+        ).unwrap();
+        let records: Vec<serde_json::Value> = serde_json::from_value(export["components"].clone()).unwrap();
         records
             .into_iter()
             .filter(|record| record["dir"] == "function")

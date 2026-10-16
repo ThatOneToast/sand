@@ -4347,12 +4347,12 @@ mod tests {
     #[test]
     fn installed_advanced_catalog_exposes_state_primitives_and_export_hook() {
         let catalog = generated_catalog();
-        let hook = show(catalog, "sand::advanced::try_export_components_json").unwrap();
+        let hook = show(catalog, "sand::advanced::try_export_pack_json").unwrap();
         assert!(hook.contains("version-validated JSON"));
         assert!(hook.contains("mc_version"));
 
         let grouped = module(catalog, "sand::advanced").unwrap();
-        assert!(grouped.contains("Functions\n  sand::advanced::try_export_components_json"));
+        assert!(grouped.contains("Functions\n  sand::advanced::try_export_pack_json"));
         assert!(grouped.contains("Modules\n  sand::advanced::compiler"));
         assert!(grouped.contains("  sand::advanced::state"));
         assert!(show(catalog, "sand::advanced::compiler::Compiler").is_ok());

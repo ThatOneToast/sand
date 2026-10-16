@@ -956,7 +956,7 @@ fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
 }
 
 pub fn export(namespace: &str, version: &str) {
-    let json = sand_core::advanced::try_export_components_json(namespace, version).unwrap_or_else(
+    let json = sand_core::advanced::try_export_pack_json(namespace, version).unwrap_or_else(
         |error| {
             eprintln!("audit export failed: {error}");
             std::process::exit(1);

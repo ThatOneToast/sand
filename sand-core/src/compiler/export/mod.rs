@@ -124,3 +124,32 @@ pub fn export_components_json(namespace: &str) -> String {
         Err(e) => panic!("sand component export failed: {e}"),
     }
 }
+
+/// Serialize compiler resources together with their compilation-local report.
+pub(crate) fn try_export_pack_json(
+    namespace: &str,
+    caps: &VersionCaps,
+    requested_version: &str,
+    is_fallback: bool,
+) -> ExportResult<String> {
+    #[derive(serde::Serialize)]
+    struct PackExport {
+        schema_version: u32,
+        components: Vec<ComponentRecord>,
+        runtime_report: crate::compiler::runtime::RuntimeReport,
+    }
+    let ctx = ExportCtx {
+        caps,
+        requested_version,
+        is_fallback,
+    };
+    let pack = pipeline::try_export_components_impl(namespace, Some(&ctx))?;
+    let runtime_report =
+        crate::compiler::runtime::RuntimeReport::collect(&pack.records, &pack.runtime);
+    serde_json::to_string_pretty(&PackExport {
+        schema_version: 1,
+        components: pack.records,
+        runtime_report,
+    })
+    .map_err(sand_components::error::SandError::Serialization)
+}

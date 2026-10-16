@@ -147,6 +147,25 @@ class TraceCounts(unittest.TestCase):
             with self.subTest(trace=trace), self.assertRaises(ValueError):
                 trace_counts(trace)
 
+    def test_active_noop_requires_exact_command_and_diagnostic_and_is_recorded(self):
+        """Keep idle parsing strict and retain the known refresh no-op as evidence."""
+        command = "data modify entity @s CustomNameVisible set value 1b"
+        message = "Nothing changed. The specified properties already have these values"
+        trace = f"    [F] rpg:refresh size=1\n        [C] {command}\n            [E] {message}                [M] {message}\n"
+        with self.assertRaisesRegex(ValueError, "error"):
+            trace_counts(trace)
+        diagnostics = []
+        self.assertEqual(trace_counts(trace, unchanged_writes=diagnostics), {"rpg:refresh": 1})
+        self.assertEqual(diagnostics, [command])
+        for invalid in (
+            trace.replace(command, "data modify entity @s Health set value 1f"),
+            trace.replace(message, "Unknown function"),
+            trace.replace(f"[M] {message}", f"[M] {message} unexpected"),
+            trace + "            [E] Too many commands\n",
+        ):
+            with self.subTest(trace=invalid), self.assertRaises(ValueError):
+                trace_counts(invalid, unchanged_writes=[])
+
     def test_pack_digest_is_path_independent_and_content_sensitive(self):
         """Identify resource paths and bytes independently of checkout location."""
         with tempfile.TemporaryDirectory() as directory:

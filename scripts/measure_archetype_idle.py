@@ -37,26 +37,41 @@ def verified_runtime_version(lines: list[str]) -> str:
     return "26.2"
 
 
-def trace_counts(content: str) -> dict[str, int]:
+def trace_counts(content: str, *, unchanged_writes: list[str] | None = None) -> dict[str, int]:
     """Count actual [C] evaluations by the enclosing vanilla function frame.
 
     Console 'Traced N command(s)' counts root commands only. [M]/[R] messages
     are not evaluations. Reject unknown frames and errors instead of reporting
-    incomplete data as a smaller cost.
+    incomplete data as a smaller cost. Passing ``unchanged_writes`` explicitly
+    permits and records the RPG refresh's exact redundant visibility write;
+    all other errors remain fatal, and its command is still counted.
     """
+    # The RPG level-up refresh reasserts this already-enabled property. Only
+    # this exact command/diagnostic pair is an accepted no-op in that workload.
+    unchanged = "Nothing changed. The specified properties already have these values"
+    unchanged_record = re.compile(rf" *\[E\] {re.escape(unchanged)}(?: +\[M\] {re.escape(unchanged)})?")
+    previous_command = None
     frames: list[tuple[int, str]] = []
     counts: Counter[str] = Counter()
     for line in content.splitlines():
         if re.match(r"^ *\[E\]", line):
+            if (unchanged_writes is not None
+                    and previous_command == "data modify entity @s CustomNameVisible set value 1b"
+                    and unchanged_record.fullmatch(line)):
+                unchanged_writes.append(previous_command)
+                previous_command = None
+                continue
             raise ValueError(f"vanilla trace reported an error: {line.strip()}")
         frame = FRAME.fullmatch(line)
         command = COMMAND.fullmatch(line)
         if frame:
+            previous_command = None
             depth = len(frame[1])
             while frames and frames[-1][0] >= depth:
                 frames.pop()
             frames.append((depth, frame[2]))
         elif command:
+            previous_command = command[2]
             depth = len(command[1])
             while frames and frames[-1][0] >= depth:
                 frames.pop()
@@ -134,7 +149,10 @@ class IdleCostHarness(PlayerHarness):
         if len(paths) != 1:
             raise ValueError(f"expected one successful trace file announcement, got {paths}")
         content = (self.server / "debug" / paths[0]).read_text()
-        counts = trace_counts(content)
+        unchanged_writes: list[str] = []
+        counts = trace_counts(
+            content, unchanged_writes=unchanged_writes if self.workload == "level-up" else None,
+        )
         if counts.get("sand_cost_probe:reconcile") != 2:
             raise ValueError("trace must contain probe dispatch and completion evaluations")
         if self.workload == "level-up" and count:
@@ -152,6 +170,7 @@ class IdleCostHarness(PlayerHarness):
             "probe_control_evaluations": 2,
             "reconcile_evaluations": total - 2,
             "by_function": counts,
+            "unchanged_writes": dict(sorted(Counter(unchanged_writes).items())),
             "trace": path.as_posix(),
         }
         if count == 0 and total != 2:

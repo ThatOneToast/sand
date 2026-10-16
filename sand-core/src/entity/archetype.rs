@@ -2030,13 +2030,19 @@ fn dirty_internal_name(dirty_objective: &str) -> String {
         .to_string()
 }
 
-fn dirty_distribution_commands(
+/// Emit each field's fan-out once and skip it when no write is pending.
+fn compile_dirty_distribution(
+    definition: &ArchetypeDefinition,
     fields: &ArchetypeFields,
     claims: &ComponentClaims,
     objectives: &mut BTreeSet<String>,
+    records: &mut Vec<ComponentRecord>,
+    functions: &mut BTreeSet<String>,
 ) -> Vec<String> {
-    let mut commands = Vec::new();
-    for field in fields.values() {
+    let root = generated_root(&definition.id.to_string());
+    let mut dispatch = Vec::new();
+    for (index, field) in fields.values().enumerate() {
+        let mut commands = Vec::new();
         let internal = dirty_internal_name(&field.dirty_objective);
         objectives.insert(internal.clone());
         let Some(claim_markers) = claims.get(&field.component) else {
@@ -2048,26 +2054,41 @@ fn dirty_distribution_commands(
             objectives.insert(pending.clone());
             objectives.insert(cause_pending.clone());
             commands.push(format!(
-                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 0",
-                field.dirty_objective, claim.marker,
+                "execute if entity @s[tag={}] run scoreboard players set @s {cause_pending} 0",
+                claim.marker,
             ));
             commands.push(format!(
-                "execute if score @s {} matches 1 unless score @s {internal} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 1",
-                field.dirty_objective, claim.marker,
+                "execute unless score @s {internal} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 1",
+                claim.marker,
             ));
             commands.push(format!(
-                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {pending} 1",
-                field.dirty_objective,
+                "execute if entity @s[tag={}] run scoreboard players set @s {pending} 1",
                 claim.marker,
             ));
         }
+        // The caller tests this field once. The body contains only score writes
+        // and clears the dirty bit last, so no nested callback can invalidate it.
         commands.push(format!(
-            "execute if score @s {} matches 1 run scoreboard players set @s {} 0",
-            field.dirty_objective, field.dirty_objective
+            "scoreboard players set @s {} 0",
+            field.dirty_objective
         ));
-        commands.push(format!("scoreboard players set @s {internal} 0"));
+        let path = format!("{root}/changes/{index}");
+        dispatch.push(format!(
+            "execute if score @s {} matches 1 run function {}:{path}",
+            field.dirty_objective,
+            definition.id.namespace(),
+        ));
+        // Retain the existing phase boundary: even a clean field clears a stale
+        // internal-cause bit before a later authored write can be observed.
+        dispatch.push(format!("scoreboard players set @s {internal} 0"));
+        functions.insert(path.clone());
+        records.push(ComponentRecord::function(
+            definition.id.namespace(),
+            &path,
+            commands,
+        ));
     }
-    commands
+    dispatch
 }
 
 fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
@@ -2316,6 +2337,14 @@ fn compile_definition_with_claims(
 
     let mut records = Vec::new();
     let mut functions = BTreeSet::new();
+    let dirty_distribution = compile_dirty_distribution(
+        definition,
+        &fields,
+        claims,
+        &mut objectives,
+        &mut records,
+        &mut functions,
+    );
     let load_path = format!("{root}/load");
     functions.insert(load_path.clone());
     records.push(ComponentRecord::function(
@@ -2455,11 +2484,7 @@ fn compile_definition_with_claims(
     initialize_commands.extend(transitions.initialize_commands.iter().cloned());
     repair_refresh_commands.extend(transitions.initialize_commands);
     initialize_commands.extend(dirty_pending_capture_commands(&fields, &marker));
-    initialize_commands.extend(dirty_distribution_commands(
-        &fields,
-        claims,
-        &mut objectives,
-    ));
+    initialize_commands.extend(dirty_distribution.iter().cloned());
     if let Some(callback) = &definition.initialize {
         initialize_commands.push(format!("function {callback}"));
     }
@@ -2532,7 +2557,7 @@ fn compile_definition_with_claims(
     if !repair_refresh_commands.is_empty() {
         let repair_path = format!("{root}/repair_refresh");
         functions.insert(repair_path.clone());
-        let mut commands = dirty_distribution_commands(&fields, claims, &mut objectives);
+        let mut commands = dirty_distribution.clone();
         commands.extend(dirty_acknowledgement_commands(&fields, &marker));
         commands.extend(repair_refresh_commands);
         records.push(ComponentRecord::function(
@@ -2596,11 +2621,7 @@ fn compile_definition_with_claims(
             field.objective, field.objective,
         ));
     }
-    reconcile_commands.extend(dirty_distribution_commands(
-        &fields,
-        claims,
-        &mut objectives,
-    ));
+    reconcile_commands.extend(dirty_distribution.iter().cloned());
     if !refresh_outputs.is_empty() {
         if let Some(path) = &derivations.refresh_function {
             reconcile_commands.push(format!("function {path}"));
@@ -2613,19 +2634,11 @@ fn compile_definition_with_claims(
         reconcile_commands.push(format!("function {path}"));
     }
     reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
-    reconcile_commands.extend(dirty_distribution_commands(
-        &fields,
-        claims,
-        &mut objectives,
-    ));
+    reconcile_commands.extend(dirty_distribution.iter().cloned());
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
     }
-    reconcile_commands.extend(dirty_distribution_commands(
-        &fields,
-        claims,
-        &mut objectives,
-    ));
+    reconcile_commands.extend(dirty_distribution.iter().cloned());
     records.push(ComponentRecord::function(
         definition.id.namespace(),
         &reconcile_path,
@@ -4610,6 +4623,94 @@ mod tests {
         .unwrap()
     }
 
+    /// Follow the change-dispatch calls when checking cross-function command order.
+    fn with_change_bodies(
+        record: &ComponentRecord,
+        records: &[ComponentRecord],
+    ) -> ComponentRecord {
+        let mut expanded = record.clone();
+        expanded.content = record
+            .content
+            .lines()
+            .map(|line| {
+                let Some((_, target)) = line.rsplit_once(" run function ") else {
+                    return line.to_owned();
+                };
+                let Some((namespace, path)) = target.split_once(':') else {
+                    return line.to_owned();
+                };
+                if !path.contains("/changes/") {
+                    return line.to_owned();
+                }
+                let body = records
+                    .iter()
+                    .find(|body| body.namespace == namespace && body.path == path)
+                    .unwrap();
+                format!("{line}\n{}", body.content)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        expanded
+    }
+
+    /// Clean fields never enter the shared fan-out body; dirty fields retain it.
+    #[test]
+    fn dirty_fanout_is_emitted_once_and_guarded_at_each_phase() {
+        let definition = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "idle_changes").unwrap(),
+        )
+        .components::<MobState>()
+        .definition();
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let fields = ArchetypeFields::new(&definition).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let helpers: Vec<_> = compiled
+            .records
+            .iter()
+            .filter(|record| record.path.contains("/changes/"))
+            .collect();
+        assert_eq!(helpers.len(), fields.values().count());
+        for field in fields.values() {
+            let reset = format!("scoreboard players set @s {} 0", field.dirty_objective);
+            let helper = helpers
+                .iter()
+                .find(|record| record.content.lines().any(|line| line == reset))
+                .unwrap();
+            let call = format!(
+                "execute if score @s {} matches 1 run function {}:{}",
+                field.dirty_objective, helper.namespace, helper.path
+            );
+            assert_eq!(
+                reconcile
+                    .content
+                    .lines()
+                    .filter(|line| *line == call)
+                    .count(),
+                3
+            );
+            assert!(!reconcile.content.contains(&reset));
+            assert!(
+                !helper
+                    .content
+                    .contains(&format!("if score @s {} matches 1", field.dirty_objective))
+            );
+            assert!(compiled.report.functions.contains(&helper.path));
+            let pending = dirty_pending_name(
+                &field.dirty_objective,
+                &initialized_tag(&definition.id.to_string()),
+            );
+            assert!(
+                helper
+                    .content
+                    .contains(&format!("scoreboard players set @s {pending} 1"))
+            );
+        }
+    }
+
     #[test]
     fn compile_is_repeat_deterministic_and_initialization_marks_last() {
         let archetype = EntityArchetype::<ZombieKind>::new(
@@ -4695,11 +4796,12 @@ mod tests {
         .definition();
         let claims = component_claims(&[first.clone(), second.clone()]);
         let compiled = compile_definition_with_claims(&first, &profile(), &claims).unwrap();
-        let reconcile = compiled
+        let raw_reconcile = compiled
             .records
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
+        let reconcile = with_change_bodies(raw_reconcile, &compiled.records);
         let second_marker = initialized_tag(&second.id.to_string());
         let first_pending = dirty_pending_name(
             &LEVEL.dirty_objective(),
@@ -4765,7 +4867,7 @@ mod tests {
             "scoreboard players set @s {} 0",
             LEVEL.dirty_objective()
         )));
-        assert!(!reconcile.content.lines().any(|line| {
+        assert!(!raw_reconcile.content.lines().any(|line| {
             line == format!("scoreboard players set @s {} 0", LEVEL.dirty_objective())
         }));
         let cleanup = compiled
@@ -4863,6 +4965,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/initialize"))
             .unwrap();
+        let initialize = with_change_bodies(initialize, &compiled.records);
         let property = initialize.content.find("/property/0").unwrap();
         let capture = initialize.content.find(&pending_set).unwrap();
         let dirty_reset = initialize
@@ -4880,6 +4983,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/repair_refresh"))
             .unwrap();
+        let repair = with_change_bodies(repair, &compiled.records);
         let repair_ack = repair.content.find(&pending_clear).unwrap();
         let repair_derive = repair.content.find("/derive/0").unwrap();
         let repair_property = repair.content.find("/property/0").unwrap();
@@ -4890,6 +4994,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
+        let reconcile = with_change_bodies(reconcile, &compiled.records);
         let repair_call = reconcile.content.find("/repair_refresh").unwrap();
         let republish = reconcile.content[repair_call..].find(&pending_set).unwrap();
         assert!(republish > 0);
@@ -5024,6 +5129,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
+        let reconcile = with_change_bodies(reconcile, &compiled.records);
         let derive_line = reconcile
             .content
             .lines()
@@ -5120,6 +5226,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
+        let reconcile = with_change_bodies(reconcile, &compiled.records);
         let cause_snapshot = reconcile
             .content
             .find(&format!(
@@ -5211,6 +5318,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
+        let reconcile = with_change_bodies(reconcile, &compiled.records);
         let refresh = reconcile
             .content
             .find(&format!("function rpg:{root}/refresh"))
@@ -5268,6 +5376,7 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
+        let reconcile = with_change_bodies(reconcile, &compiled.records);
         let acknowledge = reconcile
             .content
             .find(&format!("scoreboard players set @s {pending} 0"))

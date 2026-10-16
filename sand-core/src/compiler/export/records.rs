@@ -1141,6 +1141,7 @@ mod tests {
         assert!(err.contains("comparator_output"), "{err}");
     }
 
+    /// Malformed descriptions cannot enter the compiler resource records.
     #[test]
     fn malformed_resource_descriptions_fail_at_record_boundary() {
         let resources: Vec<Box<dyn DatapackComponent>> = vec![

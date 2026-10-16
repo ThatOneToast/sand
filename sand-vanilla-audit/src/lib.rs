@@ -802,6 +802,11 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
             "object_player",
             json!({"object": "player", "player": "Steve", "hat": false}),
         ),
+        ("custom_click", json!({"text":"Custom","click_event":{"action":"custom","id":"sand_audit:click","payload":{"x":1}}})),
+        ("inline_dialog", json!({"text":"Dialog","click_event":{"action":"show_dialog","dialog":{"type":"minecraft:notice","title":{"text":"Hello"}}}})),
+        ("default_hover_item", json!({"text":"Item","hover_event":{"action":"show_item","id":"stone"}})),
+        ("default_hover_entity", json!({"text":"Entity","hover_event":{"action":"show_entity","id":"zombie","uuid":[0,0,0,1]}})),
+        ("escaped_url", json!({"text":"Link","click_event":{"action":"open_url","url":"HTTPS://example.com/café?q=%20#ok"}})),
         (
             "object_profile",
             json!({"player": {"name": "Steve", "id": [306070887, -392490285, -1537850778, 337068032]}, "fallback": {"text": "Player"}}),

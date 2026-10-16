@@ -49,7 +49,11 @@ Use `Instrument::description(TextComponent)` and
 `JukeboxSong::description(TextComponent)` for required resource descriptions.
 `raw_description(RawJson)` remains an explicit interoperability escape hatch;
 known text fields and nested interactions still receive shape validation, including
-atlas sprites, player-head objects, and their nested fallback text.
+atlas sprites, player-head objects, and their nested fallback text. Known click
+actions require their payloads; `custom` needs an identifier, and `show_dialog`
+needs a dialog reference or inline object. Raw hover identifiers may omit the
+`minecraft:` namespace. URL validation checks URI syntax, including percent
+escapes, and permits HTTP(S). `open_file` is rejected by the server text codec.
 
 Opaque compatibility is explicit: `Text::raw_json`,
 `TextComponent::selector_raw`, `hover_item_raw`, and `hover_entity_raw` render

@@ -1812,6 +1812,7 @@ fn is_hex_color(value: &str) -> bool {
         && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+/// Validate shared typed and raw click payloads against the server text codec.
 fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
     match click {
         ClickEvent::RunCommand(value) | ClickEvent::SuggestCommand(value)
@@ -1825,19 +1826,20 @@ fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
             ))
         }
         ClickEvent::OpenUrl(value) => {
-            let remainder = value
-                .strip_prefix("https://")
-                .or_else(|| value.strip_prefix("http://"));
-            if remainder.is_none_or(|rest| {
-                rest.is_empty()
-                    || rest.starts_with('/')
-                    || rest.chars().any(|c| c.is_whitespace() || c.is_control())
-            }) {
+            let valid = iri_string::types::IriStr::new(value).is_ok_and(|uri| {
+                let scheme = uri.scheme_str();
+                let target = &value[scheme.len() + 1..];
+                (scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https"))
+                    && !target.split('#').next().unwrap_or_default().is_empty()
+                    && target != "//"
+                    && !value.chars().any(|c| c.is_whitespace() || c.is_control())
+            });
+            if !valid {
                 Err(text_error(
                     "SAND-TEXT-CLICK-URL",
                     format!("{path}.click_event.url"),
                     format!(
-                        "open_url requires a non-empty `http://` or `https://` target without whitespace; got `{value}`"
+                        "open_url requires a valid HTTP(S) URI without whitespace; got `{value}`"
                     ),
                 ))
             } else {
@@ -1853,6 +1855,7 @@ fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
     }
 }
 
+/// Validate typed hover payloads and recurse into their displayed text.
 fn validate_hover(
     hover: &TextHoverEvent,
     profile: &CommandProfile,
@@ -2022,6 +2025,55 @@ fn validate_json_interactions(
                         })?;
                     Some(ClickEvent::ChangePage(page as u32))
                 }
+                "custom" => {
+                    let id = json_event_string(event, "id", &event_path)?;
+                    validate_json_identifier(
+                        &serde_json::Value::String(id.into()),
+                        &format!("{event_path}.id"),
+                    )?;
+                    None
+                }
+                "show_dialog" => {
+                    let dialog_path = format!("{event_path}.dialog");
+                    let dialog = event.get("dialog").ok_or_else(|| {
+                        text_error(
+                            "SAND-TEXT-SHAPE",
+                            &dialog_path,
+                            "expected a dialog identifier or inline dialog object",
+                        )
+                    })?;
+                    if let Some(inline) = dialog.as_object() {
+                        let kind = json_event_string(inline, "type", &dialog_path)?;
+                        validate_json_identifier(
+                            &serde_json::Value::String(kind.into()),
+                            &format!("{dialog_path}.type"),
+                        )?;
+                        let title = inline.get("title").ok_or_else(|| {
+                            text_error(
+                                "SAND-TEXT-SHAPE",
+                                format!("{dialog_path}.title"),
+                                "inline dialogs require a title",
+                            )
+                        })?;
+                        validate_json_text_inner(
+                            title,
+                            profile,
+                            &format!("{dialog_path}.title"),
+                            depth + 1,
+                        )?;
+                    } else {
+                        validate_json_identifier(dialog, &dialog_path)?;
+                    }
+                    None
+                }
+                "open_file" => {
+                    json_event_string(event, "path", &event_path)?;
+                    return Err(text_error(
+                        "SAND-TEXT-SHAPE",
+                        format!("{event_path}.action"),
+                        "open_file is not allowed in server-provided text",
+                    ));
+                }
                 _ => None,
             };
             if let Some(click) = click {
@@ -2054,11 +2106,9 @@ fn validate_json_interactions(
                 }
                 "show_item" | "show_entity" => {
                     let id = json_event_string(event, "id", &event_path)?;
-                    crate::validate::resource_location_shape(id, "TextComponent", "id").map_err(
-                        |mut error| {
-                            error.field = format!("{event_path}.id");
-                            error
-                        },
+                    validate_json_identifier(
+                        &serde_json::Value::String(id.into()),
+                        &format!("{event_path}.id"),
                     )?;
                     if action == "show_item" {
                         if let Some(count) = event.get("count")
@@ -2097,7 +2147,7 @@ fn validate_json_interactions(
                             return Err(text_error(
                                 "SAND-TEXT-HOVER-ENTITY",
                                 format!("{event_path}.uuid"),
-                                "expected four signed 32-bit UUID parts",
+                                "expected a UUID string or four signed 32-bit UUID parts",
                             ));
                         }
                         if let Some(name) = event.get("name") {
@@ -3020,6 +3070,7 @@ mod tests {
         assert!(s.contains("\"copy_to_clipboard\""), "got: {s}");
     }
 
+    /// Page clicks retain surrounding style and sibling components.
     #[test]
     fn click_change_page_preserves_page_styling_and_siblings() {
         let value: serde_json::Value = serde_json::from_str(
@@ -3115,6 +3166,7 @@ mod tests {
         );
     }
 
+    /// The explicit unchecked entity-hover endpoint preserves legacy raw output.
     #[test]
     fn raw_hover_entity_without_uuid_remains_an_explicit_escape_hatch() {
         let value: serde_json::Value = serde_json::from_str(

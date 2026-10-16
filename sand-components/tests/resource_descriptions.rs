@@ -2,17 +2,20 @@ use sand_commands::TextComponent;
 use sand_components::{DatapackComponent, Instrument, JukeboxSong, RawJson, ResourceLocation};
 use serde_json::{Value, json};
 
+/// Build the required non-text fields for instrument validation cases.
 fn instrument() -> Instrument {
     Instrument::new(ResourceLocation::new("test", "horn").unwrap())
         .sound_event("minecraft:item.goat_horn.sound.0")
 }
 
+/// Build the required non-text fields for jukebox validation cases.
 fn song() -> JukeboxSong {
     JukeboxSong::new(ResourceLocation::new("test", "song").unwrap())
         .sound_event("minecraft:music_disc.13")
         .song_length(178.0)
 }
 
+/// Exercise identical raw text through both resource export boundaries.
 fn described(value: Value) -> Vec<Box<dyn DatapackComponent>> {
     vec![
         Box::new(instrument().raw_description(RawJson::new(value.clone()))),
@@ -274,6 +277,10 @@ fn jukebox_comparator_zero_is_valid() {
 fn explicit_text_shapes_round_trip() {
     for value in [
         json!("Name"),
+        json!({"text":"x","click_event":{"action":"custom","id":"click","payload":{"x":1}}}),
+        json!({"text":"x","click_event":{"action":"show_dialog","dialog":"minecraft:server_links"}}),
+        json!({"text":"x","click_event":{"action":"show_dialog","dialog":{"type":"minecraft:notice","title":{"text":"Hello"}}}}),
+        json!({"text":"x","click_event":{"action":"open_url","url":"HTTPS://example.com/café?q=%20#ok"}}),
         json!({"nbt": "foo", "entity": "Steve"}),
         json!({"nbt": "foo", "entity": "123e4567-e89b-12d3-a456-426614174000"}),
         json!({"selector": "Steve", "separator": {"text": ", "}}),
@@ -359,4 +366,66 @@ fn typed_named_selector_descriptions_are_valid() {
         ))
         .try_content()
         .unwrap();
+}
+
+/// Every recognized click action must carry its required codec payload.
+#[test]
+fn raw_click_actions_require_payloads() {
+    for (event, field) in [
+        (json!({"action":"custom"}), "id"),
+        (json!({"action":"custom", "id":42}), "id"),
+        (json!({"action":"custom", "id":"bad id"}), "id"),
+        (json!({"action":"show_dialog"}), "dialog"),
+        (json!({"action":"show_dialog", "dialog":42}), "dialog"),
+        (json!({"action":"show_dialog", "dialog":"bad id"}), "dialog"),
+        (json!({"action":"open_file"}), "path"),
+        (json!({"action":"open_file", "path":42}), "path"),
+        (json!({"action":"open_file", "path":"test.txt"}), "action"),
+    ] {
+        for component in described(json!({"text":"x", "click_event":event})) {
+            let error = component.try_content().unwrap_err();
+            assert!(
+                error.to_string().contains(&format!("click_event.{field}")),
+                "{error}"
+            );
+        }
+    }
+}
+
+/// Raw identifiers preserve Minecraft's omitted-namespace shorthand.
+#[test]
+fn raw_hover_ids_accept_default_namespace() {
+    for event in [
+        json!({"action":"show_item", "id":"stone"}),
+        json!({"action":"show_entity", "id":"zombie", "uuid":[0,0,0,1]}),
+    ] {
+        for component in described(json!({"text":"x", "hover_event":event})) {
+            component.try_content().unwrap();
+        }
+    }
+}
+
+/// Typed and raw URLs reject invalid URI syntax before resource export.
+#[test]
+fn click_urls_reject_malformed_uri_syntax() {
+    for url in [
+        "https://example.com/%",
+        "https://example.com/%GG",
+        "https://[broken/path",
+        "https://example.com/{bad}",
+        "https://example.com/a b",
+    ] {
+        assert!(
+            TextComponent::literal("x")
+                .click_open_url(url)
+                .try_to_json_value()
+                .is_err(),
+            "{url}"
+        );
+        for component in
+            described(json!({"text":"x", "click_event":{"action":"open_url", "url":url}}))
+        {
+            assert!(component.try_content().is_err(), "{url}");
+        }
+    }
 }

@@ -50,6 +50,7 @@ impl ComponentText {
 }
 
 impl Serialize for ComponentText {
+    /// Serialize either validated authoring representation without changing its JSON shape.
     fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
         match self {
             Self::Typed(text) => text

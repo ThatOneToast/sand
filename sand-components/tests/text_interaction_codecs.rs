@@ -1,6 +1,7 @@
 use sand_commands::{CommandProfile, EntityHoverId, Text, TextComponent};
 use serde_json::{Value, json};
 
+/// Validate typed text before comparing its serialized codec fields.
 fn rendered(text: TextComponent) -> Value {
     text.try_to_json_value().unwrap()
 }

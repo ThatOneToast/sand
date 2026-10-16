@@ -245,6 +245,7 @@ mod tests {
         assert!(song.validate().is_err());
     }
 
+    /// Vanilla permits silent comparator output for a song.
     #[test]
     fn comparator_output_zero_is_accepted() {
         let song = valid().comparator_output(0);

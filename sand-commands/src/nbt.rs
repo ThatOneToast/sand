@@ -549,6 +549,7 @@ fn render_path_key(key: &str) -> String {
     }
 }
 
+/// Validate the shared Minecraft path grammar without emitting command text.
 pub(crate) fn validate_nbt_path(path: &str) -> CommandResult<()> {
     if path.trim().is_empty() {
         return Err(data_error(

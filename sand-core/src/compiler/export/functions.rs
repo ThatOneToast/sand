@@ -14,6 +14,7 @@ pub(crate) fn drain_generated_resources_into(
     records: &mut Vec<ComponentRecord>,
     namespace: &str,
     ctx: Option<&super::ExportCtx<'_>>,
+    runtime: &mut crate::compiler::runtime::RuntimePlan,
 ) -> super::records::ExportResult<()> {
     let generated_start = records.len();
     let mut emitted = std::collections::BTreeSet::new();
@@ -25,7 +26,11 @@ pub(crate) fn drain_generated_resources_into(
         }
         for resource in drained {
             match resource {
-                crate::function::GeneratedResource::Function(path, commands) => {
+                crate::function::GeneratedResource::Function(path, commands, origins) => {
+                    runtime.generated_function(
+                        format!("{namespace}:{path}"),
+                        resolve_origins(origins, namespace),
+                    );
                     // A parent may replay an already-drained helper. Distinct
                     // bodies at one path still reach the collision guard.
                     if !emitted.insert((path.clone(), commands.identity())) {
@@ -38,7 +43,7 @@ pub(crate) fn drain_generated_resources_into(
                             .lower(&sand_components::ResourceLocation::new(namespace, &path)?)?,
                     ));
                 }
-                crate::function::GeneratedResource::Component(component) => {
+                crate::function::GeneratedResource::Component(component, origins) => {
                     // Keep the typed component until this profile-aware boundary.
                     let record = super::records::component_to_record(&*component, ctx)?;
                     let owner = format!("generated resource {}:{}", record.namespace, record.path);
@@ -60,6 +65,12 @@ pub(crate) fn drain_generated_resources_into(
                             record.namespace = namespace.to_owned();
                         }
                         record.content = resolve_local_refs(&record.content, namespace);
+                        if record.dir == "function" && record.ext == "mcfunction" {
+                            runtime.generated_function(
+                                format!("{}:{}", record.namespace, record.path),
+                                resolve_origins(origins.clone(), namespace),
+                            );
+                        }
                         if !emitted_components.contains(&record) {
                             emitted_components.push(record.clone());
                             records.push(record);
@@ -98,6 +109,19 @@ pub(crate) fn drain_generated_resources_into(
     Ok(())
 }
 
+/// Normalize only captured function references; logical Rust owners are unchanged.
+fn resolve_origins(
+    origins: impl IntoIterator<Item = crate::function::GeneratedOrigin>,
+    namespace: &str,
+) -> impl Iterator<Item = crate::function::GeneratedOrigin> {
+    origins.into_iter().map(move |origin| match origin {
+        crate::function::GeneratedOrigin::Function(caller) => {
+            crate::function::GeneratedOrigin::Function(resolve_local_refs(&caller, namespace))
+        }
+        origin => origin,
+    })
+}
+
 /// Replace every `__sand_local:<path>` sentinel in an mcfunction content string
 /// with `<namespace>:<path>`.
 ///
@@ -131,7 +155,8 @@ mod tests {
             ComponentRecord::function("test", "authored/z", vec!["say first".into()]),
             ComponentRecord::function("test", "authored/a", vec!["say second".into()]),
         ];
-        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        drain_generated_resources_into(&mut records, "test", None, &mut Default::default())
+            .unwrap();
         assert_eq!(
             records.iter().map(|r| r.path.as_str()).collect::<Vec<_>>(),
             ["authored/z", "authored/a", "owned/a", "owned/z"]
@@ -147,7 +172,8 @@ mod tests {
         crate::function::register_generated_component(tag("shared", "diamond"));
         crate::function::register_generated_component(tag("shared", "emerald"));
         let mut records = Vec::new();
-        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        drain_generated_resources_into(&mut records, "test", None, &mut Default::default())
+            .unwrap();
         assert_eq!(records.len(), 2);
         let error = super::super::records::validate_unique_output_identities(&records).unwrap_err();
         assert!(
@@ -177,7 +203,8 @@ mod tests {
         let _scope = crate::function::ExportFunctionRegistryScope::enter();
         crate::function::register_generated_component(Parent("test:parent".parse().unwrap()));
         let mut records = Vec::new();
-        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        drain_generated_resources_into(&mut records, "test", None, &mut Default::default())
+            .unwrap();
         assert_eq!(records.len(), 2);
         assert!(
             records
@@ -201,12 +228,18 @@ mod tests {
                 sand_version::ComponentFeature::ItemComponents,
             );
             crate::function::register_generated_component(tag("pending", "diamond"));
-            let error =
-                drain_generated_resources_into(&mut Vec::new(), "test", Some(&ctx)).unwrap_err();
+            let error = drain_generated_resources_into(
+                &mut Vec::new(),
+                "test",
+                Some(&ctx),
+                &mut Default::default(),
+            )
+            .unwrap_err();
             assert!(error.to_string().contains("999.0"));
         }
         let mut records = Vec::new();
-        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        drain_generated_resources_into(&mut records, "test", None, &mut Default::default())
+            .unwrap();
         assert!(records.is_empty());
     }
 
@@ -221,7 +254,9 @@ mod tests {
                 run: Box::new(crate::ir::Cmd::Raw("say invalid".into())),
             }]),
         );
-        let error = drain_generated_resources_into(&mut Vec::new(), "test", None).unwrap_err();
+        let error =
+            drain_generated_resources_into(&mut Vec::new(), "test", None, &mut Default::default())
+                .unwrap_err();
         assert!(error.to_string().contains("SAND-COMMAND-EXECUTE-EMPTY"));
     }
 
@@ -288,7 +323,8 @@ mod tests {
                     ComponentRecord::function(namespace, &function.path, function.commands)
                 })
                 .collect::<Vec<_>>();
-            drain_generated_resources_into(&mut records, namespace, None).unwrap();
+            drain_generated_resources_into(&mut records, namespace, None, &mut Default::default())
+                .unwrap();
             for record in &mut records {
                 record.content = resolve_local_refs(&record.content, namespace);
             }

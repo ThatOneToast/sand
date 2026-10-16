@@ -186,6 +186,7 @@ pub(crate) fn emit_schedule_records_with(
     let mut tick_cmds: Vec<String> = Vec::new();
 
     for desc in schedules {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
         let hash = keys
             .get(desc.path)
             .expect("every schedule path receives an allocated key");

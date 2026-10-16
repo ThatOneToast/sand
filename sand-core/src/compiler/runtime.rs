@@ -17,6 +17,9 @@ type TagContributors = BTreeMap<(String, String), BTreeSet<String>>;
 /// Semantic inputs for runtime reporting, before final resource publication.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct RuntimePlan {
+    /// Registration-time helper dependencies, consumed before publishing provenance.
+    #[serde(skip)]
+    generated_callers: BTreeMap<String, BTreeSet<String>>,
     /// Logical owners associated with a generated function's full resource id.
     pub(crate) function_owners: BTreeMap<String, BTreeSet<String>>,
     /// Owners of tag-membership contributions; contributing an invocation does
@@ -66,6 +69,54 @@ impl RuntimePlan {
             .entry(function)
             .or_default()
             .insert(owner);
+    }
+
+    /// Retain exact registration origins, including late replays of shared helpers.
+    pub(crate) fn generated_function(
+        &mut self,
+        function: String,
+        origins: impl IntoIterator<Item = crate::function::GeneratedOrigin>,
+    ) {
+        for origin in origins {
+            match origin {
+                crate::function::GeneratedOrigin::Logical(owner) => {
+                    self.own_function(function.clone(), owner)
+                }
+                crate::function::GeneratedOrigin::Function(caller) => {
+                    self.generated_callers
+                        .entry(function.clone())
+                        .or_default()
+                        .insert(caller);
+                }
+            }
+        }
+    }
+
+    /// Propagate owners through recorded helper registrations to a finite fixpoint.
+    pub(crate) fn resolve_generated_owners(&mut self) {
+        let mut children: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for (child, callers) in std::mem::take(&mut self.generated_callers) {
+            for caller in callers {
+                children.entry(caller).or_default().insert(child.clone());
+            }
+        }
+        let mut queue: std::collections::VecDeque<_> =
+            self.function_owners.keys().cloned().collect();
+        while let Some(parent) = queue.pop_front() {
+            let owners = self
+                .function_owners
+                .get(&parent)
+                .cloned()
+                .unwrap_or_default();
+            for child in children.get(&parent).into_iter().flatten() {
+                let target = self.function_owners.entry(child.clone()).or_default();
+                let before = target.len();
+                target.extend(owners.iter().cloned());
+                if target.len() != before {
+                    queue.push_back(child.clone());
+                }
+            }
+        }
     }
 
     /// Retain every contributor to a deduplicated tag membership.

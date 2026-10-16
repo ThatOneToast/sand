@@ -62,9 +62,54 @@ fn custom_entry() {
     cmd::say("custom");
 }
 
+// Preconstruct and replay identical nested IR from two distinct authored owners.
+static SHARED: std::sync::OnceLock<Actions> = std::sync::OnceLock::new();
+fn shared_actions() -> Actions {
+    SHARED
+        .get_or_init(|| {
+            let condition = sand_core::state::Flag::new("report_ready")
+                .of("@s")
+                .is_true();
+            let leaf = when(condition.clone()).then_all(["say shared report leaf"]);
+            mcfunction![
+                leaf.clone();
+                unless(condition).then_all(leaf);
+            ]
+        })
+        .clone()
+}
+
+sand_core::inventory::submit! {
+    sand_core::FunctionDescriptor {
+        owner: concat!(module_path!(), "::shared_first"),
+        context: sand::advanced::compiler::ExecutionContext::Server,
+        path: "shared_first",
+        make: shared_actions,
+    }
+}
+sand_core::inventory::submit! {
+    sand_core::FunctionDescriptor {
+        owner: concat!(module_path!(), "::shared_second"),
+        context: sand::advanced::compiler::ExecutionContext::Server,
+        path: "shared_second",
+        make: shared_actions,
+    }
+}
+
+#[on_event(item = "minecraft:stone")]
+fn holding_stone(_event: Event<sand::events::HoldingItemEvent>) {
+    cmd::say("holding stone");
+}
+
+#[on_event(item = "minecraft:diamond")]
+fn holding_diamond(_event: Event<sand::events::HoldingItemEvent>) {
+    cmd::say("holding diamond");
+}
+
 /// Nested functions inherit their factory owner and descriptors retain Rust owners.
 #[test]
 fn expanded_resources_and_attribute_tags_keep_semantic_owners() {
+    let _prebuilt = shared_actions();
     for namespace in ["owners", "other_owners"] {
         let json = sand::advanced::try_export_pack_json(namespace, "26.2").unwrap();
         let export: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -93,6 +138,42 @@ fn expanded_resources_and_attribute_tags_keep_semantic_owners() {
                 "missing owner for {path}"
             );
         }
+        let shared_owners = serde_json::json!([owner("shared_first"), owner("shared_second")]);
+        let records = export["components"].as_array().unwrap();
+        let helpers: Vec<_> = records
+            .iter()
+            .filter(|record| {
+                record["dir"] == "function"
+                    && record["content"].as_str().is_some_and(|body| {
+                        body.contains("shared report leaf")
+                            || body.contains("function ") && body.contains("report_ready")
+                    })
+                    && record["path"] != "shared_first"
+                    && record["path"] != "shared_second"
+            })
+            .collect();
+        assert!(
+            helpers.len() >= 2,
+            "nested shared helper fixture must emit multiple bodies"
+        );
+        for helper in helpers {
+            let id = format!(
+                "{}:{}",
+                helper["namespace"].as_str().unwrap(),
+                helper["path"].as_str().unwrap()
+            );
+            assert_eq!(report["functions"][&id]["owners"], shared_owners, "{id}");
+        }
+        let coordinator = format!("{namespace}:__sand_tick_check");
+        let event_owners = serde_json::json!([owner("holding_diamond"), owner("holding_stone")]);
+        assert_eq!(report["functions"][&coordinator]["owners"], event_owners);
+        let tick = report["tick"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == coordinator)
+            .unwrap();
+        assert_eq!(tick["contributors"], event_owners);
         for (tag, name) in [
             ("minecraft:tick", "tick_entry"),
             ("minecraft:load", "load_entry"),

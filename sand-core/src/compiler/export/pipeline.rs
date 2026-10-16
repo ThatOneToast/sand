@@ -124,6 +124,7 @@ fn invoke_event_handler_body(
 fn invoke_component_factory(
     factory: &crate::function::ComponentFactory,
 ) -> ExportResult<crate::DatapackRegistration> {
+    let _origin = crate::function::GeneratedOwnerScope::logical(factory.owner);
     let _guard = EXPORT_PANIC_HOOK_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -165,6 +166,7 @@ fn lower_state_system_body(
     system: &crate::function::StateSystemDescriptor,
     namespace: &str,
 ) -> ExportResult<Vec<String>> {
+    let _origin = crate::function::GeneratedOwnerScope::logical(system.id);
     (system.make)()
         .lower(&sand_components::ResourceLocation::new(
             namespace,
@@ -251,6 +253,7 @@ pub(crate) fn try_export_components_impl(
 
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
         runtime.own_function(format!("{namespace}:{}", desc.path), desc.owner.into());
         function_contexts.insert(format!("{namespace}:{}", desc.path), desc.context);
         let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
@@ -302,6 +305,7 @@ pub(crate) fn try_export_components_impl(
         .collect::<ExportResult<Vec<_>>>()?;
     let mut top_level = Vec::new();
     for (factory, registration) in registrations {
+        let _origin = crate::function::GeneratedOwnerScope::logical(factory.owner);
         let (components, lifecycle, function_tags) = registration.into_parts();
         for (order, contribution) in lifecycle.into_iter().enumerate() {
             let entry = (
@@ -398,6 +402,7 @@ pub(crate) fn try_export_components_impl(
     let mut armor_watch_map: BTreeMap<ArmorWatchKey, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
         let first_record = records.len();
         // Always emit the handler function body first. Routed through
         // `invoke_event_handler_body` (#280 item 2) rather than calling
@@ -934,6 +939,7 @@ pub(crate) fn try_export_components_impl(
 
     // ── ArmorEventDescriptors (legacy #[armor_event]) ─────────────────────────
     for desc in inventory::iter::<ArmorEventDescriptor>() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(desc.owner);
         runtime.own_function(format!("{namespace}:{}", desc.path), desc.owner.into());
         let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
             namespace, desc.path,
@@ -979,6 +985,11 @@ pub(crate) fn try_export_components_impl(
             });
         }
         let tick_path = "__sand_tick_check";
+        for (desc, _) in &tick_poll_events {
+            let function = format!("{namespace}:{tick_path}");
+            runtime.own_function(function.clone(), desc.owner.into());
+            runtime.contribute_tag("minecraft:tick".into(), function, desc.owner.into());
+        }
         let tick_cmds: Vec<String> = tick_poll_events
             .iter()
             .map(|(desc, condition)| {
@@ -2501,7 +2512,7 @@ pub(crate) fn try_export_components_impl(
     // Must run AFTER every desc.make() call so branches registered by event
     // bodies, schedule bodies, armor handlers, etc. are all captured.
     // The loop handles chains: draining can trigger further registrations.
-    drain_generated_resources_into(&mut records, namespace, ctx)?;
+    drain_generated_resources_into(&mut records, namespace, ctx, &mut runtime)?;
 
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // Must run after ComponentFactory and other make() calls so callbacks
@@ -2620,6 +2631,7 @@ pub(crate) fn try_export_components_impl(
     );
     validate_function_records(&mut records, &command_profile)?;
 
+    runtime.resolve_generated_owners();
     Ok(super::CollectedPack { records, runtime })
 }
 

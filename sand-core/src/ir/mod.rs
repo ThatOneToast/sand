@@ -121,6 +121,7 @@ impl Actions {
         &self,
         location: &sand_components::ResourceLocation,
     ) -> sand_components::error::Result<Vec<String>> {
+        let _origin = crate::function::GeneratedOwnerScope::function(location);
         let mut output = Vec::new();
         for (index, command) in self.0.iter().enumerate() {
             let rendered = command

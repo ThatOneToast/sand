@@ -40,10 +40,7 @@ struct AuditState {
 
 #[function]
 pub fn audit_command() {
-    cmd::tellraw(
-        Target::players(),
-        Text::new("Sand audit loaded").green(),
-    );
+    cmd::tellraw(Target::players(), Text::new("Sand audit loaded").green());
 }
 
 /// Parser-only coverage for the validated display/media command families.
@@ -404,14 +401,17 @@ pub fn audit_health_low(_: sand_core::event::Event<sand_core::events::PlayerLowH
 }
 
 #[on_event]
-pub fn audit_health_recovered(_: sand_core::event::Event<sand_core::events::PlayerRecoveredHealthEvent<6>>) {
+pub fn audit_health_recovered(
+    _: sand_core::event::Event<sand_core::events::PlayerRecoveredHealthEvent<6>>,
+) {
     cmd::raw("scoreboard players add @s sand_obs_back 1")
 }
 
 pub struct AuditNativeHealthChanged;
 impl SandEvent for AuditNativeHealthChanged {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health())).changed()
+        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health()))
+            .changed()
     }
 }
 #[on_event]
@@ -422,7 +422,8 @@ pub fn audit_native_health_changed(_: AuditNativeHealthChanged) {
 pub struct AuditNativeHealthLost;
 impl SandEvent for AuditNativeHealthLost {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health())).decreased()
+        SandEventDispatch::observe_players(|player| StatCurve::from(player.living().health()))
+            .decreased()
     }
 }
 #[on_event]
@@ -433,7 +434,8 @@ pub fn audit_native_health_lost(_: AuditNativeHealthLost) {
 pub struct AuditSpeedStarted;
 impl SandEvent for AuditSpeedStarted {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::observe_players(|player| player.living().has_effect(EffectId::Speed)).became_true()
+        SandEventDispatch::observe_players(|player| player.living().has_effect(EffectId::Speed))
+            .became_true()
     }
 }
 #[on_event]
@@ -444,7 +446,8 @@ pub fn audit_speed_started(_: AuditSpeedStarted) {
 pub struct AuditSpeedStopped;
 impl SandEvent for AuditSpeedStopped {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::observe_players(|player| player.living().has_effect(EffectId::Speed)).became_false()
+        SandEventDispatch::observe_players(|player| player.living().has_effect(EffectId::Speed))
+            .became_false()
     }
 }
 #[on_event]
@@ -456,8 +459,11 @@ pub struct AuditStandingOnGold;
 impl SandEvent for AuditStandingOnGold {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::observe_players(|_player| {
-            WorldContext::current().block(BlockPos::below(1)).matches(vanilla::Block::GoldBlock)
-        }).became_true()
+            WorldContext::current()
+                .block(BlockPos::below(1))
+                .matches(vanilla::Block::GoldBlock)
+        })
+        .became_true()
     }
 }
 #[on_event]
@@ -676,9 +682,20 @@ pub fn audit_typed_text_interactions() -> sand::registration::DatapackRegistrati
     let mut registration = sand::registration::DatapackRegistration::new();
     let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
     for (name, description) in [
-        ("empty_suggest", Text::new("Clear suggestion").click_suggest_command("")),
-        ("empty_run", Text::new("Empty command").click_run_command("")),
-        ("shorthand", Text::new("Default identifiers").font("default").hover_item("stone")),
+        (
+            "empty_suggest",
+            Text::new("Clear suggestion").click_suggest_command(""),
+        ),
+        (
+            "empty_run",
+            Text::new("Empty command").click_run_command(""),
+        ),
+        (
+            "shorthand",
+            Text::new("Default identifiers")
+                .font("default")
+                .hover_item("stone"),
+        ),
         (
             "run_command",
             Text::new("Run").click_run_command("/say hello"),
@@ -793,7 +810,10 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         ("nbt_quoted", json!({"nbt":"'foo..bar'", "entity":"@s"})),
         ("nbt_empty", json!({"nbt":"", "entity":"@s"})),
         ("nbt_all_elements", json!({"nbt":"foo[]", "entity":"@s"})),
-        ("hover_component_patch", json!({"text":"Patch", "hover_event":{"action":"show_item", "id":"stone", "components":{"custom_name":{"text":"Patched"}, "!minecraft:lore":{}}}})),
+        (
+            "hover_component_patch",
+            json!({"text":"Patch", "hover_event":{"action":"show_item", "id":"stone", "components":{"custom_name":{"text":"Patched"}, "!minecraft:lore":{}}}}),
+        ),
         (
             "nbt_uuid",
             json!({"nbt": "CustomName", "entity": "123e4567-e89b-12d3-a456-426614174000"}),
@@ -810,26 +830,62 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
             "object_player",
             json!({"object": "player", "player": "Steve", "hat": false}),
         ),
-        ("custom_click", json!({"text":"Custom","click_event":{"action":"custom","id":"sand_audit:click","payload":{"x":1}}})),
-        ("inline_dialog", json!({"text":"Dialog","click_event":{"action":"show_dialog","dialog":{"type":"minecraft:notice","title":{"text":"Hello"}}}})),
-        ("default_hover_item", json!({"text":"Item","hover_event":{"action":"show_item","id":"stone"}})),
-        ("default_hover_entity", json!({"text":"Entity","hover_event":{"action":"show_entity","id":"zombie","uuid":[0,0,0,1]}})),
-        ("escaped_url", json!({"text":"Link","click_event":{"action":"open_url","url":"HTTPS://example.com/café?q=%20#ok"}})),
-        ("dialog_confirmation", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"confirmation", "title":"Confirm", "yes":{"label":"Yes"}, "no":{"label":"No"}})}})),
-        ("dialog_multi_action", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "tooltip":"Hint", "width":1024, "action":{"type":"run_command", "command":"/say hi"}}], "columns":1})}})),
-        ("dialog_server_links", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"server_links", "title":"Links", "button_width":1, "exit_action":{"label":"Done"}})}})),
-        ("dialog_dialog_list", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"dialog_list", "title":"Dialogs", "dialogs":[{"type":"notice", "title":"Nested"}]})}})),
-        ("dialog_variables", json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":{"type":"notice", "title":"Variables", "inputs":[{"key":"λ١_中文", "type":"boolean", "label":"Flag"}, {"key":"", "type":"text", "label":"Empty key"}], "action":{"label":"Go", "action":{"type":"dynamic/run_command", "template":"say $(λ١_中文) $()"}}}}})),
-        ("dialog_controls", json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"notice", "title":"Info", "pause":false, "after_action":"none", "external_title":"Open", "body":[
-            {"type":"plain_message", "contents":"Message", "width":1024},
-            {"type":"item", "item":{"id":"stone", "count":2}, "description":{"contents":"Stone", "width":100}, "show_tooltip":false, "width":256, "height":1}
-        ], "inputs":[
-            {"key":"flag", "type":"boolean", "label":"Flag", "initial":true},
-            {"key":"text", "type":"text", "label":"Text", "initial":"Hi", "multiline":{"height":512, "max_lines":2}},
-            {"key":"choice", "type":"single_option", "label":"Choice", "options":["first", {"id":"second", "display":"Second", "initial":true}]},
-            {"key":"range", "type":"number_range", "label":"Range", "start":10, "end":0, "initial":5, "step":0.5}
-        ]})}})),
-        ("primitive_arguments", json!({"translate":"key", "with":[7, 1.5, true, false]})),
+        (
+            "custom_click",
+            json!({"text":"Custom","click_event":{"action":"custom","id":"sand_audit:click","payload":{"x":1}}}),
+        ),
+        (
+            "inline_dialog",
+            json!({"text":"Dialog","click_event":{"action":"show_dialog","dialog":{"type":"minecraft:notice","title":{"text":"Hello"}}}}),
+        ),
+        (
+            "default_hover_item",
+            json!({"text":"Item","hover_event":{"action":"show_item","id":"stone"}}),
+        ),
+        (
+            "default_hover_entity",
+            json!({"text":"Entity","hover_event":{"action":"show_entity","id":"zombie","uuid":[0,0,0,1]}}),
+        ),
+        (
+            "escaped_url",
+            json!({"text":"Link","click_event":{"action":"open_url","url":"HTTPS://example.com/café?q=%20#ok"}}),
+        ),
+        (
+            "dialog_confirmation",
+            json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"confirmation", "title":"Confirm", "yes":{"label":"Yes"}, "no":{"label":"No"}})}}),
+        ),
+        (
+            "dialog_multi_action",
+            json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"multi_action", "title":"Menu", "actions":[{"label":"Go", "tooltip":"Hint", "width":1024, "action":{"type":"run_command", "command":"/say hi"}}], "columns":1})}}),
+        ),
+        (
+            "dialog_server_links",
+            json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"server_links", "title":"Links", "button_width":1, "exit_action":{"label":"Done"}})}}),
+        ),
+        (
+            "dialog_dialog_list",
+            json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"dialog_list", "title":"Dialogs", "dialogs":[{"type":"notice", "title":"Nested"}]})}}),
+        ),
+        (
+            "dialog_variables",
+            json!({"text":"x", "click_event":{"action":"show_dialog", "dialog":{"type":"notice", "title":"Variables", "inputs":[{"key":"λ١_中文", "type":"boolean", "label":"Flag"}, {"key":"", "type":"text", "label":"Empty key"}], "action":{"label":"Go", "action":{"type":"dynamic/run_command", "template":"say $(λ١_中文) $()"}}}}}),
+        ),
+        (
+            "dialog_controls",
+            json!({"text":"Dialog", "click_event":{"action":"show_dialog", "dialog":json!({"type":"notice", "title":"Info", "pause":false, "after_action":"none", "external_title":"Open", "body":[
+                {"type":"plain_message", "contents":"Message", "width":1024},
+                {"type":"item", "item":{"id":"stone", "count":2}, "description":{"contents":"Stone", "width":100}, "show_tooltip":false, "width":256, "height":1}
+            ], "inputs":[
+                {"key":"flag", "type":"boolean", "label":"Flag", "initial":true},
+                {"key":"text", "type":"text", "label":"Text", "initial":"Hi", "multiline":{"height":512, "max_lines":2}},
+                {"key":"choice", "type":"single_option", "label":"Choice", "options":["first", {"id":"second", "display":"Second", "initial":true}]},
+                {"key":"range", "type":"number_range", "label":"Range", "start":10, "end":0, "initial":5, "step":0.5}
+            ]})}}),
+        ),
+        (
+            "primitive_arguments",
+            json!({"translate":"key", "with":[7, 1.5, true, false]}),
+        ),
         ("storage_shorthand", json!({"nbt":"foo", "storage":"data"})),
         ("font_shorthand", json!({"text":"Font", "font":"default"})),
         (
@@ -977,10 +1033,19 @@ fn merge_world_export(json: &str) -> Result<String, sand_core::serde_json::Error
     merge_world_resources(records, audit_world_build());
     let resources = records
         .iter()
-        .filter(|record| record["content_type"] == "text")
+        .filter(|record| {
+            record["content_type"] == "text"
+                || (record["content_type"] == "copy"
+                    && (record["dir"] == "function" || record["dir"] == "tags/function"))
+        })
         .map(|record| {
             let text = |key: &str| record[key].as_str().expect("compiler record field is text");
-            (
+            let bytes = if text("content_type") == "copy" {
+                std::fs::read(text("content")).map_err(sand_core::serde_json::Error::io)?
+            } else {
+                text("content").as_bytes().to_vec()
+            };
+            Ok((
                 format!(
                     "data/{}/{}/{}.{}",
                     text("namespace"),
@@ -988,10 +1053,10 @@ fn merge_world_export(json: &str) -> Result<String, sand_core::serde_json::Error
                     text("path"),
                     text("ext")
                 ),
-                text("content").as_bytes().to_vec(),
-            )
+                bytes,
+            ))
         })
-        .collect();
+        .collect::<Result<_, sand_core::serde_json::Error>>()?;
     let report: sand_core::advanced::compiler::RuntimeReport =
         sand_core::serde_json::from_value(export["runtime_report"].clone())?;
     export["runtime_report"] = sand_core::serde_json::to_value(report.reanalyze(&resources))?;
@@ -1019,11 +1084,10 @@ fn merge_world_resources(
                     && record["path"] == "load"
                     && record["ext"] == "json"
             }) {
-                let mut content: sand_core::serde_json::Value =
-                    sand_core::serde_json::from_str(
-                        existing["content"].as_str().expect("tag content is text"),
-                    )
-                    .expect("ordinary load tag is valid JSON");
+                let mut content: sand_core::serde_json::Value = sand_core::serde_json::from_str(
+                    existing["content"].as_str().expect("tag content is text"),
+                )
+                .expect("ordinary load tag is valid JSON");
                 let values = content["values"]
                     .as_array_mut()
                     .expect("ordinary load tag has values");
@@ -1083,6 +1147,35 @@ mod world_build_audit_tests {
         assert!(!output["components"].as_array().unwrap().is_empty());
     }
 
+    /// Copy-backed runtime resources must be resolved before replacing the report.
+    #[test]
+    fn world_merge_reports_copied_functions_and_rejects_missing_sources() {
+        let path = std::env::temp_dir().join(format!(
+            "sand-audit-report-{}.mcfunction",
+            std::process::id()
+        ));
+        std::fs::write(&path, "say copied\nsay twice\n").unwrap();
+        let mut input: sand_core::serde_json::Value = sand_core::serde_json::from_str(
+            &sand_core::advanced::try_export_pack_json("sand_audit", "26.2").unwrap(),
+        )
+        .unwrap();
+        input["components"]
+            .as_array_mut()
+            .unwrap()
+            .push(sand_core::serde_json::json!({
+                "namespace": "sand_audit", "dir": "function", "path": "copied",
+                "ext": "mcfunction", "content_type": "copy", "content": path.to_str().unwrap()
+            }));
+        let output: sand_core::serde_json::Value =
+            sand_core::serde_json::from_str(&merge_world_export(&input.to_string()).unwrap())
+                .unwrap();
+        let cost = &output["runtime_report"]["functions"]["sand_audit:copied"]["evaluations"];
+        assert_eq!(cost["minimum"], 2);
+        assert_eq!(cost["maximum"], 2);
+        std::fs::remove_file(path).unwrap();
+        assert!(merge_world_export(&input.to_string()).is_err());
+    }
+
     #[test]
     fn audit_includes_dimension_init_function_and_merged_load_tag() {
         let mut records = vec![sand_core::serde_json::json!({
@@ -1131,9 +1224,13 @@ mod world_build_audit_tests {
 #[function]
 pub fn audit_native_attribute_values() {
     Target::players().each(|player| {
-        when(player.living().attribute(AttributeType::MovementSpeed)
-            .gt(player.living().attribute_base(AttributeType::MovementSpeed)))
-            .then_all(["say native attribute modifier boost"])
+        when(
+            player
+                .living()
+                .attribute(AttributeType::MovementSpeed)
+                .gt(player.living().attribute_base(AttributeType::MovementSpeed)),
+        )
+        .then_all(["say native attribute modifier boost"])
     });
 }
 
@@ -1150,11 +1247,15 @@ pub fn audit_living_effect_presence() {
 pub fn audit_runtime_world_blocks() {
     let world = WorldContext::current();
     world.in_dimension(
-        "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
+        "minecraft:the_nether"
+            .parse::<sand::registry::DimensionId>()
+            .unwrap(),
         |world| {
             let chest = world.block(BlockPos::absolute(4, 80, 4));
             let slot = chest.inventory().slot(0).unwrap();
-            let name = chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+            let name = chest
+                .data()
+                .typed_path::<String>(NbtPath::root("CustomName"));
             mcfunction![
                 chest.replace(vanilla::Block::Chest);
                 when(chest.matches(vanilla::Block::Chest)).then_all(mcfunction![
@@ -1167,8 +1268,12 @@ pub fn audit_runtime_world_blocks() {
             ]
         },
     );
-    when(!world.block(BlockPos::absolute(1_000_000, 80, 1_000_000)).matches(vanilla::Block::Air))
-        .then_all(["say __SAND_WORLD_UNLOADED_FALSE__"]);
+    when(
+        !world
+            .block(BlockPos::absolute(1_000_000, 80, 1_000_000))
+            .matches(vanilla::Block::Air),
+    )
+    .then_all(["say __SAND_WORLD_UNLOADED_FALSE__"]);
     world.block(BlockPos::here()).replace(vanilla::Block::Stone);
 }
 
@@ -1176,16 +1281,30 @@ pub fn audit_runtime_world_blocks() {
 #[function]
 pub fn audit_world_block_offsets() {
     let world = WorldContext::current();
-    world.block(BlockPos::new(Coord::rel_n(0.5), Coord::rel(), Coord::rel()))
+    world
+        .block(BlockPos::new(Coord::rel_n(0.5), Coord::rel(), Coord::rel()))
         .replace(vanilla::Block::Stone);
-    world.block(BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(1.25)))
+    world
+        .block(BlockPos::new(
+            Coord::local(),
+            Coord::local(),
+            Coord::local_n(1.25),
+        ))
         .replace(vanilla::Block::GoldBlock);
     let relative_chest = world.block(BlockPos::new(Coord::rel_n(1.5), Coord::rel(), Coord::rel()));
-    let relative_name = relative_chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+    let relative_name = relative_chest
+        .data()
+        .typed_path::<String>(NbtPath::root("CustomName"));
     relative_chest.replace(vanilla::Block::Chest);
     relative_name.set("Relative offset");
-    let local_chest = world.block(BlockPos::new(Coord::local(), Coord::local(), Coord::local_n(2.25)));
-    let local_name = local_chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+    let local_chest = world.block(BlockPos::new(
+        Coord::local(),
+        Coord::local(),
+        Coord::local_n(2.25),
+    ));
+    let local_name = local_chest
+        .data()
+        .typed_path::<String>(NbtPath::root("CustomName"));
     local_chest.replace(vanilla::Block::Chest);
     local_name.set("Local offset");
 }
@@ -1195,8 +1314,15 @@ pub fn audit_world_block_offsets() {
 pub fn audit_world_macro() {
     let args = FunctionMacroArgs::new(["block"]).unwrap();
     WorldContext::current().in_dimension(
-        "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
-        |_| format!("{}\n# dimension macro audit\n\nsetblock ~1 ~ ~ minecraft:lapis_block", args.line("setblock ~ ~ ~ $(block)").unwrap()),
+        "minecraft:the_nether"
+            .parse::<sand::registry::DimensionId>()
+            .unwrap(),
+        |_| {
+            format!(
+                "{}\n# dimension macro audit\n\nsetblock ~1 ~ ~ minecraft:lapis_block",
+                args.line("setblock ~ ~ ~ $(block)").unwrap()
+            )
+        },
     );
 }
 
@@ -1204,13 +1330,21 @@ pub fn audit_world_macro() {
 #[function]
 pub fn audit_world_targets() {
     WorldContext::current().in_dimension(
-        "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
-        |world| world.entities().tag("sand_world_probe").within_blocks(32.0).each(|entity| {
-            let visited = sand::entity::EntityTag::new("sand_world_visited").unwrap();
-            mcfunction![
-                entity.add_tag(&visited);
-                world.block(BlockPos::here()).replace(vanilla::Block::GoldBlock);
-            ]
-        }),
+        "minecraft:the_nether"
+            .parse::<sand::registry::DimensionId>()
+            .unwrap(),
+        |world| {
+            world
+                .entities()
+                .tag("sand_world_probe")
+                .within_blocks(32.0)
+                .each(|entity| {
+                    let visited = sand::entity::EntityTag::new("sand_world_visited").unwrap();
+                    mcfunction![
+                        entity.add_tag(&visited);
+                        world.block(BlockPos::here()).replace(vanilla::Block::GoldBlock);
+                    ]
+                })
+        },
     );
 }

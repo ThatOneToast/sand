@@ -567,25 +567,62 @@ type DynFnEntry = (String, crate::ir::Actions);
 
 /// Resources owned by lowered gameplay IR, scoped to one export transaction.
 pub(crate) enum GeneratedResource {
-    Function(String, crate::ir::Actions),
-    Component(Box<dyn sand_components::DatapackComponent>),
+    Function(
+        String,
+        crate::ir::Actions,
+        std::collections::BTreeSet<GeneratedOrigin>,
+    ),
+    Component(
+        Box<dyn sand_components::DatapackComponent>,
+        std::collections::BTreeSet<GeneratedOrigin>,
+    ),
     Requirement {
         owner: sand_components::ResourceLocation,
         feature: sand_version::ComponentFeature,
     },
 }
 
-impl GeneratedResource {
-    fn function(&self) -> Option<(&str, &crate::ir::Actions)> {
-        match self {
-            Self::Function(path, actions) => Some((path, actions)),
-            _ => None,
-        }
+/// A registered helper's actual authoring origin, never inferred from its name.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum GeneratedOrigin {
+    Logical(String),
+    Function(String),
+}
+
+struct GeneratedRegistry {
+    resources: Vec<GeneratedResource>,
+    origin: Option<GeneratedOrigin>,
+}
+
+/// Scope the existing resource registry to an authored definition or lowering frame.
+pub(crate) struct GeneratedOwnerScope(Option<GeneratedOrigin>);
+
+impl GeneratedOwnerScope {
+    pub(crate) fn logical(owner: &str) -> Self {
+        Self::enter(GeneratedOrigin::Logical(owner.to_owned()))
+    }
+
+    pub(crate) fn function(owner: &sand_components::ResourceLocation) -> Self {
+        let origin = REGISTRY.with_borrow(|registry| match &registry.origin {
+            Some(GeneratedOrigin::Logical(owner)) => GeneratedOrigin::Logical(owner.clone()),
+            _ => GeneratedOrigin::Function(owner.to_string()),
+        });
+        Self::enter(origin)
+    }
+
+    fn enter(origin: GeneratedOrigin) -> Self {
+        Self(REGISTRY.with_borrow_mut(|registry| registry.origin.replace(origin)))
+    }
+}
+
+impl Drop for GeneratedOwnerScope {
+    fn drop(&mut self) {
+        REGISTRY.with_borrow_mut(|registry| registry.origin = self.0.take());
     }
 }
 
 thread_local! {
-    static REGISTRY: RefCell<Vec<GeneratedResource>> = const { RefCell::new(Vec::new()) };
+    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { resources: Vec::new(), origin: None }) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
     static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
     static GENERATED_OBJECTIVE_OWNERS: RefCell<std::collections::BTreeMap<String, GeneratedObjectiveOwner>> = const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -612,7 +649,10 @@ impl Drop for ExportFunctionRegistryScope {
 }
 
 fn clear_function_export_state() {
-    REGISTRY.with_borrow_mut(Vec::clear);
+    REGISTRY.with_borrow_mut(|registry| {
+        registry.resources.clear();
+        registry.origin = None;
+    });
     INTERNAL_SCORE_TEMP_REQUESTED.set(false);
     crate::state::score::clear_constant_setup();
     INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(|objectives| objectives.clear());
@@ -709,32 +749,49 @@ pub(crate) fn take_internal_score_temp_request() -> bool {
 pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
     let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
-        if !registry.iter().filter_map(GeneratedResource::function).any(
-            |(existing_path, existing_commands)| {
-                existing_path == path && existing_commands.identity() == commands.identity()
-            },
-        ) {
-            registry.push(GeneratedResource::Function(path, commands));
+        let origins = registry
+            .origin
+            .clone()
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        for resource in &mut registry.resources {
+            if let GeneratedResource::Function(existing_path, existing_commands, existing_origins) =
+                resource
+                && existing_path == &path
+                && existing_commands.identity() == commands.identity()
+            {
+                existing_origins.extend(origins);
+                return;
+            }
         }
+        registry
+            .resources
+            .push(GeneratedResource::Function(path, commands, origins));
     });
 }
 
-/// Register a generated helper function, reusing an existing helper with an
-/// identical body when context semantics allow it.
+/// Register a helper, unioning actual origins when an identical body is reused.
 pub fn register_dyn_fn_dedup(prefix: &str, commands: impl crate::IntoCommands) -> String {
     let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
-        if let Some((path, _)) = registry
-            .iter()
-            .filter_map(GeneratedResource::function)
-            .find(|(path, existing_commands)| {
-                path.starts_with(prefix) && existing_commands.identity() == commands.identity()
-            })
-        {
-            return path.to_owned();
+        let origins = registry
+            .origin
+            .clone()
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        for resource in &mut registry.resources {
+            if let GeneratedResource::Function(path, existing_commands, existing_origins) = resource
+                && path.starts_with(prefix)
+                && existing_commands.identity() == commands.identity()
+            {
+                existing_origins.extend(origins);
+                return path.clone();
+            }
         }
         let path = generated_function_path(prefix, &commands);
-        registry.push(GeneratedResource::Function(path.clone(), commands));
+        registry
+            .resources
+            .push(GeneratedResource::Function(path.clone(), commands, origins));
         path
     })
 }
@@ -745,13 +802,13 @@ pub fn drain_dyn_fns() -> Vec<DynFnEntry> {
     REGISTRY.with_borrow_mut(|registry| {
         let mut functions = Vec::new();
         let mut remaining = Vec::new();
-        for resource in std::mem::take(registry) {
+        for resource in std::mem::take(&mut registry.resources) {
             match resource {
-                GeneratedResource::Function(path, actions) => functions.push((path, actions)),
+                GeneratedResource::Function(path, actions, _) => functions.push((path, actions)),
                 resource => remaining.push(resource),
             }
         }
-        *registry = remaining;
+        registry.resources = remaining;
         functions
     })
 }
@@ -760,7 +817,10 @@ pub(crate) fn register_generated_component(
     component: impl sand_components::DatapackComponent + 'static,
 ) {
     REGISTRY.with_borrow_mut(|registry| {
-        registry.push(GeneratedResource::Component(Box::new(component)))
+        let origins = registry.origin.clone().into_iter().collect();
+        registry
+            .resources
+            .push(GeneratedResource::Component(Box::new(component), origins))
     });
 }
 
@@ -769,7 +829,7 @@ pub(crate) fn require_generated_feature(
     feature: sand_version::ComponentFeature,
 ) {
     REGISTRY.with_borrow_mut(|registry| {
-        registry.push(GeneratedResource::Requirement {
+        registry.resources.push(GeneratedResource::Requirement {
             owner: owner.clone(),
             feature,
         })
@@ -777,7 +837,7 @@ pub(crate) fn require_generated_feature(
 }
 
 pub(crate) fn drain_generated_resources() -> Vec<GeneratedResource> {
-    REGISTRY.with_borrow_mut(std::mem::take)
+    REGISTRY.with_borrow_mut(|registry| std::mem::take(&mut registry.resources))
 }
 
 pub(crate) fn generated_resource_path(prefix: &str, identity: &str) -> String {

@@ -2054,22 +2054,23 @@ fn compile_dirty_distribution(
             objectives.insert(pending.clone());
             objectives.insert(cause_pending.clone());
             commands.push(format!(
-                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 0",
-                field.dirty_objective, claim.marker,
+                "execute if entity @s[tag={}] run scoreboard players set @s {cause_pending} 0",
+                claim.marker,
             ));
             commands.push(format!(
-                "execute if score @s {} matches 1 unless score @s {internal} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 1",
-                field.dirty_objective, claim.marker,
+                "execute unless score @s {internal} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 1",
+                claim.marker,
             ));
             commands.push(format!(
-                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {pending} 1",
-                field.dirty_objective,
+                "execute if entity @s[tag={}] run scoreboard players set @s {pending} 1",
                 claim.marker,
             ));
         }
+        // The caller tests this field once. The body contains only score writes
+        // and clears the dirty bit last, so no nested callback can invalidate it.
         commands.push(format!(
-            "execute if score @s {} matches 1 run scoreboard players set @s {} 0",
-            field.dirty_objective, field.dirty_objective
+            "scoreboard players set @s {} 0",
+            field.dirty_objective
         ));
         let path = format!("{root}/changes/{index}");
         dispatch.push(format!(
@@ -4674,10 +4675,7 @@ mod tests {
             .collect();
         assert_eq!(helpers.len(), fields.values().count());
         for field in fields.values() {
-            let reset = format!(
-                "execute if score @s {} matches 1 run scoreboard players set @s {} 0",
-                field.dirty_objective, field.dirty_objective
-            );
+            let reset = format!("scoreboard players set @s {} 0", field.dirty_objective);
             let helper = helpers
                 .iter()
                 .find(|record| record.content.lines().any(|line| line == reset))
@@ -4695,6 +4693,11 @@ mod tests {
                 3
             );
             assert!(!reconcile.content.contains(&reset));
+            assert!(
+                !helper
+                    .content
+                    .contains(&format!("if score @s {} matches 1", field.dirty_objective))
+            );
             assert!(compiled.report.functions.contains(&helper.path));
             let pending = dirty_pending_name(
                 &field.dirty_objective,

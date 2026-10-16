@@ -918,10 +918,9 @@ pub fn audit_dialog() -> Dialog {
 /// world-build-generated dimension/function/tag resources. `sand-vanilla-audit`
 /// doesn't go through `sand-cli`'s `sand.build.rs` discovery (it has its own
 /// bespoke `export()` below), so this calls `sand_core::build` directly and
-/// merges the lowered `WorldResource`s into the same JSON array
-/// `try_export_components_json` produces -- both share byte-identical
-/// wire-format shapes (`namespace`/`dir`/`path`/`ext`/`content_type`/
-/// `content`) by design.
+/// merges the lowered `WorldResource`s into the versioned pack export. The
+/// component records share the world-resource wire format; the runtime report
+/// is reanalyzed after the merge so direct consumers see the added load work.
 fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
     use sand_core::build::{
         Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, Generator,
@@ -969,13 +968,33 @@ pub fn export(namespace: &str, version: &str) {
     println!("{json}");
 }
 
-/// Add the audit's world resources without discarding compiler report metadata.
+/// Add world resources and recompute costs while preserving compiler provenance.
 fn merge_world_export(json: &str) -> Result<String, sand_core::serde_json::Error> {
     let mut export: sand_core::serde_json::Value = sand_core::serde_json::from_str(json)?;
     let records = export["components"]
         .as_array_mut()
         .expect("the compiler pack export contains a component array");
     merge_world_resources(records, audit_world_build());
+    let resources = records
+        .iter()
+        .filter(|record| record["content_type"] == "text")
+        .map(|record| {
+            let text = |key: &str| record[key].as_str().expect("compiler record field is text");
+            (
+                format!(
+                    "data/{}/{}/{}.{}",
+                    text("namespace"),
+                    text("dir"),
+                    text("path"),
+                    text("ext")
+                ),
+                text("content").as_bytes().to_vec(),
+            )
+        })
+        .collect();
+    let report: sand_core::advanced::compiler::RuntimeReport =
+        sand_core::serde_json::from_value(export["runtime_report"].clone())?;
+    export["runtime_report"] = sand_core::serde_json::to_value(report.reanalyze(&resources))?;
     sand_core::serde_json::to_string(&export)
 }
 
@@ -1034,16 +1053,33 @@ mod world_build_audit_tests {
     /// The custom audit exporter must preserve the versioned build protocol.
     #[test]
     fn world_merge_preserves_the_export_envelope_and_runtime_report() {
-        let input = sand_core::serde_json::json!({
-            "schema_version": 1,
-            "components": [],
-            "runtime_report": {"schema_version": 1, "tick": []}
-        });
+        let input: sand_core::serde_json::Value = sand_core::serde_json::from_str(
+            &sand_core::advanced::try_export_pack_json("sand_audit", "26.2").unwrap(),
+        )
+        .unwrap();
         let merged = merge_world_export(&input.to_string()).unwrap();
         let output: sand_core::serde_json::Value =
             sand_core::serde_json::from_str(&merged).unwrap();
         assert_eq!(output["schema_version"], input["schema_version"]);
-        assert_eq!(output["runtime_report"], input["runtime_report"]);
+        assert_eq!(
+            output["runtime_report"]["provenance"],
+            input["runtime_report"]["provenance"]
+        );
+        let world_init = "sand_audit:__sand_world_init";
+        assert!(
+            input["runtime_report"]["functions"]
+                .get(world_init)
+                .is_none()
+        );
+        let cost = &output["runtime_report"]["functions"][world_init]["evaluations"];
+        assert!(cost["minimum"].as_u64().unwrap() > 0);
+        assert_eq!(cost["minimum"], cost["maximum"]);
+        let load = output["runtime_report"]["load"].as_array().unwrap();
+        let entry = load
+            .iter()
+            .find(|entry| entry["reference"] == world_init)
+            .unwrap();
+        assert_eq!(&entry["evaluations"], cost);
         assert!(!output["components"].as_array().unwrap().is_empty());
     }
 

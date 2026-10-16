@@ -59,6 +59,13 @@ class Probe(WorldGameplayHarness):
                 path.write_text(content)
                 observed = sum(counts.values()) - 2
                 estimate = self.report['functions'][f'cost_semantics:{name}']['evaluations']
+                bounds = {
+                    'ordinary': (1, 1), 'false_guard': (1, 1), 'true_guard': (1, 1),
+                    'fork_command': (1, 1), 'fork_function': (1, None),
+                    'double_call': (4, 4), 'early_return': (1, 1), 'return_run': (2, 2),
+                    'function_condition': (3, 3), 'nested_forks': (1, None),
+                }[name]
+                assert (estimate['minimum'], estimate['maximum']) == bounds, (name, estimate, bounds)
                 assert observed >= estimate['minimum'], (name, observed, estimate)
                 assert estimate['maximum'] is None or observed <= estimate['maximum'], (name, observed, estimate)
                 expected = {'ordinary': 1, 'false_guard': 1, 'true_guard': 1,

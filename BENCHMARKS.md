@@ -679,6 +679,61 @@ and variance, and optimization phases of #424 remain outstanding. Preserve this
 baseline when evaluating the later idle-work changes rather than substituting
 source-line counts or assuming conditional commands are free.
 
+### Guarded field propagation (#447, first optimization)
+
+On October 16, 2026, the same Minecraft 26.2 / Azul Java 25.0.3 setup compared
+main's runtime-equivalent RPG output with guarded per-field propagation
+(`d685fe2`). Each generated field helper runs only when its dirty score is set.
+The caller preserves the existing propagation phases and internal-cause reset;
+shared-component membership and authored/internal write distinctions remain
+inside the helper. Provisioning, native observation, timers and scan scheduling
+are unchanged.
+
+| Workload | Entities | Before reconcile evaluations | After reconcile evaluations | Samples per version |
+| --- | ---: | ---: | ---: | ---: |
+| Idle | 0 | 0 | 0 | 3 |
+| Idle | 1 | 244 | 158 | 3 identical |
+| Idle | 10 | 2,440 | 1,580 | 3 identical |
+| Level-up before reconciliation | 0 | 0 | 0 | 3 |
+| Level-up before reconciliation | 1 | 513 | 443 | 3 identical |
+| Level-up before reconciliation | 10 | 5,130 | 4,430 | 3 identical |
+
+Each total trace includes two additional probe-control evaluations, excluded
+from this table. Idle reconciliation decreases by 35.2%; this particular dirty
+workload decreases by 13.6%. The idle candidate breakdown is 106 evaluations in
+`reconcile`, four in a field propagation helper, 12 each in `provision` and
+`derive_refresh`, 22 in `refresh`, and two in `transitions`. The fixture still
+performs timer bookkeeping during an otherwise settled direct reconcile call.
+
+The baseline input hash is the unchanged hash above. The candidate input SHA-256
+is `59a83712f3484e0e0140566001059eab7a3e2e15c3a11cea80cba2db05363f55`.
+The unchanged `scripts/mc_validation/run_entity_archetype_audit.py` passes all
+24 checks, including shared/native health behavior, cadence, migration, reload,
+cleanup and removal.
+
+Reproduce the active workload against either exported pack with:
+
+```sh
+python3 scripts/measure_archetype_idle.py --workload level-up \
+  --pack /path/to/rpg --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --java /path/to/java25
+```
+
+This calls the example's authored `rpg:level_up` once per selected entity before
+each trace; mutation-command cost is excluded. Every nonempty sample must
+contain exactly one level derivation frame per verified entity. The RPG name
+refresh reasserts `CustomNameVisible=1b`; vanilla reports that redundant write
+as “Nothing changed.” Only the exact visibility command/diagnostic pair is
+accepted in this workload, counted as an evaluation, and recorded under
+`unchanged_writes` in each sample. Idle parsing still rejects every error;
+all other active-workload errors remain fatal. Both versions produced one
+recorded redundant visibility write per entity per active sample.
+
+This is a partial optimization, not completion of #447. Clean entities are still
+selected, active timers are not reduced to two commands, and 50/200/500-entity
+MSPT measurements remain outstanding. These trace counts do not establish
+command-sequence-budget safety or whole-tick timing.
+
 ### Runtime report calibration (Minecraft 26.2)
 
 The runtime report's explicit evaluation ranges were compared with 20 completed

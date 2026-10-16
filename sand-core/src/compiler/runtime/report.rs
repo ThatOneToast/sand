@@ -75,18 +75,30 @@ fn selector_sites(body: &str) -> Vec<SelectorSite> {
             };
             for operation in execute.operations {
                 let args = &operation.arguments;
-                let selector = match operation.keyword {
-                    "as" | "at" => args.first(),
-                    "positioned" | "rotated" if args.first() == Some(&"as") => args.get(1),
-                    "facing" | "if" | "unless" if args.first() == Some(&"entity") => args.get(1),
-                    _ => None,
+                let indexes: &[usize] = match operation.keyword {
+                    "as" | "at" => &[0],
+                    "positioned" | "rotated" if args.first() == Some(&"as") => &[1],
+                    "facing" | "if" | "unless" if args.first() == Some(&"entity") => &[1],
+                    "if" | "unless"
+                        if matches!(args.first(), Some(&"data" | &"items"))
+                            && args.get(1) == Some(&"entity") =>
+                    {
+                        &[2]
+                    }
+                    "if" | "unless" if args.first() == Some(&"score") => &[1, 4],
+                    "store" if matches!(args.get(1), Some(&"entity" | &"score")) => &[2],
+                    _ => &[],
                 };
-                if let Some(selector) = selector.filter(|value| value.starts_with('@')) {
-                    sites.push(SelectorSite {
-                        line: index + 1,
-                        operation: operation.keyword.into(),
-                        selector: (*selector).into(),
-                    });
+                for operand in indexes {
+                    if let Some(selector) =
+                        args.get(*operand).filter(|value| value.starts_with('@'))
+                    {
+                        sites.push(SelectorSite {
+                            line: index + 1,
+                            operation: operation.keyword.into(),
+                            selector: (*selector).into(),
+                        });
+                    }
                 }
             }
             command = execute.command;
@@ -130,7 +142,7 @@ impl RuntimeReport {
         let mut limitations = BTreeSet::from([
             "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.".into(),
             "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.".into(),
-            "Selector sites cover execute contexts and entity conditions, not selectors in terminal commands; sites are not runtime scan counts.".into(),
+            "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts.".into(),
             "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.".into(),
         ]);
         for record in records.iter().filter(|record| {

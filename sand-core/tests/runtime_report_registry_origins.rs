@@ -77,14 +77,14 @@ fn constant() -> sand_core::state::ScoreOperand {
 /// First caller of shared score setup.
 #[function]
 fn numeric_one() {
-    sand_core::state::Score::new("report_value")
+    sand_core::state::ScoreVar::<i32>::new("report_value")
         .of("@s")
         .assign(constant());
 }
 /// Second caller must be retained even when the constant already exists.
 #[function]
 fn numeric_two() {
-    sand_core::state::Score::new("report_value")
+    sand_core::state::ScoreVar::<i32>::new("report_value")
         .of("@s")
         .assign(constant());
 }

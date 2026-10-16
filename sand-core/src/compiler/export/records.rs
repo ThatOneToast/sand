@@ -138,7 +138,7 @@ pub(crate) fn component_to_record(
 pub(crate) fn expand_with_nested(
     mut top_level: Vec<RegisteredComponent>,
     ctx: Option<&super::ExportCtx>,
-) -> ExportResult<Vec<ComponentRecord>> {
+) -> ExportResult<Vec<(String, ComponentRecord)>> {
     top_level.sort_by(|left, right| {
         output_identity(&left.record)
             .cmp(&output_identity(&right.record))
@@ -157,7 +157,7 @@ fn expand_registered_component(
     registered: RegisteredComponent,
     ctx: Option<&super::ExportCtx>,
     seen: &mut std::collections::BTreeMap<OutputIdentity, String>,
-    records: &mut Vec<ComponentRecord>,
+    records: &mut Vec<(String, ComponentRecord)>,
 ) -> ExportResult<()> {
     let key = output_identity(&registered.record);
     if let Some(first_owner) = seen.get(&key) {
@@ -188,7 +188,7 @@ fn expand_registered_component(
         .collect::<ExportResult<Vec<_>>>()?;
     nested.sort_by_key(|registered| output_identity(&registered.record));
 
-    records.push(registered.record);
+    records.push((registered.owner, registered.record));
     for child in nested {
         expand_registered_component(child, ctx, seen, records)?;
     }
@@ -1435,9 +1435,10 @@ mod tests {
 
         let records = super::expand_with_nested(top_level, None).unwrap();
         assert_eq!(records.len(), 3);
-        assert_eq!(records[0].path, "parent");
-        assert_eq!(records[1].path, "parent/child_a");
-        assert_eq!(records[2].path, "parent/child_b");
+        assert_eq!(records[0].1.path, "parent");
+        assert_eq!(records[1].1.path, "parent/child_a");
+        assert_eq!(records[2].1.path, "parent/child_b");
+        assert!(records.iter().all(|(owner, _)| owner == "parent_factory"));
     }
 
     #[test]

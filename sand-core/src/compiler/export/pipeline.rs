@@ -322,12 +322,6 @@ pub(crate) fn try_export_components_impl(
         }
         for component in components {
             let record = component_to_record(component.as_ref(), ctx)?;
-            if record.dir == "function" && record.ext == "mcfunction" {
-                runtime.own_function(
-                    resolve_local_refs(&format!("{}:{}", record.namespace, record.path), namespace),
-                    factory.owner.to_string(),
-                );
-            }
             top_level.push(RegisteredComponent {
                 owner: factory.owner.to_string(),
                 component,
@@ -335,7 +329,15 @@ pub(crate) fn try_export_components_impl(
             });
         }
     }
-    records.extend(super::records::expand_with_nested(top_level, ctx)?);
+    for (owner, record) in super::records::expand_with_nested(top_level, ctx)? {
+        if record.dir == "function" && record.ext == "mcfunction" {
+            runtime.own_function(
+                resolve_local_refs(&format!("{}:{}", record.namespace, record.path), namespace),
+                owner,
+            );
+        }
+        records.push(record);
+    }
 
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
     use crate::events::TickExecutionIrPlans;
@@ -2510,10 +2512,11 @@ pub(crate) fn try_export_components_impl(
     // entries so load/tick infrastructure exists before user functions run.
     let mut user_tag_entries: Vec<(String, String)> = inventory::iter::<FunctionTagDescriptor>()
         .map(|desc| {
-            (
-                desc.tag.to_string(),
-                format!("{}:{}", namespace, desc.function_path),
-            )
+            let tag = resolve_local_refs(desc.tag, namespace);
+            let function = format!("{}:{}", namespace, desc.function_path);
+            runtime.contribute_tag(tag.clone(), function.clone(), desc.owner.into());
+            runtime.own_function(function.clone(), desc.owner.into());
+            (tag, function)
         })
         .collect();
     user_tag_entries.append(&mut registration_tag_entries);

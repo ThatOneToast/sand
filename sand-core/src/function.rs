@@ -64,6 +64,8 @@ inventory::collect!(ComponentFactory);
 /// | `Load` | `"minecraft:load"` | `data/minecraft/tags/function/load.json` |
 /// | `Tag = "ns:name"` | `"ns:name"` | `data/ns/tags/function/name.json` |
 pub struct FunctionTagDescriptor {
+    /// Logical Rust function that contributes this tag membership.
+    pub owner: &'static str,
     /// Full tag resource location, e.g. `"minecraft:tick"`.
     pub tag: &'static str,
     /// Function path component (namespace applied at build time), e.g. `"my_tick"`.

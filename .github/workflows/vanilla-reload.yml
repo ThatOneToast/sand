@@ -126,6 +126,9 @@ jobs:
           SAND_STRICT_CODEGEN: "1"
         run: cargo run --manifest-path ../sand-cli/Cargo.toml -- build
 
+      - name: Validate audit exporter report after world-resource merging
+        run: cargo test --manifest-path sand-vanilla-audit/Cargo.toml --lib world_build_audit_tests
+
       - name: Validate initial load and reload
         run: |
           scripts/validate-vanilla-reload.sh \

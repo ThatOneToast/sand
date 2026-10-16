@@ -2110,6 +2110,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
         ::sand::__private::inventory::submit!(
             ::sand::__private::FunctionTagDescriptor {
+                owner: concat!(module_path!(), "::", stringify!(#fn_name)),
                 tag: #tag_lit,
                 function_path: #fn_name_str,
             }

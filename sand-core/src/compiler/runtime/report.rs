@@ -198,15 +198,20 @@ impl RuntimeReport {
             })
             .collect();
         let mut estimator = Estimator::new(&functions);
-        let costs = functions
-            .keys()
-            .map(|id| {
+        let costs = records
+            .iter()
+            .filter(|record| record.dir == "function" && record.ext == "mcfunction")
+            .map(|record| {
+                let id = format!("{}:{}", record.namespace, record.path);
                 (
                     id.clone(),
                     FunctionCost {
-                        owners: plan.function_owners.get(id).cloned().unwrap_or_default(),
-                        evaluations: estimator.function(id),
-                        selector_sites: selector_sites(&functions[id]),
+                        owners: plan.function_owners.get(&id).cloned().unwrap_or_default(),
+                        evaluations: estimator.function(&id),
+                        selector_sites: functions
+                            .get(&id)
+                            .map(|body| selector_sites(body))
+                            .unwrap_or_default(),
                     },
                 )
             })
@@ -220,6 +225,14 @@ impl RuntimeReport {
             "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.".into(),
             "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.".into(),
         ]);
+        for record in records.iter().filter(|record| {
+            record.dir == "function" && record.ext == "mcfunction" && record.content_type != "text"
+        }) {
+            limitations.insert(format!(
+                "function {}:{} awaits host resource resolution ({})",
+                record.namespace, record.path, record.content_type
+            ));
+        }
         for record in records.iter().filter(|record| {
             record.namespace == "minecraft"
                 && record.dir == "tags/function"
@@ -334,6 +347,38 @@ mod tests {
             serde_json::to_value(RuntimeReport::collect(&records, &plan)).unwrap()
         );
     }
+    /// File-backed functions stay visible and unknown until the host supplies bytes.
+    #[test]
+    fn copy_backed_functions_are_unknown_until_materialized() {
+        let mut record = ComponentRecord::function("demo", "copied", vec![]);
+        record.content_type = "copy".into();
+        record.content = "fixtures/copied.mcfunction".into();
+        let report = RuntimeReport::collect(&[record], &RuntimePlan::default());
+        let cost = &report.functions["demo:copied"].evaluations;
+        assert_eq!(cost.maximum, None);
+        assert!(!cost.unknown.is_empty());
+        assert!(
+            report
+                .limitations
+                .iter()
+                .any(|reason| reason.contains("demo:copied"))
+        );
+        let resolved = report.reanalyze(&BTreeMap::from([(
+            "data/demo/function/copied.mcfunction".into(),
+            b"say loaded".to_vec(),
+        )]));
+        assert_eq!(
+            resolved.functions["demo:copied"].evaluations.maximum,
+            Some(1)
+        );
+        assert!(
+            !resolved
+                .limitations
+                .iter()
+                .any(|reason| reason.contains("demo:copied"))
+        );
+    }
+
     /// Quoted text is not a selector; nested execution contexts retain their sites.
     #[test]
     fn selector_sites_preserve_line_and_operation_without_parsing_chat() {

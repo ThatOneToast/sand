@@ -702,7 +702,7 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
         let id = format!("demo:__sand_lifecycle_{phase}");
         assert_eq!(
             report["functions"][&id]["owners"],
-            serde_json::json!(["demo:counter_module"])
+            serde_json::json!(["demo:counter", "demo:counter_module"])
         );
         let entry = report[phase]
             .as_array()
@@ -712,7 +712,7 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
             .unwrap();
         assert_eq!(
             entry["contributors"],
-            serde_json::json!(["demo:counter_module"])
+            serde_json::json!(["demo:counter", "demo:counter_module"])
         );
     }
     let spans = report["provenance"]["lifecycle_owners"]["demo:__sand_lifecycle_load"]
@@ -725,4 +725,31 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
         std::str::from_utf8(&pack.resources["data/demo/function/__sand_lifecycle_load.mcfunction"])
             .unwrap();
     assert_eq!(body.lines().nth(line - 1), Some("function demo:tick"));
+}
+
+/// State-only modules still contribute load, initialization, and tick infrastructure.
+#[test]
+fn automatic_state_lifecycle_keeps_state_and_module_origins() {
+    let pack = Compiler::compile(&counter()).unwrap();
+    let report = serde_json::to_value(&pack.runtime_report).unwrap();
+    let owners = serde_json::json!(["demo:counter", "demo:counter_module"]);
+    for path in [
+        "__sand_lifecycle_load",
+        "__sand_lifecycle_init",
+        "__sand_lifecycle_tick",
+    ] {
+        assert_eq!(
+            report["functions"][format!("demo:{path}")]["owners"],
+            owners
+        );
+    }
+    for phase in ["load", "tick"] {
+        let entry = report[phase]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["reference"] == format!("demo:__sand_lifecycle_{phase}"))
+            .unwrap();
+        assert_eq!(entry["contributors"], owners);
+    }
 }

@@ -62,12 +62,41 @@ pub(crate) fn ensure_private_transition_path_available(
 
 /// Lifecycle output retained by both registered and portable frontends.
 pub(crate) struct LifecycleAssembly {
+    /// All automatic and explicit owners, including work without command spans.
+    load_contributors: std::collections::BTreeSet<String>,
+    init_contributors: std::collections::BTreeSet<String>,
+    tick_contributors: std::collections::BTreeSet<String>,
     /// Initializer that player-context entry functions must invoke.
     pub(crate) player_initializer: Option<String>,
     /// Load-command spans and their original registration owners.
     pub(crate) load_owners: Vec<crate::compiler::runtime::CommandOrigin>,
     /// Tick-command spans and their original registration owners.
     pub(crate) tick_owners: Vec<crate::compiler::runtime::CommandOrigin>,
+}
+
+impl LifecycleAssembly {
+    /// Apply phase-specific provenance identically for Rust and portable frontends.
+    pub(crate) fn attribute(
+        &self,
+        namespace: &str,
+        runtime: &mut crate::compiler::runtime::RuntimePlan,
+    ) {
+        for (phase, owners) in [
+            ("load", &self.load_contributors),
+            ("tick", &self.tick_contributors),
+        ] {
+            runtime.own_lifecycle(
+                format!("{namespace}:__sand_lifecycle_{phase}"),
+                phase,
+                owners.iter().cloned(),
+            );
+        }
+        if let Some(initializer) = &self.player_initializer {
+            for owner in &self.init_contributors {
+                runtime.own_function(initializer.clone(), owner.clone());
+            }
+        }
+    }
 }
 
 /// Assemble owned lifecycle contributions after frontend collection.
@@ -267,7 +296,14 @@ pub(crate) fn assemble_lifecycle(
             .or_default()
             .push(format!("{namespace}:{path}"));
     }
+    let mut load_contributors = automatic.load_origins;
+    load_contributors.extend(load_owners.iter().map(|origin| origin.owner.clone()));
+    let mut tick_contributors = automatic.tick_origins;
+    tick_contributors.extend(tick_owners.iter().map(|origin| origin.owner.clone()));
     Ok(LifecycleAssembly {
+        load_contributors,
+        init_contributors: automatic.init_origins,
+        tick_contributors,
         player_initializer: (!automatic.player_init_commands.is_empty())
             .then(|| format!("{namespace}:{init_path}")),
         load_owners,

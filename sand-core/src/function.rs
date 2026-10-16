@@ -589,44 +589,88 @@ pub(crate) enum GeneratedOrigin {
     Function(String),
 }
 
-/// Export-local resources and the currently active registration origin.
+/// Export-local resources and their current semantic registration origins.
 struct GeneratedRegistry {
     resources: Vec<GeneratedResource>,
-    origin: Option<GeneratedOrigin>,
+    origins: std::collections::BTreeSet<GeneratedOrigin>,
+    score_origins: std::collections::BTreeSet<GeneratedOrigin>,
+    dialog_origins: std::collections::BTreeSet<GeneratedOrigin>,
 }
 
-/// Scope the existing resource registry to an authored definition or lowering frame.
-pub(crate) struct GeneratedOwnerScope(Option<GeneratedOrigin>);
+/// Scope registrations and serialization side effects to their actual callers.
+pub(crate) struct GeneratedOwnerScope {
+    previous: std::collections::BTreeSet<GeneratedOrigin>,
+    callback_count: usize,
+}
 
 impl GeneratedOwnerScope {
-    /// Attribute registrations to the authored definition until this scope ends.
+    /// Attribute registrations to an authored definition until this scope ends.
     pub(crate) fn logical(owner: &str) -> Self {
-        Self::enter(GeneratedOrigin::Logical(owner.to_owned()))
+        Self::origins([GeneratedOrigin::Logical(owner.to_owned())].into())
     }
 
-    /// Keep an authored origin, or capture the helper currently being lowered.
+    /// Keep authored origins, or capture the helper currently being lowered.
     pub(crate) fn function(owner: &sand_components::ResourceLocation) -> Self {
-        let origin = REGISTRY.with_borrow(|registry| match &registry.origin {
-            Some(GeneratedOrigin::Logical(owner)) => GeneratedOrigin::Logical(owner.clone()),
-            _ => GeneratedOrigin::Function(owner.to_string()),
+        let origins = REGISTRY.with_borrow(|registry| {
+            if registry
+                .origins
+                .iter()
+                .any(|origin| matches!(origin, GeneratedOrigin::Logical(_)))
+            {
+                registry.origins.clone()
+            } else {
+                [GeneratedOrigin::Function(owner.to_string())].into()
+            }
         });
-        Self::enter(origin)
+        Self::origins(origins)
     }
 
-    /// Save the surrounding origin so nested lowering restores it on drop.
-    fn enter(origin: GeneratedOrigin) -> Self {
-        Self(REGISTRY.with_borrow_mut(|registry| registry.origin.replace(origin)))
+    /// Preserve all callers when a shared generated component is serialized.
+    pub(crate) fn origins(origins: std::collections::BTreeSet<GeneratedOrigin>) -> Self {
+        Self {
+            previous: REGISTRY
+                .with_borrow_mut(|registry| std::mem::replace(&mut registry.origins, origins)),
+            callback_count: sand_components::dialog::dialog_callback_count(),
+        }
     }
 }
 
 impl Drop for GeneratedOwnerScope {
     fn drop(&mut self) {
-        REGISTRY.with_borrow_mut(|registry| registry.origin = self.0.take());
+        let registered_callback =
+            sand_components::dialog::dialog_callback_count() > self.callback_count;
+        REGISTRY.with_borrow_mut(|registry| {
+            if registered_callback {
+                registry
+                    .dialog_origins
+                    .extend(registry.origins.iter().cloned());
+            }
+            registry.origins = std::mem::take(&mut self.previous);
+        });
     }
 }
 
+/// Record every caller, including repeated requests for an existing score constant.
+pub(crate) fn record_score_origin() {
+    REGISTRY.with_borrow_mut(|registry| {
+        registry
+            .score_origins
+            .extend(registry.origins.iter().cloned())
+    });
+}
+
+/// Drain origins alongside the corresponding score setup commands.
+pub(crate) fn take_score_origins() -> std::collections::BTreeSet<GeneratedOrigin> {
+    REGISTRY.with_borrow_mut(|registry| std::mem::take(&mut registry.score_origins))
+}
+
+/// Drain the origins captured while callback-bearing components were serialized.
+pub(crate) fn take_dialog_origins() -> std::collections::BTreeSet<GeneratedOrigin> {
+    REGISTRY.with_borrow_mut(|registry| std::mem::take(&mut registry.dialog_origins))
+}
+
 thread_local! {
-    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { resources: Vec::new(), origin: None }) };
+    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { resources: Vec::new(), origins: std::collections::BTreeSet::new(), score_origins: std::collections::BTreeSet::new(), dialog_origins: std::collections::BTreeSet::new() }) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
     static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
     static GENERATED_OBJECTIVE_OWNERS: RefCell<std::collections::BTreeMap<String, GeneratedObjectiveOwner>> = const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -655,7 +699,9 @@ impl Drop for ExportFunctionRegistryScope {
 fn clear_function_export_state() {
     REGISTRY.with_borrow_mut(|registry| {
         registry.resources.clear();
-        registry.origin = None;
+        registry.origins.clear();
+        registry.score_origins.clear();
+        registry.dialog_origins.clear();
     });
     INTERNAL_SCORE_TEMP_REQUESTED.set(false);
     crate::state::score::clear_constant_setup();
@@ -715,6 +761,9 @@ pub(crate) fn request_numeric_objectives(
 ) -> sand_commands::CommandResult<()> {
     let objectives: Vec<_> = objectives.into_iter().collect();
     reserve_generated_objectives(objectives.iter().cloned(), None)?;
+    if !objectives.is_empty() {
+        record_score_origin();
+    }
     INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(|registered| {
         registered.extend(
             objectives
@@ -739,6 +788,7 @@ pub(crate) fn generated_function_path(prefix: &str, actions: &crate::ir::Actions
 }
 
 pub(crate) fn request_internal_score_temp() {
+    record_score_origin();
     INTERNAL_SCORE_TEMP_REQUESTED.set(true);
 }
 
@@ -753,11 +803,7 @@ pub(crate) fn take_internal_score_temp_request() -> bool {
 pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
     let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
-        let origins = registry
-            .origin
-            .clone()
-            .into_iter()
-            .collect::<std::collections::BTreeSet<_>>();
+        let origins = registry.origins.clone();
         for resource in &mut registry.resources {
             if let GeneratedResource::Function(existing_path, existing_commands, existing_origins) =
                 resource
@@ -778,11 +824,7 @@ pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
 pub fn register_dyn_fn_dedup(prefix: &str, commands: impl crate::IntoCommands) -> String {
     let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
-        let origins = registry
-            .origin
-            .clone()
-            .into_iter()
-            .collect::<std::collections::BTreeSet<_>>();
+        let origins = registry.origins.clone();
         for resource in &mut registry.resources {
             if let GeneratedResource::Function(path, existing_commands, existing_origins) = resource
                 && path.starts_with(prefix)
@@ -821,7 +863,7 @@ pub(crate) fn register_generated_component(
     component: impl sand_components::DatapackComponent + 'static,
 ) {
     REGISTRY.with_borrow_mut(|registry| {
-        let origins = registry.origin.clone().into_iter().collect();
+        let origins = registry.origins.clone();
         registry
             .resources
             .push(GeneratedResource::Component(Box::new(component), origins))

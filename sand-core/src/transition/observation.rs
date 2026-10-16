@@ -276,6 +276,10 @@ pub(crate) fn resolve(
         plan.tick_commands
             .push(format!("execute at @s run function {namespace}:{path}"));
         plan.functions.push(GeneratedTransitionFunction {
+            origins: super::callback_origins(
+                namespace,
+                group.handlers.iter().map(|(_, path)| *path),
+            ),
             tracker_id,
             source: description,
             path,
@@ -288,7 +292,13 @@ pub(crate) fn resolve(
     // preceding handler teleports the player.
     if plan.tick_commands.len() > 1 {
         let path = "__sand_observation_tick".to_owned();
+        let origins = plan
+            .functions
+            .iter()
+            .flat_map(|function| function.origins.iter().cloned())
+            .collect();
         plan.functions.push(GeneratedTransitionFunction {
+            origins,
             tracker_id: "shared player observations".into(),
             source: "deterministic per-player observation sequence".into(),
             path: path.clone(),

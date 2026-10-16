@@ -210,6 +210,10 @@ pub(crate) fn migrate_hook_commands<S: crate::entity::EntityState>(
 /// Deterministic automatic lifecycle output built afresh for each export.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct AutomaticLifecycle {
+    /// Canonical State identities contributing work to each runtime phase.
+    pub load_origins: std::collections::BTreeSet<String>,
+    pub init_origins: std::collections::BTreeSet<String>,
+    pub tick_origins: std::collections::BTreeSet<String>,
     pub load_commands: Vec<String>,
     pub provision_commands: Vec<String>,
     pub player_init_commands: Vec<String>,
@@ -280,6 +284,14 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
     let mut output = AutomaticLifecycle::default();
     let mut objectives = BTreeMap::<String, (String, String)>::new();
     for component in components.values() {
+        let _origin = crate::function::GeneratedOwnerScope::logical(component.id);
+        let before_load = output.load_commands.len()
+            + output.provision_commands.len()
+            + output.global_init_commands.len();
+        let before_init = output.player_init_commands.len();
+        let before_tick = output.player_tick_commands.len()
+            + output.entity_tick_commands.len()
+            + output.global_tick_commands.len();
         let hook = hooks.get(component.id).copied();
         if let Some(hook) = hook {
             output.provision_commands.extend((hook.provision)());
@@ -389,6 +401,24 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
             StateScope::Player => emit_player(component, hook, &mut output),
             StateScope::Entity | StateScope::Living => emit_entity(component, hook, &mut output),
             StateScope::Global(holder) => emit_global(component, holder, hook, &mut output),
+        }
+        if output.load_commands.len()
+            + output.provision_commands.len()
+            + output.global_init_commands.len()
+            > before_load
+        {
+            output.load_origins.insert(component.id.into());
+        }
+        if output.player_init_commands.len() > before_init {
+            output.init_origins.insert(component.id.into());
+        }
+        if output.player_init_commands.len() > before_init
+            || output.player_tick_commands.len()
+                + output.entity_tick_commands.len()
+                + output.global_tick_commands.len()
+                > before_tick
+        {
+            output.tick_origins.insert(component.id.into());
         }
     }
     output.load_commands.sort();

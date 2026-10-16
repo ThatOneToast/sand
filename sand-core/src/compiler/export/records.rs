@@ -60,6 +60,8 @@ fn output_identity(record: &ComponentRecord) -> OutputIdentity {
 
 /// One resource returned by a logical registration owner.
 pub(crate) struct RegisteredComponent {
+    /// Semantic origins are separate from the diagnostic output owner.
+    pub(crate) origins: std::collections::BTreeSet<crate::function::GeneratedOrigin>,
     pub(crate) owner: String,
     pub(crate) component: Box<dyn DatapackComponent>,
     pub(crate) record: ComponentRecord,
@@ -173,6 +175,7 @@ fn expand_registered_component(
     }
     seen.insert(key, registered.owner.clone());
 
+    let _origin = crate::function::GeneratedOwnerScope::origins(registered.origins.clone());
     let mut nested = registered
         .component
         .nested_components()
@@ -180,6 +183,7 @@ fn expand_registered_component(
         .map(|component| {
             let record = component_to_record(component.as_ref(), ctx)?;
             Ok(RegisteredComponent {
+                origins: registered.origins.clone(),
                 owner: registered.owner.clone(),
                 component,
                 record,
@@ -1416,6 +1420,7 @@ mod tests {
         let component: Box<dyn super::DatapackComponent> = Box::new(component);
         let record = component_to_record(component.as_ref(), None).unwrap();
         super::RegisteredComponent {
+            origins: Default::default(),
             owner: owner.to_string(),
             component,
             record,

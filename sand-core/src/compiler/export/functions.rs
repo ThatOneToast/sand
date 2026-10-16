@@ -44,11 +44,13 @@ pub(crate) fn drain_generated_resources_into(
                     ));
                 }
                 crate::function::GeneratedResource::Component(component, origins) => {
+                    let _origin = crate::function::GeneratedOwnerScope::origins(origins.clone());
                     // Keep the typed component until this profile-aware boundary.
                     let record = super::records::component_to_record(&*component, ctx)?;
                     let owner = format!("generated resource {}:{}", record.namespace, record.path);
                     let expanded = super::records::expand_with_nested(
                         vec![super::records::RegisteredComponent {
+                            origins: origins.clone(),
                             owner,
                             component,
                             record,
@@ -71,6 +73,12 @@ pub(crate) fn drain_generated_resources_into(
                                 resolve_origins(origins.clone(), namespace),
                             );
                         }
+                        super::provenance::function_tag(
+                            &record,
+                            namespace,
+                            origins.clone(),
+                            runtime,
+                        );
                         if !emitted_components.contains(&record) {
                             emitted_components.push(record.clone());
                             records.push(record);
@@ -110,7 +118,7 @@ pub(crate) fn drain_generated_resources_into(
 }
 
 /// Normalize only captured function references; logical Rust owners are unchanged.
-fn resolve_origins(
+pub(super) fn resolve_origins(
     origins: impl IntoIterator<Item = crate::function::GeneratedOrigin>,
     namespace: &str,
 ) -> impl Iterator<Item = crate::function::GeneratedOrigin> {

@@ -20,6 +20,9 @@ pub(crate) struct RuntimePlan {
     /// Registration-time helper dependencies, consumed before publishing provenance.
     #[serde(skip)]
     generated_callers: BTreeMap<String, BTreeSet<String>>,
+    /// Tag contributions whose helper origins resolve after deferred lowering.
+    #[serde(skip)]
+    generated_tags: BTreeMap<(String, String), BTreeSet<crate::function::GeneratedOrigin>>,
     /// Logical owners associated with a generated function's full resource id.
     pub(crate) function_owners: BTreeMap<String, BTreeSet<String>>,
     /// Owners of tag-membership contributions; contributing an invocation does
@@ -105,6 +108,34 @@ impl RuntimePlan {
         }
     }
 
+    /// Retain tag origins without implying ownership of the referenced implementation.
+    pub(crate) fn contribute_generated_tag(
+        &mut self,
+        tag: String,
+        function: String,
+        origins: impl IntoIterator<Item = crate::function::GeneratedOrigin>,
+    ) {
+        self.generated_tags
+            .entry((tag, function))
+            .or_default()
+            .extend(origins);
+    }
+
+    /// Resolve a shared initializer's callers after every deferred helper is known.
+    pub(crate) fn generated_lifecycle(
+        &mut self,
+        function: String,
+        phase: &str,
+        origins: impl IntoIterator<Item = crate::function::GeneratedOrigin>,
+    ) {
+        self.generated_function(function.clone(), origins);
+        self.contribute_generated_tag(
+            format!("minecraft:{phase}"),
+            function.clone(),
+            [crate::function::GeneratedOrigin::Function(function)],
+        );
+    }
+
     /// Propagate owners through recorded helper registrations to a finite fixpoint.
     pub(crate) fn resolve_generated_owners(&mut self) {
         let mut children: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -127,6 +158,21 @@ impl RuntimePlan {
                 target.extend(owners.iter().cloned());
                 if target.len() != before {
                     queue.push_back(child.clone());
+                }
+            }
+        }
+        for ((tag, function), origins) in std::mem::take(&mut self.generated_tags) {
+            for origin in origins {
+                let owners = match origin {
+                    crate::function::GeneratedOrigin::Logical(owner) => [owner].into(),
+                    crate::function::GeneratedOrigin::Function(caller) => self
+                        .function_owners
+                        .get(&caller)
+                        .cloned()
+                        .unwrap_or_default(),
+                };
+                for owner in owners {
+                    self.contribute_tag(tag.clone(), function.clone(), owner);
                 }
             }
         }

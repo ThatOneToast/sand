@@ -328,6 +328,10 @@ pub(crate) fn try_export_components_impl(
         for component in components {
             let record = component_to_record(component.as_ref(), ctx)?;
             top_level.push(RegisteredComponent {
+                origins: [crate::function::GeneratedOrigin::Logical(
+                    factory.owner.into(),
+                )]
+                .into(),
                 owner: factory.owner.to_string(),
                 component,
                 record,
@@ -335,6 +339,12 @@ pub(crate) fn try_export_components_impl(
         }
     }
     for (owner, record) in super::records::expand_with_nested(top_level, ctx)? {
+        super::provenance::function_tag(
+            &record,
+            namespace,
+            [crate::function::GeneratedOrigin::Logical(owner.clone())].into(),
+            &mut runtime,
+        );
         if record.dir == "function" && record.ext == "mcfunction" {
             runtime.own_function(
                 resolve_local_refs(&format!("{}:{}", record.namespace, record.path), namespace),
@@ -2492,7 +2502,33 @@ pub(crate) fn try_export_components_impl(
                 .collect::<Vec<_>>(),
         )
         .map_err(transition_export_error)?;
+        let transition_origins = transition_plan
+            .functions
+            .iter()
+            .flat_map(|function| function.origins.iter().cloned())
+            .collect::<std::collections::BTreeSet<_>>();
+        if !transition_plan.load_commands.is_empty() || !transition_plan.reload_commands.is_empty()
+        {
+            runtime.generated_lifecycle(
+                format!("{namespace}:__sand_lifecycle_load"),
+                "load",
+                transition_origins.clone(),
+            );
+        }
+        if !transition_plan.tick_commands.is_empty()
+            || !transition_plan.global_tick_commands.is_empty()
+        {
+            runtime.generated_lifecycle(
+                format!("{namespace}:__sand_lifecycle_tick"),
+                "tick",
+                transition_origins,
+            );
+        }
         for generated in &transition_plan.functions {
+            runtime.generated_function(
+                format!("{namespace}:{}", generated.path),
+                generated.origins.iter().cloned(),
+            );
             transition_private_metadata.insert(
                 generated.path.clone(),
                 (generated.tracker_id.clone(), generated.source.clone()),
@@ -2555,29 +2591,14 @@ pub(crate) fn try_export_components_impl(
             registration_tick_commands,
             transition_global_tick_commands,
         )?;
+        lifecycle.attribute(namespace, &mut runtime);
         if !lifecycle.load_owners.is_empty() {
-            runtime.own_lifecycle(
-                format!("{}:__sand_lifecycle_load", namespace),
-                "load",
-                lifecycle
-                    .load_owners
-                    .iter()
-                    .map(|origin| origin.owner.clone()),
-            );
             runtime.lifecycle_owners.insert(
                 format!("{namespace}:__sand_lifecycle_load"),
                 lifecycle.load_owners,
             );
         }
         if !lifecycle.tick_owners.is_empty() {
-            runtime.own_lifecycle(
-                format!("{}:__sand_lifecycle_tick", namespace),
-                "tick",
-                lifecycle
-                    .tick_owners
-                    .iter()
-                    .map(|origin| origin.owner.clone()),
-            );
             runtime.lifecycle_owners.insert(
                 format!("{namespace}:__sand_lifecycle_tick"),
                 lifecycle.tick_owners,
@@ -2601,7 +2622,7 @@ pub(crate) fn try_export_components_impl(
     // registered while constructing dialog components are not missed. The
     // export-scope lock/reset guards are acquired at the top of this
     // function — see `_dialog_callback_lock` / `_dialog_callback_reset`.
-    drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace);
+    drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace, &mut runtime);
 
     // ── Compiler-managed score constants / expression temporaries ───────────
     // Structured helper lowering can allocate numeric working objectives.
@@ -2609,6 +2630,11 @@ pub(crate) fn try_export_components_impl(
     let score_setup = crate::state::score::drain_internal_score_setup();
     if !score_setup.is_empty() {
         let path = "__sand_score_init";
+        runtime.generated_lifecycle(
+            format!("{namespace}:{path}"),
+            "load",
+            super::functions::resolve_origins(crate::function::take_score_origins(), namespace),
+        );
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),

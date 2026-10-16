@@ -24,7 +24,7 @@ pub(super) fn lower(
         .iter()
         .flat_map(|module| module.states.iter().cloned())
         .collect();
-    let automatic = crate::state::owned::player_lifecycle(&states).map_err(|message| {
+    let mut automatic = crate::state::owned::player_lifecycle(&states).map_err(|message| {
         // The canonical Rust lifecycle API reports its logical owner in the
         // message. Retain a portable source location for that owner rather
         // than losing the module boundary when adapting its diagnostic.
@@ -42,6 +42,21 @@ pub(super) fn lower(
         }
         error(message)
     })?;
+    for module in &program.modules {
+        for owners in [
+            &mut automatic.load_origins,
+            &mut automatic.init_origins,
+            &mut automatic.tick_origins,
+        ] {
+            if module
+                .states
+                .iter()
+                .any(|state| owners.contains(&state.id.to_string()))
+            {
+                owners.insert(module.id.to_string());
+            }
+        }
+    }
     let init = (!automatic.player_init_commands.is_empty())
         .then(|| format!("{}:__sand_lifecycle_init", program.pack.namespace));
     let owners: Vec<String> = program
@@ -146,29 +161,14 @@ pub(super) fn lower(
         Vec::new(),
     )
     .map_err(|e| error(e.to_string()))?;
+    lifecycle.attribute(&program.pack.namespace, &mut lower.runtime);
     if !lifecycle.load_owners.is_empty() {
-        lower.runtime.own_lifecycle(
-            format!("{}:__sand_lifecycle_load", program.pack.namespace),
-            "load",
-            lifecycle
-                .load_owners
-                .iter()
-                .map(|origin| origin.owner.clone()),
-        );
         lower.runtime.lifecycle_owners.insert(
             format!("{}:__sand_lifecycle_load", program.pack.namespace),
             lifecycle.load_owners,
         );
     }
     if !lifecycle.tick_owners.is_empty() {
-        lower.runtime.own_lifecycle(
-            format!("{}:__sand_lifecycle_tick", program.pack.namespace),
-            "tick",
-            lifecycle
-                .tick_owners
-                .iter()
-                .map(|origin| origin.owner.clone()),
-        );
         lower.runtime.lifecycle_owners.insert(
             format!("{}:__sand_lifecycle_tick", program.pack.namespace),
             lifecycle.tick_owners,

@@ -121,3 +121,37 @@ impl<'a> GraphRuntime<'a> {
         }
     }
 }
+
+/// Attribute each validated typed function-tag member while its factory is known.
+pub(crate) fn function_tag(
+    record: &ComponentRecord,
+    namespace: &str,
+    origins: BTreeSet<crate::function::GeneratedOrigin>,
+    runtime: &mut RuntimePlan,
+) {
+    if record.dir != "tags/function" || record.ext != "json" || record.content_type != "text" {
+        return;
+    }
+    let Ok(tag) = serde_json::from_str::<serde_json::Value>(&record.content) else {
+        return;
+    };
+    let Some(values) = tag["values"].as_array() else {
+        return;
+    };
+    let tag_id = super::functions::resolve_local_refs(
+        &format!("{}:{}", record.namespace, record.path),
+        namespace,
+    );
+    for value in values {
+        if let Some(member) = value
+            .as_str()
+            .or_else(|| value.get("id").and_then(|id| id.as_str()))
+        {
+            runtime.contribute_generated_tag(
+                tag_id.clone(),
+                super::functions::resolve_local_refs(member, namespace),
+                super::functions::resolve_origins(origins.clone(), namespace),
+            );
+        }
+    }
+}

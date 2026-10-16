@@ -52,6 +52,9 @@ pub(super) fn resolve(
     use DetectorScore::*;
     let mut plan = super::TransitionPlan::default();
     if !deaths.is_empty() || !respawns.is_empty() {
+        let death_origins =
+            super::callback_origins(namespace, deaths.iter().chain(respawns.iter()).copied());
+        let respawn_origins = super::callback_origins(namespace, respawns.iter().copied());
         declare(&mut plan, namespace, DeathCount, "deathCount");
         let count = DeathCount.objective(namespace);
         let phase = RespawnPhase.objective(namespace);
@@ -74,6 +77,7 @@ pub(super) fn resolve(
                 namespace,
                 DeathCount,
                 "__sand_respawn_check",
+                &respawn_origins,
                 vec![format!(
                     "execute if score @s {phase} matches 1 if score @s {since} matches 1.. run function {namespace}:__sand_respawn_dispatch"
                 )],
@@ -85,6 +89,7 @@ pub(super) fn resolve(
                 namespace,
                 DeathCount,
                 "__sand_respawn_dispatch",
+                &respawn_origins,
                 respawn,
             );
         }
@@ -97,6 +102,7 @@ pub(super) fn resolve(
             namespace,
             DeathCount,
             "__sand_death_dispatch",
+            &death_origins,
             dispatch,
         );
         add_function(
@@ -104,12 +110,14 @@ pub(super) fn resolve(
             namespace,
             DeathCount,
             "__sand_death_check",
+            &death_origins,
             check,
         );
         plan.tick_commands
             .push(format!("function {namespace}:__sand_death_check"));
     }
     if !levels.is_empty() {
+        let level_origins = super::callback_origins(namespace, levels.iter().copied());
         for score in [XpCurrent, XpPrevious, XpDelta, XpSeen] {
             declare(&mut plan, namespace, score, "dummy");
         }
@@ -130,12 +138,20 @@ pub(super) fn resolve(
             ),
             format!("scoreboard players operation @s {previous} = @s {current}"),
         ];
-        add_function(&mut plan, namespace, XpCurrent, "__sand_xp_check", check);
+        add_function(
+            &mut plan,
+            namespace,
+            XpCurrent,
+            "__sand_xp_check",
+            &level_origins,
+            check,
+        );
         add_function(
             &mut plan,
             namespace,
             XpCurrent,
             "__sand_xp_dispatch",
+            &level_origins,
             callbacks(namespace, levels),
         );
         plan.tick_commands
@@ -177,9 +193,11 @@ fn add_function(
     namespace: &str,
     score: DetectorScore,
     path: &str,
+    origins: &std::collections::BTreeSet<crate::function::GeneratedOrigin>,
     commands: Vec<String>,
 ) {
     plan.functions.push(super::GeneratedTransitionFunction {
+        origins: origins.clone(),
         tracker_id: score.owner(namespace),
         source: "built-in player observation".into(),
         path: path.into(),

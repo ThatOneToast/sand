@@ -5,12 +5,20 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+const MAX_UNKNOWN_REASONS: usize = 8;
+const MAX_UNKNOWN_REASON_BYTES: usize = 256;
+const OMITTED_REASONS: &str = "additional unknown causes omitted";
+
 /// A range of explicit command evaluations for one invocation.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct Work {
     pub(crate) minimum: u64,
     pub(crate) maximum: Option<u64>,
     pub(crate) unknown: BTreeSet<String>,
+    /// Cycle/depth summaries depend on the active traversal, even if their
+    /// diagnostic text is omitted by the payload limit.
+    #[serde(skip)]
+    path_dependent: bool,
 }
 
 impl Work {
@@ -20,15 +28,25 @@ impl Work {
             minimum: count,
             maximum: Some(count),
             unknown: BTreeSet::new(),
+            path_dependent: false,
         }
     }
 
     /// Preserve an unresolved cost without treating it as zero work.
-    fn unknown(reason: String) -> Self {
+    fn unknown(mut reason: String) -> Self {
+        if reason.len() > MAX_UNKNOWN_REASON_BYTES {
+            let mut end = MAX_UNKNOWN_REASON_BYTES - "…".len();
+            while !reason.is_char_boundary(end) {
+                end -= 1;
+            }
+            reason.truncate(end);
+            reason.push('…');
+        }
         Self {
             minimum: 0,
             maximum: None,
             unknown: BTreeSet::from([reason]),
+            path_dependent: false,
         }
     }
 
@@ -39,7 +57,14 @@ impl Work {
             .maximum
             .zip(other.maximum)
             .and_then(|(a, b)| a.checked_add(b));
+        self.path_dependent |= other.path_dependent;
         self.unknown.extend(other.unknown);
+        if self.unknown.len() > MAX_UNKNOWN_REASONS {
+            while self.unknown.len() >= MAX_UNKNOWN_REASONS {
+                self.unknown.pop_last();
+            }
+            self.unknown.insert(OMITTED_REASONS.into());
+        }
         if self.maximum.is_none() && self.unknown.is_empty() {
             self.unknown
                 .insert("evaluation count exceeds the report's integer range".into());
@@ -64,7 +89,7 @@ impl Work {
         self.minimum = 0;
         if self.maximum != Some(0) {
             self.maximum = None;
-            self.unknown.insert(reason);
+            self.add(Self::unknown(reason));
         }
         self
     }
@@ -123,7 +148,7 @@ impl<'a> Estimator<'a> {
             return summary.clone();
         }
         if self.active.contains(&id) || self.active.len() >= 128 {
-            return Self::unsupported(format!("recursive or excessively deep call graph: {id}"));
+            return Self::path_dependent(format!("recursive or excessively deep call graph: {id}"));
         }
         let Some(body) = self.functions.get(&id).cloned() else {
             return Self::unsupported(format!("external or unavailable function: {id}"));
@@ -163,13 +188,7 @@ impl<'a> Estimator<'a> {
         let summary = Summary { work, returns };
         // Cycle/depth results depend on the active call path. Never cache them
         // as though they were a context-independent function summary.
-        if self.remaining_commands > 0
-            && !summary
-                .work
-                .unknown
-                .iter()
-                .any(|reason| reason.starts_with("recursive or"))
-        {
+        if self.remaining_commands > 0 && !summary.work.path_dependent {
             self.cache.insert(id, summary.clone());
         }
         summary
@@ -183,13 +202,20 @@ impl<'a> Estimator<'a> {
         }
     }
 
+    /// Keep path-sensitive uncertainty separate from bounded diagnostic text.
+    fn path_dependent(reason: String) -> Summary {
+        let mut summary = Self::unsupported(reason);
+        summary.work.path_dependent = true;
+        summary
+    }
+
     /// Bound nested execute/return analysis independently of function graph depth.
     fn line(&mut self, line: &str) -> Summary {
         if self.remaining_commands == 0 {
             return Self::unsupported("analysis work limit reached".into());
         }
         if self.command_depth >= 128 {
-            return Self::unsupported("command nesting analysis limit reached".into());
+            return Self::path_dependent("command nesting analysis limit reached".into());
         }
         self.remaining_commands -= 1;
         self.command_depth += 1;
@@ -385,5 +411,30 @@ mod tests {
         assert_eq!(work.maximum, None);
         assert!(work.unknown.contains("analysis work limit reached"));
         assert!(estimator.cache.is_empty());
+    }
+    /// Truncation remains valid UTF-8 and never turns uncertainty into a bound.
+    #[test]
+    fn long_unknown_reasons_preserve_unicode_and_unknown_bounds() {
+        let work = Work::unknown("🌍".repeat(4096));
+        let reason = work.unknown.first().unwrap();
+        assert!(reason.len() <= MAX_UNKNOWN_REASON_BYTES);
+        assert!(reason.ends_with('…'));
+        assert_eq!((work.minimum, work.maximum), (0, None));
+        assert!(serde_json::to_string(&work).is_ok());
+    }
+
+    /// Dropping excess diagnostic text must not make cycle summaries cacheable.
+    #[test]
+    fn bounded_diagnostics_retain_path_dependent_analysis_state() {
+        let mut commands: Vec<_> = (0..40)
+            .map(|index| format!("function other:missing_{index}"))
+            .collect();
+        commands.push("function demo:root".into());
+        let functions = BTreeMap::from([("demo:root".into(), commands.join("\n"))]);
+        let mut estimator = Estimator::new(&functions);
+        let work = estimator.function("demo:root");
+        assert!(work.unknown.len() <= MAX_UNKNOWN_REASONS);
+        assert!(work.unknown.contains(OMITTED_REASONS));
+        assert!(!estimator.cache.contains_key("demo:root"));
     }
 }

@@ -143,6 +143,7 @@ impl RuntimeReport {
             "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.".into(),
             "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.".into(),
             "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts.".into(),
+            "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.".into(),
             "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.".into(),
         ]);
         for record in records.iter().filter(|record| {

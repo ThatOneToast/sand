@@ -46,6 +46,50 @@ struct TickEntry {
 struct FunctionCost {
     owners: BTreeSet<String>,
     evaluations: Work,
+    selector_sites: Vec<SelectorSite>,
+}
+
+/// A lexical execution-context or entity-condition selector site. A site can
+/// execute zero, one, or many times; this is not a runtime scan count.
+#[derive(Debug, Clone, serde::Serialize)]
+struct SelectorSite {
+    line: usize,
+    operation: String,
+    selector: String,
+}
+
+fn selector_sites(body: &str) -> Vec<SelectorSite> {
+    let mut sites = Vec::new();
+    for (index, line) in body.lines().enumerate() {
+        let mut command = line.trim();
+        loop {
+            if let Some(tail) = sand_commands::render::collected_return_command(command) {
+                command = tail;
+                continue;
+            }
+            let Some(execute) = sand_commands::render::collected_execute(command) else {
+                break;
+            };
+            for operation in execute.operations {
+                let args = &operation.arguments;
+                let selector = match operation.keyword {
+                    "as" | "at" => args.first(),
+                    "positioned" | "rotated" if args.first() == Some(&"as") => args.get(1),
+                    "facing" | "if" | "unless" if args.first() == Some(&"entity") => args.get(1),
+                    _ => None,
+                };
+                if let Some(selector) = selector.filter(|value| value.starts_with('@')) {
+                    sites.push(SelectorSite {
+                        line: index + 1,
+                        operation: operation.keyword.into(),
+                        selector: (*selector).into(),
+                    });
+                }
+            }
+            command = execute.command;
+        }
+    }
+    sites
 }
 
 impl RuntimeReport {
@@ -73,6 +117,7 @@ impl RuntimeReport {
                     FunctionCost {
                         owners: plan.function_owners.get(id).cloned().unwrap_or_default(),
                         evaluations: estimator.function(id),
+                        selector_sites: selector_sites(&functions[id]),
                     },
                 )
             })
@@ -81,6 +126,7 @@ impl RuntimeReport {
         let mut limitations = BTreeSet::from([
             "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.".into(),
             "Estimates assume successfully loaded functions; external pack contributions and implicit resource-triggered callbacks are not fully analyzed.".into(),
+            "Selector sites cover execute contexts and entity conditions, not selectors in terminal commands; sites are not runtime scan counts.".into(),
             "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.".into(),
         ]);
         for record in records.iter().filter(|record| {
@@ -183,6 +229,25 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&report).unwrap(),
             serde_json::to_value(RuntimeReport::collect(&records, &plan)).unwrap()
+        );
+    }
+    /// Quoted text is not a selector; nested execution contexts retain their sites.
+    #[test]
+    fn selector_sites_preserve_line_and_operation_without_parsing_chat() {
+        let sites = selector_sites(
+            "say @e\n# comment\nexecute as @e[type=minecraft:pig] at @s run execute if entity @a run say hello\nreturn run execute as @a run say done",
+        );
+        assert_eq!(
+            sites
+                .iter()
+                .map(|site| (site.line, site.operation.as_str(), site.selector.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                (3, "as", "@e[type=minecraft:pig]"),
+                (3, "at", "@s"),
+                (3, "if", "@a"),
+                (4, "as", "@a")
+            ]
         );
     }
 }

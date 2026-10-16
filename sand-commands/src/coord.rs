@@ -204,7 +204,7 @@ impl RenderCommand for Coord {
     use_when = ["Passing a block position to a typed Minecraft command"],
     avoid_when = ["Passing a fractional absolute position to commands that require Vec3"],
     example = "use sand::command::BlockPos;",
-    fields(x = "The x axis, validated with the other axes as a block position.", y = "The y axis, validated with the other axes as a block position.", z = "The z axis, validated with the other axes as a block position."),
+    fields(x = "The x coordinate, validated with the other axes as a block position.", y = "The y coordinate, validated with the other axes as a block position.", z = "The z coordinate, validated with the other axes as a block position."),
 )]
 /// Block position used by `setblock`, `fill`, `clone`, and block-targeted `data`.
 ///
@@ -229,11 +229,11 @@ impl RenderCommand for Coord {
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct BlockPos {
-    /// The x axis, validated with the other axes as a block position.
+    /// The x coordinate, validated with the other axes as a block position.
     pub x: Coord,
-    /// The y axis, validated with the other axes as a block position.
+    /// The y coordinate, validated with the other axes as a block position.
     pub y: Coord,
-    /// The z axis, validated with the other axes as a block position.
+    /// The z coordinate, validated with the other axes as a block position.
     pub z: Coord,
 }
 

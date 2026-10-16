@@ -614,3 +614,40 @@ fn resource_paths_reject_windows_reserved_segments_on_every_host() {
     program.modules[0].functions[0].id = "con:entry".parse().unwrap();
     assert!(Compiler::check(&program).is_err());
 }
+
+/// Runtime reports retain logical ownership without publishing synthetic resources.
+#[test]
+fn runtime_report_preserves_tick_contributors_and_unknown_fork_cost() {
+    let pack = Compiler::compile(&counter()).unwrap();
+    let report = serde_json::to_value(&pack.runtime_report).unwrap();
+    assert_eq!(report["schema_version"], 1);
+    let tick = report["tick"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["reference"] == "demo:tick")
+        .unwrap();
+    assert_eq!(
+        tick["contributors"],
+        serde_json::json!(["demo:counter_module"])
+    );
+    assert_eq!(
+        report["functions"]["demo:tick"]["owners"],
+        serde_json::json!(["demo:counter_module"])
+    );
+    assert!(tick["evaluations"]["maximum"].is_null());
+    assert!(
+        !tick["evaluations"]["unknown"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        !pack
+            .resources
+            .keys()
+            .any(|path| path.contains("runtime_report"))
+    );
+    let again = Compiler::compile(&counter()).unwrap();
+    assert_eq!(report, serde_json::to_value(again.runtime_report).unwrap());
+}

@@ -21,11 +21,15 @@ registrations you want collected. If you add new components in a separate
 module, `pub use my_module::*;` it from `lib.rs` (as the scaffold template
 comment says) so its registrations link in too.
 
-`try_export_components_json` (from `sand::advanced` — the
+`try_export_pack_json` (from `sand::advanced` — the
 supported low-level export surface, chapter 2) does the real work: it walks
 every registered component, validates it against the resolved version
 profile (chapter 16), and renders the full datapack JSON tree, printed to
-stdout as one JSON document.
+stdout as one versioned JSON object with `components` and `runtime_report`.
+`sand build --format json` includes that runtime report in its build result.
+The report preserves ownership and cadence and estimates explicit command
+evaluations; its limitations and unknown costs must accompany any comparison.
+These counts are not MSPT or Minecraft command-budget units.
 
 ## `sand build`
 

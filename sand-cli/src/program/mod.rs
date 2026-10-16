@@ -91,6 +91,7 @@ fn execute(input: InputArgs, output: Option<PathBuf>, include_files: bool) -> se
         .map(|(path, bytes)| serde_json::json!({"path":path,"bytes":bytes.len()}))
         .collect();
     let mut response = serde_json::json!({"schema_version":1,"success":true,"target":pack.target,"diagnostics":pack.diagnostics,"files":files,"output":output});
+    response["runtime_report"] = serde_json::to_value(&pack.runtime_report)?;
     if include_files {
         response["file_contents"] = serde_json::to_value(
             pack.resources

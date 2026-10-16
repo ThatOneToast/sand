@@ -2026,3 +2026,25 @@ fn decode_pack_export(stdout: &[u8]) -> Result<PackExport> {
     }
     Ok(exported)
 }
+
+#[cfg(test)]
+mod pack_export_tests {
+    use super::*;
+
+    /// A protocol mismatch must fail before any pack publication.
+    #[test]
+    fn exporter_protocol_requires_versioned_resources_and_report() {
+        let valid = serde_json::json!({"schema_version":1,"components":[],"runtime_report":{"schema_version":1,"tick":[]}});
+        assert!(decode_pack_export(&serde_json::to_vec(&valid).unwrap()).is_ok());
+        for invalid in [
+            serde_json::json!([]),
+            serde_json::json!({"schema_version":2,"components":[],"runtime_report":{"schema_version":1}}),
+            serde_json::json!({"schema_version":1,"components":[],"runtime_report":null}),
+        ] {
+            assert!(decode_pack_export(&serde_json::to_vec(&invalid).unwrap()).is_err());
+        }
+        let mut trailing = serde_json::to_vec(&valid).unwrap();
+        trailing.extend_from_slice(b" {} ");
+        assert!(decode_pack_export(&trailing).is_err());
+    }
+}

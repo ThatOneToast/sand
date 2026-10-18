@@ -1,20 +1,50 @@
 """Tiny Python and blueprint frontends. Sand remains the only gameplay compiler."""
 
-def counter():
+def counter(initial_value=0, bounds=None):
     reference = {"kind": "internal", "id": "demo:increment"}
-    return {
+    program = {
         "format": "sand.program", "format_version": 1,
         "target": {"minecraft": "26.2"},
         "pack": {"namespace": "demo", "description": "Player counter"},
         "modules": [{"id": "demo:counter_module", "states": [{
             "id": "demo:counter", "scope": "player", "revision": 1,
-            "fields": [{"name": "value", "default": 0}]}],
+            "fields": [{"name": "value", "default": initial_value}]}],
             "functions": [
                 {"id": "demo:tick", "context": "server", "body": [{"action": {
                     "op": "players", "body": [{"action": {"op": "call", "function": reference}}]}}]},
                 {"id": "demo:increment", "context": "player", "body": [{"action": {
                     "op": "score_add", "score": {"state": "demo:counter", "field": "value"}, "value": 1}}]}],
             "tags": [{"tag": "minecraft:tick", "function": {"kind": "internal", "id": "demo:tick"}}]}]}
+    if bounds is not None:
+        program["modules"][0]["states"][0]["fields"][0]["bounds"] = list(bounds)
+    return program
+
+
+def global_counter():
+    """A shared bounded counter, usable by server functions without players."""
+    program = counter(initial_value=10, bounds=(0, 100))
+    program["pack"]["description"] = "Global counter"
+    program["requires"] = ["global_state", "state_defaults", "state_bounds"]
+    module = program["modules"][0]
+    module["id"] = "demo:global_module"
+    module["states"][0]["scope"] = "global"
+    module["tags"] = []
+    score = {"state": "demo:counter", "field": "value"}
+    def write(op, value):
+        return {"action": {"op": op, "score": score, "value": value}}
+    # Even add(0) creates an absent Minecraft score. This catches load actions
+    # accidentally running before the declared global default is installed.
+    module["load"] = [write("score_add", 0)]
+    bodies = {
+        "increment": [write("score_add", 1)],
+        "choose": [{"action": {"op": "branch", "condition": {"score": score, "min": 10, "max": 10},
+                    "then": [write("score_add", 5)], "otherwise": [write("score_set", 1)]}}],
+        "fill": [write("score_set", 200)],
+        "subtract": [write("score_add", -3)],
+    }
+    module["functions"] = [{"id": f"demo:{name}", "context": "server", "body": body}
+                           for name, body in bodies.items()]
+    return program
 
 
 def blueprint(graph):

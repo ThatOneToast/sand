@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Revision-one, zero-default player score State using canonical ownership.",
+  "description": "Revision-one player or global score State with explicit integer defaults and canonical ownership.",
   "properties": {
     "fields": {
       "description": "Named integer score fields.",
@@ -21,7 +21,7 @@
       "type": "integer"
     },
     "scope": {
-      "description": "Must be `player` in protocol v1.",
+      "description": "`player` stores independent values per player; `global` stores one shared\nvalue per State field and initializes it during load without an executor.",
       "type": "string"
     }
   },

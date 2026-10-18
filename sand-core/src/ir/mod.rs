@@ -29,6 +29,7 @@ pub use item::{ItemMatch, ItemMutation};
 mod numeric;
 #[doc(hidden)]
 pub use numeric::NumericWrite;
+pub(crate) use numeric::{score_bounds, score_delta};
 mod numeric_condition;
 #[doc(hidden)]
 pub use numeric_condition::NumericComparison;
@@ -505,7 +506,17 @@ impl Cmd {
                 format!("scoreboard objectives add {objective} {criterion}")
             }
 
-            Self::ScorePlayers(op) => op.render(),
+            Self::ScorePlayers(op) => {
+                if matches!(op, ScorePlayersOp::Add { amount, .. } | ScorePlayersOp::Remove { amount, .. } if *amount < 0)
+                {
+                    return Err(sand_commands::CommandError::new(
+                        "scoreboard players",
+                        "amount",
+                        "add/remove command amounts must be nonnegative",
+                    ));
+                }
+                op.render()
+            }
 
             Self::Data(command) => {
                 command.try_render(&sand_commands::CommandProfile::unprofiled())?
@@ -603,6 +614,26 @@ mod tests {
 
     fn render(cmd: Cmd) -> String {
         cmd.render()
+    }
+
+    #[test]
+    fn score_command_ir_rejects_negative_minecraft_amounts() {
+        for amount in [-1, i32::MIN] {
+            for op in [
+                ScorePlayersOp::Add {
+                    selector: "@s".into(),
+                    objective: "value".into(),
+                    amount,
+                },
+                ScorePlayersOp::Remove {
+                    selector: "@s".into(),
+                    objective: "value".into(),
+                    amount,
+                },
+            ] {
+                assert!(Cmd::ScorePlayers(op).try_render().is_err());
+            }
+        }
     }
 
     #[test]

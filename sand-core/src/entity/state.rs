@@ -3402,19 +3402,16 @@ fn mutation<F: EntityStateField + ComponentDirtyField>(
     let mut commands = vec![format!(
         "scoreboard players {operation} {holder} {objective} {value}"
     )];
-    if let Some((min, max)) = field.descriptor().bounds {
-        if min != i32::MIN {
-            commands.push(format!(
-                "execute if score {holder} {objective} matches ..{} run scoreboard players set {holder} {objective} {min}",
-                min - 1
-            ));
-        }
-        if max != i32::MAX {
-            commands.push(format!(
-                "execute if score {holder} {objective} matches {}.. run scoreboard players set {holder} {objective} {max}",
-                max + 1
-            ));
-        }
+    if let Some(bounds) = field.descriptor().bounds {
+        commands.extend(
+            crate::ir::score_bounds(
+                &sand_commands::__private::score_holder_compat(holder.to_owned()),
+                &objective,
+                bounds,
+            )
+            .iter()
+            .map(crate::ir::Cmd::render),
+        );
     }
     if track_dirty {
         commands.push(format!(
@@ -3456,10 +3453,16 @@ impl NumericStateSource for i32 {
         let encoded = i64::from(self)
             .saturating_mul(i64::from(destination_scale))
             .clamp(i64::from(i32::MIN), i64::from(i32::MAX));
-        let verb = if operation == "+=" { "add" } else { "remove" };
-        commands.push(format!(
-            "scoreboard players {verb} {destination_holder} {destination_objective} {encoded}"
-        ));
+        commands.extend(
+            crate::ir::score_delta(
+                &sand_commands::__private::score_holder_compat(destination_holder.to_owned()),
+                destination_objective,
+                encoded as i32,
+                operation != "+=",
+            )
+            .iter()
+            .map(crate::ir::Cmd::render),
+        );
     }
 }
 
@@ -3474,10 +3477,16 @@ impl NumericStateSource for f64 {
         operation: &str,
     ) {
         let encoded = encode_fixed(self, destination_scale, None);
-        let verb = if operation == "+=" { "add" } else { "remove" };
-        commands.push(format!(
-            "scoreboard players {verb} {destination_holder} {destination_objective} {encoded}"
-        ));
+        commands.extend(
+            crate::ir::score_delta(
+                &sand_commands::__private::score_holder_compat(destination_holder.to_owned()),
+                destination_objective,
+                encoded,
+                operation != "+=",
+            )
+            .iter()
+            .map(crate::ir::Cmd::render),
+        );
     }
 }
 
@@ -3650,19 +3659,16 @@ fn append_mutation_bounds_and_dirty<F: EntityStateField + ComponentDirtyField>(
     objective: &str,
     commands: &mut Vec<String>,
 ) {
-    if let Some((min, max)) = field.descriptor().bounds {
-        if min != i32::MIN {
-            commands.push(format!(
-                "execute if score {holder} {objective} matches ..{} run scoreboard players set {holder} {objective} {min}",
-                min - 1
-            ));
-        }
-        if max != i32::MAX {
-            commands.push(format!(
-                "execute if score {holder} {objective} matches {}.. run scoreboard players set {holder} {objective} {max}",
-                max + 1
-            ));
-        }
+    if let Some(bounds) = field.descriptor().bounds {
+        commands.extend(
+            crate::ir::score_bounds(
+                &sand_commands::__private::score_holder_compat(holder.to_owned()),
+                objective,
+                bounds,
+            )
+            .iter()
+            .map(crate::ir::Cmd::render),
+        );
     }
     if track_dirty {
         commands.push(format!(
@@ -3788,6 +3794,26 @@ fn predicate_for_range(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn signed_constant_mutations_normalize_direction_and_split_i32_minimum() {
+        let mut commands = Vec::new();
+        (-3_i32).append_numeric_operation(&mut commands, "@s", "value", "scratch", 1, "+=");
+        (-1.25_f64).append_numeric_operation(&mut commands, "@s", "value", "scratch", 100, "-=");
+        i32::MIN.append_numeric_operation(&mut commands, "@s", "value", "scratch", 1, "+=");
+        i32::MIN.append_numeric_operation(&mut commands, "@s", "value", "scratch", 1, "-=");
+        assert_eq!(
+            commands,
+            [
+                "scoreboard players remove @s value 3",
+                "scoreboard players add @s value 125",
+                "scoreboard players remove @s value 2147483647",
+                "scoreboard players remove @s value 1",
+                "scoreboard players add @s value 2147483647",
+                "scoreboard players add @s value 1",
+            ]
+        );
+    }
 
     #[test]
     fn data_handles_preserve_storage_validation_at_export_boundary() {

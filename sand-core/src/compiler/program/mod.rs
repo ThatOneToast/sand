@@ -14,6 +14,22 @@ pub use model::{
 };
 use std::collections::BTreeMap;
 
+// Validation and host discovery consume one catalog as portable coverage grows.
+const CAPABILITIES: &[&str] = &[
+    "player_state",
+    "state_defaults",
+    "state_bounds",
+    "global_state",
+    "functions",
+    "score",
+    "branch",
+    "players",
+    "calls",
+    "lifecycle",
+    "function_tags",
+    "raw_commands",
+];
+
 /// Complete deterministic pack output, ready for a host's publication adapter.
 #[derive(Debug, Clone, serde::Serialize)]
 #[sand_macros::api(
@@ -196,7 +212,7 @@ impl Compiler {
             "compiler": { "name": "sand", "version": env!("CARGO_PKG_VERSION") },
             "targets": ["26.1", "26.1.1", "26.1.2", "26.2"],
             "operations": ["score_set", "score_add", "branch", "players", "call", "raw"],
-            "capabilities": ["player_state", "functions", "score", "branch", "players", "calls", "lifecycle", "function_tags", "raw_commands"],
+            "capabilities": CAPABILITIES,
             "raw_validation": "explicit opt-in; command-line safety and supported syntax only",
             "limits": { "document_bytes": limits::DOCUMENT_BYTES, "input_bytes": limits::INPUT_BYTES,
                 "modules": limits::MODULES, "json_depth": limits::JSON_DEPTH, "operation_depth": limits::OP_DEPTH,

@@ -55,19 +55,7 @@ pub(super) fn validate(
         ));
     }
     for (index, capability) in program.requires.iter().enumerate() {
-        if ![
-            "player_state",
-            "functions",
-            "score",
-            "branch",
-            "players",
-            "calls",
-            "lifecycle",
-            "function_tags",
-            "raw_commands",
-        ]
-        .contains(&capability.as_str())
-        {
+        if !super::CAPABILITIES.contains(&capability.as_str()) {
             errors.push(Diagnostic::error(
                 "SAND_PROGRAM_CAPABILITY",
                 "",
@@ -132,22 +120,28 @@ pub(super) fn validate(
                     "invalid or duplicate State identity",
                 ));
             }
-            if state.scope != "player" || state.revision != 1 {
+            if !matches!(state.scope.as_str(), "player" | "global") || state.revision != 1 {
                 errors.push(Diagnostic::error(
                     "SAND_PROGRAM_STATE",
                     &owner,
                     &ptr,
-                    "v1 requires player State revision 1",
+                    "v1 requires player or global State revision 1",
                 ));
             }
             let mut fields = BTreeSet::new();
             for (index, field) in state.fields.iter().enumerate() {
-                if field.default != 0
-                    || matches!(
-                        field.name.as_str(),
-                        "presence" | "suppressed" | "numeric_scratch"
-                    )
-                    || field.name.is_empty()
+                if field.bounds.is_some_and(|(min, max)| min > max) {
+                    errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_STATE",
+                        &owner,
+                        &format!("{ptr}/fields/{index}/bounds"),
+                        "State field minimum must not exceed its maximum",
+                    ));
+                }
+                if matches!(
+                    field.name.as_str(),
+                    "presence" | "suppressed" | "numeric_scratch"
+                ) || field.name.is_empty()
                     || !field
                         .name
                         .bytes()
@@ -158,7 +152,7 @@ pub(super) fn validate(
                         "SAND_PROGRAM_STATE",
                         &owner,
                         &format!("{ptr}/fields/{index}"),
-                        "fields require unique simple names, zero integer defaults, and cannot claim State ownership objectives",
+                        "fields require unique simple names and cannot claim State ownership objectives",
                     ));
                 }
             }
@@ -185,11 +179,14 @@ pub(super) fn validate(
             .map(|(id, state)| {
                 (
                     id,
-                    state
-                        .fields
-                        .iter()
-                        .map(|field| field.name.as_str())
-                        .collect(),
+                    (
+                        state.scope.as_str(),
+                        state
+                            .fields
+                            .iter()
+                            .map(|field| field.name.as_str())
+                            .collect(),
+                    ),
                 )
             })
             .collect(),
@@ -282,7 +279,7 @@ fn valid_id(id: &ResourceLocation) -> bool {
 }
 
 struct Validator<'a, 'e> {
-    states: BTreeMap<String, BTreeSet<&'a str>>,
+    states: BTreeMap<String, (&'a str, BTreeSet<&'a str>)>,
     functions: BTreeMap<String, ExecutionContext>,
     operations: usize,
     raw: bool,
@@ -290,7 +287,12 @@ struct Validator<'a, 'e> {
 }
 impl Validator<'_, '_> {
     fn score(&mut self, score: &FieldReference, context: ExecutionContext, owner: &str, ptr: &str) {
-        if context != ExecutionContext::Player {
+        if context != ExecutionContext::Player
+            && self
+                .states
+                .get(&score.state.to_string())
+                .is_some_and(|(scope, _)| *scope == "player")
+        {
             self.errors.push(Diagnostic::error(
                 "SAND_PROGRAM_CONTEXT",
                 owner,
@@ -301,7 +303,7 @@ impl Validator<'_, '_> {
         if !self
             .states
             .get(&score.state.to_string())
-            .is_some_and(|fields| fields.contains(score.field.as_str()))
+            .is_some_and(|(_, fields)| fields.contains(score.field.as_str()))
         {
             self.errors.push(Diagnostic::error(
                 "SAND_PROGRAM_REFERENCE",

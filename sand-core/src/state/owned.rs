@@ -1,10 +1,11 @@
-//! Owned adaptation of the supported player-score State slice.
+//! Owned adaptation of the supported player/global score State slice.
 //!
 //! Strings are borrowed only while canonical lifecycle generation runs. No
 //! descriptor is interned, leaked or registered in link-time inventory.
 
 use std::collections::BTreeMap;
 
+use super::GlobalStateHolder;
 use super::registry::{AutomaticLifecycle, automatic_lifecycle_with_hooks};
 use super::registry::{StateDescriptor, StateLifecycleDescriptor, StateScope};
 use crate::entity::{StateFieldDescriptor, StateFieldKind};
@@ -15,27 +16,38 @@ impl TryFrom<StateDescriptor<'_>> for State {
     type Error = String;
 
     fn try_from(descriptor: StateDescriptor<'_>) -> Result<Self, Self::Error> {
-        if descriptor.scope != StateScope::Player
-            || descriptor.version != 1
+        let scope = match descriptor.scope {
+            StateScope::Player => "player",
+            StateScope::Global(holder)
+                if holder == GlobalStateHolder::new(descriptor.id).as_str() =>
+            {
+                "global"
+            }
+            _ => {
+                return Err(format!(
+                    "State `{}` has an unsupported scope or noncanonical global holder",
+                    descriptor.id
+                ));
+            }
+        };
+        if descriptor.version != 1
             || !descriptor.data_fields.is_empty()
             || !descriptor.migrations.is_empty()
         {
             return Err(format!(
-                "State `{}` is outside the player-score v1 slice",
+                "State `{}` is outside the player/global score v1 slice",
                 descriptor.id
             ));
         }
         for field in descriptor.fields {
             if field.field.kind != StateFieldKind::Score
-                || field.field.default != 0
-                || field.field.bounds.is_some()
                 || field.criterion != "dummy"
                 || field.display_name.is_some()
                 || field.auto_tick
                 || field.objective != format!("{}.{}", descriptor.id, field.field.name)
             {
                 return Err(format!(
-                    "State field `{}.{}` is outside the player-score v1 slice",
+                    "State field `{}.{}` is outside the player/global score v1 slice",
                     descriptor.id, field.field.name
                 ));
             }
@@ -53,23 +65,35 @@ impl TryFrom<StateDescriptor<'_>> for State {
                 .id
                 .parse()
                 .map_err(|error| format!("invalid State ID: {error}"))?,
-            scope: "player".into(),
+            scope: scope.into(),
             revision: 1,
             fields: descriptor
                 .fields
                 .iter()
                 .map(|field| ScoreField {
                     name: field.field.name.to_owned(),
-                    default: 0,
+                    default: field.field.default,
+                    bounds: field.field.bounds,
                 })
                 .collect(),
         })
     }
 }
 
+/// Resolve the scoreboard owner from the same identity used by lifecycle lowering.
+pub(crate) fn holder(state: &State) -> sand_commands::ScoreHolder {
+    match state.scope.as_str() {
+        "player" => sand_commands::ScoreHolder::self_(),
+        "global" => {
+            sand_commands::ScoreHolder::fake(GlobalStateHolder::new(&state.id.to_string()).as_str())
+        }
+        _ => unreachable!("owned State scopes are validated before lowering"),
+    }
+}
+
 /// Lower explicit owned inputs through the same lifecycle implementation used
 /// by Rust descriptors, without collecting or executing Rust hooks.
-pub(crate) fn player_lifecycle(states: &[State]) -> Result<AutomaticLifecycle, String> {
+pub(crate) fn lifecycle(states: &[State]) -> Result<AutomaticLifecycle, String> {
     with_descriptors(states, |descriptors| {
         automatic_lifecycle_with_hooks(descriptors, &BTreeMap::new())
     })
@@ -86,6 +110,7 @@ pub(crate) fn with_descriptors<R>(
         .map(|state| {
             (
                 state.id.to_string(),
+                GlobalStateHolder::new(&state.id.to_string()),
                 format!("{}.presence", state.id),
                 format!("{}.suppressed", state.id),
                 state
@@ -99,7 +124,7 @@ pub(crate) fn with_descriptors<R>(
     let fields: Vec<Vec<_>> = states
         .iter()
         .zip(&identities)
-        .map(|(state, (_, _, _, objectives))| {
+        .map(|(state, (_, _, _, _, objectives))| {
             state
                 .fields
                 .iter()
@@ -107,18 +132,27 @@ pub(crate) fn with_descriptors<R>(
                 .map(|(field, objective)| {
                     StateLifecycleDescriptor::new(
                         objective,
-                        StateFieldDescriptor::new(&field.name, StateFieldKind::Score, 0, None),
+                        StateFieldDescriptor::new(
+                            &field.name,
+                            StateFieldKind::Score,
+                            field.default,
+                            field.bounds,
+                        ),
                     )
                 })
                 .collect()
         })
         .collect();
     let descriptors = states.iter().zip(&identities).zip(&fields).map(
-        |((_state, (id, presence, suppression, _)), fields)| {
+        |((state, (id, holder, presence, suppression, _)), fields)| {
             StateDescriptor::new(
                 id,
                 1,
-                StateScope::Player,
+                match state.scope.as_str() {
+                    "player" => StateScope::Player,
+                    "global" => StateScope::Global(holder.as_str()),
+                    _ => unreachable!("owned State scopes are validated before lowering"),
+                },
                 presence,
                 suppression,
                 fields,
@@ -136,34 +170,45 @@ mod tests {
 
     #[test]
     fn owned_state_matches_static_lifecycle_without_static_allocations() {
-        let fields = [StateLifecycleDescriptor::new(
-            "demo:counter.value",
-            StateFieldDescriptor::new("value", StateFieldKind::Score, 0, None),
-        )];
-        let descriptor = StateDescriptor::new(
-            "demo:counter",
-            1,
-            StateScope::Player,
-            "demo:counter.presence",
-            "demo:counter.suppressed",
-            &fields,
-            &[],
-            &[],
-        );
-        let expected = automatic_lifecycle_with_hooks([descriptor], &BTreeMap::new()).unwrap();
-        let owned = State::try_from(descriptor).unwrap();
-        assert_eq!(player_lifecycle(&[owned]).unwrap(), expected);
+        let holder = GlobalStateHolder::new("demo:counter");
+        for scope in [StateScope::Player, StateScope::Global(holder.as_str())] {
+            for default in [i32::MIN, -20, 0, 100, i32::MAX] {
+                for bounds in [None, Some((0, 100)), Some((i32::MIN, i32::MAX))] {
+                    let fields = [StateLifecycleDescriptor::new(
+                        "demo:counter.value",
+                        StateFieldDescriptor::new("value", StateFieldKind::Score, default, bounds),
+                    )];
+                    let descriptor = StateDescriptor::new(
+                        "demo:counter",
+                        1,
+                        scope,
+                        "demo:counter.presence",
+                        "demo:counter.suppressed",
+                        &fields,
+                        &[],
+                        &[],
+                    );
+                    let expected =
+                        automatic_lifecycle_with_hooks([descriptor], &BTreeMap::new()).unwrap();
+                    let owned = State::try_from(descriptor).unwrap();
+                    assert_eq!(owned.fields[0].default, default);
+                    assert_eq!(owned.fields[0].bounds, bounds);
+                    assert_eq!(lifecycle(&[owned]).unwrap(), expected);
+                }
+            }
+        }
     }
 
     #[test]
     fn owned_counter_provisions_and_initializes_canonical_objectives() {
-        let output = player_lifecycle(&[State {
+        let output = lifecycle(&[State {
             id: "demo:counter".parse().unwrap(),
             scope: "player".into(),
             revision: 1,
             fields: vec![ScoreField {
                 name: "value".to_owned(),
                 default: 0,
+                bounds: None,
             }],
         }])
         .unwrap();
@@ -193,6 +238,7 @@ mod tests {
             fields: vec![ScoreField {
                 name: "value".to_owned(),
                 default: 0,
+                bounds: None,
             }],
         }];
         const CONFLICTING_FIELDS: &[StateLifecycleDescriptor] = &[StateLifecycleDescriptor::new(

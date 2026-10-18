@@ -3,12 +3,12 @@ use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Revision-one, zero-default player score State using canonical ownership.
+/// Revision-one player or global score State with explicit integer defaults and canonical ownership.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::State", module = "sand::advanced::compiler",
- summary = "Revision-one, zero-default player score State using canonical ownership.",
+ summary = "Revision-one player or global score State with explicit integer defaults and canonical ownership.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
@@ -20,7 +20,8 @@ pub struct State {
     /// Namespaced State identity.
     #[schemars(with = "String")]
     pub id: ResourceLocation,
-    /// Must be `player` in protocol v1.
+    /// `player` stores independent values per player; `global` stores one shared
+    /// value per State field and initializes it during load without an executor.
     pub scope: String,
     /// State schema revision, currently 1; distinct from protocol revision.
     pub revision: u32,
@@ -28,25 +29,32 @@ pub struct State {
     pub fields: Vec<ScoreField>,
 }
 
-/// An integer State field. Defaults other than zero are not yet portable.
+/// An integer State field whose default initializes only an absent value.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::ScoreField", module = "sand::advanced::compiler",
- summary = "An integer State field. Defaults other than zero are not yet portable.",
+ summary = "An integer State field whose default initializes only an absent value.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(name = "Name for this portable definition.", default = "Default for this portable definition."),
+ fields(name = "Name for this portable definition.", default = "Default for this portable definition.", bounds = "Optional inclusive bounds applied after score writes."),
 )]
 pub struct ScoreField {
     /// Field identity within its owning State.
     pub name: String,
-    /// Initial value, applied only when missing.
+    /// Initial value, applied only when missing. All signed 32-bit values are
+    /// supported. Reloading or re-entering a function preserves existing values.
     #[serde(default)]
     pub default: i32,
+    /// Inclusive bounds applied by score assignment and addition. Initialization
+    /// preserves the declared default, matching Rust State lifecycle semantics.
+    /// The minimum must not exceed the maximum. Addition uses Minecraft's i32
+    /// arithmetic before clamping; these bounds do not prevent overflow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounds: Option<(i32, i32)>,
 }
 
 /// A field reference binds a field identity to its declaring State.
@@ -70,12 +78,12 @@ pub struct FieldReference {
     pub field: String,
 }
 
-/// Inclusive integer comparison bounds for a player State score.
+/// Inclusive integer comparison bounds for a State score.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::ScoreComparison", module = "sand::advanced::compiler",
- summary = "Inclusive integer comparison bounds for a player State score.",
+ summary = "Inclusive integer comparison bounds for a State score.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
@@ -84,7 +92,7 @@ pub struct FieldReference {
  fields(score = "Score for this portable definition.", min = "Min for this portable definition.", max = "Max for this portable definition."),
 )]
 pub struct ScoreComparison {
-    /// Player-self score to compare.
+    /// Score to compare, using its declaring State's player or global ownership.
     pub score: FieldReference,
     /// Inclusive lower bound; omission means unbounded below.
     pub min: Option<i32>,

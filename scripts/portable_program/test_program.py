@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
-from producer import counter, blueprint
+from producer import counter, blueprint, global_counter
 
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = Path(os.environ["SAND_PROGRAM_BIN"]).resolve()
@@ -88,6 +88,64 @@ class Programs(unittest.TestCase):
         Draft202012Validator(schema, registry=registry).validate(counter())
         schema = json.loads((root / "module.schema.json").read_text())
         Draft202012Validator(schema).validate(counter()["modules"][0])
+
+    def test_nonzero_defaults_use_canonical_initialization_without_cargo(self):
+        schema = self.run_sand(["schema"])["schema"]
+        init = "data/demo/function/__sand_lifecycle_init.mcfunction"
+        original = b"run scoreboard players set @s sffe99bc0114fb8b 0"
+        self.assertEqual(GOLDEN[init].count(original), 1)
+        for default in [-2147483648, -20, 100, 2147483647]:
+            program = counter(initial_value=default)
+            program["requires"] = ["state_defaults"]
+            Draft202012Validator(schema).validate(program)
+            expected = dict(GOLDEN)
+            expected[init] = expected[init].replace(original,
+                f"run scoreboard players set @s sffe99bc0114fb8b {default}".encode())
+            self.assertEqual(self.compile(program, f"default-{default}"), expected)
+
+    def test_bounded_scores_are_compiled_without_cargo(self):
+        schema = self.run_sand(["schema"])["schema"]
+        for bounds in [(0, 100), (-10, -5), (7, 7), (-2147483648, 2147483647)]:
+            program = counter(bounds=bounds)
+            program["requires"] = ["state_bounds"]
+            Draft202012Validator(schema).validate(program)
+            expected = dict(GOLDEN)
+            path = "data/demo/function/increment.mcfunction"
+            lines = expected[path].decode().splitlines()
+            low, high = bounds
+            if low != -2147483648:
+                lines.append(f"execute if score @s sffe99bc0114fb8b matches ..{low - 1} run scoreboard players set @s sffe99bc0114fb8b {low}")
+            if high != 2147483647:
+                lines.append(f"execute if score @s sffe99bc0114fb8b matches {high + 1}.. run scoreboard players set @s sffe99bc0114fb8b {high}")
+            expected[path] = "\n".join(lines).encode()
+            self.assertEqual(self.compile(program, f"bounds-{low}-{high}"), expected)
+        program = counter(bounds=(100, 0))
+        response = self.run_sand(["check", "--input", "-"], program, success=False)
+        self.assertIn("/states/0/fields/0/bounds", json.dumps(response))
+
+    def test_signed_additions_lower_to_valid_commands_without_cargo(self):
+        for amount, amounts in [(-1, [1]), (-2147483648, [2147483647, 1])]:
+            program = counter()
+            program["modules"][0]["functions"][1]["body"][0]["action"]["value"] = amount
+            expected = dict(GOLDEN)
+            path = "data/demo/function/increment.mcfunction"
+            lines = [expected[path].decode().splitlines()[0]]
+            lines.extend(f"scoreboard players remove @s sffe99bc0114fb8b {value}" for value in amounts)
+            expected[path] = "\n".join(lines).encode()
+            self.assertEqual(self.compile(program, f"delta-{amount}"), expected)
+
+    def test_global_state_matches_complete_golden_without_cargo(self):
+        root = FIXTURES / "global-golden"
+        expected = {path.relative_to(root).as_posix(): path.read_bytes()
+                    for path in root.rglob("*") if path.is_file()}
+        program = global_counter()
+        schema = self.run_sand(["schema"])["schema"]
+        Draft202012Validator(schema).validate(program)
+        self.assertEqual(self.compile(program), expected)
+        self.assertEqual(self.compile(json.loads((FIXTURES / "global.sand.json").read_text()), "decoded"), expected)
+        program["modules"][0]["functions"].reverse()
+        self.assertEqual(self.compile(program, "reordered"), expected)
+        self.assertFalse(any("__sand_lifecycle_init" in path for path in expected))
 
     def test_existing_rust_frontend_matches_complete_golden(self):
         pack = Path(os.environ["SAND_RUST_PACK"])

@@ -387,6 +387,21 @@ def main() -> int:
         name2 = command("data get entity @e[tag=audit_a,limit=1] CustomName")
         check("dynamic_name_refreshed", "Lv. " in name2 and '"2"' in name2, name2)
 
+        # A same-version component with a missing derived score still needs
+        # canonical attachment and a refresh. The other entity must be untouched.
+        command(
+            f"scoreboard players reset @e[tag=audit_a,limit=1] {attack_damage}",
+            reconcile,
+        )
+        repaired_attack, repaired_out = score("audit_a", attack_damage)
+        retained_level, retained_out = score("audit_a", level)
+        other_attack, other_out = score("audit_b", attack_damage)
+        check(
+            "missing_component_field_repaired_without_resetting_existing_state",
+            (repaired_attack, retained_level, other_attack) == (4, 2, 3),
+            repaired_out + retained_out + other_out,
+        )
+
         command(
             f"scoreboard players set @e[tag=audit_a,limit=1] {version_objective} 1",
             reconcile,

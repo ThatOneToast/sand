@@ -508,7 +508,13 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 4_672);
+    assert_eq!(declarations.len(), 4_673);
+    assert!(
+        declarations
+            .iter()
+            .any(|declaration| declaration.canonical_path
+                == "sand::advanced::compiler::ScoreField::bounds")
+    );
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::Archetype"

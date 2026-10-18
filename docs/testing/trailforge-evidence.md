@@ -17,9 +17,10 @@ compiled pack digest; the harness rejects a server whose observed startup
 version is not 26.2.
 
 The harness reads the actual exported recipe result and gives that stack to
-players, then invokes the unmodified pack's gameplay functions. Automatic ticks
+players, then reads the exported menu's `/trigger` commands and invokes them
+as each player through the generated callback dispatcher. Automatic ticks
 are frozen during assertions. This proves recipe-result identity and explicit
-gameplay behavior; it does **not** prove client-originated crafting, menu input,
+gameplay and callback dispatch behavior; it does **not** prove client-originated crafting, menu input,
 automatic regeneration, death/respawn, or a general atomic inventory transaction.
 Those require separate scenarios rather than broader claims from these checks.
 
@@ -37,3 +38,9 @@ Build the CLI first with `cargo build -p sand-cli` if needed. The latest-version
 vanilla workflow runs this audit and retains its server/client logs and evidence.
 Export tests independently verify recipe components, the bounded single-subject
 cost, and the absence of player fan-out in the reachable ability functions.
+
+The menu uses survival-friendly callbacks rather than permission-gated function
+commands. Export regressions verify both trigger actions and their dispatcher
+targets. The acquisition event derives its predicate from the same custom item
+definition used by crafting and upgrade consumption. Console execution of the
+trigger commands does not prove client packet input or permission enforcement.

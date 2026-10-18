@@ -327,11 +327,11 @@ pub fn trailhead_dialog() -> Dialog {
         .body(DialogBody::text(Text::new("Choose your path.").aqua()))
         .button(
             DialogButton::new(Text::new("Grapple dash").aqua())
-                .action(DialogAction::run_function(grapple)),
+                .action(DialogAction::callback(grapple)),
         )
         .button(
             DialogButton::new(Text::new("Claim Trail Striders").gold())
-                .action(DialogAction::run_function(claim_striders)),
+                .action(DialogAction::callback(claim_striders)),
         )
 }
 // ANCHOR_END: dialog
@@ -348,8 +348,9 @@ impl AdvancementEvent for ObtainedGrappleCoreEvent {
 
     fn trigger() -> Self::Trigger {
         InventoryChangedTrigger::new().item(
-            ItemPredicate::id(ItemId::minecraft("heart_of_the_sea").unwrap())
-                .custom_data_key("grapple_core"),
+            grapple_core()
+                .item_predicate()
+                .expect("valid Grapple Core identity"),
         )
     }
 
@@ -518,6 +519,29 @@ mod tests {
             }
         }
         result
+    }
+
+    #[test]
+    fn menu_buttons_use_survival_callbacks() {
+        use sand::registration::{ComponentContent, DatapackComponent};
+        let ComponentContent::Json(dialog) = trailhead_dialog().try_content().unwrap() else {
+            panic!("dialog must emit JSON");
+        };
+        let actions = dialog["actions"].as_array().unwrap();
+        assert_eq!(actions.len(), 2);
+        for button in actions {
+            assert_eq!(button["action"]["type"], "minecraft:run_command");
+            assert!(
+                button["action"]["command"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("/trigger ")
+            );
+        }
+        let functions = exported_functions();
+        let dispatcher = &functions["__sand_dialog_tick"];
+        assert!(dispatcher.contains("run function trail:grapple"));
+        assert!(dispatcher.contains("run function trail:claim_striders"));
     }
 
     #[test]

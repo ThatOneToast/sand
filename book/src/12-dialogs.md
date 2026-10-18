@@ -16,13 +16,19 @@ descriptive text), and one or more `button`s. `multi_action_local("trailhead")`
 declares a dialog with a stable local ID (`trailhead`) that other code can
 reference without holding the `Dialog` value itself.
 
-Each `DialogButton::new(label).action(DialogAction::run_function(handle))`
+Each `DialogButton::new(label).action(DialogAction::callback(handle))`
 pairs a button label with a typed reference to a Sand function —
 `grapple` and `claim_striders`, the same functions chapter 8 walks through.
 Passing the function *item* (not a `ResourceLocation` string) means the
 dialog button target is checked against a function that actually exists at
 compile time; renaming `claim_striders` without updating this line is a
 compiler error, not a dialog button that silently does nothing at runtime.
+
+`callback` emits a `/trigger` command available to non-operator players. Sand
+generates the trigger objective and tick dispatcher, which invokes the selected
+function as the player who pressed the button. `run_function` emits a direct
+`/function` command and requires command permissions, so it is unsuitable for
+these survival-facing buttons.
 
 ## Opening the dialog
 

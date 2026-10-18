@@ -42,6 +42,13 @@ class TrailforgeHarness(PlayerHarness):
         if len(stamina) != 1:
             raise ValidationFailure('fixture', 'expected one authored stamina cost objective')
         self.stamina = stamina.pop()
+        dialog = json.loads((pack / 'data/trail/dialog/trailhead.json').read_text())
+        self.menu_commands = [button['action']['command'].removeprefix('/')
+                              for button in dialog['actions']]
+        if len(self.menu_commands) != 2 or any(
+                not re.fullmatch(r'trigger [\w.]+ set [1-9][0-9]*', command)
+                for command in self.menu_commands):
+            raise ValidationFailure('dialog', 'menu buttons must use survival-safe triggers')
 
     def check(self, name, condition):
         super().check(name, condition)
@@ -51,8 +58,13 @@ class TrailforgeHarness(PlayerHarness):
         self.send(f'execute store result score #count trail_audit run clear {player} {item} 0')
         self.check(name, f'if score #count trail_audit matches {expected}')
 
+    def menu(self, player, index):
+        self.send('function trail:__sand_dialog_tick')
+        self.send(f'execute as {player} at @s run {self.menu_commands[index]}')
+        self.send('function trail:__sand_dialog_tick')
+
     def claim(self, player):
-        self.send(f'execute as {player} at @s run function trail:claim_striders')
+        self.menu(player, 1)
 
     def run_client(self):
         if not any(re.search(r'Starting minecraft server version 26\.2$', line.strip()) for line in self.lines):
@@ -87,10 +99,10 @@ class TrailforgeHarness(PlayerHarness):
                 self.count('BETA_INDEPENDENT_COST', 'SandBeta', core, 1)
                 for player in self.players:
                     self.check(f'{player}_INITIAL_STAMINA', f'if score {player} {self.stamina} matches 100')
-                self.send('execute as SandAlpha at @s run function trail:grapple')
+                self.menu('SandAlpha', 0)
                 self.check('ALPHA_ABILITY_COST', f'if score SandAlpha {self.stamina} matches 70')
                 self.check('BETA_ABILITY_ISOLATION', f'if score SandBeta {self.stamina} matches 100')
-                self.send('execute as SandAlpha at @s run function trail:grapple')
+                self.menu('SandAlpha', 0)
                 self.check('COOLDOWN_PREVENTS_REPEAT_COST', f'if score SandAlpha {self.stamina} matches 70')
                 start = len(self.lines)
                 self.send('reload')
@@ -126,7 +138,7 @@ def main():
         (harness.output / 'evidence.json').write_text(json.dumps({
             'minecraft': '26.2', 'passed': passed, 'checks': harness.checks,
             'pack_sha256': harness.pack_sha256,
-            'scope': 'Two real passive players; recipe-result items granted by commands; explicit gameplay calls with automatic ticks frozen. Does not prove client crafting input.',
+            'scope': 'Two real passive players; recipe-result items granted by commands; exported menu trigger commands and callback dispatcher invoked from console with automatic ticks frozen. Does not prove client crafting or dialog click input.',
         }, indent=2) + '\n')
     print(f'{"PASSED" if passed else "FAILED"}: Trailforge gameplay; {harness.log_path}')
     return 0 if passed else 1

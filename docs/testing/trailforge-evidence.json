@@ -22,6 +22,6 @@
     "RELOAD_PRESERVES_COST",
     "RELOAD_PRESERVES_STAMINA"
   ],
-  "pack_sha256": "860f8555bd7f939feee8947099a896f79e17b18ff962a0ffc5889bfaa66e38ba",
-  "scope": "Two real passive players; recipe-result items granted by commands; explicit gameplay calls with automatic ticks frozen. Does not prove client crafting input."
+  "pack_sha256": "cf9ff762c29b60b220e3df776ce608d82c6f5de52d330a96c0efdb8fe159e60b",
+  "scope": "Two real passive players; recipe-result items granted by commands; exported menu trigger commands and callback dispatcher invoked from console with automatic ticks frozen. Does not prove client crafting or dialog click input."
 }

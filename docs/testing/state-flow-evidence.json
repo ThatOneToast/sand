@@ -1,0 +1,133 @@
+{
+  "minecraft": "26.2",
+  "passed": true,
+  "scope": "two real passive players; explicit flow invocations with automatic ticks frozen",
+  "pack_sha256": "514996a3ea3c6edef9ade0e1fb7f6f9ea05104d75624e38603b3c81c69c46ec2",
+  "checks": [
+    {
+      "name": "ALPHA_PRIORITY_AND_TIE_ORDER",
+      "condition": "if score SandAlpha fa_phase matches 10",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_EXIT_ENTER_AND_SAME_TICK_HOOK",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 111",
+      "passed": true
+    },
+    {
+      "name": "OR_GUARD_EXECUTES_ONCE",
+      "condition": "if score SandAlpha s987f0400480591d matches 0",
+      "passed": true
+    },
+    {
+      "name": "BETA_INDEPENDENT_STATE",
+      "condition": "if score SandBeta fa_phase matches 2147483647",
+      "passed": true
+    },
+    {
+      "name": "BETA_INDEPENDENT_HOOK",
+      "condition": "if score SandBeta s019539dfb16c27d matches 10000",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_SECOND_TICK",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 211",
+      "passed": true
+    },
+    {
+      "name": "INTERVAL_SECOND_TICK",
+      "condition": "if score SandAlpha s987f0400480591d matches 1",
+      "passed": true
+    },
+    {
+      "name": "BETA_UNTOUCHED",
+      "condition": "if score SandBeta s019539dfb16c27d matches 10000",
+      "passed": true
+    },
+    {
+      "name": "NO_TRANSITION_CHAIN_IN_ONE_CYCLE",
+      "condition": "if score SandAlpha fa_phase matches 20",
+      "passed": true
+    },
+    {
+      "name": "NEW_STATE_TICKS_AFTER_TRANSITION",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 1233",
+      "passed": true
+    },
+    {
+      "name": "NEXT_CYCLE_TRANSITION",
+      "condition": "if score SandAlpha fa_phase matches 2147483647",
+      "passed": true
+    },
+    {
+      "name": "NEXT_CYCLE_HOOK",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 11233",
+      "passed": true
+    },
+    {
+      "name": "HOOK_MUTATES_STATE",
+      "condition": "if score SandAlpha fa_phase matches 20",
+      "passed": true
+    },
+    {
+      "name": "LATER_HOOK_OBSERVES_MUTATION_WITHOUT_ENTER_EXIT",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 1100",
+      "passed": true
+    },
+    {
+      "name": "RAW_REENTRY_BYPASSES_ENTER_EXIT",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 2200",
+      "passed": true
+    },
+    {
+      "name": "OBSERVED_LEAVE_RESETS_CADENCE",
+      "condition": "if score SandAlpha s987f0400480591d matches 0",
+      "passed": true
+    },
+    {
+      "name": "REENTERED_INTERVAL",
+      "condition": "if score SandAlpha s987f0400480591d matches 1",
+      "passed": true
+    },
+    {
+      "name": "SIGNED_DISPATCH_AND_NO_FALLTHROUGH",
+      "condition": "if score SandAlpha fa_phase matches 0",
+      "passed": true
+    },
+    {
+      "name": "NO_UNRELATED_HOOK",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 0",
+      "passed": true
+    },
+    {
+      "name": "SPARSE_UNKNOWN_STATE_PRESERVED",
+      "condition": "if score SandAlpha fa_phase matches 7",
+      "passed": true
+    },
+    {
+      "name": "UNKNOWN_STATE_HAS_NO_HOOK",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 0",
+      "passed": true
+    },
+    {
+      "name": "MISSING_SCORE_DEFAULT",
+      "condition": "if score SandAlpha fa_phase matches 0",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_STATE",
+      "condition": "if score SandAlpha fa_phase matches 20",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_HOOK_STATE",
+      "condition": "if score SandAlpha s019539dfb16c27d matches 321",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_OTHER_PLAYER",
+      "condition": "if score SandBeta s019539dfb16c27d matches 10000",
+      "passed": true
+    }
+  ]
+}

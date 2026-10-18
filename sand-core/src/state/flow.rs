@@ -18,8 +18,8 @@
 //! ```
 //!
 //! Higher-priority transitions run first. Equal priorities preserve declaration
-//! order. A private per-subject lock prevents lower-priority transitions from
-//! running after one succeeds in the same cycle. Enter/exit hooks run only for
+//! order. State-indexed dispatch returns after the first matching transition,
+//! without a per-subject lock or idle bookkeeping writes. Enter/exit hooks run only for
 //! transitions owned by this flow; direct low-level score writes deliberately
 //! bypass them. Tick hooks run after transitions, so a newly entered state can
 //! tick in the same server tick.
@@ -598,20 +598,10 @@ pub(crate) fn resolve_state_flow_plan(
 
         let key = flow_key(&flow.id);
         let root = format!("__sand_transition/flow_{key}");
-        let lock = format!("__sf_{key}r");
         plan.load_commands.push(format!(
             "scoreboard objectives add {} dummy",
             flow.objective
         ));
-        plan.load_commands
-            .push(format!("scoreboard objectives add {lock} dummy"));
-        plan.private_objectives.insert(
-            lock.clone(),
-            (
-                flow.id.clone(),
-                format!("state flow for {}", flow.state_type),
-            ),
-        );
         plan.global_tick_commands.push(format!(
             "execute as {} at @s run function {namespace}:{root}",
             flow.subjects
@@ -624,7 +614,7 @@ pub(crate) fn resolve_state_flow_plan(
                 flow.objective, flow.objective
             ));
         }
-        root_commands.push(format!("scoreboard players set @s {lock} 0"));
+        let mut outgoing: BTreeMap<i32, Vec<String>> = BTreeMap::new();
         for (index, transition) in flow.transitions.iter().enumerate() {
             let helper = format!("{root}/transition_{index}");
             insert_path(&mut generated_paths, &flow, &helper)?;
@@ -642,7 +632,6 @@ pub(crate) fn resolve_state_flow_plan(
                     .lower(&location)
                     .map_err(|error| error.to_string())?,
             );
-            commands.push(format!("scoreboard players set @s {lock} 1"));
             plan.functions
                 .push(crate::transition::GeneratedTransitionFunction {
                     origins: [crate::function::GeneratedOrigin::Logical(flow.id.clone())].into(),
@@ -661,11 +650,31 @@ pub(crate) fn resolve_state_flow_plan(
                 } else {
                     format!(" {}", guard.join(" "))
                 };
-                root_commands.push(format!(
-                    "execute if score @s {lock} matches 0 if score @s {} matches {}{} run function {namespace}:{helper}",
-                    flow.objective, transition.from, guards
-                ));
+                outgoing
+                    .entry(transition.from)
+                    .or_default()
+                    .push(if guards.is_empty() {
+                        format!("return run function {namespace}:{helper}")
+                    } else {
+                        format!(
+                            "execute{} run return run function {namespace}:{helper}",
+                            guards
+                        )
+                    });
             }
+        }
+
+        if !outgoing.is_empty() {
+            let dispatch = format!("{root}/select");
+            emit_transition_dispatch(
+                &flow,
+                namespace,
+                &dispatch,
+                &outgoing.into_iter().collect::<Vec<_>>(),
+                &mut plan,
+                &mut generated_paths,
+            )?;
+            root_commands.push(format!("function {namespace}:{dispatch}"));
         }
 
         for (index, hook) in flow
@@ -740,6 +749,51 @@ pub(crate) fn resolve_state_flow_plan(
             });
     }
     Ok(plan)
+}
+
+/// Dispatch only the current state's outgoing transitions. Every branch returns
+/// from this private selection frame, so a transition cannot fall through into
+/// another state after changing the score. The caller still runs tick hooks.
+fn emit_transition_dispatch(
+    flow: &FlowRegistration,
+    namespace: &str,
+    path: &str,
+    states: &[(i32, Vec<String>)],
+    plan: &mut crate::transition::TransitionPlan,
+    paths: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    insert_path(paths, flow, path)?;
+    let commands = if let [(state, transitions)] = states {
+        let mut commands = vec![format!(
+            "execute unless score @s {} matches {state} run return 0",
+            flow.objective
+        )];
+        commands.extend(transitions.iter().cloned());
+        commands
+    } else {
+        let middle = states.len() / 2;
+        let lower = format!("{path}/lower");
+        let upper = format!("{path}/upper");
+        emit_transition_dispatch(flow, namespace, &lower, &states[..middle], plan, paths)?;
+        emit_transition_dispatch(flow, namespace, &upper, &states[middle..], plan, paths)?;
+        let pivot = states[middle - 1].0;
+        vec![
+            format!(
+                "execute if score @s {} matches ..{pivot} run return run function {namespace}:{lower}",
+                flow.objective
+            ),
+            format!("return run function {namespace}:{upper}"),
+        ]
+    };
+    plan.functions
+        .push(crate::transition::GeneratedTransitionFunction {
+            origins: [crate::function::GeneratedOrigin::Logical(flow.id.clone())].into(),
+            tracker_id: flow.id.clone(),
+            source: format!("{} state-indexed transition selection", flow.state_type),
+            path: path.to_owned(),
+            commands,
+        });
+    Ok(())
 }
 
 fn validate_flow(flow: &FlowRegistration) -> Result<(), String> {
@@ -919,12 +973,17 @@ mod tests {
             .iter()
             .find(|function| function.path.matches('/').count() == 1)
             .unwrap();
-        let high = root
+        let selection = plan
+            .functions
+            .iter()
+            .find(|function| function.path.ends_with("/select"))
+            .unwrap();
+        let high = selection
             .commands
             .iter()
             .position(|command| command.contains("tag=low"))
             .unwrap();
-        let low = root
+        let low = selection
             .commands
             .iter()
             .position(|command| command.contains("tag=dead"))
@@ -948,6 +1007,66 @@ mod tests {
                 "say enter"
             ]
         );
+    }
+
+    #[test]
+    fn many_sparse_states_use_balanced_dispatch_without_a_lock() {
+        let mut flow = StateFlow::players(&PHASE).erase();
+        let states: Vec<_> = std::iter::once(i32::MIN)
+            .chain((-31..31).map(|state| state * 10))
+            .chain(std::iter::once(i32::MAX))
+            .collect();
+        flow.transitions = states
+            .iter()
+            .enumerate()
+            .map(|(order, state)| FlowTransition {
+                from: *state,
+                to: 1,
+                guard: Some(Condition::entity_raw("@s[tag=ready]")),
+                priority: 0,
+                order,
+            })
+            .collect();
+        let plan = resolve_state_flow_plan("boss", vec![flow.clone()]).unwrap();
+        assert!(
+            plan.private_objectives.is_empty(),
+            "transition selection needs no private scores"
+        );
+        let selections: Vec<_> = plan
+            .functions
+            .iter()
+            .filter(|function| function.path.contains("/select"))
+            .collect();
+        assert_eq!(selections.len(), 127);
+        assert!(
+            selections
+                .iter()
+                .all(|function| function.path.split('/').count() <= 9)
+        );
+        assert!(
+            selections
+                .iter()
+                .flat_map(|function| &function.commands)
+                .all(|command| !command.contains("scoreboard players"))
+        );
+        for state in states {
+            let leaf = selections
+                .iter()
+                .find(|function| {
+                    function.commands.first()
+                        == Some(&format!(
+                            "execute unless score @s boss_phase matches {state} run return 0"
+                        ))
+                })
+                .unwrap();
+            assert_eq!(leaf.commands.len(), 2);
+            assert!(
+                leaf.commands[1]
+                    .starts_with("execute if entity @s[tag=ready] run return run function ")
+            );
+        }
+        let repeated = resolve_state_flow_plan("boss", vec![flow]).unwrap();
+        assert_eq!(plan, repeated);
     }
 
     #[test]

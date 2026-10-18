@@ -798,3 +798,15 @@ python3 scripts/validate_runtime_report.py \
 Use Java 25 on `PATH` or pass `--java`. The output retains the portable fixture,
 compiled pack, static report, individual traces, server logs, and `evidence.json`.
 The vanilla CI workflow runs the same comparison for Minecraft 26.2.
+
+## StateFlow indexed transition selection (#441)
+
+Transition selection now uses balanced dispatch by source state and returns on
+its first matching guard. It allocates no per-subject transition-lock objective
+and performs no lock-reset write on idle ticks. Tick-hook order and interval
+semantics are preserved, including hooks that mutate the state.
+
+[StateFlow evidence](docs/testing/state-flow-evidence.md) describes the sparse
+64-state output-depth regression and 25 Minecraft 26.2 multiplayer assertions.
+These are structural cost bounds and behavioral evidence, not measured MSPT.
+The rest of #441's scheduling and interval-bookkeeping targets remain open.

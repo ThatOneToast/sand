@@ -38,7 +38,7 @@ identities. Top-level declaration permutations are equivalent; duplicate IDs are
 
 ## Gameplay and ordering
 
-V1 accepts player State, revision 1, integer score fields with zero defaults;
+V1 accepts player State, revision 1, integer score fields with explicit signed 32-bit defaults;
 server/player function contexts; ordered score set/add, integer comparisons,
 branches, player iteration and calls; load/tick hooks and function tags.
 All functions are validated, including unreachable functions. Player-self access

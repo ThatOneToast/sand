@@ -24,3 +24,28 @@ python3 scripts/mc_validation/run_portable_program_audit.py \
 ```
 
 The machine observations are in [portable-program-evidence.json](portable-program-evidence.json).
+
+## Nonzero player State defaults
+
+The [nonzero-default evidence](portable-defaults-evidence.json) records a
+Minecraft 26.2 run starting each player's counter at 100. Direct first entry
+produced 101 with presence revision 1; three explicit lifecycle/tick pairs
+produced independent values 104 and 103. Reload preserved both values, and a
+new player's first increment produced 101 without changing either existing
+player. The run checked the observed server version and waited for both world
+startup and the RCON listener before sending commands.
+
+```sh
+python3 scripts/mc_validation/run_portable_program_audit.py \
+  --binary target/debug/sand --initial-value 100 \
+  --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --evidence target/portable-state-defaults/evidence.json
+```
+
+The latest-version vanilla workflow runs this scenario. It still proves
+explicit invocation behavior with automatic ticks frozen, not sustained
+automatic ticks. Rust construction, JSON decoding, and the Python frontend
+also compare complete output packs for positive, negative, and i32-boundary
+defaults. The lifecycle descriptor adapter is tested against canonical Rust
+State initialization for the same values; existing values remain guarded
+against reinitialization.

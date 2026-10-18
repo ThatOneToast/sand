@@ -3,12 +3,12 @@ use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Revision-one, zero-default player score State using canonical ownership.
+/// Revision-one player score State with explicit integer defaults and canonical ownership.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::State", module = "sand::advanced::compiler",
- summary = "Revision-one, zero-default player score State using canonical ownership.",
+ summary = "Revision-one player score State with explicit integer defaults and canonical ownership.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
@@ -28,12 +28,12 @@ pub struct State {
     pub fields: Vec<ScoreField>,
 }
 
-/// An integer State field. Defaults other than zero are not yet portable.
+/// An integer State field whose default initializes only an absent value.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::ScoreField", module = "sand::advanced::compiler",
- summary = "An integer State field. Defaults other than zero are not yet portable.",
+ summary = "An integer State field whose default initializes only an absent value.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
@@ -44,7 +44,8 @@ pub struct State {
 pub struct ScoreField {
     /// Field identity within its owning State.
     pub name: String,
-    /// Initial value, applied only when missing.
+    /// Initial value, applied only when missing. All signed 32-bit values are
+    /// supported. Reloading or re-entering a function preserves existing values.
     #[serde(default)]
     pub default: i32,
 }

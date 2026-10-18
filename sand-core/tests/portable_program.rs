@@ -90,6 +90,74 @@ fn golden() -> BTreeMap<String, Vec<u8>> {
     visit(&root, &root, &mut map);
     map
 }
+
+#[test]
+fn integer_defaults_preserve_the_complete_canonical_pack_across_frontends() {
+    const INIT: &str = "data/demo/function/__sand_lifecycle_init.mcfunction";
+    for default in [i32::MIN, -20, 0, 100, i32::MAX] {
+        let mut program = counter();
+        program.requires.push("state_defaults".into());
+        program.modules[0].states[0].fields[0].default = default;
+        let mut expected = golden();
+        let body = String::from_utf8(expected[INIT].clone()).unwrap();
+        let original = "run scoreboard players set @s sffe99bc0114fb8b 0";
+        assert_eq!(body.matches(original).count(), 1);
+        expected.insert(
+            INIT.into(),
+            body.replace(
+                original,
+                &format!("run scoreboard players set @s sffe99bc0114fb8b {default}"),
+            )
+            .into_bytes(),
+        );
+        assert_eq!(Compiler::compile(&program).unwrap().resources, expected);
+        let decoded =
+            Compiler::decode(&serde_json::to_vec(&program).unwrap(), &BTreeMap::new()).unwrap();
+        assert_eq!(Compiler::compile(&decoded).unwrap().resources, expected);
+    }
+}
+
+#[test]
+fn defaults_reject_non_integer_and_out_of_range_json() {
+    for invalid in [
+        serde_json::json!(true),
+        serde_json::json!(1.5),
+        serde_json::json!(2147483648_i64),
+        serde_json::json!(-2147483649_i64),
+    ] {
+        let mut document = serde_json::to_value(counter()).unwrap();
+        document["modules"][0]["states"][0]["fields"][0]["default"] = invalid;
+        assert!(
+            Compiler::decode(&serde_json::to_vec(&document).unwrap(), &BTreeMap::new()).is_err()
+        );
+    }
+}
+
+#[test]
+fn advertised_capabilities_are_accepted_as_requirements() {
+    let capabilities = Compiler::capabilities();
+    let mut program = counter();
+    program.requires = capabilities["capabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap().to_owned())
+        .collect();
+    assert!(
+        program
+            .requires
+            .iter()
+            .any(|value| value == "state_defaults")
+    );
+    Compiler::check(&program).unwrap();
+    program.requires.push("unknown_future_capability".into());
+    assert!(
+        Compiler::check(&program)
+            .unwrap_err()
+            .iter()
+            .any(|error| error.code == "SAND_PROGRAM_CAPABILITY")
+    );
+}
 // Any accidental inventory read in embedded compilation fails this test binary.
 fn forbidden_schema() -> sand_core::entity::StateSchema {
     panic!("portable compiler read inventory")

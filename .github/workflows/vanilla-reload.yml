@@ -8,6 +8,8 @@ on:
       - "examples/participant_audit/**"
       - "examples/unified_state/**"
       - "scripts/mc_validation/run_unified_state_audit.py"
+      - "scripts/mc_validation/run_portable_program_audit.py"
+      - "tests/fixtures/program/**"
       - "scripts/mc_validation/test_unified_state_audit.py"
       - "scripts/mc_validation/local_rcon_server.py"
       - "scripts/mc_validation/rcon_client.py"
@@ -144,6 +146,15 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/runtime-report"
 
+      - name: Validate portable State defaults with real players
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/mc_validation/run_portable_program_audit.py \
+            --binary target/debug/sand \
+            --initial-value 100 \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --evidence "target/vanilla-reload/${{ matrix.version }}/portable-state/evidence.json"
+
       - name: Validate runtime world and block gameplay
         if: matrix.target == 'latest'
         run: |
@@ -260,6 +271,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/latest.log
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
+            target/vanilla-reload/${{ matrix.version }}/portable-state
             target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/player-participants
             target/vanilla-reload/${{ matrix.version }}/bounded-items

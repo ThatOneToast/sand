@@ -18,10 +18,14 @@ source provenance; failures exit nonzero. Logs go to stderr.
 
 ## A small shared model
 
-Protocol v1 supports player State with revision 1 and zero-default integer
-fields, named server/player functions, score assignment and addition, inclusive
+Protocol v1 supports player State with revision 1 and integer score
+fields with explicit defaults, named server/player functions, score assignment and addition, inclusive
 integer comparisons, branches, player iteration, calls, ordered load/tick work,
-and function-tag membership. Every declaration is checked, including unused
+and function-tag membership. A field's `default` accepts any signed 32-bit
+integer (omission means zero). It is applied only when that player's value is
+absent; function entry and reload preserve existing values. Hosts can require
+`state_defaults` to detect compilers supporting nonzero initialization.
+Every declaration is checked, including unused
 functions. Events, participants, storage/entity State, migrations, timers,
 scheduling and native bindings are outside v1.
 

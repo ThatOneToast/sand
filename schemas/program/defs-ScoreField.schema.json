@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "An integer State field. Defaults other than zero are not yet portable.",
+  "description": "An integer State field whose default initializes only an absent value.",
   "properties": {
     "default": {
       "default": 0,
-      "description": "Initial value, applied only when missing.",
+      "description": "Initial value, applied only when missing. All signed 32-bit values are\nsupported. Reloading or re-entering a function preserves existing values.",
       "format": "int32",
       "type": "integer"
     },

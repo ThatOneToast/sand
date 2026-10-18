@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Revision-one, zero-default player score State using canonical ownership.",
+  "description": "Revision-one player score State with explicit integer defaults and canonical ownership.",
   "properties": {
     "fields": {
       "description": "Named integer score fields.",

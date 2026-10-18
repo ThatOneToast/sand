@@ -1149,6 +1149,13 @@ impl Objective {
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, amount: i32)  {\n    let try_add = objective_value.try_add(holder, amount);\n}",
     )]
     pub fn try_add(&self, holder: ScoreHolder, amount: i32) -> CommandResult<String> {
+        if amount < 0 {
+            return Err(CommandError::new(
+                "scoreboard players",
+                "amount",
+                "add/remove command amounts must be nonnegative",
+            ));
+        }
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
         Ok(self.add(holder, amount))
@@ -1171,6 +1178,13 @@ impl Objective {
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, amount: i32)  {\n    let try_subtract = objective_value.try_subtract(holder, amount);\n}",
     )]
     pub fn try_subtract(&self, holder: ScoreHolder, amount: i32) -> CommandResult<String> {
+        if amount < 0 {
+            return Err(CommandError::new(
+                "scoreboard players",
+                "amount",
+                "add/remove command amounts must be nonnegative",
+            ));
+        }
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
         Ok(self.subtract(holder, amount))
@@ -2181,6 +2195,16 @@ mod tests {
             hash_objective_name(long),
             ObjectiveName::logical(long).as_str()
         );
+    }
+
+    #[test]
+    fn validated_add_remove_reject_negative_command_amounts() {
+        for amount in [-1, i32::MIN] {
+            assert!(DMG.try_add(ScoreHolder::self_(), amount).is_err());
+            assert!(DMG.try_subtract(ScoreHolder::self_(), amount).is_err());
+        }
+        assert!(DMG.try_add(ScoreHolder::self_(), 0).is_ok());
+        assert!(DMG.try_subtract(ScoreHolder::self_(), i32::MAX).is_ok());
     }
 
     #[test]

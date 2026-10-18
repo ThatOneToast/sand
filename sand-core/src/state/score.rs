@@ -856,6 +856,13 @@ impl<T> ScoreVar<T> {
         holder: impl Into<sand_commands::ScoreHolder>,
         amount: i32,
     ) -> sand_commands::CommandResult<String> {
+        if amount < 0 {
+            return Err(sand_commands::CommandError::new(
+                "scoreboard players",
+                "amount",
+                "add/remove command amounts must be nonnegative",
+            ));
+        }
         let holder = holder.into();
         sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
         Ok(self.add(holder.to_string(), amount))
@@ -882,6 +889,13 @@ impl<T> ScoreVar<T> {
         holder: impl Into<sand_commands::ScoreHolder>,
         amount: i32,
     ) -> sand_commands::CommandResult<String> {
+        if amount < 0 {
+            return Err(sand_commands::CommandError::new(
+                "scoreboard players",
+                "amount",
+                "add/remove command amounts must be nonnegative",
+            ));
+        }
         let holder = holder.into();
         sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
         Ok(self.remove(holder.to_string(), amount))
@@ -3423,6 +3437,14 @@ mod tests {
             MANA.try_set(ScoreHolder::self_(), 100).unwrap(),
             MANA.set("@s", 100)
         );
+    }
+
+    #[test]
+    fn validated_score_mutations_reject_negative_command_amounts() {
+        for amount in [-1, i32::MIN] {
+            assert!(MANA.try_add(ScoreHolder::self_(), amount).is_err());
+            assert!(MANA.try_remove(ScoreHolder::self_(), amount).is_err());
+        }
     }
 
     #[test]

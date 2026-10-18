@@ -4366,7 +4366,13 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 323);
+        assert_eq!(entries.len(), 324);
+        assert!(
+            show(catalog, "sand::advanced::compiler::ScoreField::bounds")
+                .unwrap()
+                .to_ascii_lowercase()
+                .contains("inclusive")
+        );
         assert!(show(catalog, "sand::advanced::compiler::RuntimeReport").is_ok());
         assert!(
             show(

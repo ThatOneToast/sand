@@ -185,27 +185,7 @@ impl NumericWrite {
                     }));
                 }
             } else {
-                for (range, value) in [
-                    (min.checked_sub(1).map(|limit| format!("..{limit}")), min),
-                    (max.checked_add(1).map(|limit| format!("{limit}..")), max),
-                ] {
-                    if let Some(range) = range {
-                        commands.push(Cmd::Execute {
-                            operations: vec![sand_commands::ExecuteOp::If(
-                                sand_commands::ConditionIr::ScoreMatches {
-                                    holder: holder.clone(),
-                                    objective: self.objective.to_string(),
-                                    range,
-                                },
-                            )],
-                            run: Box::new(Cmd::ScorePlayers(ScorePlayersOp::Set {
-                                selector: holder.to_string(),
-                                objective: self.objective.to_string(),
-                                value,
-                            })),
-                        });
-                    }
-                }
+                commands.extend(score_bounds(holder, self.objective.as_str(), (min, max)));
             }
         }
         for objective in &self.dirty {
@@ -236,6 +216,77 @@ fn numeric_error(error: impl std::fmt::Display, owner: &ResourceLocation) -> Com
     CommandError::new("numeric assignment", "value", error.to_string())
         .with_code("SAND-NUMERIC-ASSIGNMENT")
         .with_context(owner.to_string())
+}
+
+/// Lower a signed State mutation to Minecraft's nonnegative command amounts.
+/// Splitting the magnitude of i32::MIN preserves wrapping arithmetic; callers
+/// apply bounds and dirty marking only after the entire delta is committed.
+pub(crate) fn score_delta(
+    holder: &ScoreHolder,
+    objective: &str,
+    amount: i32,
+    subtract: bool,
+) -> Vec<Cmd> {
+    let delta = if subtract {
+        -i64::from(amount)
+    } else {
+        i64::from(amount)
+    };
+    let magnitude = delta.abs();
+    let parts = if magnitude > i64::from(i32::MAX) {
+        vec![i32::MAX, 1]
+    } else {
+        vec![magnitude as i32]
+    };
+    parts
+        .into_iter()
+        .map(|amount| {
+            Cmd::ScorePlayers(if delta < 0 {
+                ScorePlayersOp::Remove {
+                    selector: holder.to_string(),
+                    objective: objective.to_owned(),
+                    amount,
+                }
+            } else {
+                ScorePlayersOp::Add {
+                    selector: holder.to_string(),
+                    objective: objective.to_owned(),
+                    amount,
+                }
+            })
+        })
+        .collect()
+}
+
+/// Clamp a single score holder using the canonical inclusive State bounds.
+/// Callers validate bounds and bind selectors once before composing a write.
+pub(crate) fn score_bounds(
+    holder: &ScoreHolder,
+    objective: &str,
+    (min, max): (i32, i32),
+) -> Vec<Cmd> {
+    [
+        (min.checked_sub(1).map(|limit| format!("..{limit}")), min),
+        (max.checked_add(1).map(|limit| format!("{limit}..")), max),
+    ]
+    .into_iter()
+    .filter_map(|(range, value)| {
+        range.map(|range| Cmd::Execute {
+            operations: vec![sand_commands::ExecuteOp::If(
+                sand_commands::ConditionIr::ScoreMatches {
+                    holder: holder.clone(),
+                    objective: objective.to_owned(),
+                    range,
+                },
+            )],
+            run: Box::new(Cmd::ScorePlayers(ScorePlayersOp::Set {
+                selector: holder.to_string(),
+                objective: objective.to_owned(),
+                value,
+            })),
+        })
+    })
+    .collect()
 }
 
 #[cfg(test)]

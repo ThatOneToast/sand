@@ -146,14 +146,22 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/runtime-report"
 
-      - name: Validate portable State defaults with real players
+      - name: Validate portable State defaults and bounds with real players
         if: matrix.target == 'latest'
         run: |
           python3 scripts/mc_validation/run_portable_program_audit.py \
             --binary target/debug/sand \
             --initial-value 100 \
+            --bounds 0 102 \
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --evidence "target/vanilla-reload/${{ matrix.version }}/portable-state/evidence.json"
+          for increment in -1 -2147483648; do
+            python3 scripts/mc_validation/run_portable_program_audit.py \
+              --binary target/debug/sand \
+              --initial-value 0 --bounds -2 2 --increment="$increment" \
+              --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+              --evidence "target/vanilla-reload/${{ matrix.version }}/portable-state/$increment/evidence.json"
+          done
 
       - name: Validate runtime world and block gameplay
         if: matrix.target == 'latest'

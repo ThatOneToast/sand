@@ -3,6 +3,25 @@
   "additionalProperties": false,
   "description": "An integer State field whose default initializes only an absent value.",
   "properties": {
+    "bounds": {
+      "description": "Inclusive bounds applied by score assignment and addition. Initialization\npreserves the declared default, matching Rust State lifecycle semantics.\nThe minimum must not exceed the maximum. Addition uses Minecraft's i32\narithmetic before clamping; these bounds do not prevent overflow.",
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "format": "int32",
+          "type": "integer"
+        },
+        {
+          "format": "int32",
+          "type": "integer"
+        }
+      ],
+      "type": [
+        "array",
+        "null"
+      ]
+    },
     "default": {
       "default": 0,
       "description": "Initial value, applied only when missing. All signed 32-bit values are\nsupported. Reloading or re-entering a function preserves existing values.",

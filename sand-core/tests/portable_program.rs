@@ -29,6 +29,7 @@ fn counter() -> Program {
                 fields: vec![ScoreField {
                     name: "value".into(),
                     default: 0,
+                    bounds: None,
                 }],
             }],
             functions: vec![
@@ -820,4 +821,84 @@ fn automatic_state_lifecycle_keeps_state_and_module_origins() {
             .unwrap();
         assert_eq!(entry["contributors"], owners);
     }
+}
+
+#[test]
+fn bounded_writes_match_complete_constructed_and_decoded_exports() {
+    for bounds in [(0, 100), (-10, -5), (7, 7), (i32::MIN, i32::MAX)] {
+        let mut program = counter();
+        program.requires.push("state_bounds".into());
+        program.modules[0].states[0].fields[0].bounds = Some(bounds);
+        let score = FieldReference {
+            state: "demo:counter".parse().unwrap(),
+            field: "value".into(),
+        };
+        program.modules[0].functions[1].body = vec![
+            operation(Action::ScoreSet {
+                score: score.clone(),
+                value: i32::MAX,
+            }),
+            operation(Action::ScoreAdd { score, value: -200 }),
+        ];
+        let mut expected = golden();
+        let path = "data/demo/function/increment.mcfunction";
+        let original = String::from_utf8(expected[path].clone()).unwrap();
+        let init = original.lines().next().unwrap();
+        let mut lines = vec![init.to_owned()];
+        for command in [
+            format!("scoreboard players set @s sffe99bc0114fb8b {}", bounds.1),
+            "scoreboard players remove @s sffe99bc0114fb8b 200".into(),
+        ] {
+            lines.push(command);
+            if bounds.0 != i32::MIN {
+                lines.push(format!("execute if score @s sffe99bc0114fb8b matches ..{} run scoreboard players set @s sffe99bc0114fb8b {}", bounds.0 - 1, bounds.0));
+            }
+            if bounds.1 != i32::MAX {
+                lines.push(format!("execute if score @s sffe99bc0114fb8b matches {}.. run scoreboard players set @s sffe99bc0114fb8b {}", bounds.1 + 1, bounds.1));
+            }
+        }
+        expected.insert(path.into(), lines.join("\n").into_bytes());
+        assert_eq!(Compiler::compile(&program).unwrap().resources, expected);
+        let decoded =
+            Compiler::decode(&serde_json::to_vec(&program).unwrap(), &BTreeMap::new()).unwrap();
+        assert_eq!(Compiler::compile(&decoded).unwrap().resources, expected);
+    }
+}
+
+#[test]
+fn invalid_bounds_are_source_located_and_strictly_typed() {
+    let mut program = counter();
+    program.modules[0].states[0].fields[0].bounds = Some((100, 0));
+    let errors = Compiler::check(&program).unwrap_err();
+    assert!(
+        errors.iter().any(|error| error.code == "SAND_PROGRAM_STATE"
+            && error.pointer == "/states/0/fields/0/bounds")
+    );
+    for invalid in [
+        serde_json::json!([0]),
+        serde_json::json!([0, 1, 2]),
+        serde_json::json!([false, 100]),
+        serde_json::json!([0, 2147483648_i64]),
+    ] {
+        let mut document = serde_json::to_value(counter()).unwrap();
+        document["modules"][0]["states"][0]["fields"][0]["bounds"] = invalid;
+        assert!(
+            Compiler::decode(&serde_json::to_vec(&document).unwrap(), &BTreeMap::new()).is_err()
+        );
+    }
+}
+
+#[test]
+fn minimum_signed_addition_splits_before_applying_bounds() {
+    let mut program = counter();
+    program.modules[0].states[0].fields[0].bounds = Some((-2, 2));
+    if let Action::ScoreAdd { value, .. } = &mut program.modules[0].functions[1].body[0].action {
+        *value = i32::MIN;
+    }
+    let pack = Compiler::compile(&program).unwrap();
+    assert_eq!(
+        String::from_utf8(pack.resources["data/demo/function/increment.mcfunction"].clone())
+            .unwrap(),
+        "function demo:__sand_lifecycle_init\nscoreboard players remove @s sffe99bc0114fb8b 2147483647\nscoreboard players remove @s sffe99bc0114fb8b 1\nexecute if score @s sffe99bc0114fb8b matches ..-3 run scoreboard players set @s sffe99bc0114fb8b -2\nexecute if score @s sffe99bc0114fb8b matches 3.. run scoreboard players set @s sffe99bc0114fb8b 2"
+    );
 }

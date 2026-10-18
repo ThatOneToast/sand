@@ -2361,6 +2361,26 @@ fn compile_definition_with_claims(
         component_attach.extend((component.attach)("@s"));
     }
     dedup_commands(&mut component_attach);
+    // Only elide attachment when its entire body consists of canonical score
+    // initialization. Data defaults, migrations, and custom lifecycle commands
+    // may have work invisible to the score shape and must retain their cadence.
+    let mut score_initializers = BTreeSet::new();
+    for component in &definition.components {
+        for (identity, version) in &component.identities {
+            score_initializers.insert(format!(
+                "execute unless score @s {identity} matches 1.. run scoreboard players set @s {identity} {version}"
+            ));
+        }
+    }
+    for field in fields.values() {
+        score_initializers.insert(format!(
+            "execute unless score @s {} matches -2147483648.. run scoreboard players set @s {} {}",
+            field.objective, field.objective, field.descriptor.default
+        ));
+    }
+    let score_only_provision = component_attach
+        .iter()
+        .all(|command| score_initializers.contains(command));
     let provision_path = format!("{root}/provision");
     functions.insert(provision_path.clone());
     records.push(ComponentRecord::function(
@@ -2537,23 +2557,53 @@ fn compile_definition_with_claims(
     let reconcile_path = format!("{root}/reconcile");
     functions.insert(reconcile_path.clone());
     let mut reconcile_commands = vec![format!("scoreboard players set @s {repair_objective} 0")];
+    // Keep repair detection sensitive to externally removed scores, but test the
+    // complete component shape once. A healthy subject must not enter attach:
+    // attach repeats every field/default/version check even when nothing changed.
+    let mut provision_checks = BTreeSet::new();
     for component in &definition.components {
         for (identity, version) in &component.identities {
-            reconcile_commands.push(format!(
-                "execute unless score @s {identity} matches {version} run scoreboard players set @s {repair_objective} 1"
-            ));
+            provision_checks.insert(format!("{identity}={version}"));
         }
     }
     for field in fields.values() {
+        provision_checks.insert(format!("{}=-2147483648..", field.objective));
+    }
+    if score_only_provision && !provision_checks.is_empty() {
+        let repair_path = format!("{root}/repair_components");
+        functions.insert(repair_path.clone());
+        records.push(ComponentRecord::function(
+            definition.id.namespace(),
+            &repair_path,
+            vec![
+                format!("scoreboard players set @s {repair_objective} 1"),
+                format!("function {}:{provision_path}", definition.id.namespace()),
+            ],
+        ));
         reconcile_commands.push(format!(
-            "execute unless score @s {} matches -2147483648.. run scoreboard players set @s {repair_objective} 1",
-            field.objective
+            "execute unless entity @s[scores={{{}}}] run function {}:{repair_path}",
+            provision_checks.into_iter().collect::<Vec<_>>().join(","),
+            definition.id.namespace(),
+        ));
+    } else if !score_only_provision {
+        for component in &definition.components {
+            for (identity, version) in &component.identities {
+                reconcile_commands.push(format!(
+                    "execute unless score @s {identity} matches {version} run scoreboard players set @s {repair_objective} 1"
+                ));
+            }
+        }
+        for field in fields.values() {
+            reconcile_commands.push(format!(
+                "execute unless score @s {} matches -2147483648.. run scoreboard players set @s {repair_objective} 1",
+                field.objective
+            ));
+        }
+        reconcile_commands.push(format!(
+            "function {}:{provision_path}",
+            definition.id.namespace()
         ));
     }
-    reconcile_commands.push(format!(
-        "function {}:{provision_path}",
-        definition.id.namespace()
-    ));
     if !repair_refresh_commands.is_empty() {
         let repair_path = format!("{root}/repair_refresh");
         functions.insert(repair_path.clone());
@@ -4911,6 +4961,87 @@ mod tests {
     }
 
     #[test]
+    fn healthy_components_skip_provisioning_with_one_shape_check() {
+        let definition = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "provision_fast_path").unwrap(),
+        )
+        .components::<MobState>()
+        .definition();
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let checks: Vec<_> = reconcile
+            .content
+            .lines()
+            .filter(|line| line.contains("/repair_components"))
+            .collect();
+        assert_eq!(checks.len(), 1);
+        let check = checks[0];
+        assert!(check.starts_with("execute unless entity @s[scores={"));
+        for component in &definition.components {
+            for (identity, version) in &component.identities {
+                assert!(check.contains(&format!("{identity}={version}")));
+            }
+        }
+        for field in ArchetypeFields::new(&definition).unwrap().values() {
+            // Include the full signed range: negative values are present, while
+            // a missing score must take the repair path even at the same version.
+            assert!(check.contains(&format!("{}=-2147483648..", field.objective)));
+        }
+        assert!(!reconcile.content.contains("/provision"));
+        let repair = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/repair_components"))
+            .unwrap();
+        assert_eq!(repair.content.lines().count(), 2);
+        assert!(repair.content.lines().next().unwrap().ends_with(" 1"));
+        assert!(
+            repair
+                .content
+                .lines()
+                .last()
+                .unwrap()
+                .ends_with("/provision")
+        );
+        assert!(compiled.report.functions.contains(&repair.path));
+    }
+
+    #[test]
+    fn attachment_with_non_score_work_keeps_its_reconcile_cadence() {
+        let mut definition = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "opaque_attachment").unwrap(),
+        )
+        .components::<MobState>()
+        .definition();
+        definition.components[0].attach = |_| {
+            vec![
+            "execute unless data storage rpg:state payload run data modify storage rpg:state payload set value {}".into(),
+        ]
+        };
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        assert!(
+            reconcile
+                .content
+                .lines()
+                .any(|line| line.starts_with("function ") && line.ends_with("/provision"))
+        );
+        assert!(!reconcile.content.contains("/repair_components"));
+        assert!(reconcile.content.contains(&format!(
+            "unless score @s {} matches -2147483648..",
+            LEVEL.objective()
+        )));
+    }
+
+    #[test]
     fn repaired_components_refresh_derived_and_native_state() {
         let archetype = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "repair_refresh").unwrap(),
@@ -4937,10 +5068,11 @@ mod tests {
         .to_string();
         assert!(reconcile.content.contains(&repair_objective));
         assert!(reconcile.content.contains("/repair_refresh"));
-        assert!(reconcile.content.contains(&format!(
-            "unless score @s {} matches -2147483648..",
-            LEVEL.objective()
-        )));
+        assert!(
+            reconcile
+                .content
+                .contains(&format!("{}=-2147483648..", LEVEL.objective()))
+        );
         assert!(repair.content.contains("/derive/0"));
         assert!(repair.content.contains("/property/0"));
     }

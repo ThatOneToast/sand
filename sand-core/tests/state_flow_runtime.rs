@@ -27,6 +27,7 @@ impl TypedGameState for Phase {
 }
 static PHASE: GameState<Phase> = GameState::with_default_score("fa_phase", 0);
 
+#[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "flow_audit", scope = player)]
 struct Metrics {

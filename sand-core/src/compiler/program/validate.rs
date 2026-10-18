@@ -212,6 +212,7 @@ pub(super) fn validate(
             .collect(),
         functions,
         operations: 0,
+        flow_bytes: 0,
         raw: program.requires.iter().any(|v| v == "raw_commands"),
         errors: &mut errors,
     };
@@ -219,6 +220,9 @@ pub(super) fn validate(
         let owner = module.id.to_string();
         for (index, flow) in module.flows.iter().enumerate() {
             let ptr = format!("/flows/{index}");
+            if !validator.reserve_flow_expansion(flow, &owner, &ptr) {
+                continue;
+            }
             if !valid_id(&flow.id) || !flow_ids.insert(flow.id.to_string()) {
                 validator.errors.push(Diagnostic::error(
                     "SAND_PROGRAM_ID",
@@ -366,10 +370,64 @@ struct Validator<'a, 'e> {
     states: BTreeMap<String, (&'a str, BTreeSet<&'a str>)>,
     functions: BTreeMap<String, ExecutionContext>,
     operations: usize,
+    flow_bytes: usize,
     raw: bool,
     errors: &'e mut Vec<Diagnostic>,
 }
 impl Validator<'_, '_> {
+    // Count copied hook invocations before the shared compiler materializes
+    // transition bodies. Input declaration limits alone cannot bound this
+    // transition × hook expansion. This is a lower bound on emitted bytes;
+    // the normal output limits still check every complete generated resource.
+    fn reserve_flow_expansion(&mut self, flow: &Flow, owner: &str, ptr: &str) -> bool {
+        let mut enter = BTreeMap::<i32, (usize, usize)>::new();
+        let mut exit = BTreeMap::<i32, (usize, usize)>::new();
+        let mut calls = 0usize;
+        let mut bytes = 0usize;
+        for hook in &flow.hooks {
+            let id = match &hook.function {
+                FunctionReference::Internal { id } | FunctionReference::External { id, .. } => id,
+            };
+            let size = id.to_string().len().saturating_add("function ".len() + 1);
+            let counters = match hook.phase {
+                FlowHookPhase::Enter => enter.entry(hook.state).or_default(),
+                FlowHookPhase::Exit => exit.entry(hook.state).or_default(),
+                FlowHookPhase::Tick => {
+                    calls = calls.saturating_add(1);
+                    bytes = bytes.saturating_add(size);
+                    continue;
+                }
+            };
+            counters.0 = counters.0.saturating_add(1);
+            counters.1 = counters.1.saturating_add(size);
+        }
+        let mut oversized = false;
+        for transition in &flow.transitions {
+            let before = exit.get(&transition.from).copied().unwrap_or_default();
+            let after = enter.get(&transition.to).copied().unwrap_or_default();
+            calls = calls.saturating_add(before.0).saturating_add(after.0);
+            let body_bytes = before.1.saturating_add(after.1);
+            oversized |= body_bytes > limits::DOCUMENT_BYTES;
+            bytes = bytes.saturating_add(body_bytes);
+        }
+        self.operations = self.operations.saturating_add(calls);
+        self.flow_bytes = self.flow_bytes.saturating_add(bytes);
+        if oversized
+            || self.operations > limits::OPERATIONS
+            || self.flow_bytes > limits::OUTPUT_BYTES
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_LIMIT",
+                owner,
+                ptr,
+                "expanded flow hooks exceed operation or generated-output limits",
+            ));
+            false
+        } else {
+            true
+        }
+    }
+
     fn comparison(
         &mut self,
         condition: &ScoreComparison,

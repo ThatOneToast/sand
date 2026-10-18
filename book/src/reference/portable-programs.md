@@ -118,7 +118,8 @@ resets when a cycle observes another phase. Reload preserves existing counters.
 Enter and exit hooks require cadence one. Hook references follow the normal
 internal/external function rules; global hooks cannot require a player context.
 A flow needs at least one transition or hook. Transitions and hooks count toward
-the declaration limit. Flow identities determine helper ownership; reordering
+the declaration limit. Expanded hook calls count toward the operation limit,
+and their byte budget is checked before transition bodies are materialized. Flow identities determine helper ownership; reordering
 flow declarations does not change output.
 
 `encounter_flows()` in the Python producer and

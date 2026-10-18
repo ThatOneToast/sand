@@ -208,3 +208,67 @@ fn untrusted_json_rejects_unknown_hook_phases_and_noninteger_transitions() {
         );
     }
 }
+
+#[test]
+fn copied_transition_hooks_are_bounded_before_materializing_the_plan() {
+    let mut program = program();
+    program.modules[0].flows.truncate(1);
+    let flow = &mut program.modules[0].flows[0];
+    flow.transitions = (2..402)
+        .map(|from| FlowTransition {
+            from,
+            to: 1,
+            when: None,
+            priority: 0,
+        })
+        .collect();
+    flow.hooks = vec![flow.hooks[0].clone(); 400];
+    // Only 800 declarations, but 160,000 copied enter calls. Both directly
+    // constructed and decoded inputs must fail before allocating that output.
+    for input in [
+        program.clone(),
+        decode(serde_json::to_value(&program).unwrap()),
+    ] {
+        let errors = Compiler::compile(&input).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.code == "SAND_PROGRAM_LIMIT"
+                && e.module == "demo:encounters"
+                && e.pointer == "/flows/0"),
+            "{errors:?}"
+        );
+    }
+}
+
+#[test]
+fn expanded_hook_bytes_obey_resource_and_pack_limits_before_lowering() {
+    for (transitions, hooks) in [(300, 200), (1, 1800)] {
+        let mut program = program();
+        program.modules[0].flows.truncate(1);
+        let flow = &mut program.modules[0].flows[0];
+        flow.transitions = (2..2 + transitions)
+            .map(|from| FlowTransition {
+                from,
+                to: 1,
+                when: None,
+                priority: 0,
+            })
+            .collect();
+        let mut hook = flow.hooks[0].clone();
+        hook.function = FunctionReference::External {
+            id: format!("external:{}hook", "leaf/".repeat(120))
+                .parse()
+                .unwrap(),
+            context: ExecutionContext::Player,
+        };
+        flow.hooks = vec![hook; hooks];
+        // These remain below the operation budget, but exceed either the
+        // complete pack byte budget or one generated transition's byte budget.
+        let errors = Compiler::compile(&program).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.code == "SAND_PROGRAM_LIMIT"
+                && e.pointer == "/flows/0"
+                && e.message.contains("expanded flow hooks")),
+            "{errors:?}"
+        );
+    }
+}

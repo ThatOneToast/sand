@@ -1,0 +1,27 @@
+{
+  "minecraft": "26.2",
+  "passed": true,
+  "checks": [
+    "PLAIN_ITEM_REJECTED",
+    "PLAIN_ITEM_PRESERVED",
+    "OTHER_PLAYER_COST_UNTOUCHED",
+    "ONE_CORE_CONSUMED",
+    "ONE_REWARD_GRANTED",
+    "BETA_STILL_HAS_TWO_CORES",
+    "BETA_HAS_NO_REWARD",
+    "REPEAT_COST_UNCHANGED",
+    "REPEAT_REWARD_UNCHANGED",
+    "BETA_INDEPENDENT_UPGRADE",
+    "BETA_INDEPENDENT_COST",
+    "SandAlpha_INITIAL_STAMINA",
+    "SandBeta_INITIAL_STAMINA",
+    "ALPHA_ABILITY_COST",
+    "BETA_ABILITY_ISOLATION",
+    "COOLDOWN_PREVENTS_REPEAT_COST",
+    "RELOAD_PRESERVES_UNLOCK",
+    "RELOAD_PRESERVES_COST",
+    "RELOAD_PRESERVES_STAMINA"
+  ],
+  "pack_sha256": "cf9ff762c29b60b220e3df776ce608d82c6f5de52d330a96c0efdb8fe159e60b",
+  "scope": "Two real passive players; recipe-result items granted by commands; exported menu trigger commands and callback dispatcher invoked from console with automatic ticks frozen. Does not prove client crafting or dialog click input."
+}

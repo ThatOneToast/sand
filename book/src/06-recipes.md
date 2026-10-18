@@ -16,21 +16,21 @@ ID) at `cargo build` time instead of at datapack load, where Minecraft's
 own error reporting for malformed recipe JSON is much harder to trace back
 to a cause.
 
-## Why the recipe result is `minecraft:heart_of_the_sea`, not `GrappleCore`
+## Preserve the custom item's identity
 
-`RecipeResult::new("minecraft:heart_of_the_sea", 1)` — the recipe crafts
-the vanilla base item, not a component-decorated custom item. This is a
-real vanilla limitation, not a Sand gap: crafting-recipe JSON in Minecraft
-can only reference a base item ID plus (on modern versions) fixed result
-components, and can't invoke arbitrary custom-item construction logic the
-way a `give` command backed by `CustomItem::new(...)` can. Trailforge works
-around this the standard way: `trail:claim_striders` (chapter 8) is a
-*function*, gated on already holding a plain Grapple Core, that manually
-`give`s the fully-decorated item. If you need "crafting always produces the
-exact custom item," route the recipe's raw result through a loot-table-style
-advancement/function combo rather than expecting the recipe itself to carry
-full item component data — see
-[Vanilla Limitations](reference/vanilla-limitations.md).
+`RecipeResult::custom_item(&grapple_core())` carries the base item, custom-data
+marker, name, lore, rarity, and stack limit into the recipe result. The same
+`grapple_core()` definition supplies the upgrade's inventory predicate and the
+acquisition event's identity. A plain Heart of the Sea does not qualify.
+
+This uses the supported component-bearing recipe result; it needs no reward
+function workaround. Recipe **ingredients** still match vanilla items or tags,
+not custom-data identity. Use an inventory predicate and an explicit gameplay
+function when a cost must match a custom item.
+
+The upgrade function consumes one matching core from the current player's
+inventory and grants Trail Striders. It does not consume another player's core
+or allow an already-unlocked player to claim another pair.
 
 ## `#[datapack_component]` vs `#[custom_item]` vs `#[function]`
 

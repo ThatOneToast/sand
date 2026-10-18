@@ -10,14 +10,15 @@ conditional branching.
 {{#include ../../examples/book_project/src/lib.rs:fn_grapple}}
 ```
 
-`TypedExecute::as_players_at_self()` builds an `execute as @a at @s run
-...`-shaped command: **as** every player (so the check runs once per
-player, in that player's own scoreboard context), **at self** (so any
-subsequent positional commands run at that player's current position,
-useful once you add particles/sounds relative to the player). `.when(...)`
-takes the same `all![...]` condition list chapter 3's `tick` uses for
-readiness, and `.run(...)` dispatches to `trail:grapple/execute` by
-`ResourceLocation` (chapter 4) rather than inlining the dash logic here.
+`#[function(..., context = player)]` declares a player entry point and ensures
+State initialization before the body runs. Invoke it as a player (the dialog
+already does this). `TypedExecute::as_self_at_self()` keeps that player as the
+executor and positions the effects at their location. It never selects other
+players: one menu click pays only the clicking player's stamina and cooldown.
+
+`.when(...)` takes the same `all![...]` condition list chapter 3's `tick` uses
+for readiness, and `.run(cmd::function(grapple_execute))` dispatches through the
+canonical function handle rather than inlining the dash logic here.
 Splitting "is the dash allowed" from "what the dash does" means the
 gating conditions stay visible and reusable (the `tick` actionbar reuses
 the identical condition list) without duplicating the effects/VFX code.
@@ -57,16 +58,18 @@ function body is just the state change and the player-facing message.
 ```
 
 `if_(condition).then_all(mcfunction![...]).else_all(mcfunction![...])` is
-Sand's grouped-branch API: it compiles to a pair of `execute if`/`unless`
-guarded command blocks sharing one condition, rather than you writing that
-condition (and its negation) out twice by hand. The `then` arm handles the
-rejection path — a player who already owns Trail Striders is told so and
-the function returns a failure signal via `cmd::return_fail()`, which
-matters if this function is ever chained from another `execute
-... run function` that checks success. The `else` arm is the happy path:
-grant the item (reusing `trail_striders()` from chapter 5, so the given
-item can never drift from its definition), set the `HAS_STRIDERS` flag, and
-`cmd::return_cmd(1)` to signal success explicitly.
+Sand's grouped-branch API evaluates a condition once and runs only its selected
+body. The outer branch rejects players who already unlocked Trail Striders.
+The inner branch requires a matching Grapple Core in the current player's
+inventory. A plain Heart of the Sea does not satisfy the custom-item predicate.
+
+On success, the function removes one core, gives the component-bearing boots
+through `cmd::give`, and sets the unlock flag. Rejected requests leave inventory
+and progression unchanged. The boots are granted to inventory rather than
+replacing an occupied armor slot; the player equips them normally. As with
+vanilla `give`, a full inventory can cause the reward to drop beside the player.
+This synchronous example checks presence immediately before removal, but does
+not promise a general atomic inventory transaction API.
 
 `mcfunction![...]` is the declarative macro (re-exported through the
 prelude) for "a block of commands treated as one execute branch" — the
@@ -88,7 +91,7 @@ rather than needing the full `Dialog` value in scope — see chapter 12 for
 Every command above runs inside *some* execution context — `as @a`,
 `at @s`, the default "whoever/wherever this function was called from." Sand
 makes that context an explicit, typed part of the builder chain
-(`TypedExecute::as_players_at_self()`) rather than a string you assemble by
+(`TypedExecute::as_self_at_self()`) rather than a string you assemble by
 hand, so `@s` inside a called function means exactly what the caller's
 `as`/`at` clause set it to, and a missing `as` (which would make `@s`
 resolve to the command block or server console instead of a player) is a

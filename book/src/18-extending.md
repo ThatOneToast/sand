@@ -22,7 +22,8 @@ introduced:
 If the new feature needs a custom item, decide whether it needs a
 generated predicate (`#[custom_item]`, chapter 5) or is only ever granted, never
 matched against (a plain builder function). If it needs to be craftable,
-add a `ShapedRecipe` (chapter 6) referencing the item by its base ID. If it
+add a `ShapedRecipe` (chapter 6) using `RecipeResult::custom_item` to retain
+its identity and components. If it
 needs passive, always-on-while-equipped behavior, reach for an
 `AttributeModifier` (chapter 11) before writing procedural tick logic. If
 it needs to *feel* like something happened, package a `Vfx` sequence
@@ -35,9 +36,8 @@ Every builder this book covered has a typed, validated surface. Most packs
 should use `sand build` and never call `sand::advanced`. The module exists
 only for a custom build integration that must collect Sand's registered
 components as version-validated JSON; chapter 17 shows the generated
-`__sand_export` hook that calls it. Reach for `cmd::raw(...)` (already used
-once in this book, in `trail:claim_striders`'s `give` command) for a
-deliberate one-off raw command string. Raw JSON/SNBT values keep their
+`__sand_export` hook that calls it. Use `cmd::raw(...)` only for a deliberate unsupported command edge.
+Ordinary item grants use `cmd::give` with the typed custom-item definition. Raw JSON/SNBT values keep their
 canonical prelude paths rather than becoming an implicit compiler API.
 
 ## Where to go next

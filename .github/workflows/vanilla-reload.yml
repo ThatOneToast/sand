@@ -252,6 +252,14 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
+      - name: Validate portable player and global gameplay flows
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_portable_flows.py \
+            --binary target/debug/sand \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/portable-flows"
+
       - name: Validate unified State example with real players and entities
         if: matrix.target == 'latest'
         run: |
@@ -299,6 +307,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/portable-state
             target/vanilla-reload/${{ matrix.version }}/portable-global
+            target/vanilla-reload/${{ matrix.version }}/portable-flows
             target/vanilla-reload/${{ matrix.version }}/state-flow
             target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/player-participants

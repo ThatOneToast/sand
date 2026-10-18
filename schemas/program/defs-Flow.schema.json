@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A state machine bound to one player or global integer State field.",
+  "properties": {
+    "hooks": {
+      "default": [],
+      "description": "Hooks retain authored order. Tick hooks observe state changes made by\nearlier hooks in the same cycle; raw score writes bypass enter/exit hooks.",
+      "items": {
+        "$ref": "defs-FlowHook.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Stable identity owning generated private helpers and interval counters.",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "The field's owning scope determines execution: each player or one server\ninvocation for global State. Lifecycle initializes its declared default."
+    },
+    "transitions": {
+      "default": [],
+      "description": "At most one transition executes per cycle. Equal-priority guards retain\ndeclaration order; identical guards targeting different states conflict.",
+      "items": {
+        "$ref": "defs-FlowTransition.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "state"
+  ],
+  "type": "object"
+}

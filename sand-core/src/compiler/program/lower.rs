@@ -164,6 +164,58 @@ pub(super) fn lower(
             memberships.push((tag_id, function));
         }
     }
+    let field_defaults: BTreeMap<_, _> = states
+        .iter()
+        .flat_map(|state| {
+            state
+                .fields
+                .iter()
+                .map(|field| (format!("{}.{}", state.id, field.name), field.default))
+        })
+        .collect();
+    let mut flow_locations = BTreeMap::new();
+    let mut flows = Vec::new();
+    for module in &program.modules {
+        for (index, flow) in module.flows.iter().enumerate() {
+            flow_locations.insert(
+                flow.id.to_string(),
+                (module.id.to_string(), format!("/flows/{index}")),
+            );
+            flows.push(flow_registration(flow, &lower.holders, &field_defaults));
+        }
+    }
+    let flow_plan = crate::state::flow::resolve_state_flow_plan(&program.pack.namespace, flows)
+        .map_err(|message| {
+            let location = flow_locations
+                .iter()
+                .find(|(id, _)| message.contains(&format!("Flow: {id}\n")));
+            let (module, ptr) = location
+                .map(|(_, (module, ptr))| (module.as_str(), ptr.as_str()))
+                .unwrap_or(("", ""));
+            vec![Diagnostic::error("SAND_PROGRAM_FLOW", module, ptr, message)]
+        })?;
+    lifecycle::validate_private_objectives(&automatic, &load, &flow_plan.private_objectives)
+        .map_err(error)?;
+    for generated in flow_plan.functions {
+        let (module, ptr) = &flow_locations[&generated.tracker_id];
+        let id = format!("{}:{}", program.pack.namespace, generated.path);
+        lower.function(&id, generated.commands, module, ptr)?;
+        lower.runtime.generated_function(id, generated.origins);
+    }
+    automatic.load_commands.extend(flow_plan.load_commands);
+    for (id, (module, _)) in &flow_locations {
+        automatic.load_origins.extend([id.clone(), module.clone()]);
+    }
+    if !flow_locations.is_empty() {
+        lower.runtime.generated_lifecycle(
+            format!("{}:__sand_lifecycle_tick", program.pack.namespace),
+            "tick",
+            flow_locations
+                .iter()
+                .flat_map(|(id, (module, _))| [id.clone(), module.clone()])
+                .map(crate::function::GeneratedOrigin::Logical),
+        );
+    }
     let mut tag_map = BTreeMap::new();
     let lifecycle = lifecycle::assemble_lifecycle(
         &program.pack.namespace,
@@ -172,7 +224,7 @@ pub(super) fn lower(
         automatic,
         load,
         tick,
-        Vec::new(),
+        flow_plan.global_tick_commands,
     )
     .map_err(|e| error(e.to_string()))?;
     lifecycle.attribute(&program.pack.namespace, &mut lower.runtime);
@@ -297,6 +349,68 @@ fn portable_segment(segment: &str) -> bool {
         && !((basename.starts_with("com") || basename.starts_with("lpt"))
             && basename.len() == 4
             && matches!(basename.as_bytes()[3], b'1'..=b'9'))
+}
+
+/// Adapt declarative flows into the same owned plan consumed by Rust collection.
+fn flow_registration(
+    flow: &Flow,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+    defaults: &BTreeMap<String, i32>,
+) -> crate::state::flow::FlowRegistration {
+    use crate::state::flow::{
+        FlowHook as OwnedHook, FlowRegistration, FlowTransition as OwnedTransition, HookKind,
+    };
+    let holder = holders[&flow.state.state.to_string()].to_string();
+    FlowRegistration {
+        id: flow.id.to_string(),
+        state_type: format!("State {}.{}", flow.state.state, flow.state.field),
+        objective: objective(&flow.state),
+        default_score: Some(defaults[&format!("{}.{}", flow.state.state, flow.state.field)]),
+        subjects: (holder == "@s").then(|| "@a".to_owned()),
+        holder,
+        transitions: flow
+            .transitions
+            .iter()
+            .enumerate()
+            .map(|(order, transition)| OwnedTransition {
+                from: transition.from,
+                to: transition.to,
+                priority: transition.priority,
+                order,
+                guard: transition.when.as_ref().map(|condition| {
+                    use crate::condition::ScoreRange;
+                    let range = match (condition.min, condition.max) {
+                        (Some(min), Some(max)) if min == max => ScoreRange::Eq(min),
+                        (Some(min), Some(max)) => ScoreRange::Between(Some(min), Some(max)),
+                        (Some(min), None) => ScoreRange::Gte(min),
+                        (None, Some(max)) => ScoreRange::Lte(max),
+                        (None, None) => ScoreRange::Between(Some(i32::MIN), Some(i32::MAX)),
+                    };
+                    crate::condition::Condition::score(
+                        holders[&condition.score.state.to_string()].to_string(),
+                        objective(&condition.score),
+                        range,
+                    )
+                }),
+            })
+            .collect(),
+        hooks: flow
+            .hooks
+            .iter()
+            .enumerate()
+            .map(|(order, hook)| OwnedHook {
+                kind: match hook.phase {
+                    FlowHookPhase::Enter => HookKind::Enter,
+                    FlowHookPhase::Exit => HookKind::Exit,
+                    FlowHookPhase::Tick => HookKind::Tick,
+                },
+                state: hook.state,
+                cadence: hook.cadence,
+                order,
+                commands: crate::ir::Actions(vec![Cmd::Function(reference_id(&hook.function))]),
+            })
+            .collect(),
+    }
 }
 
 fn reference_id(reference: &FunctionReference) -> String {

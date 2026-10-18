@@ -129,6 +129,35 @@ fn load_objective_definition(command: &str) -> Option<(String, String)> {
     }
 }
 
+/// Reject authored declarations that alias compiler-owned runtime objectives.
+pub(crate) fn validate_private_objectives(
+    automatic: &crate::state::registry::AutomaticLifecycle,
+    registration_load_commands: &[(String, usize, String)],
+    transition_objectives: &std::collections::BTreeMap<String, (String, String)>,
+) -> Result<(), String> {
+    for command in &automatic.load_commands {
+        if let Some(objective) = command.split_whitespace().nth(3)
+            && let Some((tracker_id, source)) = transition_objectives.get(objective)
+        {
+            return Err(format!(
+                "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with an automatic state declaration"
+            ));
+        }
+    }
+    for (owner, _, command) in registration_load_commands {
+        if let Some(objective) = command
+            .strip_prefix("scoreboard objectives add ")
+            .and_then(|rest| rest.split_whitespace().next())
+            && let Some((tracker_id, source)) = transition_objectives.get(objective)
+        {
+            return Err(format!(
+                "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with a registered lifecycle declaration from `{owner}`"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Assemble owned lifecycle contributions after frontend collection.
 pub(crate) fn assemble_lifecycle(
     namespace: &str,

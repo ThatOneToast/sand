@@ -80,6 +80,14 @@ pub(super) fn validate(
                 .checked_add(module.states.len())?
                 .checked_add(module.functions.len())?
                 .checked_add(module.tags.len())?
+                .checked_add(module.flows.len())?
+                .checked_add(
+                    module
+                        .flows
+                        .iter()
+                        .map(|flow| flow.transitions.len().saturating_add(flow.hooks.len()))
+                        .sum::<usize>(),
+                )?
                 .checked_add(
                     module
                         .states
@@ -98,6 +106,7 @@ pub(super) fn validate(
         )]);
     }
     let mut modules = BTreeSet::new();
+    let mut flow_ids = BTreeSet::new();
     let mut states = BTreeMap::new();
     let mut functions = BTreeMap::new();
     for module in &program.modules {
@@ -173,6 +182,17 @@ pub(super) fn validate(
             }
         }
     }
+    let field_bounds: BTreeMap<_, _> = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.states)
+        .flat_map(|state| {
+            state
+                .fields
+                .iter()
+                .map(|field| (format!("{}.{}", state.id, field.name), field.bounds))
+        })
+        .collect();
     let mut validator = Validator {
         states: states
             .into_iter()
@@ -197,6 +217,70 @@ pub(super) fn validate(
     };
     for module in &program.modules {
         let owner = module.id.to_string();
+        for (index, flow) in module.flows.iter().enumerate() {
+            let ptr = format!("/flows/{index}");
+            if !valid_id(&flow.id) || !flow_ids.insert(flow.id.to_string()) {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_ID",
+                    &owner,
+                    &format!("{ptr}/id"),
+                    "invalid or duplicate flow identity",
+                ));
+            }
+            let context = if validator
+                .states
+                .get(&flow.state.state.to_string())
+                .is_some_and(|(scope, _)| *scope == "player")
+            {
+                ExecutionContext::Player
+            } else {
+                ExecutionContext::Server
+            };
+            validator.score(&flow.state, context, &owner, &format!("{ptr}/state"));
+            let bounds = field_bounds
+                .get(&format!("{}.{}", flow.state.state, flow.state.field))
+                .copied()
+                .flatten();
+            if flow.transitions.is_empty() && flow.hooks.is_empty() {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_FLOW",
+                    &owner,
+                    &ptr,
+                    "flow requires a transition or hook",
+                ));
+            }
+            for (index, transition) in flow.transitions.iter().enumerate() {
+                let ptr = format!("{ptr}/transitions/{index}");
+                if transition.from == transition.to
+                    || bounds.is_some_and(|(min, max)| !(min..=max).contains(&transition.to))
+                {
+                    validator.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_FLOW",
+                        &owner,
+                        &ptr,
+                        "destination must differ from source and satisfy State bounds",
+                    ));
+                }
+                if let Some(condition) = &transition.when {
+                    validator.comparison(condition, context, &owner, &format!("{ptr}/when"));
+                }
+            }
+            for (index, hook) in flow.hooks.iter().enumerate() {
+                let ptr = format!("{ptr}/hooks/{index}");
+                validator.call(&hook.function, context, &owner, &format!("{ptr}/function"));
+                if hook.cadence == 0
+                    || hook.cadence > i32::MAX as u32
+                    || (hook.phase != FlowHookPhase::Tick && hook.cadence != 1)
+                {
+                    validator.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_FLOW",
+                        &owner,
+                        &format!("{ptr}/cadence"),
+                        "tick cadence must be 1..=i32::MAX; enter/exit cadence must be 1",
+                    ));
+                }
+            }
+        }
         for (index, function) in module.functions.iter().enumerate() {
             validator.body(
                 &function.body,
@@ -286,6 +370,28 @@ struct Validator<'a, 'e> {
     errors: &'e mut Vec<Diagnostic>,
 }
 impl Validator<'_, '_> {
+    fn comparison(
+        &mut self,
+        condition: &ScoreComparison,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+    ) {
+        self.score(&condition.score, context, owner, &format!("{ptr}/score"));
+        if condition
+            .min
+            .zip(condition.max)
+            .is_some_and(|(min, max)| min > max)
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_RANGE",
+                owner,
+                ptr,
+                "comparison minimum exceeds maximum",
+            ));
+        }
+    }
+
     fn score(&mut self, score: &FieldReference, context: ExecutionContext, owner: &str, ptr: &str) {
         if context != ExecutionContext::Player
             && self
@@ -429,24 +535,12 @@ impl Validator<'_, '_> {
                     then,
                     otherwise,
                 } => {
-                    self.score(
-                        &condition.score,
+                    self.comparison(
+                        condition,
                         context,
                         owner,
-                        &format!("{ptr}/action/condition/score"),
+                        &format!("{ptr}/action/condition"),
                     );
-                    if condition
-                        .min
-                        .zip(condition.max)
-                        .is_some_and(|(min, max)| min > max)
-                    {
-                        self.errors.push(Diagnostic::error(
-                            "SAND_PROGRAM_RANGE",
-                            owner,
-                            &format!("{ptr}/action/condition"),
-                            "comparison minimum exceeds maximum",
-                        ));
-                    }
                     self.body(
                         then,
                         context,

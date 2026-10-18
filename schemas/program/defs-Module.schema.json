@@ -3,6 +3,13 @@
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "flows": {
+      "description": "Gameplay state machines owned by this module.",
+      "items": {
+        "$ref": "defs-Flow.schema.json"
+      },
+      "type": "array"
+    },
     "functions": {
       "description": "Named functions, including declarations unreachable from tags.",
       "items": {
@@ -22,7 +29,7 @@
       "type": "array"
     },
     "states": {
-      "description": "Player State definitions owned by this module.",
+      "description": "Player or global State definitions owned by this module.",
       "items": {
         "$ref": "defs-State.schema.json"
       },

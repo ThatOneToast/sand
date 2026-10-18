@@ -103,13 +103,16 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
     #[schemars(with = "String")]
     pub id: ResourceLocation,
-    /// Player State definitions owned by this module.
+    /// Gameplay state machines owned by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flows: Vec<super::Flow>,
+    /// Player or global State definitions owned by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub states: Vec<State>,
     /// Named functions, including declarations unreachable from tags.

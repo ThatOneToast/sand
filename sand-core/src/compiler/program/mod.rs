@@ -9,8 +9,9 @@ mod validate;
 pub use crate::compiler::runtime::RuntimeReport;
 pub use diagnostic::Diagnostic;
 pub use model::{
-    Action, ExecutionContext, FieldReference, Function, FunctionReference, Module, ModuleSource,
-    Operation, Pack, Program, ProgramTarget, ScoreComparison, ScoreField, State, TagMembership,
+    Action, ExecutionContext, FieldReference, Flow, FlowHook, FlowHookPhase, FlowTransition,
+    Function, FunctionReference, Module, ModuleSource, Operation, Pack, Program, ProgramTarget,
+    ScoreComparison, ScoreField, State, TagMembership,
 };
 use std::collections::BTreeMap;
 
@@ -19,6 +20,7 @@ const CAPABILITIES: &[&str] = &[
     "player_state",
     "state_defaults",
     "state_bounds",
+    "state_flows",
     "global_state",
     "functions",
     "score",

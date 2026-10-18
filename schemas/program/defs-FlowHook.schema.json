@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A named function invoked at a state-machine lifecycle point.",
+  "properties": {
+    "cadence": {
+      "default": 1,
+      "description": "Tick hooks count matching cycles, including the entering cycle. Counters\nreset when a cycle observes another phase. Range: 1 through i32::MAX.\nEnter and exit hooks require the default value of one.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "function": {
+      "$ref": "defs-FunctionReference.schema.json",
+      "description": "Inherits the flow's player or server execution context."
+    },
+    "phase": {
+      "$ref": "defs-FlowHookPhase.schema.json",
+      "description": "Enter/exit hooks run only on flow-owned transitions."
+    },
+    "state": {
+      "description": "Phase that triggers this hook.",
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "phase",
+    "state",
+    "function"
+  ],
+  "type": "object"
+}

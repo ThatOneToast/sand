@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The state-machine lifecycle point that invokes a hook.",
+  "oneOf": [
+    {
+      "const": "enter",
+      "description": "After a flow-owned transition writes this phase.",
+      "type": "string"
+    },
+    {
+      "const": "exit",
+      "description": "Before a flow-owned transition leaves this phase.",
+      "type": "string"
+    },
+    {
+      "const": "tick",
+      "description": "After transition selection, in authored hook order.",
+      "type": "string"
+    }
+  ]
+}

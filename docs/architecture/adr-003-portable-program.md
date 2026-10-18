@@ -54,9 +54,9 @@ once: mutation in the selected body cannot cause the other body to execute.
 Top-level declarations sort by semantic identity. State fields retain canonical
 State declaration order. Bodies, execution edges and contributions
 within an owner preserve authored order. Registration owners sort by identity,
-matching Rust registration ordering. Standalone objective declarations are
+matching Rust registration ordering. Framework objective declarations are
 provisioned first, followed by framework provisioning and global initialization,
-then ordered user load actions. Thus a load mutation observes its declared
+then all user load commands in authored order, including objective commands. Thus a load mutation observes its declared
 default rather than implicitly creating a zero score. Canonical State setup precedes user load
 work, and player initialization precedes user tick work. User tag membership
 uses existing canonical ordering and deduplication after compiler lifecycle work.

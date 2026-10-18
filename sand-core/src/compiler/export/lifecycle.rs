@@ -179,15 +179,17 @@ pub(crate) fn assemble_lifecycle(
         .into_values()
         .map(|(_, command, _)| command)
         .collect();
+    // Framework initialization must precede gameplay. Keep every authored load
+    // command in sequence, including remove/recreate objective operations.
+    load_cmds.append(&mut automatic.provision_commands);
+    load_cmds.append(&mut automatic.global_init_commands);
     let mut load_owners = Vec::new();
     let mut load_first_line = 1 + load_cmds
         .iter()
         .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
         .sum::<usize>();
-    let mut load_actions = Vec::new();
     for (owner, _, command) in registration_load_commands {
         let parsed = load_objective_definition(&command);
-        let is_definition = parsed.is_some();
         if let Some((objective, criterion)) = parsed {
             match registration_definitions.get(&objective) {
                 Some((existing, _)) if existing == &criterion => {}
@@ -201,27 +203,6 @@ pub(crate) fn assemble_lifecycle(
                 }
             }
         }
-        if is_definition {
-            append_owned_command(
-                &mut load_cmds,
-                &mut load_owners,
-                owner,
-                command,
-                &mut load_first_line,
-            );
-        } else {
-            load_actions.push((owner, command));
-        }
-    }
-    // Declarations must exist before framework hooks initialize State. User
-    // gameplay runs only after defaults/presence, preserving its authored order.
-    load_cmds.append(&mut automatic.provision_commands);
-    load_cmds.append(&mut automatic.global_init_commands);
-    load_first_line = 1 + load_cmds
-        .iter()
-        .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
-        .sum::<usize>();
-    for (owner, command) in load_actions {
         append_owned_command(
             &mut load_cmds,
             &mut load_owners,
@@ -410,7 +391,7 @@ mod runtime_origin_tests {
             &mut BTreeMap::new(),
             AutomaticLifecycle {
                 load_commands: vec!["scoreboard objectives add auto dummy".into()],
-                provision_commands: vec!["scoreboard players set #seed custom 9".into()],
+                provision_commands: vec!["scoreboard players set #seed auto 9".into()],
                 global_init_commands: vec!["say initialized".into()],
                 ..AutomaticLifecycle::default()
             },
@@ -434,7 +415,7 @@ mod runtime_origin_tests {
             .content;
         assert_eq!(
             body,
-            "scoreboard objectives add auto dummy\nscoreboard objectives add custom dummy \"Custom\"\nscoreboard players set #seed custom 9\nsay initialized\nsay first\nsay last"
+            "scoreboard objectives add auto dummy\nscoreboard players set #seed auto 9\nsay initialized\nsay first\nscoreboard objectives add custom dummy \"Custom\"\nsay last"
         );
         assert_eq!(
             assembled
@@ -442,7 +423,7 @@ mod runtime_origin_tests {
                 .iter()
                 .map(|origin| (origin.first_line, origin.line_count))
                 .collect::<Vec<_>>(),
-            [(2, 1), (5, 1), (6, 1)]
+            [(4, 1), (5, 1), (6, 1)]
         );
     }
 

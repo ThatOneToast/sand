@@ -108,7 +108,7 @@ migration callbacks beside callback-free owned State, preserving their static
 holder contract. Holder identity tests retain the existing Unicode sanitization
 and hash behavior; this change does not rename persistent scores.
 
-The shared load assembler now declares objectives, provisions framework state,
+The shared load assembler now declares framework objectives, provisions framework state,
 initializes global defaults, then executes user load actions in their authored
 order. A regression covers default 10 followed by a user addition of 7: it must
 produce 17, rather than creating 7 before initialization. These checks cover

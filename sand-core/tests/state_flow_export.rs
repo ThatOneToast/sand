@@ -129,14 +129,26 @@ fn unified_flow_exports_one_ordered_lifecycle() {
     let default = root
         .find("run scoreboard players set @s boss_phase 0")
         .unwrap();
-    let high = root.find("tag=low_health").unwrap();
-    let low = root.find("tag=dead").unwrap();
+    let dispatch = root.find("/select").unwrap();
     let tick = root.find("/tick_0").unwrap();
-    assert!(default < high && high < low && low < tick);
+    assert!(default < dispatch && dispatch < tick);
+    let (_, selection) = functions
+        .iter()
+        .find(|(path, _)| path.ends_with("/select"))
+        .unwrap();
+    let high = selection.find("tag=low_health").unwrap();
+    let low = selection.find("tag=dead").unwrap();
+    assert!(high < low);
     assert!(
-        root.lines()
+        selection
+            .lines()
             .filter(|line| line.contains("/transition_"))
-            .all(|line| line.contains("if score @s __sf_") && line.contains("matches 0"))
+            .all(|line| line.contains("run return run function"))
+    );
+    assert!(
+        !root
+            .lines()
+            .any(|line| line.starts_with("scoreboard players set @s __sf_"))
     );
 
     let (_, transition) = functions
@@ -148,8 +160,8 @@ fn unified_flow_exports_one_ordered_lifecycle() {
         .find("scoreboard players set @s boss_phase 2")
         .unwrap();
     let enter = transition.find("function flowpack:start_enrage").unwrap();
-    let lock = transition.rfind("scoreboard players set @s __sf_").unwrap();
-    assert!(exit < write && write < enter && enter < lock);
+    assert!(exit < write && write < enter);
+    assert!(!transition.contains("scoreboard players set @s __sf_"));
     assert_eq!(transition.matches("stop_fighting").count(), 1);
     assert_eq!(transition.matches("start_enrage").count(), 1);
 

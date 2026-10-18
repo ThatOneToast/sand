@@ -89,6 +89,20 @@ class Programs(unittest.TestCase):
         schema = json.loads((root / "module.schema.json").read_text())
         Draft202012Validator(schema).validate(counter()["modules"][0])
 
+    def test_nonzero_defaults_use_canonical_initialization_without_cargo(self):
+        schema = self.run_sand(["schema"])["schema"]
+        init = "data/demo/function/__sand_lifecycle_init.mcfunction"
+        original = b"run scoreboard players set @s sffe99bc0114fb8b 0"
+        self.assertEqual(GOLDEN[init].count(original), 1)
+        for default in [-2147483648, -20, 100, 2147483647]:
+            program = counter(initial_value=default)
+            program["requires"] = ["state_defaults"]
+            Draft202012Validator(schema).validate(program)
+            expected = dict(GOLDEN)
+            expected[init] = expected[init].replace(original,
+                f"run scoreboard players set @s sffe99bc0114fb8b {default}".encode())
+            self.assertEqual(self.compile(program, f"default-{default}"), expected)
+
     def test_existing_rust_frontend_matches_complete_golden(self):
         pack = Path(os.environ["SAND_RUST_PACK"])
         output = {p.relative_to(pack).as_posix(): p.read_bytes() for p in pack.rglob("*")

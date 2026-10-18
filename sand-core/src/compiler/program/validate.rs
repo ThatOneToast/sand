@@ -55,19 +55,7 @@ pub(super) fn validate(
         ));
     }
     for (index, capability) in program.requires.iter().enumerate() {
-        if ![
-            "player_state",
-            "functions",
-            "score",
-            "branch",
-            "players",
-            "calls",
-            "lifecycle",
-            "function_tags",
-            "raw_commands",
-        ]
-        .contains(&capability.as_str())
-        {
+        if !super::CAPABILITIES.contains(&capability.as_str()) {
             errors.push(Diagnostic::error(
                 "SAND_PROGRAM_CAPABILITY",
                 "",
@@ -142,12 +130,10 @@ pub(super) fn validate(
             }
             let mut fields = BTreeSet::new();
             for (index, field) in state.fields.iter().enumerate() {
-                if field.default != 0
-                    || matches!(
-                        field.name.as_str(),
-                        "presence" | "suppressed" | "numeric_scratch"
-                    )
-                    || field.name.is_empty()
+                if matches!(
+                    field.name.as_str(),
+                    "presence" | "suppressed" | "numeric_scratch"
+                ) || field.name.is_empty()
                     || !field
                         .name
                         .bytes()
@@ -158,7 +144,7 @@ pub(super) fn validate(
                         "SAND_PROGRAM_STATE",
                         &owner,
                         &format!("{ptr}/fields/{index}"),
-                        "fields require unique simple names, zero integer defaults, and cannot claim State ownership objectives",
+                        "fields require unique simple names and cannot claim State ownership objectives",
                     ));
                 }
             }

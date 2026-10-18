@@ -698,6 +698,31 @@ are unchanged.
 | Level-up before reconciliation | 1 | 513 | 443 | 3 identical |
 | Level-up before reconciliation | 10 | 5,130 | 4,430 | 3 identical |
 
+Retained evidence (nine samples per bundle, with raw vanilla traces):
+
+| Version / workload | Measurements | Raw traces |
+| --- | --- | --- |
+| Baseline idle | [JSON](benchmarks/evidence/archetype-propagation-2026-10-16/baseline-idle.json) | [ZIP](benchmarks/evidence/archetype-propagation-2026-10-16/baseline-idle-traces.zip) |
+| Baseline level-up | [JSON](benchmarks/evidence/archetype-propagation-2026-10-16/baseline-level-up.json) | [ZIP](benchmarks/evidence/archetype-propagation-2026-10-16/baseline-level-up-traces.zip) |
+| Candidate idle | [JSON](benchmarks/evidence/archetype-propagation-2026-10-16/candidate-idle.json) | [ZIP](benchmarks/evidence/archetype-propagation-2026-10-16/candidate-idle-traces.zip) |
+| Candidate level-up | [JSON](benchmarks/evidence/archetype-propagation-2026-10-16/candidate-level-up.json) | [ZIP](benchmarks/evidence/archetype-propagation-2026-10-16/candidate-level-up-traces.zip) |
+
+Extract each ZIP beside its corresponding JSON to resolve the recorded `trace`
+paths. Baseline pack source: `a25639e4cb96296c67acd47d097ebf25d9935933`;
+candidate pack and measurement script: `d685fe2d6da66318101639d9b46774ff9a802e40`.
+The later baseline changes through merge `0753dca` affect reporting and Rustdoc,
+not the measured pack. Each JSON records the exact pack and server JAR hashes.
+The host was an Apple M1 Max with 64 GiB RAM; these are command counts, not
+hardware timing measurements. All 36 retained traces were reparsed against
+the measurement script and matched their recorded per-function counts.
+The [native audit results](benchmarks/evidence/archetype-propagation-2026-10-16/native-audit.json)
+retain the 24 behavioral checks and their observed evidence.
+
+Build `examples/rpg_entity` at each source revision with `sand build`, then run
+the command below for each pack with `--workload idle` and `--workload level-up`.
+Use the candidate revision's measurement script for both packs so the same
+parser and active-workload checks apply.
+
 Each total trace includes two additional probe-control evaluations, excluded
 from this table. Idle reconciliation decreases by 35.2%; this particular dirty
 workload decreases by 13.6%. The idle candidate breakdown is 106 evaluations in

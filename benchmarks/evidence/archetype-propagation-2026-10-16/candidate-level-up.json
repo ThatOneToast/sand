@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "measurement": "vanilla_debug_function_command_evaluations",
+  "target_minecraft_version": "26.2",
+  "minecraft_version": "26.2",
+  "server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5",
+  "input_pack_sha256": "59a83712f3484e0e0140566001059eab7a3e2e15c3a11cea80cba2db05363f55",
+  "reconcile_function": "rpg:__sand_entity/a9a72d381e757b/reconcile",
+  "workload": "level-up",
+  "mutation_function": "rpg:level_up",
+  "warmup_calls": 25,
+  "connected_players": 2,
+  "game_ticks_frozen": true,
+  "complete": true,
+  "samples": [
+    {
+      "entities": 0,
+      "sample": 0,
+      "command_evaluations": 2,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 0,
+      "by_function": {
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {},
+      "trace": "traces/entities-0-sample-0.txt"
+    },
+    {
+      "entities": 0,
+      "sample": 1,
+      "command_evaluations": 2,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 0,
+      "by_function": {
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {},
+      "trace": "traces/entities-0-sample-1.txt"
+    },
+    {
+      "entities": 0,
+      "sample": 2,
+      "command_evaluations": 2,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 0,
+      "by_function": {
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {},
+      "trace": "traces/entities-0-sample-2.txt"
+    },
+    {
+      "entities": 1,
+      "sample": 0,
+      "command_evaluations": 445,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 443,
+      "by_function": {
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": 4,
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": 73,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": 159,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": 3,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": 2,
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": 12,
+        "rpg:__sand_entity/a9a72d381e757b/property/0": 20,
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro/111972752": 1,
+        "rpg:__sand_entity/a9a72d381e757b/property/1": 4,
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro/111972752": 1,
+        "rpg:__sand_entity/a9a72d381e757b/property/2": 5,
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro/3738": 1,
+        "rpg:__sand_entity/a9a72d381e757b/provision": 12,
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": 106,
+        "rpg:__sand_entity/a9a72d381e757b/refresh": 22,
+        "rpg:__sand_entity/a9a72d381e757b/transitions": 2,
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {
+        "data modify entity @s CustomNameVisible set value 1b": 1
+      },
+      "trace": "traces/entities-1-sample-0.txt"
+    },
+    {
+      "entities": 1,
+      "sample": 1,
+      "command_evaluations": 445,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 443,
+      "by_function": {
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": 4,
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": 73,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": 159,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": 3,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": 2,
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": 12,
+        "rpg:__sand_entity/a9a72d381e757b/property/0": 20,
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro/111972752": 1,
+        "rpg:__sand_entity/a9a72d381e757b/property/1": 4,
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro/111972752": 1,
+        "rpg:__sand_entity/a9a72d381e757b/property/2": 5,
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro/3738": 1,
+        "rpg:__sand_entity/a9a72d381e757b/provision": 12,
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": 106,
+        "rpg:__sand_entity/a9a72d381e757b/refresh": 22,
+        "rpg:__sand_entity/a9a72d381e757b/transitions": 2,
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {
+        "data modify entity @s CustomNameVisible set value 1b": 1
+      },
+      "trace": "traces/entities-1-sample-1.txt"
+    },
+    {
+      "entities": 1,
+      "sample": 2,
+      "command_evaluations": 445,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 443,
+      "by_function": {
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": 4,
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": 4,
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": 73,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": 159,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": 3,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": 2,
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": 12,
+        "rpg:__sand_entity/a9a72d381e757b/property/0": 20,
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro/111972752": 1,
+        "rpg:__sand_entity/a9a72d381e757b/property/1": 4,
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro/111972752": 1,
+        "rpg:__sand_entity/a9a72d381e757b/property/2": 5,
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro/3738": 1,
+        "rpg:__sand_entity/a9a72d381e757b/provision": 12,
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": 106,
+        "rpg:__sand_entity/a9a72d381e757b/refresh": 22,
+        "rpg:__sand_entity/a9a72d381e757b/transitions": 2,
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {
+        "data modify entity @s CustomNameVisible set value 1b": 1
+      },
+      "trace": "traces/entities-1-sample-2.txt"
+    },
+    {
+      "entities": 10,
+      "sample": 0,
+      "command_evaluations": 4432,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 4430,
+      "by_function": {
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": 40,
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": 730,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": 1590,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": 30,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": 20,
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": 120,
+        "rpg:__sand_entity/a9a72d381e757b/property/0": 200,
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro/111972752": 10,
+        "rpg:__sand_entity/a9a72d381e757b/property/1": 40,
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro/111972752": 10,
+        "rpg:__sand_entity/a9a72d381e757b/property/2": 50,
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro/3738": 10,
+        "rpg:__sand_entity/a9a72d381e757b/provision": 120,
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": 1060,
+        "rpg:__sand_entity/a9a72d381e757b/refresh": 220,
+        "rpg:__sand_entity/a9a72d381e757b/transitions": 20,
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {
+        "data modify entity @s CustomNameVisible set value 1b": 10
+      },
+      "trace": "traces/entities-10-sample-0.txt"
+    },
+    {
+      "entities": 10,
+      "sample": 1,
+      "command_evaluations": 4432,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 4430,
+      "by_function": {
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": 40,
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": 730,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": 1590,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": 30,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": 20,
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": 120,
+        "rpg:__sand_entity/a9a72d381e757b/property/0": 200,
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro/111972752": 10,
+        "rpg:__sand_entity/a9a72d381e757b/property/1": 40,
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro/111972752": 10,
+        "rpg:__sand_entity/a9a72d381e757b/property/2": 50,
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro/3738": 10,
+        "rpg:__sand_entity/a9a72d381e757b/provision": 120,
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": 1060,
+        "rpg:__sand_entity/a9a72d381e757b/refresh": 220,
+        "rpg:__sand_entity/a9a72d381e757b/transitions": 20,
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {
+        "data modify entity @s CustomNameVisible set value 1b": 10
+      },
+      "trace": "traces/entities-10-sample-1.txt"
+    },
+    {
+      "entities": 10,
+      "sample": 2,
+      "command_evaluations": 4432,
+      "probe_control_evaluations": 2,
+      "reconcile_evaluations": 4430,
+      "by_function": {
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": 40,
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": 40,
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": 730,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": 1590,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": 30,
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": 20,
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": 120,
+        "rpg:__sand_entity/a9a72d381e757b/property/0": 200,
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro/111972752": 10,
+        "rpg:__sand_entity/a9a72d381e757b/property/1": 40,
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro/111972752": 10,
+        "rpg:__sand_entity/a9a72d381e757b/property/2": 50,
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro/3738": 10,
+        "rpg:__sand_entity/a9a72d381e757b/provision": 120,
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": 1060,
+        "rpg:__sand_entity/a9a72d381e757b/refresh": 220,
+        "rpg:__sand_entity/a9a72d381e757b/transitions": 20,
+        "sand_cost_probe:reconcile": 2
+      },
+      "unchanged_writes": {
+        "data modify entity @s CustomNameVisible set value 1b": 10
+      },
+      "trace": "traces/entities-10-sample-2.txt"
+    }
+  ]
+}

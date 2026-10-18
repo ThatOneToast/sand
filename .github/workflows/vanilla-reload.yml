@@ -27,6 +27,8 @@ on:
       - "scripts/validate_runtime_report.py"
       - "scripts/validate_portable_global.py"
       - "scripts/validate_state_flow.py"
+      - "scripts/validate_portable_flows.py"
+      - "scripts/portable_program/producer.py"
       - "sand-core/tests/state_flow_runtime.rs"
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"

@@ -23,4 +23,6 @@ CI runs the audit on the latest verified target. The external acceptance tests
 also compare the complete golden pack for Python, JSON, and reordered
 modules' declarations with Cargo absent, and resolve the generated schemas
 offline. Rust owned-model tests prove the portable compiler does not invoke
-inventory factories.
+inventory factories. A separate regression compares every generated player-flow
+function from Rust StateFlow authoring and the portable frontend, normalizing
+only the flow identity derived from their different declaration names.

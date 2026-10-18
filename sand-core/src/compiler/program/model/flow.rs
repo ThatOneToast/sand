@@ -5,6 +5,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A state machine bound to one player or global integer State field.
+///
+/// The shared Rust/portable lifecycle runs automatic State maintenance, then
+/// flows, then authored module tick actions. Writes from a module's tick body
+/// therefore affect flow selection on the following cycle. Within a flow,
+/// transitions run before tick hooks, and later hooks observe earlier writes.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(

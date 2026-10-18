@@ -176,7 +176,7 @@
     },
     "Flow": {
       "additionalProperties": false,
-      "description": "A state machine bound to one player or global integer State field.",
+      "description": "A state machine bound to one player or global integer State field.\n\nThe shared Rust/portable lifecycle runs automatic State maintenance, then\nflows, then authored module tick actions. Writes from a module's tick body\ntherefore affect flow selection on the following cycle. Within a flow,\ntransitions run before tick hooks, and later hooks observe earlier writes.",
       "properties": {
         "hooks": {
           "default": [],

@@ -85,7 +85,11 @@ Require `state_flows` to author a module's `flows` declarations. Each flow has a
 stable namespaced `id`, a `state` field reference, priority-ordered `transitions`,
 and named-function `hooks`. The field's scope selects per-player execution
 (`@a`, at each player) or one server execution for global State, even with no
-players online. Flows run after authored module tick actions.
+players online. As in Rust authoring, automatic State maintenance runs first,
+then flow evaluation, then authored module tick actions. A score written by an
+authored tick action affects flow selection on the following cycle. Flow hooks
+can write scores during evaluation; later hooks observe those writes in the same
+cycle.
 
 ```json
 {

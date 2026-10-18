@@ -272,3 +272,35 @@ fn expanded_hook_bytes_obey_resource_and_pack_limits_before_lowering() {
         );
     }
 }
+
+#[test]
+fn shared_lifecycle_evaluates_flows_before_authored_tick_writes() {
+    let mut source: serde_json::Value = serde_json::from_slice(FIXTURE).unwrap();
+    source["modules"][0]["tick"] = serde_json::json!([{
+        "action": {"op": "score_set", "score": {"state": "demo:world", "field": "phase"}, "value": 2}
+    }]);
+    let pack = Compiler::compile(&decode(source)).unwrap();
+    let tick = String::from_utf8(
+        pack.resources["data/demo/function/__sand_lifecycle_tick.mcfunction"].clone(),
+    )
+    .unwrap();
+    let lines: Vec<_> = tick.lines().collect();
+    assert_eq!(lines.len(), 4, "{tick}");
+    assert_eq!(
+        lines[0],
+        "execute as @a run function demo:__sand_lifecycle_init"
+    );
+    assert!(
+        lines[1].starts_with("execute as @a at @s run function demo:__sand_transition/flow_"),
+        "{tick}"
+    );
+    assert!(
+        lines[2].starts_with("function demo:__sand_transition/flow_"),
+        "{tick}"
+    );
+    assert!(
+        lines[3].starts_with("scoreboard players set #sand_demo_world_")
+            && lines[3].ends_with(" 2"),
+        "{tick}"
+    );
+}

@@ -20,9 +20,9 @@ source provenance; failures exit nonzero. Logs go to stderr.
 
 Protocol v1 supports player and global State with revision 1 and integer score
 fields with explicit defaults, named server/player functions, score assignment and addition, inclusive
-integer comparisons, branches, player iteration, calls, ordered load/tick work,
+integer comparisons, branches, player iteration, calls, player/global state flows, ordered load/tick work,
 and function-tag membership. A field's `default` accepts any signed 32-bit
-integer (omission means zero). It is applied only when that player's value is
+integer (omission means zero). It is applied only when that owner's value is
 absent; function entry and reload preserve existing values. Hosts can require
 `state_defaults` to detect compilers supporting nonzero initialization.
 Fields can declare `"bounds": [0, 100]`; require `state_bounds` to discover
@@ -78,6 +78,60 @@ references must not alias locally declared functions. They declare a context
 requirement, but Sand cannot prove their existence
 or behavior. A server body cannot access player self or call a player function
 until iteration establishes player context.
+
+## Gameplay state flows
+
+Require `state_flows` to author a module's `flows` declarations. Each flow has a
+stable namespaced `id`, a `state` field reference, priority-ordered `transitions`,
+and named-function `hooks`. The field's scope selects per-player execution
+(`@a`, at each player) or one server execution for global State, even with no
+players online. As in Rust authoring, automatic State maintenance runs first,
+then flow evaluation, then authored module tick actions. A score written by an
+authored tick action affects flow selection on the following cycle. Flow hooks
+can write scores during evaluation; later hooks observe those writes in the same
+cycle.
+
+```json
+{
+  "id": "demo:encounter",
+  "state": {"state": "demo:player", "field": "phase"},
+  "transitions": [
+    {"from": 0, "to": 1, "priority": 100,
+     "when": {"score": {"state": "demo:player", "field": "energy"}, "min": 30}}
+  ],
+  "hooks": [
+    {"phase": "enter", "state": 1,
+     "function": {"kind": "internal", "id": "demo:start"}},
+    {"phase": "tick", "state": 1, "cadence": 2,
+     "function": {"kind": "internal", "id": "demo:pulse"}}
+  ]
+}
+```
+
+Selection uses the shared Rust StateFlow compiler. At most one transition runs
+per cycle: higher priorities first, declaration order for ties. Identical guards
+at equal priority cannot target different destinations. Exit hooks run before
+the phase write, enter hooks after it, and tick hooks afterward. Transition
+destinations must differ from their source and satisfy the State field's bounds.
+Direct score writes bypass enter/exit hooks. Later tick hooks observe earlier
+hooks' phase mutations, matching Rust authoring.
+
+A tick hook's `cadence` defaults to one and accepts 1 through `i32::MAX`.
+Its private counter counts matching cycles, including the entering cycle, and
+resets when a cycle observes another phase. Reload preserves existing counters.
+Enter and exit hooks require cadence one. Hook references follow the normal
+internal/external function rules; global hooks cannot require a player context.
+A flow needs at least one transition or hook. Transitions and hooks count toward
+the declaration limit. Expanded hook calls count toward the operation limit,
+and their byte budget is checked before transition bodies are materialized. Flow identities determine helper ownership; reordering
+flow declarations does not change output.
+
+`encounter_flows()` in the Python producer and
+`tests/fixtures/program/flows.sand.json` demonstrate player energy costs, an
+active/rest encounter, and a shared world clock without raw commands or Cargo.
+This slice supports integer phases and one optional inclusive score guard per
+transition. Rust's broader condition algebra, enum-derived phase definitions,
+entity/living subjects, timers, and events are not yet portable.
 
 ## Modules and schema-guided producers
 

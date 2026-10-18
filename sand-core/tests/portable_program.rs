@@ -21,6 +21,7 @@ fn counter() -> Program {
         },
         requires: vec![],
         modules: vec![Module {
+            flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {
                 id: "demo:counter".parse().unwrap(),

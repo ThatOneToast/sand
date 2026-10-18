@@ -47,6 +47,42 @@ def global_counter():
     return program
 
 
+def encounter_flows():
+    """Independent player encounters and a shared world phase; no command text."""
+    def field(state, name):
+        return {"state": "demo:" + state, "field": name}
+    def write(state, name, amount):
+        return {"action": {"op": "score_add", "score": field(state, name), "value": amount}}
+    def hook(phase, state, name, cadence=1):
+        return {"phase": phase, "state": state, "function": {"kind": "internal", "id": "demo:" + name}, "cadence": cadence}
+    def function(name, context, *body):
+        return {"id": "demo:" + name, "context": context, "body": list(body)}
+    program = counter()
+    program["pack"]["description"] = "Player encounters and shared world flow"
+    program["requires"] = ["state_flows", "global_state", "state_defaults", "state_bounds"]
+    program["modules"] = [{"id": "demo:encounters", "states": [
+        {"id": "demo:player", "scope": "player", "revision": 1, "fields": [
+            {"name": "phase", "default": 0}, {"name": "energy", "default": 100, "bounds": [0, 100]}, {"name": "events", "default": 0}]},
+        {"id": "demo:world", "scope": "global", "revision": 1, "fields": [
+            {"name": "phase", "default": 0}, {"name": "ticks", "default": 0}]}
+    ], "functions": [
+        function("start", "player", write("player", "energy", -30), write("player", "events", 10)),
+        function("active", "player", write("player", "events", 1)),
+        function("pulse", "player", write("player", "energy", -5)),
+        function("rest", "player", write("player", "events", 100)),
+        function("world_tick", "server", write("world", "ticks", 1)),
+    ], "flows": [
+        {"id": "demo:encounter", "state": field("player", "phase"), "transitions": [
+            {"from": 0, "to": 1, "when": {"score": field("player", "energy"), "min": 30}, "priority": 100},
+            {"from": 0, "to": 2, "priority": 0},
+            {"from": 1, "to": 2, "when": {"score": field("player", "energy"), "max": 10}}
+        ], "hooks": [hook("enter", 1, "start"), hook("tick", 1, "active"), hook("tick", 1, "pulse", 2), hook("enter", 2, "rest")]},
+        {"id": "demo:round", "state": field("world", "phase"), "transitions": [{"from": 0, "to": 1}],
+         "hooks": [hook("tick", 1, "world_tick", 2)]}
+    ]}]
+    return program
+
+
 def blueprint(graph):
     """A deliberately small execution graph: tick -> players -> increment.
 

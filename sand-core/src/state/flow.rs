@@ -19,7 +19,7 @@
 //!
 //! Higher-priority transitions run first. Equal priorities preserve declaration
 //! order. State-indexed dispatch returns after the first matching transition,
-//! without a per-subject lock or idle bookkeeping writes. Enter/exit hooks run only for
+//! without a per-subject transition-lock write. Enter/exit hooks run only for
 //! transitions owned by this flow; direct low-level score writes deliberately
 //! bypass them. Tick hooks run after transitions, so a newly entered state can
 //! tick in the same server tick.
@@ -31,33 +31,27 @@ use std::sync::{Mutex, OnceLock};
 use sand_commands::{Selector, Target, TargetArgument};
 
 use crate::IntoCommands;
+use crate::compiler::program::model::FlowHookPhase;
 use crate::condition::Condition;
 use crate::ir::Actions;
 use crate::state::{GameState, GameStateRef, Ticks, TypedGameState};
 
 #[derive(Debug, Clone, PartialEq)]
-struct FlowTransition {
-    from: i32,
-    to: i32,
-    guard: Option<Condition>,
-    priority: i32,
-    order: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum HookKind {
-    Enter,
-    Exit,
-    Tick,
+pub(crate) struct FlowTransition {
+    pub(crate) from: i32,
+    pub(crate) to: i32,
+    pub(crate) guard: Option<Condition>,
+    pub(crate) priority: i32,
+    pub(crate) order: usize,
 }
 
 #[derive(Debug, Clone)]
-struct FlowHook {
-    kind: HookKind,
-    state: i32,
-    commands: Actions,
-    cadence: u32,
-    order: usize,
+pub(crate) struct FlowHook {
+    pub(crate) kind: FlowHookPhase,
+    pub(crate) state: i32,
+    pub(crate) commands: Actions,
+    pub(crate) cadence: u32,
+    pub(crate) order: usize,
 }
 
 impl PartialEq for FlowHook {
@@ -224,7 +218,7 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_enter(state, commands);\n}",
     )]
     pub fn on_enter(mut self, state: S, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Enter, state, 1, commands);
+        self.push_hook(FlowHookPhase::Enter, state, 1, commands);
         self
     }
 
@@ -245,7 +239,7 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_exit(state, commands);\n}",
     )]
     pub fn on_exit(mut self, state: S, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Exit, state, 1, commands);
+        self.push_hook(FlowHookPhase::Exit, state, 1, commands);
         self
     }
 
@@ -266,33 +260,39 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_tick(state, commands);\n}",
     )]
     pub fn on_tick(mut self, state: S, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Tick, state, 1, commands);
+        self.push_hook(FlowHookPhase::Tick, state, 1, commands);
         self
     }
 
     /// Run every `cadence` matching ticks. The counter resets when the subject
-    /// leaves the state; cadence zero is diagnosed during export.
+    /// leaves the state; cadences outside 1..=i32::MAX are diagnosed during export.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::advanced::state::StateFlow::on_tick_every",
         aliases = [],
         module = "sand::advanced::state",
         kind = "method",
-        summary = "Run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadence zero is diagnosed during export.",
-        context = "Run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadence zero is diagnosed during export. This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
+        summary = "Run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadences outside 1..=i32::MAX are diagnosed during export.",
+        context = "Run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadences outside 1..=i32::MAX are diagnosed during export. This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
         minecraft = "Operations render validated scoreboard commands or conditions against the selected score holder, with lifecycle setup emitted at load when required.",
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
-        params(state = "`state` provides the state used when running every `cadence` matching ticks. The counter resets when the subject leaves the state; cadence zero is diagnosed during export.", cadence = "Run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadence zero is diagnosed during export.", commands = "`commands` provides the commands used when running every `cadence` matching ticks. The counter resets when the subject leaves the state; cadence zero is diagnosed during export."),
-        returns = "The `StateFlow` value with the documented change applied to run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadence zero is diagnosed during export.",
+        params(state = "`state` provides the state used when running every `cadence` matching ticks. The counter resets when the subject leaves the state; cadences outside 1..=i32::MAX are diagnosed during export.", cadence = "Run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadences outside 1..=i32::MAX are diagnosed during export.", commands = "`commands` provides the commands used when running every `cadence` matching ticks. The counter resets when the subject leaves the state; cadences outside 1..=i32::MAX are diagnosed during export."),
+        returns = "The `StateFlow` value with the documented change applied to run every `cadence` matching ticks. The counter resets when the subject leaves the state; cadences outside 1..=i32::MAX are diagnosed during export.",
         example = "use sand::advanced::state::*;\nuse sand::state::Ticks;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, cadence: Ticks, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_tick_every(state, cadence, commands);\n}",
     )]
     pub fn on_tick_every(mut self, state: S, cadence: Ticks, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Tick, state, cadence.get(), commands);
+        self.push_hook(FlowHookPhase::Tick, state, cadence.get(), commands);
         self
     }
 
-    fn push_hook(&mut self, kind: HookKind, state: S, cadence: u32, commands: impl IntoCommands) {
+    fn push_hook(
+        &mut self,
+        kind: FlowHookPhase,
+        state: S,
+        cadence: u32,
+        commands: impl IntoCommands,
+    ) {
         let hook = FlowHook {
             kind,
             state: state.to_score(),
@@ -335,10 +335,11 @@ impl<S: TypedGameState> StateFlow<S> {
     fn erase(self) -> FlowRegistration {
         FlowRegistration {
             id: self.id,
-            state_type: self.state_type,
+            state_type: self.state_type.to_owned(),
             objective: self.objective,
             default_score: self.default_score,
-            subjects: self.subjects.to_string(),
+            subjects: Some(self.subjects.to_string()),
+            holder: "@s".into(),
             transitions: self.transitions,
             hooks: self.hooks,
         }
@@ -538,13 +539,14 @@ impl<'a, S: TypedGameState> StateTransitionBuilder<'a, S> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct FlowRegistration {
-    id: String,
-    state_type: &'static str,
-    objective: String,
-    default_score: Option<i32>,
-    subjects: String,
-    transitions: Vec<FlowTransition>,
-    hooks: Vec<FlowHook>,
+    pub(crate) id: String,
+    pub(crate) state_type: String,
+    pub(crate) objective: String,
+    pub(crate) default_score: Option<i32>,
+    pub(crate) subjects: Option<String>,
+    pub(crate) holder: String,
+    pub(crate) transitions: Vec<FlowTransition>,
+    pub(crate) hooks: Vec<FlowHook>,
 }
 
 fn registry() -> &'static Mutex<Vec<FlowRegistration>> {
@@ -576,7 +578,7 @@ pub(crate) fn resolve_state_flow_plan(
                     &registration,
                     format!(
                         "duplicate flow identity conflicts with an earlier registration for selector `{}`",
-                        existing.subjects
+                        existing.subjects.as_deref().unwrap_or("<server>")
                     ),
                     "give the flows distinct `.named(...)` labels or register one canonical flow",
                 ));
@@ -602,15 +604,18 @@ pub(crate) fn resolve_state_flow_plan(
             "scoreboard objectives add {} dummy",
             flow.objective
         ));
-        plan.global_tick_commands.push(format!(
-            "execute as {} at @s run function {namespace}:{root}",
-            flow.subjects
-        ));
+        plan.global_tick_commands.push(match &flow.subjects {
+            Some(subjects) => {
+                format!("execute as {subjects} at @s run function {namespace}:{root}")
+            }
+            None => format!("function {namespace}:{root}"),
+        });
+        let holder = &flow.holder;
 
         let mut root_commands = Vec::new();
         if let Some(default_score) = flow.default_score {
             root_commands.push(format!(
-                "execute unless score @s {} matches -2147483648..2147483647 run scoreboard players set @s {} {default_score}",
+                "execute unless score {holder} {} matches -2147483648..2147483647 run scoreboard players set {holder} {} {default_score}",
                 flow.objective, flow.objective
             ));
         }
@@ -620,15 +625,15 @@ pub(crate) fn resolve_state_flow_plan(
             insert_path(&mut generated_paths, &flow, &helper)?;
             let location = sand_components::ResourceLocation::new(namespace, &helper)
                 .map_err(|error| error.to_string())?;
-            let mut commands = hook_commands(&flow.hooks, HookKind::Exit, transition.from)
+            let mut commands = hook_commands(&flow.hooks, FlowHookPhase::Exit, transition.from)
                 .lower(&location)
                 .map_err(|error| error.to_string())?;
             commands.push(format!(
-                "scoreboard players set @s {} {}",
+                "scoreboard players set {holder} {} {}",
                 flow.objective, transition.to
             ));
             commands.extend(
-                hook_commands(&flow.hooks, HookKind::Enter, transition.to)
+                hook_commands(&flow.hooks, FlowHookPhase::Enter, transition.to)
                     .lower(&location)
                     .map_err(|error| error.to_string())?,
             );
@@ -680,7 +685,7 @@ pub(crate) fn resolve_state_flow_plan(
         for (index, hook) in flow
             .hooks
             .iter()
-            .filter(|hook| hook.kind == HookKind::Tick)
+            .filter(|hook| hook.kind == FlowHookPhase::Tick)
             .enumerate()
         {
             let helper = format!("{root}/tick_{index}");
@@ -707,21 +712,21 @@ pub(crate) fn resolve_state_flow_plan(
                     (flow.id.clone(), format!("interval tick hook {index}")),
                 );
                 root_commands.push(format!(
-                    "execute unless score @s {} matches {} run scoreboard players set @s {counter} 0",
+                    "execute unless score {holder} {} matches {} run scoreboard players set {holder} {counter} 0",
                     flow.objective, hook.state
                 ));
                 root_commands.push(format!(
-                    "execute if score @s {} matches {} run scoreboard players add @s {counter} 1",
+                    "execute if score {holder} {} matches {} run scoreboard players add {holder} {counter} 1",
                     flow.objective, hook.state
                 ));
                 root_commands.push(format!(
-                    "execute if score @s {} matches {} if score @s {counter} matches {}.. run function {namespace}:{helper}",
+                    "execute if score {holder} {} matches {} if score {holder} {counter} matches {}.. run function {namespace}:{helper}",
                     flow.objective, hook.state, hook.cadence
                 ));
-                commands.push(format!("scoreboard players set @s {counter} 0"));
+                commands.push(format!("scoreboard players set {holder} {counter} 0"));
             } else {
                 root_commands.push(format!(
-                    "execute if score @s {} matches {} run function {namespace}:{helper}",
+                    "execute if score {holder} {} matches {} run function {namespace}:{helper}",
                     flow.objective, hook.state
                 ));
             }
@@ -763,9 +768,10 @@ fn emit_transition_dispatch(
     paths: &mut BTreeSet<String>,
 ) -> Result<(), String> {
     insert_path(paths, flow, path)?;
+    let holder = &flow.holder;
     let commands = if let [(state, transitions)] = states {
         let mut commands = vec![format!(
-            "execute unless score @s {} matches {state} run return 0",
+            "execute unless score {holder} {} matches {state} run return 0",
             flow.objective
         )];
         commands.extend(transitions.iter().cloned());
@@ -779,7 +785,7 @@ fn emit_transition_dispatch(
         let pivot = states[middle - 1].0;
         vec![
             format!(
-                "execute if score @s {} matches ..{pivot} run return run function {namespace}:{lower}",
+                "execute if score {holder} {} matches ..{pivot} run return run function {namespace}:{lower}",
                 flow.objective
             ),
             format!("return run function {namespace}:{upper}"),
@@ -845,18 +851,22 @@ fn validate_flow(flow: &FlowRegistration) -> Result<(), String> {
                 "remove the hook or provide at least one command",
             ));
         }
-        if hook.kind == HookKind::Tick && hook.cadence == 0 {
+        if hook.kind == FlowHookPhase::Tick && (hook.cadence == 0 || hook.cadence > i32::MAX as u32)
+        {
             return Err(flow_error(
                 flow,
-                format!("tick hook for score {} has zero cadence", hook.state),
-                "use Ticks::new(1) or a larger supported interval",
+                format!(
+                    "tick hook for score {} has cadence outside 1..=i32::MAX",
+                    hook.state
+                ),
+                "use a positive cadence no greater than i32::MAX",
             ));
         }
     }
     Ok(())
 }
 
-fn hook_commands(hooks: &[FlowHook], kind: HookKind, state: i32) -> Actions {
+fn hook_commands(hooks: &[FlowHook], kind: FlowHookPhase, state: i32) -> Actions {
     hooks
         .iter()
         .filter(|hook| hook.kind == kind && hook.state == state)
@@ -885,7 +895,7 @@ fn flow_error(flow: &FlowRegistration, problem: impl AsRef<str>, fix: &str) -> S
         "error[SAND-STATE-FLOW]: invalid state flow\n\nState type: {}\nObjective: {}\nSelector: {}\nFlow: {}\n\n{}\n\nCorrection: {fix}",
         flow.state_type,
         flow.objective,
-        flow.subjects,
+        flow.subjects.as_deref().unwrap_or("<server>"),
         flow.id,
         problem.as_ref()
     )
@@ -1067,6 +1077,15 @@ mod tests {
         }
         let repeated = resolve_state_flow_plan("boss", vec![flow]).unwrap();
         assert_eq!(plan, repeated);
+    }
+
+    #[test]
+    fn unrepresentable_tick_cadence_is_rejected_before_export() {
+        let flow = StateFlow::players(&PHASE)
+            .on_tick_every(Phase::Idle, Ticks::new(u32::MAX), "say never")
+            .erase();
+        let error = resolve_state_flow_plan("boss", vec![flow]).unwrap_err();
+        assert!(error.contains("cadence outside 1..=i32::MAX"));
     }
 
     #[test]

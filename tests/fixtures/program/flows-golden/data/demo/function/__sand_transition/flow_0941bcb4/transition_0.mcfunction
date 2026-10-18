@@ -1,0 +1,1 @@
+scoreboard players set #sand_demo_world_78d17ea0 s709d2ddbe2c2931 1

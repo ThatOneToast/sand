@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One guarded transition between integer phases.",
+  "properties": {
+    "from": {
+      "description": "Required current phase; arbitrary signed integer encodings are supported.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "priority": {
+      "default": 0,
+      "description": "Higher priorities first; ties retain declaration order.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "to": {
+      "description": "Exact destination phase; must differ from the source and satisfy any\nbounds on the owning State field.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "when": {
+      "anyOf": [
+        {
+          "$ref": "defs-ScoreComparison.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "No guard means unconditional once the source phase is selected."
+    }
+  },
+  "required": [
+    "from",
+    "to"
+  ],
+  "type": "object"
+}

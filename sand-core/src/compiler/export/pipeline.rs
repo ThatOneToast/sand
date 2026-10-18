@@ -2557,27 +2557,12 @@ pub(crate) fn try_export_components_impl(
 
         let mut automatic =
             crate::state::registry::automatic_lifecycle().map_err(lifecycle_export_error)?;
-        let transition_objectives = &transition_plan.private_objectives;
-        for command in &automatic.load_commands {
-            if let Some(objective) = command.split_whitespace().nth(3)
-                && let Some((tracker_id, source)) = transition_objectives.get(objective)
-            {
-                return Err(transition_export_error(format!(
-                    "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with an automatic state declaration"
-                )));
-            }
-        }
-        for (owner, _, command) in &registration_load_commands {
-            if let Some(objective) = command
-                .strip_prefix("scoreboard objectives add ")
-                .and_then(|rest| rest.split_whitespace().next())
-                && let Some((tracker_id, source)) = transition_objectives.get(objective)
-            {
-                return Err(transition_export_error(format!(
-                    "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with a registered lifecycle declaration from `{owner}`"
-                )));
-            }
-        }
+        super::lifecycle::validate_private_objectives(
+            &automatic,
+            &registration_load_commands,
+            &transition_plan.private_objectives,
+        )
+        .map_err(transition_export_error)?;
         automatic
             .load_commands
             .extend(transition_plan.load_commands);

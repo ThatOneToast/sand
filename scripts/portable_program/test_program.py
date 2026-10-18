@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
-from producer import counter, blueprint, global_counter
+from producer import counter, blueprint, global_counter, encounter_flows
 
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = Path(os.environ["SAND_PROGRAM_BIN"]).resolve()
@@ -86,6 +86,7 @@ class Programs(unittest.TestCase):
         path = root / "program.schema.json"
         schema = {**json.loads(path.read_text()), "$id": path.resolve().as_uri()}
         Draft202012Validator(schema, registry=registry).validate(counter())
+        Draft202012Validator(schema, registry=registry).validate(encounter_flows())
         schema = json.loads((root / "module.schema.json").read_text())
         Draft202012Validator(schema).validate(counter()["modules"][0])
 
@@ -146,6 +147,21 @@ class Programs(unittest.TestCase):
         program["modules"][0]["functions"].reverse()
         self.assertEqual(self.compile(program, "reordered"), expected)
         self.assertFalse(any("__sand_lifecycle_init" in path for path in expected))
+
+    def test_player_and_global_flows_compile_without_cargo(self):
+        root = FIXTURES / "flows-golden"
+        expected = {path.relative_to(root).as_posix(): path.read_bytes()
+                    for path in root.rglob("*") if path.is_file()}
+        program = encounter_flows()
+        Draft202012Validator(self.run_sand(["schema"])["schema"]).validate(program)
+        self.assertEqual(self.compile(program), expected)
+        self.assertEqual(self.compile(json.loads((FIXTURES / "flows.sand.json").read_text()), "decoded"), expected)
+        for key in ["states", "functions", "flows"]:
+            program["modules"][0][key].reverse()
+        self.assertEqual(self.compile(program, "reordered"), expected)
+        program["modules"][0]["flows"][0]["hooks"][0]["cadence"] = 0
+        response = self.run_sand(["check", "--input", "-"], program, success=False)
+        self.assertIn("/flows/0/hooks/0/cadence", json.dumps(response))
 
     def test_existing_rust_frontend_matches_complete_golden(self):
         pack = Path(os.environ["SAND_RUST_PACK"])

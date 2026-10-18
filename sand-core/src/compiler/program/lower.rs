@@ -358,7 +358,7 @@ fn flow_registration(
     defaults: &BTreeMap<String, i32>,
 ) -> crate::state::flow::FlowRegistration {
     use crate::state::flow::{
-        FlowHook as OwnedHook, FlowRegistration, FlowTransition as OwnedTransition, HookKind,
+        FlowHook as OwnedHook, FlowRegistration, FlowTransition as OwnedTransition,
     };
     let holder = holders[&flow.state.state.to_string()].to_string();
     FlowRegistration {
@@ -399,11 +399,7 @@ fn flow_registration(
             .iter()
             .enumerate()
             .map(|(order, hook)| OwnedHook {
-                kind: match hook.phase {
-                    FlowHookPhase::Enter => HookKind::Enter,
-                    FlowHookPhase::Exit => HookKind::Exit,
-                    FlowHookPhase::Tick => HookKind::Tick,
-                },
+                kind: hook.phase,
                 state: hook.state,
                 cadence: hook.cadence,
                 order,

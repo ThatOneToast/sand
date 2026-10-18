@@ -19,7 +19,7 @@
 //!
 //! Higher-priority transitions run first. Equal priorities preserve declaration
 //! order. State-indexed dispatch returns after the first matching transition,
-//! without a per-subject lock or idle bookkeeping writes. Enter/exit hooks run only for
+//! without a per-subject transition-lock write. Enter/exit hooks run only for
 //! transitions owned by this flow; direct low-level score writes deliberately
 //! bypass them. Tick hooks run after transitions, so a newly entered state can
 //! tick in the same server tick.
@@ -31,6 +31,7 @@ use std::sync::{Mutex, OnceLock};
 use sand_commands::{Selector, Target, TargetArgument};
 
 use crate::IntoCommands;
+use crate::compiler::program::model::FlowHookPhase;
 use crate::condition::Condition;
 use crate::ir::Actions;
 use crate::state::{GameState, GameStateRef, Ticks, TypedGameState};
@@ -44,16 +45,9 @@ pub(crate) struct FlowTransition {
     pub(crate) order: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum HookKind {
-    Enter,
-    Exit,
-    Tick,
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct FlowHook {
-    pub(crate) kind: HookKind,
+    pub(crate) kind: FlowHookPhase,
     pub(crate) state: i32,
     pub(crate) commands: Actions,
     pub(crate) cadence: u32,
@@ -224,7 +218,7 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_enter(state, commands);\n}",
     )]
     pub fn on_enter(mut self, state: S, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Enter, state, 1, commands);
+        self.push_hook(FlowHookPhase::Enter, state, 1, commands);
         self
     }
 
@@ -245,7 +239,7 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_exit(state, commands);\n}",
     )]
     pub fn on_exit(mut self, state: S, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Exit, state, 1, commands);
+        self.push_hook(FlowHookPhase::Exit, state, 1, commands);
         self
     }
 
@@ -266,7 +260,7 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_tick(state, commands);\n}",
     )]
     pub fn on_tick(mut self, state: S, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Tick, state, 1, commands);
+        self.push_hook(FlowHookPhase::Tick, state, 1, commands);
         self
     }
 
@@ -288,11 +282,17 @@ impl<S: TypedGameState> StateFlow<S> {
         example = "use sand::advanced::state::*;\nuse sand::state::Ticks;\n\nfn demonstrate<S : sand::advanced::state::TypedGameState + 'static>(state_flow_value: sand::advanced::state::StateFlow < S >, state: S, cadence: Ticks, commands: impl sand::component::IntoCommands)  {\n    let updated_state_flow = state_flow_value.on_tick_every(state, cadence, commands);\n}",
     )]
     pub fn on_tick_every(mut self, state: S, cadence: Ticks, commands: impl IntoCommands) -> Self {
-        self.push_hook(HookKind::Tick, state, cadence.get(), commands);
+        self.push_hook(FlowHookPhase::Tick, state, cadence.get(), commands);
         self
     }
 
-    fn push_hook(&mut self, kind: HookKind, state: S, cadence: u32, commands: impl IntoCommands) {
+    fn push_hook(
+        &mut self,
+        kind: FlowHookPhase,
+        state: S,
+        cadence: u32,
+        commands: impl IntoCommands,
+    ) {
         let hook = FlowHook {
             kind,
             state: state.to_score(),
@@ -625,7 +625,7 @@ pub(crate) fn resolve_state_flow_plan(
             insert_path(&mut generated_paths, &flow, &helper)?;
             let location = sand_components::ResourceLocation::new(namespace, &helper)
                 .map_err(|error| error.to_string())?;
-            let mut commands = hook_commands(&flow.hooks, HookKind::Exit, transition.from)
+            let mut commands = hook_commands(&flow.hooks, FlowHookPhase::Exit, transition.from)
                 .lower(&location)
                 .map_err(|error| error.to_string())?;
             commands.push(format!(
@@ -633,7 +633,7 @@ pub(crate) fn resolve_state_flow_plan(
                 flow.objective, transition.to
             ));
             commands.extend(
-                hook_commands(&flow.hooks, HookKind::Enter, transition.to)
+                hook_commands(&flow.hooks, FlowHookPhase::Enter, transition.to)
                     .lower(&location)
                     .map_err(|error| error.to_string())?,
             );
@@ -685,7 +685,7 @@ pub(crate) fn resolve_state_flow_plan(
         for (index, hook) in flow
             .hooks
             .iter()
-            .filter(|hook| hook.kind == HookKind::Tick)
+            .filter(|hook| hook.kind == FlowHookPhase::Tick)
             .enumerate()
         {
             let helper = format!("{root}/tick_{index}");
@@ -851,7 +851,8 @@ fn validate_flow(flow: &FlowRegistration) -> Result<(), String> {
                 "remove the hook or provide at least one command",
             ));
         }
-        if hook.kind == HookKind::Tick && (hook.cadence == 0 || hook.cadence > i32::MAX as u32) {
+        if hook.kind == FlowHookPhase::Tick && (hook.cadence == 0 || hook.cadence > i32::MAX as u32)
+        {
             return Err(flow_error(
                 flow,
                 format!(
@@ -865,7 +866,7 @@ fn validate_flow(flow: &FlowRegistration) -> Result<(), String> {
     Ok(())
 }
 
-fn hook_commands(hooks: &[FlowHook], kind: HookKind, state: i32) -> Actions {
+fn hook_commands(hooks: &[FlowHook], kind: FlowHookPhase, state: i32) -> Actions {
     hooks
         .iter()
         .filter(|hook| hook.kind == kind && hook.state == state)

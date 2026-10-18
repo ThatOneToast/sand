@@ -26,6 +26,7 @@ on:
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"
       - "scripts/validate_keyed_literals.py"
+      - "scripts/validate_trailforge.py"
       - "scripts/validate_text_interactions.py"
       - "sand-core/tests/bounded_mutation_atomicity.rs"
       - "scripts/player_validation_harness.py"
@@ -215,6 +216,15 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
+      - name: Validate Trailforge upgrade and ability isolation
+        if: matrix.target == 'latest'
+        run: |
+          (cd examples/book_project && CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target" "$GITHUB_WORKSPACE/target/debug/sand" build)
+          python3 scripts/validate_trailforge.py \
+            --pack examples/book_project/dist/trail \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/trailforge"
+
       - name: Validate unified State example with real players and entities
         if: matrix.target == 'latest'
         run: |
@@ -267,6 +277,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/bounded-state
             target/vanilla-reload/${{ matrix.version }}/detector-ownership
             target/vanilla-reload/${{ matrix.version }}/unified-state
+            target/vanilla-reload/${{ matrix.version }}/trailforge
             target/vanilla-reload/${{ matrix.version }}/keyed-literals
             target/vanilla-reload/${{ matrix.version }}/text-interactions
             target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles

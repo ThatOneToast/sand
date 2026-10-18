@@ -4,7 +4,7 @@
   "oneOf": [
     {
       "additionalProperties": false,
-      "description": "Assign an integer player-self State field.",
+      "description": "Assign an integer State field using its declared ownership.",
       "properties": {
         "op": {
           "const": "score_set",
@@ -27,7 +27,7 @@
     },
     {
       "additionalProperties": false,
-      "description": "Add an integer to a player-self State field.",
+      "description": "Add an integer to a State field using its declared ownership.",
       "properties": {
         "op": {
           "const": "score_add",

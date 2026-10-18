@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
-from producer import counter, blueprint
+from producer import counter, blueprint, global_counter
 
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = Path(os.environ["SAND_PROGRAM_BIN"]).resolve()
@@ -133,6 +133,19 @@ class Programs(unittest.TestCase):
             lines.extend(f"scoreboard players remove @s sffe99bc0114fb8b {value}" for value in amounts)
             expected[path] = "\n".join(lines).encode()
             self.assertEqual(self.compile(program, f"delta-{amount}"), expected)
+
+    def test_global_state_matches_complete_golden_without_cargo(self):
+        root = FIXTURES / "global-golden"
+        expected = {path.relative_to(root).as_posix(): path.read_bytes()
+                    for path in root.rglob("*") if path.is_file()}
+        program = global_counter()
+        schema = self.run_sand(["schema"])["schema"]
+        Draft202012Validator(schema).validate(program)
+        self.assertEqual(self.compile(program), expected)
+        self.assertEqual(self.compile(json.loads((FIXTURES / "global.sand.json").read_text()), "decoded"), expected)
+        program["modules"][0]["functions"].reverse()
+        self.assertEqual(self.compile(program, "reordered"), expected)
+        self.assertFalse(any("__sand_lifecycle_init" in path for path in expected))
 
     def test_existing_rust_frontend_matches_complete_golden(self):
         pack = Path(os.environ["SAND_RUST_PACK"])

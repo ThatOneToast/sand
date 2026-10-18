@@ -18,7 +18,7 @@ source provenance; failures exit nonzero. Logs go to stderr.
 
 ## A small shared model
 
-Protocol v1 supports player State with revision 1 and integer score
+Protocol v1 supports player and global State with revision 1 and integer score
 fields with explicit defaults, named server/player functions, score assignment and addition, inclusive
 integer comparisons, branches, player iteration, calls, ordered load/tick work,
 and function-tag membership. A field's `default` accepts any signed 32-bit
@@ -32,8 +32,18 @@ Minecraft's signed 32-bit arithmetic. Signed additions select valid Minecraft ad
 Initialization retains the declared default, even outside the bounds, matching
 Rust State. An omitted or null bound leaves the score unbounded.
 Every declaration is checked, including unused
-functions. Events, participants, storage/entity State, migrations, timers,
+functions. Events, participants, storage/entity/living State, migrations, timers,
 scheduling and native bindings are outside v1.
+
+Use `"scope": "global"` for a shared counter or game phase. Require `global_state`
+when targeting this capability. Global fields initialize at load even when no
+players are online, retain existing values on reload, and can be read or written
+from server or player functions. User load actions run after those defaults are
+installed; any mutations they perform still apply on each reload. Player fields still require a player executor.
+Sand derives global storage identities from the State ID using the same model
+as Rust `State::global()`; hosts do not choose fake-player names. The complete
+`tests/fixtures/program/global.sand.json` example includes a global branch,
+bounded assignment, and signed mutation without raw commands.
 
 A program envelope supplies `format: "sand.program"`, `format_version: 1`, an
 explicit `target.minecraft`, pack namespace/description, and modules. The target

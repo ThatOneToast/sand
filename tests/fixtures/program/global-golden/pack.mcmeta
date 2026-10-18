@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "description": "Global counter",
+    "max_format": 107,
+    "min_format": 107,
+    "pack_format": 107
+  }
+}

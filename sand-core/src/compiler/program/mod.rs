@@ -19,6 +19,7 @@ const CAPABILITIES: &[&str] = &[
     "player_state",
     "state_defaults",
     "state_bounds",
+    "global_state",
     "functions",
     "score",
     "branch",

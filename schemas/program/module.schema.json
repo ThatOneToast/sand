@@ -5,7 +5,7 @@
       "oneOf": [
         {
           "additionalProperties": false,
-          "description": "Assign an integer player-self State field.",
+          "description": "Assign an integer State field using its declared ownership.",
           "properties": {
             "op": {
               "const": "score_set",
@@ -28,7 +28,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Add an integer to a player-self State field.",
+          "description": "Add an integer to a State field using its declared ownership.",
           "properties": {
             "op": {
               "const": "score_add",
@@ -268,7 +268,7 @@
     },
     "ScoreComparison": {
       "additionalProperties": false,
-      "description": "Inclusive integer comparison bounds for a player State score.",
+      "description": "Inclusive integer comparison bounds for a State score.",
       "properties": {
         "max": {
           "description": "Inclusive upper bound; omission means unbounded above.",
@@ -288,7 +288,7 @@
         },
         "score": {
           "$ref": "#/$defs/FieldReference",
-          "description": "Player-self score to compare."
+          "description": "Score to compare, using its declaring State's player or global ownership."
         }
       },
       "required": [
@@ -337,7 +337,7 @@
     },
     "State": {
       "additionalProperties": false,
-      "description": "Revision-one player score State with explicit integer defaults and canonical ownership.",
+      "description": "Revision-one player or global score State with explicit integer defaults and canonical ownership.",
       "properties": {
         "fields": {
           "description": "Named integer score fields.",
@@ -357,7 +357,7 @@
           "type": "integer"
         },
         "scope": {
-          "description": "Must be `player` in protocol v1.",
+          "description": "`player` stores independent values per player; `global` stores one shared\nvalue per State field and initializes it during load without an executor.",
           "type": "string"
         }
       },

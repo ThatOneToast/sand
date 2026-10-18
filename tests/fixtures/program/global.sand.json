@@ -1,0 +1,144 @@
+{
+  "format": "sand.program",
+  "format_version": 1,
+  "target": {
+    "minecraft": "26.2"
+  },
+  "pack": {
+    "namespace": "demo",
+    "description": "Global counter"
+  },
+  "modules": [
+    {
+      "id": "demo:global_module",
+      "states": [
+        {
+          "id": "demo:counter",
+          "scope": "global",
+          "revision": 1,
+          "fields": [
+            {
+              "name": "value",
+              "default": 10,
+              "bounds": [
+                0,
+                100
+              ]
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "id": "demo:increment",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:counter",
+                  "field": "value"
+                },
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:choose",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "branch",
+                "condition": {
+                  "score": {
+                    "state": "demo:counter",
+                    "field": "value"
+                  },
+                  "min": 10,
+                  "max": 10
+                },
+                "then": [
+                  {
+                    "action": {
+                      "op": "score_add",
+                      "score": {
+                        "state": "demo:counter",
+                        "field": "value"
+                      },
+                      "value": 5
+                    }
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "action": {
+                      "op": "score_set",
+                      "score": {
+                        "state": "demo:counter",
+                        "field": "value"
+                      },
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:fill",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "score_set",
+                "score": {
+                  "state": "demo:counter",
+                  "field": "value"
+                },
+                "value": 200
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:subtract",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:counter",
+                  "field": "value"
+                },
+                "value": -3
+              }
+            }
+          ]
+        }
+      ],
+      "tags": [],
+      "load": [
+        {
+          "action": {
+            "op": "score_add",
+            "score": {
+              "state": "demo:counter",
+              "field": "value"
+            },
+            "value": 0
+          }
+        }
+      ]
+    }
+  ],
+  "requires": [
+    "global_state",
+    "state_defaults",
+    "state_bounds"
+  ]
+}

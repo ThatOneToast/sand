@@ -902,3 +902,69 @@ fn minimum_signed_addition_splits_before_applying_bounds() {
         "function demo:__sand_lifecycle_init\nscoreboard players remove @s sffe99bc0114fb8b 2147483647\nscoreboard players remove @s sffe99bc0114fb8b 1\nexecute if score @s sffe99bc0114fb8b matches ..-3 run scoreboard players set @s sffe99bc0114fb8b -2\nexecute if score @s sffe99bc0114fb8b matches 3.. run scoreboard players set @s sffe99bc0114fb8b 2"
     );
 }
+
+#[test]
+fn global_state_initializes_without_players_and_uses_one_shared_holder() {
+    let mut program = counter();
+    program.requires.push("global_state".into());
+    program.modules[0].states[0].scope = "global".into();
+    program.modules[0].states[0].fields[0].default = 10;
+    program.modules[0].functions[1].context = ExecutionContext::Server;
+    let expected = Compiler::compile(&program).unwrap().resources;
+    let decoded =
+        Compiler::decode(&serde_json::to_vec(&program).unwrap(), &BTreeMap::new()).unwrap();
+    assert_eq!(Compiler::compile(&decoded).unwrap().resources, expected);
+    assert!(!expected.contains_key("data/demo/function/__sand_lifecycle_init.mcfunction"));
+    let holder = sand_core::GlobalStateHolder::new("demo:counter");
+    let holder = holder.as_str();
+    let load =
+        String::from_utf8(expected["data/demo/function/__sand_lifecycle_load.mcfunction"].clone())
+            .unwrap();
+    assert!(load.contains(&format!("execute unless score {holder} sffe99bc0114fb8b matches -2147483648.. run scoreboard players set {holder} sffe99bc0114fb8b 10")));
+    assert!(!load.contains("@s"));
+    assert_eq!(
+        String::from_utf8(expected["data/demo/function/increment.mcfunction"].clone()).unwrap(),
+        format!("scoreboard players add {holder} sffe99bc0114fb8b 1")
+    );
+    // Global ownership never relaxes player-self requirements for another State.
+    program.modules[0].states[0].scope = "player".into();
+    assert!(
+        Compiler::check(&program)
+            .unwrap_err()
+            .iter()
+            .any(|error| error.code == "SAND_PROGRAM_CONTEXT")
+    );
+}
+
+#[test]
+fn global_load_mutations_follow_canonical_initialization() {
+    let mut program = counter();
+    program.modules[0].states[0].scope = "global".into();
+    program.modules[0].states[0].fields[0].default = 10;
+    program.modules[0].load = vec![operation(Action::ScoreAdd {
+        score: FieldReference {
+            state: "demo:counter".parse().unwrap(),
+            field: "value".into(),
+        },
+        value: 7,
+    })];
+    let pack = Compiler::compile(&program).unwrap();
+    let load = String::from_utf8(
+        pack.resources["data/demo/function/__sand_lifecycle_load.mcfunction"].clone(),
+    )
+    .unwrap();
+    let holder = sand_core::GlobalStateHolder::new("demo:counter");
+    let initialized = load
+        .find(&format!(
+            "run scoreboard players set {} sffe99bc0114fb8b 10",
+            holder.as_str()
+        ))
+        .unwrap();
+    let mutated = load
+        .find(&format!(
+            "scoreboard players add {} sffe99bc0114fb8b 7",
+            holder.as_str()
+        ))
+        .unwrap();
+    assert!(initialized < mutated, "{load}");
+}

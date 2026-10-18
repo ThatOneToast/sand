@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Inclusive integer comparison bounds for a player State score.",
+  "description": "Inclusive integer comparison bounds for a State score.",
   "properties": {
     "max": {
       "description": "Inclusive upper bound; omission means unbounded above.",
@@ -21,7 +21,7 @@
     },
     "score": {
       "$ref": "defs-FieldReference.schema.json",
-      "description": "Player-self score to compare."
+      "description": "Score to compare, using its declaring State's player or global ownership."
     }
   },
   "required": [

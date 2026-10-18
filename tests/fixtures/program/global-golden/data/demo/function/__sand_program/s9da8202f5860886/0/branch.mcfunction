@@ -1,0 +1,2 @@
+execute if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 10..10 run return run function demo:__sand_program/s9da8202f5860886/0/then
+function demo:__sand_program/s9da8202f5860886/0/otherwise

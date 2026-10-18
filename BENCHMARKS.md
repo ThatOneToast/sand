@@ -810,3 +810,45 @@ semantics are preserved, including hooks that mutate the state.
 64-state output-depth regression and 25 Minecraft 26.2 multiplayer assertions.
 These are structural cost bounds and behavioral evidence, not measured MSPT.
 The rest of #441's scheduling and interval-bookkeeping targets remain open.
+
+
+### Score-only component provisioning fast path (#447)
+
+On October 18, 2026, Minecraft 26.2 / Azul Java 25.0.3 traces of the RPG
+example at `8e552e26` confirmed that a healthy score-only composition skips
+canonical attachment. One executor score selector checks all component
+versions and field presence, including negative scores. Missing fields still
+enter provisioning and refresh derived/native state. Attachments containing
+anything beyond canonical score initialization (including typed data, migration
+hooks, or custom work) keep their previous reconciliation cadence.
+
+| Workload | Entities | Before | After | Samples per version |
+| --- | ---: | ---: | ---: | ---: |
+| Idle | 0 | 0 | 0 | 3 |
+| Idle | 1 | 158 | 134 | 3 identical |
+| Idle | 10 | 1,580 | 1,340 | 3 identical |
+| Level-up before reconciliation | 0 | 0 | 0 | 3 |
+| Level-up before reconciliation | 1 | 443 | 419 | 3 identical |
+| Level-up before reconciliation | 10 | 4,430 | 4,190 | 3 identical |
+
+These are nested command evaluations excluding two probe-control commands,
+not MSPT or whole-tick costs. Idle work decreases by 15.2%; the level-up case
+by 5.4%. Selector score comparisons still execute internally. This does not
+complete #447: clean-entity scheduling, timer costs, dirty bookkeeping, and
+50/200/500-entity MSPT evidence remain outstanding.
+
+The before values are the retained October 16 candidate traces above. The
+current baseline RPG pack was independently hashed and matches that candidate
+exactly (`59a83712f3484e0e0140566001059eab7a3e2e15c3a11cea80cba2db05363f55`),
+so those measurements remain applicable. The new pack SHA-256 is
+`32b2899188241ab24a4e150f836ef78f7e5b4a324b35970cf41ea781879e9dd5`.
+Use the same `measure_archetype_idle.py` commands above to reproduce either
+workload. The host is an Apple M1 Max with 64 GiB RAM.
+
+Retained candidate evidence:
+
+- Idle: [measurements](benchmarks/evidence/archetype-provision-2026-10-18/candidate-idle.json), [raw traces](benchmarks/evidence/archetype-provision-2026-10-18/candidate-idle-traces.zip).
+- Level-up: [measurements](benchmarks/evidence/archetype-provision-2026-10-18/candidate-level-up.json), [raw traces](benchmarks/evidence/archetype-provision-2026-10-18/candidate-level-up-traces.zip).
+- [Native audit](benchmarks/evidence/archetype-provision-2026-10-18/native-audit.json): all 24 previous assertions plus a missing-derived-field repair regression pass (25 total). Repair preserves the subject's level and the other entity's attack value.
+
+Extract each ZIP beside its JSON to resolve the recorded trace paths.

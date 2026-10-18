@@ -52,6 +52,14 @@ class PlayerHarness(WorldGameplayHarness):
                 yield
                 if any(process.poll() is not None for process in processes):
                     raise ValidationFailure("player-client", "a client exited during the assertions")
+                # Let the server close each connection before terminating the
+                # passive client. Abrupt socket teardown can race queued chat
+                # packets and produce server-side broken-pipe exceptions.
+                for player in players:
+                    start = len(self.lines)
+                    self.send(f"kick {player} Validation complete")
+                    self.wait_for(re.compile(re.escape(player) + r" left the game$"),
+                                  "player-leave", start)
             finally:
                 for process in processes:
                     process.terminate()

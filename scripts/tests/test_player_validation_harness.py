@@ -15,7 +15,9 @@ from validate_player_participants import PlayerParticipantHarness
 
 class PlayerHarnessTests(unittest.TestCase):
     def make_harness(self, output):
-        return PlayerHarness(argparse.Namespace(version="26.2", output=output, timeout=1))
+        harness = PlayerHarness(argparse.Namespace(version="26.2", output=output, timeout=1))
+        harness.send = Mock()
+        return harness
 
     def test_second_join_failure_reaps_both_created_clients(self):
         with tempfile.TemporaryDirectory() as output:
@@ -79,6 +81,23 @@ class PlayerHarnessTests(unittest.TestCase):
             for process in processes:
                 process.terminate.assert_called_once()
                 process.wait.assert_called_once_with(timeout=5)
+
+    def test_success_disconnects_on_server_before_terminating_clients(self):
+        with tempfile.TemporaryDirectory() as output:
+            harness = self.make_harness(output)
+            process = Mock()
+            process.poll.return_value = None
+            def observed(pattern, phase, start):
+                process.terminate.assert_not_called()
+                if phase == "player-leave":
+                    harness.send.assert_called_once_with("kick SandAlpha Validation complete")
+                    self.assertIsNotNone(pattern.search("SandAlpha left the game"))
+            harness.wait_for = Mock(side_effect=observed)
+            with patch("player_validation_harness.subprocess.Popen", return_value=process):
+                with harness.clients(players=("SandAlpha",)):
+                    pass
+            self.assertEqual(harness.wait_for.call_count, 2)
+            process.terminate.assert_called_once()
 
     def test_missing_expected_nbt_cannot_pass_as_an_unchanged_copy(self):
         harness = PlayerParticipantHarness.__new__(PlayerParticipantHarness)

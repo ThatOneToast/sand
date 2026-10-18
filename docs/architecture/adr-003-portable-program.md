@@ -38,7 +38,7 @@ identities. Top-level declaration permutations are equivalent; duplicate IDs are
 
 ## Gameplay and ordering
 
-V1 accepts player State, revision 1, integer score fields with explicit signed 32-bit defaults and optional inclusive bounds;
+V1 accepts player/global State, revision 1, integer score fields with explicit signed 32-bit defaults and optional inclusive bounds;
 server/player function contexts; ordered score set/add, integer comparisons,
 branches, player iteration and calls; load/tick hooks and function tags.
 Bounds use the canonical numeric clamp lowering shared with Rust State writes.
@@ -47,23 +47,34 @@ Defaults remain lifecycle values rather than assignments and are not clamped.
 The `state_bounds` capability advertises this support. Invalid ranges fail with
 source-located diagnostics before lowering.
 All functions are validated, including unreachable functions. Player-self access
-requires player context; calls must satisfy callee requirements. Iteration changes
+requires player context; global access is valid in either context. Calls must satisfy callee requirements. Iteration changes
 executor with `as @a`, without changing position. Branch conditions are evaluated
 once: mutation in the selected body cannot cause the other body to execute.
 
 Top-level declarations sort by semantic identity. State fields retain canonical
 State declaration order. Bodies, execution edges and contributions
 within an owner preserve authored order. Registration owners sort by identity,
-matching Rust registration ordering. Canonical State setup precedes user load
+matching Rust registration ordering. Framework objective declarations are
+provisioned first, followed by framework provisioning and global initialization,
+then all user load commands in authored order, including objective commands. Thus a load mutation observes its declared
+default rather than implicitly creating a zero score. Canonical State setup precedes user load
 work, and player initialization precedes user tick work. User tag membership
 uses existing canonical ordering and deduplication after compiler lifecycle work.
 Player-context entries ensure initialization before permitted State access even
 when invoked directly. Repeated initialization preserves existing values.
 
+Global State initializes during load without a player executor. Its fixed-size
+holder identity is computed by one const-capable canonical implementation shared
+by Rust derives and owned compilation. Lifecycle descriptors borrow their global
+holder strings; arbitrary inputs are never interned. Rust collection binds custom
+callbacks to their original static holder before adapting descriptors, preserving
+existing hooks beside callback-free owned globals. Owned compilation supplies no
+callbacks and reads no Rust inventory. `global_state` advertises this support.
+
 Raw commands are an explicit capability and escape operation. Only line safety
 and supported syntactic checks are promised; Sand cannot establish their State,
 context or reference semantics. The acceptance program contains no raw commands.
-Events, participants, other scopes, migrations, timers, scheduling, native
+Events, participants, entity/living scopes, migrations, timers, scheduling, native
 bindings and browser WebAssembly are rejected, not silently approximated.
 
 ## Versions, schemas and diagnostics

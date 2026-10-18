@@ -525,10 +525,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         Scope::Entity => quote!(::sand::__private::StateScope::Entity),
         Scope::Living => quote!(::sand::__private::StateScope::Living),
         Scope::Global => {
-            let holder = LitStr::new(
-                &global_holder(&namespace.value(), &name.value()),
-                input.ident.span(),
-            );
+            let holder = global_holder(&namespace.value(), &name.value());
             quote!(::sand::__private::StateScope::Global(#holder))
         }
     };
@@ -539,10 +536,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         Scope::Global => quote!(::sand::__private::GlobalStateScope),
     };
     let default_member_holder = if matches!(config.scope, Scope::Global) {
-        let holder = LitStr::new(
-            &global_holder(&namespace.value(), &name.value()),
-            input.ident.span(),
-        );
+        let holder = global_holder(&namespace.value(), &name.value());
         quote!(#holder)
     } else {
         quote!("@s")
@@ -666,10 +660,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             )
         }
         Scope::Global => {
-            let holder = LitStr::new(
-                &global_holder(&namespace.value(), &name.value()),
-                ident.span(),
-            );
+            let holder = global_holder(&namespace.value(), &name.value());
             let contract = generated_contract(
                 format!("{}::global", ident.unraw()),
                 GeneratedApiKind::Method,
@@ -793,10 +784,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             }
         },
         Scope::Global => {
-            let holder = LitStr::new(
-                &global_holder(&namespace.value(), &name.value()),
-                input.ident.span(),
-            );
+            let holder = global_holder(&namespace.value(), &name.value());
             quote! {
                 #attach_docs
                 /// Attach and initialize this global component.
@@ -2044,25 +2032,13 @@ fn to_snake_case(name: &str) -> String {
     output
 }
 
-fn global_holder(namespace: &str, schema: &str) -> String {
+fn global_holder(namespace: &str, schema: &str) -> proc_macro2::TokenStream {
     let logical = format!("{namespace}:{schema}");
-    let clean: String = logical
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.') {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .take(24)
-        .collect();
-    let mut hash = 14_695_981_039_346_656_037u64;
-    for byte in logical.bytes() {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(1_099_511_628_211);
-    }
-    format!("#sand_{clean}_{:08x}", hash as u32)
+    quote!({
+        const HOLDER: ::sand::__private::GlobalStateHolder =
+            ::sand::__private::GlobalStateHolder::new(#logical);
+        HOLDER.as_str()
+    })
 }
 
 fn quoted_nbt_key(value: &str) -> String {

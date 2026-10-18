@@ -24,7 +24,7 @@ pub(super) fn lower(
         .iter()
         .flat_map(|module| module.states.iter().cloned())
         .collect();
-    let mut automatic = crate::state::owned::player_lifecycle(&states).map_err(|message| {
+    let mut automatic = crate::state::owned::lifecycle(&states).map_err(|message| {
         // The canonical Rust lifecycle API reports its logical owner in the
         // message. Retain a portable source location for that owner rather
         // than losing the module boundary when adapting its diagnostic.
@@ -90,6 +90,10 @@ pub(super) fn lower(
     )?;
     let mut lower = Lower {
         namespace: program.pack.namespace.clone(),
+        holders: states
+            .iter()
+            .map(|state| (state.id.to_string(), crate::state::owned::holder(state)))
+            .collect(),
         bounds: states
             .iter()
             .flat_map(|state| {
@@ -315,6 +319,7 @@ fn helper(namespace: &str, key: &str, path: &str, role: &str) -> String {
 struct Lower {
     runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
+    holders: BTreeMap<String, sand_commands::ScoreHolder>,
     bounds: BTreeMap<String, (i32, i32)>,
     helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
@@ -378,26 +383,18 @@ impl Lower {
                         .get(&format!("{}.{}", score.state, score.field))
                         .copied();
                     let objective = objective(score);
+                    let holder = &self.holders[&score.state.to_string()];
                     let mut commands = if matches!(operation.action, Action::ScoreSet { .. }) {
                         vec![Cmd::ScorePlayers(ScorePlayersOp::Set {
-                            selector: "@s".into(),
+                            selector: holder.to_string(),
                             objective: objective.clone(),
                             value: crate::entity::state::encode_fixed(f64::from(*value), 1, bounds),
                         })]
                     } else {
-                        crate::ir::score_delta(
-                            &sand_commands::ScoreHolder::self_(),
-                            &objective,
-                            *value,
-                            false,
-                        )
+                        crate::ir::score_delta(holder, &objective, *value, false)
                     };
                     if let Some(bounds) = bounds {
-                        commands.extend(crate::ir::score_bounds(
-                            &sand_commands::ScoreHolder::self_(),
-                            &objective,
-                            bounds,
-                        ));
+                        commands.extend(crate::ir::score_bounds(holder, &objective, bounds));
                     }
                     commands
                 }
@@ -476,7 +473,7 @@ impl Lower {
                     let guard = Cmd::Execute {
                         operations: vec![sand_commands::ExecuteOp::If(
                             sand_commands::ConditionIr::ScoreMatches {
-                                holder: sand_commands::ScoreHolder::self_(),
+                                holder: self.holders[&condition.score.state.to_string()].clone(),
                                 objective: objective(&condition.score),
                                 range,
                             },

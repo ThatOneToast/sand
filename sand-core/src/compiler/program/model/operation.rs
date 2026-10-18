@@ -39,9 +39,9 @@ pub struct Operation {
  variant_fields(ScoreSet(score = "Score operand for this operation.", value = "Value operand for this operation."), ScoreAdd(score = "Score operand for this operation.", value = "Value operand for this operation."), Branch(condition = "Condition operand for this operation.", then = "Then operand for this operation.", otherwise = "Otherwise operand for this operation."), Players(body = "Body operand for this operation."), Call(function = "Function operand for this operation."), Raw(command = "Command operand for this operation.")),
 )]
 pub enum Action {
-    /// Assign an integer player-self State field.
+    /// Assign an integer State field using its declared ownership.
     ScoreSet { score: FieldReference, value: i32 },
-    /// Add an integer to a player-self State field.
+    /// Add an integer to a State field using its declared ownership.
     ScoreAdd { score: FieldReference, value: i32 },
     /// Evaluate the comparison once and execute exactly one ordered body.
     Branch {

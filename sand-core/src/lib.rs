@@ -206,12 +206,14 @@ mod compiler;
 mod transition;
 pub use resource_location::{PackNamespace, ResourceLocation};
 pub use state::{GameState, GameStateRef, TypedGameState};
+#[doc(hidden)]
+pub use state::{
+    GlobalStateHolder, StateDescriptor, StateHookDescriptor, StateLifecycleDescriptor, StateScope,
+};
 pub use state::{
     StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
     StateTick,
 };
-#[doc(hidden)]
-pub use state::{StateDescriptor, StateHookDescriptor, StateLifecycleDescriptor, StateScope};
 pub use state::{StorageField, StorageSchema, StorageVar};
 pub use vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
 

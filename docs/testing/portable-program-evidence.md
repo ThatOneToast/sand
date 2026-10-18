@@ -83,3 +83,34 @@ one signed mutation implementation. Fixed-point constants share that path.
 Validated low-level command methods and score-command IR reject negative
 Minecraft amounts. The audit now retains a sibling `.server.log` file alongside
 its JSON evidence, and CI runs the upper, lower, and minimum-delta workloads.
+
+## Global State without a player executor
+
+The [global-State evidence](portable-global-evidence.json) records ten passing
+checks on Minecraft 26.2 with no player entities and automatic ticks frozen.
+The generated pack initializes the global counter to 10 before user load
+mutations, evaluates a changing branch once, applies bounded assignment and
+signed subtraction, and preserves the value across reload and repeated load.
+The evidence includes the digest of the compiled pack used by the server.
+
+```sh
+python3 scripts/validate_portable_global.py \
+  --binary target/debug/sand --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --output target/portable-global
+```
+
+The latest-version vanilla workflow runs this scenario and retains the server
+log. The Python producer, decoded JSON, and reordered declarations compare
+complete generated packs against the global fixture. Rust/portable integration
+tests compare reachable commands and resources for mixed player/global State.
+A separate Rust regression exercises global initialize, reconcile, tick, and
+migration callbacks beside callback-free owned State, preserving their static
+holder contract. Holder identity tests retain the existing Unicode sanitization
+and hash behavior; this change does not rename persistent scores.
+
+The shared load assembler now declares framework objectives, provisions framework state,
+initializes global defaults, then executes user load actions in their authored
+order. A regression covers default 10 followed by a user addition of 7: it must
+produce 17, rather than creating 7 before initialization. These checks cover
+revision-1 global integer score State; entity/living scopes, other field types,
+portable hooks, migrations, and gameplay systems are still outside this slice.

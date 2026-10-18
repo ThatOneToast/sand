@@ -1,0 +1,58 @@
+{
+  "minecraft": "26.2",
+  "passed": true,
+  "scope": "server execution with zero player entities; automatic ticks frozen",
+  "pack_sha256": "eec27c9c6808b913cf19d15eb6c1c00c317ec2243283d69fc96bbe3473f14ba7",
+  "checks": [
+    {
+      "name": "NO_PLAYERS",
+      "condition": "unless entity @a",
+      "passed": true
+    },
+    {
+      "name": "INITIALIZED_WITHOUT_EXECUTOR",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 10",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_BRANCH_EVALUATES_ONCE",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 15",
+      "passed": true
+    },
+    {
+      "name": "SERVER_INCREMENT",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 16",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_OTHERWISE",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 1",
+      "passed": true
+    },
+    {
+      "name": "BOUNDED_ASSIGNMENT",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 100",
+      "passed": true
+    },
+    {
+      "name": "SIGNED_MUTATION",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 97",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_AND_REPEATED_LOAD_PRESERVE_STATE",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 97",
+      "passed": true
+    },
+    {
+      "name": "POST_RELOAD_INCREMENT",
+      "condition": "if score #sand_demo_counter_946714f8 sffe99bc0114fb8b matches 98",
+      "passed": true
+    },
+    {
+      "name": "STILL_NO_PLAYERS",
+      "condition": "unless entity @a",
+      "passed": true
+    }
+  ]
+}

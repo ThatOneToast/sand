@@ -120,12 +120,12 @@ pub(super) fn validate(
                     "invalid or duplicate State identity",
                 ));
             }
-            if state.scope != "player" || state.revision != 1 {
+            if !matches!(state.scope.as_str(), "player" | "global") || state.revision != 1 {
                 errors.push(Diagnostic::error(
                     "SAND_PROGRAM_STATE",
                     &owner,
                     &ptr,
-                    "v1 requires player State revision 1",
+                    "v1 requires player or global State revision 1",
                 ));
             }
             let mut fields = BTreeSet::new();
@@ -179,11 +179,14 @@ pub(super) fn validate(
             .map(|(id, state)| {
                 (
                     id,
-                    state
-                        .fields
-                        .iter()
-                        .map(|field| field.name.as_str())
-                        .collect(),
+                    (
+                        state.scope.as_str(),
+                        state
+                            .fields
+                            .iter()
+                            .map(|field| field.name.as_str())
+                            .collect(),
+                    ),
                 )
             })
             .collect(),
@@ -276,7 +279,7 @@ fn valid_id(id: &ResourceLocation) -> bool {
 }
 
 struct Validator<'a, 'e> {
-    states: BTreeMap<String, BTreeSet<&'a str>>,
+    states: BTreeMap<String, (&'a str, BTreeSet<&'a str>)>,
     functions: BTreeMap<String, ExecutionContext>,
     operations: usize,
     raw: bool,
@@ -284,7 +287,12 @@ struct Validator<'a, 'e> {
 }
 impl Validator<'_, '_> {
     fn score(&mut self, score: &FieldReference, context: ExecutionContext, owner: &str, ptr: &str) {
-        if context != ExecutionContext::Player {
+        if context != ExecutionContext::Player
+            && self
+                .states
+                .get(&score.state.to_string())
+                .is_some_and(|(scope, _)| *scope == "player")
+        {
             self.errors.push(Diagnostic::error(
                 "SAND_PROGRAM_CONTEXT",
                 owner,
@@ -295,7 +303,7 @@ impl Validator<'_, '_> {
         if !self
             .states
             .get(&score.state.to_string())
-            .is_some_and(|fields| fields.contains(score.field.as_str()))
+            .is_some_and(|(_, fields)| fields.contains(score.field.as_str()))
         {
             self.errors.push(Diagnostic::error(
                 "SAND_PROGRAM_REFERENCE",

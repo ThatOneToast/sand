@@ -8,7 +8,10 @@
 pub mod cooldown;
 pub mod flag;
 pub mod flow;
+mod identity;
 pub mod lifecycle;
+#[doc(hidden)]
+pub use identity::GlobalStateHolder;
 pub(crate) mod owned;
 pub(crate) mod registry;
 pub mod score;

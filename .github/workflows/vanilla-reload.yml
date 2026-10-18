@@ -25,6 +25,7 @@ on:
       - "scripts/validate_worldbuild_profiles.py"
       - "scripts/validate_world_gameplay.py"
       - "scripts/validate_runtime_report.py"
+      - "scripts/validate_portable_global.py"
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"
       - "scripts/validate_keyed_literals.py"
@@ -163,6 +164,14 @@ jobs:
               --evidence "target/vanilla-reload/${{ matrix.version }}/portable-state/$increment/evidence.json"
           done
 
+      - name: Validate portable global State without players
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_portable_global.py \
+            --binary target/debug/sand \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/portable-global"
+
       - name: Validate runtime world and block gameplay
         if: matrix.target == 'latest'
         run: |
@@ -280,6 +289,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/portable-state
+            target/vanilla-reload/${{ matrix.version }}/portable-global
             target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/player-participants
             target/vanilla-reload/${{ matrix.version }}/bounded-items

@@ -100,6 +100,35 @@ impl LifecycleAssembly {
     }
 }
 
+/// Recognize standalone objective declarations, including typed display names.
+/// Opaque multiline user work retains its authored sequence in the action phase.
+fn load_objective_definition(command: &str) -> Option<(String, String)> {
+    if command.contains('\n') {
+        return None;
+    }
+    let mut parts = command.splitn(6, ' ');
+    match (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) {
+        (
+            Some("scoreboard"),
+            Some("objectives"),
+            Some("add"),
+            Some(objective),
+            Some(criterion),
+            display,
+        ) if display.is_none_or(|json| serde_json::from_str::<serde_json::Value>(json).is_ok()) => {
+            Some((objective.to_owned(), criterion.to_owned()))
+        }
+        _ => None,
+    }
+}
+
 /// Assemble owned lifecycle contributions after frontend collection.
 pub(crate) fn assemble_lifecycle(
     namespace: &str,
@@ -118,30 +147,7 @@ pub(crate) fn assemble_lifecycle(
 
     let mut load_definitions: BTreeMap<String, (String, String, String)> = BTreeMap::new();
     for command in automatic.load_commands {
-        let mut parts = command.splitn(6, ' ');
-        let parsed = match (
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-        ) {
-            (
-                Some("scoreboard"),
-                Some("objectives"),
-                Some("add"),
-                Some(objective),
-                Some(criterion),
-                display_name,
-            ) if display_name
-                .is_none_or(|json| serde_json::from_str::<serde_json::Value>(json).is_ok()) =>
-            {
-                Some((objective.to_string(), criterion.to_string()))
-            }
-            _ => None,
-        };
-
+        let parsed = load_objective_definition(&command);
         if let Some((objective, criterion)) = parsed {
             match load_definitions.get(&objective) {
                 Some((existing, _, _)) if existing == &criterion => {}
@@ -173,32 +179,17 @@ pub(crate) fn assemble_lifecycle(
         .into_values()
         .map(|(_, command, _)| command)
         .collect();
+    // Framework initialization must precede gameplay. Keep every authored load
+    // command in sequence, including remove/recreate objective operations.
+    load_cmds.append(&mut automatic.provision_commands);
+    load_cmds.append(&mut automatic.global_init_commands);
     let mut load_owners = Vec::new();
     let mut load_first_line = 1 + load_cmds
         .iter()
         .map(|command| command.bytes().filter(|byte| *byte == b'\n').count() + 1)
         .sum::<usize>();
     for (owner, _, command) in registration_load_commands {
-        let mut parts = command.splitn(6, ' ');
-        let parsed = match (
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-        ) {
-            (
-                Some("scoreboard"),
-                Some("objectives"),
-                Some("add"),
-                Some(objective),
-                Some(criterion),
-                None,
-            ) => Some((objective.to_string(), criterion.to_string())),
-            _ => None,
-        };
-
+        let parsed = load_objective_definition(&command);
         if let Some((objective, criterion)) = parsed {
             match registration_definitions.get(&objective) {
                 Some((existing, _)) if existing == &criterion => {}
@@ -220,8 +211,6 @@ pub(crate) fn assemble_lifecycle(
             &mut load_first_line,
         );
     }
-    load_cmds.append(&mut automatic.provision_commands);
-    load_cmds.append(&mut automatic.global_init_commands);
     if !load_cmds.is_empty() {
         let path = "__sand_lifecycle_load";
         ensure_private_lifecycle_path_available(records, path)?;
@@ -393,6 +382,51 @@ mod runtime_origin_tests {
     use crate::state::registry::AutomaticLifecycle;
     use std::collections::BTreeMap;
 
+    #[test]
+    fn declarations_precede_provisioning_and_user_actions_follow_initialization() {
+        let mut records = Vec::new();
+        let assembled = assemble_lifecycle(
+            "audit",
+            &mut records,
+            &mut BTreeMap::new(),
+            AutomaticLifecycle {
+                load_commands: vec!["scoreboard objectives add auto dummy".into()],
+                provision_commands: vec!["scoreboard players set #seed auto 9".into()],
+                global_init_commands: vec!["say initialized".into()],
+                ..AutomaticLifecycle::default()
+            },
+            vec![
+                ("module:a".into(), 0, "say first".into()),
+                (
+                    "module:a".into(),
+                    1,
+                    "scoreboard objectives add custom dummy \"Custom\"".into(),
+                ),
+                ("module:a".into(), 2, "say last".into()),
+            ],
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        let body = &records
+            .iter()
+            .find(|record| record.path == "__sand_lifecycle_load")
+            .unwrap()
+            .content;
+        assert_eq!(
+            body,
+            "scoreboard objectives add auto dummy\nscoreboard players set #seed auto 9\nsay initialized\nsay first\nscoreboard objectives add custom dummy \"Custom\"\nsay last"
+        );
+        assert_eq!(
+            assembled
+                .load_owners
+                .iter()
+                .map(|origin| (origin.first_line, origin.line_count))
+                .collect::<Vec<_>>(),
+            [(4, 1), (5, 1), (6, 1)]
+        );
+    }
+
     /// Ownership follows emitted lines after sorting, including multiline bodies.
     #[test]
     fn lifecycle_origins_match_emitted_function_spans() {
@@ -427,19 +461,19 @@ mod runtime_origin_tests {
             .unwrap();
         assert_eq!(
             load.content,
-            "scoreboard objectives add auto dummy\nsay a load\n# load comment\n\nsay b load\nsay automatic init"
+            "scoreboard objectives add auto dummy\nsay automatic init\nsay a load\n# load comment\n\nsay b load"
         );
         assert_eq!(
             assembled.load_owners,
             vec![
                 CommandOrigin {
                     owner: "module:a".into(),
-                    first_line: 2,
+                    first_line: 3,
                     line_count: 2
                 },
                 CommandOrigin {
                     owner: "module:b".into(),
-                    first_line: 5,
+                    first_line: 6,
                     line_count: 1
                 },
             ]

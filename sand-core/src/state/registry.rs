@@ -13,7 +13,7 @@ use crate::entity::state::{StateDataFieldDescriptor, numeric_scratch_name};
 
 /// Runtime ownership scope for a derived state component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum StateScope {
+pub enum StateScope<'a> {
     /// State owned by players observed online.
     Player,
     /// State explicitly attached to arbitrary loaded entities.
@@ -21,7 +21,7 @@ pub enum StateScope {
     /// State explicitly attached to loaded living entities.
     Living,
     /// Singleton state stored on a deterministic fake score holder.
-    Global(&'static str),
+    Global(&'a str),
 }
 
 /// Compiler descriptor for one scoreboard-backed component field.
@@ -82,7 +82,7 @@ pub struct StateDescriptor<'a> {
     /// Current schema version. Zero is reserved for absence.
     pub version: u32,
     /// Owner scope.
-    pub scope: StateScope,
+    pub scope: StateScope<'a>,
     /// Presence/version objective.
     pub presence_objective: &'a str,
     /// Player-only explicit-detachment suppression objective.
@@ -114,7 +114,7 @@ impl<'a> StateDescriptor<'a> {
     pub const fn new(
         id: &'a str,
         version: u32,
-        scope: StateScope,
+        scope: StateScope<'a>,
         presence_objective: &'a str,
         suppression_objective: &'a str,
         fields: &'a [StateLifecycleDescriptor<'a>],
@@ -223,12 +223,38 @@ pub(crate) struct AutomaticLifecycle {
     pub global_tick_commands: Vec<String>,
 }
 
+/// Rust collection binds callbacks before adapting descriptors into owned data.
+pub(super) struct BoundStateHook<'a> {
+    hook: &'a StateHookDescriptor,
+    holder: &'static str,
+}
+
 /// Resolve all link-time component declarations.
 pub(crate) fn automatic_lifecycle() -> Result<AutomaticLifecycle, String> {
-    let mut hooks = BTreeMap::<String, &StateHookDescriptor>::new();
+    let declarations: Vec<_> = inventory::iter::<StateDescriptor>
+        .into_iter()
+        .copied()
+        .collect();
+    let holders: BTreeMap<_, _> = declarations
+        .iter()
+        .map(|declaration| {
+            (
+                declaration.id,
+                match declaration.scope {
+                    StateScope::Global(holder) => holder,
+                    _ => "@s",
+                },
+            )
+        })
+        .collect();
+    let mut hooks = BTreeMap::new();
     for hook in inventory::iter::<StateHookDescriptor> {
         let id = (hook.schema)().id();
-        if hooks.insert(id.clone(), hook).is_some() {
+        let holder = holders.get(id.as_str()).copied().unwrap_or("@s");
+        if hooks
+            .insert(id.clone(), BoundStateHook { hook, holder })
+            .is_some()
+        {
             return Err(format!(
                 "multiple #[state_lifecycle] implementations registered for `{id}`"
             ));
@@ -239,7 +265,7 @@ pub(crate) fn automatic_lifecycle() -> Result<AutomaticLifecycle, String> {
     // lowered together so objective collisions and ordering remain global.
     let mut owned = Vec::new();
     let mut rust_only = Vec::new();
-    for descriptor in inventory::iter::<StateDescriptor>.into_iter().copied() {
+    for descriptor in declarations {
         if !hooks.contains_key(descriptor.id)
             && let Ok(state) = crate::compiler::program::model::State::try_from(descriptor)
         {
@@ -263,7 +289,7 @@ fn automatic_lifecycle_from<'a>(
 
 pub(super) fn automatic_lifecycle_with_hooks<'a>(
     declarations: impl IntoIterator<Item = StateDescriptor<'a>>,
-    hooks: &BTreeMap<String, &StateHookDescriptor>,
+    hooks: &BTreeMap<String, BoundStateHook<'_>>,
 ) -> Result<AutomaticLifecycle, String> {
     let mut components = BTreeMap::<&'a str, StateDescriptor<'a>>::new();
     for declaration in declarations {
@@ -292,9 +318,9 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
         let before_tick = output.player_tick_commands.len()
             + output.entity_tick_commands.len()
             + output.global_tick_commands.len();
-        let hook = hooks.get(component.id).copied();
+        let hook = hooks.get(component.id);
         if let Some(hook) = hook {
-            output.provision_commands.extend((hook.provision)());
+            output.provision_commands.extend((hook.hook.provision)());
         }
         let presence = objective_name(component.presence_objective);
         let suppression = objective_name(component.suppression_objective);
@@ -430,7 +456,7 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
 
 fn emit_player(
     component: &StateDescriptor,
-    hook: Option<&StateHookDescriptor>,
+    hook: Option<&BoundStateHook<'_>>,
     output: &mut AutomaticLifecycle,
 ) {
     let presence = objective_name(component.presence_objective);
@@ -457,17 +483,17 @@ fn emit_player(
         );
     }
     if let Some(hook) = hook {
-        for command in (hook.initialize)("@s") {
+        for command in (hook.hook.initialize)(hook.holder) {
             output.player_init_commands.push(format!(
                 "execute {guard} unless score @s {presence} matches 1.. run {command}"
             ));
         }
-        for command in (hook.reconcile)("@s") {
+        for command in (hook.hook.reconcile)(hook.holder) {
             output.player_init_commands.push(format!(
                 "execute {guard} unless score @s {presence} matches 1.. run {command}"
             ));
         }
-        for command in (hook.tick)("@s") {
+        for command in (hook.hook.tick)(hook.holder) {
             output.player_tick_commands.push(format!(
                 "execute if score @s {presence} matches {} run {command}",
                 component.version
@@ -476,7 +502,7 @@ fn emit_player(
     }
     for migration in component.migrations {
         if let Some(hook) = hook {
-            for command in (hook.migrate)("@s", migration.from, migration.to) {
+            for command in (hook.hook.migrate)(hook.holder, migration.from, migration.to) {
                 output.player_init_commands.push(format!(
                     "execute {guard} if score @s {presence} matches {} run {command}",
                     migration.from
@@ -496,7 +522,7 @@ fn emit_player(
 
 fn emit_entity(
     component: &StateDescriptor,
-    hook: Option<&StateHookDescriptor>,
+    hook: Option<&BoundStateHook<'_>>,
     output: &mut AutomaticLifecycle,
 ) {
     let presence = objective_name(component.presence_objective);
@@ -516,8 +542,8 @@ fn emit_entity(
         ));
     }
     if let Some(hook) = hook {
-        body.extend((hook.tick)("@s"));
-        let reconcile = (hook.reconcile)("@s");
+        body.extend((hook.hook.tick)(hook.holder));
+        let reconcile = (hook.hook.reconcile)(hook.holder);
         if !reconcile.is_empty() {
             let mut reconcile_body = reconcile;
             reconcile_body.push(format!("scoreboard players reset @s {reconcile_dirty}"));
@@ -543,8 +569,8 @@ fn component_reconcile_dirty(id: &str) -> String {
 
 fn emit_global(
     component: &StateDescriptor,
-    holder: &'static str,
-    hook: Option<&StateHookDescriptor>,
+    holder: &str,
+    hook: Option<&BoundStateHook<'_>>,
     output: &mut AutomaticLifecycle,
 ) {
     let presence = objective_name(component.presence_objective);
@@ -568,17 +594,17 @@ fn emit_global(
         ));
     }
     if let Some(hook) = hook {
-        for command in (hook.initialize)(holder) {
+        for command in (hook.hook.initialize)(hook.holder) {
             output.global_init_commands.push(format!(
                 "execute unless score {holder} {presence} matches 1.. run {command}"
             ));
         }
-        for command in (hook.reconcile)(holder) {
+        for command in (hook.hook.reconcile)(hook.holder) {
             output.global_init_commands.push(format!(
                 "execute unless score {holder} {presence} matches 1.. run {command}"
             ));
         }
-        for command in (hook.tick)(holder) {
+        for command in (hook.hook.tick)(hook.holder) {
             output.global_tick_commands.push(format!(
                 "execute if score {holder} {presence} matches {} run {command}",
                 component.version
@@ -587,7 +613,7 @@ fn emit_global(
     }
     for migration in component.migrations {
         if let Some(hook) = hook {
-            for command in (hook.migrate)(holder, migration.from, migration.to) {
+            for command in (hook.hook.migrate)(hook.holder, migration.from, migration.to) {
                 output.global_init_commands.push(format!(
                     "execute if score {holder} {presence} matches {} run {command}",
                     migration.from

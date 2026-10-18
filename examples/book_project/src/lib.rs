@@ -162,7 +162,7 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
         .pattern(["SSS", "SES", "SSS"])
         .key('S', Ingredient::item("minecraft:string"))
         .key('E', Ingredient::item("minecraft:ender_pearl"))
-        .result(RecipeResult::new("minecraft:heart_of_the_sea", 1))
+        .result(RecipeResult::custom_item(&grapple_core()).unwrap())
         .category("equipment")
 }
 // ANCHOR_END: recipe
@@ -204,10 +204,10 @@ pub fn capability_facade_example() -> Actions {
 
 // ANCHOR: fn_grapple
 /// Grapple dash entry point: gate on upgrade, stamina, cooldown, exhaustion.
-#[function("trail:grapple")]
+#[function("trail:grapple", context = player)]
 pub fn grapple() {
     let state = traversal();
-    TypedExecute::as_players_at_self()
+    TypedExecute::as_self_at_self()
         .when(all![
             state.has_striders.is_enabled(),
             state.grapple.ready(),
@@ -220,7 +220,7 @@ pub fn grapple() {
 
 // ANCHOR: fn_grapple_execute
 /// Applies the grapple dash: pay stamina, start the cooldown, launch, sparkle.
-#[function("trail:grapple/execute")]
+#[function("trail:grapple/execute", context = player)]
 pub fn grapple_execute() {
     let state = traversal();
     state.stamina.subtract(30);
@@ -239,7 +239,7 @@ pub fn grapple_execute() {
 
 // ANCHOR: fn_recover
 /// Clears exhaustion once stamina has recovered (called from `tick`).
-#[function("trail:recover")]
+#[function("trail:recover", context = player)]
 pub fn recover() {
     traversal().exhausted.disable();
     cmd::tellraw(Target::self_(), Text::new("You feel steady again.").green());
@@ -247,14 +247,16 @@ pub fn recover() {
 // ANCHOR_END: fn_recover
 
 // ANCHOR: fn_claim_striders
-/// Claim the Trail Striders upgrade while holding a Grapple Core.
+/// Consume one Grapple Core from this player's inventory to claim Trail Striders.
 ///
-/// Demonstrates the `if_()` grouped-branch API: the `if` arm rejects players
-/// who already own the upgrade; the `else` arm consumes nothing (teaching
-/// simplicity), grants the boots, and sets the flag.
-#[function("trail:claim_striders")]
+/// Already-upgraded players and players without a matching core change nothing.
+/// The successful branch consumes one core and gives the boots to the current
+/// player; it does not replace occupied armor slots or equip the boots.
+#[function("trail:claim_striders", context = player)]
 pub fn claim_striders() {
     let state = traversal();
+    let inventory = EntityContext::<PlayerKind>::default().inventory();
+    let core = grapple_core().item_predicate().unwrap();
     if_(state.has_striders.is_enabled())
         .then_all(mcfunction![
             cmd::tellraw(
@@ -264,20 +266,31 @@ pub fn claim_striders() {
             cmd::return_fail();
         ])
         .else_all(mcfunction![
-            cmd::raw(format!("give @s {}", trail_striders()));
-            state.has_striders.enable();
-            cmd::tellraw(
-                Target::self_(),
-                Text::new("Trail Striders bound to your feet!").gold(),
-            );
-            cmd::return_cmd(1);
+            if_(inventory.contains(&core))
+                .then_all(mcfunction![
+                    inventory.remove(&core, 1);
+                    cmd::give(Target::self_(), trail_striders());
+                    state.has_striders.enable();
+                    cmd::tellraw(
+                        Target::self_(),
+                        Text::new("Trail Striders unlocked. Equip your new boots!").gold(),
+                    );
+                    cmd::return_cmd(1);
+                ])
+                .else_all(mcfunction![
+                    cmd::tellraw(
+                        Target::self_(),
+                        Text::new("Craft a Grapple Core before claiming Trail Striders.").red(),
+                    );
+                    cmd::return_fail();
+                ]);
         ]);
 }
 // ANCHOR_END: fn_claim_striders
 
 // ANCHOR: fn_open_menu
 /// Opens the trailhead menu dialog for the current player.
-#[function("trail:menu")]
+#[function("trail:menu", context = player)]
 pub fn open_menu() {
     cmd::show_dialog(Target::self_(), DialogId::local("trailhead"));
 }
@@ -314,11 +327,11 @@ pub fn trailhead_dialog() -> Dialog {
         .body(DialogBody::text(Text::new("Choose your path.").aqua()))
         .button(
             DialogButton::new(Text::new("Grapple dash").aqua())
-                .action(DialogAction::run_function(grapple)),
+                .action(DialogAction::callback(grapple)),
         )
         .button(
             DialogButton::new(Text::new("Claim Trail Striders").gold())
-                .action(DialogAction::run_function(claim_striders)),
+                .action(DialogAction::callback(claim_striders)),
         )
 }
 // ANCHOR_END: dialog
@@ -335,8 +348,9 @@ impl AdvancementEvent for ObtainedGrappleCoreEvent {
 
     fn trigger() -> Self::Trigger {
         InventoryChangedTrigger::new().item(
-            ItemPredicate::id(ItemId::minecraft("heart_of_the_sea").unwrap())
-                .custom_data_key("grapple_core"),
+            grapple_core()
+                .item_predicate()
+                .expect("valid Grapple Core identity"),
         )
     }
 
@@ -467,10 +481,11 @@ mod tests {
     }
 
     fn exported_functions() -> std::collections::BTreeMap<String, String> {
-        let export: serde_json::Value = serde_json::from_str(
-            &sand::advanced::try_export_pack_json("trail", "26.2").unwrap(),
-        ).unwrap();
-        let records: Vec<serde_json::Value> = serde_json::from_value(export["components"].clone()).unwrap();
+        let export: serde_json::Value =
+            serde_json::from_str(&sand::advanced::try_export_pack_json("trail", "26.2").unwrap())
+                .unwrap();
+        let records: Vec<serde_json::Value> =
+            serde_json::from_value(export["components"].clone()).unwrap();
         records
             .into_iter()
             .filter(|record| record["dir"] == "function")
@@ -481,6 +496,52 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    fn reachable_body(
+        functions: &std::collections::BTreeMap<String, String>,
+        entry: &str,
+    ) -> String {
+        let mut pending = vec![entry.to_owned()];
+        let mut seen = std::collections::BTreeSet::new();
+        let mut result = String::new();
+        while let Some(path) = pending.pop() {
+            if !seen.insert(path.clone()) {
+                continue;
+            }
+            let body = &functions[&path];
+            result.push_str(body);
+            result.push('\n');
+            for line in body.lines() {
+                if let Some((_, target)) = line.split_once("function trail:") {
+                    pending.push(target.split_whitespace().next().unwrap().to_owned());
+                }
+            }
+        }
+        result
+    }
+
+    #[test]
+    fn menu_buttons_use_survival_callbacks() {
+        use sand::registration::{ComponentContent, DatapackComponent};
+        let ComponentContent::Json(dialog) = trailhead_dialog().try_content().unwrap() else {
+            panic!("dialog must emit JSON");
+        };
+        let actions = dialog["actions"].as_array().unwrap();
+        assert_eq!(actions.len(), 2);
+        for button in actions {
+            assert_eq!(button["action"]["type"], "minecraft:run_command");
+            assert!(
+                button["action"]["command"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("/trigger ")
+            );
+        }
+        let functions = exported_functions();
+        let dispatcher = &functions["__sand_dialog_tick"];
+        assert!(dispatcher.contains("run function trail:grapple"));
+        assert!(dispatcher.contains("run function trail:claim_striders"));
     }
 
     #[test]
@@ -545,14 +606,7 @@ mod tests {
     fn grapple_execute_pays_stamina_and_plays_vfx() {
         let cmds = emitted(grapple_execute());
         let functions = exported_functions();
-        let entry = &functions["grapple/execute"];
-        let helper = entry
-            .lines()
-            .next()
-            .unwrap()
-            .strip_prefix("function trail:")
-            .expect("owned stamina mutation");
-        let body = &functions[helper];
+        let body = reachable_body(&functions, "grapple/execute");
         assert!(
             body.lines().any(|line| line
                 == format!(
@@ -575,5 +629,70 @@ mod tests {
     fn grapple_core_predicate_matches_custom_data() {
         assert!(GrappleCore::PREDICATE.contains("grapple_core"));
         assert_eq!(GrappleCore::BASE, "minecraft:heart_of_the_sea");
+    }
+
+    #[test]
+    fn crafted_core_retains_the_identity_required_by_the_upgrade() {
+        use sand::registration::{ComponentContent, DatapackComponent};
+        let ComponentContent::Json(recipe) = grapple_core_recipe().try_content().unwrap() else {
+            panic!("recipe must emit JSON");
+        };
+        assert_eq!(recipe["result"]["id"], "minecraft:heart_of_the_sea");
+        assert_eq!(recipe["result"]["count"], 1);
+        assert_eq!(
+            recipe["result"]["components"]["minecraft:custom_data"]["grapple_core"],
+            true
+        );
+        assert!(
+            recipe["result"]["components"]
+                .get("minecraft:custom_name")
+                .is_some()
+        );
+        assert_eq!(
+            recipe["result"]["components"]["minecraft:max_stack_size"],
+            1
+        );
+    }
+
+    #[test]
+    fn upgrade_exports_a_single_subject_cost_and_typed_reward() {
+        let functions = exported_functions();
+        let cost = functions
+            .values()
+            .flat_map(|body| body.lines())
+            .filter(|line| {
+                line.contains("clear @s ") && line.contains("grapple_core") && line.ends_with(" 1")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(cost.len(), 1, "one bounded custom-item cost: {cost:?}");
+        assert!(cost[0].ends_with(" 1"), "{cost:?}");
+        assert!(functions.values().any(|body| {
+            body.lines().any(|line| {
+                line.starts_with("give @s minecraft:leather_boots[")
+                    && line.contains("trail_striders")
+            })
+        }));
+        assert!(
+            functions
+                .values()
+                .any(|body| body.contains("Craft a Grapple Core before claiming"))
+        );
+        assert!(
+            functions
+                .values()
+                .any(|body| body.contains("You already wear Trail Striders"))
+        );
+    }
+
+    #[test]
+    fn menu_ability_never_fans_out_to_other_players() {
+        let functions = exported_functions();
+        let body = reachable_body(&functions, "grapple");
+        assert!(
+            !body.contains("@a"),
+            "one menu click must only affect its player: {body}"
+        );
+        assert!(body.contains("run function trail:grapple/execute"));
+        assert!(body.contains("matches 30.."));
     }
 }

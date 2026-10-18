@@ -1,0 +1,1 @@
+scoreboard players add #sand_demo_world_78d17ea0 s6707b662875fa94 1

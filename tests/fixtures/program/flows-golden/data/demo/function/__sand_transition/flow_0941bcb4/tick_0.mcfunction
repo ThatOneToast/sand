@@ -1,0 +1,2 @@
+function demo:world_tick
+scoreboard players set #sand_demo_world_78d17ea0 __sf_0941bcb4t0 0

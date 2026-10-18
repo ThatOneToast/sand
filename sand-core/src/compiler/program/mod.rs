@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 const CAPABILITIES: &[&str] = &[
     "player_state",
     "state_defaults",
+    "state_bounds",
     "functions",
     "score",
     "branch",

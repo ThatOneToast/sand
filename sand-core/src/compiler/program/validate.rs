@@ -130,6 +130,14 @@ pub(super) fn validate(
             }
             let mut fields = BTreeSet::new();
             for (index, field) in state.fields.iter().enumerate() {
+                if field.bounds.is_some_and(|(min, max)| min > max) {
+                    errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_STATE",
+                        &owner,
+                        &format!("{ptr}/fields/{index}/bounds"),
+                        "State field minimum must not exceed its maximum",
+                    ));
+                }
                 if matches!(
                     field.name.as_str(),
                     "presence" | "suppressed" | "numeric_scratch"

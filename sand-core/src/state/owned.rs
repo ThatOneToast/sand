@@ -27,7 +27,6 @@ impl TryFrom<StateDescriptor<'_>> for State {
         }
         for field in descriptor.fields {
             if field.field.kind != StateFieldKind::Score
-                || field.field.bounds.is_some()
                 || field.criterion != "dummy"
                 || field.display_name.is_some()
                 || field.auto_tick
@@ -60,6 +59,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
                 .map(|field| ScoreField {
                     name: field.field.name.to_owned(),
                     default: field.field.default,
+                    bounds: field.field.bounds,
                 })
                 .collect(),
         })
@@ -110,7 +110,7 @@ pub(crate) fn with_descriptors<R>(
                             &field.name,
                             StateFieldKind::Score,
                             field.default,
-                            None,
+                            field.bounds,
                         ),
                     )
                 })
@@ -141,24 +141,28 @@ mod tests {
     #[test]
     fn owned_state_matches_static_lifecycle_without_static_allocations() {
         for default in [i32::MIN, -20, 0, 100, i32::MAX] {
-            let fields = [StateLifecycleDescriptor::new(
-                "demo:counter.value",
-                StateFieldDescriptor::new("value", StateFieldKind::Score, default, None),
-            )];
-            let descriptor = StateDescriptor::new(
-                "demo:counter",
-                1,
-                StateScope::Player,
-                "demo:counter.presence",
-                "demo:counter.suppressed",
-                &fields,
-                &[],
-                &[],
-            );
-            let expected = automatic_lifecycle_with_hooks([descriptor], &BTreeMap::new()).unwrap();
-            let owned = State::try_from(descriptor).unwrap();
-            assert_eq!(owned.fields[0].default, default);
-            assert_eq!(player_lifecycle(&[owned]).unwrap(), expected);
+            for bounds in [None, Some((0, 100)), Some((i32::MIN, i32::MAX))] {
+                let fields = [StateLifecycleDescriptor::new(
+                    "demo:counter.value",
+                    StateFieldDescriptor::new("value", StateFieldKind::Score, default, bounds),
+                )];
+                let descriptor = StateDescriptor::new(
+                    "demo:counter",
+                    1,
+                    StateScope::Player,
+                    "demo:counter.presence",
+                    "demo:counter.suppressed",
+                    &fields,
+                    &[],
+                    &[],
+                );
+                let expected =
+                    automatic_lifecycle_with_hooks([descriptor], &BTreeMap::new()).unwrap();
+                let owned = State::try_from(descriptor).unwrap();
+                assert_eq!(owned.fields[0].default, default);
+                assert_eq!(owned.fields[0].bounds, bounds);
+                assert_eq!(player_lifecycle(&[owned]).unwrap(), expected);
+            }
         }
     }
 
@@ -171,6 +175,7 @@ mod tests {
             fields: vec![ScoreField {
                 name: "value".to_owned(),
                 default: 0,
+                bounds: None,
             }],
         }])
         .unwrap();
@@ -200,6 +205,7 @@ mod tests {
             fields: vec![ScoreField {
                 name: "value".to_owned(),
                 default: 0,
+                bounds: None,
             }],
         }];
         const CONFLICTING_FIELDS: &[StateLifecycleDescriptor] = &[StateLifecycleDescriptor::new(

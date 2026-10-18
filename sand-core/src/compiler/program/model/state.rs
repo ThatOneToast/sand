@@ -39,7 +39,7 @@ pub struct State {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(name = "Name for this portable definition.", default = "Default for this portable definition."),
+ fields(name = "Name for this portable definition.", default = "Default for this portable definition.", bounds = "Optional inclusive bounds applied after score writes."),
 )]
 pub struct ScoreField {
     /// Field identity within its owning State.
@@ -48,6 +48,12 @@ pub struct ScoreField {
     /// supported. Reloading or re-entering a function preserves existing values.
     #[serde(default)]
     pub default: i32,
+    /// Inclusive bounds applied by score assignment and addition. Initialization
+    /// preserves the declared default, matching Rust State lifecycle semantics.
+    /// The minimum must not exceed the maximum. Addition uses Minecraft's i32
+    /// arithmetic before clamping; these bounds do not prevent overflow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounds: Option<(i32, i32)>,
 }
 
 /// A field reference binds a field identity to its declaring State.

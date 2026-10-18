@@ -1,8 +1,8 @@
 """Tiny Python and blueprint frontends. Sand remains the only gameplay compiler."""
 
-def counter(initial_value=0):
+def counter(initial_value=0, bounds=None):
     reference = {"kind": "internal", "id": "demo:increment"}
-    return {
+    program = {
         "format": "sand.program", "format_version": 1,
         "target": {"minecraft": "26.2"},
         "pack": {"namespace": "demo", "description": "Player counter"},
@@ -15,6 +15,9 @@ def counter(initial_value=0):
                 {"id": "demo:increment", "context": "player", "body": [{"action": {
                     "op": "score_add", "score": {"state": "demo:counter", "field": "value"}, "value": 1}}]}],
             "tags": [{"tag": "minecraft:tick", "function": {"kind": "internal", "id": "demo:tick"}}]}]}
+    if bounds is not None:
+        program["modules"][0]["states"][0]["fields"][0]["bounds"] = list(bounds)
+    return program
 
 
 def blueprint(graph):

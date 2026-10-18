@@ -38,9 +38,14 @@ identities. Top-level declaration permutations are equivalent; duplicate IDs are
 
 ## Gameplay and ordering
 
-V1 accepts player State, revision 1, integer score fields with explicit signed 32-bit defaults;
+V1 accepts player State, revision 1, integer score fields with explicit signed 32-bit defaults and optional inclusive bounds;
 server/player function contexts; ordered score set/add, integer comparisons,
 branches, player iteration and calls; load/tick hooks and function tags.
+Bounds use the canonical numeric clamp lowering shared with Rust State writes.
+Assignment clamps its input; addition clamps the result of vanilla i32 arithmetic.
+Defaults remain lifecycle values rather than assignments and are not clamped.
+The `state_bounds` capability advertises this support. Invalid ranges fail with
+source-located diagnostics before lowering.
 All functions are validated, including unreachable functions. Player-self access
 requires player context; calls must satisfy callee requirements. Iteration changes
 executor with `as @a`, without changing position. Branch conditions are evaluated

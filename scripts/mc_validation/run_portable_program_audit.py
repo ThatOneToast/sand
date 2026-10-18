@@ -34,10 +34,23 @@ def main():
     parser.add_argument("--java", default="java")
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--initial-value", type=int, default=0,
-                        help="Player State default; this increment workload needs four points of i32 headroom")
+                        help="Player State default")
+    parser.add_argument("--bounds", type=int, nargs=2, metavar=("MIN", "MAX"),
+                        help="Inclusive State bounds; applied after each increment")
+    parser.add_argument("--increment", type=int, default=1,
+                        help="Signed integer added by each invocation")
     args = parser.parse_args()
-    if not -(2**31) <= args.initial_value <= 2**31 - 5:
-        parser.error("--initial-value must fit i32 with four increments of headroom")
+    if not -(2**31) <= args.initial_value < 2**31 or not -(2**31) <= args.increment < 2**31:
+        parser.error("--initial-value and --increment must fit i32")
+    if args.bounds and not -(2**31) <= args.bounds[0] <= args.bounds[1] < 2**31:
+        parser.error("--bounds requires an ordered pair of i32 values")
+    def advance(value, count):
+        for _ in range(count):
+            value = (value + args.increment + 2**31) % 2**32 - 2**31
+            if args.bounds:
+                value = max(args.bounds[0], min(args.bounds[1], value))
+        return value
+    direct, one, two = [advance(args.initial_value, count) for count in (1, 4, 3)]
     checks, logs = {}, []
     token = secrets.token_urlsafe(24)
     port, rcon_port = available_port(), available_port()
@@ -45,6 +58,9 @@ def main():
     pack = server / "world/datapacks/demo"
     document = json.loads((ROOT / "tests/fixtures/program/counter.sand.json").read_text())
     document["modules"][0]["states"][0]["fields"][0]["default"] = args.initial_value
+    if args.bounds:
+        document["modules"][0]["states"][0]["fields"][0]["bounds"] = args.bounds
+    document["modules"][0]["functions"][1]["body"][0]["action"]["value"] = args.increment
     input_path = server / "counter.sand.json"
     input_path.write_text(json.dumps(document))
     compile_result = subprocess.run([str(args.binary.resolve()), "program", "compile", "--input",
@@ -123,19 +139,19 @@ def main():
                 except subprocess.TimeoutExpired: client.kill(); client.communicate()
             if score("#done") == 1: break
         observed = {name: score(name) for name in ["#done", "#direct", "#presence", "#one", "#two"]}
-        expected = {"#done":1,"#direct":args.initial_value + 1,"#presence":1,
-                    "#one":args.initial_value + 4,"#two":args.initial_value + 3}
+        expected = {"#done":1,"#direct":direct,"#presence":1,
+                    "#one":one,"#two":two}
         check("two_real_players_explicit_ticks", observed == expected, {"observed":observed,"expected":expected})
         before = [score("CounterOne",VALUE), score("CounterTwo",VALUE)]
         command("reload")
         time.sleep(1)
         after = [score("CounterOne",VALUE), score("CounterTwo",VALUE)]
-        check("reload_preserves_scores", before == after == [args.initial_value + 4,args.initial_value + 3], {"before":before,"after":after})
+        check("reload_preserves_scores", before == after == [one,two], {"before":before,"after":after})
         client = join("CounterNew", "execute as @a[name=CounterNew] run function demo:increment")
         try: client.communicate(timeout=12)
         except subprocess.TimeoutExpired: client.kill(); client.communicate()
         joined = [score("CounterNew",VALUE),score("CounterOne",VALUE),score("CounterTwo",VALUE)]
-        check("joining_player_isolated", joined == [args.initial_value + 1,args.initial_value + 4,args.initial_value + 3], joined)
+        check("joining_player_isolated", joined == [direct,one,two], joined)
         passed = all(check["passed"] for check in checks.values())
         return 0 if passed else 1
     finally:
@@ -148,7 +164,8 @@ def main():
                 try: process.wait(timeout=5)
                 except subprocess.TimeoutExpired: process.kill(); process.wait(timeout=5)
         args.evidence.parent.mkdir(parents=True, exist_ok=True)
-        args.evidence.write_text(json.dumps({"minecraft":"26.2", "passed":passed, "initial_value":args.initial_value, "tick_mode":"frozen automatic ticks; three explicitly invoked lifecycle/tick pairs", "checks":checks,
+        args.evidence.with_suffix(".server.log").write_text("".join(logs))
+        args.evidence.write_text(json.dumps({"minecraft":"26.2", "passed":passed, "initial_value":args.initial_value, "bounds":args.bounds, "increment":args.increment, "tick_mode":"frozen automatic ticks; three explicitly invoked lifecycle/tick pairs", "checks":checks,
             "server_log_tail":logs[-30:]},indent=2)+"\n")
         shutil.rmtree(server)
 

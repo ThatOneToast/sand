@@ -7,6 +7,7 @@
 # canonical Target dimension scoping adds one command item. All scopes remain enforced.
 # Text interactions consolidate hover_entity_with_id into hover_entity (-1 source method).
 # RuntimeReport, CompiledPack.runtime_report, and final-resource reanalysis add three advanced-source items.
+# Portable ScoreField.bounds adds one contracted advanced-source field.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -15,12 +16,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 4946
+static_surface_items = 4947
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11046
+static_surface_items = 11047
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

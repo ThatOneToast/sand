@@ -25,6 +25,12 @@ and function-tag membership. A field's `default` accepts any signed 32-bit
 integer (omission means zero). It is applied only when that player's value is
 absent; function entry and reload preserve existing values. Hosts can require
 `state_defaults` to detect compilers supporting nonzero initialization.
+Fields can declare `"bounds": [0, 100]`; require `state_bounds` to discover
+support. Assignments clamp to this inclusive range, and additions clamp after
+Minecraft's signed 32-bit arithmetic. Signed additions select valid Minecraft add/remove commands, including the full
+`i32::MIN` delta. Bounds apply after the complete mutation and do not prevent arithmetic overflow.
+Initialization retains the declared default, even outside the bounds, matching
+Rust State. An omitted or null bound leaves the score unbounded.
 Every declaration is checked, including unused
 functions. Events, participants, storage/entity State, migrations, timers,
 scheduling and native bindings are outside v1.

@@ -90,6 +90,16 @@ pub(super) fn lower(
     )?;
     let mut lower = Lower {
         namespace: program.pack.namespace.clone(),
+        bounds: states
+            .iter()
+            .flat_map(|state| {
+                state.fields.iter().filter_map(|field| {
+                    field
+                        .bounds
+                        .map(|bounds| (format!("{}.{}", state.id, field.name), bounds))
+                })
+            })
+            .collect(),
         helper_keys,
         runtime: crate::compiler::runtime::RuntimePlan::default(),
         records: Vec::new(),
@@ -305,6 +315,7 @@ fn helper(namespace: &str, key: &str, path: &str, role: &str) -> String {
 struct Lower {
     runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
+    bounds: BTreeMap<String, (i32, i32)>,
     helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
     init: Option<String>,
@@ -360,19 +371,38 @@ impl Lower {
                 format!("{path}/{index}")
             };
             let ptr = format!("{ptr}/{index}");
-            let cmd = match &operation.action {
-                Action::ScoreSet { score, value } => Cmd::ScorePlayers(ScorePlayersOp::Set {
-                    selector: "@s".into(),
-                    objective: objective(score),
-                    value: *value,
-                }),
-                Action::ScoreAdd { score, value } => Cmd::ScorePlayers(ScorePlayersOp::Add {
-                    selector: "@s".into(),
-                    objective: objective(score),
-                    amount: *value,
-                }),
-                Action::Call { function } => Cmd::Function(reference_id(function)),
-                Action::Raw { command } => Cmd::Raw(command.clone()),
+            let cmds = match &operation.action {
+                Action::ScoreSet { score, value } | Action::ScoreAdd { score, value } => {
+                    let bounds = self
+                        .bounds
+                        .get(&format!("{}.{}", score.state, score.field))
+                        .copied();
+                    let objective = objective(score);
+                    let mut commands = if matches!(operation.action, Action::ScoreSet { .. }) {
+                        vec![Cmd::ScorePlayers(ScorePlayersOp::Set {
+                            selector: "@s".into(),
+                            objective: objective.clone(),
+                            value: crate::entity::state::encode_fixed(f64::from(*value), 1, bounds),
+                        })]
+                    } else {
+                        crate::ir::score_delta(
+                            &sand_commands::ScoreHolder::self_(),
+                            &objective,
+                            *value,
+                            false,
+                        )
+                    };
+                    if let Some(bounds) = bounds {
+                        commands.extend(crate::ir::score_bounds(
+                            &sand_commands::ScoreHolder::self_(),
+                            &objective,
+                            bounds,
+                        ));
+                    }
+                    commands
+                }
+                Action::Call { function } => vec![Cmd::Function(reference_id(function))],
+                Action::Raw { command } => vec![Cmd::Raw(command.clone())],
                 Action::Players { body } => {
                     let target = if let [
                         Operation {
@@ -401,12 +431,12 @@ impl Lower {
                         self.function(&id, lines, module, &ptr)?;
                         id
                     };
-                    Cmd::Execute {
+                    vec![Cmd::Execute {
                         operations: vec![sand_commands::ExecuteOp::As(
                             sand_commands::Selector::all_players(),
                         )],
                         run: Box::new(Cmd::Function(target)),
-                    }
+                    }]
                 }
                 Action::Branch {
                     condition,
@@ -459,7 +489,7 @@ impl Lower {
                         module,
                         &ptr,
                     )?;
-                    Cmd::Function(decision)
+                    vec![Cmd::Function(decision)]
                 }
             };
             let fail = |error: String| {
@@ -467,11 +497,13 @@ impl Lower {
                 error.origin = operation.origin.clone();
                 vec![error]
             };
-            let rendered = cmd.try_render().map_err(|e| fail(e.to_string()))?;
-            let rendered =
-                sand_commands::render::validate_standalone_line(&rendered, &self.profile)
-                    .map_err(|e| fail(e.to_string()))?;
-            commands.push(rendered);
+            for cmd in cmds {
+                let rendered = cmd.try_render().map_err(|e| fail(e.to_string()))?;
+                let rendered =
+                    sand_commands::render::validate_standalone_line(&rendered, &self.profile)
+                        .map_err(|e| fail(e.to_string()))?;
+                commands.push(rendered);
+            }
         }
         Ok(commands)
     }

@@ -311,17 +311,17 @@ mod tests {
     }
 
     #[test]
-    fn flat_layers_exceeding_build_height_are_rejected() {
+    fn flat_layers_exceeding_absolute_codec_height_are_rejected() {
         let build = SandBuild::new().world(World::new().dimensions(Dimensions::new().with(
             Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
                 Generator::Flat(FlatGenerator::new(vec![FlatLayer::new(
                     ResourceLocation::new("minecraft", "stone").unwrap(),
-                    400,
+                    4065,
                 )])),
             ),
         )));
         let errs = validate(&build).unwrap_err();
-        assert!(errs.iter().any(|d| d.message.contains("384")));
+        assert!(errs.iter().any(|d| d.message.contains("4064")));
     }
 
     #[test]

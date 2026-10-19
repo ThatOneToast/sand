@@ -75,8 +75,8 @@ first), naming the offending builder call:
 - **Duplicate dimension slots** — the same `DimensionSlot` (e.g. two
   `Overworld` entries) configured twice.
 - **Flat generator layers** — at least one layer required; each layer's
-  height must be `> 0`; total layer height must not exceed the 384-block
-  build-height limit.
+  height must be `> 0`; total layer height must not exceed the 4064-block
+  absolute codec limit; the dimension type determines usable world height.
 - **Vanilla biome references** — a `minecraft:`-namespaced biome passed to
   `FlatGenerator::biome` or `NoiseGenerator::single_biome` must be a real
   vanilla biome ID. Checked against a list **generated from real Minecraft

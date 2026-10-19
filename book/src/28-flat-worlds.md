@@ -21,8 +21,10 @@ let generator = Generator::Flat(
 ```
 
 - **Layers** — `FlatLayer::new(block, height)`, listed bottom-to-top. Total
-  height is validated against the vanilla build-height limit (384 blocks);
-  a zero-height layer or an empty layer list is also rejected — see
+  height is validated against Minecraft's absolute flat-generator codec limit
+  (4064 blocks), allowing tall custom dimensions. The dimension type still
+  determines the usable world height; blocks outside it are not generated.
+  A zero-height layer or an empty layer list is also rejected — see
   [Generated World Resources](./34-generated-world-resources.md#validation)
   for the exact diagnostics.
 - **Biome** — `FlatGenerator::biome(...)`. Defaults to `minecraft:plains`

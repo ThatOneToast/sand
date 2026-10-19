@@ -286,6 +286,6 @@ fn oversized_flat_layers_report_diagnostics_without_overflowing() {
     );
     assert_eq!(
         diagnostics[0].message,
-        "FlatGenerator layers total 4294967297 blocks tall, exceeding the maximum build height of 384"
+        "FlatGenerator layers total 4294967297 blocks tall, exceeding the absolute flat-generator height limit of 4064"
     );
 }

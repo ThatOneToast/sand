@@ -96,6 +96,45 @@ fn registered_checkerboard_exports_ordered_biomes_deterministically() {
 }
 
 #[test]
+fn tall_custom_dimension_accepts_flat_layers_above_overworld_height() {
+    use sand::build::{
+        Dimension as BuildDimension, DimensionSlot, DimensionType, Dimensions, SandBuild, World,
+        lower_world,
+    };
+    let generator = Generator::Flat(FlatGenerator::new(vec![FlatLayer::new(
+        BlockId::minecraft("stone").unwrap(),
+        512,
+    )]));
+    let dimension_type = sand::component::DimensionType::overworld_like(rl("tall_type"))
+        .height(512)
+        .logical_height(512);
+    dimension_type.validate().unwrap();
+    let component = Dimension::new(
+        rl("tall_world"),
+        DimensionTypeId::custom(rl("tall_type")),
+        generator.clone(),
+    );
+    component.validate().unwrap();
+    let build = SandBuild::new().world(
+        World::new().dimensions(
+            Dimensions::new().with(
+                BuildDimension::new(
+                    DimensionSlot::Custom(rl("tall_world")),
+                    DimensionType::Custom(rl("tall_type")),
+                )
+                .generator(generator),
+            ),
+        ),
+    );
+    build.validate().unwrap();
+    let records = lower_world("shared_generators", &build);
+    let record = records.iter().find(|r| r.dir == "dimension").unwrap();
+    let actual: serde_json::Value = serde_json::from_str(&record.content).unwrap();
+    assert_eq!(actual, component.to_json());
+    assert_eq!(actual["generator"]["settings"]["layers"][0]["height"], 512);
+}
+
+#[test]
 fn build_checkerboard_checks_each_vanilla_biome_reference() {
     use sand::build::{
         Dimension as BuildDimension, DimensionSlot, DimensionType, Dimensions, SandBuild, World,

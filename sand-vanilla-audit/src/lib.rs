@@ -880,6 +880,27 @@ pub fn audit_predicate() -> Predicate {
     )
 }
 
+/// A taller dimension type for the flat-generator codec regression.
+#[datapack_component]
+pub fn audit_tall_dimension_type() -> sand::component::DimensionType {
+    sand::component::DimensionType::overworld_like("sand_audit:tall_type".parse().unwrap())
+        .height(512)
+        .logical_height(512)
+}
+
+/// The flat-generator codec supports custom dimensions above Overworld height.
+#[datapack_component]
+pub fn audit_tall_dimension() -> sand::component::Dimension {
+    use sand::component::{Dimension, FlatGenerator, FlatLayer, Generator};
+    Dimension::new(
+        "sand_audit:tall_world".parse().unwrap(),
+        "sand_audit:tall_type".parse().unwrap(),
+        Generator::Flat(FlatGenerator::new(vec![FlatLayer::new(
+            vanilla::Block::Stone, 512,
+        )])),
+    )
+}
+
 /// Exercise complete typed biome output in vanilla's dynamic registry loader.
 #[datapack_component]
 pub fn audit_spawn_biome() -> sand::component::Biome {

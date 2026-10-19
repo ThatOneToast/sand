@@ -12,6 +12,10 @@ use crate::{error::Result as SandResult, validation};
 use sand_macros::api;
 use serde_json::{Value, json};
 
+// FlatLevelGeneratorSettings validates the sum against DimensionType.Y_SIZE.
+// This is the absolute codec limit, not the Overworld dimension's 384 blocks.
+const MAX_FLAT_HEIGHT: u64 = 4064;
+
 /// A single horizontal layer in a [`Generator::Flat`] world, from the
 /// bottom of the column upward.
 ///
@@ -61,6 +65,9 @@ impl FlatLayer {
 }
 
 /// Superflat ("flat") world generator settings.
+///
+/// Total layer height is limited to Minecraft's absolute codec bound of 4064
+/// blocks. The referenced dimension type determines the usable world height.
 ///
 /// 🌍 World (datapack) — lowers to a `minecraft:flat` chunk generator.
 #[derive(Debug, Clone)]
@@ -455,11 +462,11 @@ impl Generator {
                     }
                 }
                 let total: u64 = flat.layers.iter().map(|l| u64::from(l.height)).sum();
-                if total > 384 {
+                if total > MAX_FLAT_HEIGHT {
                     return Err(fail(
                         "generator.settings.layers",
                         &format!(
-                            "FlatGenerator layers total {total} blocks tall, exceeding the maximum build height of 384"
+                            "FlatGenerator layers total {total} blocks tall, exceeding the absolute flat-generator height limit of {MAX_FLAT_HEIGHT}"
                         ),
                     ));
                 }

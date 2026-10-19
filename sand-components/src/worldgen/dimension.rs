@@ -290,7 +290,7 @@ mod tests {
             (vec![], "generator.settings.layers"),
             (vec![0], "generator.settings.layers[0].height"),
             (vec![u32::MAX, 2], "generator.settings.layers"),
-            (vec![385], "generator.settings.layers"),
+            (vec![4065], "generator.settings.layers"),
         ] {
             let dim = dimension(Generator::Flat(FlatGenerator::new(
                 heights
@@ -303,7 +303,7 @@ mod tests {
         }
         dimension(Generator::Flat(FlatGenerator::new(vec![FlatLayer::new(
             BlockId::minecraft("stone").unwrap(),
-            384,
+            4064,
         )])))
         .validate()
         .unwrap();

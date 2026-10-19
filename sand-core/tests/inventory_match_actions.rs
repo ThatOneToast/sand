@@ -49,7 +49,7 @@ fn slot_match_is_evaluated_once_before_the_entire_mutating_branch() {
             r["content"]
                 .as_str()
                 .unwrap()
-                .contains("item replace entity @s weapon.offhand with air")
+                .contains("item replace entity @s weapon.mainhand with minecraft:diamond 1")
         })
         .unwrap();
     assert_eq!(
@@ -84,6 +84,52 @@ fn slot_match_is_evaluated_once_before_the_entire_mutating_branch() {
             .iter()
             .any(|r| r["dir"] == "tags/function" && r["path"] == "tick")
     );
+}
+
+// Deliberately do not re-anchor to the player: a slot branch must preserve
+// an independently supplied execution position and dimension.
+fn nested_body() -> Actions {
+    static NESTED: OnceLock<Actions> = OnceLock::new();
+    NESTED
+        .get_or_init(|| {
+            let inventory = ItemLocation::entity(Target::current_player());
+            let world = WorldContext::current();
+            inventory
+                .offhand()
+                .when_matches(vanilla::Item::Paper, || {
+                    mcfunction![
+                        inventory.offhand().clear().unwrap();
+                        inventory.mainhand().when_matches(vanilla::Item::Emerald, || {
+                            mcfunction![
+                                inventory.mainhand().clear().unwrap();
+                                world.block(BlockPos::here()).replace(vanilla::Block::GoldBlock);
+                            ]
+                        }).unwrap();
+                        inventory.offhand().set(vanilla::Item::Stick).unwrap();
+                    ]
+                })
+                .unwrap()
+        })
+        .clone()
+}
+
+sand_core::inventory::submit! {
+    sand_core::FunctionDescriptor {
+        owner: module_path!(),
+        context: sand::advanced::compiler::ExecutionContext::Player,
+        path: "nested_match", make: nested_body,
+    }
+}
+
+#[test]
+#[ignore = "external live-server fixture export"]
+fn dump_inventory_match_pack() {
+    let output = std::env::var("SAND_INVENTORY_MATCH_DUMP_PATH").expect("dump path");
+    std::fs::write(
+        output,
+        sand_core::try_export_components_json("match_actions").unwrap(),
+    )
+    .unwrap();
 }
 
 #[test]

@@ -1,13 +1,10 @@
-//! Dimension builder for `data/<namespace>/dimension/<id>.json`.
-
+//! Dimension resources sharing the same typed generators as build-time worlds.
+use super::generator::{FlatGenerator, Generator, NoiseGenerator};
+use crate::{
+    ResourceLocation, component::DatapackComponent, error::Result as SandResult,
+    registry::DimensionTypeId, validation,
+};
 use serde_json::Value;
-
-use crate::component::DatapackComponent;
-use crate::error::Result as SandResult;
-use crate::raw::RawJson;
-use crate::registry::DimensionTypeId;
-use crate::resource_location::ResourceLocation;
-use crate::validation;
 
 const KIND: &str = "dimension";
 
@@ -26,216 +23,172 @@ impl DimensionTypeReference {
     }
 }
 
+/// A dimension resource with a typed chunk generator.
+///
+/// The generator models are shared with `sand::build`: flat, void, noise, and
+/// debug worlds use the same lowering and structural validation in either path.
+/// Use [`Generator::Raw`] only for unsupported generator schemas. Registry IDs
+/// validate identifier syntax, not the existence of resources supplied by other packs.
 #[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::component::Dimension",
-    aliases = ["sand::prelude::Dimension"],
-    module = "sand::component",
-    summary = "A dimension definition (`data/<namespace>/dimension/<id>.json`).",
-    context = "A dimension definition (`data/<namespace>/dimension/<id>.json`). Dimensions reference a dimension type and a chunk generator. The chunk generator config is complex, so it is accepted through the explicit [`RawJson`] escape hatch. Use [`Dimension::generator_raw`] to replace it.",
-    minecraft = "Dimensions reference a dimension type and a chunk generator. The chunk generator config is complex, so it is accepted through the explicit [`RawJson`] escape hatch. Use [`Dimension::generator_raw`] to replace it.",
-    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    registry = sand_api_contract, path = "sand::component::Dimension",
+    aliases = ["sand::prelude::Dimension"], module = "sand::component",
+    summary = "A dimension resource using the shared typed chunk-generator model.",
+    context = "References a DimensionTypeId and the same Generator used by build-time world configuration.",
+    minecraft = "Writes data/<namespace>/dimension/<path>.json after validating the generator's supported invariants.",
+    use_when = ["Registering a custom datapack dimension"],
+    avoid_when = ["Configuring host server properties"],
     example = "use sand::component::Dimension;",
 )]
-/// A dimension definition (`data/<namespace>/dimension/<id>.json`).
-///
-/// Dimensions reference a dimension type and a chunk generator. The chunk
-/// generator config is complex, so it is accepted through the explicit
-/// [`RawJson`] escape hatch. Use [`Dimension::generator_raw`] to replace it.
 pub struct Dimension {
     location: ResourceLocation,
-    /// The dimension type ID (e.g. `"minecraft:overworld"`, `"minecraft:the_nether"`).
     dimension_type: DimensionTypeReference,
-    /// The chunk generator configuration as raw JSON.
-    generator: Value,
+    generator: Generator,
 }
 
 impl Dimension {
-    /// Creates a new dimension referencing the given type and raw generator JSON.
+    /// Creates a dimension with a typed dimension-type reference and chunk generator.
+    ///
+    /// Use Generator::Raw for unsupported schemas; normal flat and noise worlds need no JSON.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::new",
-        aliases = ["sand::prelude::Dimension::new"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Creates a new dimension referencing the given type and raw generator JSON.",
-        context = "Creates a new dimension referencing the given type and raw generator JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a new dimension referencing the given type and raw generator JSON.", dimension_type = "`dimension_type` provides the typed Minecraft resource identifier used to create a new dimension referencing the given type and raw generator JSON.", generator = "`generator` is used when creating a new dimension referencing the given type and raw generator JSON."),
-        returns = "A `Dimension` representing a new dimension referencing the given type and raw generator JSON.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: sand::registry::DimensionTypeId, generator: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::new(location, dimension_type, generator);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::new",
+        aliases = ["sand::prelude::Dimension::new"], module = "sand::component",
+        summary = "Creates a dimension with a typed dimension-type reference and chunk generator.", context = "Use Generator::Raw for unsupported schemas; normal flat and noise worlds need no JSON.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(location = "The output resource identity.", dimension_type = "The dimension-type resource.", generator = "The shared typed chunk generator."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(id: sand::ResourceLocation, ty: sand::registry::DimensionTypeId) { let _ = sand::component::Dimension::new(id, ty, sand::component::Generator::Void); }",
     )]
     pub fn new(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
-        generator: RawJson,
+        generator: Generator,
     ) -> Self {
         Self {
             location,
             dimension_type: DimensionTypeReference::Typed(dimension_type),
-            generator: generator.into_value(),
+            generator,
         }
     }
 
-    /// Creates a dimension with an explicitly raw dimension-type reference.
+    /// Creates a dimension with an explicit raw dimension-type reference.
     ///
-    /// Prefer [`Dimension::new`] with [`DimensionTypeId`]. This escape hatch
-    /// exists for version-specific or otherwise unsupported reference syntax.
+    /// The reference is syntax-validated on export. Prefer new with DimensionTypeId for ordinary authoring.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::new_raw_dimension_type",
-        aliases = ["sand::prelude::Dimension::new_raw_dimension_type"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Creates a dimension with an explicitly raw dimension-type reference.",
-        context = "Creates a dimension with an explicitly raw dimension-type reference. Prefer [`Dimension::new`] with [`DimensionTypeId`]. This escape hatch exists for version-specific or otherwise unsupported reference syntax.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Prefer [`Dimension::new`] with [`DimensionTypeId`]. This escape hatch exists for version-specific or otherwise unsupported reference syntax."],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a dimension with an explicitly raw dimension-type reference.", dimension_type = "`dimension_type` is used when creating a dimension with an explicitly raw dimension-type reference.", generator = "`generator` is used when creating a dimension with an explicitly raw dimension-type reference."),
-        returns = "A `Dimension` representing a dimension with an explicitly raw dimension-type reference.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: impl Into < String >, generator: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::new_raw_dimension_type(location, dimension_type, generator);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::new_raw_dimension_type",
+        aliases = ["sand::prelude::Dimension::new_raw_dimension_type"], module = "sand::component",
+        summary = "Creates a dimension with an explicit raw dimension-type reference.", context = "The reference is syntax-validated on export. Prefer new with DimensionTypeId for ordinary authoring.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(location = "The output resource identity.", dimension_type = "The explicit raw dimension-type reference.", generator = "The shared typed chunk generator."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(id: sand::ResourceLocation, ty: String, generator: sand::component::Generator) { let _ = sand::component::Dimension::new_raw_dimension_type(id, ty, generator); }",
     )]
     pub fn new_raw_dimension_type(
         location: ResourceLocation,
         dimension_type: impl Into<String>,
-        generator: RawJson,
+        generator: Generator,
     ) -> Self {
         Self {
             location,
             dimension_type: DimensionTypeReference::Raw(dimension_type.into()),
-            generator: generator.into_value(),
+            generator,
         }
     }
 
-    /// Convenience: create with a noise-based generator pointing to a noise_settings ID.
+    /// Creates a dimension using typed noise terrain and biome placement.
     ///
-    /// `biome_source` should wrap a raw JSON biome source object, e.g.:
-    /// ```json
-    /// { "type": "minecraft:fixed", "biome": "minecraft:plains" }
-    /// ```
+    /// NoiseGenerator selects vanilla or custom settings and supports fixed, checkerboard, automatic vanilla, or raw biome sources.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::noise_generator",
-        aliases = ["sand::prelude::Dimension::noise_generator"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Convenience: create with a noise-based generator pointing to a noise_settings ID.",
-        context = "Convenience: create with a noise-based generator pointing to a noise_settings ID. `biome_source` should wrap a raw JSON biome source object, e.g.:",
-        minecraft = "`biome_source` should wrap a raw JSON biome source object, e.g.:",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` names the generated dimension resource.", dimension_type = "`dimension_type` selects the dimension-type resource.", noise_settings = "`noise_settings` selects the noise settings used by the generator.", biome_source = "`biome_source` should wrap a raw JSON biome source object, e.g.:"),
-        returns = "A `Dimension` describing a noise-based generator pointing to a noise_settings ID.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: sand::registry::DimensionTypeId, noise_settings: impl Into < String >, biome_source: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::noise_generator(location, dimension_type, noise_settings, biome_source);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::noise_generator",
+        aliases = ["sand::prelude::Dimension::noise_generator"], module = "sand::component",
+        summary = "Creates a dimension using typed noise terrain and biome placement.", context = "NoiseGenerator selects vanilla or custom settings and supports fixed, checkerboard, automatic vanilla, or raw biome sources.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(location = "The output resource identity.", dimension_type = "The dimension-type resource.", generator = "Noise terrain settings and biome placement."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(id: sand::ResourceLocation, ty: sand::registry::DimensionTypeId, generator: sand::component::NoiseGenerator) { let _ = sand::component::Dimension::noise_generator(id, ty, generator); }",
     )]
     pub fn noise_generator(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
-        noise_settings: impl Into<String>,
-        biome_source: RawJson,
+        generator: NoiseGenerator,
     ) -> Self {
-        let generator = serde_json::json!({
-            "type": "minecraft:noise",
-            "settings": noise_settings.into(),
-            "biome_source": biome_source.into_value(),
-        });
-        Self::new(location, dimension_type, RawJson::new(generator))
+        Self::new(location, dimension_type, Generator::Noise(generator))
     }
 
-    /// Convenience: create with a flat (superflat) generator.
+    /// Creates a dimension using typed superflat layers, biome, and structure settings.
     ///
-    /// `flat_settings` wraps the raw JSON settings for `minecraft:flat`.
+    /// Layers are ordered bottom to top and validated on export. Use Generator::Void for an intentionally empty world.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::flat_generator",
-        aliases = ["sand::prelude::Dimension::flat_generator"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Convenience: create with a flat (superflat) generator.",
-        context = "Convenience: create with a flat (superflat) generator. `flat_settings` wraps the raw JSON settings for `minecraft:flat`.",
-        minecraft = "`flat_settings` wraps the raw JSON settings for `minecraft:flat`.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to convenience create with a flat (superflat) generator.", dimension_type = "`dimension_type` provides the typed Minecraft resource identifier used to convenience create with a flat (superflat) generator.", flat_settings = "`flat_settings` wraps the raw JSON settings for `minecraft:flat`."),
-        returns = "A `Dimension` describing a flat (superflat) generator.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: sand::registry::DimensionTypeId, flat_settings: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::flat_generator(location, dimension_type, flat_settings);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::flat_generator",
+        aliases = ["sand::prelude::Dimension::flat_generator"], module = "sand::component",
+        summary = "Creates a dimension using typed superflat layers, biome, and structure settings.", context = "Layers are ordered bottom to top and validated on export. Use Generator::Void for an intentionally empty world.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(location = "The output resource identity.", dimension_type = "The dimension-type resource.", generator = "The superflat layer stack and options."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(id: sand::ResourceLocation, ty: sand::registry::DimensionTypeId, generator: sand::component::FlatGenerator) { let _ = sand::component::Dimension::flat_generator(id, ty, generator); }",
     )]
     pub fn flat_generator(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
-        flat_settings: RawJson,
+        generator: FlatGenerator,
     ) -> Self {
-        let generator = serde_json::json!({
-            "type": "minecraft:flat",
-            "settings": flat_settings.into_value(),
-        });
-        Self::new(location, dimension_type, RawJson::new(generator))
+        Self::new(location, dimension_type, Generator::Flat(generator))
     }
 
-    /// Updates the dimension type.
+    /// Replaces the dimension-type reference.
+    ///
+    /// The generator remains unchanged; the referenced type determines dimension properties such as lighting and height.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::dimension_type",
-        aliases = ["sand::prelude::Dimension::dimension_type"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Updates the dimension type.",
-        context = "Updates the dimension type. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(dt = "`dt` provides the typed Minecraft resource identifier used to update the dimension type."),
-        returns = "The `Dimension` value with the documented change applied to update the dimension type.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_value: sand::component::Dimension, dt: sand::registry::DimensionTypeId)  {\n    let updated_dimension = dimension_value.dimension_type(dt);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::dimension_type",
+        aliases = ["sand::prelude::Dimension::dimension_type"], module = "sand::component",
+        summary = "Replaces the dimension-type reference.", context = "The generator remains unchanged; the referenced type determines dimension properties such as lighting and height.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(dt = "The replacement dimension-type resource."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(dim: sand::component::Dimension, ty: sand::registry::DimensionTypeId) { let _ = dim.dimension_type(ty); }",
     )]
     pub fn dimension_type(mut self, dt: DimensionTypeId) -> Self {
         self.dimension_type = DimensionTypeReference::Typed(dt);
         self
     }
 
-    /// Updates the dimension type through the explicit raw compatibility path.
+    /// Replaces the dimension type through an explicit raw reference.
+    ///
+    /// Export checks resource-location syntax. Prefer dimension_type with DimensionTypeId.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::raw_dimension_type",
-        aliases = ["sand::prelude::Dimension::raw_dimension_type"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Updates the dimension type through the explicit raw compatibility path.",
-        context = "Updates the dimension type through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(dt = "`dt` is used to update the dimension type through the explicit raw compatibility path."),
-        returns = "The `Dimension` value with the documented change applied to update the dimension type through the explicit raw compatibility path.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_value: sand::component::Dimension, dt: impl Into < String >)  {\n    let updated_dimension = dimension_value.raw_dimension_type(dt);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::raw_dimension_type",
+        aliases = ["sand::prelude::Dimension::raw_dimension_type"], module = "sand::component",
+        summary = "Replaces the dimension type through an explicit raw reference.", context = "Export checks resource-location syntax. Prefer dimension_type with DimensionTypeId.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(dt = "The raw dimension-type reference."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(dim: sand::component::Dimension, ty: String) { let _ = dim.raw_dimension_type(ty); }",
     )]
     pub fn raw_dimension_type(mut self, dt: impl Into<String>) -> Self {
         self.dimension_type = DimensionTypeReference::Raw(dt.into());
         self
     }
 
-    /// Replaces the generator with a raw JSON value.
+    /// Replaces this dimension's chunk generator.
+    ///
+    /// Both typed and explicit Generator::Raw values replace the previous configuration completely.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Dimension::generator_raw",
-        aliases = ["sand::prelude::Dimension::generator_raw"],
-        module = "sand::component",
-        kind = "method",
-        summary = "Replaces the generator with a raw JSON value.",
-        context = "Replaces the generator with a raw JSON value. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(generator = "`generator` provides the replacement generator when the generator with a raw JSON value."),
-        returns = "The `Dimension` value with the documented change applied to replace the generator with a raw JSON value.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_value: sand::component::Dimension, generator: sand::component::RawJson)  {\n    let updated_dimension = dimension_value.generator_raw(generator);\n}",
+        registry = sand_api_contract, path = "sand::component::Dimension::generator",
+        aliases = ["sand::prelude::Dimension::generator"], module = "sand::component",
+        summary = "Replaces this dimension's chunk generator.", context = "Both typed and explicit Generator::Raw values replace the previous configuration completely.",
+        minecraft = "Writes the dimension type and generator object; export validates supported generator shapes.",
+        use_when = ["Configuring a datapack dimension with shared world-generation models"],
+        avoid_when = ["Changing server-only properties"],
+        params(generator = "The replacement shared generator."), returns = "The dimension with the requested configuration.",
+        example = "fn demo(dim: sand::component::Dimension) { let _ = dim.generator(sand::component::Generator::Void); }",
     )]
-    pub fn generator_raw(mut self, generator: RawJson) -> Self {
-        self.generator = generator.into_value();
+    pub fn generator(mut self, generator: Generator) -> Self {
+        self.generator = generator;
         self
     }
 }
@@ -244,63 +197,15 @@ impl DatapackComponent for Dimension {
     fn resource_location(&self) -> &ResourceLocation {
         &self.location
     }
-
     fn to_json(&self) -> Value {
-        serde_json::json!({
-            "type": self.dimension_type.as_string(),
-            "generator": self.generator,
-        })
+        serde_json::json!({"type": self.dimension_type.as_string(), "generator": self.generator.to_json()})
     }
-
     fn validate(&self) -> SandResult<()> {
         if let DimensionTypeReference::Raw(dt) = &self.dimension_type {
             validation::validate_resource_location_str(&self.location, KIND, "type", dt)?;
         }
-
-        validation::require_json_object(&self.location, KIND, "generator", &self.generator)?;
-        let generator_type = self.generator.get("type").and_then(Value::as_str);
-        match generator_type {
-            Some(ty) if !ty.trim().is_empty() => {
-                validation::validate_resource_location_str(
-                    &self.location,
-                    KIND,
-                    "generator.type",
-                    ty,
-                )?;
-            }
-            _ => {
-                return Err(validation::error(
-                    &self.location,
-                    KIND,
-                    "generator.type",
-                    "generator must be a JSON object with a non-empty string `type` field",
-                ));
-            }
-        }
-
-        if generator_type == Some("minecraft:noise")
-            && let Some(settings) = self.generator.get("settings")
-        {
-            if let Some(settings_str) = settings.as_str() {
-                validation::validate_resource_location_str(
-                    &self.location,
-                    KIND,
-                    "generator.settings",
-                    settings_str,
-                )?;
-            } else {
-                return Err(validation::error(
-                    &self.location,
-                    KIND,
-                    "generator.settings",
-                    "generator.settings must be a resource location string for a noise generator",
-                ));
-            }
-        }
-
-        Ok(())
+        self.generator.validate(&self.location)
     }
-
     fn component_dir(&self) -> &'static str {
         "dimension"
     }
@@ -309,126 +214,149 @@ impl DatapackComponent for Dimension {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::worldgen::generator::{BiomeSource, FlatLayer, VanillaNoiseSettings};
+    use crate::{BiomeId, BlockId, NoiseSettingsId, RawJson};
+    use serde_json::json;
 
-    fn location() -> ResourceLocation {
-        ResourceLocation::new("test", "skylands").unwrap()
-    }
-
-    #[test]
-    fn constructors_accept_typed_dimension_type_ids() {
-        let id = DimensionTypeId::minecraft("overworld").unwrap();
-        let dimension = Dimension::new(
-            location(),
-            id,
-            RawJson::new(serde_json::json!({"type": "test"})),
-        );
-        assert_eq!(dimension.to_json()["type"], "minecraft:overworld");
-
-        let noise = Dimension::noise_generator(
-            location(),
+    fn dimension(generator: Generator) -> Dimension {
+        Dimension::new(
+            ResourceLocation::new("test", "world").unwrap(),
             DimensionTypeId::minecraft("overworld").unwrap(),
-            "minecraft:overworld",
-            RawJson::new(
-                serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
-            ),
-        );
-        assert_eq!(noise.to_json()["type"], "minecraft:overworld");
-    }
-
-    #[test]
-    fn raw_dimension_type_reference_is_explicit_and_preserved() {
-        let dimension = Dimension::new_raw_dimension_type(
-            location(),
-            "modded reference",
-            RawJson::new(serde_json::json!({"type": "test"})),
+            generator,
         )
-        .raw_dimension_type("modded:custom");
-        assert_eq!(dimension.to_json()["type"], "modded:custom");
     }
 
     #[test]
-    fn valid_dimension_passes_validation() {
-        let dimension = Dimension::new(
-            location(),
-            DimensionTypeId::minecraft("overworld").unwrap(),
-            RawJson::new(
-                serde_json::json!({"type": "minecraft:noise", "settings": "minecraft:overworld"}),
-            ),
-        );
-        assert!(dimension.validate().is_ok());
-    }
-
-    #[test]
-    fn malformed_raw_dimension_type_rejected() {
-        let dimension = Dimension::new_raw_dimension_type(
-            location(),
-            "modded reference",
-            RawJson::new(serde_json::json!({"type": "test"})),
-        );
-        let err = dimension.validate().unwrap_err().to_string();
-        assert!(err.contains("type"), "{err}");
-    }
-
-    #[test]
-    fn empty_raw_dimension_type_rejected() {
-        let dimension = Dimension::new_raw_dimension_type(
-            location(),
-            "",
-            RawJson::new(serde_json::json!({"type": "test"})),
-        );
-        assert!(dimension.validate().is_err());
-    }
-
-    #[test]
-    fn generator_raw_non_object_rejected() {
-        let dimension = Dimension::new(
-            location(),
-            DimensionTypeId::minecraft("overworld").unwrap(),
-            RawJson::new(serde_json::json!({"type": "test"})),
-        )
-        .generator_raw(RawJson::new(serde_json::json!(["not", "an", "object"])));
-        let err = dimension.validate().unwrap_err().to_string();
-        assert!(err.contains("generator"), "{err}");
-    }
-
-    #[test]
-    fn generator_raw_missing_type_rejected() {
-        let dimension = Dimension::new(
-            location(),
-            DimensionTypeId::minecraft("overworld").unwrap(),
-            RawJson::new(serde_json::json!({"type": "test"})),
-        )
-        .generator_raw(RawJson::new(
-            serde_json::json!({"settings": "minecraft:overworld"}),
+    fn typed_noise_references_and_checkerboard_order_are_preserved() {
+        let dim = dimension(Generator::Noise(
+            NoiseGenerator::custom_settings(NoiseSettingsId::custom(
+                ResourceLocation::new("test", "terrain").unwrap(),
+            ))
+            .biome_source(BiomeSource::Checkerboard {
+                biomes: vec![
+                    BiomeId::minecraft("desert").unwrap(),
+                    BiomeId::minecraft("plains").unwrap(),
+                ],
+                scale: 2,
+            }),
         ));
-        let err = dimension.validate().unwrap_err().to_string();
-        assert!(err.contains("generator.type"), "{err}");
+        dim.validate().unwrap();
+        assert_eq!(
+            dim.to_json(),
+            json!({
+                "type": "minecraft:overworld", "generator": {
+                    "type": "minecraft:noise", "settings": "test:terrain",
+                    "biome_source": {"type": "minecraft:checkerboard", "biomes": ["minecraft:desert", "minecraft:plains"], "scale": 2},
+                }
+            })
+        );
     }
 
     #[test]
-    fn noise_generator_malformed_settings_id_rejected() {
-        let dimension = Dimension::noise_generator(
-            location(),
-            DimensionTypeId::minecraft("overworld").unwrap(),
-            "Not A Valid Id",
-            RawJson::new(
-                serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
-            ),
-        );
-        let err = dimension.validate().unwrap_err().to_string();
-        assert!(err.contains("generator.settings"), "{err}");
+    fn checkerboard_empty_list_and_codec_bounds_fail_with_field_context() {
+        for (biomes, scale, field) in [
+            (vec![], 2, "biomes"),
+            (vec![BiomeId::minecraft("plains").unwrap()], -1, "scale"),
+            (vec![BiomeId::minecraft("plains").unwrap()], 63, "scale"),
+        ] {
+            let dim = dimension(Generator::Noise(
+                NoiseGenerator::vanilla(VanillaNoiseSettings::Overworld)
+                    .biome_source(BiomeSource::Checkerboard { biomes, scale }),
+            ));
+            let error = dim.validate().unwrap_err().to_string();
+            assert!(error.contains("test:world"), "{error}");
+            assert!(
+                error.contains(&format!("generator.biome_source.{field}")),
+                "{error}"
+            );
+        }
+        for scale in [0, 62] {
+            dimension(Generator::Noise(
+                NoiseGenerator::vanilla(VanillaNoiseSettings::Overworld).biome_source(
+                    BiomeSource::Checkerboard {
+                        biomes: vec![BiomeId::minecraft("plains").unwrap()],
+                        scale,
+                    },
+                ),
+            ))
+            .validate()
+            .unwrap();
+        }
     }
 
     #[test]
-    fn flat_generator_escape_hatch_still_works() {
-        let dimension = Dimension::flat_generator(
-            location(),
-            DimensionTypeId::minecraft("overworld").unwrap(),
-            RawJson::new(
-                serde_json::json!({"layers": [{"block": "minecraft:bedrock", "height": 1}]}),
-            ),
+    fn component_flat_generators_share_structural_validation_with_build_worlds() {
+        for (heights, field) in [
+            (vec![], "generator.settings.layers"),
+            (vec![0], "generator.settings.layers[0].height"),
+            (vec![u32::MAX, 2], "generator.settings.layers"),
+            (vec![385], "generator.settings.layers"),
+        ] {
+            let dim = dimension(Generator::Flat(FlatGenerator::new(
+                heights
+                    .into_iter()
+                    .map(|height| FlatLayer::new(BlockId::minecraft("stone").unwrap(), height))
+                    .collect(),
+            )));
+            let error = dim.validate().unwrap_err().to_string();
+            assert!(error.contains(field), "{error}");
+        }
+        dimension(Generator::Flat(FlatGenerator::new(vec![FlatLayer::new(
+            BlockId::minecraft("stone").unwrap(),
+            384,
+        )])))
+        .validate()
+        .unwrap();
+        dimension(Generator::Void).validate().unwrap();
+    }
+
+    #[test]
+    fn raw_generator_requires_an_object_and_valid_type_but_preserves_inline_settings() {
+        for payload in [
+            json!("test:generator"),
+            json!([]),
+            json!({}),
+            json!({"type": "Invalid Type"}),
+        ] {
+            assert!(
+                dimension(Generator::Raw(RawJson::new(payload)))
+                    .validate()
+                    .is_err()
+            );
+        }
+        let raw = json!({"type": "minecraft:noise", "settings": {"custom": "inline"}, "biome_source": {"type": "test:custom"}});
+        let dim = dimension(Generator::Raw(RawJson::new(raw.clone())));
+        dim.validate().unwrap();
+        assert_eq!(dim.to_json()["generator"], raw);
+    }
+
+    #[test]
+    fn raw_biome_source_has_the_same_explicit_structural_boundary() {
+        for payload in [json!(null), json!({}), json!({"type": "Invalid"})] {
+            let dim = dimension(Generator::Noise(
+                NoiseGenerator::vanilla(VanillaNoiseSettings::Nether)
+                    .biome_source(BiomeSource::Raw(RawJson::new(payload))),
+            ));
+            let error = dim.validate().unwrap_err().to_string();
+            assert!(error.contains("generator.biome_source"), "{error}");
+        }
+    }
+
+    #[test]
+    fn generator_replacement_and_raw_dimension_references_are_explicit() {
+        let dim = Dimension::new_raw_dimension_type(
+            ResourceLocation::new("test", "world").unwrap(),
+            "Invalid Type",
+            Generator::Void,
         );
-        assert!(dimension.validate().is_ok());
-        assert_eq!(dimension.to_json()["generator"]["type"], "minecraft:flat");
+        assert!(dim.validate().is_err());
+        let dim = dim
+            .raw_dimension_type("test:dimension_type")
+            .generator(Generator::Debug);
+        dim.validate().unwrap();
+        assert_eq!(
+            dim.to_json(),
+            json!({"type": "test:dimension_type", "generator": {"type": "minecraft:debug"}})
+        );
     }
 }

@@ -441,6 +441,35 @@ impl ItemLocation {
         Ok(Condition::item_matches(self.clone(), item.into()))
     }
 
+    /// Run a grouped gameplay action when this live slot matches a typed item.
+    ///
+    /// The match is evaluated once at runtime. All returned actions run if it
+    /// succeeds, even if the first action changes or clears the matched slot.
+    /// The closure runs once while building the datapack, not in Minecraft; it
+    /// must return the actions to generate. The executor and position are
+    /// preserved. Unsupported NBT-only locations fail before invoking the closure.
+    ///
+    /// Use [`Self::matches`] when composing a match with other conditions.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::inventory::ItemLocation::when_matches",
+        summary = "Build a grouped gameplay branch gated by a live slot match.",
+        context = "Uses the canonical ItemPredicate, Condition, and owned Actions model. The authored closure returns the branch body and runs only during datapack construction.",
+        minecraft = "Tests the item match once, then executes the entire body with the caller's executor and position, including when the body mutates the matched slot.",
+        use_when = ["Consuming or reacting to a matching equipped item without manual command guards"],
+        avoid_when = ["Combining several conditions; use matches and when"],
+        params(item = "A typed item identity or canonical ItemPredicate, including CustomItem::item_predicate().", body = "Build-time closure returning the actions for a successful match."),
+        returns = "Owned guarded actions or an unsupported-location diagnostic.",
+        example = "let item: sand::registry::ItemId = \"minecraft:diamond\".parse()?; let actions = inventory.offhand().when_matches(item, || inventory.offhand().clear().unwrap())?;",
+    )]
+    pub fn when_matches(
+        &self,
+        item: impl Into<sand_components::ItemPredicate>,
+        body: impl FnOnce() -> crate::ir::Actions,
+    ) -> Result<crate::ir::Actions, ItemLocationError> {
+        let condition = self.matches(item)?;
+        Ok(crate::execute_when::when(condition).then(body()))
+    }
+
     /// Explicit native item-predicate syntax for unsupported command features.
     /// Prefer [`Self::matches`] for typed IDs, custom items, and component filters.
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::matches_raw", summary = "Matches a live slot with explicit native item-predicate syntax.", context = "This escape hatch retains unsupported Minecraft syntax without presenting a command fragment as a typed identity.", minecraft = "Emits the supplied item argument in an execute-if-items condition.", use_when = ["A native item query is not represented by ItemPredicate"], avoid_when = ["Typed item IDs or predicate builders cover the query"], params(item = "The explicit native item argument."), returns = "A raw match condition or an unsupported-location error.", example = "let empty = !ItemLocation::PlayerOffHand.matches_raw(\"*\")?;")]

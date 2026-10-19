@@ -15,6 +15,7 @@ use super::dimension::DimensionSlot;
 use super::generator::{BiomeSource, Generator};
 use super::registry::{CODEGEN_MINECRAFT_VERSION, is_known_vanilla_biome};
 use super::sand_build::SandBuild;
+use sand_components::DatapackComponent;
 use sand_macros::api;
 
 /// Substring shared by every biome-registry diagnostic
@@ -116,69 +117,61 @@ pub(crate) fn validate(build: &SandBuild) -> Result<(), Vec<BuildDiagnostic>> {
                 });
             }
 
+            if let Err(error) = dim.as_component().validate() {
+                match error {
+                    sand_components::SandError::ComponentValidation { field, message, .. } => {
+                        diagnostics.push(BuildDiagnostic {
+                            location: format!("Dimension[{key}].{field}"),
+                            message,
+                        });
+                    }
+                    error => diagnostics.push(BuildDiagnostic {
+                        location: format!("Dimension[{key}].generator"),
+                        message: error.to_string(),
+                    }),
+                }
+            }
             match &dim.generator {
                 Generator::Flat(flat) => {
-                    if flat.layers.is_empty() {
-                        diagnostics.push(BuildDiagnostic {
-                            location: format!("Dimension[{key}].generator"),
-                            message:
-                                "FlatGenerator has no layers — a flat world needs at least one"
-                                    .to_string(),
-                        });
-                    }
-                    for layer in &flat.layers {
-                        if layer.height == 0 {
-                            diagnostics.push(BuildDiagnostic {
-                                location: format!("Dimension[{key}].generator"),
-                                message: format!(
-                                    "FlatLayer for block '{}' has height 0",
-                                    layer.block
-                                ),
-                            });
-                        }
-                    }
-                    let total: u32 = flat.layers.iter().map(|l| l.height).sum();
-                    if total > 384 {
-                        diagnostics.push(BuildDiagnostic {
-                            location: format!("Dimension[{key}].generator"),
-                            message: format!(
-                                "FlatGenerator layers total {total} blocks tall, \
-                                 exceeding the maximum build height of 384"
-                            ),
-                        });
-                    }
                     // Registry check (issue #317 §3.4, made version-aware by
                     // #356): a `minecraft:`-namespaced biome must be a real
                     // vanilla biome ID, generated from real data-generator
                     // output for the version sand-core was compiled against.
                     // Modded/datapack namespaces are accepted unconditionally
                     // — see `registry.rs`'s module docs.
-                    if flat.biome.namespace() == "minecraft"
-                        && !is_known_vanilla_biome(flat.biome.path())
+                    if flat.biome_id.as_resource_location().namespace() == "minecraft"
+                        && !is_known_vanilla_biome(flat.biome_id.as_resource_location().path())
                     {
                         diagnostics.push(BuildDiagnostic {
                             location: format!("Dimension[{key}].generator"),
                             message: format!(
                                 "FlatGenerator::biome '{}' {BIOME_DIAGNOSTIC_MARKER}",
-                                flat.biome
+                                flat.biome_id
                             ),
                         });
                     }
                 }
                 Generator::Noise(noise) => {
-                    if let BiomeSource::Fixed(biome) = &noise.biome_source
-                        && biome.namespace() == "minecraft"
-                        && !is_known_vanilla_biome(biome.path())
-                    {
-                        diagnostics.push(BuildDiagnostic {
-                            location: format!("Dimension[{key}].generator"),
-                            message: format!(
-                                "NoiseGenerator::single_biome '{biome}' {BIOME_DIAGNOSTIC_MARKER}"
-                            ),
-                        });
+                    let biomes: &[sand_components::BiomeId] = match &noise.source {
+                        BiomeSource::Fixed(biome) => std::slice::from_ref(biome),
+                        BiomeSource::Checkerboard { biomes, .. } => biomes,
+                        BiomeSource::Vanilla | BiomeSource::Raw(_) => &[],
+                    };
+                    for biome in biomes {
+                        let location = biome.as_resource_location();
+                        if location.namespace() == "minecraft"
+                            && !is_known_vanilla_biome(location.path())
+                        {
+                            diagnostics.push(BuildDiagnostic {
+                                location: format!("Dimension[{key}].generator.biome_source"),
+                                message: format!(
+                                    "NoiseGenerator biome '{biome}' {BIOME_DIAGNOSTIC_MARKER}"
+                                ),
+                            });
+                        }
                     }
                 }
-                Generator::Void | Generator::CustomReference(_) => {}
+                Generator::Void | Generator::Debug | Generator::Raw(_) => {}
             }
 
             if matches!(dim.slot, DimensionSlot::Custom(_))

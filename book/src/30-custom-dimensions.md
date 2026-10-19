@@ -57,11 +57,12 @@ let generator = Generator::Noise(NoiseGenerator::custom_settings(
 
 ## Non-goal: advanced worldgen authoring
 
-Sand's typed API deliberately does not attempt to express recursive density
-functions, or otherwise replace general advanced Minecraft worldgen
-authoring. `Generator::CustomReference` and `NoiseSettingsRef::Custom` are
-the escape hatches — Sand validates the *reference* (a well-formed resource
-location) but not the referenced file's contents. For truly advanced
+Use Sand's typed worldgen resources wherever they cover the desired schema.
+Generator selection wires those resources together; it does not itself define
+density functions or surface rules. `Generator::Raw` accepts an inline generator object with a valid `type` field.
+Minecraft does not support a standalone generator-file reference.
+`NoiseSettingsRef::Custom` uses a typed `NoiseSettingsId` to reference
+noise settings; Sand validates the identifier, not the referenced file's contents. For truly advanced
 dimensions, author every worldgen resource by hand and reference the
 top-level pieces from the typed API where it helps (dimension slot/type
 selection, generator wiring) without fighting the API to express what it

@@ -70,21 +70,30 @@ let void = Generator::Void;
 // Noise — full vanilla or referenced custom settings
 let noise = Generator::Noise(NoiseGenerator::vanilla(VanillaNoiseSettings::Overworld));
 
-// A generator resource you authored by hand and are only referencing
-let custom = Generator::CustomReference(
-    ResourceLocation::new("my_pack", "hand_authored").unwrap(),
-);
+// Vanilla debug block-state showcase
+let debug = Generator::Debug;
+
+// Unsupported generator schemas use an explicit inline JSON object.
+let custom = Generator::Raw(sand::component::RawJson::new(serde_json::json!({
+    "type": "my_pack:custom_generator"
+})));
 ```
 
 `NoiseGenerator` also supports referencing a custom `noise_settings`
 resource you author directly (`NoiseGenerator::custom_settings`), and
 overriding biome placement to a single fixed biome
-(`NoiseGenerator::single_biome`) — vanilla's "single biome" preset. Sand
-does not attempt to express recursive density functions in the typed API;
-advanced worldgen definitions stay hand-authored resources you reference,
-matching the project's explicit non-goal of not replacing general advanced
+(`NoiseGenerator::single_biome`) — vanilla's "single biome" preset. Use the typed worldgen resource builders for supported schemas and explicit
+raw objects for unsupported edges in advanced
 Minecraft worldgen authoring.
 
 See [Custom Dimensions](./30-custom-dimensions.md) for the full custom-
 dimension workflow, and [Generated World Resources](./34-generated-world-resources.md)
 for exactly what JSON each generator variant produces.
+
+### Noise preset biome placement
+
+`NoiseGenerator::vanilla` selects biome placement to match its terrain preset:
+Nether uses `minecraft:multi_noise` with the Nether preset, End uses
+`minecraft:the_end`, and other presets use Overworld multi-noise placement.
+Custom noise settings also default to Overworld placement.
+`single_biome(...)` overrides any of these defaults with a fixed biome.

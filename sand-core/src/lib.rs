@@ -370,6 +370,7 @@ pub use sand_components::{
     Noise,
     NoiseId,
     NoiseSettings,
+    NoiseSettingsId,
     NumberProvider,
     OreConfig,
     OreTarget,
@@ -378,6 +379,7 @@ pub use sand_components::{
     PigVariant,
     PigVariantId,
     PlacedFeature,
+    PlacementModifier,
     // Structure/template pool
     PoolElement,
     PoolEntry,
@@ -412,6 +414,7 @@ pub use sand_components::{
     SpawnBoundingBox,
     // Animal variants (shared spawn-condition model)
     SpawnCondition,
+    SpawnCost,
     SpawnEntry,
     SpawnOverride,
     SpreadType,
@@ -759,3 +762,8 @@ impl From<generated::EntityType> for sand_components::registry::EntityTypeId {
 pub mod block_states {
     include!(concat!(env!("OUT_DIR"), "/block_states.rs"));
 }
+
+pub use sand_components::worldgen::generator::{
+    BiomeSource, FlatGenerator, FlatLayer, Generator, NoiseGenerator, NoiseSettingsRef,
+    VanillaNoiseSettings,
+};

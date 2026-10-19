@@ -733,3 +733,8 @@ mod tests {
         assert_eq!(value["hover_event"]["name"]["text"], "Undead");
     }
 }
+
+registry_id! {
+    /// Typed worldgen noise-settings identifier used by dimension generators.
+    NoiseSettingsId
+}

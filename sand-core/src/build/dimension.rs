@@ -5,9 +5,10 @@
 //! `data/<namespace>/dimension_type/<id>.json`). Both ship inside the
 //! exported datapack.
 
+use sand_components::DatapackComponent;
 use sand_components::resource_location::ResourceLocation;
 use sand_macros::api;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::generator::Generator;
 
@@ -186,11 +187,16 @@ impl Dimension {
         self.slot.resource_location()
     }
 
+    pub(crate) fn as_component(&self) -> sand_components::Dimension {
+        sand_components::Dimension::new(
+            self.resource_location(),
+            sand_components::DimensionTypeId::custom(self.dimension_type.resource_location()),
+            self.generator.clone(),
+        )
+    }
+
     pub(crate) fn to_json(&self) -> Value {
-        json!({
-            "type": self.dimension_type.resource_location().to_string(),
-            "generator": self.generator.to_json(),
-        })
+        self.as_component().to_json()
     }
 }
 

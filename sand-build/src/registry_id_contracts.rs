@@ -218,7 +218,7 @@ mod tests {
     fn predicate_registry_id_emits_four_meaningful_contracts() {
         let provider = repository_provider();
         assert_eq!(provider.provider, "generated_registry_id_contracts");
-        assert_eq!(provider.entries.len(), 154);
+        assert_eq!(provider.entries.len(), 158);
         let predicate = provider
             .entries
             .iter()

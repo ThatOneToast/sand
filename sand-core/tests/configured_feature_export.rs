@@ -14,9 +14,12 @@ fn ashen_shrub_placement() -> PlacedFeature {
         ResourceLocation::new("configured_feature_export", "ashen_shrub").unwrap(),
         ashen_shrub().id(),
     )
-    .placement_modifier(RawJson::new(
-        serde_json::json!({"type": "minecraft:count", "count": 3}),
-    ))
+    .placement([
+        PlacementModifier::Count(3),
+        PlacementModifier::InSquare,
+        PlacementModifier::Heightmap(Heightmap::WorldSurfaceWg),
+        PlacementModifier::Biome,
+    ])
 }
 
 inventory::submit! {
@@ -57,6 +60,15 @@ fn configured_feature_exports_under_worldgen_configured_feature_directory() {
         })
         .expect("placed feature record should be exported");
     let placed_json: serde_json::Value = serde_json::from_str(&placed_record.content).unwrap();
+    assert_eq!(
+        placed_json["placement"],
+        serde_json::json!([
+            {"type": "minecraft:count", "count": 3},
+            {"type": "minecraft:in_square"},
+            {"type": "minecraft:heightmap", "heightmap": "WORLD_SURFACE_WG"},
+            {"type": "minecraft:biome"}
+        ])
+    );
     assert_eq!(
         placed_json["feature"],
         "configured_feature_export:ashen_shrub"

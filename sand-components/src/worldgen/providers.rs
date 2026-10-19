@@ -547,16 +547,15 @@ fn require_ordered_anchors(
     min: &VerticalAnchor,
     max: &VerticalAnchor,
 ) -> SandResult<()> {
-    let comparable = matches!(
-        (min, max),
-        (VerticalAnchor::Absolute(_), VerticalAnchor::Absolute(_))
-            | (
-                VerticalAnchor::AboveBottom(_),
-                VerticalAnchor::AboveBottom(_)
-            )
-            | (VerticalAnchor::BelowTop(_), VerticalAnchor::BelowTop(_))
-    );
-    if comparable && min.value() > max.value() {
+    // BelowTop offsets increase downwards, so their numeric ordering is
+    // opposite to the resolved Y ordering. Mixed anchors need world bounds.
+    let inverted = match (min, max) {
+        (VerticalAnchor::Absolute(a), VerticalAnchor::Absolute(b))
+        | (VerticalAnchor::AboveBottom(a), VerticalAnchor::AboveBottom(b)) => a > b,
+        (VerticalAnchor::BelowTop(a), VerticalAnchor::BelowTop(b)) => a < b,
+        _ => false,
+    };
+    if inverted {
         return Err(validation::error(
             location,
             kind,
@@ -734,6 +733,29 @@ mod tests {
                 .validate(&location(), "kind", "start_height")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn below_top_ranges_compare_resolved_height_not_offset() {
+        for (min, max, valid) in [(16, 0, true), (0, 16, false), (8, 8, true)] {
+            for provider in [
+                HeightProvider::Uniform {
+                    min_inclusive: VerticalAnchor::BelowTop(min),
+                    max_inclusive: VerticalAnchor::BelowTop(max),
+                },
+                HeightProvider::Trapezoid {
+                    min_inclusive: VerticalAnchor::BelowTop(min),
+                    max_inclusive: VerticalAnchor::BelowTop(max),
+                    plateau: 0,
+                },
+            ] {
+                assert_eq!(
+                    provider.validate(&location(), "kind", "height").is_ok(),
+                    valid,
+                    "{provider:?}"
+                );
+            }
+        }
     }
 
     #[test]

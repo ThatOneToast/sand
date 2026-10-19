@@ -52,8 +52,8 @@ If your project currently hand-authors `data/<namespace>/dimension/*.json`
 1. Run `sand add worldbuild` (or `sand migrate` — identical scaffolding).
 2. Move any hand-authored dimension JSON into the typed builders where they
    fit ([Worlds, Dimensions, And Generators](./27-worlds-dimensions-and-generators.md)),
-   or reference them unchanged via `Generator::CustomReference`/
-   `DimensionType::Custom` if they're too advanced for the typed API (see
+   or retain their inline generator object with `Generator::Raw` and reference
+   the dimension type with `DimensionType::Custom` if they're too advanced for the typed API (see
    [Custom Dimensions](./30-custom-dimensions.md#non-goal-advanced-worldgen-authoring)).
 3. If your project's dev workflow has any manual `server.properties`
    editing you do by hand every time you set up a fresh test server, that's

@@ -298,14 +298,14 @@ impl SpawnBoundingBox {
     path = "sand::component::SpawnEntry",
     aliases = ["sand::prelude::SpawnEntry"],
     module = "sand::component",
-    summary = "One weighted mob-spawn entry inside a [`SpawnOverride`].",
-    context = "One weighted mob-spawn entry inside a [`SpawnOverride`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    summary = "One weighted mob-spawn entry for a biome or [`SpawnOverride`].",
+    context = "One weighted mob-spawn entry for a biome or [`SpawnOverride`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
     minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::SpawnEntry;",
 )]
-/// One weighted mob-spawn entry inside a [`SpawnOverride`].
+/// One weighted mob-spawn entry for a biome or [`SpawnOverride`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnEntry {
     entity_type: EntityTypeId,
@@ -316,7 +316,8 @@ pub struct SpawnEntry {
 
 impl SpawnEntry {
     /// Create a spawn entry. `weight` and `min_count` must be at least 1 and
-    /// `max_count` must be at least `min_count`; both are checked on export.
+    /// `max_count` must be at least `min_count`. All three numbers must fit a
+    /// Minecraft signed 32-bit integer; these constraints are checked on export.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::SpawnEntry::new",
@@ -341,7 +342,7 @@ impl SpawnEntry {
         }
     }
 
-    fn to_json(&self) -> Value {
+    pub(crate) fn to_json(&self) -> Value {
         serde_json::json!({
             "type": self.entity_type.to_string(),
             "weight": self.weight,
@@ -350,17 +351,36 @@ impl SpawnEntry {
         })
     }
 
-    fn validate(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
+    pub(crate) fn validate(
+        &self,
+        location: &ResourceLocation,
+        kind: &str,
+        field: &str,
+    ) -> SandResult<()> {
         validation::validate_resource_location_str(
             location,
-            KIND,
+            kind,
             &format!("{field}.type"),
             &self.entity_type.to_string(),
         )?;
+        for (name, value) in [
+            ("weight", self.weight),
+            ("minCount", self.min_count),
+            ("maxCount", self.max_count),
+        ] {
+            if value > i32::MAX as u32 {
+                return Err(validation::error(
+                    location,
+                    kind,
+                    &format!("{field}.{name}"),
+                    "must fit a Minecraft signed 32-bit integer",
+                ));
+            }
+        }
         if self.weight == 0 {
             return Err(validation::error(
                 location,
-                KIND,
+                kind,
                 &format!("{field}.weight"),
                 "spawn weight must be at least 1",
             ));
@@ -368,7 +388,7 @@ impl SpawnEntry {
         if self.min_count == 0 {
             return Err(validation::error(
                 location,
-                KIND,
+                kind,
                 &format!("{field}.minCount"),
                 "minCount must be at least 1",
             ));
@@ -376,7 +396,7 @@ impl SpawnEntry {
         if self.max_count < self.min_count {
             return Err(validation::error(
                 location,
-                KIND,
+                kind,
                 &format!("{field}.maxCount"),
                 &format!(
                     "maxCount must be at least minCount; received {}..={}",
@@ -487,7 +507,7 @@ impl SpawnOverride {
 
     fn validate(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
         for (index, spawn) in self.spawns.iter().enumerate() {
-            spawn.validate(location, &format!("{field}.spawns[{index}]"))?;
+            spawn.validate(location, KIND, &format!("{field}.spawns[{index}]"))?;
         }
         Ok(())
     }

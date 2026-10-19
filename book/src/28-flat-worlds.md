@@ -30,7 +30,9 @@ let generator = Generator::Flat(
   biome for every column.
 - **Structures** — `FlatGenerator::with_structures(true)` enables vanilla
   structure generation (villages, strongholds, …) on top of the flat
-  terrain; disabled by default, matching vanilla's superflat behavior.
+  terrain; disabled by default. Enabling this omits `structure_overrides`,
+  allowing Minecraft to use its default structure sets. Disabling it writes
+  an empty override list. Biome decoration (`features`) stays disabled.
 
 ## Why flat for `dev`/`test`
 

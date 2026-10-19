@@ -351,6 +351,28 @@ impl SpawnEntry {
         })
     }
 
+    pub(crate) fn validate_table(
+        entries: &[Self],
+        location: &ResourceLocation,
+        kind: &str,
+        field: &str,
+    ) -> SandResult<()> {
+        let mut total = 0_u64;
+        for (index, entry) in entries.iter().enumerate() {
+            entry.validate(location, kind, &format!("{field}[{index}]"))?;
+            total += u64::from(entry.weight);
+            if total > i32::MAX as u64 {
+                return Err(validation::error(
+                    location,
+                    kind,
+                    field,
+                    "sum of spawn weights must be <= 2147483647",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn validate(
         &self,
         location: &ResourceLocation,
@@ -506,10 +528,7 @@ impl SpawnOverride {
     }
 
     fn validate(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
-        for (index, spawn) in self.spawns.iter().enumerate() {
-            spawn.validate(location, KIND, &format!("{field}.spawns[{index}]"))?;
-        }
-        Ok(())
+        SpawnEntry::validate_table(&self.spawns, location, KIND, &format!("{field}.spawns"))
     }
 }
 
@@ -1304,5 +1323,22 @@ mod tests {
                 .validate()
                 .is_err()
         );
+    }
+
+    #[test]
+    fn spawn_override_total_weight_uses_the_shared_table_bound() {
+        for (first, valid) in [(i32::MAX as u32 - 1, true), (i32::MAX as u32, false)] {
+            let structure = jigsaw_structure().spawn_override(
+                MobCategory::Monster,
+                SpawnOverride::new(
+                    SpawnBoundingBox::Full,
+                    [
+                        SpawnEntry::new(EntityTypeId::minecraft("zombie").unwrap(), first, 1, 1),
+                        SpawnEntry::new(EntityTypeId::minecraft("skeleton").unwrap(), 1, 1, 1),
+                    ],
+                ),
+            );
+            assert_eq!(structure.validate().is_ok(), valid);
+        }
     }
 }

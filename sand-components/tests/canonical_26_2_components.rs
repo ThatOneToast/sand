@@ -952,6 +952,9 @@ fn canonical_26_2_worldgen_biome() {
             "ambient_sound": "minecraft:ambient.nether_wastes.loop"
         },
         "features": expected_features,
+        "carvers": [],
+        "spawners": {},
+        "spawn_costs": {},
     });
 
     assert_eq!(biome.to_json(), expected);

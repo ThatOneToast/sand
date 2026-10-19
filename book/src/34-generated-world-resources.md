@@ -148,6 +148,11 @@ Biome spawn tables reuse the same `MobCategory` and `SpawnEntry` models as
 structure spawn overrides. `SpawnCost` adds per-entity population-density
 budgets without requiring JSON:
 
+Every biome exports the required generation and spawn fields, with empty
+collections when omitted. Each spawn category's total weight must fit a signed
+32-bit integer, as must each individual entry; export rejects an overflowing
+table before Minecraft loads it.
+
 ```rust
 use sand::component::{Biome, BiomeEffects, MobCategory, SpawnCost, SpawnEntry};
 use sand::registry::EntityTypeId;

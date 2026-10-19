@@ -880,6 +880,31 @@ pub fn audit_predicate() -> Predicate {
     )
 }
 
+/// Exercise complete typed biome output in vanilla's dynamic registry loader.
+#[datapack_component]
+pub fn audit_spawn_biome() -> sand::component::Biome {
+    use sand::component::{Biome, BiomeEffects, MobCategory, SpawnCost, SpawnEntry};
+    use std::collections::BTreeMap;
+    Biome::new(
+        "sand_audit:spawn_biome".parse().unwrap(),
+        BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
+    )
+    .spawners(BTreeMap::from([(
+        MobCategory::Creature,
+        vec![SpawnEntry::new(vanilla::EntityType::Pig.into(), 10, 2, 4)],
+    )]))
+    .spawn_costs([(vanilla::EntityType::Pig.into(), SpawnCost::new(0.7, 0.15))])
+}
+
+/// Empty generation and spawn settings still require concrete codec fields.
+#[datapack_component]
+pub fn audit_empty_biome() -> sand::component::Biome {
+    sand::component::Biome::new(
+        "sand_audit:empty_biome".parse().unwrap(),
+        sand::component::BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
+    )
+}
+
 #[datapack_component]
 pub fn audit_loot_table() -> LootTable {
     LootTable::chest_loot(

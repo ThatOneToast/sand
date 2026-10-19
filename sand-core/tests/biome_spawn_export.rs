@@ -30,6 +30,11 @@ fn spawn_tables_survive_the_component_export_pipeline_deterministically() {
         .unwrap();
     assert_eq!(biome.namespace, "biome_spawn_export");
     let json: serde_json::Value = serde_json::from_str(&biome.content).unwrap();
+    assert_eq!(json["carvers"], serde_json::json!([]));
+    assert_eq!(
+        json["features"],
+        serde_json::json!([[], [], [], [], [], [], [], [], [], [], []])
+    );
     assert_eq!(
         json["spawners"],
         serde_json::json!({

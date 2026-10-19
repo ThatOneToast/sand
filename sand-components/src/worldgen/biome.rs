@@ -867,6 +867,7 @@ impl Biome {
     ///
     /// Replaces the previous typed or raw table. Nested values are validated on export.
     /// Table keys are emitted deterministically; spawn-entry order is preserved.
+    /// Each category's total spawn weight must fit a signed 32-bit integer.
     #[sand_macros::api(
         registry = sand_api_contract, path = "sand::component::Biome::spawners",
         module = "sand::component",
@@ -989,6 +990,9 @@ impl DatapackComponent for Biome {
                 carvers.insert(step.as_str().to_string(), Value::Array(ids));
             }
             map.insert("carvers".to_string(), Value::Object(carvers));
+        } else {
+            // Biome generation settings require this field even without carvers.
+            map.insert("carvers".to_string(), serde_json::json!([]));
         }
         if let Some(ref v) = self.features {
             let json = match v {
@@ -1007,6 +1011,11 @@ impl DatapackComponent for Biome {
                 FeaturesValue::Raw(raw) => raw.clone(),
             };
             map.insert("features".to_string(), json);
+        } else {
+            map.insert(
+                "features".to_string(),
+                serde_json::json!(vec![Vec::<String>::new(); GENERATION_STEP_COUNT]),
+            );
         }
         if let Some(ref v) = self.spawners {
             let value = match v {
@@ -1024,6 +1033,8 @@ impl DatapackComponent for Biome {
                 ),
             };
             map.insert("spawners".to_string(), value);
+        } else {
+            map.insert("spawners".to_string(), serde_json::json!({}));
         }
         if let Some(ref v) = self.spawn_costs {
             let value = match v {
@@ -1036,6 +1047,8 @@ impl DatapackComponent for Biome {
                 ),
             };
             map.insert("spawn_costs".to_string(), value);
+        } else {
+            map.insert("spawn_costs".to_string(), serde_json::json!({}));
         }
 
         Value::Object(map)
@@ -1079,13 +1092,12 @@ impl DatapackComponent for Biome {
                 }
                 SpawnValue::Typed(table) => {
                     for (key, value) in table {
-                        for (index, entry) in value.iter().enumerate() {
-                            entry.validate(
-                                &self.location,
-                                KIND,
-                                &format!("spawners.{}[{index}]", key.as_str()),
-                            )?;
-                        }
+                        SpawnEntry::validate_table(
+                            value,
+                            &self.location,
+                            KIND,
+                            &format!("spawners.{}", key.as_str()),
+                        )?;
                     }
                 }
             }
@@ -1120,6 +1132,20 @@ mod tests {
 
     fn effects() -> BiomeEffects {
         BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF)
+    }
+
+    #[test]
+    fn default_biome_includes_required_empty_generation_settings() {
+        let biome = Biome::new(location(), effects());
+        biome.validate().unwrap();
+        let json = biome.to_json();
+        assert_eq!(json["carvers"], serde_json::json!([]));
+        assert_eq!(json["spawners"], serde_json::json!({}));
+        assert_eq!(json["spawn_costs"], serde_json::json!({}));
+        assert_eq!(
+            json["features"],
+            serde_json::json!([[], [], [], [], [], [], [], [], [], [], []])
+        );
     }
 
     #[test]
@@ -1363,6 +1389,26 @@ mod tests {
                 "minecraft:zombie": {"energy_budget": 0.7, "charge": 0.15},
             })
         );
+    }
+
+    #[test]
+    fn spawn_weight_totals_are_bounded_per_category() {
+        let entry =
+            |weight| SpawnEntry::new(EntityTypeId::minecraft("zombie").unwrap(), weight, 1, 1);
+        for (first, valid) in [(i32::MAX as u32 - 1, true), (i32::MAX as u32, false)] {
+            let biome = Biome::new(location(), effects()).spawners(BTreeMap::from([
+                (MobCategory::Monster, vec![entry(first), entry(1)]),
+                (MobCategory::Creature, vec![entry(i32::MAX as u32)]),
+            ]));
+            if valid {
+                biome.validate().unwrap();
+            } else {
+                let error = biome.try_content().unwrap_err().to_string();
+                assert!(error.contains("my_pack:frosted"), "{error}");
+                assert!(error.contains("spawners.monster"), "{error}");
+                assert!(error.contains("sum of spawn weights"), "{error}");
+            }
+        }
     }
 
     #[test]

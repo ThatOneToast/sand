@@ -170,6 +170,11 @@ class WorldGameplayHarness(ServerHarness):
         # Only test setup loads chunks; the generated gameplay must not do so.
         for dimension in ("minecraft:overworld", "minecraft:the_nether"):
             self.load_test_chunk(dimension)
+        # A 512-layer flat world must generate above the Overworld's old cap.
+        # min_y=-64 plus 512 layers puts its final stone block at y=447.
+        self.load_test_chunk("sand_audit:tall_world")
+        self.check("TALL_FLAT_BASE", "in sand_audit:tall_world if block 0 -64 0 minecraft:stone")
+        self.check("TALL_FLAT_TOP", "in sand_audit:tall_world if block 0 447 0 minecraft:stone")
         # Isolate the Nether test cells from random terrain and fluid updates.
         self.send("execute in minecraft:the_nether run fill 0 79 0 15 83 15 minecraft:barrier")
         self.send("execute in minecraft:the_nether run fill 1 80 1 14 82 14 minecraft:air")

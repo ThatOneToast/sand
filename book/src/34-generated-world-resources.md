@@ -223,3 +223,8 @@ The `noise_generator` and `flat_generator` constructors now take a
 `NoiseGenerator` or `FlatGenerator`. Replace `generator_raw(raw)` with
 `generator(Generator::Raw(raw))`. `Generator::CustomReference` was removed:
 Minecraft expects an inline generator object, not a standalone generator-file ID.
+
+`DimensionType::new` emits complete overworld-like defaults, including a uniform
+monster spawn light range and disabled vanilla Ender Dragon fight management.
+Use `.has_ender_dragon_fight(true)` to enable the vanilla fight lifecycle in a
+custom dimension; this setting is independent of its terrain generator.

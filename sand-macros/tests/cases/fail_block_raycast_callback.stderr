@@ -1,0 +1,45 @@
+error[E0277]: the trait bound `sand::prelude::ItemId: FunctionRef` is not satisfied
+ --> tests/cases/fail_block_raycast_callback.rs:5:17
+  |
+5 |         .on_hit(ItemId::minecraft("stone").unwrap());
+  |          ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Fn()` is not implemented for `sand::prelude::ItemId`
+  |          |
+  |          required by a bound introduced by this call
+  |
+help: the following other types implement trait `FunctionRef`
+ --> $WORKSPACE/sand-components/src/function.rs
+  |
+  | impl FunctionRef for FunctionId {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `FunctionId`
+...
+  | impl FunctionRef for &FunctionId {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&FunctionId`
+  = note: required for `sand::prelude::ItemId` to implement `FunctionRef`
+note: required by a bound in `BlockRaycast::on_hit`
+ --> $WORKSPACE/sand/src/systems/raycast/mod.rs
+  |
+  |     pub fn on_hit(mut self, callback: impl FunctionRef) -> Self {
+  |                                            ^^^^^^^^^^^ required by this bound in `BlockRaycast::on_hit`
+
+error[E0277]: the trait bound `sand::prelude::ItemId: FunctionRef` is not satisfied
+ --> tests/cases/fail_block_raycast_callback.rs:5:17
+  |
+5 |         .on_hit(ItemId::minecraft("stone").unwrap());
+  |          ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Copy` is not implemented for `sand::prelude::ItemId`
+  |          |
+  |          required by a bound introduced by this call
+  |
+help: the following other types implement trait `FunctionRef`
+ --> $WORKSPACE/sand-components/src/function.rs
+  |
+  | impl FunctionRef for FunctionId {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `FunctionId`
+...
+  | impl FunctionRef for &FunctionId {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&FunctionId`
+  = note: required for `sand::prelude::ItemId` to implement `FunctionRef`
+note: required by a bound in `BlockRaycast::on_hit`
+ --> $WORKSPACE/sand/src/systems/raycast/mod.rs
+  |
+  |     pub fn on_hit(mut self, callback: impl FunctionRef) -> Self {
+  |                                            ^^^^^^^^^^^ required by this bound in `BlockRaycast::on_hit`

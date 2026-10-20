@@ -6,6 +6,7 @@ invoke its public cast functions, and assert observable effects. No replacement
 raycast algorithm is embedded in this harness.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -42,14 +43,36 @@ def write_pack(path, records):
         target.write_text(record["content"])
 
 
+def sha256(path):
+    with Path(path).open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def pack_identity(path):
+    files = {file.relative_to(path).as_posix(): sha256(file)
+             for file in sorted(path.rglob("*")) if file.is_file()}
+    encoded = json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
+    return {"sha256": hashlib.sha256(encoded).hexdigest(), "files": files,
+            "encoding": "SHA-256 of sorted compact JSON mapping relative POSIX paths to file SHA-256"}
+
+
 class RaycastHarness(PlayerHarness):
+    def prepare(self):
+        super().prepare()
+        self.checks = []
+        self.persist("running")
+
+    def persist(self, status):
+        (self.output / "evidence.json").write_text(json.dumps({
+            "schema_version": 1, "status": status, "minecraft": "26.2",
+            "fixture": "sand/tests/block_raycast.rs", **self.provenance,
+            "checks": self.checks,
+        }, indent=2))
+
     def check(self, name, condition):
         super().check(name, condition)
         self.checks.append({"name": name, "condition": condition})
-        (self.output / "evidence.json").write_text(json.dumps({
-            "minecraft": "26.2", "fixture": "sand/tests/block_raycast.rs",
-            "checks": self.checks,
-        }, indent=2))
+        self.persist("running")
 
     def reset(self):
         self.send("fill 0 84 0 7 88 9 minecraft:air")
@@ -207,12 +230,24 @@ def main():
     parser.add_argument("--output")
     args = parser.parse_args()
     args.version, args.op_player, args.client_command = "26.2", None, None
+    source = {
+        "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "tree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, text=True).strip(),
+        "worktree_status": subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True),
+        "fixture_sha256": sha256(ROOT / "sand/tests/block_raycast.rs"),
+        "harness_sha256": sha256(Path(__file__)),
+    }
     records = export_fixture()
     with tempfile.TemporaryDirectory(prefix="sand-raycast-pack-") as directory:
         pack = Path(directory) / NS
         write_pack(pack, records)
         args.pack = str(pack)
         harness = RaycastHarness(args)
+        harness.provenance = {
+            "source": source,
+            "pack": pack_identity(pack),
+            "server_jar": {"sha256": sha256(args.jar)},
+        }
         harness.counters = {
             record["path"].split("/")[-2]: record["content"].split()[3]
             for record in records
@@ -222,8 +257,10 @@ def main():
         try:
             harness.run()
         except ValidationFailure as error:
+            harness.persist("failed")
             print(f"FAILED: {error.phase}: {error}\nlog: {harness.log_path}", file=sys.stderr)
             return 1
+        harness.persist("passed")
         print(f"PASSED: Minecraft 26.2 block raycasts; log: {harness.log_path}")
     return 0
 

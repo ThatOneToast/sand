@@ -19,4 +19,8 @@ fn found_log() {
 fn use_tool() {
     mining_ray().cast();
 }
+#[on_event]
+fn on_block_placed(_event: Event<sand::events::BlockPlaceEvent>) {
+    mining_ray().cast();
+}
 fn main() {}

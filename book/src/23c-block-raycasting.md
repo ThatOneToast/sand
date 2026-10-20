@@ -29,7 +29,16 @@ fn found_log() {
 fn use_tool() {
     mining_ray().cast();
 }
+
+#[on_event]
+fn on_block_placed(_event: Event<sand::events::BlockPlaceEvent>) {
+    mining_ray().cast();
+}
 ```
+
+The block-placement event runs as the placing player, so the same definition
+casts from that player's eyes and view. This example is maintained in the
+`pass_block_raycast` compile fixture.
 
 `scan_for` skips nonmatching sampled blocks, including intervening walls.
 `first_collision().pass_through(predicate)` stops at the first sampled block that
@@ -70,10 +79,33 @@ cast the same definition again without resuming the outer traversal, and nested
 casts return to the callback's previous position and rotation. The sample limit
 bounds each traversal, not arbitrary recursion authored inside user callbacks.
 
+For generated-work accounting, count executed `.mcfunction` lines across all
+private helper functions, including unsuccessful guards and helper-call lines.
+This is an exact emitted-path count, not vanilla debug evaluations or MSPT.
+A function containing only `ray.cast()` executes one call line and three entry
+lines. Each continuing sample executes three advance lines and six sample
+lines. The final range-exhaustion sample executes two advance lines, five sample
+lines, and two completion lines (counter reset plus callback call or return).
+Thus a loaded full-range miss with `N = ceil(range / step)` executes `4 + 9*N`
+lines before callback work: **220** for the default range 6 / step 0.25 (24
+samples), or **2,308** at the 256-sample cap. These paths invoke `2*N + 2`
+generated helper functions, included in those line counts, and perform `N + 2`
+counter writes. A supplied applicable callback adds one function invocation and
+its own body work. A hit at sample `j < N` costs `4 + 9*j` lines before callback
+work; a hit at the final sample costs `3 + 9*N`. Unloaded/out-of-world misses
+terminate earlier. A server-context no-op executes only the caller line and the
+entry guard. Predicate evaluation and nested command dispatch have costs not
+represented separately by this line metric; callback bodies and any casts they
+start are additional work, with no whole-chain or user-recursion bound.
+
 The maintained fixture is `sand/tests/block_raycast.rs`. Run its server proof
 with `python3 scripts/validate_block_raycast.py --jar /path/to/26.2/server.jar
 --java /path/to/java --output /tmp/raycast-proof`. It exports the actual Sand
 fixture and checks two real players, nested casts, independent definitions,
 clamped endpoints, tag and collision semantics, context guards, unloaded
 samples, and server-context no-ops. The output directory retains server logs and
-`evidence.json` with the passed runtime assertions.
+`evidence.json` with the runtime assertions and final status. Evidence records
+the tested Git commit/tree and worktree status, fixture/harness hashes, a
+per-file generated-pack manifest and aggregate SHA-256, and the server JAR
+SHA-256. The 26.2 vanilla CI job runs this harness and uploads its output on
+failure.

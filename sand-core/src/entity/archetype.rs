@@ -4710,7 +4710,8 @@ mod tests {
         .unwrap()
     }
 
-    /// Follow the change-dispatch calls when checking cross-function command order.
+    /// Expand possible bookkeeping bodies for cross-function ordering assertions.
+    /// This does not evaluate guards; the native audits exercise those paths.
     fn with_change_bodies(
         record: &ComponentRecord,
         records: &[ComponentRecord],

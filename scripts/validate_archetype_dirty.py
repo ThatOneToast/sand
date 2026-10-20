@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Prove overlapping archetype acknowledgements in both orders on vanilla 26.2."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 
-from measure_archetype_idle import verified_runtime_version
+from measure_archetype_idle import pack_digest, verified_runtime_version
 from player_validation_harness import PlayerHarness
 from validate_player_joins import write_pack
 from vanilla_reload_harness import RELOAD_START
@@ -64,6 +65,30 @@ class DirtyHarness(PlayerHarness):
                 self.send(f"scoreboard players set {entity} {causes[0]} {cause}")
                 self.send(f"execute as {entity} run function dirty_shared:{roots[0]}/reconcile")
                 self.check(f"cause_only_{cause}", f"if score {entity} {causes[0]} matches 0")
+            for case, values in enumerate(((None, 0), (0, None), (None, None))):
+                for objective, value in zip((pending[0], causes[0]), values):
+                    if value is None:
+                        self.send(f"scoreboard players reset {entity} {objective}")
+                    else:
+                        self.send(f"scoreboard players set {entity} {objective} {value}")
+                self.send(f"execute as {entity} run function dirty_shared:{roots[0]}/reconcile")
+                for index, objective in enumerate((pending[0], causes[0])):
+                    self.check(f"missing_{case}_{index}", f"if score {entity} {objective} matches 0")
+            internal = functions[f"{roots[0]}/reset_internal_causes"].splitlines()[0].split()[4]
+            for case, value in enumerate((1, -7, None)):
+                self.send(f"scoreboard players set {entity} {self.fixture['dirty']} 0")
+                if value is None:
+                    self.send(f"scoreboard players reset {entity} {internal}")
+                else:
+                    self.send(f"scoreboard players set {entity} {internal} {value}")
+                self.send(f"execute as {entity} run function dirty_shared:{roots[0]}/reconcile")
+                self.check(f"internal_{case}_normalized", f"if score {entity} {internal} matches 0")
+                self.send(f"scoreboard players set {entity} {self.fixture['level']} 8")
+                self.send(f"scoreboard players set {entity} {self.fixture['dirty']} 1")
+                for root in roots:
+                    self.send(f"execute as {entity} run function dirty_shared:{root}/reconcile")
+                self.send(f"execute store result score #attack dirty_result run attribute {entity} minecraft:attack_damage base get 1")
+                self.check(f"internal_{case}_next_authored_write", "if score #attack dirty_result matches 8")
             for second_first in (False, True):
                 # Reset the crossing, then let a real transition callback write
                 # shared State after the refresh/ack phase. No generated edits.
@@ -92,9 +117,11 @@ class DirtyHarness(PlayerHarness):
                     self.check(prefix + f"_consumed_{index}", f"if score {entity} {objective} matches 0")
         (self.output / "evidence.json").write_text(json.dumps({
             "minecraft": "26.2", "complete": True,
-            "assertions": 40, "orders": [[0, 1], [1, 0]],
+            "assertions": 52, "orders": [[0, 1], [1, 0]],
             "reload_repeated": True, "callback_generation_orders": 2,
-            "cause_only_values": [1, -7],
+            "cause_only_values": [1, -7], "missing_pending_combinations": 3,
+            "internal_cause_values": [1, -7, None],
+            **self.provenance,
         }, indent=2) + "\n")
 
 
@@ -117,6 +144,14 @@ def main():
         args.pack = str(root / "pack")
         harness = DirtyHarness(args)
         harness.fixture = fixture
+        with Path(args.jar).open("rb") as jar:
+            jar_hash = hashlib.file_digest(jar, "sha256").hexdigest()
+        harness.provenance = {
+            "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+            "input_pack_sha256": pack_digest(root / "pack"),
+            "fixture_source_sha256": hashlib.sha256((ROOT / "sand-core/tests/archetype_dirty_bookkeeping.rs").read_bytes()).hexdigest(),
+            "server_jar_sha256": jar_hash,
+        }
         harness.run()
         print(f"PASSED: overlapping dirty ownership; evidence: {harness.output}")
     return 0

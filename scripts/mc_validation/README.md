@@ -382,10 +382,11 @@ python3 scripts/validate_archetype_dirty.py \
 
 This maintained fixture exports two real archetypes sharing a State component.
 With two connected players and frozen ticks, it invokes the generated reconcile
-functions in both orders, then repeats after reload. Forty assertions prove
+functions in both orders, then repeats after reload. Fifty-two assertions prove
 that acknowledgement consumes only the current composition's pending change
 and that both native attribute bindings observe the write. Cause-only flags are
-normalized, and transition callback writes survive acknowledgement until the
+normalized, missing pending scores and missing/noncanonical internal causes are
+repaired, and transition callback writes survive acknowledgement until the
 next refresh in either order. The 26.2 CI job runs
 it and retains the output directory on failure. No generated resources are
 patched. The RPG audit additionally checks missing/noncanonical pending scores,

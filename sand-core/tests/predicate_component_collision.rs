@@ -25,7 +25,7 @@ fn references_do_not_bypass_registration_collision_validation() {
         .unwrap_err()
         .to_string();
     assert!(
-        error.contains("predicate_collision:predicate/same.json"),
+        error.contains("__sand_local:predicate/same.json"),
         "{error}"
     );
     assert!(error.contains("first_owner"), "{error}");

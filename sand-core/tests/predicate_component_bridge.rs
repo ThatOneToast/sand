@@ -85,8 +85,8 @@ fn references_export_the_registered_identity_and_preserve_context_and_negation()
         serde_json::from_str(content("predicate", "equipped")).unwrap();
     for slot in ["head", "chest", "legs", "feet", "mainhand", "offhand"] {
         assert_eq!(
-            equipment["predicate"]["equipment"][slot]["items"],
-            serde_json::json!("minecraft:diamond")
+            equipment["predicate"]["minecraft:equipment"][slot]["items"],
+            serde_json::json!(["minecraft:diamond"])
         );
     }
     let reference: serde_json::Value =
@@ -110,7 +110,7 @@ fn references_export_the_registered_identity_and_preserve_context_and_negation()
         .collect::<Vec<_>>()
         .join("\n");
     assert!(all.contains("as @a"), "{all}");
-    assert!(all.contains("if predicate bridge:equipped"), "{all}");
+    assert!(all.contains("if predicate bridge:equipped if predicate bridge:delegated if entity @s[predicate=bridge:equipped]"), "{all}");
     assert!(
         all.contains("if entity @s[predicate=bridge:equipped]"),
         "{all}"

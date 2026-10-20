@@ -748,6 +748,19 @@ mod tests {
     }
 
     #[test]
+    fn owned_and_borrowed_components_reference_the_same_resource() {
+        let source = Predicate::new(loc("source"), PredicateRoot::random_chance(0.5));
+        let borrowed = Predicate::new(loc("borrowed"), PredicateRoot::reference(&source));
+        let owned = Predicate::new(loc("owned"), PredicateRoot::reference(source));
+        let expected = serde_json::json!({
+            "condition": "minecraft:reference",
+            "name": loc("source").to_string(),
+        });
+        assert_eq!(borrowed.to_json(), expected);
+        assert_eq!(owned.to_json(), expected);
+    }
+
+    #[test]
     fn raw_escape_hatch_round_trips_arbitrary_object() {
         let predicate = Predicate::new(
             loc("mod_condition"),

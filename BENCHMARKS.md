@@ -880,3 +880,39 @@ comparisons still cost server work: command evaluations are not MSPT,
 whole-tick measurements, or Minecraft command-budget units. No 50/200/500
 population MSPT result is claimed. Clean-entity scheduling, timers, remaining
 refresh work, and population scaling keep #447 open.
+
+| Workload | Entities | Before samples | After samples |
+| --- | ---: | --- | --- |
+| Idle | 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| Idle | 1 | 134 / 134 / 134 | 99 / 99 / 99 |
+| Idle | 10 | 1,340 / 1,340 / 1,340 | 990 / 990 / 990 |
+| Authored level-up | 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| Authored level-up | 1 | 419 / 419 / 419 | 396 / 402 / 402 |
+| Authored level-up | 10 | 4,190 / 4,190 / 4,190 | 3,960 / 4,020 / 4,020 |
+
+Idle evaluations decrease 26.1%. The trace's unconditional `scoreboard players
+set` evaluations decrease from 58 to 10 per entity. The candidate idle breakdown
+is reconcile 57, derive-refresh 12, refresh 22, timer fanout 4, timer
+acknowledgement 2, and transitions 2. The active timer still decrements.
+
+Dirty-case evaluations decrease 4.1–5.5%. The first level-up acknowledges two
+pending fields; later samples also acknowledge three generations published by
+the previous sample's derived/native refresh. Those three two-command helpers
+explain the six-evaluation difference. The grouped internal reset executes ten
+writes once in each dirty sample. This optimization is not a universal dirty
+path speedup: an entered reset group costs one guard plus its original writes,
+and an entered per-field acknowledgement costs three evaluations instead of
+two. Fully dirty or very small compositions can pay that guard overhead.
+
+The baseline pack hash matches the retained #477 candidate exactly:
+`32b2899188241ab24a4e150f836ef78f7e5b4a324b35970cf41ea781879e9dd5`.
+The candidate pack hash is
+`ad644c9e6126b9865fdd13d74c5a4036acd24911bbee629b9396c6e6aa7c981d`.
+The native fixture separately binds its results to its source commit, generated
+pack hash, fixture source hash, and server-jar hash.
+
+Retained evidence (extract each trace ZIP beside its JSON):
+
+- Baseline: [idle JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-idle.json), [idle traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-idle-traces.zip), [level-up JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-level-up.json), [level-up traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-level-up-traces.zip).
+- Candidate: [idle JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-idle.json), [idle traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-idle-traces.zip), [level-up JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-level-up.json), [level-up traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-level-up-traces.zip).
+- Shared ownership: [results](benchmarks/evidence/archetype-bookkeeping-2026-10-20/shared-ownership.json), [server log](benchmarks/evidence/archetype-bookkeeping-2026-10-20/shared-ownership-log.zip).

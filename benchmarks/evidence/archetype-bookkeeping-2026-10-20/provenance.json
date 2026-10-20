@@ -1,0 +1,12 @@
+{
+  "baseline_source_commit": "1e783fc8811751cf5fc925678034db43230585c0",
+  "candidate_implementation_commit": "69e6ee48c5cc18bfd54af8274d4c9871d88bdd00",
+  "measurement": "vanilla_debug_function_command_evaluations",
+  "mspt_measured": false,
+  "unchanged_probe": "scripts/measure_archetype_idle.py",
+  "notes": [
+    "Candidate production implementation unchanged in later evidence/test commits.",
+    "Each JSON independently records generated pack and server-jar SHA-256.",
+    "Samples exclude two probe control evaluations; idle contains an active timer."
+  ]
+}

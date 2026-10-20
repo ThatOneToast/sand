@@ -315,7 +315,7 @@ fn drain_remaining(
     }
 
     if let Some(grouped) = grouper.flush() {
-        render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
+        render_group(&grouped, renderer, phase.current(), dev);
     }
     renderer.flush_pending_correlation();
 }

@@ -119,3 +119,11 @@ reload remains unsuccessful. Startup and unrelated fatal diagnostics stay sticky
 a ready banner alone cannot recover health. Ordinary `sand run` retains its
 historical, monotonic health contract. The native harness verifies both recovered
 and unrecovered quit outcomes and queued restart cancellation with `AlwaysReset`.
+
+Across `R` restarts, console log events are scoped to their originating JVM;
+late output cannot mark the next JVM ready or carry errors into it. A namespace
+change installs the new pack before removing the previous pack managed by that
+dev invocation, only within the same world. Other datapacks are preserved.
+Cancellation before the install commit or failed installation retains the old
+pack. The original `server-ip` setting is restored on cleanup; loopback binding
+is temporary, and the RCON port is chosen distinct from the configured game port.

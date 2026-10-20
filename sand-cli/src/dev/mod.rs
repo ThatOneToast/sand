@@ -24,7 +24,7 @@ pub(crate) struct Session {
     namespace: String,
     profile: String,
     properties: PathBuf,
-    original_pause_settings: String,
+    original_session_settings: String,
     rcon: rcon::Rcon,
     watcher: Watch,
     last_poll: Instant,
@@ -65,11 +65,24 @@ impl Session {
         let mut watcher = Watch::new(inputs.0);
         watcher.observe(watch::snapshot(&root)?, Instant::now());
         let restart_inputs = restart_inputs(&root, &namespace)?;
-        let rcon = rcon::Rcon::new()?;
         let existing = std::fs::read_to_string(properties)?;
-        let original_pause_settings = existing
+        let game_port = existing
             .lines()
-            .filter(|line| property_key(line) == "pause-when-empty-seconds")
+            .filter(|line| property_key(line) == "server-port")
+            .map(|line| {
+                line.trim_start()["server-port".len()..]
+                    .trim_start_matches(['=', ':', ' ', '\t'])
+                    .trim()
+                    .parse::<u16>()
+            })
+            .next_back()
+            .transpose()
+            .context("invalid server-port in server.properties")?
+            .unwrap_or(25565);
+        let rcon = rcon::Rcon::new(game_port)?;
+        let original_session_settings = existing
+            .lines()
+            .filter(|line| matches!(property_key(line), "pause-when-empty-seconds" | "server-ip"))
             .map(|line| format!("{line}\n"))
             .collect();
         // A final Java-properties continuation must not swallow server-ip.
@@ -87,7 +100,7 @@ impl Session {
             namespace,
             profile: profile.into(),
             properties: properties.into(),
-            original_pause_settings,
+            original_session_settings,
             rcon,
             watcher,
             last_poll: Instant::now(),
@@ -282,9 +295,9 @@ impl Drop for Session {
         }
         if let Ok(text) = std::fs::read_to_string(&self.properties) {
             let cleaned = format!(
-                "{}server-ip=127.0.0.1\nenable-rcon=false\n{}",
+                "{}enable-rcon=false\n{}",
                 without_rcon(&text),
-                self.original_pause_settings
+                self.original_session_settings
             );
             if private_write(&self.properties, cleaned.as_bytes()).is_err() {
                 eprintln!("dev: could not clear local RCON settings in server.properties");
@@ -364,7 +377,34 @@ fn restart_inputs(root: &Path, namespace: &str) -> Result<Snapshot> {
     Ok(inputs)
 }
 
-fn install(
+/// The one live pack owned by this dev invocation, retained across JVM restarts.
+#[derive(Default)]
+pub(crate) struct ManagedPack(Option<PathBuf>);
+
+impl ManagedPack {
+    /// Call only after installing the new pack and checking cancellation. Never
+    /// remove a pack in a different world, or follow a replaced directory symlink.
+    pub(crate) fn installed(&mut self, dest: &Path) -> Result<()> {
+        ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
+        let current = std::fs::canonicalize(dest)?;
+        if let Some(previous) = &self.0
+            && previous != &current
+            && previous.parent() == current.parent()
+            && previous.exists()
+        {
+            ensure!(
+                !previous.is_symlink(),
+                "previous managed datapack became a symlink"
+            );
+            std::fs::remove_dir_all(previous)
+                .context("failed to remove previous session-managed datapack")?;
+        }
+        self.0 = Some(current);
+        Ok(())
+    }
+}
+
+pub(crate) fn install(
     src: &Path,
     dest: &Path,
     marker: Option<(&str, &str)>,
@@ -630,6 +670,103 @@ mod tests {
             assert!(!properties.contains("rcon.password"));
             assert!(properties.contains("enable-rcon=false"));
         }
+    }
+
+    #[test]
+    fn dev_binding_is_temporary_and_restores_absent_blank_or_custom_settings() {
+        for setting in [
+            "",
+            "server-ip=\n",
+            "server-ip=0.0.0.0\n",
+            "server-ip: 192.0.2.1\n",
+        ] {
+            let tmp = tempfile::tempdir().unwrap();
+            let root = tmp.path();
+            std::fs::create_dir_all(root.join("dist/demo")).unwrap();
+            std::fs::write(root.join("sand.toml"), "config").unwrap();
+            let props = root.join("server.properties");
+            std::fs::write(&props, format!("server-port=49152\n{setting}")).unwrap();
+            for _ in 0..2 {
+                let session = Session::at(
+                    root.into(),
+                    "demo".into(),
+                    "dev",
+                    &props,
+                    BuildInputs(watch::snapshot(root).unwrap()),
+                )
+                .unwrap();
+                assert_ne!(session.rcon.port, 49152);
+                let running = std::fs::read_to_string(&props).unwrap();
+                assert_eq!(
+                    running
+                        .lines()
+                        .filter(|line| property_key(line) == "server-ip")
+                        .collect::<Vec<_>>(),
+                    ["server-ip=127.0.0.1"]
+                );
+                drop(session);
+                let stopped = std::fs::read_to_string(&props).unwrap();
+                assert_eq!(
+                    stopped
+                        .lines()
+                        .filter(|line| property_key(line) == "server-ip")
+                        .collect::<Vec<_>>(),
+                    setting.lines().collect::<Vec<_>>()
+                );
+                assert!(!stopped.contains("rcon.password"));
+            }
+        }
+    }
+
+    #[test]
+    fn namespace_switch_removes_only_previous_pack_after_success_and_commit() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let src = root.join("source");
+        let old = root.join("world/datapacks/old");
+        let new = root.join("world/datapacks/new");
+        let manual = root.join("world/datapacks/manual");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+        std::fs::create_dir_all(&manual).unwrap();
+        std::fs::write(manual.join("keep"), "operator").unwrap();
+        let mut managed = ManagedPack::default();
+        install(&src, &old, None).unwrap();
+        managed.installed(&old).unwrap();
+        assert!(install(&root.join("missing"), &new, None).is_err());
+        assert!(old.exists(), "failed preparation retains previous pack");
+        install(&src, &new, None).unwrap();
+        assert!(
+            old.exists(),
+            "cancellation before commit retains previous pack"
+        );
+        managed.installed(&new).unwrap();
+        assert!(!old.exists());
+        assert!(new.join("pack.mcmeta").exists());
+        assert!(manual.join("keep").exists());
+        let other_world = root.join("other-world/datapacks/third");
+        install(&src, &other_world, None).unwrap();
+        managed.installed(&other_world).unwrap();
+        assert!(new.exists(), "never prune a previous world");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn namespace_switch_refuses_replaced_pack_symlink() {
+        let tmp = tempfile::tempdir().unwrap();
+        let old = tmp.path().join("old");
+        let new = tmp.path().join("new");
+        let external = tmp.path().join("external");
+        for path in [&old, &new, &external] {
+            std::fs::create_dir(path).unwrap();
+        }
+        std::fs::write(external.join("keep"), "operator").unwrap();
+        let mut managed = ManagedPack::default();
+        managed.installed(&old).unwrap();
+        std::fs::remove_dir(&old).unwrap();
+        std::os::unix::fs::symlink(&external, &old).unwrap();
+        assert!(managed.installed(&new).is_err());
+        assert!(external.join("keep").exists());
     }
 
     #[test]

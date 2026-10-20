@@ -166,7 +166,13 @@ impl ResolvedServerProperties {
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
-    run_internal(args, false, &mut None).map(|_| ())
+    run_internal(
+        args,
+        false,
+        &mut None,
+        &mut crate::dev::ManagedPack::default(),
+    )
+    .map(|_| ())
 }
 
 /// Build and watch a project using the managed local server. Reload retains
@@ -174,7 +180,8 @@ pub fn run(args: RunArgs) -> Result<()> {
 /// graceful restart with `R`. See `docs/dev-workflow.md` for the supported boundary.
 pub fn dev(args: RunArgs) -> Result<()> {
     let mut console = None;
-    while run_internal(args.clone(), true, &mut console)? {}
+    let mut managed_pack = crate::dev::ManagedPack::default();
+    while run_internal(args.clone(), true, &mut console, &mut managed_pack)? {}
     Ok(())
 }
 
@@ -182,6 +189,7 @@ fn run_internal(
     args: RunArgs,
     watch: bool,
     console: &mut Option<crate::console::process::ConsoleSession>,
+    managed_pack: &mut crate::dev::ManagedPack,
 ) -> Result<bool> {
     if preparation_cancelled(console) {
         return Ok(false);
@@ -345,8 +353,12 @@ fn run_internal(
         );
     }
 
-    let sync = sync_dir(&src, &dest)
-        .with_context(|| format!("failed to sync datapack to {}", dest.display()))?;
+    let sync = if watch {
+        crate::dev::install(&src, &dest, None)
+    } else {
+        sync_dir(&src, &dest)
+    }
+    .with_context(|| format!("failed to sync datapack to {}", dest.display()))?;
     println!(
         "  {} datapack → {} ({} copied, {} skipped, {} pruned)",
         "Synced".dimmed(),
@@ -358,6 +370,10 @@ fn run_internal(
 
     if preparation_cancelled(console) {
         return Ok(false);
+    }
+
+    if watch {
+        managed_pack.installed(&dest)?;
     }
 
     // ── 8. Launch the server ─────────────────────────────────────────────────

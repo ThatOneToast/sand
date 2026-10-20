@@ -27,11 +27,29 @@ const QUIET_FLUSH: Duration = Duration::from_millis(150);
 const DRAIN_TIMEOUT: Duration = Duration::from_millis(500);
 
 enum Event {
-    Log { stream: Stream, line: String },
-    StreamClosed(Stream),
+    Log {
+        generation: u64,
+        stream: Stream,
+        line: String,
+    },
+    StreamClosed {
+        generation: u64,
+        stream: Stream,
+    },
     Input(String),
     InputClosed,
     Interrupt,
+}
+
+impl Event {
+    fn belongs_to(&self, current: u64) -> bool {
+        match self {
+            Self::Log { generation, .. } | Self::StreamClosed { generation, .. } => {
+                *generation == current
+            }
+            _ => true, // Input belongs to the persistent console, not a JVM.
+        }
+    }
 }
 
 pub struct RunOutcome {
@@ -45,12 +63,13 @@ pub struct RunOutcome {
 }
 
 /// One stdin reader and Ctrl-C handler retained across dev-server restarts.
-/// Log readers are replaced only after the preceding child has been reaped.
+/// Each JVM tags its log events; late readers cannot affect a later session.
 pub(crate) struct ConsoleSession {
     tx: Sender<Event>,
     rx: Receiver<Event>,
     pending: std::collections::VecDeque<Event>,
     cancelled: bool,
+    generation: u64,
 }
 impl ConsoleSession {
     fn new() -> Self {
@@ -65,6 +84,7 @@ impl ConsoleSession {
             rx,
             pending: Default::default(),
             cancelled: false,
+            generation: 0,
         }
     }
 
@@ -110,12 +130,23 @@ pub(crate) fn run_server_with_dev(
     let stderr = child.stderr.take().expect("stderr was piped");
 
     let console = console.get_or_insert_with(ConsoleSession::new);
-    spawn_reader(stdout, Stream::Stdout, console.tx.clone());
-    spawn_reader(stderr, Stream::Stderr, console.tx.clone());
+    console.generation += 1;
+    spawn_reader(
+        stdout,
+        Stream::Stdout,
+        console.tx.clone(),
+        console.generation,
+    );
+    spawn_reader(
+        stderr,
+        Stream::Stderr,
+        console.tx.clone(),
+        console.generation,
+    );
     let result = drive(
         &mut child,
         stdin,
-        &console.rx,
+        (&console.rx, console.generation),
         mode,
         mc_version,
         dev,
@@ -131,7 +162,7 @@ pub(crate) fn run_server_with_dev(
 fn drive(
     child: &mut Child,
     mut stdin: impl Write,
-    rx: &Receiver<Event>,
+    (rx, generation): (&Receiver<Event>, u64),
     mode: OutputMode,
     mc_version: &str,
     mut dev: Option<&mut crate::dev::Session>,
@@ -150,7 +181,8 @@ fn drive(
             .map(Ok)
             .unwrap_or_else(|| rx.recv_timeout(QUIET_FLUSH))
         {
-            Ok(Event::Log { stream, line }) => {
+            Ok(event) if !event.belongs_to(generation) => continue,
+            Ok(Event::Log { stream, line, .. }) => {
                 let record = parse_line(&line);
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
@@ -158,7 +190,7 @@ fn drive(
                     render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
                 }
             }
-            Ok(Event::StreamClosed(_)) => {}
+            Ok(Event::StreamClosed { .. }) => {}
             Ok(Event::Input(mut line)) => {
                 if let Some(dev) = dev.as_deref_mut() {
                     match line.trim() {
@@ -224,7 +256,7 @@ fn drive(
 
         if let Some(status) = child.try_wait().context("failed to poll server process")? {
             drain_remaining(
-                rx,
+                (rx, generation),
                 &mut grouper,
                 &mut renderer,
                 &mut phase,
@@ -286,7 +318,7 @@ fn send_command(stdin: &mut impl Write, line: &str) {
 }
 
 fn drain_remaining(
-    rx: &Receiver<Event>,
+    (rx, generation): (&Receiver<Event>, u64),
     grouper: &mut Grouper,
     renderer: &mut Renderer,
     phase: &mut PhaseTracker,
@@ -299,7 +331,8 @@ fn drain_remaining(
 
     while (!stdout_closed || !stderr_closed) && Instant::now() < deadline {
         match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Event::Log { stream, line }) => {
+            Ok(event) if !event.belongs_to(generation) => continue,
+            Ok(Event::Log { stream, line, .. }) => {
                 let record = parse_line(&line);
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
@@ -307,8 +340,14 @@ fn drain_remaining(
                     render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
                 }
             }
-            Ok(Event::StreamClosed(Stream::Stdout)) => stdout_closed = true,
-            Ok(Event::StreamClosed(Stream::Stderr)) => stderr_closed = true,
+            Ok(Event::StreamClosed {
+                stream: Stream::Stdout,
+                ..
+            }) => stdout_closed = true,
+            Ok(Event::StreamClosed {
+                stream: Stream::Stderr,
+                ..
+            }) => stderr_closed = true,
             Ok(event) => pending.push_back(event),
             Err(_) => break,
         }
@@ -320,7 +359,12 @@ fn drain_remaining(
     renderer.flush_pending_correlation();
 }
 
-fn spawn_reader<R: Read + Send + 'static>(reader: R, stream: Stream, tx: Sender<Event>) {
+fn spawn_reader<R: Read + Send + 'static>(
+    reader: R,
+    stream: Stream,
+    tx: Sender<Event>,
+    generation: u64,
+) {
     std::thread::spawn(move || {
         let mut reader = BufReader::new(reader);
         let mut buf: Vec<u8> = Vec::new();
@@ -333,14 +377,21 @@ fn spawn_reader<R: Read + Send + 'static>(reader: R, stream: Stream, tx: Sender<
                         buf.pop();
                     }
                     let line = String::from_utf8_lossy(&buf).into_owned();
-                    if tx.send(Event::Log { stream, line }).is_err() {
+                    if tx
+                        .send(Event::Log {
+                            generation,
+                            stream,
+                            line,
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }
                 Err(_) => break,
             }
         }
-        let _ = tx.send(Event::StreamClosed(stream));
+        let _ = tx.send(Event::StreamClosed { generation, stream });
     });
 }
 
@@ -385,6 +436,7 @@ mod tests {
                 rx,
                 pending: Default::default(),
                 cancelled: false,
+                generation: 0,
             };
             console.pending.push_back(Event::Input("say before".into()));
             assert!(!console.cancellation_requested());
@@ -406,16 +458,97 @@ mod tests {
     }
 
     #[test]
+    fn delayed_previous_jvm_logs_cannot_change_new_phase_health_or_input() {
+        let (tx, rx) = mpsc::channel();
+        // Sent after the new generation begins: not just backlog discarded at startup.
+        for line in [
+            "[12:00:00] [Server thread/INFO]: Done (1s)! For help, type \"help\"",
+            "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken",
+        ] {
+            tx.send(Event::Log {
+                generation: 1,
+                stream: Stream::Stdout,
+                line: line.into(),
+            })
+            .unwrap();
+        }
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            tx.send(Event::StreamClosed {
+                generation: 1,
+                stream,
+            })
+            .unwrap();
+        }
+        tx.send(Event::Input("say retained".into())).unwrap();
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            tx.send(Event::StreamClosed {
+                generation: 2,
+                stream,
+            })
+            .unwrap();
+        }
+        let mut renderer = Renderer::new(OutputMode::Classified, "26.2".into());
+        let mut phase = PhaseTracker::new();
+        let mut pending = Default::default();
+        drain_remaining(
+            (&rx, 2),
+            &mut Grouper::new(),
+            &mut renderer,
+            &mut phase,
+            &mut pending,
+            None,
+        );
+        assert_eq!(
+            phase.current(),
+            super::super::phase::RunPhase::ServerStartup
+        );
+        assert_eq!(renderer.health(), RunHealth::Healthy);
+        assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "say retained"));
+        assert!(pending.is_empty());
+        // Current-generation output must still be classified normally.
+        tx.send(Event::Log {
+            generation: 2,
+            stream: Stream::Stdout,
+            line: "[12:00:01] [Server thread/ERROR]: Failed to load function new:broken".into(),
+        })
+        .unwrap();
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            tx.send(Event::StreamClosed {
+                generation: 2,
+                stream,
+            })
+            .unwrap();
+        }
+        drain_remaining(
+            (&rx, 2),
+            &mut Grouper::new(),
+            &mut renderer,
+            &mut phase,
+            &mut pending,
+            None,
+        );
+        assert_eq!(renderer.health(), RunHealth::Degraded);
+    }
+
+    #[test]
     fn drain_preserves_restart_quit_and_eof_for_next_process() {
         let (tx, rx) = mpsc::channel();
         tx.send(Event::Input("R".into())).unwrap();
         tx.send(Event::Input("q".into())).unwrap();
         tx.send(Event::InputClosed).unwrap();
-        tx.send(Event::StreamClosed(Stream::Stdout)).unwrap();
-        tx.send(Event::StreamClosed(Stream::Stderr)).unwrap();
+        tx.send(Event::StreamClosed {
+            generation: 0,
+            stream: Stream::Stdout,
+        })
+        .unwrap();
+        tx.send(Event::StreamClosed {
+            generation: 0,
+            stream: Stream::Stderr,
+        })
+        .unwrap();
         let mut pending = std::collections::VecDeque::new();
         drain_remaining(
-            &rx,
+            (&rx, 0),
             &mut Grouper::new(),
             &mut Renderer::new(OutputMode::Classified, "26.2".into()),
             &mut PhaseTracker::new(),
@@ -436,13 +569,13 @@ mod tests {
         bytes.extend_from_slice(b"no trailing newline at all");
 
         let (tx, rx) = mpsc::channel::<Event>();
-        spawn_reader(Cursor::new(bytes), Stream::Stdout, tx);
+        spawn_reader(Cursor::new(bytes), Stream::Stdout, tx, 0);
 
         let mut lines = Vec::new();
         loop {
             match rx.recv_timeout(Duration::from_secs(2)).unwrap() {
                 Event::Log { line, .. } => lines.push(line),
-                Event::StreamClosed(_) => break,
+                Event::StreamClosed { .. } => break,
                 _ => unreachable!(),
             }
         }
@@ -475,13 +608,19 @@ mod tests {
         let stderr = child.stderr.take().unwrap();
 
         let (tx, rx) = mpsc::channel::<Event>();
-        spawn_reader(stdout, Stream::Stdout, tx.clone());
-        spawn_reader(stderr, Stream::Stderr, tx.clone());
+        spawn_reader(stdout, Stream::Stdout, tx.clone(), 0);
+        spawn_reader(stderr, Stream::Stderr, tx.clone(), 0);
         // Feed synthetic input instead of real stdin so the test is
         // hermetic: send a command, then close input. The fixture script
         // blocks on `read line`, so this proves input forwarding and
         // shutdown-on-EOF both work without deadlocking.
         std::thread::spawn(move || {
+            // A reader from an earlier JVM may send after this drive starts.
+            let _ = tx.send(Event::Log {
+                generation: 99,
+                stream: Stream::Stdout,
+                line: "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken".into(),
+            });
             let _ = tx.send(Event::Input("say hello".to_string()));
             let _ = tx.send(Event::InputClosed);
         });
@@ -489,7 +628,7 @@ mod tests {
         let result = drive(
             &mut child,
             stdin,
-            &rx,
+            (&rx, 0),
             OutputMode::Classified,
             "26.2",
             None,
@@ -498,7 +637,7 @@ mod tests {
         // The fixture script isn't a real Minecraft server, so we only
         // assert the loop terminates cleanly with a status, proving no
         // deadlock — not any particular exit code.
-        assert!(result.is_ok());
+        assert_eq!(result.unwrap().health, RunHealth::Healthy);
     }
 
     fn test_fixture_command() -> &'static str {

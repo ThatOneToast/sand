@@ -87,7 +87,7 @@ pub fn export(version: &str) {
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    (server / 'server.properties').write_text(f'server-port={port}\nlevel-type=minecraft:flat\n')
+    (server / 'server.properties').write_text(f'server-port={port}\nserver-ip=0.0.0.0\nlevel-type=minecraft:flat\n')
     return port
 
 
@@ -222,6 +222,7 @@ def validate_restart_cancellation(binary, project, output, env, secrets, checks)
             assert snapshot(project / 'dist/server/world') == world
             assert sum('Minecraft 26.2 ready' in line for line in dev.lines) == 1
             assert 'rcon.password' not in properties(project)
+            assert properties(project)['server-ip'] == '0.0.0.0'
             checks.append(f'{kind} during restart build prevents AlwaysReset and new JVM launch')
         finally:
             flags[2].touch()
@@ -245,6 +246,7 @@ def validate(binary, output):
         dev.wait('Minecraft 26.2 ready')
         props = properties(project)
         assert props['server-ip'] == '127.0.0.1'
+        assert int(props['rcon.port']) != port
         secrets.append(props['rcon.password'])
         assert len(secrets[-1]) == 64
         with socket.create_connection(('127.0.0.1', port), timeout=2):
@@ -296,6 +298,38 @@ def validate(binary, output):
             dev.wait('dev_probe_v2')
         assert 'Changed description' in (live / 'pack.mcmeta').read_text()
         checks.append('startup-resource guard; two graceful R restarts with fresh credentials and live handler')
+        manual = live.parent / 'operator_pack'
+        manual.mkdir()
+        (manual / 'pack.mcmeta').write_bytes((live / 'pack.mcmeta').read_bytes())
+        (manual / 'keep').write_text('operator-owned')
+        library = project / 'src/lib.rs'
+        config.write_text(config.read_text().replace('namespace="devprobe"', 'namespace="renamed"'))
+        library.write_text(library.read_text().replace('try_export_pack_json("devprobe"', 'try_export_pack_json("renamed"'))
+        dev.wait('namespace changed: restart required')
+        assert live.exists(), 'namespace edit must retain previous live pack before R'
+        dev.send('R')
+        dev.wait('server stopped; rebuilding and restarting')
+        dev.wait('Minecraft 26.2 ready')
+        secrets.append(properties(project)['rcon.password'])
+        renamed = live.parent / 'renamed'
+        assert renamed.is_dir() and not live.exists()
+        assert (manual / 'keep').read_text() == 'operator-owned'
+        dev.send('datapack list enabled')
+        enabled = dev.wait('file/renamed')
+        assert 'file/devprobe' not in enabled
+        dev.send('function renamed:probe')
+        dev.wait('dev_probe_v2')
+        # Switch back within the same dev invocation, proving ownership advances.
+        config.write_text(config.read_text().replace('namespace="renamed"', 'namespace="devprobe"'))
+        library.write_text(library.read_text().replace('try_export_pack_json("renamed"', 'try_export_pack_json("devprobe"'))
+        dev.wait('namespace changed: restart required')
+        dev.send('R')
+        dev.wait('server stopped; rebuilding and restarting')
+        dev.wait('Minecraft 26.2 ready')
+        secrets.append(properties(project)['rcon.password'])
+        assert live.is_dir() and not renamed.exists()
+        assert (manual / 'keep').is_file()
+        checks.append('namespace changes plus R replace only previous session-managed pack; operator pack retained')
         dev.send('q')
         assert dev.process.wait(timeout=45) == 0
         checks.append('q gracefully exits after repeated restart')
@@ -303,6 +337,8 @@ def validate(binary, output):
         dev.close()
     assert 'rcon.password' not in properties(project)
     assert properties(project)['enable-rcon'] == 'false'
+    assert properties(project)['server-ip'] == '0.0.0.0'
+    checks.append('original game bind restored after repeated dev restarts and quit')
     dev = Dev(binary, project, output / 'unrecovered-console.log', env)
     try:
         dev.wait('Minecraft 26.2 ready')

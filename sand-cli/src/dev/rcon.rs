@@ -11,9 +11,11 @@ pub(super) struct Rcon {
 }
 
 impl Rcon {
-    pub fn new() -> Result<Self> {
-        let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        let port = listener.local_addr()?.port();
+    pub fn new(game_port: u16) -> Result<Self> {
+        let port = allocate_port(game_port, || {
+            let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+            Ok(listener.local_addr()?.port())
+        })?;
         let mut bytes = [0u8; 32];
         getrandom::fill(&mut bytes).map_err(|_| anyhow::anyhow!("OS entropy unavailable"))?;
         let secret = bytes.iter().map(|b| format!("{b:02x}")).collect();
@@ -45,6 +47,17 @@ impl Rcon {
         // validation. Never label this as successful datapack loading.
         Ok(())
     }
+}
+
+// Bounded retries also make a persistently unsuitable allocator fail clearly.
+fn allocate_port(game_port: u16, mut candidate: impl FnMut() -> Result<u16>) -> Result<u16> {
+    for _ in 0..32 {
+        let port = candidate()?;
+        if port != game_port {
+            return Ok(port);
+        }
+    }
+    anyhow::bail!("could not allocate an RCON port distinct from the game port")
 }
 
 fn write_packet(out: &mut impl Write, id: i32, kind: i32, body: &str) -> Result<()> {
@@ -79,6 +92,24 @@ fn read_packet(input: &mut impl Read) -> Result<(i32, i32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn allocation_retries_game_port_collisions_and_bounds_failure() {
+        let mut ports = [49152, 49152, 49153].into_iter();
+        assert_eq!(
+            allocate_port(49152, || Ok(ports.next().unwrap())).unwrap(),
+            49153
+        );
+        let mut attempts = 0;
+        assert!(
+            allocate_port(49152, || {
+                attempts += 1;
+                Ok(49152)
+            })
+            .is_err()
+        );
+        assert_eq!(attempts, 32);
+    }
+
     #[test]
     fn packet_prefix_and_payload_are_submitted_together() {
         #[derive(Default)]
@@ -140,8 +171,8 @@ mod tests {
 
     #[test]
     fn credentials_are_fresh_and_server_binding_is_loopback() {
-        let a = Rcon::new().unwrap();
-        let b = Rcon::new().unwrap();
+        let a = Rcon::new(25565).unwrap();
+        let b = Rcon::new(25565).unwrap();
         assert!(a.secret != b.secret);
         assert_eq!(a.secret.len(), 64);
         assert!(a.properties().contains("server-ip=127.0.0.1\n"));

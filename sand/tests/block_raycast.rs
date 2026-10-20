@@ -58,6 +58,16 @@ fn remainder() -> BlockRaycast {
     definition("remainder").max_distance(2.5).step(1.0)
 }
 #[datapack_component]
+fn decimal_multiple() -> BlockRaycast {
+    definition("decimal_multiple").max_distance(0.9).step(0.03)
+}
+#[datapack_component]
+fn decimal_fraction() -> BlockRaycast {
+    definition("decimal_fraction")
+        .max_distance(0.900_000_000_001)
+        .step(0.03)
+}
+#[datapack_component]
 fn player_callbacks() -> BlockRaycast {
     definition("player_callbacks")
         .on_hit(player_hit)
@@ -223,6 +233,39 @@ fn raycast_export_preserves_terminal_calls_guards_and_predicates() {
         let advance = resource(&pack, "rays", "function", &path(name, "advance"));
         assert!(advance.contains("positioned ^ ^ ^0.5"), "{advance}");
     }
+    for (name, distance, count) in [
+        ("decimal_multiple", 0.9, 30),
+        ("decimal_fraction", 0.900_000_000_001, 31),
+    ] {
+        let start = resource(&pack, "rays", "function", &path(name, "start"));
+        assert!(
+            start
+                .lines()
+                .nth(1)
+                .unwrap()
+                .ends_with(&format!(" {count}"))
+        );
+        let advance = resource(&pack, "rays", "function", &path(name, "advance"));
+        let final_step: f64 = advance
+            .lines()
+            .nth(1)
+            .unwrap()
+            .split("positioned ^ ^ ^")
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert!(final_step > 0.0);
+        assert_eq!(0.03 * (count - 1) as f64 + final_step, distance);
+        if name == "decimal_multiple" {
+            assert!((final_step - 0.03).abs() < 1e-15, "{advance}");
+        } else {
+            assert!(final_step < 1e-10, "{advance}");
+        }
+    }
     assert!(!pack.to_string().contains("__sand_local"));
     assert_eq!(pack, snapshot("rays"));
     std::thread::scope(|scope| {
@@ -245,6 +288,13 @@ fn sample_count_has_finite_bounded_endpoint_semantics() {
         (2.5, 1.0, 3),
         (0.5, 2.0, 1),
         (256.0, 1.0, 256),
+        (0.9, 0.03, 30),
+        (0.3, 0.1, 3),
+        (2.55, 0.01, 255),
+        (7.68, 0.03, 256),
+        (7.68_f64.next_up(), 0.03, 256),
+        (0.900_000_000_001, 0.03, 31),
+        (f64::MIN_POSITIVE, f64::MAX, 1),
     ] {
         assert_eq!(
             definition("count")
@@ -267,6 +317,13 @@ fn sample_count_has_finite_bounded_endpoint_semantics() {
     assert!(
         definition("count")
             .max_distance(257.0)
+            .sample_count()
+            .is_err()
+    );
+    assert!(
+        definition("count")
+            .max_distance(7.680_000_000_001)
+            .step(0.03)
             .sample_count()
             .is_err()
     );

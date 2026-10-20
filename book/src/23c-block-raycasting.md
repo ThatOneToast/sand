@@ -51,7 +51,12 @@ lists and tags are alternatives; specifying both is an export error.
 Samples exclude the origin and occur at `step`, `2 * step`, and so on, ending at
 exactly `max_distance`. A nonmultiple range shortens the final interval. A range
 smaller than the step produces one sample at the range. Distance and step must
-be finite and positive, and `ceil(range / step)` must not exceed 256. This is
+be finite and positive, and `ceil(range / step)` must not exceed 256. Before
+taking the ceiling, a quotient within two floating-point representable values
+of a positive integer is rounded to that integer. This avoids a duplicate
+endpoint from decimal rounding, such as `0.9 / 0.03` producing slightly more
+than 30. The final interval still clamps to the supplied range; genuine
+fractional remainders outside that tolerance retain an additional sample. This is
 discrete sampling: small features between samples can be skipped. It is not
 voxel traversal or entity raycasting.
 

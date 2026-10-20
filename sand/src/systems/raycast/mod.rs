@@ -256,7 +256,10 @@ impl BlockRaycast {
 
     /// Calculate `ceil(max_distance / step)`, rejecting invalid values or more
     /// than 256 samples. The final interval ends exactly at max_distance, even
-    /// when the range is smaller than one step.
+    /// when the range is smaller than one step. Quotients within two floating-point
+    /// representable values of a positive integer are rounded to that integer
+    /// before taking the ceiling, avoiding duplicate endpoint samples from
+    /// decimal input rounding (for example, `0.9 / 0.03`).
     #[sand_macros::api(
         path = "sand::systems::raycast::BlockRaycast::sample_count", module = "sand::systems::raycast", kind = "method",
         summary = "Calculates and validates the bounded sample count.",
@@ -275,7 +278,17 @@ impl BlockRaycast {
         {
             return Err(self.error("distance and step must be finite and positive"));
         }
-        let count = (self.distance / self.step).ceil().max(1.0);
+        let quotient = self.distance / self.step;
+        let nearest = quotient.round();
+        let normalized = if nearest >= 1.0
+            && quotient >= nearest.next_down().next_down()
+            && quotient <= nearest.next_up().next_up()
+        {
+            nearest
+        } else {
+            quotient
+        };
+        let count = normalized.ceil().max(1.0);
         if !count.is_finite() || count < 1.0 || count > SAMPLE_LIMIT as f64 {
             return Err(self.error("sample count must be between 1 and 256"));
         }

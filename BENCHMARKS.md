@@ -916,3 +916,18 @@ Retained evidence (extract each trace ZIP beside its JSON):
 - Baseline: [idle JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-idle.json), [idle traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-idle-traces.zip), [level-up JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-level-up.json), [level-up traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/baseline-level-up-traces.zip).
 - Candidate: [idle JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-idle.json), [idle traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-idle-traces.zip), [level-up JSON](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-level-up.json), [level-up traces](benchmarks/evidence/archetype-bookkeeping-2026-10-20/candidate-level-up-traces.zip).
 - Shared ownership: [results](benchmarks/evidence/archetype-bookkeeping-2026-10-20/shared-ownership.json), [server log](benchmarks/evidence/archetype-bookkeeping-2026-10-20/shared-ownership-log.zip).
+
+The [RPG native audit](benchmarks/evidence/archetype-bookkeeping-2026-10-20/native-audit.json)
+passes all 29 assertions (the original 25 plus four bookkeeping regressions).
+Its installed pack hash matches both candidate cost runs; the
+[provenance manifest](benchmarks/evidence/archetype-bookkeeping-2026-10-20/provenance.json)
+records the source commits and audit pack/jar identities.
+
+The retained [Rust export runtime report](benchmarks/evidence/archetype-bookkeeping-2026-10-20/runtime-report.json)
+uses the #465 foundation. Every new helper retains the `rpg:plagued_zombie`
+owner. Acknowledgement helpers have exact bounds 2–2; the internal-reset helper
+has bounds 10–10. Reconcile has a lower bound of 93 explicit evaluations and an
+unknown upper bound because macro arguments are not analyzed. The observed
+idle 99 adds the timer's four-command fanout and two-command acknowledgement.
+This report is compiler-export analysis, not an MSPT measurement or proof of a
+whole-tick upper bound; its recorded limitations remain applicable.

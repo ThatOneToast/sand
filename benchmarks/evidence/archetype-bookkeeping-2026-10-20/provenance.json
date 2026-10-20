@@ -8,5 +8,8 @@
     "Candidate production implementation unchanged in later evidence/test commits.",
     "Each JSON independently records generated pack and server-jar SHA-256.",
     "Samples exclude two probe control evaluations; idle contains an active timer."
-  ]
+  ],
+  "native_audit_source_commit": "6d2291e053b37110e9600ed260ca95631700575a",
+  "native_audit_input_pack_sha256": "ad644c9e6126b9865fdd13d74c5a4036acd24911bbee629b9396c6e6aa7c981d",
+  "native_audit_server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5"
 }

@@ -3437,12 +3437,16 @@ mod tests {
             value["block"],
             serde_json::json!({"blocks": "#minecraft:logs", "state": {"axis": "y"}})
         );
-        let entity =
-            serde_json::to_value(EntityPredicate::new().location(location.clone())).unwrap();
-        assert_eq!(
-            entity["minecraft:location"]["block"]["blocks"],
-            "#minecraft:logs"
-        );
+        let entity = EntityPredicate::new().location(location.clone());
+        let value = serde_json::to_value(&entity).unwrap();
+        assert_eq!(value["location"]["block"]["blocks"], "#minecraft:logs");
+        for (version, key) in [("26.1", "location"), ("26.2", "minecraft:location")] {
+            let caps = sand_version::VersionCaps::from_profile_flags(
+                version, false, false, true, true, true, true, true, true,
+            );
+            let value = entity.render_for_advancement(Some(&caps)).unwrap();
+            assert_eq!(value[key]["block"]["blocks"], "#minecraft:logs", "{value}");
+        }
         for trigger in [
             crate::advancement::AdvancementTrigger::PlacedBlock {
                 block: None,

@@ -21,8 +21,10 @@ let generator = Generator::Flat(
 ```
 
 - **Layers** — `FlatLayer::new(block, height)`, listed bottom-to-top. Total
-  height is validated against the vanilla build-height limit (384 blocks);
-  a zero-height layer or an empty layer list is also rejected — see
+  height is validated against Minecraft's absolute flat-generator codec limit
+  (4064 blocks), allowing tall custom dimensions. The dimension type still
+  determines the usable world height; blocks outside it are not generated.
+  A zero-height layer or an empty layer list is also rejected — see
   [Generated World Resources](./34-generated-world-resources.md#validation)
   for the exact diagnostics.
 - **Biome** — `FlatGenerator::biome(...)`. Defaults to `minecraft:plains`
@@ -30,7 +32,9 @@ let generator = Generator::Flat(
   biome for every column.
 - **Structures** — `FlatGenerator::with_structures(true)` enables vanilla
   structure generation (villages, strongholds, …) on top of the flat
-  terrain; disabled by default, matching vanilla's superflat behavior.
+  terrain; disabled by default. Enabling this omits `structure_overrides`,
+  allowing Minecraft to use its default structure sets. Disabling it writes
+  an empty override list. Biome decoration (`features`) stays disabled.
 
 ## Why flat for `dev`/`test`
 

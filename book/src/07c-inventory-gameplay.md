@@ -156,3 +156,25 @@ and inventory coverage as `count`. It selects one player once, removes up to the
 requested quantity, and leaves unrelated items alone. If fewer items exist, it
 removes only those available. Zero removes nothing; amounts above `i32::MAX`
 fail export. This is not an atomic payment or an all-or-nothing transfer.
+
+## Acting on an equipped item
+
+Use `when_matches` to build a grouped branch directly from a live slot:
+
+```rust,ignore
+let wand = CustomItem::new("minecraft:stick").custom_data("my_pack:wand");
+let offhand = player.inventory().offhand();
+let actions = offhand.when_matches(wand.item_predicate()?, || {
+    mcfunction![
+        offhand.clear().unwrap();
+        player.inventory().mainhand().set(vanilla::Item::Diamond).unwrap();
+    ]
+})?;
+```
+
+The predicate is tested once. Clearing the offhand does not cancel the remaining
+reward action. The closure builds owned actions at export time; it is not a Rust
+callback running on the server. Include the returned actions in the enclosing
+function or system. The branch preserves its executor and position and creates
+no tick observer. Use `matches` with `when` when combining several conditions.
+NBT-only locations such as ender-chest slots are rejected before the closure runs.

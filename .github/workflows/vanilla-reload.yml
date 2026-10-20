@@ -32,6 +32,8 @@ on:
       - "sand-core/tests/state_flow_runtime.rs"
       - "scripts/validate_player_observations.py"
       - "scripts/validate_bounded_state_writes.py"
+      - "scripts/validate_inventory_matches.py"
+      - "sand-core/tests/inventory_match_actions.rs"
       - "scripts/validate_keyed_literals.py"
       - "scripts/validate_trailforge.py"
       - "scripts/validate_text_interactions.py"
@@ -248,6 +250,13 @@ jobs:
           python3 scripts/validate_bounded_state_writes.py \
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/bounded-state"
+      - name: Validate atomic inventory match branches for real players
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_inventory_matches.py \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/inventory-matches"
+
       - name: Validate built-in detector ownership in both tick orders
         if: matrix.target == 'latest'
         run: |
@@ -324,6 +333,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/player-observations
             target/vanilla-reload/${{ matrix.version }}/player-participants
             target/vanilla-reload/${{ matrix.version }}/bounded-items
+            target/vanilla-reload/${{ matrix.version }}/inventory-matches
             target/vanilla-reload/${{ matrix.version }}/player-joins
             target/vanilla-reload/${{ matrix.version }}/bounded-state
             target/vanilla-reload/${{ matrix.version }}/detector-ownership

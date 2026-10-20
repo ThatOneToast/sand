@@ -75,8 +75,8 @@ first), naming the offending builder call:
 - **Duplicate dimension slots** — the same `DimensionSlot` (e.g. two
   `Overworld` entries) configured twice.
 - **Flat generator layers** — at least one layer required; each layer's
-  height must be `> 0`; total layer height must not exceed the 384-block
-  build-height limit.
+  height must be `> 0`; total layer height must not exceed the 4064-block
+  absolute codec limit; the dimension type determines usable world height.
 - **Vanilla biome references** — a `minecraft:`-namespaced biome passed to
   `FlatGenerator::biome` or `NoiseGenerator::single_biome` must be a real
   vanilla biome ID. Checked against a list **generated from real Minecraft
@@ -112,3 +112,119 @@ custom dimension slot/type, plus the world-init function and its
 regenerate a fixture after a deliberate output-format change; review the
 diff in the resulting fixture file the same way you'd review any other
 generated-code change before committing it.
+
+## Typed feature placement
+
+A configured feature describes what to generate; a placed feature describes
+where and how often to try it. Build the placement pipeline in execution order:
+
+```rust,ignore
+let placed = PlacedFeature::new(
+    "my_pack:shrubs".parse()?,
+    shrub_feature.id(),
+).placement([
+    PlacementModifier::Count(3),
+    PlacementModifier::InSquare,
+    PlacementModifier::Heightmap(Heightmap::WorldSurfaceWg),
+    PlacementModifier::Biome,
+]);
+```
+
+This repeats the origin three times, scatters within the chunk, chooses the
+surface elevation, and checks the biome's feature list. `HeightRange` reuses
+`HeightProvider` and `VerticalAnchor`; `RarityFilter` retains one position in the
+specified positive number of attempts. Export rejects invalid counts, chances,
+and height ranges with the placement index in the diagnostic. The supported
+26.1/26.2 constant-count range is `0..=4096`.
+
+Use `PlacementModifier::Raw(RawJson::new(...))` only for unsupported modifiers
+or provider shapes. That path checks the object and type identifier; it does not
+validate the custom modifier's codec. `placement` replaces the pipeline;
+`placement_modifier` appends one operation.
+
+### Typed biome spawning
+
+Biome spawn tables reuse the same `MobCategory` and `SpawnEntry` models as
+structure spawn overrides. `SpawnCost` adds per-entity population-density
+budgets without requiring JSON:
+
+Every biome exports the required generation and spawn fields, with empty
+collections when omitted. Each spawn category's total weight must fit a signed
+32-bit integer, as must each individual entry; export rejects an overflowing
+table before Minecraft loads it.
+
+```rust
+use sand::component::{Biome, BiomeEffects, MobCategory, SpawnCost, SpawnEntry};
+use sand::registry::EntityTypeId;
+use sand::ResourceLocation;
+use std::collections::BTreeMap;
+
+let zombie = EntityTypeId::minecraft("zombie").unwrap();
+let biome = Biome::new(
+    ResourceLocation::new("my_pack", "haunted_forest").unwrap(),
+    BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
+)
+.spawners(BTreeMap::from([
+    (MobCategory::Monster, vec![SpawnEntry::new(zombie.clone(), 90, 1, 4)]),
+]))
+.spawn_costs([(zombie, SpawnCost::new(0.7, 0.15))]);
+```
+
+Both setters replace the entire previous table. Map keys export deterministically
+and spawn entries retain their declared order. Export validates positive weights
+and group sizes, ordered group bounds, signed-integer limits, and finite density
+costs. Diagnostics identify the biome and nested field.
+
+`raw_spawners(RawJson)` and `raw_spawn_costs(RawJson)` are explicit escape hatches
+for unsupported schemas. They replace the corresponding typed table and validate
+only its outer object shape.
+
+### Shared typed dimension generators
+
+Component dimensions and `sand::build::Dimension` accept the same generator
+models, exported from both `sand::component` and `sand::build`. They use the
+same JSON lowering and structural validation:
+
+```rust
+use sand::component::{BiomeSource, Dimension, Generator, NoiseGenerator};
+use sand::registry::{BiomeId, DimensionTypeId, NoiseSettingsId};
+use sand::ResourceLocation;
+
+let terrain = NoiseGenerator::custom_settings(
+    NoiseSettingsId::custom(ResourceLocation::new("my_pack", "terrain").unwrap()),
+).biome_source(BiomeSource::Checkerboard {
+    biomes: vec![
+        BiomeId::minecraft("plains").unwrap(),
+        BiomeId::minecraft("desert").unwrap(),
+    ],
+    scale: 2,
+});
+let dimension = Dimension::new(
+    ResourceLocation::new("my_pack", "checkerboard_world").unwrap(),
+    DimensionTypeId::minecraft("overworld").unwrap(),
+    Generator::Noise(terrain),
+);
+```
+
+`Generator` supports flat, void, noise, and vanilla debug worlds. Noise sources
+support automatic vanilla placement, a fixed biome, and an ordered checkerboard
+list. Checkerboards require at least one biome and a scale in `0..=62`.
+`FlatLayer` uses `BlockId`, fixed/flat biomes use `BiomeId`, and custom terrain
+settings use `NoiseSettingsId`. Build configuration additionally checks explicit
+vanilla biome references against its generated registry snapshot.
+
+`Generator::Raw(RawJson)` and `BiomeSource::Raw(RawJson)` support unsupported
+schemas. Both require an object with a valid resource-location `type` field;
+the rest of the raw payload is passed through, including inline noise settings.
+They do not perform full Minecraft codec validation.
+
+Migration: pass a `Generator` to component `Dimension::new` and `generator`.
+The `noise_generator` and `flat_generator` constructors now take a
+`NoiseGenerator` or `FlatGenerator`. Replace `generator_raw(raw)` with
+`generator(Generator::Raw(raw))`. `Generator::CustomReference` was removed:
+Minecraft expects an inline generator object, not a standalone generator-file ID.
+
+`DimensionType::new` emits complete overworld-like defaults, including a uniform
+monster spawn light range and disabled vanilla Ender Dragon fight management.
+Use `.has_ender_dragon_fight(true)` to enable the vanilla fight lifecycle in a
+custom dimension; this setting is independent of its terrain generator.

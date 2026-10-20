@@ -93,10 +93,10 @@ pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId,
     CowVariantId, DamageTypeId, DensityFunctionId, DialogId, DimensionId, DimensionTypeId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, NoiseId, ParticleId, PigVariantId, PotionRegistryId, PredicateId,
-    ProcessorListId, RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StructureId,
-    StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId, TradeSetId,
-    VillagerTradeId,
+    ItemId, LootTableId, NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PotionRegistryId,
+    PredicateId, ProcessorListId, RandomSequenceId, RecipeId, SoundEventId, StatusEffectId,
+    StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId,
+    TradeSetId, VillagerTradeId,
 };
 pub use resource_location::{PackNamespace, ResourceLocation};
 
@@ -217,11 +217,16 @@ pub use worldgen::{
     ConfiguredFeature, DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr,
     DensityFunctionUnaryOp, Dimension, DimensionType, ExclusionZone, FrequencyReductionMethod,
     GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory, MonsterSpawnLightLevel,
-    Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry, Processor,
-    ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest, SpawnBoundingBox,
-    SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry, StructurePlacement,
-    StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
+    Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PlacementModifier, PoolElement,
+    PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest,
+    SpawnBoundingBox, SpawnCost, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
+    StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
 };
 
 #[doc(hidden)]
 pub mod pack_metadata;
+
+pub use worldgen::generator::{
+    BiomeSource, FlatGenerator, FlatLayer, Generator, NoiseGenerator, NoiseSettingsRef,
+    VanillaNoiseSettings,
+};

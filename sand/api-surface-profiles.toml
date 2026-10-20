@@ -9,6 +9,11 @@
 # RuntimeReport, CompiledPack.runtime_report, and final-resource reanalysis add three advanced-source items.
 # Portable ScoreField.bounds adds one contracted advanced-source field.
 # Portable flows add four definitions, thirteen fields and three hook phases (+20).
+# Typed placement modifiers add one enum, eight variants, six payload fields;
+# grouped inventory slot matching adds one method (+16 enforced source items).
+# Typed biome spawn costs and replacement raw table setters add four source items.
+# Shared generators add twelve source items and NoiseSettingsId adds four generated items.
+# DimensionType dragon-fight configuration adds one enforced component method.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -17,12 +22,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 4967
+static_surface_items = 5004
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11067
+static_surface_items = 11104
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

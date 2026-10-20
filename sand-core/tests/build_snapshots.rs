@@ -167,3 +167,125 @@ fn world_border_and_spawn_init_function_snapshot() {
     let json: serde_json::Value = serde_json::from_str(&load_tag.content).unwrap();
     assert_json_snapshot("load_tag.json", &json);
 }
+
+#[test]
+fn noise_presets_export_matching_biome_sources() {
+    use serde_json::json;
+    for (preset, settings, biome_source) in [
+        (
+            VanillaNoiseSettings::Overworld,
+            "overworld",
+            json!({"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}),
+        ),
+        (
+            VanillaNoiseSettings::LargeBiomes,
+            "large_biomes",
+            json!({"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}),
+        ),
+        (
+            VanillaNoiseSettings::Amplified,
+            "amplified",
+            json!({"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}),
+        ),
+        (
+            VanillaNoiseSettings::Nether,
+            "nether",
+            json!({"type": "minecraft:multi_noise", "preset": "minecraft:nether"}),
+        ),
+        (
+            VanillaNoiseSettings::End,
+            "end",
+            json!({"type": "minecraft:the_end"}),
+        ),
+        (
+            VanillaNoiseSettings::Caves,
+            "caves",
+            json!({"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}),
+        ),
+        (
+            VanillaNoiseSettings::FloatingIslands,
+            "floating_islands",
+            json!({"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}),
+        ),
+    ] {
+        for fixed in [false, true] {
+            let mut generator = NoiseGenerator::vanilla(preset);
+            if fixed {
+                generator = generator.single_biome(rl("minecraft", "desert"));
+            }
+            let dimension = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
+                .generator(Generator::Noise(generator));
+            let build =
+                SandBuild::new().world(World::new().dimensions(Dimensions::new().with(dimension)));
+            build.validate().unwrap();
+            let resources = lower_world("preset_test", &build);
+            let resource = resources.iter().find(|r| r.dir == "dimension").unwrap();
+            let actual: serde_json::Value = serde_json::from_str(&resource.content).unwrap();
+            assert_eq!(
+                actual,
+                json!({
+                    "type": "minecraft:overworld",
+                    "generator": {
+                        "type": "minecraft:noise",
+                        "settings": format!("minecraft:{settings}"),
+                        "biome_source": if fixed { json!({"type": "minecraft:fixed", "biome": "minecraft:desert"}) } else { biome_source.clone() },
+                    }
+                }),
+                "preset {preset:?}, fixed={fixed}"
+            );
+        }
+    }
+}
+
+#[test]
+fn flat_structures_toggle_structure_sets_without_enabling_biome_decoration() {
+    use serde_json::json;
+    for enabled in [false, true] {
+        let dimension = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
+            .generator(Generator::Flat(
+                FlatGenerator::new(vec![FlatLayer::new(rl("minecraft", "stone"), 1)])
+                    .with_structures(enabled),
+            ));
+        let build =
+            SandBuild::new().world(World::new().dimensions(Dimensions::new().with(dimension)));
+        build.validate().unwrap();
+        let resources = lower_world("flat_test", &build);
+        let resource = resources.iter().find(|r| r.dir == "dimension").unwrap();
+        let actual: serde_json::Value = serde_json::from_str(&resource.content).unwrap();
+        let mut expected = json!({
+            "type": "minecraft:overworld",
+            "generator": {
+                "type": "minecraft:flat",
+                "settings": {
+                    "biome": "minecraft:plains", "lakes": false, "features": false,
+                    "layers": [{"block": "minecraft:stone", "height": 1}],
+                }
+            }
+        });
+        if !enabled {
+            expected["generator"]["settings"]["structure_overrides"] = json!([]);
+        }
+        assert_eq!(actual, expected, "structures={enabled}");
+    }
+}
+
+#[test]
+fn oversized_flat_layers_report_diagnostics_without_overflowing() {
+    let dimension = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+        Generator::Flat(FlatGenerator::new(vec![
+            FlatLayer::new(rl("minecraft", "stone"), u32::MAX),
+            FlatLayer::new(rl("minecraft", "dirt"), 2),
+        ])),
+    );
+    let build = SandBuild::new().world(World::new().dimensions(Dimensions::new().with(dimension)));
+    let diagnostics = build.validate().unwrap_err();
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(
+        diagnostics[0].location,
+        "Dimension[minecraft:overworld].generator.settings.layers"
+    );
+    assert_eq!(
+        diagnostics[0].message,
+        "FlatGenerator layers total 4294967297 blocks tall, exceeding the absolute flat-generator height limit of 4064"
+    );
+}

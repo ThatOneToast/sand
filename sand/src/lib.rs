@@ -354,14 +354,16 @@ pub mod component {
         Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag, DialogText,
     };
     pub use sand_components::{
-        BannerPattern, Biome, BiomeEffects, CarverFloatRange, CarvingStep, CaveCarverConfig,
-        ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
-        ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
+        BannerPattern, Biome, BiomeEffects, BiomeSource, CarverFloatRange, CarvingStep,
+        CaveCarverConfig, ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType,
+        ConfiguredCarver, ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
         DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
-        IntoItemStack, ItemComponent, ItemStackComponents, LootText, MonsterSpawnLightLevel, Noise,
-        OreConfig, OreTarget, PlacedFeature, PotionContents, RawComponent, RawJson, RawSnbt,
-        Result, RuleTest, SandError, SpawnCondition, StatusEffectInstance, StructureTemplate,
-        SuspiciousStewEffect, TagEntry, TagRegistry, TemperatureModifier, TypedTag,
+        FlatGenerator, FlatLayer, Generator, IntoItemStack, ItemComponent, ItemStackComponents,
+        LootText, MonsterSpawnLightLevel, Noise, NoiseGenerator, NoiseSettingsRef, OreConfig,
+        OreTarget, PlacedFeature, PlacementModifier, PotionContents, RawComponent, RawJson,
+        RawSnbt, Result, RuleTest, SandError, SpawnCondition, SpawnCost, StatusEffectInstance,
+        StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry, TemperatureModifier,
+        TypedTag, VanillaNoiseSettings,
     };
     pub use sand_core::components::*;
 }
@@ -485,9 +487,10 @@ pub mod registry {
         BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId, CowVariantId,
         DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EffectId,
         EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, ItemId,
-        NoiseId, ParticleId, PigVariantId, PotionId, PotionRegistryId, ProcessorListId,
-        RandomSequenceId, SoundEventId, StatusEffectId, StructureId, StructureSetId,
-        StructureTemplateId, StructureTypeId, TemplatePoolId, TradeSetId, VillagerTradeId,
+        NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PotionId, PotionRegistryId,
+        ProcessorListId, RandomSequenceId, SoundEventId, StatusEffectId, StructureId,
+        StructureSetId, StructureTemplateId, StructureTypeId, TemplatePoolId, TradeSetId,
+        VillagerTradeId,
     };
 }
 

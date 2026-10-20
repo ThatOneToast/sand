@@ -165,15 +165,15 @@ pub use sand_components::{
     ItemComponent, ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStack,
     ItemStackComponents, JigsawConfig, LevelBasedValue, LocationPredicate, LootCondition,
     LootEntry, LootFunction, LootPool, LootTable, LootTableType, MobCategory,
-    MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry,
-    Predicate, PredicateRoot, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection,
-    RecipeResult, RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
-    SmithingTrimRecipe, SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType,
-    StonecuttingRecipe, Structure, StructureEntry, StructurePlacement, StructureSet, Tag, TagEntry,
-    TagRegistry, TemplatePool, TerrainAdaptation, ToolProperties, ToolRule, TradeItem, TradeSet,
-    TrimAssetName, TrimMaterial, TrimPattern, TypedTag, VerticalAnchor, VillagerLevel,
-    VillagerProfession, VillagerTrade, VillagerTradePool, VillagerTradePoolPatch, VillagerTradeRef,
-    WanderingTraderPool, WeatherPredicate,
+    MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PlacementModifier,
+    PoolElement, PoolEntry, Predicate, PredicateRoot, Processor, ProcessorList, ProcessorRule,
+    ProcessorsRef, Projection, RecipeResult, RuleTest, ShapedRecipe, ShapelessRecipe,
+    SmithingTransformRecipe, SmithingTrimRecipe, SpawnBoundingBox, SpawnCost, SpawnEntry,
+    SpawnOverride, SpreadType, StonecuttingRecipe, Structure, StructureEntry, StructurePlacement,
+    StructureSet, Tag, TagEntry, TagRegistry, TemplatePool, TerrainAdaptation, ToolProperties,
+    ToolRule, TradeItem, TradeSet, TrimAssetName, TrimMaterial, TrimPattern, TypedTag,
+    VerticalAnchor, VillagerLevel, VillagerProfession, VillagerTrade, VillagerTradePool,
+    VillagerTradePoolPatch, VillagerTradeRef, WanderingTraderPool, WeatherPredicate,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -186,10 +186,10 @@ pub use sand_components::{
     AdvancementId, BiomeId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DamageTypeId,
     DensityFunctionId, DialogId, DimensionId, DimensionTypeId, EffectId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
-    NoiseId, ParticleId, PotionContents, PotionId, PotionRegistryId, PredicateId, ProcessorListId,
-    RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance, StructureId,
-    StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect,
-    TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
+    NoiseId, NoiseSettingsId, ParticleId, PotionContents, PotionId, PotionRegistryId, PredicateId,
+    ProcessorListId, RandomSequenceId, RecipeId, SoundEventId, StatusEffectId,
+    StatusEffectInstance, StructureId, StructureSetId, StructureTemplate, StructureTemplateId,
+    StructureTypeId, SuspiciousStewEffect, TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ mod tests {
         let dimension = Dimension::new(
             location,
             DimensionTypeId::minecraft("overworld").unwrap(),
-            RawJson::new(serde_json::json!({"type": "minecraft:flat", "settings": {}})),
+            crate::Generator::Void,
         );
         assert_eq!(dimension.to_json()["type"], "minecraft:overworld");
     }

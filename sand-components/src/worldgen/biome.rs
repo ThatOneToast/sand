@@ -4,9 +4,8 @@
 //! `temperature_modifier` field, the per-generation-step `features`
 //! list-of-lists, and the step-grouped `carvers` map — see
 //! [`BiomeEffects::ambient_sound`], [`Biome::temperature_modifier`],
-//! [`Biome::feature`], and [`Biome::carver_step`]. `spawners` and
-//! `spawn_costs` remain raw JSON fields; their typing is deferred future
-//! scope (#182).
+//! [`Biome::feature`], [`Biome::carver_step`], [`Biome::spawners`], and
+//! [`Biome::spawn_costs`]. Explicit raw setters support unsupported schemas.
 
 use std::collections::BTreeMap;
 
@@ -15,10 +14,10 @@ use serde_json::Value;
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
 use crate::raw::RawJson;
-use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, SoundEventId};
+use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, EntityTypeId, SoundEventId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
-use crate::worldgen::structure::GenerationStep;
+use crate::worldgen::structure::{GenerationStep, MobCategory, SpawnEntry};
 
 /// Maximum value for an RGB integer color field (`0xFFFFFF`).
 const MAX_RGB_COLOR: u32 = 0xFF_FFFF;
@@ -28,6 +27,77 @@ const KIND: &str = "worldgen/biome";
 /// Number of vanilla feature-generation decoration steps — the fixed length
 /// of the `features` list-of-lists array. See [`GenerationStep`].
 const GENERATION_STEP_COUNT: usize = 11;
+
+/// Population-density cost for one entity type in a biome.
+///
+/// Minecraft compares nearby spawn charges with the energy budget when deciding
+/// whether another mob may spawn. Both values must be finite JSON numbers;
+/// Minecraft's codec imposes no sign restriction. Assign costs by entity type
+/// with [`Biome::spawn_costs`].
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::component::SpawnCost",
+    aliases = ["sand::prelude::SpawnCost"], module = "sand::component",
+    summary = "A biome's population-density budget and charge for one entity type.",
+    context = "Used in Biome::spawn_costs alongside typed EntityTypeId keys.",
+    minecraft = "Serializes energy_budget and charge; non-finite values fail export.",
+    use_when = ["Controlling biome mob population density"],
+    avoid_when = ["Choosing spawn weights or group sizes; use SpawnEntry"],
+    example = "use sand::component::SpawnCost; let cost = SpawnCost::new(1.0, 0.2);",
+)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SpawnCost {
+    energy_budget: f64,
+    charge: f64,
+}
+
+impl SpawnCost {
+    /// Sets the density budget and per-mob charge. Export rejects NaN and infinity.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::SpawnCost::new",
+        aliases = ["sand::prelude::SpawnCost::new"], module = "sand::component",
+        summary = "Creates a biome spawn-density cost.",
+        context = "Pass this value in the entity-keyed table accepted by Biome::spawn_costs.",
+        minecraft = "Writes energy_budget and charge as finite double-precision JSON numbers.",
+        use_when = ["Configuring density limits for a biome's entity type"],
+        avoid_when = ["Setting the relative spawn probability; use SpawnEntry"],
+        params(energy_budget = "The finite density budget.", charge = "The finite per-mob charge."),
+        returns = "A cost validated when its biome is exported.",
+        example = "use sand::component::SpawnCost; let cost = SpawnCost::new(1.0, 0.2);",
+    )]
+    pub fn new(energy_budget: f64, charge: f64) -> Self {
+        Self {
+            energy_budget,
+            charge,
+        }
+    }
+
+    fn to_json(self) -> Value {
+        serde_json::json!({"energy_budget": self.energy_budget, "charge": self.charge})
+    }
+
+    fn validate(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
+        for (name, value) in [
+            ("energy_budget", self.energy_budget),
+            ("charge", self.charge),
+        ] {
+            if !value.is_finite() {
+                return Err(validation::error(
+                    location,
+                    KIND,
+                    &format!("{field}.{name}"),
+                    "must be finite",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+enum SpawnValue<T> {
+    Typed(T),
+    Raw(Value),
+}
 
 // ── AmbientSoundReference ────────────────────────────────────────────────────
 
@@ -539,10 +609,10 @@ pub struct Biome {
     typed_carvers: BTreeMap<CarvingStep, Vec<ConfiguredCarverId>>,
     /// Features (raw JSON array of arrays, or a typed per-step map, optional).
     features: Option<FeaturesValue>,
-    /// Creature, monster, ambient spawn lists (raw JSON, optional).
-    spawners: Option<Value>,
-    /// Spawn costs (raw JSON, optional).
-    spawn_costs: Option<Value>,
+    /// Typed or explicitly raw per-category spawn tables.
+    spawners: Option<SpawnValue<BTreeMap<MobCategory, Vec<SpawnEntry>>>>,
+    /// Typed or explicitly raw per-entity population costs.
+    spawn_costs: Option<SpawnValue<BTreeMap<String, SpawnCost>>>,
 }
 
 impl Biome {
@@ -793,43 +863,95 @@ impl Biome {
         self
     }
 
-    /// Sets the spawners object through the explicit raw JSON escape hatch.
+    /// Replaces all per-category spawn tables using canonical typed values.
+    ///
+    /// Replaces the previous typed or raw table. Nested values are validated on export.
+    /// Table keys are emitted deterministically; spawn-entry order is preserved.
+    /// Each category's total spawn weight must fit a signed 32-bit integer.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Biome::spawners",
+        registry = sand_api_contract, path = "sand::component::Biome::spawners",
         module = "sand::component",
-        kind = "method",
-        summary = "Sets the spawners object through the explicit raw JSON escape hatch.",
-        context = "Sets the spawners object through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(spawners = "`spawners` provides the spawners applied when setting the spawners object through the explicit raw JSON escape hatch."),
-        returns = "The `Biome` value with the documented change applied to set the spawners object through the explicit raw JSON escape hatch.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, spawners: sand::component::RawJson)  {\n    let updated_biome = biome_value.spawners(spawners);\n}",
+        summary = "Replaces all per-category spawn tables using canonical typed values.",
+        context = "Replaces the previous typed or raw table; typed values validate before export and raw values receive object-shape validation.",
+        minecraft = "Writes the biome's spawners object.",
+        use_when = ["Configuring biome mob spawning without JSON"],
+        avoid_when = ["Authoring a structure spawn override; use SpawnOverride"],
+        params(spawners = "The replacement table."),
+        returns = "This biome with the replacement table.",
+        example = "fn demonstrate(biome: sand::component::Biome, table: std::collections::BTreeMap<sand::component::MobCategory, Vec<sand::component::SpawnEntry>>) { let _ = biome.spawners(table); }",
     )]
-    pub fn spawners(mut self, spawners: RawJson) -> Self {
-        self.spawners = Some(spawners.into_value());
+    pub fn spawners(mut self, spawners: BTreeMap<MobCategory, Vec<SpawnEntry>>) -> Self {
+        self.spawners = Some(SpawnValue::Typed(spawners));
         self
     }
 
-    /// Sets the spawn costs object through the explicit raw JSON escape hatch.
+    /// Replaces all per-category spawn tables through an explicit raw JSON escape hatch.
+    ///
+    /// Replaces the previous typed or raw table. Only the outer object shape is validated.
     #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::Biome::spawn_costs",
+        registry = sand_api_contract, path = "sand::component::Biome::raw_spawners",
         module = "sand::component",
-        kind = "method",
-        summary = "Sets the spawn costs object through the explicit raw JSON escape hatch.",
-        context = "Sets the spawn costs object through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(costs = "`costs` provides the costs applied when setting the spawn costs object through the explicit raw JSON escape hatch."),
-        returns = "The `Biome` value with the documented change applied to set the spawn costs object through the explicit raw JSON escape hatch.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, costs: sand::component::RawJson)  {\n    let updated_biome = biome_value.spawn_costs(costs);\n}",
+        summary = "Replaces all per-category spawn tables through an explicit raw JSON escape hatch.",
+        context = "Replaces the previous typed or raw table; typed values validate before export and raw values receive object-shape validation.",
+        minecraft = "Writes the biome's spawners object.",
+        use_when = ["Using an unsupported spawn schema"],
+        avoid_when = ["The typed setter can express the desired table"],
+        params(spawners = "The replacement table."),
+        returns = "This biome with the replacement table.",
+        example = "fn demonstrate(biome: sand::component::Biome, table: sand::component::RawJson) { let _ = biome.raw_spawners(table); }",
     )]
-    pub fn spawn_costs(mut self, costs: RawJson) -> Self {
-        self.spawn_costs = Some(costs.into_value());
+    pub fn raw_spawners(mut self, spawners: RawJson) -> Self {
+        self.spawners = Some(SpawnValue::Raw(spawners.into_value()));
+        self
+    }
+
+    /// Replaces all per-entity population-density costs using canonical typed values.
+    /// Duplicate entity IDs keep the last supplied cost; keys export in sorted order.
+    ///
+    /// Replaces the previous typed or raw table. Nested values are validated on export.
+    /// Table keys are emitted deterministically; spawn-entry order is preserved.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::Biome::spawn_costs",
+        module = "sand::component",
+        summary = "Replaces all per-entity population-density costs using canonical typed values.",
+        context = "Replaces the previous typed or raw table; typed values validate before export and raw values receive object-shape validation.",
+        minecraft = "Writes the biome's spawn_costs object.",
+        use_when = ["Configuring biome mob spawning without JSON"],
+        avoid_when = ["Authoring a structure spawn override; use SpawnOverride"],
+        params(costs = "The replacement table."),
+        returns = "This biome with the replacement table.",
+        example = "fn demonstrate(biome: sand::component::Biome, table: impl IntoIterator<Item = (sand::registry::EntityTypeId, sand::component::SpawnCost)>) { let _ = biome.spawn_costs(table); }",
+    )]
+    pub fn spawn_costs(
+        mut self,
+        costs: impl IntoIterator<Item = (EntityTypeId, SpawnCost)>,
+    ) -> Self {
+        self.spawn_costs = Some(SpawnValue::Typed(
+            costs
+                .into_iter()
+                .map(|(id, cost)| (id.to_string(), cost))
+                .collect(),
+        ));
+        self
+    }
+
+    /// Replaces all per-entity population-density costs through an explicit raw JSON escape hatch.
+    ///
+    /// Replaces the previous typed or raw table. Only the outer object shape is validated.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::Biome::raw_spawn_costs",
+        module = "sand::component",
+        summary = "Replaces all per-entity population-density costs through an explicit raw JSON escape hatch.",
+        context = "Replaces the previous typed or raw table; typed values validate before export and raw values receive object-shape validation.",
+        minecraft = "Writes the biome's spawn_costs object.",
+        use_when = ["Using an unsupported spawn schema"],
+        avoid_when = ["The typed setter can express the desired table"],
+        params(costs = "The replacement table."),
+        returns = "This biome with the replacement table.",
+        example = "fn demonstrate(biome: sand::component::Biome, table: sand::component::RawJson) { let _ = biome.raw_spawn_costs(table); }",
+    )]
+    pub fn raw_spawn_costs(mut self, costs: RawJson) -> Self {
+        self.spawn_costs = Some(SpawnValue::Raw(costs.into_value()));
         self
     }
 }
@@ -868,6 +990,9 @@ impl DatapackComponent for Biome {
                 carvers.insert(step.as_str().to_string(), Value::Array(ids));
             }
             map.insert("carvers".to_string(), Value::Object(carvers));
+        } else {
+            // Biome generation settings require this field even without carvers.
+            map.insert("carvers".to_string(), serde_json::json!([]));
         }
         if let Some(ref v) = self.features {
             let json = match v {
@@ -886,12 +1011,44 @@ impl DatapackComponent for Biome {
                 FeaturesValue::Raw(raw) => raw.clone(),
             };
             map.insert("features".to_string(), json);
+        } else {
+            map.insert(
+                "features".to_string(),
+                serde_json::json!(vec![Vec::<String>::new(); GENERATION_STEP_COUNT]),
+            );
         }
         if let Some(ref v) = self.spawners {
-            map.insert("spawners".to_string(), v.clone());
+            let value = match v {
+                SpawnValue::Raw(value) => value.clone(),
+                SpawnValue::Typed(table) => Value::Object(
+                    table
+                        .iter()
+                        .map(|(key, value)| {
+                            (
+                                key.as_str().to_string(),
+                                Value::Array(value.iter().map(SpawnEntry::to_json).collect()),
+                            )
+                        })
+                        .collect(),
+                ),
+            };
+            map.insert("spawners".to_string(), value);
+        } else {
+            map.insert("spawners".to_string(), serde_json::json!({}));
         }
         if let Some(ref v) = self.spawn_costs {
-            map.insert("spawn_costs".to_string(), v.clone());
+            let value = match v {
+                SpawnValue::Raw(value) => value.clone(),
+                SpawnValue::Typed(table) => Value::Object(
+                    table
+                        .iter()
+                        .map(|(key, value)| (key.to_string(), value.to_json()))
+                        .collect(),
+                ),
+            };
+            map.insert("spawn_costs".to_string(), value);
+        } else {
+            map.insert("spawn_costs".to_string(), serde_json::json!({}));
         }
 
         Value::Object(map)
@@ -929,10 +1086,33 @@ impl DatapackComponent for Biome {
             validation::require_json_array(&self.location, KIND, "features", v)?;
         }
         if let Some(ref v) = self.spawners {
-            validation::require_json_object(&self.location, KIND, "spawners", v)?;
+            match v {
+                SpawnValue::Raw(value) => {
+                    validation::require_json_object(&self.location, KIND, "spawners", value)?
+                }
+                SpawnValue::Typed(table) => {
+                    for (key, value) in table {
+                        SpawnEntry::validate_table(
+                            value,
+                            &self.location,
+                            KIND,
+                            &format!("spawners.{}", key.as_str()),
+                        )?;
+                    }
+                }
+            }
         }
         if let Some(ref v) = self.spawn_costs {
-            validation::require_json_object(&self.location, KIND, "spawn_costs", v)?;
+            match v {
+                SpawnValue::Raw(value) => {
+                    validation::require_json_object(&self.location, KIND, "spawn_costs", value)?
+                }
+                SpawnValue::Typed(table) => {
+                    for (key, value) in table {
+                        value.validate(&self.location, &format!("spawn_costs.{key}"))?;
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -955,6 +1135,20 @@ mod tests {
     }
 
     #[test]
+    fn default_biome_includes_required_empty_generation_settings() {
+        let biome = Biome::new(location(), effects());
+        biome.validate().unwrap();
+        let json = biome.to_json();
+        assert_eq!(json["carvers"], serde_json::json!([]));
+        assert_eq!(json["spawners"], serde_json::json!({}));
+        assert_eq!(json["spawn_costs"], serde_json::json!({}));
+        assert_eq!(
+            json["features"],
+            serde_json::json!([[], [], [], [], [], [], [], [], [], [], []])
+        );
+    }
+
+    #[test]
     fn valid_biome_exports_unchanged() {
         let biome = Biome::new(location(), effects())
             .temperature(0.5)
@@ -962,8 +1156,8 @@ mod tests {
             .temperature_modifier(TemperatureModifier::Frozen)
             .raw_carvers(RawJson::new(serde_json::json!(["minecraft:cave"])))
             .raw_features(RawJson::new(serde_json::json!([["minecraft:ore_iron"]])))
-            .spawners(RawJson::new(serde_json::json!({"monster": []})))
-            .spawn_costs(RawJson::new(serde_json::json!({})));
+            .raw_spawners(RawJson::new(serde_json::json!({"monster": []})))
+            .raw_spawn_costs(RawJson::new(serde_json::json!({})));
         assert!(biome.validate().is_ok());
         let json = biome.to_json();
         assert_eq!(json["temperature_modifier"], "frozen");
@@ -1118,14 +1312,14 @@ mod tests {
     #[test]
     fn spawners_wrong_shape_rejected() {
         let biome =
-            Biome::new(location(), effects()).spawners(RawJson::new(serde_json::json!(["a"])));
+            Biome::new(location(), effects()).raw_spawners(RawJson::new(serde_json::json!(["a"])));
         assert!(biome.validate().is_err());
     }
 
     #[test]
     fn spawn_costs_wrong_shape_rejected() {
-        let biome =
-            Biome::new(location(), effects()).spawn_costs(RawJson::new(serde_json::json!(["a"])));
+        let biome = Biome::new(location(), effects())
+            .raw_spawn_costs(RawJson::new(serde_json::json!(["a"])));
         assert!(biome.validate().is_err());
     }
 
@@ -1167,5 +1361,132 @@ mod tests {
             );
         let err = biome.validate().unwrap_err().to_string();
         assert!(err.contains("carvers"), "{err}");
+    }
+    #[test]
+    fn typed_spawn_tables_preserve_weights_groups_and_costs() {
+        let zombie = EntityTypeId::minecraft("zombie").unwrap();
+        let biome = Biome::new(location(), effects())
+            .spawners(BTreeMap::from([
+                (
+                    MobCategory::Monster,
+                    vec![SpawnEntry::new(zombie.clone(), 20, 1, 4)],
+                ),
+                (MobCategory::Creature, vec![]),
+            ]))
+            .spawn_costs([(zombie, SpawnCost::new(0.7, 0.15))]);
+        biome.validate().unwrap();
+        let json = biome.to_json();
+        assert_eq!(
+            json["spawners"],
+            serde_json::json!({
+                "creature": [],
+                "monster": [{"type": "minecraft:zombie", "weight": 20, "minCount": 1, "maxCount": 4}],
+            })
+        );
+        assert_eq!(
+            json["spawn_costs"],
+            serde_json::json!({
+                "minecraft:zombie": {"energy_budget": 0.7, "charge": 0.15},
+            })
+        );
+    }
+
+    #[test]
+    fn spawn_weight_totals_are_bounded_per_category() {
+        let entry =
+            |weight| SpawnEntry::new(EntityTypeId::minecraft("zombie").unwrap(), weight, 1, 1);
+        for (first, valid) in [(i32::MAX as u32 - 1, true), (i32::MAX as u32, false)] {
+            let biome = Biome::new(location(), effects()).spawners(BTreeMap::from([
+                (MobCategory::Monster, vec![entry(first), entry(1)]),
+                (MobCategory::Creature, vec![entry(i32::MAX as u32)]),
+            ]));
+            if valid {
+                biome.validate().unwrap();
+            } else {
+                let error = biome.try_content().unwrap_err().to_string();
+                assert!(error.contains("my_pack:frosted"), "{error}");
+                assert!(error.contains("spawners.monster"), "{error}");
+                assert!(error.contains("sum of spawn weights"), "{error}");
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_spawn_entries_name_biome_category_and_entry() {
+        for (weight, min, max, field) in [
+            (0, 1, 2, "weight"),
+            (1, 0, 2, "minCount"),
+            (1, 3, 2, "maxCount"),
+            (u32::MAX, 1, 2, "weight"),
+            (1, u32::MAX, u32::MAX, "minCount"),
+            (1, 1, u32::MAX, "maxCount"),
+        ] {
+            let biome = Biome::new(location(), effects()).spawners(BTreeMap::from([(
+                MobCategory::Monster,
+                vec![SpawnEntry::new(
+                    EntityTypeId::minecraft("zombie").unwrap(),
+                    weight,
+                    min,
+                    max,
+                )],
+            )]));
+            let error = biome.validate().unwrap_err().to_string();
+            for context in [
+                "worldgen/biome",
+                "my_pack:frosted",
+                &format!("spawners.monster[0].{field}"),
+            ] {
+                assert!(error.contains(context), "{error}");
+            }
+        }
+    }
+
+    #[test]
+    fn spawn_costs_reject_nonfinite_numbers_before_json_serialization() {
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for (budget, charge, field) in
+                [(invalid, 1.0, "energy_budget"), (1.0, invalid, "charge")]
+            {
+                let biome = Biome::new(location(), effects()).spawn_costs([(
+                    EntityTypeId::minecraft("zombie").unwrap(),
+                    SpawnCost::new(budget, charge),
+                )]);
+                let error = biome.validate().unwrap_err().to_string();
+                assert!(
+                    error.contains(&format!("spawn_costs.minecraft:zombie.{field}")),
+                    "{error}"
+                );
+                assert!(error.contains("finite"), "{error}");
+            }
+        }
+        // The vanilla codec accepts signed finite doubles, including zero.
+        Biome::new(location(), effects())
+            .spawn_costs([(
+                EntityTypeId::minecraft("zombie").unwrap(),
+                SpawnCost::new(-1.0, 0.0),
+            )])
+            .validate()
+            .unwrap();
+    }
+
+    #[test]
+    fn typed_and_raw_spawn_tables_replace_each_other() {
+        let typed = Biome::new(location(), effects())
+            .raw_spawners(RawJson::new(serde_json::json!({"custom": []})))
+            .raw_spawn_costs(RawJson::new(serde_json::json!({"custom": {}})))
+            .spawners(BTreeMap::new())
+            .spawn_costs([]);
+        typed.validate().unwrap();
+        assert_eq!(typed.to_json()["spawners"], serde_json::json!({}));
+        assert_eq!(typed.to_json()["spawn_costs"], serde_json::json!({}));
+        let raw = typed
+            .raw_spawners(RawJson::new(serde_json::json!({"custom": []})))
+            .raw_spawn_costs(RawJson::new(serde_json::json!({"custom": {}})));
+        raw.validate().unwrap();
+        assert_eq!(raw.to_json()["spawners"], serde_json::json!({"custom": []}));
+        assert_eq!(
+            raw.to_json()["spawn_costs"],
+            serde_json::json!({"custom": {}})
+        );
     }
 }

@@ -32,6 +32,7 @@ const TYPED_FIELDS: &[&str] = &[
     "ambient_light",
     "piglin_safe",
     "has_raids",
+    "has_ender_dragon_fight",
     "monster_spawn_light_level",
     "monster_spawn_block_light_limit",
 ];
@@ -73,10 +74,8 @@ impl MonsterSpawnLightLevel {
                 max_inclusive,
             } => serde_json::json!({
                 "type": "minecraft:uniform",
-                "value": {
-                    "min_inclusive": min_inclusive,
-                    "max_inclusive": max_inclusive,
-                }
+                "min_inclusive": min_inclusive,
+                "max_inclusive": max_inclusive,
             }),
         }
     }
@@ -153,6 +152,7 @@ pub struct DimensionType {
     ambient_light: f32,
     piglin_safe: bool,
     has_raids: bool,
+    has_ender_dragon_fight: bool,
     monster_spawn_light_level: MonsterSpawnLightLevel,
     monster_spawn_block_light_limit: u8,
     raw_fields: BTreeMap<String, RawJson>,
@@ -196,6 +196,7 @@ impl DimensionType {
             ambient_light: 0.0,
             piglin_safe: false,
             has_raids: true,
+            has_ender_dragon_fight: false,
             monster_spawn_light_level: MonsterSpawnLightLevel::Uniform {
                 min_inclusive: 0,
                 max_inclusive: 7,
@@ -584,6 +585,30 @@ impl DimensionType {
         self
     }
 
+    /// Enable vanilla Ender Dragon fight management in this dimension.
+    ///
+    /// Disabled by default for overworld-like dimensions. This controls the
+    /// fight lifecycle independently of the dimension's terrain generator.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::has_ender_dragon_fight",
+        aliases = ["sand::prelude::DimensionType::has_ender_dragon_fight"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Enable vanilla Ender Dragon fight management in this dimension.",
+        context = "Controls the dragon fight lifecycle independently of terrain generation; overworld-like dimensions disable it by default.",
+        minecraft = "Emits the required dimension type has_ender_dragon_fight boolean.",
+        use_when = ["Defining a dimension with a vanilla dragon fight lifecycle"],
+        avoid_when = ["Spawning an ordinary dragon without vanilla fight management"],
+        params(value = "Whether vanilla manages the Ender Dragon fight in this dimension."),
+        returns = "The updated dimension type builder.",
+        example = "use sand::prelude::*;\nlet ty = DimensionType::new(ResourceLocation::new(\"example\", \"arena\").unwrap()).has_ender_dragon_fight(true);",
+    )]
+    pub fn has_ender_dragon_fight(mut self, value: bool) -> Self {
+        self.has_ender_dragon_fight = value;
+        self
+    }
+
     /// Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -787,6 +812,10 @@ impl DatapackComponent for DimensionType {
         map.insert("piglin_safe".into(), self.piglin_safe.into());
         map.insert("has_raids".into(), self.has_raids.into());
         map.insert(
+            "has_ender_dragon_fight".into(),
+            self.has_ender_dragon_fight.into(),
+        );
+        map.insert(
             "monster_spawn_light_level".into(),
             self.monster_spawn_light_level.to_json(),
         );
@@ -820,10 +849,32 @@ mod tests {
         let json = ty.to_json();
         assert_eq!(json["min_y"], -64);
         assert_eq!(json["height"], 384);
+        assert_eq!(json["has_ender_dragon_fight"], false);
+        assert_eq!(
+            json["monster_spawn_light_level"],
+            serde_json::json!({
+                "type": "minecraft:uniform", "min_inclusive": 0, "max_inclusive": 7
+            })
+        );
         assert_eq!(json["infiniburn"], "#minecraft:infiniburn_overworld");
         assert_eq!(json["effects"], "minecraft:overworld");
         assert!(json.get("fixed_time").is_none());
         assert_eq!(ty.component_dir(), "dimension_type");
+    }
+
+    #[test]
+    fn dragon_fight_is_typed_and_cannot_be_overridden_raw() {
+        let ty = DimensionType::new(location()).has_ender_dragon_fight(true);
+        ty.validate().unwrap();
+        assert_eq!(ty.to_json()["has_ender_dragon_fight"], true);
+        assert!(
+            ty.raw_field(
+                "has_ender_dragon_fight",
+                RawJson::new(serde_json::json!(false))
+            )
+            .validate()
+            .is_err()
+        );
     }
 
     #[test]

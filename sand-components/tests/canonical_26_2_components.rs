@@ -46,7 +46,7 @@ use sand_components::worldgen::ConfiguredCarver;
 use sand_components::worldgen::biome::{BiomeEffects, CarvingStep, TemperatureModifier};
 use sand_components::worldgen::configured_carver::{CarverFloatRange, CaveCarverConfig};
 use sand_components::worldgen::configured_feature::ConfiguredFeature;
-use sand_components::worldgen::placed_feature::PlacedFeature;
+use sand_components::worldgen::placed_feature::{PlacedFeature, PlacementModifier};
 use sand_components::worldgen::providers::{
     BlockState, BlockStateProvider, HeightProvider, VerticalAnchor,
 };
@@ -952,6 +952,9 @@ fn canonical_26_2_worldgen_biome() {
             "ambient_sound": "minecraft:ambient.nether_wastes.loop"
         },
         "features": expected_features,
+        "carvers": [],
+        "spawners": {},
+        "spawn_costs": {},
     });
 
     assert_eq!(biome.to_json(), expected);
@@ -1052,18 +1055,14 @@ fn canonical_26_2_worldgen_placed_feature() {
         id("worldgen/placed_feature/scorched_shrub"),
         ConfiguredFeatureId::custom(ResourceLocation::new("canon", "scorched_shrub").unwrap()),
     )
-    .placement_modifier(RawJson::new(
-        serde_json::json!({"type": "minecraft:count", "count": 4}),
-    ))
-    .placement_modifier(RawJson::new(
-        serde_json::json!({"type": "minecraft:square"}),
-    ));
+    .placement_modifier(PlacementModifier::Count(4))
+    .placement_modifier(PlacementModifier::InSquare);
 
     let expected = serde_json::json!({
         "feature": "canon:scorched_shrub",
         "placement": [
             {"type": "minecraft:count", "count": 4},
-            {"type": "minecraft:square"}
+            {"type": "minecraft:in_square"}
         ]
     });
 

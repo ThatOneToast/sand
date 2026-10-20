@@ -10,6 +10,7 @@ pub mod configured_feature;
 pub mod density_function;
 pub mod dimension;
 pub mod dimension_type;
+pub mod generator;
 pub mod noise;
 pub mod noise_settings;
 pub mod placed_feature;
@@ -19,7 +20,7 @@ pub mod structure;
 pub mod structure_set;
 pub mod template_pool;
 
-pub use biome::{Biome, CarvingStep};
+pub use biome::{Biome, CarvingStep, SpawnCost};
 pub use configured_carver::{CarverFloatRange, CaveCarverConfig, ConfiguredCarver};
 pub use configured_feature::{ConfiguredFeature, OreConfig, OreTarget, RuleTest};
 pub use density_function::{
@@ -29,7 +30,7 @@ pub use dimension::Dimension;
 pub use dimension_type::{DimensionType, MonsterSpawnLightLevel};
 pub use noise::Noise;
 pub use noise_settings::NoiseSettings;
-pub use placed_feature::PlacedFeature;
+pub use placed_feature::{PlacedFeature, PlacementModifier};
 pub use processor_list::{Processor, ProcessorList, ProcessorRule};
 pub use providers::{
     BlockState, BlockStateProvider, HeightProvider, Heightmap, VerticalAnchor, WeightedBlockState,
@@ -43,3 +44,8 @@ pub use structure_set::{
     StructureSet,
 };
 pub use template_pool::{PoolElement, PoolEntry, ProcessorsRef, Projection, TemplatePool};
+
+pub use generator::{
+    BiomeSource, FlatGenerator, FlatLayer, Generator, NoiseGenerator, NoiseSettingsRef,
+    VanillaNoiseSettings,
+};

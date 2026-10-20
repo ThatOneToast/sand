@@ -131,3 +131,9 @@ The live pack carries a per-invocation ownership marker across hot reloads.
 Before deleting a previous namespace, dev verifies that marker; a replaced
 directory is preserved and the restart fails with a diagnostic. The marker is
 not written to build output or release archives.
+
+Live installs allocate an atomically owned temporary directory beside the pack,
+with staging and backup inside it; dotted namespaces and neighboring operator
+packs cannot alias these paths. Failed rollback retains the backup and reports
+its location. If `R` reaches the 30-second shutdown limit, dev terminates and reaps
+the JVM before restarting. An unrelated nonzero process exit remains an error.

@@ -342,30 +342,32 @@ def validate(binary, output):
             dev.wait('dev_probe_v2')
         assert 'Changed description' in (live / 'pack.mcmeta').read_text()
         checks.append('startup-resource guard; two graceful R restarts with fresh credentials and live handler')
-        manual = live.parent / 'operator_pack'
+        manual = live.parent / 'devprobe.sand-dev-backup'
         manual.mkdir()
         (manual / 'pack.mcmeta').write_bytes((live / 'pack.mcmeta').read_bytes())
         (manual / 'keep').write_text('operator-owned')
         library = project / 'src/lib.rs'
-        config.write_text(config.read_text().replace('namespace="devprobe"', 'namespace="renamed"'))
-        library.write_text(library.read_text().replace('try_export_pack_json("devprobe"', 'try_export_pack_json("renamed"'))
+        config.write_text(config.read_text().replace('namespace="devprobe"', 'namespace="devprobe.sand-dev-stage"'))
+        library.write_text(library.read_text().replace('try_export_pack_json("devprobe"', 'try_export_pack_json("devprobe.sand-dev-stage"'))
         dev.wait('namespace changed: restart required')
         assert live.exists(), 'namespace edit must retain previous live pack before R'
         dev.send('R')
         dev.wait('server stopped; rebuilding and restarting')
         dev.wait('Minecraft 26.2 ready')
         secrets.append(properties(project)['rcon.password'])
-        renamed = live.parent / 'renamed'
+        renamed = live.parent / 'devprobe.sand-dev-stage'
         assert renamed.is_dir() and not live.exists()
         assert (manual / 'keep').read_text() == 'operator-owned'
         dev.send('datapack list enabled')
-        enabled = dev.wait('file/renamed')
-        assert 'file/devprobe' not in enabled
-        dev.send('function renamed:probe')
+        enabled = dev.wait('file/devprobe.sand-dev-stage')
+        assert '[file/devprobe (world)]' not in enabled
+        dev.send('r')
+        dev.wait('dev reload #1 complete')
+        dev.send('function devprobe.sand-dev-stage:probe')
         dev.wait('dev_probe_v2')
         # Switch back within the same dev invocation, proving ownership advances.
-        config.write_text(config.read_text().replace('namespace="renamed"', 'namespace="devprobe"'))
-        library.write_text(library.read_text().replace('try_export_pack_json("renamed"', 'try_export_pack_json("devprobe"'))
+        config.write_text(config.read_text().replace('namespace="devprobe.sand-dev-stage"', 'namespace="devprobe"'))
+        library.write_text(library.read_text().replace('try_export_pack_json("devprobe.sand-dev-stage"', 'try_export_pack_json("devprobe"'))
         dev.wait('namespace changed: restart required')
         dev.send('R')
         dev.wait('server stopped; rebuilding and restarting')
@@ -373,7 +375,24 @@ def validate(binary, output):
         secrets.append(properties(project)['rcon.password'])
         assert live.is_dir() and not renamed.exists()
         assert (manual / 'keep').is_file()
-        checks.append('namespace changes plus R replace only previous session-managed pack; operator pack retained')
+        checks.append('stage-suffix namespace restarts and reloads safely; backup-suffix operator neighbor retained')
+        if os.name != 'nt':
+            # Freeze only this harness's direct JVM child. R must enforce its
+            # real 30-second bound, reap that JVM, and launch a replacement.
+            rows = subprocess.check_output(['ps', '-axo', 'pid=,ppid=,comm='], text=True)
+            children = [int(parts[0]) for row in rows.splitlines()
+                        if len(parts := row.strip().split(None, 2)) == 3
+                        and int(parts[1]) == dev.process.pid and Path(parts[2]).name == 'java']
+            assert len(children) == 1, 'expected one owned JVM child'
+            os.kill(children[0], signal.SIGSTOP)
+            dev.send('R')
+            dev.wait('server shutdown deadline reached; process terminated')
+            dev.wait('server stopped; rebuilding and restarting')
+            dev.wait('Minecraft 26.2 ready')
+            secrets.append(properties(project)['rcon.password'])
+            dev.send('function devprobe:probe')
+            dev.wait('dev_probe_v2')
+            checks.append('R force-terminates an unresponsive owned JVM after the deadline and restarts successfully')
         dev.send('q')
         assert dev.process.wait(timeout=45) == 0
         checks.append('q gracefully exits after repeated restart')

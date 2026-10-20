@@ -405,6 +405,13 @@ fn run_internal(
         console,
     )?;
 
+    if outcome.should_restart() {
+        eprintln!(
+            "dev: server stopped; rebuilding and restarting (configured world reset policy applies)"
+        );
+        return Ok(true);
+    }
+
     if !outcome.exit_status.success() {
         let log_path = server_dir.join("logs").join("latest.log");
         if log_path.exists() {
@@ -415,13 +422,6 @@ fn run_internal(
             );
         }
         bail!("server exited with status {}", outcome.exit_status);
-    }
-
-    if outcome.restart_requested {
-        eprintln!(
-            "dev: server stopped; rebuilding and restarting (configured world reset policy applies)"
-        );
-        return Ok(true);
     }
 
     // The JVM can exit 0 (a normal `stop`) even though the datapack never

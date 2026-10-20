@@ -60,6 +60,14 @@ pub struct RunOutcome {
     pub health: RunHealth,
     /// The dev console requested a graceful restart after this JVM exits.
     pub restart_requested: bool,
+    /// Sand terminated a still-running child after the shutdown deadline.
+    pub forced_shutdown: bool,
+}
+
+impl RunOutcome {
+    pub(crate) fn should_restart(&self) -> bool {
+        self.restart_requested && (self.exit_status.success() || self.forced_shutdown)
+    }
 }
 
 /// One stdin reader and Ctrl-C handler retained across dev-server restarts.
@@ -239,13 +247,7 @@ fn drive(
         }
 
         if stop_requested {
-            let deadline =
-                stop_deadline.get_or_insert_with(|| Instant::now() + Duration::from_secs(30));
-            if Instant::now() >= *deadline {
-                child
-                    .kill()
-                    .context("server did not stop within 30 seconds")?;
-            }
+            stop_deadline.get_or_insert_with(|| Instant::now() + Duration::from_secs(30));
         }
         if !stop_requested
             && let Some(dev) = dev.as_deref_mut()
@@ -254,7 +256,8 @@ fn drive(
             eprintln!("dev: {error:#}; live pack retained unless sync already completed");
         }
 
-        if let Some(status) = child.try_wait().context("failed to poll server process")? {
+        let (status, forced_shutdown) = poll_shutdown(child, stop_deadline, Instant::now())?;
+        if let Some(status) = status {
             drain_remaining(
                 (rx, generation),
                 &mut grouper,
@@ -268,6 +271,7 @@ fn drive(
                 exit_status: status,
                 health,
                 restart_requested,
+                forced_shutdown,
             });
         }
     }
@@ -278,7 +282,30 @@ fn drive(
         exit_status: status,
         health,
         restart_requested,
+        forced_shutdown: false,
     })
+}
+
+/// Poll before enforcing the deadline so an independently exited/crashed child
+/// is never mislabeled as Sand's intentional termination. Forced children are
+/// reaped before the caller may rebuild or spawn another JVM.
+fn poll_shutdown(
+    child: &mut Child,
+    deadline: Option<Instant>,
+    now: Instant,
+) -> Result<(Option<ExitStatus>, bool)> {
+    if let Some(status) = child.try_wait().context("failed to poll server process")? {
+        return Ok((Some(status), false));
+    }
+    if deadline.is_some_and(|deadline| now >= deadline) {
+        child
+            .kill()
+            .context("failed to terminate server after shutdown deadline")?;
+        let status = child.wait().context("failed to reap terminated server")?;
+        eprintln!("server shutdown deadline reached; process terminated");
+        return Ok((Some(status), true));
+    }
+    Ok((None, false))
 }
 
 fn render_group(
@@ -421,6 +448,61 @@ fn spawn_stdin_forwarder(tx: Sender<Event>) {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn restart_survives_expected_forced_shutdown_but_not_an_unrelated_crash() {
+        let mut command = Command::new(test_fixture_command());
+        if cfg!(windows) {
+            command.args(["/C", "set /p line="]);
+        } else {
+            command.args(["-c", "read line"]);
+        }
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let now = Instant::now();
+        let (status, forced) =
+            poll_shutdown(&mut child, Some(now + Duration::from_secs(30)), now).unwrap();
+        assert!(status.is_none() && !forced);
+        let (status, forced) = poll_shutdown(&mut child, Some(now), now).unwrap();
+        let mut outcome = RunOutcome {
+            exit_status: status.unwrap(),
+            health: RunHealth::Healthy,
+            restart_requested: true,
+            forced_shutdown: forced,
+        };
+        assert!(!outcome.exit_status.success());
+        assert!(outcome.forced_shutdown && outcome.should_restart());
+        assert!(
+            child.try_wait().unwrap().is_some(),
+            "must be reaped before restart"
+        );
+        outcome.restart_requested = false;
+        assert!(
+            !outcome.should_restart(),
+            "q must not restart a killed child"
+        );
+
+        let mut command = Command::new(test_fixture_command());
+        if cfg!(windows) {
+            command.args(["/C", "exit 7"]);
+        } else {
+            command.args(["-c", "exit 7"]);
+        }
+        let mut crashed = command.spawn().unwrap();
+        crashed.wait().unwrap();
+        let (status, forced) = poll_shutdown(&mut crashed, Some(now), Instant::now()).unwrap();
+        let outcome = RunOutcome {
+            exit_status: status.unwrap(),
+            health: RunHealth::Healthy,
+            restart_requested: true,
+            forced_shutdown: forced,
+        };
+        assert!(!outcome.forced_shutdown && !outcome.should_restart());
+    }
 
     #[test]
     fn preparation_cancellation_is_sticky_and_retains_other_input_in_order() {

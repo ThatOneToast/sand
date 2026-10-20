@@ -437,15 +437,11 @@ pub(crate) fn install(
     // Keep the invocation's ownership through staged hot reloads. This file
     // exists only in the live server tree, never the build/release output.
     let owner = pack_owner(dest)?;
-    let stage = dest.with_extension("sand-dev-stage");
-    let backup = dest.with_extension("sand-dev-backup");
-    ensure!(
-        !stage.exists() && !backup.exists(),
-        "previous dev install staging exists; inspect it before retrying"
-    );
+    let container = install_container(dest)?;
+    let stage = container.path().join("stage");
     // Stage a copy of the live tree so the canonical incremental mirror can
     // report skipped/pruned files, without ever writing into the live tree.
-    let prepare = (|| {
+    let prepare: Result<_> = (|| {
         if dest.exists() {
             crate::run_cmd::sync_dir(dest, &stage)?;
         }
@@ -458,32 +454,56 @@ pub(crate) fn install(
         }
         Ok(stats)
     })();
-    let stats = match prepare {
-        Ok(stats) => stats,
-        Err(error) => {
-            let _ = std::fs::remove_dir_all(&stage);
-            return Err(error);
+    let stats = prepare?;
+    commit_install(container, dest, |from, to| std::fs::rename(from, to))?;
+    Ok(stats)
+}
+
+fn install_container(dest: &Path) -> Result<tempfile::TempDir> {
+    let parent = dest
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    std::fs::create_dir_all(parent)?;
+    for _ in 0..32 {
+        // mkdir is atomic: pre-existing operator paths are never adopted or
+        // cleaned up. Children stay on the destination filesystem for rename.
+        let container = tempfile::Builder::new()
+            .prefix(".sand-dev-install-")
+            .tempdir_in(parent)?;
+        if container.path().file_name() != dest.file_name() {
+            return Ok(container);
         }
-    };
-    let existed = dest.exists();
-    if existed && let Err(error) = std::fs::rename(dest, &backup) {
-        let _ = std::fs::remove_dir_all(&stage);
-        return Err(error.into());
     }
-    if let Err(error) = std::fs::rename(&stage, dest) {
-        if existed && std::fs::rename(&backup, dest).is_err() {
+    bail!("could not allocate dev install staging distinct from the live pack")
+}
+
+fn commit_install(
+    container: tempfile::TempDir,
+    dest: &Path,
+    mut rename: impl FnMut(&Path, &Path) -> std::io::Result<()>,
+) -> Result<()> {
+    let stage = container.path().join("stage");
+    let backup = container.path().join("backup");
+    let existed = dest.exists();
+    if existed {
+        rename(dest, &backup)?;
+    }
+    if let Err(error) = rename(&stage, dest) {
+        if existed && rename(&backup, dest).is_err() {
+            // Drop must not destroy the last good copy when rollback fails.
+            let retained = container.keep().join("backup");
             bail!(
                 "install failed ({error}); restore live pack from {}",
-                backup.display()
+                retained.display()
             );
         }
-        let _ = std::fs::remove_dir_all(&stage);
         return Err(error.into());
     }
-    if existed {
-        std::fs::remove_dir_all(backup)?;
-    }
-    Ok(stats)
+    container
+        .close()
+        .context("failed to clean dev install staging")?;
+    Ok(())
 }
 
 fn report_change(previous: Option<&serde_json::Value>, report: &serde_json::Value) {
@@ -834,6 +854,99 @@ mod tests {
         let original = "# note\nrcon.password=secret\nrcon.password:other\nserver-ip=0.0.0.0\nenable-rcon=true\nserver-port=25566\n";
         assert_eq!(without_rcon(original), "# note\nserver-port=25566\n");
     }
+    #[test]
+    fn staging_never_aliases_dotted_suffix_namespaces_or_operator_neighbors() {
+        for namespace in [
+            "demo.sand-dev-stage",
+            "demo.sand-dev-backup",
+            "demo.one",
+            "demo.two",
+        ] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("source");
+            let packs = tmp.path().join("datapacks");
+            let dest = packs.join(namespace);
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::create_dir_all(&packs).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "first").unwrap();
+            let neighbors: Vec<_> = [
+                "demo.sand-dev-stage",
+                "demo.sand-dev-backup",
+                "demo.one",
+                "demo.two",
+                ".sand-dev-install-operator",
+            ]
+            .into_iter()
+            .filter(|name| *name != namespace)
+            .map(|name| packs.join(name))
+            .collect();
+            for neighbor in &neighbors {
+                std::fs::create_dir(neighbor).unwrap();
+                std::fs::write(neighbor.join("keep"), "operator").unwrap();
+            }
+            install(&src, &dest, None).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "second").unwrap();
+            install(&src, &dest, None).unwrap();
+            assert!(install(&tmp.path().join("missing"), &dest, None).is_err());
+            assert_eq!(
+                std::fs::read_to_string(dest.join("pack.mcmeta")).unwrap(),
+                "second"
+            );
+            for neighbor in &neighbors {
+                assert_eq!(
+                    std::fs::read_to_string(neighbor.join("keep")).unwrap(),
+                    "operator"
+                );
+            }
+            assert_eq!(
+                std::fs::read_dir(&packs).unwrap().count(),
+                neighbors.len() + 1
+            );
+        }
+    }
+
+    #[test]
+    fn failed_publish_restores_live_pack_or_retains_backup_when_rollback_fails() {
+        for fail_rollback in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let dest = tmp.path().join("live");
+            std::fs::create_dir(&dest).unwrap();
+            std::fs::write(dest.join("old"), "last good").unwrap();
+            let container = install_container(&dest).unwrap();
+            let retained = container.path().to_path_buf();
+            std::fs::create_dir(retained.join("stage")).unwrap();
+            let mut calls = 0;
+            let result = commit_install(container, &dest, |from, to| {
+                calls += 1;
+                if calls == 2 || (calls == 3 && fail_rollback) {
+                    Err(std::io::Error::other("injected rename failure"))
+                } else {
+                    std::fs::rename(from, to)
+                }
+            });
+            assert!(result.is_err());
+            if fail_rollback {
+                assert!(!dest.exists());
+                assert_eq!(
+                    std::fs::read_to_string(retained.join("backup/old")).unwrap(),
+                    "last good"
+                );
+                assert!(
+                    result
+                        .unwrap_err()
+                        .to_string()
+                        .contains(&retained.display().to_string())
+                );
+            } else {
+                assert_eq!(
+                    std::fs::read_to_string(dest.join("old")).unwrap(),
+                    "last good"
+                );
+                assert!(!retained.exists());
+            }
+        }
+    }
+
     #[test]
     fn install_prunes_only_managed_pack_and_failed_stage_preserves_live_bytes() {
         let tmp = tempfile::tempdir().unwrap();

@@ -1450,6 +1450,10 @@ impl Serialize for LocationPredicate {
 
 /// Checks a block at a specific position.
 ///
+/// Choose either explicit block identities or a tag, then optionally constrain
+/// state and block-entity data. Setting both identities and a tag is rejected
+/// because vanilla represents these as alternatives in the same `blocks` field.
+///
 /// # Example
 /// ```rust
 /// use sand_components::{BlockId, predicates::BlockPredicate};
@@ -1482,6 +1486,11 @@ impl BlockPredicate {
     pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if self._raw.is_some() {
             return Ok(());
+        }
+        if self.blocks.is_some() && self.tag.is_some() {
+            return Err(format!(
+                "{path}.blocks: choose block identities or a tag, not both"
+            ));
         }
         if self.blocks.as_ref().is_some_and(Vec::is_empty) {
             return Err(format!("{path}.blocks: matcher list must not be empty"));
@@ -1554,7 +1563,7 @@ impl BlockPredicate {
         aliases = ["sand::prelude::BlockPredicate::tag"],
         summary = "Matches a typed block tag.",
         context = "Adds one typed BlockPredicate constraint without disturbing its other requirements.",
-        minecraft = "Writes the block tag.",
+        minecraft = "Writes the blocks holder set as a namespaced tag reference.",
         use_when = ["Composing this property into a larger predicate"],
         avoid_when = ["The property should remain unconstrained"],
         params(
@@ -1612,12 +1621,14 @@ impl Serialize for BlockPredicate {
         if let Some(ref raw) = self._raw {
             return raw.serialize(serializer);
         }
+        self.validate_at("block predicate")
+            .map_err(serde::ser::Error::custom)?;
         let mut map = serializer.serialize_map(None)?;
         if let Some(ref v) = self.blocks {
             map.serialize_entry("blocks", v)?;
         }
         if let Some(ref v) = self.tag {
-            map.serialize_entry("tag", v)?;
+            map.serialize_entry("blocks", &format!("#{v}"))?;
         }
         if let Some(ref v) = self.nbt {
             map.serialize_entry("nbt", v.as_str())?;
@@ -3412,7 +3423,62 @@ mod tests {
     fn block_predicate_tag() {
         let bp = BlockPredicate::new().tag(TagId::minecraft("logs").unwrap());
         let v = serde_json::to_value(&bp).unwrap();
-        assert_eq!(v["tag"], "minecraft:logs");
+        assert_eq!(v, serde_json::json!({"blocks": "#minecraft:logs"}));
+    }
+
+    #[test]
+    fn block_tag_codec_is_shared_by_location_entity_and_advancement_consumers() {
+        let block = BlockPredicate::new()
+            .tag(TagId::minecraft("logs").unwrap())
+            .state(BTreeMap::from([("axis".into(), "y".into())]));
+        let location = LocationPredicate::new().block(block.clone());
+        let value = serde_json::to_value(&location).unwrap();
+        assert_eq!(
+            value["block"],
+            serde_json::json!({"blocks": "#minecraft:logs", "state": {"axis": "y"}})
+        );
+        let entity =
+            serde_json::to_value(EntityPredicate::new().location(location.clone())).unwrap();
+        assert_eq!(
+            entity["minecraft:location"]["block"]["blocks"],
+            "#minecraft:logs"
+        );
+        for trigger in [
+            crate::advancement::AdvancementTrigger::PlacedBlock {
+                block: None,
+                item: None,
+                location: Some(location.clone()),
+                state: None,
+            },
+            crate::advancement::AdvancementTrigger::ItemUsedOnBlock {
+                item: None,
+                location: Some(location.clone()),
+            },
+            crate::advancement::AdvancementTrigger::AllayDropItemOnBlock {
+                item: None,
+                location: Some(location.clone()),
+            },
+        ] {
+            for version in ["26.1", "26.2"] {
+                let caps = sand_version::VersionCaps::from_profile_flags(
+                    version, false, false, true, true, true, true, true, true,
+                );
+                let value = trigger.render_for(Some(&caps)).unwrap();
+                assert_eq!(
+                    value["conditions"]["location"][0]["predicate"]["block"]["blocks"],
+                    "#minecraft:logs",
+                    "{value}"
+                );
+            }
+        }
+        let contradictory = block.blocks(vec![BlockId::minecraft("stone").unwrap()]);
+        assert!(
+            serde_json::to_value(&contradictory)
+                .unwrap_err()
+                .to_string()
+                .contains("not both")
+        );
+        assert!(serde_json::to_value(LocationPredicate::new().block(contradictory)).is_err());
     }
 
     #[test]

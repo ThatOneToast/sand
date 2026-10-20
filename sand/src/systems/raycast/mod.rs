@@ -71,7 +71,17 @@ enum Search {
     minecraft = "Samples along current rotation with one entity-owned counter per definition; terminal returns preserve nested callback completion.",
     use_when = ["Scanning through nonmatching blocks", "Stopping at the first sampled nonpassable block"],
     avoid_when = ["Exact voxel traversal or entity targeting is needed"],
-    example = "BlockRaycast::new(ResourceLocation::new(\"demo\", \"mining\")?).scan_for(block).on_hit(found_log)"
+    example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+#[function]
+fn found_log() { cmd::say("Found a matching block"); }
+#[datapack_component]
+fn mining_ray() -> BlockRaycast {
+    BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap())
+        .scan_for(BlockPredicate::new().tag(TagId::minecraft("logs").unwrap()))
+        .on_hit(found_log)
+}
+"#
 )]
 #[derive(Clone)]
 pub struct BlockRaycast {
@@ -96,7 +106,9 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(id = "The typed logical resource identity; local namespace resolves per export."),
         returns = "An inert definition with eyes, range six, and quarter-block steps.",
-        example = "BlockRaycast::new(ResourceLocation::new(\"demo\", \"mining\")?)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());"#
     )]
     pub fn new(id: ResourceLocation) -> Self {
         Self {
@@ -122,7 +134,10 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(origin = "Eyes or feet relative to the current execution position."),
         returns = "The updated raycast definition.",
-        example = "ray.origin(Anchor::Eyes)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.origin(sand::command::Anchor::Eyes);"#
     )]
     pub fn origin(mut self, origin: Anchor) -> Self {
         self.origin = origin;
@@ -140,7 +155,10 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(block = "Canonical block predicate for a hit, including typed tags and states."),
         returns = "The raycast configured to pass through every nonmatch.",
-        example = "ray.scan_for(BlockPredicate::new().tag(TagId::minecraft(\"logs\")?))"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.scan_for(BlockPredicate::new().tag(TagId::minecraft("logs").unwrap()));"#
     )]
     pub fn scan_for(mut self, block: BlockPredicate) -> Self {
         self.search = Some(Search::Scan(block));
@@ -157,7 +175,11 @@ impl BlockRaycast {
         use_when = ["Composing a reusable synchronous block cast"],
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         returns = "The raycast awaiting an explicit pass_through criterion.",
-        example = "ray.first_collision().pass_through(passable_blocks)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let passable = BlockPredicate::new().blocks(vec![BlockId::minecraft("air").unwrap()]);
+let ray = ray.first_collision().pass_through(passable);"#
     )]
     pub fn first_collision(mut self) -> Self {
         self.search = Some(Search::Collision(None));
@@ -175,7 +197,10 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(block = "Canonical predicate describing blocks the cast may pass through."),
         returns = "The raycast configured for first collision.",
-        example = "ray.pass_through(BlockPredicate::new().blocks(vec![BlockId::minecraft(\"air\")?]))"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.pass_through(BlockPredicate::new().blocks(vec![BlockId::minecraft("air").unwrap()]));"#
     )]
     pub fn pass_through(mut self, block: BlockPredicate) -> Self {
         self.search = Some(Search::Collision(Some(block)));
@@ -192,7 +217,10 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(distance = "A finite positive range; export rejects invalid values."),
         returns = "The updated definition.",
-        example = "ray.max_distance(5.0)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.max_distance(5.0);"#
     )]
     pub fn max_distance(mut self, distance: f64) -> Self {
         self.distance = distance;
@@ -209,7 +237,10 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(step = "A finite positive interval; at most 256 samples may be needed."),
         returns = "The updated definition.",
-        example = "ray.step(0.25)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.step(0.25);"#
     )]
     pub fn step(mut self, step: f64) -> Self {
         self.step = step;
@@ -228,7 +259,12 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(callback = "A FunctionRef resolving to a registered function. Player callbacks are skipped for nonplayers without causing a miss."),
         returns = "The definition with its hit callback.",
-        example = "ray.on_hit(found_log)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+#[function]
+fn found_log() { cmd::say("Found a matching block"); }
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.on_hit(found_log);"#
     )]
     pub fn on_hit(mut self, callback: impl FunctionRef) -> Self {
         self.hit = Some(callback.function_id());
@@ -247,7 +283,12 @@ impl BlockRaycast {
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         params(callback = "A FunctionRef resolving to a registered function. Player callbacks are skipped for nonplayers."),
         returns = "The definition with its miss callback.",
-        example = "ray.on_miss(no_target)"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+#[function]
+fn no_target() { cmd::say("No matching block"); }
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+let ray = ray.on_miss(no_target);"#
     )]
     pub fn on_miss(mut self, callback: impl FunctionRef) -> Self {
         self.miss = Some(callback.function_id());
@@ -268,7 +309,10 @@ impl BlockRaycast {
         use_when = ["Composing a reusable synchronous block cast"],
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         returns = "Ceiling of range divided by step, or an error for invalid or excessive traversal.",
-        example = "ray.max_distance(2.5).step(1.0).sample_count()?"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+let ray = BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap());
+assert_eq!(ray.max_distance(2.5).step(1.0).sample_count().unwrap(), 3);"#
     )]
     pub fn sample_count(&self) -> CommandResult<usize> {
         if !self.distance.is_finite()
@@ -306,7 +350,18 @@ impl BlockRaycast {
         use_when = ["Composing a reusable synchronous block cast"],
         avoid_when = ["Exact voxel traversal or unbounded callback recursion is required"],
         returns = "Owned Actions referencing this separately registered definition.",
-        example = "mining_ray().cast()"
+        example = r#"use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
+#[function]
+fn found_log() { cmd::say("Found a matching block"); }
+#[datapack_component]
+fn mining_ray() -> BlockRaycast {
+    BlockRaycast::new(ResourceLocation::new("demo", "mining").unwrap())
+        .scan_for(BlockPredicate::new().tag(TagId::minecraft("logs").unwrap()))
+        .on_hit(found_log)
+}
+#[function]
+fn use_tool() { mining_ray().cast(); }"#
     )]
     pub fn cast(&self) -> Actions {
         Cmd::Function(self.resource("start").to_string()).into_commands()

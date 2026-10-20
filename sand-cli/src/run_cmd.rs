@@ -183,6 +183,9 @@ fn run_internal(
     watch: bool,
     console: &mut Option<crate::console::process::ConsoleSession>,
 ) -> Result<bool> {
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
     let dev_inputs = watch.then(crate::dev::BuildInputs::capture).transpose()?;
     // ── 1. Read sand.toml ────────────────────────────────────────────────────
     let config_path = std::env::current_dir()?.join("sand.toml");
@@ -205,6 +208,10 @@ fn run_internal(
             profile: args.profile.clone(),
             output_format: crate::output::OutputFormat::Human,
         })?;
+    }
+
+    if preparation_cancelled(console) {
+        return Ok(false);
     }
 
     // ── 2b. Read any ServerConfig a sand.build.rs produced (issue #317) ─────
@@ -237,6 +244,10 @@ fn run_internal(
         jar_path.display().to_string().white()
     );
 
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
+
     // ── 4. Set up dist/server/ ───────────────────────────────────────────────
     let server_dir = PathBuf::from("dist").join("server");
     std::fs::create_dir_all(&server_dir).context("failed to create dist/server/")?;
@@ -245,6 +256,9 @@ fn run_internal(
     // 🖥️ Server (host) only — governs Sand's own local dev world directory,
     // never the datapack. `WorldResetPolicy::AlwaysReset` wipes the previous
     // local world so `sand run` starts from a clean slate every time.
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
     if server_config
         .as_ref()
         .is_some_and(|s| s.world_reset_policy_always_reset.unwrap_or(false))
@@ -342,6 +356,10 @@ fn run_internal(
         sync.pruned
     );
 
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
+
     // ── 8. Launch the server ─────────────────────────────────────────────────
     println!(
         "\n{} Minecraft {} with {}RAM...\n",
@@ -360,6 +378,9 @@ fn run_internal(
         .arg("nogui")
         .current_dir(&server_dir);
 
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
     let outcome = crate::console::process::run_server_with_dev(
         command,
         args.server_log,
@@ -411,6 +432,20 @@ fn run_internal(
     }
 
     Ok(false)
+}
+
+/// Synchronous build/download work cannot be interrupted here; cancellation is
+/// honored at stage boundaries before any subsequent reset or process launch.
+fn preparation_cancelled(console: &mut Option<crate::console::process::ConsoleSession>) -> bool {
+    if console
+        .as_mut()
+        .is_some_and(|console| console.cancellation_requested())
+    {
+        eprintln!("dev: restart cancelled");
+        true
+    } else {
+        false
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

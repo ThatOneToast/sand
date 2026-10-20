@@ -153,6 +153,83 @@ def properties(project):
     return dict(line.split('=', 1) for line in text.splitlines() if '=' in line and not line.startswith('#'))
 
 
+def wait_for_file(path, process, timeout=120):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if path.exists():
+            return
+        assert process.poll() is None, f'dev exited while waiting for {path.name}'
+        time.sleep(0.02)
+    raise AssertionError(f'timed out waiting for {path.name}')
+
+
+def cancellation_fixture(project):
+    """Block restart export before an AlwaysReset world can be removed."""
+    with (project / 'Cargo.toml').open('a') as manifest:
+        manifest.write('\n[[bin]]\nname="sand_build_world"\npath="sand.build.rs"\n')
+    (project / 'sand.build.rs').write_text('''use sand::build::{BuildContext, BuildProfile, SandBuild, ServerConfig, WorldResetPolicy};
+fn main() {
+    let context = BuildContext::new(BuildProfile::parse("dev")).with_mc_version("26.2");
+    sand::build::run_and_print("devprobe", context, |_| SandBuild::new().server(
+        ServerConfig::new().world_reset_policy(WorldResetPolicy::AlwaysReset)));
+}
+''')
+    (project / 'src/bin/sand_export.rs').write_text('''fn main() {
+    let flag = std::path::Path::new("dist/block-restart-build");
+    if flag.exists() {
+        std::fs::write("dist/restart-build-blocked", "waiting").unwrap();
+        let start = std::time::Instant::now();
+        while !std::path::Path::new("dist/release-restart-build").exists() {
+            assert!(start.elapsed().as_secs() < 120, "fixture release timeout");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+    devprobe::export(&std::env::var("SAND_EXPORT_MC_VERSION").unwrap());
+}
+''')
+
+
+def validate_restart_cancellation(binary, project, output, env, secrets, checks):
+    cancellation_fixture(project)
+    kinds = ['q', 'eof'] + ([] if os.name == 'nt' else ['interrupt'])
+    for kind in kinds:
+        dev = Dev(binary, project, output / f'cancel-{kind}-console.log', env)
+        flags = [project / 'dist' / name for name in
+                 ['block-restart-build', 'restart-build-blocked', 'release-restart-build']]
+        try:
+            dev.wait('Minecraft 26.2 ready')
+            secrets.append(properties(project)['rcon.password'])
+            marker = project / 'dist/server/world/retain-on-cancel'
+            marker.write_text('world must survive queued cancellation')
+            flags[0].touch()
+            dev.send('R')
+            dev.wait('server stopped; rebuilding and restarting')
+            wait_for_file(flags[1], dev.process)
+            world = snapshot(project / 'dist/server/world')
+            if kind == 'q':
+                dev.send('q')
+            elif kind == 'eof':
+                dev.process.stdin.close()
+            else:
+                os.kill(dev.process.pid, signal.SIGINT)
+            # Let the console thread queue the event while preparation is
+            # deliberately blocked; the production checkpoint must consume it.
+            time.sleep(0.1)
+            flags[2].touch()
+            dev.wait('dev: restart cancelled')
+            assert dev.process.wait(timeout=45) == 0
+            assert marker.is_file(), 'AlwaysReset deleted the world after cancellation'
+            assert snapshot(project / 'dist/server/world') == world
+            assert sum('Minecraft 26.2 ready' in line for line in dev.lines) == 1
+            assert 'rcon.password' not in properties(project)
+            checks.append(f'{kind} during restart build prevents AlwaysReset and new JVM launch')
+        finally:
+            flags[2].touch()
+            dev.close()
+            for flag in flags:
+                flag.unlink(missing_ok=True)
+
+
 def validate(binary, output):
     project = output / 'project'
     project.mkdir()
@@ -196,6 +273,13 @@ def validate(binary, output):
         dev.send('r')
         dev.wait('dev reload #3 complete')
         checks.append('manual r; native parse failure isolated to one reload; next reload completes')
+        dev.send('q')
+        assert dev.process.wait(timeout=45) == 0, 'confirmed reload recovery must allow successful quit without R'
+        dev.close()
+        checks.append('bad native reload -> good reload -> q exits zero without restarting')
+        dev = Dev(binary, project, output / 'restart-console.log', env)
+        dev.wait('Minecraft 26.2 ready')
+        secrets.append(properties(project)['rcon.password'])
         config = project / 'sand.toml'
         config.write_text(config.read_text().replace('Dev probe', 'Changed description'))
         dev.wait('restart required')
@@ -217,6 +301,20 @@ def validate(binary, output):
         dev.close()
     assert 'rcon.password' not in properties(project)
     assert properties(project)['enable-rcon'] == 'false'
+    dev = Dev(binary, project, output / 'unrecovered-console.log', env)
+    try:
+        dev.wait('Minecraft 26.2 ready')
+        secrets.append(properties(project)['rcon.password'])
+        broken = project / 'dist/devprobe/data/devprobe/function/broken.mcfunction'
+        broken.write_text('not_a_minecraft_command\n')
+        dev.send('r')
+        dev.wait('dev reload #1 failed')
+        dev.send('q')
+        assert dev.process.wait(timeout=45) != 0, 'unrecovered native load failure must fail at quit'
+        checks.append('unrecovered native reload failure -> q exits nonzero')
+    finally:
+        dev.close()
+        broken.unlink(missing_ok=True)
     dev = Dev(binary, project, output / 'eof-console.log', env)
     try:
         dev.wait('Minecraft 26.2 ready')
@@ -227,7 +325,8 @@ def validate(binary, output):
     finally:
         dev.close()
     assert 'rcon.password' not in properties(project)
-    for log in [output / 'console.log', output / 'eof-console.log']:
+    validate_restart_cancellation(binary, project, output, env, secrets, checks)
+    for log in output.glob('*console.log'):
         text = log.read_text()
         assert all(secret not in text for secret in secrets), 'credential appeared in console'
     # Neither development instrumentation nor credentials may enter release output.

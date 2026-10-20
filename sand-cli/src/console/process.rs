@@ -50,6 +50,7 @@ pub(crate) struct ConsoleSession {
     tx: Sender<Event>,
     rx: Receiver<Event>,
     pending: std::collections::VecDeque<Event>,
+    cancelled: bool,
 }
 impl ConsoleSession {
     fn new() -> Self {
@@ -63,7 +64,21 @@ impl ConsoleSession {
             tx,
             rx,
             pending: Default::default(),
+            cancelled: false,
         }
+    }
+
+    /// Observe queued cancellation between synchronous restart stages. Keep
+    /// ordinary console input in order for the next JVM; cancellation is sticky.
+    pub(crate) fn cancellation_requested(&mut self) -> bool {
+        self.pending.extend(self.rx.try_iter());
+        self.pending.retain(|event| {
+            let cancel = matches!(event, Event::InputClosed | Event::Interrupt)
+                || matches!(event, Event::Input(line) if matches!(line.trim(), "q" | "stop"));
+            self.cancelled |= cancel;
+            !cancel
+        });
+        self.cancelled
     }
 }
 
@@ -140,15 +155,7 @@ fn drive(
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
                 for grouped in grouper.feed(stream, record, category) {
-                    let current = if dev.as_ref().is_some_and(|dev| dev.is_reloading()) {
-                        super::phase::RunPhase::Reload
-                    } else {
-                        phase.current()
-                    };
-                    if let Some(dev) = dev.as_deref_mut() {
-                        dev.observe(&grouped);
-                    }
-                    renderer.render(&grouped, current);
+                    render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
                 }
             }
             Ok(Event::StreamClosed(_)) => {}
@@ -192,15 +199,7 @@ fn drive(
             }
             Err(RecvTimeoutError::Timeout) => {
                 if let Some(grouped) = grouper.flush() {
-                    let current = if dev.as_ref().is_some_and(|dev| dev.is_reloading()) {
-                        super::phase::RunPhase::Reload
-                    } else {
-                        phase.current()
-                    };
-                    if let Some(dev) = dev.as_deref_mut() {
-                        dev.observe(&grouped);
-                    }
-                    renderer.render(&grouped, current);
+                    render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
                 }
                 renderer.flush_pending_correlation();
             }
@@ -224,23 +223,58 @@ fn drive(
         }
 
         if let Some(status) = child.try_wait().context("failed to poll server process")? {
-            drain_remaining(rx, &mut grouper, &mut renderer, &mut phase, pending);
-            renderer.finish();
+            drain_remaining(
+                rx,
+                &mut grouper,
+                &mut renderer,
+                &mut phase,
+                pending,
+                dev.as_deref_mut(),
+            );
+            let health = finish_rendering(&mut renderer, dev.as_deref());
             return Ok(RunOutcome {
                 exit_status: status,
-                health: renderer.health(),
+                health,
                 restart_requested,
             });
         }
     }
 
     let status = child.wait().context("failed to wait on server process")?;
-    renderer.finish();
+    let health = finish_rendering(&mut renderer, dev.as_deref());
     Ok(RunOutcome {
         exit_status: status,
-        health: renderer.health(),
+        health,
         restart_requested,
     })
+}
+
+fn render_group(
+    grouped: &super::diagnostic::GroupedEvent,
+    renderer: &mut Renderer,
+    phase: super::phase::RunPhase,
+    dev: Option<&mut crate::dev::Session>,
+) {
+    let current = if dev.as_ref().is_some_and(|dev| dev.is_reloading()) {
+        super::phase::RunPhase::Reload
+    } else {
+        phase
+    };
+    if let Some(dev) = dev {
+        dev.observe(grouped, current);
+    }
+    renderer.render(grouped, current);
+}
+
+fn finish_rendering(renderer: &mut Renderer, dev: Option<&crate::dev::Session>) -> RunHealth {
+    if let Some(dev) = dev {
+        let health = dev.health();
+        renderer.finish_dev(health);
+        health
+    } else {
+        renderer.finish();
+        renderer.health()
+    }
 }
 
 /// Best-effort write; a broken pipe just means the server already exited
@@ -257,6 +291,7 @@ fn drain_remaining(
     renderer: &mut Renderer,
     phase: &mut PhaseTracker,
     pending: &mut std::collections::VecDeque<Event>,
+    mut dev: Option<&mut crate::dev::Session>,
 ) {
     let mut stdout_closed = false;
     let mut stderr_closed = false;
@@ -269,7 +304,7 @@ fn drain_remaining(
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
                 for grouped in grouper.feed(stream, record, category) {
-                    renderer.render(&grouped, phase.current());
+                    render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
                 }
             }
             Ok(Event::StreamClosed(Stream::Stdout)) => stdout_closed = true,
@@ -280,7 +315,7 @@ fn drain_remaining(
     }
 
     if let Some(grouped) = grouper.flush() {
-        renderer.render(&grouped, phase.current());
+        render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
     }
     renderer.flush_pending_correlation();
 }
@@ -337,6 +372,40 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
+    fn preparation_cancellation_is_sticky_and_retains_other_input_in_order() {
+        for event in [
+            Event::Input("q".into()),
+            Event::InputClosed,
+            Event::Interrupt,
+            Event::Input("stop".into()),
+        ] {
+            let (tx, rx) = mpsc::channel();
+            let mut console = ConsoleSession {
+                tx,
+                rx,
+                pending: Default::default(),
+                cancelled: false,
+            };
+            console.pending.push_back(Event::Input("say before".into()));
+            assert!(!console.cancellation_requested());
+            console.tx.send(event).unwrap();
+            console.tx.send(Event::Input("say after".into())).unwrap();
+            assert!(console.cancellation_requested());
+            assert!(
+                console.cancellation_requested(),
+                "EOF must not be consumed and forgotten"
+            );
+            assert!(
+                matches!(console.pending.pop_front(), Some(Event::Input(line)) if line == "say before")
+            );
+            assert!(
+                matches!(console.pending.pop_front(), Some(Event::Input(line)) if line == "say after")
+            );
+            assert!(console.pending.is_empty());
+        }
+    }
+
+    #[test]
     fn drain_preserves_restart_quit_and_eof_for_next_process() {
         let (tx, rx) = mpsc::channel();
         tx.send(Event::Input("R".into())).unwrap();
@@ -351,6 +420,7 @@ mod tests {
             &mut Renderer::new(OutputMode::Classified, "26.2".into()),
             &mut PhaseTracker::new(),
             &mut pending,
+            None,
         );
         assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "R"));
         assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "q"));

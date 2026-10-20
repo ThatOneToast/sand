@@ -34,6 +34,9 @@ pub(crate) struct Session {
     previous_report: Option<serde_json::Value>,
     reload_number: usize,
     pending_reload: Option<reload::Reload>,
+    // Failures outside managed reloads (especially startup) remain sticky.
+    persistent_health: crate::console::health::HealthTracker,
+    reload_failed: bool,
 }
 
 impl Session {
@@ -94,6 +97,8 @@ impl Session {
             previous_report: None,
             reload_number: 0,
             pending_reload: None,
+            persistent_health: crate::console::health::HealthTracker::new(),
+            reload_failed: false,
         })
     }
 
@@ -101,17 +106,28 @@ impl Session {
         self.pending_reload.is_some()
     }
 
-    pub(crate) fn observe(&mut self, event: &crate::console::diagnostic::GroupedEvent) {
-        use crate::console::{
-            diagnostic::{Fatality, build_diagnostic},
-            phase::RunPhase,
-        };
+    pub(crate) fn health(&self) -> crate::console::RunHealth {
+        use crate::console::RunHealth;
+        match self.persistent_health.current() {
+            RunHealth::Healthy if self.reload_failed => RunHealth::Degraded,
+            health => health,
+        }
+    }
+
+    pub(crate) fn observe(
+        &mut self,
+        event: &crate::console::diagnostic::GroupedEvent,
+        phase: crate::console::phase::RunPhase,
+    ) {
+        use crate::console::diagnostic::{Fatality, build_diagnostic};
         let mut category = event.category;
         let message = &event.headline().message;
-        if let Some(diagnostic) = build_diagnostic(event, RunPhase::Reload)
-            && diagnostic.fatality() == Fatality::Nonfatal
-        {
-            category = Category::Warning;
+        if let Some(diagnostic) = build_diagnostic(event, phase) {
+            match diagnostic.fatality() {
+                Fatality::Nonfatal => category = Category::Warning,
+                Fatality::FatalToDatapackHealth if self.is_reloading() => self.reload_failed = true,
+                _ => self.persistent_health.observe(&diagnostic),
+            }
         }
         if category == Category::Ready {
             self.ready = true;
@@ -128,6 +144,7 @@ impl Session {
 
     fn finish_reload(&mut self, outcome: reload::Outcome) {
         self.pending_reload = None;
+        self.reload_failed = !matches!(outcome, reload::Outcome::Complete { .. });
         match outcome {
             reload::Outcome::Complete { warnings } => eprintln!(
                 "dev reload #{} complete ({warnings} warnings)",
@@ -192,7 +209,7 @@ impl Session {
                 );
                 return Ok(());
             }
-            let pending = reload::Reload::new(Instant::now())?;
+            let pending = reload::Reload::new()?;
             let stats = install(
                 &self.root.join("dist").join(&self.namespace),
                 &self
@@ -213,8 +230,15 @@ impl Session {
             report_change(self.previous_report.as_ref(), &result["runtime_report"]);
             self.previous_report = Some(result["runtime_report"].clone());
             self.pending_reload = Some(pending);
+            self.reload_failed = true;
             match self.rcon.reload() {
-                Ok(()) => eprintln!("dev reload #{} pending…", self.reload_number),
+                Ok(()) => {
+                    self.pending_reload
+                        .as_mut()
+                        .expect("installed reload")
+                        .dispatched(Instant::now());
+                    eprintln!("dev reload #{} pending…", self.reload_number);
+                }
                 Err(error) => {
                     self.pending_reload = None;
                     eprintln!(
@@ -407,6 +431,113 @@ fn report_change(previous: Option<&serde_json::Value>, report: &serde_json::Valu
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn health_session(root: &Path) -> Session {
+        std::fs::create_dir_all(root.join("dist/demo")).unwrap();
+        std::fs::write(root.join("sand.toml"), "config").unwrap();
+        let props = root.join("dist/server.properties");
+        std::fs::write(&props, "").unwrap();
+        Session::at(
+            root.into(),
+            "demo".into(),
+            "dev",
+            &props,
+            BuildInputs(watch::snapshot(root).unwrap()),
+        )
+        .unwrap()
+    }
+
+    fn log_event(raw: &str) -> crate::console::diagnostic::GroupedEvent {
+        use crate::console::{
+            classify::classify,
+            diagnostic::GroupedEvent,
+            log_record::{Stream, parse_line},
+        };
+        let record = parse_line(raw);
+        GroupedEvent {
+            category: classify(Stream::Stdout, &record),
+            stream: Stream::Stdout,
+            lines: vec![record],
+        }
+    }
+
+    fn complete_reload(session: &mut Session) {
+        use crate::console::phase::RunPhase;
+        let marker = session.pending_reload.as_ref().unwrap().marker.clone();
+        session.observe(
+            &log_event(&format!(
+                "[12:00:00] [Server thread/INFO]: [Not Secure] [Server] {marker}"
+            )),
+            RunPhase::Reload,
+        );
+    }
+
+    #[test]
+    fn dev_recovers_only_managed_reload_health_after_a_confirmed_sentinel() {
+        use crate::console::{
+            RunHealth,
+            phase::RunPhase,
+            render::{OutputMode, Renderer},
+        };
+        let tmp = tempfile::tempdir().unwrap();
+        let mut session = health_session(tmp.path());
+        let mut historical = Renderer::new(OutputMode::Classified, "26.2".into());
+        let error =
+            log_event("[12:00:00] [Server thread/ERROR]: Failed to load function demo:broken");
+        session.pending_reload = Some(reload::Reload::new().unwrap());
+        session.observe(&error, RunPhase::Reload);
+        historical.render(&error, RunPhase::Reload);
+        complete_reload(&mut session);
+        assert_eq!(
+            session.health(),
+            RunHealth::Degraded,
+            "unrecovered error must fail at quit"
+        );
+        session.observe(
+            &log_event("[12:00:00] [Server thread/INFO]: Done (1s)! For help, type \"help\""),
+            RunPhase::Runtime,
+        );
+        assert_eq!(
+            session.health(),
+            RunHealth::Degraded,
+            "ready cannot prove reload recovery"
+        );
+        session.pending_reload = Some(reload::Reload::new().unwrap());
+        assert_eq!(
+            session.health(),
+            RunHealth::Degraded,
+            "dispatch is not recovery"
+        );
+        complete_reload(&mut session);
+        assert_eq!(session.health(), RunHealth::Healthy);
+        assert_eq!(
+            historical.health(),
+            RunHealth::Degraded,
+            "ordinary run remains monotonic"
+        );
+        session.finish_reload(reload::Outcome::TimedOut);
+        assert_eq!(session.health(), RunHealth::Degraded);
+    }
+
+    #[test]
+    fn startup_and_unrelated_fatal_errors_survive_a_successful_dev_reload() {
+        use crate::console::{RunHealth, phase::RunPhase};
+        for phase in [RunPhase::ServerStartup, RunPhase::Shutdown] {
+            let tmp = tempfile::tempdir().unwrap();
+            let mut session = health_session(tmp.path());
+            let raw = if phase == RunPhase::ServerStartup {
+                "[12:00:00] [Server thread/ERROR]: Failed to load function demo:startup"
+            } else {
+                "[12:00:00] [Server thread/ERROR]: Encountered an unexpected exception"
+            };
+            session.observe(&log_event(raw), phase);
+            let before = session.health();
+            assert_ne!(before, RunHealth::Healthy);
+            session.pending_reload = Some(reload::Reload::new().unwrap());
+            complete_reload(&mut session);
+            assert_eq!(session.health(), before);
+        }
+    }
+
     #[test]
     fn startup_edits_queue_a_rebuild_and_empty_server_pause_is_restored() {
         for pause in ["", "pause-when-empty-seconds=17\n"] {

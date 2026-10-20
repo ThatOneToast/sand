@@ -99,3 +99,21 @@ EOF, credential rotation/cleanup and release exclusion. Logs and a commit-labele
 evidence file remain in the output directory; secrets are never printed.
 Validation subprocesses have dedicated process groups and bounded shutdown; a
 failed run kills its descendants. The release build has a five-minute deadline.
+
+Restart preparation checks queued `q`, EOF and Ctrl-C before preparing the next
+run, after the synchronous build and jar check, and before world reset and JVM
+launch. Ordinary queued console commands remain available for the new JVM.
+Cancellation cannot interrupt an in-progress build, download, or file operation;
+it takes effect at the next checkpoint. No fixed cancellation latency is claimed
+for those synchronous operations. Cancellation before reset preserves the world,
+including with `AlwaysReset`; it cannot undo a reset that has already begun.
+
+The 30-second reload budget starts after installation and successful RCON
+dispatch, so copying a large pack does not consume Minecraft's loading window.
+For `sand dev`, a confirmed successful sentinel clears failures from earlier
+managed reloads: error, fix, reload, then `q` can exit successfully without `R`.
+An unrecovered failure, timeout, unconfirmed dispatch, or quit during a pending
+reload remains unsuccessful. Startup and unrelated fatal diagnostics stay sticky;
+a ready banner alone cannot recover health. Ordinary `sand run` retains its
+historical, monotonic health contract. The native harness verifies both recovered
+and unrecovered quit outcomes and queued restart cancellation with `AlwaysReset`.

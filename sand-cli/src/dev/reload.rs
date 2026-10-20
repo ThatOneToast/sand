@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 pub(super) struct Reload {
     pub marker: String,
-    started: Instant,
+    started: Option<Instant>,
     failures: usize,
     warnings: usize,
 }
@@ -18,17 +18,23 @@ pub(super) enum Outcome {
     TimedOut,
 }
 impl Reload {
-    pub fn new(now: Instant) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let mut bytes = [0; 16];
         getrandom::fill(&mut bytes).map_err(|_| anyhow::anyhow!("OS entropy unavailable"))?;
         let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
         Ok(Self {
             marker: format!("sand_dev_reload_{token}"),
-            started: now,
+            started: None,
             failures: 0,
             warnings: 0,
         })
     }
+    /// Start the Minecraft loading budget only after installation and RCON
+    /// dispatch have finished; staging may take arbitrarily longer.
+    pub fn dispatched(&mut self, now: Instant) {
+        self.started = Some(now);
+    }
+
     pub fn observe(&mut self, category: Category, message: &str) -> Option<Outcome> {
         match category {
             Category::DatapackError | Category::FatalError => self.failures += 1,
@@ -54,7 +60,7 @@ impl Reload {
         None
     }
     pub fn timeout(&self, now: Instant) -> Option<Outcome> {
-        (now.duration_since(self.started) >= Duration::from_secs(30)).then_some(
+        (now.duration_since(self.started?) >= Duration::from_secs(30)).then_some(
             if self.failures == 0 {
                 Outcome::TimedOut
             } else {
@@ -94,13 +100,35 @@ pub(super) fn add_marker(stage: &Path, namespace: &str, marker: &str) -> Result<
 mod tests {
     use super::*;
     #[test]
+    fn slow_installation_does_not_spend_the_reload_budget() {
+        let before_install = Instant::now();
+        let mut reload = Reload::new().unwrap();
+        let after_dispatch = before_install + Duration::from_secs(90);
+        assert_eq!(
+            reload.timeout(after_dispatch),
+            None,
+            "installation has no loading deadline"
+        );
+        reload.dispatched(after_dispatch);
+        assert_eq!(reload.timeout(after_dispatch), None);
+        assert_eq!(
+            reload.timeout(after_dispatch + Duration::from_secs(29)),
+            None
+        );
+        assert_eq!(
+            reload.timeout(after_dispatch + Duration::from_secs(30)),
+            Some(Outcome::TimedOut)
+        );
+    }
+
+    #[test]
     fn vanilla_secure_and_offline_say_markers_use_real_parser_and_classifier() {
         use crate::console::{
             classify::classify,
             log_record::{Stream, parse_line},
         };
         for prefix in ["[Server]", "[Not Secure] [Server]"] {
-            let mut reload = Reload::new(Instant::now()).unwrap();
+            let mut reload = Reload::new().unwrap();
             let raw = format!(
                 "[12:00:00] [Server thread/INFO]: {prefix} {}",
                 reload.marker
@@ -124,7 +152,7 @@ mod tests {
     #[test]
     fn completion_distinguishes_warnings_errors_and_timeout() {
         let now = Instant::now();
-        let mut reload = Reload::new(now).unwrap();
+        let mut reload = Reload::new().unwrap();
         assert_eq!(reload.observe(Category::Warning, "warning"), None);
         assert_eq!(reload.observe(Category::Visible, "unrelated"), None);
         assert_eq!(
@@ -134,7 +162,7 @@ mod tests {
             ),
             Some(Outcome::Complete { warnings: 1 })
         );
-        let mut reload = Reload::new(now).unwrap();
+        let mut reload = Reload::new().unwrap();
         reload.observe(Category::DatapackError, "Failed to load function");
         assert_eq!(
             reload.observe(
@@ -146,7 +174,8 @@ mod tests {
                 warnings: 0
             })
         );
-        let reload = Reload::new(now).unwrap();
+        let mut reload = Reload::new().unwrap();
+        reload.dispatched(now);
         assert_eq!(reload.timeout(now + Duration::from_secs(29)), None);
         assert_eq!(
             reload.timeout(now + Duration::from_secs(30)),

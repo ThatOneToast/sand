@@ -42,6 +42,10 @@ on:
       - "scripts/validate_player_participants.py"
       - "scripts/validate_player_joins.py"
       - "scripts/validate_detector_ownership.py"
+      - "scripts/validate_xp_level.py"
+      - "scripts/measure_archetype_idle.py"
+      - "sand-core/tests/xp_level_bookkeeping.rs"
+      - "sand-core/tests/xp_snapshot_ownership.rs"
       - "sand-core/tests/builtin_detector_ownership.rs"
       - "sand-core/tests/join_lifecycle_export.rs"
       - "scripts/tests/test_player_validation_harness.py"
@@ -264,6 +268,13 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
+      - name: Validate XP snapshot timing, respawn and idle bookkeeping cost
+        if: matrix.version == '26.2'
+        run: |
+          python3 scripts/validate_xp_level.py \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/xp-level"
+
       - name: Validate portable player and global gameplay flows
         if: matrix.target == 'latest'
         run: |
@@ -337,6 +348,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/player-joins
             target/vanilla-reload/${{ matrix.version }}/bounded-state
             target/vanilla-reload/${{ matrix.version }}/detector-ownership
+            target/vanilla-reload/${{ matrix.version }}/xp-level
             target/vanilla-reload/${{ matrix.version }}/unified-state
             target/vanilla-reload/${{ matrix.version }}/trailforge
             target/vanilla-reload/${{ matrix.version }}/keyed-literals

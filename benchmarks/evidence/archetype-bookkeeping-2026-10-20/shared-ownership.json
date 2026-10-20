@@ -1,0 +1,31 @@
+{
+  "minecraft": "26.2",
+  "complete": true,
+  "assertions": 52,
+  "orders": [
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ]
+  ],
+  "reload_repeated": true,
+  "callback_generation_orders": 2,
+  "cause_only_values": [
+    1,
+    -7
+  ],
+  "missing_pending_combinations": 3,
+  "internal_cause_values": [
+    1,
+    -7,
+    null
+  ],
+  "source_commit": "c2a8aa36221460628c956a5952b2c7e2a9de3eba",
+  "input_pack_sha256": "e898ce860be2e7594956536a9955d277c92b1aae28baf42c61d73c075c3a8def",
+  "fixture_source_sha256": "958f7d7c43c59bdc203be46af966a7cbf8a53fa8f476d8223184c17756b2360e",
+  "server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5"
+}

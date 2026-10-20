@@ -49,11 +49,15 @@ impl Rcon {
 
 fn write_packet(out: &mut impl Write, id: i32, kind: i32, body: &str) -> Result<()> {
     ensure!(body.len() <= 4096, "RCON request too large");
-    out.write_all(&(body.len() as i32 + 10).to_le_bytes())?;
-    out.write_all(&id.to_le_bytes())?;
-    out.write_all(&kind.to_le_bytes())?;
-    out.write_all(body.as_bytes())?;
-    out.write_all(&[0, 0])?;
+    // Vanilla's RCON reader can close the connection if it receives a length
+    // prefix without the payload. Buffer the complete packet before writing.
+    let mut packet = Vec::with_capacity(body.len() + 14);
+    packet.extend_from_slice(&(body.len() as i32 + 10).to_le_bytes());
+    packet.extend_from_slice(&id.to_le_bytes());
+    packet.extend_from_slice(&kind.to_le_bytes());
+    packet.extend_from_slice(body.as_bytes());
+    packet.extend_from_slice(&[0, 0]);
+    out.write_all(&packet)?;
     out.flush()?;
     Ok(())
 }
@@ -75,6 +79,28 @@ fn read_packet(input: &mut impl Read) -> Result<(i32, i32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn packet_prefix_and_payload_are_submitted_together() {
+        #[derive(Default)]
+        struct PacketWriter(Vec<Vec<u8>>);
+        impl Write for PacketWriter {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.push(bytes.to_vec());
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let mut output = PacketWriter::default();
+        write_packet(&mut output, 2, 2, "reload").unwrap();
+        assert_eq!(output.0.len(), 1);
+        let packet = &output.0[0];
+        assert_eq!(i32::from_le_bytes(packet[..4].try_into().unwrap()), 16);
+        assert_eq!(&packet[12..], b"reload\0\0");
+        assert_eq!(read_packet(&mut packet.as_slice()).unwrap(), (2, 2));
+    }
+
     #[test]
     fn rejects_truncated_oversized_and_unterminated_packets() {
         for length in [-1i32, 0, 9, 4111, i32::MAX] {

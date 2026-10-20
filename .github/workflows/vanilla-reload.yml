@@ -44,6 +44,8 @@ on:
       - "scripts/validate_detector_ownership.py"
       - "scripts/validate_xp_level.py"
       - "scripts/measure_archetype_idle.py"
+      - "scripts/validate_archetype_dirty.py"
+      - "sand-core/tests/archetype_dirty_bookkeeping.rs"
       - "sand-core/tests/xp_level_bookkeeping.rs"
       - "sand-core/tests/xp_snapshot_ownership.rs"
       - "sand-core/tests/builtin_detector_ownership.rs"
@@ -268,6 +270,13 @@ jobs:
             --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
             --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
+      - name: Validate overlapping archetype dirty acknowledgement in both orders
+        if: matrix.version == '26.2'
+        run: |
+          python3 scripts/validate_archetype_dirty.py \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --output "target/vanilla-reload/${{ matrix.version }}/archetype-dirty"
+
       - name: Validate XP snapshot timing, respawn and idle bookkeeping cost
         if: matrix.version == '26.2'
         run: |
@@ -349,6 +358,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/bounded-state
             target/vanilla-reload/${{ matrix.version }}/detector-ownership
             target/vanilla-reload/${{ matrix.version }}/xp-level
+            target/vanilla-reload/${{ matrix.version }}/archetype-dirty
             target/vanilla-reload/${{ matrix.version }}/unified-state
             target/vanilla-reload/${{ matrix.version }}/trailforge
             target/vanilla-reload/${{ matrix.version }}/keyed-literals

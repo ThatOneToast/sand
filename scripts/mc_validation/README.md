@@ -371,3 +371,22 @@ reconnects while another player remains online, callback reentry, namespace and
 reload isolation, and legacy-marker coexistence. See
 [the join evidence](../../docs/testing/player-join-evidence.md) for the tested
 contracts and limits.
+
+## Archetype dirty acknowledgement (#447)
+
+```bash
+python3 scripts/validate_archetype_dirty.py \
+  --jar ~/.sand/cache/26.2/server.jar \
+  --output /tmp/archetype-dirty
+```
+
+This maintained fixture exports two real archetypes sharing a State component.
+With two connected players and frozen ticks, it invokes the generated reconcile
+functions in both orders, then repeats after reload. Forty assertions prove
+that acknowledgement consumes only the current composition's pending change
+and that both native attribute bindings observe the write. Cause-only flags are
+normalized, and transition callback writes survive acknowledgement until the
+next refresh in either order. The 26.2 CI job runs
+it and retains the output directory on failure. No generated resources are
+patched. The RPG audit additionally checks missing/noncanonical pending scores,
+entity isolation, stale internal causes, and the next authored health write.

@@ -1,0 +1,16 @@
+{
+  "minecraft": "26.2",
+  "complete": true,
+  "assertions": 20,
+  "orders": [
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ]
+  ],
+  "reload_repeated": true
+}

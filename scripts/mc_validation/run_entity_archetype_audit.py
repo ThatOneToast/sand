@@ -41,6 +41,7 @@ def main() -> int:
     parser.add_argument("--build", action="store_true")
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--runtime-report", type=Path)
     args = parser.parse_args()
 
     if args.build:
@@ -68,7 +69,11 @@ def main() -> int:
         text=True,
         check=True,
     ).stdout
-    records = json.loads(export)["components"]
+    exported = json.loads(export)
+    if args.runtime_report:
+        args.runtime_report.parent.mkdir(parents=True, exist_ok=True)
+        args.runtime_report.write_text(json.dumps(exported["runtime_report"], indent=2) + "\n")
+    records = exported["components"]
     functions = {
         record["path"]: record["content"]
         for record in records
@@ -440,6 +445,47 @@ def main() -> int:
             observed_after_load == 9,
             after_load_out,
         )
+
+        # Exercise the gated bookkeeping through generated reconcile calls,
+        # including raw/missing private scores. Keep all original lifecycle cases.
+        acknowledgement_scores = [
+            line.split()[4]
+            for path, body in functions.items()
+            if path.startswith(f"{root}/acknowledge/")
+            for line in body.splitlines()
+        ]
+        internal_scores = [line.split()[4] for line in
+                           functions[f"{root}/reset_internal_causes"].splitlines()]
+        if not acknowledgement_scores or not internal_scores:
+            raise RuntimeError("missing generated bookkeeping helpers")
+        for index, objective in enumerate(acknowledgement_scores):
+            command(f"scoreboard players set @e[tag=audit_b,limit=1] {objective} 7")
+            if index % 2:
+                command(f"scoreboard players set @e[tag=audit_a,limit=1] {objective} -7")
+            else:
+                command(f"scoreboard players reset @e[tag=audit_a,limit=1] {objective}")
+        command(reconcile)
+        normalized = [score("audit_a", objective)[0] for objective in acknowledgement_scores]
+        retained = [score("audit_b", objective)[0] for objective in acknowledgement_scores]
+        check("acknowledgement_normalizes_missing_and_noncanonical_scores",
+              all(value == 0 for value in normalized), repr(normalized))
+        check("acknowledgement_is_entity_local",
+              all(value == 7 for value in retained), repr(retained))
+        for objective in internal_scores:
+            command(f"scoreboard players set @e[tag=audit_a,limit=1] {objective} 1")
+        command(reconcile)
+        cleared = [score("audit_a", objective)[0] for objective in internal_scores]
+        check("clean_fields_clear_stale_internal_causes",
+              all(value == 0 for value in cleared), repr(cleared))
+        command(
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health_clock} 0",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health} 8",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {current_dirty} 1",
+            reconcile,
+        )
+        authored_native, authored_out = native_health("audit_a")
+        check("authored_write_after_stale_cause_is_applied",
+              authored_native == 8, authored_out)
 
         cleanup = command(
             f"execute as @e[tag=audit_a] run function rpg:{root}/cleanup"

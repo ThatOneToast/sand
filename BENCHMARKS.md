@@ -852,3 +852,31 @@ Retained candidate evidence:
 - [Native audit](benchmarks/evidence/archetype-provision-2026-10-18/native-audit.json): all 24 previous assertions plus a missing-derived-field repair regression pass (25 total). Repair preserves the subject's level and the other entity's attack value.
 
 Extract each ZIP beside its JSON to resolve the recorded trace paths.
+
+### Conditional archetype dirty bookkeeping (#447)
+
+The October 20, 2026 candidate keeps the existing dirty fanout, refresh,
+acknowledgement, and transition phases. It skips each field's acknowledgement
+body when both of that composition's pending scores are zero. It also groups
+internal-cause resets at each existing fanout boundary and skips the group only
+when every internal-cause score is zero. Missing scores and noncanonical raw
+values enter the normalization bodies. No objectives, observation engine, or
+public State lifecycle are added.
+
+Fanout still reaches every active composition before the shared dirty flag is
+cleared. Acknowledgement only clears the current composition's pending/cause
+pair, before writes made by derivations and refresh are republished. Grouped
+internal resets are safe because field fanout bodies contain only score writes,
+read only their own internal cause, and cannot invoke callbacks. Initialization
+still captures changes before membership publication; repair acknowledges old
+causes before running work that can produce new changes.
+
+The baseline is freshly rerun from merged #480 (`1e783fc8`): 134 nested command
+evaluations per entity in the idle workload and 419 after an authored level-up.
+The idle workload includes an active timer; it is not a fully quiescent entity.
+Measurements use the unchanged frozen-time probe at 0, 1, and 10 entities with
+three samples each. They exclude its two control commands. Selector score
+comparisons still cost server work: command evaluations are not MSPT,
+whole-tick measurements, or Minecraft command-budget units. No 50/200/500
+population MSPT result is claimed. Clean-entity scheduling, timers, remaining
+refresh work, and population scaling keep #447 open.

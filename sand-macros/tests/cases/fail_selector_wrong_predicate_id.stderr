@@ -6,12 +6,17 @@ error[E0277]: the trait bound `sand::prelude::ItemId: RegistryReference<Predicat
   |                                |
   |                                required by a bound introduced by this call
   |
-help: the trait `RegistryReference<PredicateRegistry>` is implemented for `PredicateId`
+help: the following other types implement trait `RegistryReference<K>`
  --> $WORKSPACE/sand-components/src/registry.rs
   |
   | / impl sand_commands::resource::RegistryReference<sand_commands::resource::Predicate>
   | |     for PredicateId
-  | |___________________^
+  | |___________________^ `PredicateId`
+  |
+ ::: $WORKSPACE/sand-components/src/predicate/mod.rs
+  |
+  |   impl sand_commands::resource::RegistryReference<sand_commands::resource::Predicate> for Predicate {
+  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Predicate`
 note: required by a bound in `sand::prelude::Target::<K, A>::predicate`
  --> $WORKSPACE/sand-commands/src/selector.rs
   |

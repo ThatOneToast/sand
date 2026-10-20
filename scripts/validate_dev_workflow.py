@@ -234,7 +234,9 @@ def validate(binary, output):
     project = output / 'project'
     project.mkdir()
     port = fixture(project)
-    env = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / 'target'), NO_COLOR='1')
+    # The fixture also builds sand_export; sharing workspace target binaries
+    # would overwrite sand-example's exporter during concurrent checks.
+    env = dict(os.environ, CARGO_TARGET_DIR=str(output / 'target'), NO_COLOR='1')
     secrets = []
     checks = []
     live = project / 'dist/server/world/datapacks/devprobe'

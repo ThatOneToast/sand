@@ -99,6 +99,8 @@ EOF, credential rotation/cleanup and release exclusion. Logs and a commit-labele
 evidence file remain in the output directory; secrets are never printed.
 Validation subprocesses have dedicated process groups and bounded shutdown; a
 failed run kills its descendants. The release build has a five-minute deadline.
+The fixture uses `<output>/target` for Cargo artifacts, isolating its `sand_export`
+executable from workspace builds while sharing Cargo's registry/download cache.
 
 Restart preparation checks queued `q`, EOF and Ctrl-C before preparing the next
 run, after the synchronous build and jar check, and before world reset and JVM

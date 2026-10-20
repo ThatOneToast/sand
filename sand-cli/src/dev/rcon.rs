@@ -89,10 +89,34 @@ mod tests {
         assert!(read_packet(&mut bytes.as_slice()).is_err());
     }
     #[test]
+    fn authentication_failure_never_sends_reload() {
+        let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let worker = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            assert_eq!(read_packet(&mut socket).unwrap(), (1, 3));
+            write_packet(&mut socket, -1, 2, "").unwrap();
+            let mut byte = [0];
+            assert_eq!(socket.read(&mut byte).unwrap(), 0);
+        });
+        let rcon = Rcon {
+            port,
+            secret: "test-only".into(),
+        };
+        let error = rcon.reload().unwrap_err().to_string();
+        assert!(error.contains("authentication rejected"));
+        assert!(!error.contains(&rcon.secret));
+        worker.join().unwrap();
+    }
+
+    #[test]
     fn credentials_are_fresh_and_server_binding_is_loopback() {
         let a = Rcon::new().unwrap();
         let b = Rcon::new().unwrap();
-        assert_ne!(a.secret, b.secret);
+        assert!(a.secret != b.secret);
         assert_eq!(a.secret.len(), 64);
         assert!(a.properties().contains("server-ip=127.0.0.1\n"));
     }

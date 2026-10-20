@@ -37,7 +37,9 @@ impl Reload {
         }
         // Vanilla renders /say as "[Server] <message>". Matching the complete
         // suffix avoids ordinary diagnostics mentioning the function id.
-        if message == format!("[Server] {}", self.marker) {
+        if message == format!("[Server] {}", self.marker)
+            || message == format!("[Not Secure] [Server] {}", self.marker)
+        {
             return Some(if self.failures == 0 {
                 Outcome::Complete {
                     warnings: self.warnings,
@@ -91,6 +93,34 @@ pub(super) fn add_marker(stage: &Path, namespace: &str, marker: &str) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn vanilla_secure_and_offline_say_markers_use_real_parser_and_classifier() {
+        use crate::console::{
+            classify::classify,
+            log_record::{Stream, parse_line},
+        };
+        for prefix in ["[Server]", "[Not Secure] [Server]"] {
+            let mut reload = Reload::new(Instant::now()).unwrap();
+            let raw = format!(
+                "[12:00:00] [Server thread/INFO]: {prefix} {}",
+                reload.marker
+            );
+            let record = parse_line(&raw);
+            let category = classify(Stream::Stdout, &record);
+            assert_eq!(
+                reload.observe(category, &record.message),
+                Some(Outcome::Complete { warnings: 0 })
+            );
+            for message in [
+                format!("[Player] {}", reload.marker),
+                format!("{prefix} {} suffix", reload.marker),
+                format!("prefix {prefix} {}", reload.marker),
+            ] {
+                assert_eq!(reload.observe(Category::CommandResponse, &message), None);
+            }
+        }
+    }
+
     #[test]
     fn completion_distinguishes_warnings_errors_and_timeout() {
         let now = Instant::now();

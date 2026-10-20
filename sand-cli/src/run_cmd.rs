@@ -170,8 +170,8 @@ pub fn run(args: RunArgs) -> Result<()> {
 }
 
 /// Build and watch a project using the managed local server. Reload retains
-/// vanilla load-handler semantics; registry/configuration changes require exit
-/// and a new session. See `docs/dev-workflow.md` for the supported boundary.
+/// vanilla load-handler semantics; registry/configuration changes require a
+/// graceful restart with `R`. See `docs/dev-workflow.md` for the supported boundary.
 pub fn dev(args: RunArgs) -> Result<()> {
     let mut console = None;
     while run_internal(args.clone(), true, &mut console)? {}

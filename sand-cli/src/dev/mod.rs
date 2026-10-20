@@ -45,7 +45,12 @@ impl Session {
         let restart_inputs = restart_inputs(&root, &namespace)?;
         let rcon = rcon::Rcon::new()?;
         let existing = std::fs::read_to_string(properties)?;
-        let text = format!("{}{}", without_rcon(&existing), rcon.properties());
+        // A final Java-properties continuation must not swallow server-ip.
+        let text = format!(
+            "{}\n# Sand development session\n{}",
+            without_rcon(&existing),
+            rcon.properties()
+        );
         private_write(properties, text.as_bytes())?;
         eprintln!(
             "dev: loopback only; r + Enter rebuilds, R + Enter restarts, q + Enter quits. Reload re-runs load and join handlers."
@@ -67,7 +72,22 @@ impl Session {
         })
     }
 
-    pub(crate) fn observe(&mut self, category: Category, message: &str) {
+    pub(crate) fn is_reloading(&self) -> bool {
+        self.pending_reload.is_some()
+    }
+
+    pub(crate) fn observe(&mut self, event: &crate::console::diagnostic::GroupedEvent) {
+        use crate::console::{
+            diagnostic::{Fatality, build_diagnostic},
+            phase::RunPhase,
+        };
+        let mut category = event.category;
+        let message = &event.headline().message;
+        if let Some(diagnostic) = build_diagnostic(event, RunPhase::Reload)
+            && diagnostic.fatality() == Fatality::Nonfatal
+        {
+            category = Category::Warning;
+        }
         if category == Category::Ready {
             self.ready = true;
         }

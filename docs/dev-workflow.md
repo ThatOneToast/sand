@@ -25,8 +25,10 @@ responsive while compilation runs. Quit reaps the CLI build worker; Cargo
 subprocesses may finish cache writes, but cannot install or reload a pack.
 
 Enter `r` followed by Enter to rebuild/reload, or `q` to stop. Other lines pass
-through to the server. `R` currently explains how to quit and restart; automatic
-restart is deliberately unfinished. EOF and Ctrl-C request a graceful stop,
+through to the server. `R` stops and reaps the JVM, rebuilds, reapplies the
+configured world-reset policy, and starts a new JVM with fresh credentials.
+The same stdin reader and Ctrl-C handler survive repeated restarts.
+EOF and Ctrl-C request a graceful stop,
 with a 30-second bound. On normal/error cleanup, RCON is disabled and its
 password removed. Forced process termination can leave the local credential in
 `dist/server/server.properties`; the next dev session replaces it. Unix file
@@ -42,9 +44,17 @@ and #465 runtime report. The console says whether the report changed relative
 to the preceding installed rebuild (the first rebuild establishes a baseline).
 Those are static explicit evaluation bounds, **not** player/entity scan counts,
 whole-tick totals, command-budget units, or MSPT. Unknown ranges stay unknown.
-RCON acknowledges dispatch before Minecraft finishes resource loading. Console
-errors are displayed, but this foundation does not claim correlated reload
-completion or automatically roll back Minecraft's in-memory resources.
+RCON acknowledges dispatch before Minecraft finishes resource loading. A unique
+load-tag sentinel is added only to the installed development pack, after its
+load entries. Each reload remains pending until that sentinel is observed or
+30 seconds elapse. The existing console diagnostic model separates load failures
+from warnings/nonfatal command diagnostics. A sentinel with no classified load
+failures reports complete; errors report failed, and missing evidence times out.
+Later unrelated logs do not affect the closed reload. This establishes that the
+load tag ran, not that every gameplay invariant holds. Other packs can replace
+the load tag; missing sentinels time out safely. There is no automatic rollback
+of Minecraft's in-memory resources. The development sentinel adds one load-only
+command excluded from the source build's runtime report and release package.
 
 World/registry data, generated world-init commands, pack metadata, `sand.toml`,
 and host configuration changes block installation until a new session. Functions,
@@ -64,6 +74,22 @@ Current reload semantics are intentionally preserved:
   claim unchanged-pack reload is universally idempotent for user State.
 
 This is an independently mergeable CLI foundation for #443, not completion of
-that umbrella. Correlated reload completion, restart controls, richer bounded
-report deltas, framework load semantics/cleanup, additional platform evidence,
-and live State inspection/debug maps remain separate work.
+that umbrella. Numerical cost deltas (rather than changed/unchanged), framework
+load semantics/cleanup, additional platform evidence, and live State
+inspection/debug maps remain separate work.
+
+## Repeatable validation
+
+After `cargo build -p sand-cli --bin sand`, run:
+
+```sh
+python3 scripts/validate_dev_workflow.py --output /tmp/sand-dev-evidence
+```
+
+The output directory must not already contain a `project` subdirectory. Java 25
+must be on PATH. The script uses Minecraft 26.2, a disposable project, loopback
+ports and the normal Sand jar cache. It proves a watched nested source edit,
+failed-build retention, live function behavior, native parser failure and
+subsequent reload recovery, startup-resource guarding, repeated `R`, `r`, `q`,
+EOF, credential rotation/cleanup and release exclusion. Logs and a commit-labeled
+evidence file remain in the output directory; secrets are never printed.

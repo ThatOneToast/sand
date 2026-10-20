@@ -139,11 +139,16 @@ fn drive(
                 let record = parse_line(&line);
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
-                if let Some(dev) = dev.as_deref_mut() {
-                    dev.observe(category, &record.message);
-                }
                 for grouped in grouper.feed(stream, record, category) {
-                    renderer.render(&grouped, phase.current());
+                    let current = if dev.as_ref().is_some_and(|dev| dev.is_reloading()) {
+                        super::phase::RunPhase::Reload
+                    } else {
+                        phase.current()
+                    };
+                    if let Some(dev) = dev.as_deref_mut() {
+                        dev.observe(&grouped);
+                    }
+                    renderer.render(&grouped, current);
                 }
             }
             Ok(Event::StreamClosed(_)) => {}
@@ -187,7 +192,15 @@ fn drive(
             }
             Err(RecvTimeoutError::Timeout) => {
                 if let Some(grouped) = grouper.flush() {
-                    renderer.render(&grouped, phase.current());
+                    let current = if dev.as_ref().is_some_and(|dev| dev.is_reloading()) {
+                        super::phase::RunPhase::Reload
+                    } else {
+                        phase.current()
+                    };
+                    if let Some(dev) = dev.as_deref_mut() {
+                        dev.observe(&grouped);
+                    }
+                    renderer.render(&grouped, current);
                 }
                 renderer.flush_pending_correlation();
             }
@@ -203,10 +216,11 @@ fn drive(
                     .context("server did not stop within 30 seconds")?;
             }
         }
-        if !stop_requested && let Some(dev) = dev.as_deref_mut() {
-            if let Err(error) = dev.poll() {
-                eprintln!("dev: {error:#}; live pack retained unless sync already completed");
-            }
+        if !stop_requested
+            && let Some(dev) = dev.as_deref_mut()
+            && let Err(error) = dev.poll()
+        {
+            eprintln!("dev: {error:#}; live pack retained unless sync already completed");
         }
 
         if let Some(status) = child.try_wait().context("failed to poll server process")? {
@@ -321,6 +335,28 @@ fn spawn_stdin_forwarder(tx: Sender<Event>) {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn drain_preserves_restart_quit_and_eof_for_next_process() {
+        let (tx, rx) = mpsc::channel();
+        tx.send(Event::Input("R".into())).unwrap();
+        tx.send(Event::Input("q".into())).unwrap();
+        tx.send(Event::InputClosed).unwrap();
+        tx.send(Event::StreamClosed(Stream::Stdout)).unwrap();
+        tx.send(Event::StreamClosed(Stream::Stderr)).unwrap();
+        let mut pending = std::collections::VecDeque::new();
+        drain_remaining(
+            &rx,
+            &mut Grouper::new(),
+            &mut Renderer::new(OutputMode::Classified, "26.2".into()),
+            &mut PhaseTracker::new(),
+            &mut pending,
+        );
+        assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "R"));
+        assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "q"));
+        assert!(matches!(pending.pop_front(), Some(Event::InputClosed)));
+        assert!(pending.is_empty());
+    }
 
     #[test]
     fn reader_handles_non_utf8_and_malformed_bytes_without_panicking() {

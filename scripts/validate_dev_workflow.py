@@ -174,6 +174,10 @@ fn main() {
         ServerConfig::new().world_reset_policy(WorldResetPolicy::AlwaysReset)));
 }
 ''')
+    block_restart_export(project)
+
+
+def block_restart_export(project):
     (project / 'src/bin/sand_export.rs').write_text('''fn main() {
     let flag = std::path::Path::new("dist/block-restart-build");
     if flag.exists() {
@@ -229,6 +233,46 @@ def validate_restart_cancellation(binary, project, output, env, secrets, checks)
             dev.close()
             for flag in flags:
                 flag.unlink(missing_ok=True)
+
+
+def validate_namespace_replacement(binary, project, output, env, secrets, checks):
+    block_restart_export(project)
+    dev = Dev(binary, project, output / 'namespace-replacement-console.log', env)
+    config = project / 'sand.toml'
+    library = project / 'src/lib.rs'
+    original_config, original_library = config.read_text(), library.read_text()
+    flags = [project / 'dist' / name for name in
+             ['block-restart-build', 'restart-build-blocked', 'release-restart-build']]
+    try:
+        dev.wait('Minecraft 26.2 ready')
+        secrets.append(properties(project)['rcon.password'])
+        config.write_text(original_config.replace('namespace="devprobe"', 'namespace="renamed"'))
+        library.write_text(original_library.replace('try_export_pack_json("devprobe"', 'try_export_pack_json("renamed"'))
+        dev.wait('namespace changed: restart required')
+        flags[0].touch()
+        dev.send('R')
+        dev.wait('server stopped; rebuilding and restarting')
+        wait_for_file(flags[1], dev.process)
+        live = project / 'dist/server/world/datapacks/devprobe'
+        import shutil
+        shutil.rmtree(live)
+        live.mkdir()
+        (live / 'operator-data').write_text('preserve replacement')
+        flags[2].touch()
+        dev.wait('previous managed datapack was replaced')
+        assert dev.process.wait(timeout=45) != 0
+        assert (live / 'operator-data').read_text() == 'preserve replacement'
+        assert sum('Minecraft 26.2 ready' in line for line in dev.lines) == 1
+        assert 'rcon.password' not in properties(project)
+        assert properties(project)['server-ip'] == '0.0.0.0'
+        checks.append('ordinary pack replacement during blocked namespace restart is preserved; no new JVM launches')
+    finally:
+        flags[2].touch()
+        dev.close()
+        for flag in flags:
+            flag.unlink(missing_ok=True)
+        config.write_text(original_config)
+        library.write_text(original_library)
 
 
 def validate(binary, output):
@@ -363,6 +407,7 @@ def validate(binary, output):
     finally:
         dev.close()
     assert 'rcon.password' not in properties(project)
+    validate_namespace_replacement(binary, project, output, env, secrets, checks)
     validate_restart_cancellation(binary, project, output, env, secrets, checks)
     for log in output.glob('*console.log'):
         text = log.read_text()
@@ -378,6 +423,7 @@ def validate(binary, output):
         with zipfile.ZipFile(archive) as zipped:
             for name in zipped.namelist():
                 assert 'sand_dev_reload_' not in name
+                assert '.sand-dev-owner' not in name
                 data = zipped.read(name)
                 assert all(secret.encode() not in data for secret in secrets)
     checks.append('release archive excludes reload sentinel and credentials')

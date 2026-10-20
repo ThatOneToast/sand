@@ -379,7 +379,22 @@ fn restart_inputs(root: &Path, namespace: &str) -> Result<Snapshot> {
 
 /// The one live pack owned by this dev invocation, retained across JVM restarts.
 #[derive(Default)]
-pub(crate) struct ManagedPack(Option<PathBuf>);
+pub(crate) struct ManagedPack(Option<(PathBuf, String)>);
+
+const OWNER_FILE: &str = ".sand-dev-owner";
+
+fn pack_owner(path: &Path) -> Result<Option<String>> {
+    let marker = path.join(OWNER_FILE);
+    ensure!(
+        !marker.is_symlink(),
+        "dev ownership marker cannot be a symlink"
+    );
+    match std::fs::read_to_string(marker) {
+        Ok(owner) => Ok(Some(owner)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
 
 impl ManagedPack {
     /// Call only after installing the new pack and checking cancellation. Never
@@ -387,7 +402,7 @@ impl ManagedPack {
     pub(crate) fn installed(&mut self, dest: &Path) -> Result<()> {
         ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
         let current = std::fs::canonicalize(dest)?;
-        if let Some(previous) = &self.0
+        if let Some((previous, owner)) = &self.0
             && previous != &current
             && previous.parent() == current.parent()
             && previous.exists()
@@ -396,10 +411,19 @@ impl ManagedPack {
                 !previous.is_symlink(),
                 "previous managed datapack became a symlink"
             );
+            ensure!(
+                pack_owner(previous)?.as_ref() == Some(owner),
+                "previous managed datapack was replaced; preserving it at {}",
+                previous.display()
+            );
             std::fs::remove_dir_all(previous)
                 .context("failed to remove previous session-managed datapack")?;
         }
-        self.0 = Some(current);
+        let mut bytes = [0u8; 16];
+        getrandom::fill(&mut bytes).map_err(|_| anyhow::anyhow!("OS entropy unavailable"))?;
+        let owner: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+        std::fs::write(current.join(OWNER_FILE), &owner)?;
+        self.0 = Some((current, owner));
         Ok(())
     }
 }
@@ -410,6 +434,9 @@ pub(crate) fn install(
     marker: Option<(&str, &str)>,
 ) -> Result<crate::run_cmd::SyncStats> {
     ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
+    // Keep the invocation's ownership through staged hot reloads. This file
+    // exists only in the live server tree, never the build/release output.
+    let owner = pack_owner(dest)?;
     let stage = dest.with_extension("sand-dev-stage");
     let backup = dest.with_extension("sand-dev-backup");
     ensure!(
@@ -423,6 +450,9 @@ pub(crate) fn install(
             crate::run_cmd::sync_dir(dest, &stage)?;
         }
         let stats = crate::run_cmd::sync_dir(src, &stage)?;
+        if let Some(owner) = &owner {
+            std::fs::write(stage.join(OWNER_FILE), owner)?;
+        }
         if let Some((namespace, marker)) = marker {
             reload::add_marker(&stage, namespace, marker)?;
         }
@@ -750,6 +780,36 @@ mod tests {
         assert!(new.exists(), "never prune a previous world");
     }
 
+    #[test]
+    fn namespace_switch_preserves_an_ordinary_replacement_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let old = tmp.path().join("old");
+        let new = tmp.path().join("new");
+        let src = tmp.path().join("src");
+        for path in [&old, &new, &src] {
+            std::fs::create_dir(path).unwrap();
+        }
+        let mut managed = ManagedPack::default();
+        managed.installed(&old).unwrap();
+        let owner = pack_owner(&old).unwrap();
+        install(&src, &old, None).unwrap();
+        assert_eq!(
+            pack_owner(&old).unwrap(),
+            owner,
+            "reload preserves ownership"
+        );
+        std::fs::remove_dir_all(&old).unwrap();
+        std::fs::create_dir(&old).unwrap();
+        std::fs::write(old.join("operator-data"), "do not delete").unwrap();
+        let error = managed.installed(&new).unwrap_err().to_string();
+        assert!(error.contains("was replaced"));
+        assert_eq!(
+            std::fs::read_to_string(old.join("operator-data")).unwrap(),
+            "do not delete"
+        );
+        assert!(pack_owner(&old).unwrap().is_none());
+    }
+
     #[cfg(unix)]
     #[test]
     fn namespace_switch_refuses_replaced_pack_symlink() {
@@ -763,7 +823,7 @@ mod tests {
         std::fs::write(external.join("keep"), "operator").unwrap();
         let mut managed = ManagedPack::default();
         managed.installed(&old).unwrap();
-        std::fs::remove_dir(&old).unwrap();
+        std::fs::remove_dir_all(&old).unwrap();
         std::os::unix::fs::symlink(&external, &old).unwrap();
         assert!(managed.installed(&new).is_err());
         assert!(external.join("keep").exists());

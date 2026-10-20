@@ -127,3 +127,7 @@ dev invocation, only within the same world. Other datapacks are preserved.
 Cancellation before the install commit or failed installation retains the old
 pack. The original `server-ip` setting is restored on cleanup; loopback binding
 is temporary, and the RCON port is chosen distinct from the configured game port.
+The live pack carries a per-invocation ownership marker across hot reloads.
+Before deleting a previous namespace, dev verifies that marker; a replaced
+directory is preserved and the restart fails with a diagnostic. The marker is
+not written to build output or release archives.

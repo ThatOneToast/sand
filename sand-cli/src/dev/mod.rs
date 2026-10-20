@@ -10,11 +10,21 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 use watch::{Snapshot, Watch};
 
+/// Inputs observed before the initial build, including a restart's build.
+pub(crate) struct BuildInputs(Snapshot);
+
+impl BuildInputs {
+    pub(crate) fn capture() -> Result<Self> {
+        Ok(Self(watch::snapshot(&std::env::current_dir()?)?))
+    }
+}
+
 pub(crate) struct Session {
     root: PathBuf,
     namespace: String,
     profile: String,
     properties: PathBuf,
+    original_pause_settings: String,
     rcon: rcon::Rcon,
     watcher: Watch,
     last_poll: Instant,
@@ -31,23 +41,37 @@ impl Session {
         config: &crate::config::SandConfig,
         profile: &str,
         properties: &Path,
+        inputs: BuildInputs,
     ) -> Result<Self> {
         Self::at(
             std::env::current_dir()?,
             config.pack.namespace.as_str().to_owned(),
             profile,
             properties,
+            inputs,
         )
     }
 
-    fn at(root: PathBuf, namespace: String, profile: &str, properties: &Path) -> Result<Self> {
-        let watcher = Watch::new(watch::snapshot(&root)?);
+    fn at(
+        root: PathBuf,
+        namespace: String,
+        profile: &str,
+        properties: &Path,
+        inputs: BuildInputs,
+    ) -> Result<Self> {
+        let mut watcher = Watch::new(inputs.0);
+        watcher.observe(watch::snapshot(&root)?, Instant::now());
         let restart_inputs = restart_inputs(&root, &namespace)?;
         let rcon = rcon::Rcon::new()?;
         let existing = std::fs::read_to_string(properties)?;
+        let original_pause_settings = existing
+            .lines()
+            .filter(|line| property_key(line) == "pause-when-empty-seconds")
+            .map(|line| format!("{line}\n"))
+            .collect();
         // A final Java-properties continuation must not swallow server-ip.
         let text = format!(
-            "{}\n# Sand development session\n{}",
+            "{}\n# Sand development session\n{}pause-when-empty-seconds=-1\n",
             without_rcon(&existing),
             rcon.properties()
         );
@@ -60,6 +84,7 @@ impl Session {
             namespace,
             profile: profile.into(),
             properties: properties.into(),
+            original_pause_settings,
             rcon,
             watcher,
             last_poll: Instant::now(),
@@ -233,8 +258,9 @@ impl Drop for Session {
         }
         if let Ok(text) = std::fs::read_to_string(&self.properties) {
             let cleaned = format!(
-                "{}server-ip=127.0.0.1\nenable-rcon=false\n",
-                without_rcon(&text)
+                "{}server-ip=127.0.0.1\nenable-rcon=false\n{}",
+                without_rcon(&text),
+                self.original_pause_settings
             );
             if private_write(&self.properties, cleaned.as_bytes()).is_err() {
                 eprintln!("dev: could not clear local RCON settings in server.properties");
@@ -262,20 +288,28 @@ fn private_write(path: &Path, bytes: &[u8]) -> Result<()> {
 fn without_rcon(text: &str) -> String {
     let mut out = String::new();
     for line in text.lines() {
-        let key = line
-            .trim_start()
-            .split(['=', ':', ' ', '\t'])
-            .next()
-            .unwrap_or("");
+        let key = property_key(line);
         if !matches!(
             key,
-            "server-ip" | "enable-rcon" | "rcon.port" | "rcon.password" | "broadcast-rcon-to-ops"
+            "server-ip"
+                | "enable-rcon"
+                | "rcon.port"
+                | "rcon.password"
+                | "broadcast-rcon-to-ops"
+                | "pause-when-empty-seconds"
         ) {
             out.push_str(line);
             out.push('\n');
         }
     }
     out
+}
+
+fn property_key(line: &str) -> &str {
+    line.trim_start()
+        .split(['=', ':', ' ', '\t'])
+        .next()
+        .unwrap_or("")
 }
 
 /// Conservatively refuse updates to anything except known reloadable data.
@@ -374,6 +408,47 @@ fn report_change(previous: Option<&serde_json::Value>, report: &serde_json::Valu
 mod tests {
     use super::*;
     #[test]
+    fn startup_edits_queue_a_rebuild_and_empty_server_pause_is_restored() {
+        for pause in ["", "pause-when-empty-seconds=17\n"] {
+            let tmp = tempfile::tempdir().unwrap();
+            let root = tmp.path();
+            std::fs::create_dir_all(root.join("dist/demo")).unwrap();
+            std::fs::write(root.join("sand.toml"), "config").unwrap();
+            let source = root.join("main.rs");
+            std::fs::write(&source, "before build").unwrap();
+            let inputs = BuildInputs(watch::snapshot(root).unwrap());
+            // Compilation consumed the old input; an edit during compilation
+            // must remain pending even though the session has not started yet.
+            std::fs::write(&source, "saved while building").unwrap();
+            let props = root.join("dist/server.properties");
+            std::fs::write(&props, format!("server-port=25565\n{pause}")).unwrap();
+            let mut session =
+                Session::at(root.into(), "demo".into(), "dev", &props, inputs).unwrap();
+            assert!(
+                session
+                    .watcher
+                    .take_ready(Instant::now() + Duration::from_secs(1))
+            );
+            assert!(
+                !session
+                    .watcher
+                    .take_ready(Instant::now() + Duration::from_secs(2))
+            );
+            let running = std::fs::read_to_string(&props).unwrap();
+            assert!(running.contains("pause-when-empty-seconds=-1\n"));
+            assert!(!running.contains("pause-when-empty-seconds=17"));
+            drop(session);
+            let stopped = std::fs::read_to_string(&props).unwrap();
+            assert!(!stopped.contains("pause-when-empty-seconds=-1"));
+            if pause.is_empty() {
+                assert!(!stopped.contains("pause-when-empty-seconds"));
+            } else {
+                assert!(stopped.contains(pause));
+            }
+        }
+    }
+
+    #[test]
     fn failed_or_malformed_build_preserves_live_pack_and_reaps_worker() {
         for (success, output) in [
             (false, ""),
@@ -390,7 +465,9 @@ mod tests {
             std::fs::write(root.join("sand.toml"), "config").unwrap();
             let props = root.join("dist/server/server.properties");
             std::fs::write(&props, "server-port=25565\n").unwrap();
-            let mut session = Session::at(root.into(), "demo".into(), "dev", &props).unwrap();
+            let inputs = BuildInputs(watch::snapshot(root).unwrap());
+            let mut session =
+                Session::at(root.into(), "demo".into(), "dev", &props, inputs).unwrap();
             session.ready = true;
             let mut command = if cfg!(windows) {
                 Command::new("cmd")

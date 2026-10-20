@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import signal
 import socket
 import subprocess
 import tempfile
@@ -17,6 +18,38 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def process_group_options():
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def kill_process_tree(process):
+    """Kill only this validation subprocess's dedicated process group."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.wait(timeout=10)
+
+
+def run_bounded(command, timeout=300, **kwargs):
+    process = subprocess.Popen(command, **kwargs, **process_group_options())
+    try:
+        output, _ = process.communicate(timeout=timeout)
+        if process.returncode:
+            raise subprocess.CalledProcessError(process.returncode, command, output=output)
+        return output
+    finally:
+        kill_process_tree(process)
+        for pipe in (process.stdin, process.stdout, process.stderr):
+            if pipe is not None:
+                pipe.close()
 
 
 def snapshot(path):
@@ -73,7 +106,7 @@ class Dev:
         self.process = subprocess.Popen([str(binary), 'dev', '--offline', '--ram', '1G'],
                                         cwd=project, env=env, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        text=True, bufsize=1)
+                                        text=True, bufsize=1, **process_group_options())
         self.thread = threading.Thread(target=self.read, daemon=True)
         self.thread.start()
 
@@ -101,15 +134,18 @@ class Dev:
         self.process.stdin.write(command + '\n')
         self.process.stdin.flush()
 
-    def close(self):
+    def close(self, timeout=45):
         if self.process.poll() is None:
             try:
                 self.send('q')
-                self.process.wait(timeout=45)
+                self.process.wait(timeout=timeout)
             except (BrokenPipeError, ValueError, subprocess.TimeoutExpired):
-                self.process.kill()
-                self.process.wait(timeout=10)
+                pass
+        kill_process_tree(self.process)
         self.thread.join(timeout=5)
+        for pipe in (self.process.stdin, self.process.stdout, self.process.stderr):
+            if pipe is not None:
+                pipe.close()
 
 
 def properties(project):
@@ -195,9 +231,9 @@ def validate(binary, output):
         text = log.read_text()
         assert all(secret not in text for secret in secrets), 'credential appeared in console'
     # Neither development instrumentation nor credentials may enter release output.
-    release = subprocess.run([str(binary), 'build', '--release'], cwd=project, env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True)
-    (output / 'release.log').write_text(release.stdout)
+    release = run_bounded([str(binary), 'build', '--release'], cwd=project, env=env,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    (output / 'release.log').write_text(release)
     import zipfile
     archives = list((project / 'dist').glob('*.zip'))
     assert archives, 'release archive missing'

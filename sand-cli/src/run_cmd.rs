@@ -183,6 +183,7 @@ fn run_internal(
     watch: bool,
     console: &mut Option<crate::console::process::ConsoleSession>,
 ) -> Result<bool> {
+    let dev_inputs = watch.then(crate::dev::BuildInputs::capture).transpose()?;
     // ── 1. Read sand.toml ────────────────────────────────────────────────────
     let config_path = std::env::current_dir()?.join("sand.toml");
     if !config_path.exists() {
@@ -312,6 +313,7 @@ fn run_internal(
             &config,
             &args.profile,
             &props_path,
+            dev_inputs.expect("dev inputs captured before building"),
         )?)
     } else {
         None

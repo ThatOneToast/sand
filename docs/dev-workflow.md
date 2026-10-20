@@ -4,8 +4,12 @@ Run `sand dev --offline --ram 2G` in a Sand project (omit `--offline` for
 normal account authentication). The initial build and server preparation use
 `sand run`'s profile, jar, world-reset policy, console classifier, and sync
 pipeline. Both Minecraft and RCON bind `127.0.0.1`; this command is for local
-clients. Existing server-port settings are preserved.
+clients. Existing server-port settings are preserved. The dev session disables empty-server
+pausing so load functions run even without a connected player, and restores the
+previous pause setting during cleanup.
 
+Inputs are captured before the initial build (and before each restart build),
+so edits during compilation queue another build after startup.
 After the ready banner, content polling checks project files every 250 ms and
 waits for 500 ms without changes before building. Creation, deletion, rename,
 and equal-mtime edits count. Only root `dist`, `target`, and `.git` directories
@@ -93,3 +97,5 @@ failed-build retention, live function behavior, native parser failure and
 subsequent reload recovery, startup-resource guarding, repeated `R`, `r`, `q`,
 EOF, credential rotation/cleanup and release exclusion. Logs and a commit-labeled
 evidence file remain in the output directory; secrets are never printed.
+Validation subprocesses have dedicated process groups and bounded shutdown; a
+failed run kills its descendants. The release build has a five-minute deadline.

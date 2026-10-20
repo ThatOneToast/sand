@@ -109,3 +109,61 @@ existing Sand event to compose from, so it declares its own tick-scoped
 dispatch condition directly. Reach for `chain::<E>()` when you're
 *narrowing* an existing event's meaning; declare a fresh `SandEvent::dispatch()`
 when you're detecting something genuinely new.
+
+## Reusing a predicate component
+
+A standalone predicate gives a reusable condition tree a resource identity.
+Define that identity once, then pass the component directly to conditions,
+selectors, or another predicate root:
+
+```rust,ignore
+use sand::prelude::*;
+
+#[datapack_component]
+fn wearing_helmet() -> Predicate {
+    Predicate::new(
+        PredicateId::custom(ResourceLocation::new("demo", "wearing_helmet").unwrap()),
+        PredicateRoot::entity_properties(
+            EntityPredicateTarget::This,
+            EntityPredicate::new().equipment(
+                EntityEquipment::new().head(
+                    ItemPredicate::new().item(ItemId::minecraft("diamond_helmet").unwrap()),
+                ),
+            ),
+        ),
+    )
+}
+
+struct WearingHelmet;
+impl SandEvent for WearingHelmet {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(Condition::predicate(wearing_helmet()))
+    }
+}
+
+#[on_event]
+fn on_helmet(_event: WearingHelmet) {
+    cmd::say("Wearing a helmet");
+}
+```
+
+This event checks every tick; it does not detect only the transition into wearing
+the helmet. `EntityEquipment` also supports chest, legs, feet, mainhand, and offhand
+checks with the same typed item predicates.
+
+For selector filtering, use `Target::players().predicate(wearing_helmet())` or
+`.not_predicate(wearing_helmet())`. For a retained definition, borrow it:
+`Condition::predicate(&definition)` and `Target::players().predicate(&definition)`.
+An explicit reusable ID is `PredicateId::from(&definition)`; consuming the
+component with `PredicateId::from(definition)` yields the same canonical type.
+`PredicateRoot::reference(&definition)` composes a resource reference into another
+predicate tree.
+
+These conversions reference an identity without registering or evaluating the
+resource. `#[datapack_component]` or a datapack registration still owns export. The Rust
+value does not retain an executor or position: command conditions evaluate in the
+current command context, and selector filters evaluate for each candidate entity.
+Use a direct `Condition` for a transient scoreboard or command check; use a
+standalone `Predicate` when its typed tree should be shared as a Minecraft resource.

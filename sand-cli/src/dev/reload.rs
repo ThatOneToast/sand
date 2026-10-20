@@ -1,0 +1,126 @@
+//! Bounded reload correlation using a unique development-only load sentinel.
+use crate::console::classify::Category;
+use anyhow::{Result, ensure};
+use std::path::Path;
+use std::time::{Duration, Instant};
+
+pub(super) struct Reload {
+    pub marker: String,
+    started: Instant,
+    failures: usize,
+    warnings: usize,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Outcome {
+    Complete { warnings: usize },
+    Failed { diagnostics: usize, warnings: usize },
+    TimedOut,
+}
+impl Reload {
+    pub fn new(now: Instant) -> Result<Self> {
+        let mut bytes = [0; 16];
+        getrandom::fill(&mut bytes).map_err(|_| anyhow::anyhow!("OS entropy unavailable"))?;
+        let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+        Ok(Self {
+            marker: format!("sand_dev_reload_{token}"),
+            started: now,
+            failures: 0,
+            warnings: 0,
+        })
+    }
+    pub fn observe(&mut self, category: Category, message: &str) -> Option<Outcome> {
+        match category {
+            Category::DatapackError | Category::FatalError => self.failures += 1,
+            Category::Warning => self.warnings += 1,
+            _ => {}
+        }
+        // Vanilla renders /say as "[Server] <message>". Matching the complete
+        // suffix avoids ordinary diagnostics mentioning the function id.
+        if message == format!("[Server] {}", self.marker) {
+            return Some(if self.failures == 0 {
+                Outcome::Complete {
+                    warnings: self.warnings,
+                }
+            } else {
+                Outcome::Failed {
+                    diagnostics: self.failures,
+                    warnings: self.warnings,
+                }
+            });
+        }
+        None
+    }
+    pub fn timeout(&self, now: Instant) -> Option<Outcome> {
+        (now.duration_since(self.started) >= Duration::from_secs(30)).then_some(
+            if self.failures == 0 {
+                Outcome::TimedOut
+            } else {
+                Outcome::Failed {
+                    diagnostics: self.failures,
+                    warnings: self.warnings,
+                }
+            },
+        )
+    }
+}
+
+pub(super) fn add_marker(stage: &Path, namespace: &str, marker: &str) -> Result<()> {
+    let function = stage.join(format!("data/{namespace}/function/{marker}.mcfunction"));
+    ensure!(
+        !function.exists(),
+        "development load marker collides with a pack function"
+    );
+    std::fs::create_dir_all(function.parent().unwrap())?;
+    std::fs::write(function, format!("say {marker}\n"))?;
+    let tag = stage.join("data/minecraft/tags/function/load.json");
+    let mut json: serde_json::Value = if tag.exists() {
+        serde_json::from_slice(&std::fs::read(&tag)?)?
+    } else {
+        serde_json::json!({"values": []})
+    };
+    let values = json["values"]
+        .as_array_mut()
+        .ok_or_else(|| anyhow::anyhow!("invalid load tag values"))?;
+    values.push(format!("{namespace}:{marker}").into());
+    std::fs::create_dir_all(tag.parent().unwrap())?;
+    std::fs::write(tag, serde_json::to_vec(&json)?)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn completion_distinguishes_warnings_errors_and_timeout() {
+        let now = Instant::now();
+        let mut reload = Reload::new(now).unwrap();
+        assert_eq!(reload.observe(Category::Warning, "warning"), None);
+        assert_eq!(reload.observe(Category::Visible, "unrelated"), None);
+        assert_eq!(
+            reload.observe(
+                Category::CommandResponse,
+                &format!("[Server] {}", reload.marker)
+            ),
+            Some(Outcome::Complete { warnings: 1 })
+        );
+        let mut reload = Reload::new(now).unwrap();
+        reload.observe(Category::DatapackError, "Failed to load function");
+        assert_eq!(
+            reload.observe(
+                Category::CommandResponse,
+                &format!("[Server] {}", reload.marker)
+            ),
+            Some(Outcome::Failed {
+                diagnostics: 1,
+                warnings: 0
+            })
+        );
+        let reload = Reload::new(now).unwrap();
+        assert_eq!(reload.timeout(now + Duration::from_secs(29)), None);
+        assert_eq!(
+            reload.timeout(now + Duration::from_secs(30)),
+            Some(Outcome::TimedOut)
+        );
+    }
+}

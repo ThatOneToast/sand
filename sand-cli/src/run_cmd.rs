@@ -7,6 +7,7 @@ use colored::Colorize;
 use crate::config::SandConfig;
 use crate::console::OutputMode;
 
+#[derive(Clone)]
 pub struct RunArgs {
     /// JVM max heap size, e.g. "4G" or "2048M". Used for both -Xmx and -Xms.
     pub ram: String,
@@ -165,6 +166,23 @@ impl ResolvedServerProperties {
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
+    run_internal(args, false, &mut None).map(|_| ())
+}
+
+/// Build and watch a project using the managed local server. Reload retains
+/// vanilla load-handler semantics; registry/configuration changes require exit
+/// and a new session. See `docs/dev-workflow.md` for the supported boundary.
+pub fn dev(args: RunArgs) -> Result<()> {
+    let mut console = None;
+    while run_internal(args.clone(), true, &mut console)? {}
+    Ok(())
+}
+
+fn run_internal(
+    args: RunArgs,
+    watch: bool,
+    console: &mut Option<crate::console::process::ConsoleSession>,
+) -> Result<bool> {
     // ── 1. Read sand.toml ────────────────────────────────────────────────────
     let config_path = std::env::current_dir()?.join("sand.toml");
     if !config_path.exists() {
@@ -289,6 +307,16 @@ pub fn run(args: RunArgs) -> Result<()> {
         );
     }
 
+    let mut dev = if watch {
+        Some(crate::dev::Session::new(
+            &config,
+            &args.profile,
+            &props_path,
+        )?)
+    } else {
+        None
+    };
+
     // ── 7. Sync datapack into world/datapacks/ ───────────────────────────────
     let namespace = config.pack.namespace.as_str();
     let src = PathBuf::from("dist").join(namespace);
@@ -330,7 +358,13 @@ pub fn run(args: RunArgs) -> Result<()> {
         .arg("nogui")
         .current_dir(&server_dir);
 
-    let outcome = crate::console::run_server(command, args.server_log, &mc_version)?;
+    let outcome = crate::console::process::run_server_with_dev(
+        command,
+        args.server_log,
+        &mc_version,
+        dev.as_mut(),
+        console,
+    )?;
 
     if !outcome.exit_status.success() {
         let log_path = server_dir.join("logs").join("latest.log");
@@ -342,6 +376,13 @@ pub fn run(args: RunArgs) -> Result<()> {
             );
         }
         bail!("server exited with status {}", outcome.exit_status);
+    }
+
+    if outcome.restart_requested {
+        eprintln!(
+            "dev: server stopped; rebuilding and restarting (configured world reset policy applies)"
+        );
+        return Ok(true);
     }
 
     // The JVM can exit 0 (a normal `stop`) even though the datapack never
@@ -367,7 +408,7 @@ pub fn run(args: RunArgs) -> Result<()> {
         }
     }
 
-    Ok(())
+    Ok(false)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

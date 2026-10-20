@@ -2011,6 +2011,7 @@ dependencies = [
  "colored",
  "criterion",
  "ctrlc",
+ "getrandom 0.3.4",
  "handlebars",
  "sand",
  "sand-api-contract",

@@ -40,12 +40,47 @@ pub struct RunOutcome {
     /// `exit_status`, since the JVM process can exit 0 (a normal `stop`)
     /// even though the datapack never loaded successfully.
     pub health: RunHealth,
+    /// The dev console requested a graceful restart after this JVM exits.
+    pub restart_requested: bool,
+}
+
+/// One stdin reader and Ctrl-C handler retained across dev-server restarts.
+/// Log readers are replaced only after the preceding child has been reaped.
+pub(crate) struct ConsoleSession {
+    tx: Sender<Event>,
+    rx: Receiver<Event>,
+    pending: std::collections::VecDeque<Event>,
+}
+impl ConsoleSession {
+    fn new() -> Self {
+        let (tx, rx) = mpsc::channel();
+        spawn_stdin_forwarder(tx.clone());
+        let ctrlc_tx = tx.clone();
+        let _ = ctrlc::set_handler(move || {
+            let _ = ctrlc_tx.send(Event::Interrupt);
+        });
+        Self {
+            tx,
+            rx,
+            pending: Default::default(),
+        }
+    }
 }
 
 /// Spawn `command` with piped stdio and drive it until it exits, forwarding
 /// stdin interactively and rendering classified stdout/stderr. The child is
 /// waited on exactly once, on every return path.
-pub fn run_server(mut command: Command, mode: OutputMode, mc_version: &str) -> Result<RunOutcome> {
+pub fn run_server(command: Command, mode: OutputMode, mc_version: &str) -> Result<RunOutcome> {
+    run_server_with_dev(command, mode, mc_version, None, &mut None)
+}
+
+pub(crate) fn run_server_with_dev(
+    mut command: Command,
+    mode: OutputMode,
+    mc_version: &str,
+    dev: Option<&mut crate::dev::Session>,
+    console: &mut Option<ConsoleSession>,
+) -> Result<RunOutcome> {
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -59,20 +94,23 @@ pub fn run_server(mut command: Command, mode: OutputMode, mc_version: &str) -> R
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
 
-    let (tx, rx) = mpsc::channel::<Event>();
-    spawn_reader(stdout, Stream::Stdout, tx.clone());
-    spawn_reader(stderr, Stream::Stderr, tx.clone());
-    spawn_stdin_forwarder(tx.clone());
-
-    let ctrlc_tx = tx.clone();
-    // Best-effort: if a handler is already installed (e.g. a prior call in
-    // the same process, such as in tests) we just skip Ctrl-C interception
-    // rather than failing the run.
-    let _ = ctrlc::set_handler(move || {
-        let _ = ctrlc_tx.send(Event::Interrupt);
-    });
-
-    drive(&mut child, stdin, &rx, mode, mc_version)
+    let console = console.get_or_insert_with(ConsoleSession::new);
+    spawn_reader(stdout, Stream::Stdout, console.tx.clone());
+    spawn_reader(stderr, Stream::Stderr, console.tx.clone());
+    let result = drive(
+        &mut child,
+        stdin,
+        &console.rx,
+        mode,
+        mc_version,
+        dev,
+        &mut console.pending,
+    );
+    if result.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    result
 }
 
 fn drive(
@@ -81,24 +119,52 @@ fn drive(
     rx: &Receiver<Event>,
     mode: OutputMode,
     mc_version: &str,
+    mut dev: Option<&mut crate::dev::Session>,
+    pending: &mut std::collections::VecDeque<Event>,
 ) -> Result<RunOutcome> {
     let mut renderer = Renderer::new(mode, mc_version.to_string());
     let mut grouper = Grouper::new();
     let mut phase = PhaseTracker::new();
     let mut stop_requested = false;
+    let mut stop_deadline = None;
+    let mut restart_requested = false;
 
     loop {
-        match rx.recv_timeout(QUIET_FLUSH) {
+        match pending
+            .pop_front()
+            .map(Ok)
+            .unwrap_or_else(|| rx.recv_timeout(QUIET_FLUSH))
+        {
             Ok(Event::Log { stream, line }) => {
                 let record = parse_line(&line);
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
+                if let Some(dev) = dev.as_deref_mut() {
+                    dev.observe(category, &record.message);
+                }
                 for grouped in grouper.feed(stream, record, category) {
                     renderer.render(&grouped, phase.current());
                 }
             }
             Ok(Event::StreamClosed(_)) => {}
-            Ok(Event::Input(line)) => {
+            Ok(Event::Input(mut line)) => {
+                if let Some(dev) = dev.as_deref_mut() {
+                    match line.trim() {
+                        "r" => {
+                            dev.rebuild();
+                            continue;
+                        }
+                        "q" => {
+                            restart_requested = false;
+                            line = "stop".into();
+                        }
+                        "R" => {
+                            restart_requested = true;
+                            line = "stop".into();
+                        }
+                        _ => {}
+                    }
+                }
                 phase.observe_command(&line);
                 if line.trim() == "stop" {
                     stop_requested = true;
@@ -106,12 +172,14 @@ fn drive(
                 send_command(&mut stdin, &line);
             }
             Ok(Event::InputClosed) => {
+                restart_requested = false;
                 if !stop_requested {
                     stop_requested = true;
                     send_command(&mut stdin, "stop");
                 }
             }
             Ok(Event::Interrupt) => {
+                restart_requested = false;
                 if !stop_requested {
                     stop_requested = true;
                     send_command(&mut stdin, "stop");
@@ -126,12 +194,28 @@ fn drive(
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
+        if stop_requested {
+            let deadline =
+                stop_deadline.get_or_insert_with(|| Instant::now() + Duration::from_secs(30));
+            if Instant::now() >= *deadline {
+                child
+                    .kill()
+                    .context("server did not stop within 30 seconds")?;
+            }
+        }
+        if !stop_requested && let Some(dev) = dev.as_deref_mut() {
+            if let Err(error) = dev.poll() {
+                eprintln!("dev: {error:#}; live pack retained unless sync already completed");
+            }
+        }
+
         if let Some(status) = child.try_wait().context("failed to poll server process")? {
-            drain_remaining(rx, &mut grouper, &mut renderer, &mut phase);
+            drain_remaining(rx, &mut grouper, &mut renderer, &mut phase, pending);
             renderer.finish();
             return Ok(RunOutcome {
                 exit_status: status,
                 health: renderer.health(),
+                restart_requested,
             });
         }
     }
@@ -141,6 +225,7 @@ fn drive(
     Ok(RunOutcome {
         exit_status: status,
         health: renderer.health(),
+        restart_requested,
     })
 }
 
@@ -157,6 +242,7 @@ fn drain_remaining(
     grouper: &mut Grouper,
     renderer: &mut Renderer,
     phase: &mut PhaseTracker,
+    pending: &mut std::collections::VecDeque<Event>,
 ) {
     let mut stdout_closed = false;
     let mut stderr_closed = false;
@@ -174,7 +260,7 @@ fn drain_remaining(
             }
             Ok(Event::StreamClosed(Stream::Stdout)) => stdout_closed = true,
             Ok(Event::StreamClosed(Stream::Stderr)) => stderr_closed = true,
-            Ok(_) => {}
+            Ok(event) => pending.push_back(event),
             Err(_) => break,
         }
     }
@@ -294,7 +380,15 @@ mod tests {
             let _ = tx.send(Event::InputClosed);
         });
 
-        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "26.2");
+        let result = drive(
+            &mut child,
+            stdin,
+            &rx,
+            OutputMode::Classified,
+            "26.2",
+            None,
+            &mut Default::default(),
+        );
         // The fixture script isn't a real Minecraft server, so we only
         // assert the loop terminates cleanly with a status, proving no
         // deadlock — not any particular exit code.

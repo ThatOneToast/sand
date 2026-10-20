@@ -95,7 +95,7 @@ its own body work. A hit at sample `j < N` costs `4 + 9*j` lines before callback
 work; a hit at the final sample costs `3 + 9*N`. Unloaded/out-of-world misses
 terminate earlier. A server-context no-op executes only the caller line and the
 entry guard. Predicate evaluation and nested command dispatch have costs not
-represented separately by this line metric; callback bodies and any casts they
+represented separately by this line metric; event dispatch, callback bodies and any casts they
 start are additional work, with no whole-chain or user-recursion bound.
 
 The maintained fixture is `sand/tests/block_raycast.rs`. Run its server proof
@@ -109,3 +109,7 @@ the tested Git commit/tree and worktree status, fixture/harness hashes, a
 per-file generated-pack manifest and aggregate SHA-256, and the server JAR
 SHA-256. The 26.2 vanilla CI job runs this harness and uploads its output on
 failure.
+
+A concise recorded proof is retained in
+`tests/evidence/block-raycast-26.2.json`; rerunning the harness produces the full
+per-file pack manifest and assertion conditions for comparison.

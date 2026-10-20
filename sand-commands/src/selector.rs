@@ -365,14 +365,20 @@ impl<K, A> Target<K, A> {
         self
     }
 
-    /// Restricts the target through a canonical predicate resource identifier.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId through the predicate-specific RegistryReference<PredicateRegistry> capability, preventing unrelated registry IDs from compiling here.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
+    /// Restricts candidates through a predicate component or canonical resource ID.
+    ///
+    /// Owned and borrowed components reference the resource without registering
+    /// it. Minecraft evaluates the predicate in each candidate entity's context.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts a Predicate component (owned or borrowed) or canonical PredicateId through the predicate-specific RegistryReference<PredicateRegistry> capability, preventing unrelated registry IDs from compiling here.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
     pub fn predicate(mut self, predicate: impl RegistryReference<PredicateRegistry>) -> Self {
         self.raw = self.raw.predicate(predicate.registry_id().to_string());
         self
     }
 
-    /// Excludes entities matching a canonical predicate resource identifier.
+    /// Excludes candidates matching a predicate component or canonical resource ID.
+    ///
+    /// Accepts owned and borrowed components just like [`Self::predicate`];
+    /// negation changes the filter, never the resource identity.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_predicate", aliases = ["sand::cmd::Target::not_predicate", "sand::prelude::Target::not_predicate", "sand::prelude::cmd::Target::not_predicate"], module = "sand::command", summary = "Excludes entities matching a named predicate resource.", context = "Accepts the predicate-specific RegistryReference<PredicateRegistry> capability; negation remains a method on Target rather than another predicate-ID wrapper state.", minecraft = "Emits predicate=!<namespace:path>.", use_when = ["Excluding matches of a reusable predicate resource"], avoid_when = ["The predicate should be required; use predicate", "Supplying unsupported raw selector syntax; use predicate_raw with an explicit ! prefix"], params(predicate = "The canonical predicate resource identifier to negate."), returns = "The same target with the negated predicate filter applied.", example = "let target = sand::command::Target::entities().not_predicate(predicate_id);")]
     pub fn not_predicate(mut self, predicate: impl RegistryReference<PredicateRegistry>) -> Self {
         self.raw = self.raw.predicate(format!("!{}", predicate.registry_id()));

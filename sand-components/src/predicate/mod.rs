@@ -292,6 +292,10 @@ impl PredicateRoot {
     }
 
     /// `minecraft:reference` — reference to another standalone predicate file.
+    ///
+    /// Accepts a [`PredicateId`], an owned [`Predicate`], or a borrowed definition.
+    /// Only the identity is retained; the referenced resource must be registered
+    /// separately and is evaluated in the calling predicate's Minecraft context.
     #[sand_macros::api(
         kind = "method",
         registry = sand_api_contract,
@@ -303,13 +307,13 @@ impl PredicateRoot {
         use_when = ["Building a standalone predicate from typed conditions"],
         avoid_when = ["The check belongs in mutable scoreboard or command state"],
         params(
-            id = "The typed identifier of the predicate resource to evaluate."
+            id = "A canonical PredicateId or an owned or borrowed Predicate component to reference without registering it."
         ),
         returns = "A typed predicate root.",
         example = "PredicateRoot::reference(other_id)",
     )]
-    pub fn reference(id: PredicateId) -> Self {
-        Self(PredicateRootKind::Reference(id))
+    pub fn reference(id: impl Into<PredicateId>) -> Self {
+        Self(PredicateRootKind::Reference(id.into()))
     }
 
     /// `minecraft:inverted` — negates a nested condition.
@@ -474,6 +478,18 @@ fn render_terms(
 /// advancements, selectors, or loot tables.
 ///
 /// Emits to `data/<namespace>/predicate/<id>.json`.
+///
+/// Pass an owned value or `&Predicate` to `Condition::predicate`, target
+/// `.predicate(...)` / `.not_predicate(...)`, or [`PredicateRoot::reference`].
+/// These uses copy or move only its canonical [`PredicateId`]; they do not
+/// register the resource or evaluate its tree in Rust. Register the definition
+/// with `#[datapack_component]` (or include it in a datapack registration) separately.
+/// Borrow a retained definition when it must also be registered afterward.
+///
+/// Minecraft evaluates the resource in the consumer's runtime context: a
+/// command condition uses the current executor and position, while a selector
+/// evaluates its predicate for each candidate entity. Holding this Rust value
+/// does not capture an entity, position, or loot context.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::predicate::Predicate",
@@ -555,6 +571,30 @@ impl Predicate {
     )]
     pub fn any_of(location: PredicateId, terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
         Self::new(location, PredicateRoot::any_of(terms))
+    }
+}
+
+/// Moves the resource identity out of a definition without registering it.
+impl From<Predicate> for PredicateId {
+    fn from(predicate: Predicate) -> Self {
+        predicate.location
+    }
+}
+
+/// Copies the identity while retaining the definition for registration or reuse.
+impl From<&Predicate> for PredicateId {
+    fn from(predicate: &Predicate) -> Self {
+        predicate.location.clone()
+    }
+}
+
+impl sand_commands::resource::sealed::Sealed<sand_commands::resource::Predicate> for Predicate {}
+
+impl sand_commands::resource::RegistryReference<sand_commands::resource::Predicate> for Predicate {
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::Predicate> {
+        self.location.registry_id()
     }
 }
 
@@ -705,6 +745,19 @@ mod tests {
         let json = predicate.to_json();
         assert_eq!(json["condition"], "minecraft:reference");
         assert_eq!(json["name"], "minecraft:some_condition");
+    }
+
+    #[test]
+    fn owned_and_borrowed_components_reference_the_same_resource() {
+        let source = Predicate::new(loc("source"), PredicateRoot::random_chance(0.5));
+        let borrowed = Predicate::new(loc("borrowed"), PredicateRoot::reference(&source));
+        let owned = Predicate::new(loc("owned"), PredicateRoot::reference(source));
+        let expected = serde_json::json!({
+            "condition": "minecraft:reference",
+            "name": loc("source").to_string(),
+        });
+        assert_eq!(borrowed.to_json(), expected);
+        assert_eq!(owned.to_json(), expected);
     }
 
     #[test]

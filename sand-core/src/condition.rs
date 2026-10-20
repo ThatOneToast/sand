@@ -497,7 +497,11 @@ impl Condition {
         }
     }
 
-    /// Condition on a named predicate resource.
+    /// Condition on a named predicate resource in the current executor/position context.
+    ///
+    /// Accepts a canonical `PredicateId`, an owned `Predicate`, or `&Predicate`.
+    /// Passing a component references its identity; it does not register the
+    /// resource. Borrow a retained definition to reuse it or register it later.
     ///
     /// ```rust,ignore
     /// let predicate = PredicateId::custom("my_pack:can_cast".parse()?);
@@ -513,12 +517,12 @@ impl Condition {
         minecraft = "Renders execute if predicate <namespace:path>, or the corresponding execute-unless form when negated.",
         use_when = ["Reusing a predicate resource as a command guard", "Testing loot-condition behavior exposed through a named predicate"],
         avoid_when = ["Building the predicate JSON resource itself", "Mutable scoreboard or storage state is the actual condition"],
-        params(predicate = "The typed namespaced reference to the predicate resource to evaluate."),
+        params(predicate = "A canonical PredicateId or an owned or borrowed Predicate component; its identity is referenced without registering it."),
         returns = "A runtime condition referencing the named predicate.",
         example = "Condition::predicate(PredicateId::custom(\"demo:can_cast\".parse()?))"
     )]
-    pub fn predicate(predicate: crate::resource_ref::PredicateId) -> Self {
-        Self::predicate_raw(predicate.to_string())
+    pub fn predicate(predicate: impl Into<crate::resource_ref::PredicateId>) -> Self {
+        Self::predicate_raw(predicate.into().to_string())
     }
 
     /// Condition on an entity selector.

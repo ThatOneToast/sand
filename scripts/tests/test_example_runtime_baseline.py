@@ -93,7 +93,6 @@ class RuntimeBaselines(unittest.TestCase):
         report = value["runtime_report"]
         report["limitations"].reverse()
         report["functions"]["demo:tick"]["owners"].reverse()
-        report["functions"]["demo:tick"]["selector_sites"].reverse()
         report["provenance"]["function_owners"]["demo:tick"].reverse()
         for phase in ("tick", "load"):
             for entry in report[phase]:
@@ -116,6 +115,16 @@ class RuntimeBaselines(unittest.TestCase):
             with self.subTest(phase=phase):
                 self.drift(lambda r: r[phase].reverse())
         self.drift(lambda r: r["provenance"]["systems"][0]["owners"].reverse())
+
+    def test_same_line_selector_execution_order_is_semantic(self):
+        # execute as @a at @s and execute at @s as @a have the same
+        # range here, but different executor/position semantics.
+        function = self.original["runtime_report"]["functions"]["demo:tick"]
+        for site in function["selector_sites"]:
+            site["line"] = 1
+        self.write(self.original)
+        self.assertEqual(self.run_mode("update"), 0)
+        self.drift(lambda r: r["functions"]["demo:tick"]["selector_sites"].reverse())
 
     def test_ownership_cadence_selector_and_function_inventory_drift(self):
         self.drift(lambda r: r["provenance"]["systems"][0].update(every=1))

@@ -406,13 +406,13 @@
         "selector_sites": [
           {
             "line": 1,
-            "operation": "as",
-            "selector": "@e[distance=0.1..5,type=!minecraft:player]"
+            "operation": "at",
+            "selector": "@s"
           },
           {
             "line": 1,
-            "operation": "at",
-            "selector": "@s"
+            "operation": "as",
+            "selector": "@e[distance=0.1..5,type=!minecraft:player]"
           }
         ]
       },

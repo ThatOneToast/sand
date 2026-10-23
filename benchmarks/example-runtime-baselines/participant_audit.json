@@ -248,46 +248,6 @@
         ],
         "selector_sites": [
           {
-            "line": 12,
-            "operation": "as",
-            "selector": "@s"
-          },
-          {
-            "line": 12,
-            "operation": "at",
-            "selector": "@s"
-          },
-          {
-            "line": 12,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 12,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 13,
-            "operation": "as",
-            "selector": "@s"
-          },
-          {
-            "line": 13,
-            "operation": "at",
-            "selector": "@s"
-          },
-          {
-            "line": 13,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 13,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
             "line": 7,
             "operation": "as",
             "selector": "@s"
@@ -300,6 +260,46 @@
           {
             "line": 9,
             "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "if",
             "selector": "@s"
           }
         ]
@@ -368,27 +368,27 @@
         "selector_sites": [
           {
             "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
             "operation": "at",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "if",
             "selector": "@s"
           },
           {
@@ -678,6 +678,16 @@
         ],
         "selector_sites": [
           {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
             "line": 10,
             "operation": "if",
             "selector": "@s"
@@ -705,16 +715,6 @@
           {
             "line": 16,
             "operation": "at",
-            "selector": "@s"
-          },
-          {
-            "line": 6,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 7,
-            "operation": "if",
             "selector": "@s"
           }
         ]
@@ -1066,16 +1066,6 @@
         ],
         "selector_sites": [
           {
-            "line": 10,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 11,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
             "line": 3,
             "operation": "store",
             "selector": "@s"
@@ -1098,6 +1088,16 @@
           {
             "line": 9,
             "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
             "selector": "@s"
           }
         ]

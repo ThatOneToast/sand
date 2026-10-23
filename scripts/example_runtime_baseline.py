@@ -26,7 +26,7 @@ def ordered_set(values):
 def normalize(build):
     """Retain report semantics, excluding the build's paths/timings/change summary.
 
-    Lifecycle entries and fused-system owners retain execution order. Only known
+    Lifecycle entries, selector sites, and fused-system owners retain order. Only known
     unordered collections are sorted. Lexical selector line numbers and all
     unknown reasons stay visible, including the report's truncation markers.
     """
@@ -57,7 +57,8 @@ def normalize(build):
         work(function["evaluations"])
         for site in function["selector_sites"]:
             fields(site, "line operation selector", "selector site")
-        function["selector_sites"] = ordered_set(function["selector_sites"])
+        # Preserve lexical Vec order, including multiple operations on one line.
+        # Reordering as/at can change context without changing the cost range.
     report["limitations"] = ordered_set(report["limitations"])
     provenance = report["provenance"]
     fields(provenance, "function_owners tag_contributors systems archetypes lifecycle_owners", "provenance")

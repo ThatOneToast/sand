@@ -99,13 +99,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -131,13 +131,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -163,13 +163,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -195,13 +195,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -227,13 +227,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -259,13 +259,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -291,13 +291,13 @@
           },
           {
             "line": 2,
-            "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "operation": "unless",
+            "selector": "@s"
           },
           {
             "line": 2,
-            "operation": "unless",
-            "selector": "@s"
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           },
           {
             "line": 3,
@@ -333,6 +333,61 @@
           "rpg:armored_zombie"
         ],
         "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
           {
             "line": 10,
             "operation": "if",
@@ -399,11 +454,6 @@
             "selector": "@s"
           },
           {
-            "line": 2,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
             "line": 20,
             "operation": "if",
             "selector": "@s"
@@ -459,59 +509,9 @@
             "selector": "@s"
           },
           {
-            "line": 3,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 3,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
             "line": 30,
             "operation": "unless",
             "selector": "@s[scores={s060804ed46c2240=0,saa4bad269adcfb1=0,sdc78ab42001b010=0,s18371d7abb9349f=0,s954e4e6406778bc=0,s573b960db2216bb=0,sb1ed806f89e8006=0}]"
-          },
-          {
-            "line": 4,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 5,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 6,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 6,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 7,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 8,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 9,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 9,
-            "operation": "unless",
-            "selector": "@s"
           }
         ]
       },
@@ -541,26 +541,6 @@
         "selector_sites": [
           {
             "line": 1,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 10,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 17,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 18,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 19,
             "operation": "unless",
             "selector": "@s"
           },
@@ -603,6 +583,26 @@
             "line": 9,
             "operation": "unless",
             "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 19,
+            "operation": "unless",
+            "selector": "@s"
           }
         ]
       },
@@ -619,6 +619,46 @@
           "rpg:armored_zombie"
         ],
         "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
           {
             "line": 10,
             "operation": "unless",
@@ -662,11 +702,6 @@
           {
             "line": 19,
             "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 2,
-            "operation": "unless",
             "selector": "@s"
           },
           {
@@ -720,11 +755,6 @@
             "selector": "@s[scores={s02a1efa4e0a41b7=0,s3ba0534f1dd54b3=0}]"
           },
           {
-            "line": 3,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
             "line": 30,
             "operation": "if",
             "selector": "@s"
@@ -775,11 +805,6 @@
             "selector": "@s"
           },
           {
-            "line": 4,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
             "line": 40,
             "operation": "if",
             "selector": "@s"
@@ -808,31 +833,6 @@
             "line": 45,
             "operation": "unless",
             "selector": "@s[scores={s060804ed46c2240=0,saa4bad269adcfb1=0,sdc78ab42001b010=0,s18371d7abb9349f=0,s954e4e6406778bc=0,s573b960db2216bb=0,sb1ed806f89e8006=0}]"
-          },
-          {
-            "line": 5,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 6,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 7,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 8,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 9,
-            "operation": "unless",
-            "selector": "@s"
           }
         ]
       },
@@ -966,12 +966,12 @@
           },
           {
             "line": 3,
-            "operation": "if",
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 3,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1107,36 +1107,6 @@
             "selector": "@s"
           },
           {
-            "line": 10,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 11,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 12,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 13,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 14,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 14,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
             "line": 2,
             "operation": "unless",
             "selector": "@s"
@@ -1183,6 +1153,36 @@
           },
           {
             "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
             "operation": "unless",
             "selector": "@s"
           }
@@ -1355,26 +1355,6 @@
             "selector": "@s"
           },
           {
-            "line": 10,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 17,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 18,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 19,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
             "line": 2,
             "operation": "unless",
             "selector": "@s"
@@ -1411,6 +1391,26 @@
           },
           {
             "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 19,
             "operation": "unless",
             "selector": "@s"
           }
@@ -1508,7 +1508,7 @@
           },
           {
             "line": 2,
-            "operation": "if",
+            "operation": "unless",
             "selector": "@s"
           },
           {
@@ -1518,6 +1518,11 @@
           },
           {
             "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
             "operation": "unless",
             "selector": "@s"
           },
@@ -1532,7 +1537,7 @@
             "selector": "@s"
           },
           {
-            "line": 3,
+            "line": 4,
             "operation": "unless",
             "selector": "@s"
           },
@@ -1544,11 +1549,6 @@
           {
             "line": 4,
             "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "unless",
             "selector": "@s"
           }
         ]

@@ -89,8 +89,9 @@ just to silence a failure. Normal checks never update baselines and reject
 missing/stale example files. Exact comparison catches decreases as well as
 increases, new/removed functions, ownership/cadence drift, and changes in report
 limitations. Build paths and incremental-write summaries are excluded; map/set
-ordering is canonicalized. Tick/load ordering and fused-system execution order
-are preserved because they are semantic, not serialization noise.
+ordering is canonicalized. Tick/load ordering, selector-site lexical order
+(including operations on the same execute line), and fused-system execution
+order are preserved because they are semantic, not serialization noise.
 
 For a runtime-feature PR, reviewers should ask:
 

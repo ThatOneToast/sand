@@ -682,7 +682,14 @@ mod tests {
     #[test]
     fn participant_capabilities_preserve_the_participant_selector() {
         let player = PlayerParticipant::subject();
-        assert_eq!(player.living().clear_effects(), "effect clear @s");
+        assert_eq!(
+            player
+                .living()
+                .clear_effects()
+                .lower(&"test:clear".parse().unwrap())
+                .unwrap(),
+            ["effect clear @s"]
+        );
         assert_eq!(
             player
                 .inventory()

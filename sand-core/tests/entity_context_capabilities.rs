@@ -19,12 +19,12 @@ fn target_each_composes_multiple_capability_families() {
     let commands = emitted(Target::players().each(|player| {
         let helmet = player.equipment().slot(EquipmentSlot::Head).unwrap();
         let hotbar = player.inventory().hotbar(0).unwrap();
-        vec![
-            player.transform().position().get().to_string(),
-            helmet.nbt().get().to_string(),
-            hotbar.nbt().get().to_string(),
-            player.living().clear_effects(),
-            player.mounts().dismount().unwrap(),
+        sand_core::mcfunction![
+            player.transform().position().get().to_string();
+            helmet.nbt().get().to_string();
+            hotbar.nbt().get().to_string();
+            player.living().clear_effects();
+            player.mounts().dismount().unwrap();
         ]
     }));
 
@@ -61,10 +61,10 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
     let zombie = EntityContext::<ZombieKind>::default();
     let commands = emitted(EntityScope::bind(&zombie, |bound| {
         bound.owner().if_player(|owner| {
-            vec![
-                owner.living().clear_effects(),
-                bound.transform().teleport_to(Target::self_()).unwrap(),
-                bound.data().field::<i32>("Air").set(300).to_string(),
+            sand_core::mcfunction![
+                owner.living().clear_effects();
+                bound.transform().teleport_to(Target::self_()).unwrap();
+                bound.data().field::<i32>("Air").set(300).to_string();
             ]
         })
     }));
@@ -129,9 +129,9 @@ fn repeated_capability_bodies_deduplicate_deterministically() {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let build = |tag: &str| {
         Target::players().tag(tag).each(|player| {
-            vec![
-                player.transform().position().get().to_string(),
-                player.living().clear_effects(),
+            sand_core::mcfunction![
+                player.transform().position().get().to_string();
+                player.living().clear_effects();
             ]
         })
     };

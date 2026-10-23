@@ -34,13 +34,16 @@ colored = "2"
 # Minecraft server down cleanly (send `stop`, wait for exit) instead of
 # leaving it orphaned when the user hits Ctrl-C in `sand run`.
 ctrlc = "3"
+# OS entropy for per-session local RCON credentials; already in the lockfile.
+getrandom = "0.3"
+# Atomically owned same-filesystem staging for live dev installs; already locked.
+tempfile = "3"
 
 [features]
 integration-tests = []
 
 [dev-dependencies]
 criterion = "0.5"
-tempfile = "3"
 
 # The installable command stays `sand` even though the package is `sand-cli`;
 # the `sand` package name belongs to the user-facing authoring library.

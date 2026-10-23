@@ -8,6 +8,9 @@
 
 use serde::Serialize;
 
+use super::classify::{Category, is_server_info, lifecycle};
+use super::log_record::LogRecord;
+
 /// The major phases a `sand run` invocation moves through, in roughly the
 /// order they occur. `sand run` may skip `CargoBuild`/`SandExport` when
 /// invoked with `--no-build`, and may cycle back to `Reload` repeatedly
@@ -81,51 +84,39 @@ impl PhaseTracker {
         self.phase
     }
 
-    /// Observe a raw (unclassified) server log message and update phase
-    /// state. Only transitions on lines that unambiguously indicate a phase
-    /// change; everything else leaves the current phase untouched.
-    pub fn observe_log(&mut self, message: &str) {
-        if !self.seen_ready
-            && (message.contains("Preparing level")
-                || message.contains("Reloading ResourceManager")
-                || message.contains("Loading data packs")
-                || message.contains("data pack"))
-        {
-            self.phase = RunPhase::DatapackDiscovery;
-            return;
-        }
-
-        if message.contains("Done (") && message.contains(")!") {
-            self.seen_ready = true;
-            self.phase = RunPhase::Runtime;
-            return;
-        }
-
-        if self.seen_ready
-            && (message.contains("Reloading ResourceManager") || message.contains("data pack"))
-        {
-            // A reload's own discovery work is still phase `Reload`, not a
-            // fresh `DatapackDiscovery` — that phase only applies to the
-            // very first, pre-ready load.
-            self.phase = RunPhase::Reload;
-            return;
-        }
-
-        if message.contains("Stopping the server")
-            || message.contains("Stopping server")
-            || message.contains("Closing Server")
-        {
-            self.phase = RunPhase::Shutdown;
-            return;
-        }
-
-        if self.seen_ready && self.phase == RunPhase::Reload {
-            // Any further ordinary output after a reload's discovery lines
-            // means the reload finished (successfully or not); fall back to
-            // `Runtime` until another `/reload` is issued.
-            if !message.contains("data pack") {
+    /// Observe a parsed server record. Lifecycle transitions require genuine
+    /// server-thread INFO messages; command feedback and chat cannot change phase.
+    pub fn observe_log(&mut self, record: &LogRecord) {
+        match lifecycle(record) {
+            Some(Category::Ready) => {
+                self.seen_ready = true;
                 self.phase = RunPhase::Runtime;
+                return;
             }
+            Some(Category::Shutdown) => {
+                self.phase = RunPhase::Shutdown;
+                return;
+            }
+            _ => {}
+        }
+        let message = record.message.as_str();
+        if !is_server_info(record) || message.starts_with(['[', '<']) {
+            return;
+        }
+        let discovery = message.starts_with("Preparing level \"")
+            || message.starts_with("Reloading ResourceManager:")
+            || message.starts_with("Loading data packs")
+            || message.starts_with("Found new data pack ");
+        if discovery {
+            self.phase = if self.seen_ready {
+                RunPhase::Reload
+            } else {
+                RunPhase::DatapackDiscovery
+            };
+        } else if self.seen_ready && self.phase == RunPhase::Reload {
+            // The next ordinary server message completes discovery. Quoted
+            // player/command output above cannot end an active reload.
+            self.phase = RunPhase::Runtime;
         }
     }
 
@@ -152,6 +143,39 @@ impl Default for PhaseTracker {
 mod tests {
     use super::*;
 
+    fn server_record(message: &str) -> LogRecord {
+        crate::console::log_record::parse_line(&format!(
+            "[12:00:00] [Server thread/INFO]: {message}"
+        ))
+    }
+
+    #[test]
+    fn chat_and_command_feedback_cannot_change_any_phase() {
+        for initial in [
+            RunPhase::ServerStartup,
+            RunPhase::Runtime,
+            RunPhase::Reload,
+            RunPhase::Shutdown,
+        ] {
+            let mut tracker = PhaseTracker {
+                phase: initial,
+                seen_ready: initial != RunPhase::ServerStartup,
+            };
+            for message in [
+                "[Server] Stopping server",
+                "[Server: Stopping the server]",
+                "<Player> Done (1s)! For help, type \"help\"",
+                "[Server] Done (1s)! For help, type \"help\"",
+                "[Server] Reloading ResourceManager: vanilla",
+                "[Server] Preparing level \"world\"",
+                "[Server] data pack",
+            ] {
+                tracker.observe_log(&server_record(message));
+                assert_eq!(tracker.current(), initial, "{message}");
+            }
+        }
+    }
+
     #[test]
     fn starts_in_server_startup() {
         assert_eq!(PhaseTracker::new().current(), RunPhase::ServerStartup);
@@ -160,22 +184,22 @@ mod tests {
     #[test]
     fn moves_to_datapack_discovery_before_ready() {
         let mut t = PhaseTracker::new();
-        t.observe_log("Preparing level \"world\"");
+        t.observe_log(&server_record("Preparing level \"world\""));
         assert_eq!(t.current(), RunPhase::DatapackDiscovery);
     }
 
     #[test]
     fn moves_to_runtime_on_ready_banner() {
         let mut t = PhaseTracker::new();
-        t.observe_log("Preparing level \"world\"");
-        t.observe_log("Done (3.421s)! For help, type \"help\"");
+        t.observe_log(&server_record("Preparing level \"world\""));
+        t.observe_log(&server_record("Done (3.421s)! For help, type \"help\""));
         assert_eq!(t.current(), RunPhase::Runtime);
     }
 
     #[test]
     fn explicit_reload_command_sets_reload_phase() {
         let mut t = PhaseTracker::new();
-        t.observe_log("Done (3.421s)! For help, type \"help\"");
+        t.observe_log(&server_record("Done (3.421s)! For help, type \"help\""));
         assert_eq!(t.current(), RunPhase::Runtime);
         t.observe_command("reload");
         assert_eq!(t.current(), RunPhase::Reload);
@@ -184,24 +208,24 @@ mod tests {
     #[test]
     fn reload_discovery_does_not_report_as_first_time_datapack_discovery() {
         let mut t = PhaseTracker::new();
-        t.observe_log("Done (3.421s)! For help, type \"help\"");
+        t.observe_log(&server_record("Done (3.421s)! For help, type \"help\""));
         t.observe_command("reload");
-        t.observe_log("Reloading ResourceManager: default, arcane");
+        t.observe_log(&server_record("Reloading ResourceManager: default, arcane"));
         assert_eq!(t.current(), RunPhase::Reload);
-        t.observe_log("Loaded 12 recipes");
+        t.observe_log(&server_record("Loaded 12 recipes"));
         assert_eq!(t.current(), RunPhase::Runtime);
     }
 
     #[test]
     fn stop_command_and_log_both_set_shutdown() {
         let mut t = PhaseTracker::new();
-        t.observe_log("Done (3.421s)! For help, type \"help\"");
+        t.observe_log(&server_record("Done (3.421s)! For help, type \"help\""));
         t.observe_command("stop");
         assert_eq!(t.current(), RunPhase::Shutdown);
 
         let mut t2 = PhaseTracker::new();
-        t2.observe_log("Done (3.421s)! For help, type \"help\"");
-        t2.observe_log("Stopping the server");
+        t2.observe_log(&server_record("Done (3.421s)! For help, type \"help\""));
+        t2.observe_log(&server_record("Stopping the server"));
         assert_eq!(t2.current(), RunPhase::Shutdown);
     }
 }

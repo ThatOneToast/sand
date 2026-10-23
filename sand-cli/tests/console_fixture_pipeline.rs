@@ -59,7 +59,7 @@ fn replay(raw: &str) -> Replay {
 
     for line in raw.lines() {
         let record = parse_line(line);
-        phase.observe_log(&record.message);
+        phase.observe_log(&record);
         let category = classify(Stream::Stdout, &record);
         for group in grouper.feed(Stream::Stdout, record, category) {
             handle_group(

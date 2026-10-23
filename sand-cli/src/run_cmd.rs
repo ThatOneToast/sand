@@ -7,6 +7,7 @@ use colored::Colorize;
 use crate::config::SandConfig;
 use crate::console::OutputMode;
 
+#[derive(Clone)]
 pub struct RunArgs {
     /// JVM max heap size, e.g. "4G" or "2048M". Used for both -Xmx and -Xms.
     pub ram: String,
@@ -165,6 +166,35 @@ impl ResolvedServerProperties {
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
+    run_internal(
+        args,
+        false,
+        &mut None,
+        &mut crate::dev::ManagedPack::default(),
+    )
+    .map(|_| ())
+}
+
+/// Build and watch a project using the managed local server. Reload retains
+/// vanilla load-handler semantics; registry/configuration changes require a
+/// graceful restart with `R`. See `docs/dev-workflow.md` for the supported boundary.
+pub fn dev(args: RunArgs) -> Result<()> {
+    let mut console = Some(crate::console::process::ConsoleSession::new()?);
+    let mut managed_pack = crate::dev::ManagedPack::default();
+    while run_internal(args.clone(), true, &mut console, &mut managed_pack)? {}
+    Ok(())
+}
+
+fn run_internal(
+    args: RunArgs,
+    watch: bool,
+    console: &mut Option<crate::console::process::ConsoleSession>,
+    managed_pack: &mut crate::dev::ManagedPack,
+) -> Result<bool> {
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
+    let dev_inputs = watch.then(crate::dev::BuildInputs::capture).transpose()?;
     // ── 1. Read sand.toml ────────────────────────────────────────────────────
     let config_path = std::env::current_dir()?.join("sand.toml");
     if !config_path.exists() {
@@ -186,6 +216,10 @@ pub fn run(args: RunArgs) -> Result<()> {
             profile: args.profile.clone(),
             output_format: crate::output::OutputFormat::Human,
         })?;
+    }
+
+    if preparation_cancelled(console) {
+        return Ok(false);
     }
 
     // ── 2b. Read any ServerConfig a sand.build.rs produced (issue #317) ─────
@@ -218,6 +252,10 @@ pub fn run(args: RunArgs) -> Result<()> {
         jar_path.display().to_string().white()
     );
 
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
+
     // ── 4. Set up dist/server/ ───────────────────────────────────────────────
     let server_dir = PathBuf::from("dist").join("server");
     std::fs::create_dir_all(&server_dir).context("failed to create dist/server/")?;
@@ -226,6 +264,9 @@ pub fn run(args: RunArgs) -> Result<()> {
     // 🖥️ Server (host) only — governs Sand's own local dev world directory,
     // never the datapack. `WorldResetPolicy::AlwaysReset` wipes the previous
     // local world so `sand run` starts from a clean slate every time.
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
     if server_config
         .as_ref()
         .is_some_and(|s| s.world_reset_policy_always_reset.unwrap_or(false))
@@ -289,6 +330,17 @@ pub fn run(args: RunArgs) -> Result<()> {
         );
     }
 
+    let mut dev = if watch {
+        Some(crate::dev::Session::new(
+            &config,
+            &args.profile,
+            &props_path,
+            dev_inputs.expect("dev inputs captured before building"),
+        )?)
+    } else {
+        None
+    };
+
     // ── 7. Sync datapack into world/datapacks/ ───────────────────────────────
     let namespace = config.pack.namespace.as_str();
     let src = PathBuf::from("dist").join(namespace);
@@ -301,8 +353,17 @@ pub fn run(args: RunArgs) -> Result<()> {
         );
     }
 
-    let sync = sync_dir(&src, &dest)
-        .with_context(|| format!("failed to sync datapack to {}", dest.display()))?;
+    // A failed prior namespace handoff must not be overwritten by this sync,
+    // even in a fresh process or when switching from dev to ordinary run.
+    crate::dev::ensure_handoffs_complete(dest.parent().expect("datapacks parent"))?;
+    let (sync, committed) = if watch {
+        managed_pack
+            .install(&src, &dest)
+            .map(|installed| (installed.stats, Some(installed.identity)))
+    } else {
+        sync_dir(&src, &dest).map(|stats| (stats, None))
+    }
+    .with_context(|| format!("failed to sync datapack to {}", dest.display()))?;
     println!(
         "  {} datapack → {} ({} copied, {} skipped, {} pruned)",
         "Synced".dimmed(),
@@ -311,6 +372,22 @@ pub fn run(args: RunArgs) -> Result<()> {
         sync.skipped,
         sync.pruned
     );
+
+    // Installation has committed: finish namespace ownership before a queued
+    // cancellation can exit and discard this invocation's tracking.
+    if let Some(committed) = committed
+        && finish_dev_install(managed_pack, &dest, &committed, || {
+            preparation_cancelled(console)
+        })?
+    {
+        return Ok(false);
+    }
+
+    // Copy the completed startup handoff into the running session. Rebuilds
+    // must validate against this owner, never adopt a later on-disk marker.
+    if let Some(dev) = dev.as_mut() {
+        dev.track_pack(managed_pack);
+    }
 
     // ── 8. Launch the server ─────────────────────────────────────────────────
     println!(
@@ -330,7 +407,23 @@ pub fn run(args: RunArgs) -> Result<()> {
         .arg("nogui")
         .current_dir(&server_dir);
 
-    let outcome = crate::console::run_server(command, args.server_log, &mc_version)?;
+    if preparation_cancelled(console) {
+        return Ok(false);
+    }
+    let outcome = crate::console::process::run_server_with_dev(
+        command,
+        args.server_log,
+        &mc_version,
+        dev.as_mut(),
+        console,
+    )?;
+
+    if outcome.should_restart() {
+        eprintln!(
+            "dev: server stopped; rebuilding and restarting (configured world reset policy applies)"
+        );
+        return Ok(true);
+    }
 
     if !outcome.exit_status.success() {
         let log_path = server_dir.join("logs").join("latest.log");
@@ -367,7 +460,31 @@ pub fn run(args: RunArgs) -> Result<()> {
         }
     }
 
-    Ok(())
+    Ok(false)
+}
+
+fn finish_dev_install(
+    managed_pack: &mut crate::dev::ManagedPack,
+    dest: &Path,
+    committed: &crate::dev::LiveIdentity,
+    cancelled: impl FnOnce() -> bool,
+) -> Result<bool> {
+    managed_pack.installed(dest, committed)?;
+    Ok(cancelled())
+}
+
+/// Synchronous build/download work cannot be interrupted here; cancellation is
+/// honored at stage boundaries before any subsequent reset or process launch.
+fn preparation_cancelled(console: &mut Option<crate::console::process::ConsoleSession>) -> bool {
+    if console
+        .as_mut()
+        .is_some_and(|console| console.cancellation_requested())
+    {
+        eprintln!("dev: restart cancelled");
+        true
+    } else {
+        false
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -512,6 +629,91 @@ mod tests {
             world_reset_policy_always_reset: Some(world_reset_policy_always_reset),
             seed: None,
             level_type: None,
+        }
+    }
+
+    #[test]
+    fn cancellation_after_install_finishes_namespace_transition_before_exit() {
+        for cancellation in ["q", "EOF", "Ctrl-C"] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("source");
+            let old = tmp.path().join("world/datapacks/old");
+            let new = tmp.path().join("world/datapacks/new");
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+            let mut managed = crate::dev::ManagedPack::default();
+            let old_install = managed.install(&src, &old).unwrap();
+            managed.installed(&old, &old_install.identity).unwrap();
+            let new_install = managed.install(&src, &new).unwrap();
+            let cancelled =
+                super::finish_dev_install(&mut managed, &new, &new_install.identity, || {
+                    assert!(
+                        !old.exists(),
+                        "{cancellation} must not strand the old namespace"
+                    );
+                    assert!(new.join("pack.mcmeta").is_file());
+                    true
+                })
+                .unwrap();
+            assert!(cancelled, "queued {cancellation} must still prevent launch");
+            assert_eq!(std::fs::read_dir(new.parent().unwrap()).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
+    fn replacement_between_commit_and_ownership_handoff_preserves_both_namespaces() {
+        for copy_owner in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("source");
+            let old = tmp.path().join("datapacks/old");
+            let new = tmp.path().join("datapacks/new");
+            std::fs::create_dir(&src).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+            let mut managed = crate::dev::ManagedPack::default();
+            let initial = crate::dev::install(&src, &old, None).unwrap();
+            managed.installed(&old, &initial.identity).unwrap();
+            // Also exercise a new namespace that already has an ownership marker.
+            let first = crate::dev::install(&src, &new, None).unwrap();
+            crate::dev::ManagedPack::default()
+                .installed(&new, &first.identity)
+                .unwrap();
+            let committed = crate::dev::install(&src, &new, None).unwrap();
+            let displaced = tmp.path().join("displaced");
+            std::fs::rename(&new, &displaced).unwrap();
+            std::fs::create_dir(&new).unwrap();
+            std::fs::write(new.join("operator-data"), "preserve").unwrap();
+            if copy_owner {
+                std::fs::copy(
+                    displaced.join(".sand-dev-owner"),
+                    new.join(".sand-dev-owner"),
+                )
+                .unwrap();
+            }
+            let before = std::fs::read(new.join(".sand-dev-owner")).ok();
+            let error = super::finish_dev_install(&mut managed, &new, &committed.identity, || {
+                panic!("replacement must fail before the cancellation/launch boundary")
+            })
+            .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("committed datapack was replaced")
+            );
+            assert_eq!(
+                std::fs::read_to_string(old.join("pack.mcmeta")).unwrap(),
+                "pack"
+            );
+            assert_eq!(
+                std::fs::read_to_string(new.join("operator-data")).unwrap(),
+                "preserve"
+            );
+            assert_eq!(std::fs::read(new.join(".sand-dev-owner")).ok(), before);
+            // Failed adoption must not change tracking or later delete the replacement.
+            let third = tmp.path().join("datapacks/third");
+            let next = crate::dev::install(&src, &third, None).unwrap();
+            managed.installed(&third, &next.identity).unwrap();
+            assert!(!old.exists());
+            assert!(new.join("operator-data").exists());
         }
     }
 

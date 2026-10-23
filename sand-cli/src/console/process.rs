@@ -5,6 +5,7 @@
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::Mutex;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
@@ -27,11 +28,30 @@ const QUIET_FLUSH: Duration = Duration::from_millis(150);
 const DRAIN_TIMEOUT: Duration = Duration::from_millis(500);
 
 enum Event {
-    Log { stream: Stream, line: String },
-    StreamClosed(Stream),
+    Log {
+        generation: u64,
+        stream: Stream,
+        line: String,
+        received_at: Instant,
+    },
+    StreamClosed {
+        generation: u64,
+        stream: Stream,
+    },
     Input(String),
     InputClosed,
     Interrupt,
+}
+
+impl Event {
+    fn belongs_to(&self, current: u64) -> bool {
+        match self {
+            Self::Log { generation, .. } | Self::StreamClosed { generation, .. } => {
+                *generation == current
+            }
+            _ => true, // Input belongs to the persistent console, not a JVM.
+        }
+    }
 }
 
 pub struct RunOutcome {
@@ -40,12 +60,143 @@ pub struct RunOutcome {
     /// `exit_status`, since the JVM process can exit 0 (a normal `stop`)
     /// even though the datapack never loaded successfully.
     pub health: RunHealth,
+    /// The dev console requested a graceful restart after this JVM exits.
+    pub restart_requested: bool,
+    /// Sand terminated a still-running child after the shutdown deadline.
+    pub forced_shutdown: bool,
+}
+
+impl RunOutcome {
+    pub(crate) fn should_restart(&self) -> bool {
+        self.restart_requested && (self.exit_status.success() || self.forced_shutdown)
+    }
+}
+
+// One process-wide input owner. Keeping the reader alive avoids abandoned
+// stdin readers stealing input from a subsequent public run_server call.
+struct ConsoleRouter {
+    initialized: bool,
+    stdin_closed: bool,
+    next_owner: u64,
+    active: Option<(u64, Sender<Event>)>,
+}
+static CONSOLE_ROUTER: Mutex<ConsoleRouter> = Mutex::new(ConsoleRouter {
+    initialized: false,
+    stdin_closed: false,
+    next_owner: 0,
+    active: None,
+});
+
+fn route_input(event: Event) {
+    let mut router = CONSOLE_ROUTER.lock().expect("console router poisoned");
+    if matches!(event, Event::InputClosed) {
+        router.stdin_closed = true;
+    }
+    if let Some((_, tx)) = &router.active {
+        let _ = tx.send(event);
+    } else if matches!(event, Event::Interrupt) {
+        // Our handler is installed only when no host handler exists. Between
+        // sessions, retain normal interrupt termination instead of swallowing
+        // Ctrl-C forever merely because Sand was used earlier in this process.
+        drop(router);
+        std::process::exit(130);
+    }
+}
+
+/// Exclusive console ownership, retained across dev-server restarts and
+/// released on every return path. JVM readers remain scoped by generation.
+pub(crate) struct ConsoleSession {
+    tx: Sender<Event>,
+    rx: Receiver<Event>,
+    pending: std::collections::VecDeque<Event>,
+    cancelled: bool,
+    generation: u64,
+    owner: Option<u64>,
+}
+impl Drop for ConsoleSession {
+    fn drop(&mut self) {
+        let mut router = CONSOLE_ROUTER.lock().expect("console router poisoned");
+        if self.owner.is_some() && router.active.as_ref().map(|(id, _)| *id) == self.owner {
+            router.active = None;
+        }
+    }
+}
+impl ConsoleSession {
+    pub(crate) fn new() -> Result<Self> {
+        let (tx, rx) = mpsc::channel();
+        let mut router = CONSOLE_ROUTER.lock().expect("console router poisoned");
+        anyhow::ensure!(
+            router.active.is_none(),
+            "another Sand console session owns process input"
+        );
+        if !router.initialized {
+            // Never replace an embedding application's existing signal handler.
+            // Such hosts retain responsibility for Ctrl-C; stdin/EOF still work.
+            match ctrlc::try_set_handler(|| route_input(Event::Interrupt)) {
+                Ok(()) => {}
+                Err(ctrlc::Error::MultipleHandlers) => eprintln!(
+                    "console: existing Ctrl-C handler retained; the host owns interrupt handling (use stop or EOF to quit)"
+                ),
+                Err(error) => {
+                    return Err(error).context("failed to install console Ctrl-C handler");
+                }
+            }
+            router.initialized = true;
+            spawn_stdin_forwarder();
+        }
+        router.next_owner += 1;
+        let owner = router.next_owner;
+        router.active = Some((owner, tx.clone()));
+        if router.stdin_closed {
+            let _ = tx.send(Event::InputClosed);
+        }
+        Ok(Self {
+            tx,
+            rx,
+            pending: Default::default(),
+            cancelled: false,
+            generation: 0,
+            owner: Some(owner),
+        })
+    }
+
+    /// Observe queued cancellation between synchronous restart stages. Keep
+    /// ordinary console input in order for the next JVM; cancellation is sticky.
+    pub(crate) fn cancellation_requested(&mut self) -> bool {
+        self.pending.extend(self.rx.try_iter());
+        self.pending.retain(|event| {
+            let cancel = matches!(event, Event::InputClosed | Event::Interrupt)
+                || matches!(event, Event::Input(line) if matches!(line.trim(), "q" | "stop"));
+            self.cancelled |= cancel;
+            !cancel
+        });
+        self.cancelled
+    }
 }
 
 /// Spawn `command` with piped stdio and drive it until it exits, forwarding
 /// stdin interactively and rendering classified stdout/stderr. The child is
-/// waited on exactly once, on every return path.
-pub fn run_server(mut command: Command, mode: OutputMode, mc_version: &str) -> Result<RunOutcome> {
+/// waited on exactly once, on every return path. Only one console session may
+/// own process input at a time; sequential calls reuse the process-wide reader
+/// and interrupt router. If an embedding host already owns Ctrl-C, its handler
+/// is preserved and Sand reports that the host remains responsible for signals;
+/// console `stop` and EOF still request graceful shutdown. With Sand's handler,
+/// Ctrl-C between sessions terminates the process with exit code 130.
+pub fn run_server(command: Command, mode: OutputMode, mc_version: &str) -> Result<RunOutcome> {
+    run_server_with_dev(command, mode, mc_version, None, &mut None)
+}
+
+pub(crate) fn run_server_with_dev(
+    mut command: Command,
+    mode: OutputMode,
+    mc_version: &str,
+    dev: Option<&mut crate::dev::Session>,
+    console: &mut Option<ConsoleSession>,
+) -> Result<RunOutcome> {
+    if console.is_none() {
+        *console = Some(ConsoleSession::new()?);
+    }
+    let console = console.as_mut().expect("initialized console");
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -59,46 +210,90 @@ pub fn run_server(mut command: Command, mode: OutputMode, mc_version: &str) -> R
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
 
-    let (tx, rx) = mpsc::channel::<Event>();
-    spawn_reader(stdout, Stream::Stdout, tx.clone());
-    spawn_reader(stderr, Stream::Stderr, tx.clone());
-    spawn_stdin_forwarder(tx.clone());
-
-    let ctrlc_tx = tx.clone();
-    // Best-effort: if a handler is already installed (e.g. a prior call in
-    // the same process, such as in tests) we just skip Ctrl-C interception
-    // rather than failing the run.
-    let _ = ctrlc::set_handler(move || {
-        let _ = ctrlc_tx.send(Event::Interrupt);
-    });
-
-    drive(&mut child, stdin, &rx, mode, mc_version)
+    console.generation += 1;
+    spawn_reader(
+        stdout,
+        Stream::Stdout,
+        console.tx.clone(),
+        console.generation,
+    );
+    spawn_reader(
+        stderr,
+        Stream::Stderr,
+        console.tx.clone(),
+        console.generation,
+    );
+    let result = drive(
+        &mut child,
+        stdin,
+        (&console.rx, console.generation),
+        mode,
+        mc_version,
+        dev,
+        &mut console.pending,
+    );
+    if result.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    result
 }
 
 fn drive(
     child: &mut Child,
     mut stdin: impl Write,
-    rx: &Receiver<Event>,
+    (rx, generation): (&Receiver<Event>, u64),
     mode: OutputMode,
     mc_version: &str,
+    mut dev: Option<&mut crate::dev::Session>,
+    pending: &mut std::collections::VecDeque<Event>,
 ) -> Result<RunOutcome> {
     let mut renderer = Renderer::new(mode, mc_version.to_string());
     let mut grouper = Grouper::new();
     let mut phase = PhaseTracker::new();
     let mut stop_requested = false;
+    let mut stop_deadline = None;
+    let mut restart_requested = false;
 
     loop {
-        match rx.recv_timeout(QUIET_FLUSH) {
-            Ok(Event::Log { stream, line }) => {
+        match pending
+            .pop_front()
+            .map(Ok)
+            .unwrap_or_else(|| rx.recv_timeout(QUIET_FLUSH))
+        {
+            Ok(event) if !event.belongs_to(generation) => continue,
+            Ok(Event::Log {
+                stream,
+                line,
+                received_at,
+                ..
+            }) => {
                 let record = parse_line(&line);
-                phase.observe_log(&record.message);
+                phase.observe_log(&record);
                 let category = classify(stream, &record);
-                for grouped in grouper.feed(stream, record, category) {
-                    renderer.render(&grouped, phase.current());
+                for grouped in grouper.feed_at(stream, record, category, received_at) {
+                    render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
                 }
             }
-            Ok(Event::StreamClosed(_)) => {}
-            Ok(Event::Input(line)) => {
+            Ok(Event::StreamClosed { .. }) => {}
+            Ok(Event::Input(mut line)) => {
+                if let Some(dev) = dev.as_deref_mut() {
+                    match line.trim() {
+                        "r" => {
+                            dev.rebuild();
+                            continue;
+                        }
+                        "q" => {
+                            restart_requested = false;
+                            line = "stop".into();
+                        }
+                        "R" => {
+                            restart_requested = true;
+                            line = "stop".into();
+                        }
+                        _ => {}
+                    }
+                }
                 phase.observe_command(&line);
                 if line.trim() == "stop" {
                     stop_requested = true;
@@ -106,12 +301,14 @@ fn drive(
                 send_command(&mut stdin, &line);
             }
             Ok(Event::InputClosed) => {
+                restart_requested = false;
                 if !stop_requested {
                     stop_requested = true;
                     send_command(&mut stdin, "stop");
                 }
             }
             Ok(Event::Interrupt) => {
+                restart_requested = false;
                 if !stop_requested {
                     stop_requested = true;
                     send_command(&mut stdin, "stop");
@@ -119,29 +316,111 @@ fn drive(
             }
             Err(RecvTimeoutError::Timeout) => {
                 if let Some(grouped) = grouper.flush() {
-                    renderer.render(&grouped, phase.current());
+                    render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
                 }
                 renderer.flush_pending_correlation();
             }
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        if let Some(status) = child.try_wait().context("failed to poll server process")? {
-            drain_remaining(rx, &mut grouper, &mut renderer, &mut phase);
-            renderer.finish();
+        update_restart_deadline(
+            &mut stop_deadline,
+            dev.is_some() && restart_requested,
+            Instant::now(),
+        );
+        if !stop_requested
+            && let Some(dev) = dev.as_deref_mut()
+            && let Err(error) = dev.poll()
+        {
+            eprintln!("dev: {error:#}; live pack retained unless sync already completed");
+        }
+
+        let (status, forced_shutdown) = poll_shutdown(child, stop_deadline, Instant::now())?;
+        if let Some(status) = status {
+            drain_remaining(
+                (rx, generation),
+                &mut grouper,
+                &mut renderer,
+                &mut phase,
+                pending,
+                dev.as_deref_mut(),
+            );
+            let health = finish_rendering(&mut renderer, dev.as_deref());
             return Ok(RunOutcome {
                 exit_status: status,
-                health: renderer.health(),
+                health,
+                restart_requested,
+                forced_shutdown,
             });
         }
     }
 
     let status = child.wait().context("failed to wait on server process")?;
-    renderer.finish();
+    let health = finish_rendering(&mut renderer, dev.as_deref());
     Ok(RunOutcome {
         exit_status: status,
-        health: renderer.health(),
+        health,
+        restart_requested,
+        forced_shutdown: false,
     })
+}
+
+fn update_restart_deadline(deadline: &mut Option<Instant>, restarting: bool, now: Instant) {
+    if restarting {
+        deadline.get_or_insert(now + Duration::from_secs(30));
+    } else {
+        // Ordinary run and graceful quit may need arbitrarily long world saves.
+        // q/EOF/Ctrl-C also cancel a previously requested forced restart.
+        *deadline = None;
+    }
+}
+
+/// Poll before enforcing the deadline so an independently exited/crashed child
+/// is never mislabeled as Sand's intentional termination. Forced children are
+/// reaped before the caller may rebuild or spawn another JVM.
+fn poll_shutdown(
+    child: &mut Child,
+    deadline: Option<Instant>,
+    now: Instant,
+) -> Result<(Option<ExitStatus>, bool)> {
+    if let Some(status) = child.try_wait().context("failed to poll server process")? {
+        return Ok((Some(status), false));
+    }
+    if deadline.is_some_and(|deadline| now >= deadline) {
+        child
+            .kill()
+            .context("failed to terminate server after shutdown deadline")?;
+        let status = child.wait().context("failed to reap terminated server")?;
+        eprintln!("server shutdown deadline reached; process terminated");
+        return Ok((Some(status), true));
+    }
+    Ok((None, false))
+}
+
+fn render_group(
+    grouped: &super::diagnostic::GroupedEvent,
+    renderer: &mut Renderer,
+    phase: super::phase::RunPhase,
+    dev: Option<&mut crate::dev::Session>,
+) {
+    let current = dev
+        .as_ref()
+        .map_or(phase, |dev| dev.event_phase(grouped, phase));
+    if let Some(dev) = dev {
+        dev.observe(grouped, current);
+    }
+    renderer.render(grouped, current);
+}
+
+fn finish_rendering(renderer: &mut Renderer, dev: Option<&crate::dev::Session>) -> RunHealth {
+    if let Some(dev) = dev {
+        let health = dev.health();
+        renderer.finish_dev(health);
+        health
+    } else {
+        renderer.finish();
+        renderer.health()
+    }
 }
 
 /// Best-effort write; a broken pipe just means the server already exited
@@ -153,10 +432,12 @@ fn send_command(stdin: &mut impl Write, line: &str) {
 }
 
 fn drain_remaining(
-    rx: &Receiver<Event>,
+    (rx, generation): (&Receiver<Event>, u64),
     grouper: &mut Grouper,
     renderer: &mut Renderer,
     phase: &mut PhaseTracker,
+    pending: &mut std::collections::VecDeque<Event>,
+    mut dev: Option<&mut crate::dev::Session>,
 ) {
     let mut stdout_closed = false;
     let mut stderr_closed = false;
@@ -164,28 +445,45 @@ fn drain_remaining(
 
     while (!stdout_closed || !stderr_closed) && Instant::now() < deadline {
         match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Event::Log { stream, line }) => {
+            Ok(event) if !event.belongs_to(generation) => continue,
+            Ok(Event::Log {
+                stream,
+                line,
+                received_at,
+                ..
+            }) => {
                 let record = parse_line(&line);
-                phase.observe_log(&record.message);
+                phase.observe_log(&record);
                 let category = classify(stream, &record);
-                for grouped in grouper.feed(stream, record, category) {
-                    renderer.render(&grouped, phase.current());
+                for grouped in grouper.feed_at(stream, record, category, received_at) {
+                    render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
                 }
             }
-            Ok(Event::StreamClosed(Stream::Stdout)) => stdout_closed = true,
-            Ok(Event::StreamClosed(Stream::Stderr)) => stderr_closed = true,
-            Ok(_) => {}
+            Ok(Event::StreamClosed {
+                stream: Stream::Stdout,
+                ..
+            }) => stdout_closed = true,
+            Ok(Event::StreamClosed {
+                stream: Stream::Stderr,
+                ..
+            }) => stderr_closed = true,
+            Ok(event) => pending.push_back(event),
             Err(_) => break,
         }
     }
 
     if let Some(grouped) = grouper.flush() {
-        renderer.render(&grouped, phase.current());
+        render_group(&grouped, renderer, phase.current(), dev);
     }
     renderer.flush_pending_correlation();
 }
 
-fn spawn_reader<R: Read + Send + 'static>(reader: R, stream: Stream, tx: Sender<Event>) {
+fn spawn_reader<R: Read + Send + 'static>(
+    reader: R,
+    stream: Stream,
+    tx: Sender<Event>,
+    generation: u64,
+) {
     std::thread::spawn(move || {
         let mut reader = BufReader::new(reader);
         let mut buf: Vec<u8> = Vec::new();
@@ -198,18 +496,26 @@ fn spawn_reader<R: Read + Send + 'static>(reader: R, stream: Stream, tx: Sender<
                         buf.pop();
                     }
                     let line = String::from_utf8_lossy(&buf).into_owned();
-                    if tx.send(Event::Log { stream, line }).is_err() {
+                    if tx
+                        .send(Event::Log {
+                            received_at: Instant::now(),
+                            generation,
+                            stream,
+                            line,
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }
                 Err(_) => break,
             }
         }
-        let _ = tx.send(Event::StreamClosed(stream));
+        let _ = tx.send(Event::StreamClosed { generation, stream });
     });
 }
 
-fn spawn_stdin_forwarder(tx: Sender<Event>) {
+fn spawn_stdin_forwarder() {
     std::thread::spawn(move || {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
@@ -221,13 +527,11 @@ fn spawn_stdin_forwarder(tx: Sender<Event>) {
                 Err(_) => break,
                 Ok(_) => {
                     let trimmed = line.trim_end_matches(['\n', '\r']);
-                    if tx.send(Event::Input(trimmed.to_string())).is_err() {
-                        break;
-                    }
+                    route_input(Event::Input(trimmed.to_string()));
                 }
             }
         }
-        let _ = tx.send(Event::InputClosed);
+        route_input(Event::InputClosed);
     });
 }
 
@@ -237,6 +541,379 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
+    fn process_wide_console_ownership() {
+        const CHILD_MODE: &str = "SAND_TEST_CONSOLE_ROUTER";
+        if let Ok(mode) = std::env::var(CHILD_MODE) {
+            let host_interrupted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            if mode == "host" {
+                let interrupted = host_interrupted.clone();
+                ctrlc::set_handler(move || {
+                    interrupted.store(true, std::sync::atomic::Ordering::SeqCst);
+                })
+                .unwrap();
+            }
+            #[cfg(unix)]
+            if mode == "idle" {
+                drop(ConsoleSession::new().unwrap());
+                assert!(
+                    Command::new("kill")
+                        .args(["-INT", &std::process::id().to_string()])
+                        .status()
+                        .unwrap()
+                        .success()
+                );
+                std::thread::sleep(Duration::from_secs(5));
+                panic!("idle interrupt was swallowed");
+            }
+            if mode == "routing" || mode == "host" {
+                for _ in 0..2 {
+                    let console = ConsoleSession::new().unwrap();
+                    assert!(console.owner.is_some());
+                    assert!(
+                        ConsoleSession::new().is_err(),
+                        "concurrent owners must be rejected"
+                    );
+                    #[cfg(unix)]
+                    {
+                        let mut console = console;
+                        assert!(
+                            Command::new("kill")
+                                .args(["-INT", &std::process::id().to_string()])
+                                .status()
+                                .unwrap()
+                                .success()
+                        );
+                        if mode == "host" {
+                            let deadline = Instant::now() + Duration::from_secs(5);
+                            while !host_interrupted.load(std::sync::atomic::Ordering::SeqCst) {
+                                assert!(Instant::now() < deadline, "host handler was replaced");
+                                std::thread::sleep(Duration::from_millis(10));
+                            }
+                            host_interrupted.store(false, std::sync::atomic::Ordering::SeqCst);
+                            assert!(
+                                !console
+                                    .rx
+                                    .try_iter()
+                                    .any(|event| matches!(event, Event::Interrupt))
+                            );
+                        } else {
+                            // Captured before any build or JVM exists, including
+                            // after a previous session has released ownership.
+                            loop {
+                                let event =
+                                    console.rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                                if matches!(event, Event::Interrupt) {
+                                    console.pending.push_back(event);
+                                    assert!(console.cancellation_requested());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            assert!(
+                run_server(
+                    Command::new("sand-test-missing-executable-for-console-ownership"),
+                    OutputMode::Classified,
+                    "26.2",
+                )
+                .is_err(),
+                "failed spawn must release ownership too"
+            );
+            // Exercise the public entry point twice. EOF must reach each
+            // session, including when the singleton reader has already exited.
+            for _ in 0..2 {
+                let mut command = Command::new(test_fixture_command());
+                if cfg!(windows) {
+                    command.args(["/C", "set /p line= & exit 0"]);
+                } else {
+                    command.args(["-c", "read line; test \"$line\" = stop"]);
+                }
+                assert!(
+                    run_server(command, OutputMode::Classified, "26.2")
+                        .unwrap()
+                        .exit_status
+                        .success()
+                );
+            }
+            return;
+        }
+        let modes = if cfg!(unix) {
+            &["sequential", "routing", "host", "idle"][..]
+        } else {
+            &["sequential", "routing", "host"][..]
+        };
+        for &mode in modes {
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "console::process::tests::process_wide_console_ownership",
+                    "--nocapture",
+                ])
+                .env(CHILD_MODE, mode)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(20);
+            loop {
+                if child.try_wait().unwrap().is_some() {
+                    break;
+                }
+                if Instant::now() >= deadline {
+                    child.kill().unwrap();
+                    let output = child.wait_with_output().unwrap();
+                    panic!("console subprocess {mode} hung: {output:?}");
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let output = child.wait_with_output().unwrap();
+            if mode == "idle" {
+                assert_eq!(output.status.code(), Some(130), "{output:?}");
+                continue;
+            }
+            assert!(
+                output.status.success(),
+                "console subprocess {mode}: {output:?}"
+            );
+            if mode == "host" {
+                assert!(
+                    String::from_utf8_lossy(&output.stderr)
+                        .contains("existing Ctrl-C handler retained")
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn graceful_shutdown_is_unbounded_and_cancellation_disarms_restart_deadline() {
+        let now = Instant::now();
+        let mut deadline = None;
+        for _ in ["stop", "q", "EOF", "Ctrl-C"] {
+            update_restart_deadline(&mut deadline, false, now);
+            assert!(deadline.is_none());
+            update_restart_deadline(&mut deadline, true, now);
+            assert_eq!(deadline, Some(now + Duration::from_secs(30)));
+            update_restart_deadline(&mut deadline, false, now + Duration::from_secs(1));
+            assert!(deadline.is_none());
+        }
+        let mut command = Command::new(test_fixture_command());
+        if cfg!(windows) {
+            command.args(["/C", "set /p line="]);
+        } else {
+            command.args(["-c", "read line"]);
+        }
+        let mut child = command.stdin(Stdio::piped()).spawn().unwrap();
+        let (status, forced) =
+            poll_shutdown(&mut child, deadline, now + Duration::from_secs(120)).unwrap();
+        assert!(
+            status.is_none() && !forced,
+            "ordinary saves must survive past the restart bound"
+        );
+        child.kill().unwrap();
+        child.wait().unwrap();
+    }
+
+    #[test]
+    fn restart_survives_expected_forced_shutdown_but_not_an_unrelated_crash() {
+        let mut command = Command::new(test_fixture_command());
+        if cfg!(windows) {
+            command.args(["/C", "set /p line="]);
+        } else {
+            command.args(["-c", "read line"]);
+        }
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let now = Instant::now();
+        let (status, forced) =
+            poll_shutdown(&mut child, Some(now + Duration::from_secs(30)), now).unwrap();
+        assert!(status.is_none() && !forced);
+        let (status, forced) = poll_shutdown(&mut child, Some(now), now).unwrap();
+        let mut outcome = RunOutcome {
+            exit_status: status.unwrap(),
+            health: RunHealth::Healthy,
+            restart_requested: true,
+            forced_shutdown: forced,
+        };
+        assert!(!outcome.exit_status.success());
+        assert!(outcome.forced_shutdown && outcome.should_restart());
+        assert!(
+            child.try_wait().unwrap().is_some(),
+            "must be reaped before restart"
+        );
+        outcome.restart_requested = false;
+        assert!(
+            !outcome.should_restart(),
+            "q must not restart a killed child"
+        );
+
+        let mut command = Command::new(test_fixture_command());
+        if cfg!(windows) {
+            command.args(["/C", "exit 7"]);
+        } else {
+            command.args(["-c", "exit 7"]);
+        }
+        let mut crashed = command.spawn().unwrap();
+        crashed.wait().unwrap();
+        let (status, forced) = poll_shutdown(&mut crashed, Some(now), Instant::now()).unwrap();
+        let outcome = RunOutcome {
+            exit_status: status.unwrap(),
+            health: RunHealth::Healthy,
+            restart_requested: true,
+            forced_shutdown: forced,
+        };
+        assert!(!outcome.forced_shutdown && !outcome.should_restart());
+    }
+
+    #[test]
+    fn preparation_cancellation_is_sticky_and_retains_other_input_in_order() {
+        for event in [
+            Event::Input("q".into()),
+            Event::InputClosed,
+            Event::Interrupt,
+            Event::Input("stop".into()),
+        ] {
+            let (tx, rx) = mpsc::channel();
+            let mut console = ConsoleSession {
+                tx,
+                rx,
+                pending: Default::default(),
+                cancelled: false,
+                generation: 0,
+                owner: None,
+            };
+            console.pending.push_back(Event::Input("say before".into()));
+            assert!(!console.cancellation_requested());
+            console.tx.send(event).unwrap();
+            console.tx.send(Event::Input("say after".into())).unwrap();
+            assert!(console.cancellation_requested());
+            assert!(
+                console.cancellation_requested(),
+                "EOF must not be consumed and forgotten"
+            );
+            assert!(
+                matches!(console.pending.pop_front(), Some(Event::Input(line)) if line == "say before")
+            );
+            assert!(
+                matches!(console.pending.pop_front(), Some(Event::Input(line)) if line == "say after")
+            );
+            assert!(console.pending.is_empty());
+        }
+    }
+
+    #[test]
+    fn delayed_previous_jvm_logs_cannot_change_new_phase_health_or_input() {
+        let (tx, rx) = mpsc::channel();
+        // Sent after the new generation begins: not just backlog discarded at startup.
+        for line in [
+            "[12:00:00] [Server thread/INFO]: Done (1s)! For help, type \"help\"",
+            "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken",
+        ] {
+            tx.send(Event::Log {
+                received_at: Instant::now(),
+                generation: 1,
+                stream: Stream::Stdout,
+                line: line.into(),
+            })
+            .unwrap();
+        }
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            tx.send(Event::StreamClosed {
+                generation: 1,
+                stream,
+            })
+            .unwrap();
+        }
+        tx.send(Event::Input("say retained".into())).unwrap();
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            tx.send(Event::StreamClosed {
+                generation: 2,
+                stream,
+            })
+            .unwrap();
+        }
+        let mut renderer = Renderer::new(OutputMode::Classified, "26.2".into());
+        let mut phase = PhaseTracker::new();
+        let mut pending = Default::default();
+        drain_remaining(
+            (&rx, 2),
+            &mut Grouper::new(),
+            &mut renderer,
+            &mut phase,
+            &mut pending,
+            None,
+        );
+        assert_eq!(
+            phase.current(),
+            super::super::phase::RunPhase::ServerStartup
+        );
+        assert_eq!(renderer.health(), RunHealth::Healthy);
+        assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "say retained"));
+        assert!(pending.is_empty());
+        // Current-generation output must still be classified normally.
+        tx.send(Event::Log {
+            received_at: Instant::now(),
+            generation: 2,
+            stream: Stream::Stdout,
+            line: "[12:00:01] [Server thread/ERROR]: Failed to load function new:broken".into(),
+        })
+        .unwrap();
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            tx.send(Event::StreamClosed {
+                generation: 2,
+                stream,
+            })
+            .unwrap();
+        }
+        drain_remaining(
+            (&rx, 2),
+            &mut Grouper::new(),
+            &mut renderer,
+            &mut phase,
+            &mut pending,
+            None,
+        );
+        assert_eq!(renderer.health(), RunHealth::Degraded);
+    }
+
+    #[test]
+    fn drain_preserves_restart_quit_and_eof_for_next_process() {
+        let (tx, rx) = mpsc::channel();
+        tx.send(Event::Input("R".into())).unwrap();
+        tx.send(Event::Input("q".into())).unwrap();
+        tx.send(Event::InputClosed).unwrap();
+        tx.send(Event::StreamClosed {
+            generation: 0,
+            stream: Stream::Stdout,
+        })
+        .unwrap();
+        tx.send(Event::StreamClosed {
+            generation: 0,
+            stream: Stream::Stderr,
+        })
+        .unwrap();
+        let mut pending = std::collections::VecDeque::new();
+        drain_remaining(
+            (&rx, 0),
+            &mut Grouper::new(),
+            &mut Renderer::new(OutputMode::Classified, "26.2".into()),
+            &mut PhaseTracker::new(),
+            &mut pending,
+            None,
+        );
+        assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "R"));
+        assert!(matches!(pending.pop_front(), Some(Event::Input(line)) if line == "q"));
+        assert!(matches!(pending.pop_front(), Some(Event::InputClosed)));
+        assert!(pending.is_empty());
+    }
+
+    #[test]
     fn reader_handles_non_utf8_and_malformed_bytes_without_panicking() {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(b"[12:00:00] [Server thread/INFO]: valid line\n");
@@ -244,13 +921,13 @@ mod tests {
         bytes.extend_from_slice(b"no trailing newline at all");
 
         let (tx, rx) = mpsc::channel::<Event>();
-        spawn_reader(Cursor::new(bytes), Stream::Stdout, tx);
+        spawn_reader(Cursor::new(bytes), Stream::Stdout, tx, 0);
 
         let mut lines = Vec::new();
         loop {
             match rx.recv_timeout(Duration::from_secs(2)).unwrap() {
                 Event::Log { line, .. } => lines.push(line),
-                Event::StreamClosed(_) => break,
+                Event::StreamClosed { .. } => break,
                 _ => unreachable!(),
             }
         }
@@ -266,12 +943,33 @@ mod tests {
     /// crate's own test binary support via `sh`-free `std::process`.
     #[test]
     fn drive_handles_interleaved_output_and_stop_command_without_deadlock() {
-        // We can't easily spin up a real child `Command` here without a
-        // fixture binary; instead we unit-test `drive`'s event loop by
-        // exercising `spawn_reader`/`spawn_stdin_forwarder` against pipes
-        // wired to an actual short-lived child process (`cat`-like echo).
-        let mut child = Command::new(test_fixture_command())
-            .args(test_fixture_args())
+        const FIXTURE: &str = "SAND_TEST_EOF_FIXTURE";
+        if std::env::var_os(FIXTURE).is_some() {
+            let (tx, rx) = mpsc::channel();
+            std::thread::spawn(move || {
+                for line in std::io::stdin().lock().lines().take(2) {
+                    tx.send(line.unwrap()).unwrap();
+                }
+            });
+            println!("ready");
+            assert_eq!(
+                rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+                "say hello"
+            );
+            eprintln!("got: say hello");
+            // Missing EOF forwarding fails this child within a fixed bound;
+            // merely forwarding the first command cannot make the test pass.
+            assert_eq!(rx.recv_timeout(Duration::from_secs(5)).unwrap(), "stop");
+            println!("got: stop");
+            return;
+        }
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "console::process::tests::drive_handles_interleaved_output_and_stop_command_without_deadlock",
+                "--nocapture",
+            ])
+            .env(FIXTURE, "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -283,33 +981,41 @@ mod tests {
         let stderr = child.stderr.take().unwrap();
 
         let (tx, rx) = mpsc::channel::<Event>();
-        spawn_reader(stdout, Stream::Stdout, tx.clone());
-        spawn_reader(stderr, Stream::Stderr, tx.clone());
+        spawn_reader(stdout, Stream::Stdout, tx.clone(), 0);
+        spawn_reader(stderr, Stream::Stderr, tx.clone(), 0);
         // Feed synthetic input instead of real stdin so the test is
-        // hermetic: send a command, then close input. The fixture script
-        // blocks on `read line`, so this proves input forwarding and
-        // shutdown-on-EOF both work without deadlocking.
+        // hermetic: send a command, then close input. The fixture waits for
+        // both commands, proving input forwarding and shutdown-on-EOF.
         std::thread::spawn(move || {
+            // A reader from an earlier JVM may send after this drive starts.
+            let _ = tx.send(Event::Log {
+                received_at: Instant::now(),
+                generation: 99,
+                stream: Stream::Stdout,
+                line: "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken".into(),
+            });
             let _ = tx.send(Event::Input("say hello".to_string()));
-            let _ = tx.send(Event::InputClosed);
+            tx.send(Event::InputClosed).unwrap();
         });
 
-        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "26.2");
-        // The fixture script isn't a real Minecraft server, so we only
-        // assert the loop terminates cleanly with a status, proving no
-        // deadlock — not any particular exit code.
-        assert!(result.is_ok());
+        let result = drive(
+            &mut child,
+            stdin,
+            (&rx, 0),
+            OutputMode::Classified,
+            "26.2",
+            None,
+            &mut Default::default(),
+        );
+        let outcome = result.unwrap();
+        assert!(
+            outcome.exit_status.success(),
+            "fixture must receive say hello then stop"
+        );
+        assert_eq!(outcome.health, RunHealth::Healthy);
     }
 
     fn test_fixture_command() -> &'static str {
         if cfg!(windows) { "cmd" } else { "sh" }
-    }
-
-    fn test_fixture_args() -> Vec<&'static str> {
-        if cfg!(windows) {
-            vec!["/C", "echo ready & exit 0"]
-        } else {
-            vec!["-c", "echo ready; read line; echo \"got: $line\"; exit 0"]
-        }
     }
 }

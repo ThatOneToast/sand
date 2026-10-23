@@ -66,3 +66,7 @@ run if `sand.toml` already exists.
 
 Every remaining chapter edits `src/lib.rs`. Chapter 17 covers `sand build`
 and `sand run` once the pack has something worth loading.
+
+Dev refreshes Cargo’s resolved target directory before each rebuild, including changes
+to `.cargo/config.toml`. All target directories used by the session stay excluded
+from watching; source edits made during compilation still queue another build.

@@ -106,6 +106,15 @@ enum Commands {
         #[arg(long, default_value = "dev")]
         profile: String,
     },
+    /// Watch, build, and reload a loopback-only development server
+    Dev {
+        #[arg(long, default_value = "2G")]
+        ram: String,
+        #[arg(long)]
+        offline: bool,
+        #[arg(long, default_value = "dev")]
+        profile: String,
+    },
     /// **Requires Prism Launcher**
     /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack
     Join {
@@ -305,6 +314,17 @@ fn run() -> Result<()> {
                 profile,
             })
         }
+        Commands::Dev {
+            ram,
+            offline,
+            profile,
+        } => run_cmd::dev(run_cmd::RunArgs {
+            ram,
+            offline,
+            profile,
+            no_build: false,
+            server_log: sand_cli::console::OutputMode::Classified,
+        }),
         Commands::Join { local } => join_cmd::run(join_cmd::JoinArgs { local }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {

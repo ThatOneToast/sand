@@ -66,14 +66,18 @@ numeric setting, and requires the attribute to survive re-encoding. It also
 checks native defaults, signed codec boundaries, compact additions, and missing
 required mood fields. Merely loading a datapack is insufficient evidence.
 
-After building the maintained audit pack, compile and run with Java 25 and the
-cached 26.2 extracted server and libraries (use an unused output directory):
+After building the maintained audit pack from a clean commit, run the maintained
+harness with Java 25 and the cached 26.2 bootstrap JAR. It binds to loopback on an
+allocated port, resolves all five biomes with `fillbiome`, reloads, shuts down,
+and runs the getter/re-encode probe against the unchanged exported pack. The
+output includes source/fixture/harness/JAR/pack hashes and retained probe output.
+Use an unused output directory:
 
 ```sh
-mkdir -p /tmp/biome-audio-probe
-BIOME_AUDIO_CP=$(find "$HOME/.sand/cache/26.2/versions" "$HOME/.sand/cache/26.2/libraries" -name '*.jar' -print | paste -sd ':' -)
-javac -cp "$BIOME_AUDIO_CP" -d /tmp/biome-audio-probe scripts/mc_validation/BiomeAmbientSoundProbe.java
-java -cp "/tmp/biome-audio-probe:$BIOME_AUDIO_CP" BiomeAmbientSoundProbe "$PWD/sand-vanilla-audit/dist/sand_audit"
+python3 scripts/validate_biome_ambient_sounds.py --version 26.2 \
+  --pack sand-vanilla-audit/dist/sand_audit \
+  --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --output /tmp/biome-audio-proof --timeout 180
 ```
 
 Native exported-fixture execution and full workspace gates are pending resource

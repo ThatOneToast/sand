@@ -1,0 +1,3173 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.2",
+  "namespace": "rpg",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/2": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/6": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/7": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/8": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/acknowledge/9": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/0": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/1": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/2": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/3": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/4": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/5": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/6": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/7": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/8": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/changes/9": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/cleanup": {
+        "evaluations": {
+          "maximum": 164,
+          "minimum": 164,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/derive/0": {
+        "evaluations": {
+          "maximum": 73,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 20,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 20,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 22,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 23,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 23,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 23,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 26,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 37,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 38,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 39,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 40,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 40,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 47,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 47,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 47,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 50,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 51,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 54,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 65,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 66,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 67,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 68,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 68,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 69,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 69,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 69,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 69,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 71,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 72,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/derive/1": {
+        "evaluations": {
+          "maximum": 166,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 21,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 21,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 23,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 24,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 24,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 24,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 27,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 38,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 39,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 40,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 42,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 42,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 42,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 42,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 49,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 49,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 49,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 55,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 55,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 57,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 58,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 58,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 58,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 61,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 72,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 73,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 74,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 75,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 75,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 76,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 76,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 76,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 76,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 78,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 78,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 79,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 85,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 85,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 87,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 88,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 88,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 88,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 91,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 102,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 103,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 104,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 105,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 105,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 106,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 106,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 106,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 106,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 108,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 108,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 109,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 110,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 111,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 116,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 116,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 118,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 119,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 119,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 119,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 122,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 133,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 134,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 135,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 136,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 136,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 137,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 137,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 137,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 137,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 140,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 151,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 152,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 153,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 154,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 154,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 155,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 155,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 155,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 155,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 157,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 158,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/r": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/derive_refresh": {
+        "evaluations": {
+          "maximum": 251,
+          "minimum": 12,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/initialize": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 106,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 19,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 19,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 20,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 21,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 22,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 22,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 23,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 24,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 25,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 25,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 26,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 27,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 28,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 28,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 29,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 30,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 31,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 31,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 32,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 33,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 34,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 34,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 35,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 36,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 37,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 37,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 38,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 39,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 40,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 42,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 43,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 44,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 45,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 46,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 47,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 49,
+            "operation": "unless",
+            "selector": "@s[scores={sf837738ac8624dc=0,saf5993b46460b8f=0,sd928dbc23d90f25=0,saa1439a4f012a28=0,s86be80b62503228=0,s150230968f0fdda=0,s5c34cbd320cd24d=0,s34362a6509bc7fd=0,scfe7e3f12f92503=0,se01645003fbea11=0}]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/load": {
+        "evaluations": {
+          "maximum": 159,
+          "minimum": 159,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/migrate": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/migrate/1_2": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/0": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 20,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 20,
+            "operation": "store",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/1": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/1/macro": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: rpg:__sand_entity/a9a72d381e757b/property/1/macro"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/2": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: rpg:__sand_entity/a9a72d381e757b/property/2/name_macro"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/property/3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/provision": {
+        "evaluations": {
+          "maximum": 12,
+          "minimum": 12,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/reconcile": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 93,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[scores={s00a5be62c00a2c4=-2147483648..,s02089a9adb1b894=1,s3f609593b498408=-2147483648..,s4b9aff7fbeb11b9=-2147483648..,s4cc0cc8dcfc0fa9=2,s51eac6326bd2a60=-2147483648..,s6645414d0fbd2ad=-2147483648..,s6e69b8b64ebbeff=-2147483648..,s8d37241e646d2da=-2147483648..,s981b90246520b5a=-2147483648..,sa2b7b6681cff772=-2147483648..,sdcccfa65bc67eca=-2147483648..}]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 19,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 20,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 21,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 22,
+            "operation": "unless",
+            "selector": "@s[scores={sf837738ac8624dc=0,saf5993b46460b8f=0,sd928dbc23d90f25=0,saa1439a4f012a28=0,s86be80b62503228=0,s150230968f0fdda=0,s5c34cbd320cd24d=0,s34362a6509bc7fd=0,scfe7e3f12f92503=0,se01645003fbea11=0}]"
+          },
+          {
+            "line": 25,
+            "operation": "unless",
+            "selector": "@s[scores={se90c3fb39fc1788=0,s59eae6a1247dc0e=0}]"
+          },
+          {
+            "line": 26,
+            "operation": "unless",
+            "selector": "@s[scores={s608dbf03f6a3937=0,s102a603a67d0f33=0}]"
+          },
+          {
+            "line": 27,
+            "operation": "unless",
+            "selector": "@s[scores={sae4dcfff37427ed=0,s241d1edc95883e9=0}]"
+          },
+          {
+            "line": 28,
+            "operation": "unless",
+            "selector": "@s[scores={sca07c66249c29fc=0,s2e23c0d06fc53ea=0}]"
+          },
+          {
+            "line": 29,
+            "operation": "unless",
+            "selector": "@s[scores={sf9a89ff1c6d31fc=0,sef70e04175e2bea=0}]"
+          },
+          {
+            "line": 30,
+            "operation": "unless",
+            "selector": "@s[scores={s641e78c6fbd1ea6=0,sf18ef82db59843c=0}]"
+          },
+          {
+            "line": 31,
+            "operation": "unless",
+            "selector": "@s[scores={secd007307b96205=0,sd64e264a57db841=0}]"
+          },
+          {
+            "line": 32,
+            "operation": "unless",
+            "selector": "@s[scores={s21b151ace148cf5=0,s24ae6a455067191=0}]"
+          },
+          {
+            "line": 33,
+            "operation": "unless",
+            "selector": "@s[scores={sbfac16c66f4cf43=0,s561a202b2889767=0}]"
+          },
+          {
+            "line": 34,
+            "operation": "unless",
+            "selector": "@s[scores={s6a06aaa8743e311=0,s1c86178ad9b5155=0}]"
+          },
+          {
+            "line": 35,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 36,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 37,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 38,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 39,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 40,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 41,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 42,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 43,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 44,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 45,
+            "operation": "unless",
+            "selector": "@s[scores={sf837738ac8624dc=0,saf5993b46460b8f=0,sd928dbc23d90f25=0,saa1439a4f012a28=0,s86be80b62503228=0,s150230968f0fdda=0,s5c34cbd320cd24d=0,s34362a6509bc7fd=0,scfe7e3f12f92503=0,se01645003fbea11=0}]"
+          },
+          {
+            "line": 47,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 48,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 49,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 50,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 51,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 52,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 53,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 54,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 55,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 56,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 57,
+            "operation": "unless",
+            "selector": "@s[scores={sf837738ac8624dc=0,saf5993b46460b8f=0,sd928dbc23d90f25=0,saa1439a4f012a28=0,s86be80b62503228=0,s150230968f0fdda=0,s5c34cbd320cd24d=0,s34362a6509bc7fd=0,scfe7e3f12f92503=0,se01645003fbea11=0}]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/reconcile_scan": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/reconcile"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/refresh": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 22,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 19,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 21,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/repair_components": {
+        "evaluations": {
+          "maximum": 14,
+          "minimum": 14,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/repair_refresh": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 66,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s[scores={sf837738ac8624dc=0,saf5993b46460b8f=0,sd928dbc23d90f25=0,saa1439a4f012a28=0,s86be80b62503228=0,s150230968f0fdda=0,s5c34cbd320cd24d=0,s34362a6509bc7fd=0,scfe7e3f12f92503=0,se01645003fbea11=0}]"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s[scores={se90c3fb39fc1788=0,s59eae6a1247dc0e=0}]"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s[scores={s608dbf03f6a3937=0,s102a603a67d0f33=0}]"
+          },
+          {
+            "line": 14,
+            "operation": "unless",
+            "selector": "@s[scores={sae4dcfff37427ed=0,s241d1edc95883e9=0}]"
+          },
+          {
+            "line": 15,
+            "operation": "unless",
+            "selector": "@s[scores={sca07c66249c29fc=0,s2e23c0d06fc53ea=0}]"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[scores={sf9a89ff1c6d31fc=0,sef70e04175e2bea=0}]"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s[scores={s641e78c6fbd1ea6=0,sf18ef82db59843c=0}]"
+          },
+          {
+            "line": 18,
+            "operation": "unless",
+            "selector": "@s[scores={secd007307b96205=0,sd64e264a57db841=0}]"
+          },
+          {
+            "line": 19,
+            "operation": "unless",
+            "selector": "@s[scores={s21b151ace148cf5=0,s24ae6a455067191=0}]"
+          },
+          {
+            "line": 20,
+            "operation": "unless",
+            "selector": "@s[scores={sbfac16c66f4cf43=0,s561a202b2889767=0}]"
+          },
+          {
+            "line": 21,
+            "operation": "unless",
+            "selector": "@s[scores={s6a06aaa8743e311=0,s1c86178ad9b5155=0}]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/reset_internal_causes": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 10,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/scan": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/a9a72d381e757b/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/transition/0": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/a9a72d381e757b/transitions": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity_load": {
+        "evaluations": {
+          "maximum": 160,
+          "minimum": 160,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/reconcile"
+          ]
+        },
+        "owners": [
+          "rpg:plagued_zombie"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 26,
+          "minimum": 26,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:combat",
+          "rpg:progression"
+        ],
+        "selector_sites": []
+      },
+      "rpg:infect": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "rpg_entity::infect"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:initialized": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "rpg_entity::initialized"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:level_up": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "rpg_entity::level_up"
+        ],
+        "selector_sites": []
+      },
+      "rpg:migrate_v1_v2": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "rpg_entity::migrate_v1_v2"
+        ],
+        "selector_sites": []
+      },
+      "rpg:sickness_started": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "rpg_entity::sickness_started"
+        ],
+        "selector_sites": []
+      },
+      "rpg:spawn": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+          ]
+        },
+        "owners": [
+          "rpg_entity::spawn"
+        ],
+        "selector_sites": []
+      },
+      "rpg:state_mutation/6d7d4427": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "rpg_entity::level_up"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "rpg:plagued_zombie"
+        ],
+        "evaluations": {
+          "maximum": 160,
+          "minimum": 160,
+          "unknown": []
+        },
+        "reference": "rpg:__sand_entity_load",
+        "required": true
+      },
+      {
+        "contributors": [
+          "rpg:combat",
+          "rpg:progression"
+        ],
+        "evaluations": {
+          "maximum": 26,
+          "minimum": 26,
+          "unknown": []
+        },
+        "reference": "rpg:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [
+        {
+          "adoption_selector": "@e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b]",
+          "archetype": "rpg:plagued_zombie",
+          "functions": [
+            "__sand_entity/a9a72d381e757b/acknowledge/0",
+            "__sand_entity/a9a72d381e757b/acknowledge/1",
+            "__sand_entity/a9a72d381e757b/acknowledge/2",
+            "__sand_entity/a9a72d381e757b/acknowledge/3",
+            "__sand_entity/a9a72d381e757b/acknowledge/4",
+            "__sand_entity/a9a72d381e757b/acknowledge/5",
+            "__sand_entity/a9a72d381e757b/acknowledge/6",
+            "__sand_entity/a9a72d381e757b/acknowledge/7",
+            "__sand_entity/a9a72d381e757b/acknowledge/8",
+            "__sand_entity/a9a72d381e757b/acknowledge/9",
+            "__sand_entity/a9a72d381e757b/changes/0",
+            "__sand_entity/a9a72d381e757b/changes/1",
+            "__sand_entity/a9a72d381e757b/changes/2",
+            "__sand_entity/a9a72d381e757b/changes/3",
+            "__sand_entity/a9a72d381e757b/changes/4",
+            "__sand_entity/a9a72d381e757b/changes/5",
+            "__sand_entity/a9a72d381e757b/changes/6",
+            "__sand_entity/a9a72d381e757b/changes/7",
+            "__sand_entity/a9a72d381e757b/changes/8",
+            "__sand_entity/a9a72d381e757b/changes/9",
+            "__sand_entity/a9a72d381e757b/cleanup",
+            "__sand_entity/a9a72d381e757b/derive/0",
+            "__sand_entity/a9a72d381e757b/derive/1",
+            "__sand_entity/a9a72d381e757b/derive/1/enum_8",
+            "__sand_entity/a9a72d381e757b/derive/1/enum_8/l",
+            "__sand_entity/a9a72d381e757b/derive/1/enum_8/r",
+            "__sand_entity/a9a72d381e757b/derive_refresh",
+            "__sand_entity/a9a72d381e757b/initialize",
+            "__sand_entity/a9a72d381e757b/load",
+            "__sand_entity/a9a72d381e757b/migrate",
+            "__sand_entity/a9a72d381e757b/migrate/1_2",
+            "__sand_entity/a9a72d381e757b/property/0",
+            "__sand_entity/a9a72d381e757b/property/0/max_health_macro",
+            "__sand_entity/a9a72d381e757b/property/1",
+            "__sand_entity/a9a72d381e757b/property/1/macro",
+            "__sand_entity/a9a72d381e757b/property/2",
+            "__sand_entity/a9a72d381e757b/property/2/name_macro",
+            "__sand_entity/a9a72d381e757b/property/3",
+            "__sand_entity/a9a72d381e757b/provision",
+            "__sand_entity/a9a72d381e757b/reconcile",
+            "__sand_entity/a9a72d381e757b/reconcile_scan",
+            "__sand_entity/a9a72d381e757b/refresh",
+            "__sand_entity/a9a72d381e757b/repair_components",
+            "__sand_entity/a9a72d381e757b/repair_refresh",
+            "__sand_entity/a9a72d381e757b/reset_internal_causes",
+            "__sand_entity/a9a72d381e757b/scan",
+            "__sand_entity/a9a72d381e757b/tick",
+            "__sand_entity/a9a72d381e757b/transition/0",
+            "__sand_entity/a9a72d381e757b/transitions"
+          ],
+          "objectives": [
+            "s00a5be62c00a2c4",
+            "s0106227316da423",
+            "s0165ae5268c62d3",
+            "s0837d4ee5b73e14",
+            "s096f0a0158a9088",
+            "s0ecbabfa5151521",
+            "s102a603a67d0f33",
+            "s121f4dcd82be30e",
+            "s150230968f0fdda",
+            "s16d678d1229152e",
+            "s177db5dc1550043",
+            "s18fc90445b902ff",
+            "s190f60bf21868c6",
+            "s1c86178ad9b5155",
+            "s1db92c3e8e8537d",
+            "s21b151ace148cf5",
+            "s235f8ffe784eb4b",
+            "s241d1edc95883e9",
+            "s24764fd23d62adb",
+            "s24ae6a455067191",
+            "s25b3de3dcd73ae1",
+            "s2827b0d13a793a1",
+            "s2e23c0d06fc53ea",
+            "s318253d3d7d393d",
+            "s3215e35bd9c75f5",
+            "s32863c27928f9ab",
+            "s34362a6509bc7fd",
+            "s35d0ace4a5715d7",
+            "s36246a4c2fa5b34",
+            "s3730417a352d921",
+            "s3f609593b498408",
+            "s41db3aea81552d4",
+            "s424940df25a6456",
+            "s429a1cf2fa7330d",
+            "s4324eb4912f2e25",
+            "s468e1b96f4c43f6",
+            "s476ebb918972a63",
+            "s4b38fc4cd7b9692",
+            "s4b9aff7fbeb11b9",
+            "s4fa4c22b3b2e2fc",
+            "s51eac6326bd2a60",
+            "s520c737382ab637",
+            "s5303d0a6fc30636",
+            "s530b41faab4de2c",
+            "s55fa5e226a888cd",
+            "s561a202b2889767",
+            "s59a10d3410d59cc",
+            "s59eae6a1247dc0e",
+            "s5ac2ec587f4d1f4",
+            "s5c34cbd320cd24d",
+            "s5cdb56d04ef073c",
+            "s5dde6352bc3b528",
+            "s5fc2d8639f52928",
+            "s608dbf03f6a3937",
+            "s62b7a810e719339",
+            "s63c4ac7b1abdf8f",
+            "s641e78c6fbd1ea6",
+            "s6645414d0fbd2ad",
+            "s67abf1fa9860fab",
+            "s68e8036d90753e4",
+            "s6a06aaa8743e311",
+            "s6b403934f074e7c",
+            "s6c09c1512e3e27b",
+            "s6c1b46ac36cef4b",
+            "s6cb2f8f87471675",
+            "s6e44db9c12f7126",
+            "s6e69b8b64ebbeff",
+            "s7e28b8ac5346e95",
+            "s7e3cfc3e8e4fbee",
+            "s836477a6956f3c3",
+            "s836d7ab804ede6b",
+            "s8455be350f38d52",
+            "s86be80b62503228",
+            "s86d16bb0a4a8848",
+            "s878e408d4095c98",
+            "s8c7618ee37b97f4",
+            "s8d37241e646d2da",
+            "s92df4979fb294a1",
+            "s93e033065a8e271",
+            "s9749d725ab3ac38",
+            "s981b90246520b5a",
+            "s9884c67eacb0ebe",
+            "s98dd38263d32b77",
+            "s9aacd6251ce4a82",
+            "sa01c7fc39ab14de",
+            "sa21c3d0f9918834",
+            "sa297ce5d630ad43",
+            "sa2b7b6681cff772",
+            "sa6420b51182b26a",
+            "sa9ba40523c5652c",
+            "sa9ba50523c566df",
+            "sa9ba60523c56892",
+            "sa9ba70523c56a45",
+            "saa1439a4f012a28",
+            "sab033ae23baba48",
+            "sae4dcfff37427ed",
+            "sae9e1e2e3a33e93",
+            "saf5993b46460b8f",
+            "sb131952ac79d95e",
+            "sb6e965f698be8bc",
+            "sb787a9b60c82655",
+            "sb8d518b91995873",
+            "sbb51b522504a994",
+            "sbd74590f7534ea2",
+            "sbea687e579c9b04",
+            "sbf599fea31a93c1",
+            "sbfac16c66f4cf43",
+            "sc04a358b5e17d3e",
+            "sc148ec8239317cc",
+            "sc216bf49d87c937",
+            "sc4cffb0a0936129",
+            "sc6f9bb662f25257",
+            "sc7c89eb99e3d72c",
+            "sca07c66249c29fc",
+            "sccb750252a9069c",
+            "scec50ae45a823af",
+            "scfe7e3f12f92503",
+            "scffc2ea24ea3945",
+            "sd25f33830e9bc52",
+            "sd3c74f55f5b9582",
+            "sd467a3f109de8b1",
+            "sd64e264a57db841",
+            "sd928dbc23d90f25",
+            "sdc271035c8dc812",
+            "sdcccfa65bc67eca",
+            "sde82433a0a21ba4",
+            "se01645003fbea11",
+            "se12d18464c06c28",
+            "se19d6819c49ce2f",
+            "se52de98a2fa6577",
+            "se5d12652ead9e7c",
+            "se90c3fb39fc1788",
+            "seb829bab52a6948",
+            "sec1b85b52ea4178",
+            "sec1ba5b52ea44de",
+            "sec1bb5b52ea4691",
+            "sec1bc5b52ea4844",
+            "sec1bd5b52ea49f7",
+            "sec1be5b52ea4baa",
+            "sec1bf5b52ea4d5d",
+            "secd007307b96205",
+            "sef70e04175e2bea",
+            "sf07dc8f7469ea23",
+            "sf150272d8112dbd",
+            "sf18ef82db59843c",
+            "sf229e38df4e5c07",
+            "sf2e11d28668f141",
+            "sf35b73afc547a23",
+            "sf6096900d6286a0",
+            "sf772a0f645d29a5",
+            "sf829db5395edf52",
+            "sf837738ac8624dc",
+            "sf892e376dd7b87d",
+            "sf9a89ff1c6d31fc",
+            "sf9bcff719440748",
+            "sfa7dce5403924c5",
+            "sfb177ecdd77b9b3",
+            "sfb7b6cb9dcb0b4c"
+          ],
+          "outer_scans_per_cycle": 2,
+          "tags": [
+            "__sand.a.a9a72d381e757b",
+            "__sand.external.a9a72d381e757b"
+          ]
+        }
+      ],
+      "function_owners": {
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/0": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/1": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/2": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/3": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/4": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/5": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/6": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/7": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/8": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/acknowledge/9": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/0": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/1": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/2": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/3": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/4": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/5": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/6": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/7": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/8": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/changes/9": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/cleanup": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/derive/0": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/derive/1": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/l": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/derive/1/enum_8/r": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/derive_refresh": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/initialize": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/load": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/migrate": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/migrate/1_2": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/0": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/1": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/1/macro": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/2": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/2/name_macro": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/property/3": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/provision": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/reconcile": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/reconcile_scan": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/refresh": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/repair_components": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/repair_refresh": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/reset_internal_causes": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/scan": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/tick": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/transition/0": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity/a9a72d381e757b/transitions": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity_load": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_entity_tick": [
+          "rpg:plagued_zombie"
+        ],
+        "rpg:__sand_lifecycle_load": [
+          "rpg:combat",
+          "rpg:progression"
+        ],
+        "rpg:infect": [
+          "rpg_entity::infect"
+        ],
+        "rpg:initialized": [
+          "rpg_entity::initialized"
+        ],
+        "rpg:level_up": [
+          "rpg_entity::level_up"
+        ],
+        "rpg:migrate_v1_v2": [
+          "rpg_entity::migrate_v1_v2"
+        ],
+        "rpg:sickness_started": [
+          "rpg_entity::sickness_started"
+        ],
+        "rpg:spawn": [
+          "rpg_entity::spawn"
+        ],
+        "rpg:state_mutation/6d7d4427": [
+          "rpg_entity::level_up"
+        ]
+      },
+      "lifecycle_owners": {},
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "rpg:__sand_entity_load",
+          "owners": [
+            "rpg:plagued_zombie"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "rpg:__sand_entity_tick",
+          "owners": [
+            "rpg:plagued_zombie"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "rpg:__sand_lifecycle_load",
+          "owners": [
+            "rpg:combat",
+            "rpg:progression"
+          ],
+          "tag": "minecraft:load"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "rpg:plagued_zombie"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/reconcile"
+          ]
+        },
+        "reference": "rpg:__sand_entity_tick",
+        "required": true
+      }
+    ]
+  }
+}

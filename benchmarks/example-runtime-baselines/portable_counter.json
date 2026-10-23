@@ -1,0 +1,199 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.2",
+  "namespace": "demo",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "demo:__sand_lifecycle_init": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "demo:counter"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "demo:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "demo:counter"
+        ],
+        "selector_sites": []
+      },
+      "demo:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run function demo:__sand_lifecycle_init"
+          ]
+        },
+        "owners": [
+          "demo:counter"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          }
+        ]
+      },
+      "demo:increment": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "portable_counter::increment"
+        ],
+        "selector_sites": []
+      },
+      "demo:tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run function demo:increment"
+          ]
+        },
+        "owners": [
+          "portable_counter::tick"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "demo:counter"
+        ],
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "reference": "demo:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "demo:__sand_lifecycle_init": [
+          "demo:counter"
+        ],
+        "demo:__sand_lifecycle_load": [
+          "demo:counter"
+        ],
+        "demo:__sand_lifecycle_tick": [
+          "demo:counter"
+        ],
+        "demo:increment": [
+          "portable_counter::increment"
+        ],
+        "demo:tick": [
+          "portable_counter::tick"
+        ]
+      },
+      "lifecycle_owners": {},
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "demo:__sand_lifecycle_load",
+          "owners": [
+            "demo:counter"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "demo:__sand_lifecycle_tick",
+          "owners": [
+            "demo:counter"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "demo:tick",
+          "owners": [
+            "portable_counter::tick_membership"
+          ],
+          "tag": "minecraft:tick"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "demo:counter"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run function demo:__sand_lifecycle_init"
+          ]
+        },
+        "reference": "demo:__sand_lifecycle_tick",
+        "required": true
+      },
+      {
+        "contributors": [
+          "portable_counter::tick_membership"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run function demo:increment"
+          ]
+        },
+        "reference": "demo:tick",
+        "required": true
+      }
+    ]
+  }
+}

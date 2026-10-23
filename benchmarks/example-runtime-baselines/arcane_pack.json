@@ -1,0 +1,975 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.2",
+  "namespace": "arcane",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "arcane:__sand_death_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function arcane:on_death",
+            "unknown selector multiplicity: execute at @s run function arcane:on_respawn"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:__sand_death_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function arcane:on_death"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:__sand_join_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function arcane:on_join"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_join"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:__sand_join_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function arcane:on_join"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_join"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_join",
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": []
+      },
+      "arcane:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run function arcane:__sand_death_check",
+            "unknown selector multiplicity: execute as @a run function arcane:__sand_join_check",
+            "unknown selector multiplicity: execute at @s run function arcane:on_death",
+            "unknown selector multiplicity: execute at @s run function arcane:on_join",
+            "unknown selector multiplicity: execute at @s run function arcane:on_respawn"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_join",
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          }
+        ]
+      },
+      "arcane:__sand_respawn_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function arcane:on_respawn"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:__sand_respawn_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function arcane:on_respawn"
+          ]
+        },
+        "owners": [
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:cast_dash": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if score @s mana matches 25.. if score @s dash matches 0 if score @s shield matches 0 run function arcane:cast_dash/execute"
+          ]
+        },
+        "owners": [
+          "arcane_pack::cast_dash"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:cast_dash/execute": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::cast_dash_execute"
+        ],
+        "selector_sites": []
+      },
+      "arcane:cast_fireball": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if score @s mana matches 30.. if score @s fireball matches 0 if score @s shield matches 0 run function arcane:cast_fireball/execute"
+          ]
+        },
+        "owners": [
+          "arcane_pack::cast_fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:cast_fireball/execute": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::cast_fireball_execute"
+        ],
+        "selector_sites": []
+      },
+      "arcane:dash_wand_effect": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::dash_wand_effect"
+        ],
+        "selector_sites": []
+      },
+      "arcane:golden_apple_reward": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::golden_apple_reward"
+        ],
+        "selector_sites": []
+      },
+      "arcane:grant_enhanced_cells": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "selector_sites": []
+      },
+      "arcane:load": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::load"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_ate_golden_apple": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_ate_golden_apple"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:on_ate_golden_apple/body": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_ate_golden_apple"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_damaged_damage_nearby": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_damaged_damage_nearby"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:on_damaged_damage_nearby/body": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_damaged_damage_nearby"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[distance=0.1..5,type=!minecraft:player]"
+          }
+        ]
+      },
+      "arcane:on_death": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_death"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_first_join": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_first_join"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_first_join/body": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_first_join"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_join": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_join"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_respawn": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_respawn"
+        ],
+        "selector_sites": []
+      },
+      "arcane:on_used_dash_wand": {
+        "evaluations": {
+          "maximum": 12,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_used_dash_wand"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:on_used_dash_wand/body": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::on_used_dash_wand"
+        ],
+        "selector_sites": []
+      },
+      "arcane:open_welcome_menu": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::open_welcome_menu"
+        ],
+        "selector_sites": []
+      },
+      "arcane:sand/branches/0c055095": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:sand/branches/729d7d3e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "selector_sites": []
+      },
+      "arcane:sand/branches/ae48660d": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "selector_sites": []
+      },
+      "arcane:show_mana": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::show_mana"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:tick": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::tick"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:toggle_shield": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if score @s mana matches 10.. if score @s shield matches 0 run function arcane:toggle_shield/on",
+            "unknown selector multiplicity: execute as @a at @s if score @s shield matches 1 run function arcane:toggle_shield/off"
+          ]
+        },
+        "owners": [
+          "arcane_pack::toggle_shield"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "arcane:toggle_shield/off": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::toggle_shield_off"
+        ],
+        "selector_sites": []
+      },
+      "arcane:toggle_shield/on": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "arcane_pack::toggle_shield_on"
+        ],
+        "selector_sites": []
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_join",
+          "arcane_pack::on_respawn"
+        ],
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "reference": "arcane:__sand_lifecycle_load",
+        "required": true
+      },
+      {
+        "contributors": [
+          "arcane_pack::load"
+        ],
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "reference": "arcane:load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "arcane:__sand_death_check": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:__sand_death_dispatch": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:__sand_join_check": [
+          "arcane_pack::on_join"
+        ],
+        "arcane:__sand_join_dispatch": [
+          "arcane_pack::on_join"
+        ],
+        "arcane:__sand_lifecycle_load": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_join",
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:__sand_lifecycle_tick": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_join",
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:__sand_respawn_check": [
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:__sand_respawn_dispatch": [
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:cast_dash": [
+          "arcane_pack::cast_dash"
+        ],
+        "arcane:cast_dash/execute": [
+          "arcane_pack::cast_dash_execute"
+        ],
+        "arcane:cast_fireball": [
+          "arcane_pack::cast_fireball"
+        ],
+        "arcane:cast_fireball/execute": [
+          "arcane_pack::cast_fireball_execute"
+        ],
+        "arcane:dash_wand_effect": [
+          "arcane_pack::dash_wand_effect"
+        ],
+        "arcane:golden_apple_reward": [
+          "arcane_pack::golden_apple_reward"
+        ],
+        "arcane:grant_enhanced_cells": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "arcane:load": [
+          "arcane_pack::load"
+        ],
+        "arcane:on_ate_golden_apple": [
+          "arcane_pack::on_ate_golden_apple"
+        ],
+        "arcane:on_ate_golden_apple/body": [
+          "arcane_pack::on_ate_golden_apple"
+        ],
+        "arcane:on_damaged_damage_nearby": [
+          "arcane_pack::on_damaged_damage_nearby"
+        ],
+        "arcane:on_damaged_damage_nearby/body": [
+          "arcane_pack::on_damaged_damage_nearby"
+        ],
+        "arcane:on_death": [
+          "arcane_pack::on_death"
+        ],
+        "arcane:on_first_join": [
+          "arcane_pack::on_first_join"
+        ],
+        "arcane:on_first_join/body": [
+          "arcane_pack::on_first_join"
+        ],
+        "arcane:on_join": [
+          "arcane_pack::on_join"
+        ],
+        "arcane:on_respawn": [
+          "arcane_pack::on_respawn"
+        ],
+        "arcane:on_used_dash_wand": [
+          "arcane_pack::on_used_dash_wand"
+        ],
+        "arcane:on_used_dash_wand/body": [
+          "arcane_pack::on_used_dash_wand"
+        ],
+        "arcane:open_welcome_menu": [
+          "arcane_pack::open_welcome_menu"
+        ],
+        "arcane:sand/branches/0c055095": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "arcane:sand/branches/729d7d3e": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "arcane:sand/branches/ae48660d": [
+          "arcane_pack::grant_enhanced_cells"
+        ],
+        "arcane:show_mana": [
+          "arcane_pack::show_mana"
+        ],
+        "arcane:tick": [
+          "arcane_pack::tick"
+        ],
+        "arcane:toggle_shield": [
+          "arcane_pack::toggle_shield"
+        ],
+        "arcane:toggle_shield/off": [
+          "arcane_pack::toggle_shield_off"
+        ],
+        "arcane:toggle_shield/on": [
+          "arcane_pack::toggle_shield_on"
+        ]
+      },
+      "lifecycle_owners": {},
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "arcane:__sand_lifecycle_load",
+          "owners": [
+            "arcane_pack::on_death",
+            "arcane_pack::on_join",
+            "arcane_pack::on_respawn"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "arcane:__sand_lifecycle_tick",
+          "owners": [
+            "arcane_pack::on_death",
+            "arcane_pack::on_join",
+            "arcane_pack::on_respawn"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "arcane:load",
+          "owners": [
+            "arcane_pack::load"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "arcane:tick",
+          "owners": [
+            "arcane_pack::tick"
+          ],
+          "tag": "minecraft:tick"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "arcane_pack::on_death",
+          "arcane_pack::on_join",
+          "arcane_pack::on_respawn"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run function arcane:__sand_death_check",
+            "unknown selector multiplicity: execute as @a run function arcane:__sand_join_check",
+            "unknown selector multiplicity: execute at @s run function arcane:on_death",
+            "unknown selector multiplicity: execute at @s run function arcane:on_join",
+            "unknown selector multiplicity: execute at @s run function arcane:on_respawn"
+          ]
+        },
+        "reference": "arcane:__sand_lifecycle_tick",
+        "required": true
+      },
+      {
+        "contributors": [
+          "arcane_pack::tick"
+        ],
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "reference": "arcane:tick",
+        "required": true
+      }
+    ]
+  }
+}

@@ -98,6 +98,15 @@ pub fn probe() {{ cmd::say("dev_probe_{version}"); }}
 ''')
 
 
+def resolve_fixture_lock(project, env):
+    """Finish fixture dependency resolution before the watcher takes its baseline."""
+    # The workspace lock seeds pinned versions, but names a different root
+    # package. --no-deps metadata does not update it; the first build otherwise
+    # changes a watched input and correctly queues an unrelated startup rebuild.
+    run_bounded(['cargo', 'metadata', '--offline', '--format-version', '1'],
+                cwd=project, env=env, stdout=subprocess.DEVNULL)
+
+
 class Dev:
     def __init__(self, binary, project, log, env, mode="dev"):
         self.lines = []
@@ -325,6 +334,7 @@ def validate(binary, output):
     if (output / 'target').exists():
         (output / 'target').rename(target)
     env = dict(os.environ, CARGO_TARGET_DIR=str(target), NO_COLOR='1')
+    resolve_fixture_lock(project, env)
     secrets = []
     checks = []
     live = project / 'dist/server/world/datapacks/devprobe'

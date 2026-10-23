@@ -14,6 +14,26 @@ workflow = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(workflow)
 
 
+class FixtureResolution(unittest.TestCase):
+    def test_seeded_lock_is_resolved_before_watching(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'src').mkdir()
+            (root / 'src/lib.rs').write_text('')
+            (root / 'Cargo.toml').write_text(
+                '[package]\nname="devprobe"\nversion="0.1.0"\nedition="2024"\n[workspace]\n')
+            lock = root / 'Cargo.lock'
+            lock.write_text('version = 4\n[[package]]\nname = "workspace-seed"\nversion = "0.1.0"\n')
+            seed = lock.read_bytes()
+            workflow.resolve_fixture_lock(root, dict(os.environ))
+            resolved = lock.read_bytes()
+            self.assertNotEqual(seed, resolved)
+            workflow.run_bounded(
+                ['cargo', 'metadata', '--locked', '--offline', '--format-version', '1'],
+                cwd=root, stdout=subprocess.DEVNULL)
+            self.assertEqual(resolved, lock.read_bytes())
+
+
 @unittest.skipUnless(os.name == "posix", "POSIX process-group regression")
 class ProcessCleanup(unittest.TestCase):
     def assert_stopped(self, pid):

@@ -25,8 +25,10 @@ build stages the existing incremental mirror, swaps it into the managed pack
 path, and sends RCON `reload`. It does not touch neighboring packs. Copy failures
 preserve the live pack. Failed rollback retains the backup inside the private
 `.sand-dev-install-*/backup` directory and reports its path for manual recovery.
-Subsequent installations are not blocked by that retained directory. The server
-console stays responsive while compilation runs. Quit reaps the CLI build worker; Cargo
+Subsequent installations are not blocked by that retained directory. Cleanup
+failure after a committed swap reports the retained staging path as a warning;
+the new pack still enters reload tracking and requires sentinel confirmation.
+The server console stays responsive while compilation runs. Quit reaps the CLI build worker; Cargo
 subprocesses may finish cache writes, but cannot install or reload a pack.
 
 Enter `r` followed by Enter to rebuild/reload, or `q` to stop. Other lines pass
@@ -99,8 +101,9 @@ python3 scripts/validate_dev_workflow.py --output /tmp/sand-dev-evidence
 The output directory must not already contain a `project` subdirectory. Java 25
 must be on PATH. The script uses Minecraft 26.2, a disposable project, loopback
 ports and the normal Sand jar cache. It proves a watched nested source edit,
-failed-build retention, live function behavior, native parser failure and
-subsequent reload recovery, startup-resource guarding, repeated `R`, `r`, `q`,
+failed-build retention, live function behavior, failure-like `/say` output from
+a typed load handler without degrading startup/reload/quit health, native parser
+failure and subsequent reload recovery, startup-resource guarding, repeated `R`, `r`, `q`,
 EOF, credential rotation/cleanup and release exclusion. Logs and a commit-labeled
 evidence file remain in the output directory; secrets are never printed.
 Validation subprocesses have dedicated process groups and bounded shutdown; a
@@ -147,8 +150,11 @@ the JVM before restarting. An unrelated nonzero process exit remains an error.
 Watching excludes Cargo's resolved `target_directory`, including in-tree custom
 paths from Cargo configuration or environment overrides. A live install checks
 its destination identity and ownership again immediately before swapping; a
-replacement discovered during staging is preserved. Once an install commits,
-namespace ownership cleanup finishes before honoring queued cancellation, so
+replacement discovered during staging is preserved. The staged directory identity
+also travels with the committed install into namespace ownership handoff. If
+the destination is replaced before that handoff, both the replacement and the
+previous namespace are preserved, and no ownership marker is written. After a
+verified install, namespace ownership cleanup finishes before honoring queued cancellation, so
 quit cannot leave both project namespaces installed. Only a dev `R` restart
 arms forced termination; ordinary `sand run` and graceful dev quit may take as
 long as necessary to finish saving. Cancelling `R` also disarms its deadline.

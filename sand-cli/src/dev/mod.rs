@@ -214,6 +214,13 @@ impl Session {
     }
 
     pub(crate) fn poll(&mut self) -> Result<()> {
+        self.poll_with_cleanup(|path| std::fs::remove_dir_all(path))
+    }
+
+    fn poll_with_cleanup(
+        &mut self,
+        cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
+    ) -> Result<()> {
         if !self.ready {
             return Ok(());
         }
@@ -258,22 +265,23 @@ impl Session {
                 return Ok(());
             }
             let pending = reload::Reload::new()?;
-            let stats = install(
+            let installed = install_with_cleanup(
                 &self.root.join("dist").join(&self.namespace),
                 &self
                     .root
                     .join("dist/server/world/datapacks")
                     .join(&self.namespace),
                 Some((&self.namespace, &pending.marker)),
+                cleanup,
             )?;
             self.reload_number += 1;
             eprintln!(
                 "dev build {:.2}s: {}; sync {} copied, {} skipped, {} pruned",
                 start.elapsed().as_secs_f64(),
                 result["datapack_changes"],
-                stats.copied,
-                stats.skipped,
-                stats.pruned
+                installed.stats.copied,
+                installed.stats.skipped,
+                installed.stats.pruned
             );
             report_change(self.previous_report.as_ref(), &result["runtime_report"]);
             self.previous_report = Some(result["runtime_report"].clone());
@@ -447,9 +455,15 @@ fn pack_owner(path: &Path) -> Result<Option<String>> {
 }
 
 impl ManagedPack {
-    /// Call only after installing the new pack and checking cancellation. Never
-    /// remove a pack in a different world, or follow a replaced directory symlink.
-    pub(crate) fn installed(&mut self, dest: &Path) -> Result<()> {
+    /// Verify the committed directory before claiming it or removing the old
+    /// namespace. Finish this handoff before honoring queued cancellation.
+    /// Never remove a pack in a different world or follow a directory symlink.
+    pub(crate) fn installed(&mut self, dest: &Path, committed: &LiveIdentity) -> Result<()> {
+        ensure!(
+            LiveIdentity::capture(dest)?.as_ref() == Some(committed),
+            "committed datapack was replaced; preserving it and the previous namespace at {}",
+            dest.display()
+        );
         ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
         let current = std::fs::canonicalize(dest)?;
         if let Some((previous, owner)) = &self.0
@@ -478,9 +492,9 @@ impl ManagedPack {
     }
 }
 
-/// Identity observed before copying, checked again immediately before swap.
-#[derive(PartialEq, Eq)]
-struct LiveIdentity {
+/// Directory identity carried across staging, commit, and ownership handoff.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct LiveIdentity {
     owner: Option<String>,
     #[cfg(unix)]
     device: u64,
@@ -517,11 +531,27 @@ impl LiveIdentity {
     }
 }
 
+/// Successful live swap, including the identity needed for ownership handoff.
+/// Private staging cleanup failures are warnings, not failed installations.
+pub(crate) struct InstalledPack {
+    pub stats: crate::run_cmd::SyncStats,
+    pub identity: LiveIdentity,
+}
+
 pub(crate) fn install(
     src: &Path,
     dest: &Path,
     marker: Option<(&str, &str)>,
-) -> Result<crate::run_cmd::SyncStats> {
+) -> Result<InstalledPack> {
+    install_with_cleanup(src, dest, marker, |path| std::fs::remove_dir_all(path))
+}
+
+fn install_with_cleanup(
+    src: &Path,
+    dest: &Path,
+    marker: Option<(&str, &str)>,
+    cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<InstalledPack> {
     ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
     // Keep the invocation's ownership through staged hot reloads. This file
     // exists only in the live server tree, never the build/release output.
@@ -547,10 +577,14 @@ pub(crate) fn install(
         Ok(stats)
     })();
     let stats = prepare?;
-    commit_install(container, dest, expected, |from, to| {
-        std::fs::rename(from, to)
-    })?;
-    Ok(stats)
+    let identity = commit_install(
+        container,
+        dest,
+        expected,
+        |from, to| std::fs::rename(from, to),
+        cleanup,
+    )?;
+    Ok(InstalledPack { stats, identity })
 }
 
 fn install_container(dest: &Path) -> Result<tempfile::TempDir> {
@@ -577,7 +611,8 @@ fn commit_install(
     dest: &Path,
     expected: Option<LiveIdentity>,
     mut rename: impl FnMut(&Path, &Path) -> std::io::Result<()>,
-) -> Result<()> {
+    cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<LiveIdentity> {
     let stage = container.path().join("stage");
     let backup = container.path().join("backup");
     ensure!(
@@ -585,6 +620,10 @@ fn commit_install(
         "live datapack changed during installation; preserving {}",
         dest.display()
     );
+    // Capture the staged directory before commit: recapturing dest afterward
+    // could accidentally bless an operator replacement as our own install.
+    let committed = LiveIdentity::capture(&stage)?
+        .ok_or_else(|| anyhow::anyhow!("staged datapack disappeared"))?;
     let existed = expected.is_some();
     if existed {
         rename(dest, &backup)?;
@@ -600,10 +639,16 @@ fn commit_install(
         }
         return Err(error.into());
     }
-    container
-        .close()
-        .context("failed to clean dev install staging")?;
-    Ok(())
+    // The live swap is committed. Cleanup cannot turn it into a failed install:
+    // callers must still track reload health and dispatch the new on-disk pack.
+    let retained = container.keep();
+    if let Err(error) = cleanup(&retained) {
+        eprintln!(
+            "dev: datapack installed; failed to clean staging at {}: {error}",
+            retained.display()
+        );
+    }
+    Ok(committed)
 }
 
 fn report_change(previous: Option<&serde_json::Value>, report: &serde_json::Value) {
@@ -1098,22 +1143,24 @@ mod tests {
         std::fs::create_dir_all(&manual).unwrap();
         std::fs::write(manual.join("keep"), "operator").unwrap();
         let mut managed = ManagedPack::default();
-        install(&src, &old, None).unwrap();
-        managed.installed(&old).unwrap();
+        let old_install = install(&src, &old, None).unwrap();
+        managed.installed(&old, &old_install.identity).unwrap();
         assert!(install(&root.join("missing"), &new, None).is_err());
         assert!(old.exists(), "failed preparation retains previous pack");
-        install(&src, &new, None).unwrap();
+        let new_install = install(&src, &new, None).unwrap();
         assert!(
             old.exists(),
             "cancellation before commit retains previous pack"
         );
-        managed.installed(&new).unwrap();
+        managed.installed(&new, &new_install.identity).unwrap();
         assert!(!old.exists());
         assert!(new.join("pack.mcmeta").exists());
         assert!(manual.join("keep").exists());
         let other_world = root.join("other-world/datapacks/third");
-        install(&src, &other_world, None).unwrap();
-        managed.installed(&other_world).unwrap();
+        let other_install = install(&src, &other_world, None).unwrap();
+        managed
+            .installed(&other_world, &other_install.identity)
+            .unwrap();
         assert!(new.exists(), "never prune a previous world");
     }
 
@@ -1127,7 +1174,9 @@ mod tests {
             std::fs::create_dir(path).unwrap();
         }
         let mut managed = ManagedPack::default();
-        managed.installed(&old).unwrap();
+        managed
+            .installed(&old, &LiveIdentity::capture(&old).unwrap().unwrap())
+            .unwrap();
         let owner = pack_owner(&old).unwrap();
         install(&src, &old, None).unwrap();
         assert_eq!(
@@ -1138,7 +1187,10 @@ mod tests {
         std::fs::remove_dir_all(&old).unwrap();
         std::fs::create_dir(&old).unwrap();
         std::fs::write(old.join("operator-data"), "do not delete").unwrap();
-        let error = managed.installed(&new).unwrap_err().to_string();
+        let error = managed
+            .installed(&new, &LiveIdentity::capture(&new).unwrap().unwrap())
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("was replaced"));
         assert_eq!(
             std::fs::read_to_string(old.join("operator-data")).unwrap(),
@@ -1159,10 +1211,16 @@ mod tests {
         }
         std::fs::write(external.join("keep"), "operator").unwrap();
         let mut managed = ManagedPack::default();
-        managed.installed(&old).unwrap();
+        managed
+            .installed(&old, &LiveIdentity::capture(&old).unwrap().unwrap())
+            .unwrap();
         std::fs::remove_dir_all(&old).unwrap();
         std::os::unix::fs::symlink(&external, &old).unwrap();
-        assert!(managed.installed(&new).is_err());
+        assert!(
+            managed
+                .installed(&new, &LiveIdentity::capture(&new).unwrap().unwrap())
+                .is_err()
+        );
         assert!(external.join("keep").exists());
     }
 
@@ -1180,7 +1238,9 @@ mod tests {
             if initially_present {
                 std::fs::create_dir(&dest).unwrap();
                 if initial == "managed" {
-                    ManagedPack::default().installed(&dest).unwrap();
+                    ManagedPack::default()
+                        .installed(&dest, &LiveIdentity::capture(&dest).unwrap().unwrap())
+                        .unwrap();
                 }
             }
             let expected = LiveIdentity::capture(&dest).unwrap();
@@ -1196,9 +1256,13 @@ mod tests {
             }
             std::fs::create_dir(&dest).unwrap();
             std::fs::write(dest.join("operator-data"), "preserve").unwrap();
-            let result = commit_install(container, &dest, expected, |_, _| {
-                panic!("must not rename replacement")
-            });
+            let result = commit_install(
+                container,
+                &dest,
+                expected,
+                |_, _| panic!("must not rename replacement"),
+                |path| std::fs::remove_dir_all(path),
+            );
             assert!(
                 result
                     .unwrap_err()
@@ -1288,6 +1352,7 @@ mod tests {
                         std::fs::rename(from, to)
                     }
                 },
+                |path| std::fs::remove_dir_all(path),
             );
             assert!(result.is_err());
             if fail_rollback {
@@ -1313,6 +1378,148 @@ mod tests {
     }
 
     #[test]
+    fn cleanup_failure_still_dispatches_reload_and_requires_confirmation() {
+        use crate::console::RunHealth;
+        use std::io::{Read, Write};
+        let tmp = tempfile::tempdir().unwrap();
+        let mut session = health_session(tmp.path());
+        session.ready = true;
+        let dest = tmp.path().join("dist/server/world/datapacks/demo");
+        std::fs::create_dir_all(&dest).unwrap();
+        std::fs::write(dest.join("old"), "old pack").unwrap();
+        let mut command = if cfg!(windows) {
+            Command::new("cmd")
+        } else {
+            Command::new("sh")
+        };
+        command.args(if cfg!(windows) {
+            ["/C", "exit 0"]
+        } else {
+            ["-c", "exit 0"]
+        });
+        let mut child = command.spawn().unwrap();
+        child.wait().unwrap();
+        session.build = Some((child, Instant::now()));
+        std::fs::write(
+            session.build_log(),
+            r#"{"success":true,"namespace":"demo","runtime_report":{}}"#,
+        )
+        .unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        session.rcon.port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let mut socket = loop {
+                match listener.accept() {
+                    Ok((socket, _)) => break socket,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(Instant::now() < deadline, "reload was never dispatched");
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(error) => panic!("{error}"),
+                }
+            };
+            socket.set_nonblocking(false).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            for (id, kind) in [(1_i32, 2_i32), (2, 0)] {
+                let mut length = [0; 4];
+                socket.read_exact(&mut length).unwrap();
+                let length = i32::from_le_bytes(length);
+                assert!((10..=4110).contains(&length));
+                let mut body = vec![0; length as usize];
+                socket.read_exact(&mut body).unwrap();
+                assert_eq!(&body[..4], &id.to_le_bytes());
+                if id == 2 {
+                    assert_eq!(&body[8..body.len() - 2], b"reload");
+                }
+                let reply = [10_i32.to_le_bytes(), id.to_le_bytes(), kind.to_le_bytes()].concat();
+                socket
+                    .write_all(&[reply.as_slice(), &[0, 0]].concat())
+                    .unwrap();
+            }
+        });
+        let mut retained = None;
+        session
+            .poll_with_cleanup(|path| {
+                retained = Some(path.to_path_buf());
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "injected locked backup",
+                ))
+            })
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(session.reload_number, 1);
+        assert!(
+            session.pending_reload.is_some(),
+            "committed install must await its sentinel"
+        );
+        assert!(session.reload_failed);
+        assert_ne!(
+            session.health(),
+            RunHealth::Healthy,
+            "quit before confirmation must fail"
+        );
+        assert!(retained.unwrap().join("backup/old").exists());
+        assert!(!dest.join("old").exists());
+        complete_reload(&mut session);
+        assert!(session.pending_reload.is_none());
+        assert_eq!(session.health(), RunHealth::Healthy);
+    }
+
+    #[test]
+    fn committed_install_survives_cleanup_failure_with_identity_and_load_marker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dest = tmp.path().join("live");
+        std::fs::create_dir(&dest).unwrap();
+        std::fs::write(dest.join("old"), "last good").unwrap();
+        let container = install_container(&dest).unwrap();
+        let retained = container.path().to_path_buf();
+        let stage = retained.join("stage");
+        std::fs::create_dir(&stage).unwrap();
+        std::fs::write(stage.join("new"), "new pack").unwrap();
+        let pending = reload::Reload::new().unwrap();
+        reload::add_marker(&stage, "demo", &pending.marker).unwrap();
+        let committed = commit_install(
+            container,
+            &dest,
+            LiveIdentity::capture(&dest).unwrap(),
+            |from, to| std::fs::rename(from, to),
+            |path| {
+                assert_eq!(path, retained);
+                assert_eq!(
+                    std::fs::read_to_string(dest.join("new")).unwrap(),
+                    "new pack"
+                );
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "injected locked backup",
+                ))
+            },
+        )
+        .expect("post-commit cleanup must not report an uncommitted install");
+        assert_eq!(
+            LiveIdentity::capture(&dest).unwrap().as_ref(),
+            Some(&committed)
+        );
+        assert_eq!(
+            std::fs::read_to_string(retained.join("backup/old")).unwrap(),
+            "last good"
+        );
+        assert!(!dest.join("old").exists());
+        assert!(
+            dest.join(format!("data/demo/function/{}.mcfunction", pending.marker))
+                .exists()
+        );
+        let mut managed = ManagedPack::default();
+        managed.installed(&dest, &committed).unwrap();
+        assert!(pack_owner(&dest).unwrap().is_some());
+    }
+
+    #[test]
     fn install_prunes_only_managed_pack_and_failed_stage_preserves_live_bytes() {
         let tmp = tempfile::tempdir().unwrap();
         let src = tmp.path().join("src");
@@ -1322,7 +1529,7 @@ mod tests {
         std::fs::write(src.join("new"), "new").unwrap();
         std::fs::write(dest.join("old"), "old").unwrap();
         std::fs::write(tmp.path().join("other"), "keep").unwrap();
-        let stats = install(&src, &dest, None).unwrap();
+        let stats = install(&src, &dest, None).unwrap().stats;
         assert_eq!(stats.copied, 1);
         assert_eq!(stats.pruned, 1);
         assert!(!dest.join("old").exists());

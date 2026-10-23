@@ -353,10 +353,11 @@ fn run_internal(
         );
     }
 
-    let sync = if watch {
+    let (sync, committed) = if watch {
         crate::dev::install(&src, &dest, None)
+            .map(|installed| (installed.stats, Some(installed.identity)))
     } else {
-        sync_dir(&src, &dest)
+        sync_dir(&src, &dest).map(|stats| (stats, None))
     }
     .with_context(|| format!("failed to sync datapack to {}", dest.display()))?;
     println!(
@@ -370,7 +371,11 @@ fn run_internal(
 
     // Installation has committed: finish namespace ownership before a queued
     // cancellation can exit and discard this invocation's tracking.
-    if watch && finish_dev_install(managed_pack, &dest, || preparation_cancelled(console))? {
+    if let Some(committed) = committed
+        && finish_dev_install(managed_pack, &dest, &committed, || {
+            preparation_cancelled(console)
+        })?
+    {
         return Ok(false);
     }
 
@@ -451,9 +456,10 @@ fn run_internal(
 fn finish_dev_install(
     managed_pack: &mut crate::dev::ManagedPack,
     dest: &Path,
+    committed: &crate::dev::LiveIdentity,
     cancelled: impl FnOnce() -> bool,
 ) -> Result<bool> {
-    managed_pack.installed(dest)?;
+    managed_pack.installed(dest, committed)?;
     Ok(cancelled())
 }
 
@@ -626,20 +632,78 @@ mod tests {
             std::fs::create_dir_all(&src).unwrap();
             std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
             let mut managed = crate::dev::ManagedPack::default();
-            crate::dev::install(&src, &old, None).unwrap();
-            managed.installed(&old).unwrap();
-            crate::dev::install(&src, &new, None).unwrap();
-            let cancelled = super::finish_dev_install(&mut managed, &new, || {
-                assert!(
-                    !old.exists(),
-                    "{cancellation} must not strand the old namespace"
-                );
-                assert!(new.join("pack.mcmeta").is_file());
-                true
-            })
-            .unwrap();
+            let old_install = crate::dev::install(&src, &old, None).unwrap();
+            managed.installed(&old, &old_install.identity).unwrap();
+            let new_install = crate::dev::install(&src, &new, None).unwrap();
+            let cancelled =
+                super::finish_dev_install(&mut managed, &new, &new_install.identity, || {
+                    assert!(
+                        !old.exists(),
+                        "{cancellation} must not strand the old namespace"
+                    );
+                    assert!(new.join("pack.mcmeta").is_file());
+                    true
+                })
+                .unwrap();
             assert!(cancelled, "queued {cancellation} must still prevent launch");
             assert_eq!(std::fs::read_dir(new.parent().unwrap()).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
+    fn replacement_between_commit_and_ownership_handoff_preserves_both_namespaces() {
+        for copy_owner in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("source");
+            let old = tmp.path().join("datapacks/old");
+            let new = tmp.path().join("datapacks/new");
+            std::fs::create_dir(&src).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+            let mut managed = crate::dev::ManagedPack::default();
+            let initial = crate::dev::install(&src, &old, None).unwrap();
+            managed.installed(&old, &initial.identity).unwrap();
+            // Also exercise a new namespace that already has an ownership marker.
+            let first = crate::dev::install(&src, &new, None).unwrap();
+            crate::dev::ManagedPack::default()
+                .installed(&new, &first.identity)
+                .unwrap();
+            let committed = crate::dev::install(&src, &new, None).unwrap();
+            let displaced = tmp.path().join("displaced");
+            std::fs::rename(&new, &displaced).unwrap();
+            std::fs::create_dir(&new).unwrap();
+            std::fs::write(new.join("operator-data"), "preserve").unwrap();
+            if copy_owner {
+                std::fs::copy(
+                    displaced.join(".sand-dev-owner"),
+                    new.join(".sand-dev-owner"),
+                )
+                .unwrap();
+            }
+            let before = std::fs::read(new.join(".sand-dev-owner")).ok();
+            let error = super::finish_dev_install(&mut managed, &new, &committed.identity, || {
+                panic!("replacement must fail before the cancellation/launch boundary")
+            })
+            .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("committed datapack was replaced")
+            );
+            assert_eq!(
+                std::fs::read_to_string(old.join("pack.mcmeta")).unwrap(),
+                "pack"
+            );
+            assert_eq!(
+                std::fs::read_to_string(new.join("operator-data")).unwrap(),
+                "preserve"
+            );
+            assert_eq!(std::fs::read(new.join(".sand-dev-owner")).ok(), before);
+            // Failed adoption must not change tracking or later delete the replacement.
+            let third = tmp.path().join("datapacks/third");
+            let next = crate::dev::install(&src, &third, None).unwrap();
+            managed.installed(&third, &next.identity).unwrap();
+            assert!(!old.exists());
+            assert!(new.join("operator-data").exists());
         }
     }
 

@@ -163,6 +163,49 @@ mod tests {
     }
 
     #[test]
+    fn quoted_load_errors_do_not_fail_reload_but_server_errors_still_do() {
+        use crate::console::{
+            classify::classify,
+            log_record::{Stream, parse_line},
+        };
+        for prefix in ["[Server]", "[Not Secure] [Server]", "[Server:"] {
+            for actual_error in [false, true] {
+                let mut reload = Reload::new().unwrap();
+                let suffix = if prefix == "[Server:" { "]" } else { "" };
+                let raw = format!(
+                    "[12:00:00] [Server thread/INFO]: {prefix} Failed to load function demo:test{suffix}"
+                );
+                let record = parse_line(&raw);
+                let category = classify(Stream::Stdout, &record);
+                assert_eq!(category, Category::CommandResponse);
+                assert_eq!(reload.observe(category, &record.message), None);
+                if actual_error {
+                    let record = parse_line(
+                        "[12:00:01] [Worker-Main-1/ERROR]: Failed to load function demo:broken",
+                    );
+                    let category = classify(Stream::Stdout, &record);
+                    assert_eq!(category, Category::DatapackError);
+                    reload.observe(category, &record.message);
+                }
+                assert_eq!(
+                    reload.observe(
+                        Category::CommandResponse,
+                        &format!("[Server] {}", reload.marker)
+                    ),
+                    Some(if actual_error {
+                        Outcome::Failed {
+                            diagnostics: 1,
+                            warnings: 0,
+                        }
+                    } else {
+                        Outcome::Complete { warnings: 0 }
+                    })
+                );
+            }
+        }
+    }
+
+    #[test]
     fn completion_distinguishes_warnings_errors_and_timeout() {
         let now = Instant::now();
         let mut reload = Reload::new().unwrap();

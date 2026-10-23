@@ -95,6 +95,8 @@ def source(path, version):
     (path / 'src/target/mod.rs').write_text(f'''use sand::prelude::*;
 #[function]
 pub fn probe() {{ cmd::say("dev_probe_{version}"); }}
+#[datapack_component(Load)]
+pub fn on_load() {{ cmd::say("Failed to load function demo:test"); }}
 ''')
 
 
@@ -370,6 +372,8 @@ def validate(binary, output):
     dev = Dev(binary, project, output / 'console.log', env)
     try:
         dev.wait('Minecraft 26.2 ready')
+        if not any('Failed to load function demo:test' in line for line in dev.lines):
+            dev.wait('Failed to load function demo:test')
         props = properties(project)
         assert props['server-ip'] == '127.0.0.1'
         assert int(props['rcon.port']) != port
@@ -392,8 +396,10 @@ def validate(binary, output):
         dev.send('function devprobe:probe')
         dev.wait('dev_probe_v1')
         checks.append('failed build preserves disk pack and live v1 handler')
+        load_messages = sum('Failed to load function demo:test' in line for line in dev.lines)
         source(project, 'v2')
         dev.wait('dev reload #1 complete')
+        assert sum('Failed to load function demo:test' in line for line in dev.lines) > load_messages
         dev.send('function devprobe:probe')
         dev.wait('dev_probe_v2')
         assert 'dev_probe_v2' in (live / 'data/devprobe/function/probe.mcfunction').read_text()
@@ -415,6 +421,7 @@ def validate(binary, output):
         assert dev.process.wait(timeout=45) == 0, 'confirmed reload recovery must allow successful quit without R'
         dev.close()
         checks.append('bad native reload -> good reload -> q exits zero without restarting')
+        checks.append('typed load handler says Failed to load function demo:test at startup and reload; successful sentinel and q remain healthy')
         dev = Dev(binary, project, output / 'restart-console.log', env)
         dev.wait('Minecraft 26.2 ready')
         secrets.append(properties(project)['rcon.password'])

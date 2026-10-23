@@ -1355,3 +1355,44 @@ pub fn audit_world_targets() {
         }),
     );
 }
+
+/// Native ambient audio attribute fixtures: references and direct sound holders.
+#[datapack_component]
+pub fn audit_biome_ambient_sounds() -> sand::registration::DatapackRegistration {
+    use sand::component::{
+        Biome, BiomeAdditionsSound, BiomeAmbientSounds, BiomeEffects, BiomeMoodSound,
+        SoundEventDefinition,
+    };
+    let mut resources = sand::registration::DatapackRegistration::new();
+    for (name, range) in [
+        ("reference", None),
+        ("inline", None),
+        ("fixed", Some(32.0)),
+        ("zero", Some(0.0)),
+        ("negative", Some(-1.0)),
+    ] {
+        let sound = if name == "reference" {
+            SoundEventDefinition::reference(
+                sand::registry::SoundEventId::minecraft("ambient.cave").unwrap(),
+            )
+        } else {
+            SoundEventDefinition::inline("sand_audit:custom_track".parse().unwrap(), range)
+        };
+        resources = resources.component(
+            Biome::new(
+                format!("sand_audit:ambient/{name}").parse().unwrap(),
+                BiomeEffects::new(0, 0, 0, 0),
+            )
+            .ambient_sounds(
+                BiomeAmbientSounds::new()
+                    .loop_sound(sound.clone())
+                    .mood_sound(BiomeMoodSound::new(sound.clone(), 6000, 8, 2.0))
+                    .additions_sound([
+                        BiomeAdditionsSound::new(sound.clone(), -1.0),
+                        BiomeAdditionsSound::new(sound, 2.0),
+                    ]),
+            ),
+        );
+    }
+    resources
+}

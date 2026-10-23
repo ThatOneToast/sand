@@ -132,7 +132,7 @@ impl EffectCommand {
         avoid_when = ["Observing effect transitions"],
         params(target = "Entities whose effect is cleared.", effect = "The canonical effect identifier to remove."),
         returns = "A structured effect removal command.",
-        example = "use sand::command::EffectCommand;",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, effect: sand::registry::StatusEffectId) {\n    let effect_command = sand::command::EffectCommand::clear_effect(target, effect);\n}",
     )]
     pub fn clear_effect(
         target: impl TargetArgument,
@@ -162,7 +162,7 @@ impl EffectCommand {
         avoid_when = ["Observing effect transitions"],
         params(target = "Entities whose effects are cleared."),
         returns = "A structured effect removal command.",
-        example = "use sand::command::EffectCommand;",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target) {\n    let effect_command = sand::command::EffectCommand::clear(target);\n}",
     )]
     pub fn clear(target: impl TargetArgument) -> Self {
         Self {

@@ -3870,16 +3870,6 @@ mod tests {
             commands,
             vec![
                 format!("scoreboard players set @s {} 10", field.objective()),
-                format!(
-                    "execute if score @s {} matches ..0 run scoreboard players set @s {} 1",
-                    field.objective(),
-                    field.objective()
-                ),
-                format!(
-                    "execute if score @s {} matches 101.. run scoreboard players set @s {} 100",
-                    field.objective(),
-                    field.objective()
-                ),
                 format!("scoreboard players set @s {} 1", field.dirty_objective()),
                 format!(
                     "scoreboard players set @s {} 1",

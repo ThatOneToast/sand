@@ -85,7 +85,7 @@ def main():
             log = harness.output / f"{phase}.log"
             try:
                 result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
-                                        stderr=subprocess.STDOUT, timeout=args.timeout)
+                                        stderr=subprocess.STDOUT, timeout=args.timeout, cwd=harness.output)
             except subprocess.TimeoutExpired as error:
                 output = error.output or ""
                 if isinstance(output, bytes):

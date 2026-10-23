@@ -124,8 +124,28 @@ impl Session {
         })
     }
 
-    pub(crate) fn is_reloading(&self) -> bool {
-        self.pending_reload.is_some()
+    pub(crate) fn is_reload_event(&self, event: &crate::console::diagnostic::GroupedEvent) -> bool {
+        self.pending_reload
+            .as_ref()
+            .is_some_and(|pending| pending.includes(event.received_at))
+    }
+
+    pub(crate) fn event_phase(
+        &self,
+        event: &crate::console::diagnostic::GroupedEvent,
+        current: crate::console::phase::RunPhase,
+    ) -> crate::console::phase::RunPhase {
+        use crate::console::phase::RunPhase;
+        if self.is_reload_event(event) {
+            RunPhase::Reload
+        } else if self.pending_reload.is_some() {
+            // Managed reloads start only from a ready server. A buffered
+            // earlier headline remains runtime feedback even if a later
+            // discovery line has already advanced the console phase.
+            RunPhase::Runtime
+        } else {
+            current
+        }
     }
 
     pub(crate) fn health(&self) -> crate::console::RunHealth {
@@ -142,12 +162,14 @@ impl Session {
         phase: crate::console::phase::RunPhase,
     ) {
         use crate::console::diagnostic::{Fatality, build_diagnostic};
+        let phase = self.event_phase(event, phase);
+        let is_reload = self.is_reload_event(event);
         let mut category = event.category;
         let message = &event.headline().message;
         if let Some(diagnostic) = build_diagnostic(event, phase) {
             match diagnostic.fatality() {
                 Fatality::Nonfatal => category = Category::Warning,
-                Fatality::FatalToDatapackHealth if self.is_reloading() => self.reload_failed = true,
+                Fatality::FatalToDatapackHealth if is_reload => self.reload_failed = true,
                 _ => self.persistent_health.observe(&diagnostic),
             }
         }
@@ -157,7 +179,8 @@ impl Session {
         if category == Category::Shutdown {
             self.ready = false;
         }
-        if let Some(pending) = self.pending_reload.as_mut()
+        if is_reload
+            && let Some(pending) = self.pending_reload.as_mut()
             && let Some(outcome) = pending.observe(category, message)
         {
             self.finish_reload(outcome);
@@ -256,7 +279,8 @@ impl Session {
             self.previous_report = Some(result["runtime_report"].clone());
             self.pending_reload = Some(pending);
             self.reload_failed = true;
-            match self.rcon.reload() {
+            let pending = self.pending_reload.as_mut().expect("installed reload");
+            match self.rcon.reload(|| pending.dispatching(Instant::now())) {
                 Ok(()) => {
                     self.pending_reload
                         .as_mut()
@@ -692,6 +716,7 @@ mod tests {
         };
         let record = parse_line(raw);
         GroupedEvent {
+            received_at: Instant::now(),
             category: classify(Stream::Stdout, &record),
             stream: Stream::Stdout,
             lines: vec![record],
@@ -710,6 +735,104 @@ mod tests {
     }
 
     #[test]
+    fn queued_diagnostics_use_headline_time_across_dispatch_and_continuations() {
+        use crate::console::{
+            RunHealth,
+            classify::classify,
+            diagnostic::Grouper,
+            log_record::{Stream, parse_line},
+            phase::RunPhase,
+        };
+        for before_dispatch in [true, false] {
+            let tmp = tempfile::tempdir().unwrap();
+            let mut session = health_session(tmp.path());
+            let boundary = Instant::now();
+            let received = if before_dispatch {
+                boundary - Duration::from_secs(1)
+            } else {
+                boundary
+            };
+            let mut grouper = Grouper::new();
+            let record =
+                parse_line("[12:00:00] [Server thread/ERROR]: Failed to load function demo:broken");
+            let category = classify(Stream::Stdout, &record);
+            assert!(
+                grouper
+                    .feed_at(Stream::Stdout, record, category, received)
+                    .is_empty()
+            );
+            let mut reload = reload::Reload::new().unwrap();
+            reload.dispatching(boundary);
+            // Both the buffered headline and continuation are consumed after
+            // dispatch; receipt of the headline defines ownership of the group.
+            session.pending_reload = Some(reload);
+            let record = parse_line("    parser continuation");
+            let category = classify(Stream::Stdout, &record);
+            assert!(
+                grouper
+                    .feed_at(
+                        Stream::Stdout,
+                        record,
+                        category,
+                        boundary + Duration::from_millis(1)
+                    )
+                    .is_empty()
+            );
+            let group = grouper.flush().unwrap();
+            assert_eq!(group.received_at, received);
+            assert_eq!(session.is_reload_event(&group), !before_dispatch);
+            assert_eq!(
+                session.event_phase(&group, RunPhase::Reload),
+                if before_dispatch {
+                    RunPhase::Runtime
+                } else {
+                    RunPhase::Reload
+                }
+            );
+            session.observe(&group, RunPhase::Reload);
+            // Model logs arriving during the synchronous RCON response: receipt
+            // predates acknowledgement but must still fail this reload.
+            session
+                .pending_reload
+                .as_mut()
+                .unwrap()
+                .dispatched(boundary + Duration::from_secs(2));
+            complete_reload(&mut session);
+            assert_eq!(
+                session.health(),
+                if before_dispatch {
+                    RunHealth::Healthy
+                } else {
+                    RunHealth::Degraded
+                }
+            );
+            assert_eq!(session.reload_failed, !before_dispatch);
+            let mut recovered = reload::Reload::new().unwrap();
+            recovered.dispatching(Instant::now());
+            session.pending_reload = Some(recovered);
+            complete_reload(&mut session);
+            assert_eq!(session.health(), RunHealth::Healthy);
+        }
+    }
+
+    #[test]
+    fn queued_server_failure_is_not_cleared_by_managed_reload() {
+        use crate::console::{RunHealth, phase::RunPhase};
+        let tmp = tempfile::tempdir().unwrap();
+        let mut session = health_session(tmp.path());
+        let error =
+            log_event("[12:00:00] [Server thread/ERROR]: Encountered an unexpected exception");
+        let mut reload = reload::Reload::new().unwrap();
+        reload.dispatching(Instant::now());
+        session.pending_reload = Some(reload);
+        assert!(!session.is_reload_event(&error));
+        session.observe(&error, RunPhase::Reload);
+        assert_eq!(session.health(), RunHealth::Failed);
+        complete_reload(&mut session);
+        assert_eq!(session.health(), RunHealth::Failed);
+    }
+
+    #[test]
     fn dev_recovers_only_managed_reload_health_after_a_confirmed_sentinel() {
         use crate::console::{
             RunHealth,
@@ -719,9 +842,14 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let mut session = health_session(tmp.path());
         let mut historical = Renderer::new(OutputMode::Classified, "26.2".into());
+        session.pending_reload = Some(reload::Reload::new().unwrap());
+        session
+            .pending_reload
+            .as_mut()
+            .unwrap()
+            .dispatching(Instant::now());
         let error =
             log_event("[12:00:00] [Server thread/ERROR]: Failed to load function demo:broken");
-        session.pending_reload = Some(reload::Reload::new().unwrap());
         session.observe(&error, RunPhase::Reload);
         historical.render(&error, RunPhase::Reload);
         complete_reload(&mut session);
@@ -740,6 +868,11 @@ mod tests {
             "ready cannot prove reload recovery"
         );
         session.pending_reload = Some(reload::Reload::new().unwrap());
+        session
+            .pending_reload
+            .as_mut()
+            .unwrap()
+            .dispatching(Instant::now());
         assert_eq!(
             session.health(),
             RunHealth::Degraded,
@@ -771,6 +904,11 @@ mod tests {
             let before = session.health();
             assert_ne!(before, RunHealth::Healthy);
             session.pending_reload = Some(reload::Reload::new().unwrap());
+            session
+                .pending_reload
+                .as_mut()
+                .unwrap()
+                .dispatching(Instant::now());
             complete_reload(&mut session);
             assert_eq!(session.health(), before);
         }

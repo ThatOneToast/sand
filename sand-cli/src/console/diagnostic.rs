@@ -16,6 +16,8 @@ use super::phase::RunPhase;
 /// A headline line plus any continuation lines folded into it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupedEvent {
+    /// Reader receipt time of the headline, retained across buffered continuations.
+    pub received_at: std::time::Instant,
     pub category: Category,
     pub stream: Stream,
     pub lines: Vec<LogRecord>,
@@ -59,6 +61,16 @@ impl Grouper {
         record: LogRecord,
         category: Category,
     ) -> Vec<GroupedEvent> {
+        self.feed_at(stream, record, category, std::time::Instant::now())
+    }
+
+    pub fn feed_at(
+        &mut self,
+        stream: Stream,
+        record: LogRecord,
+        category: Category,
+        received_at: std::time::Instant,
+    ) -> Vec<GroupedEvent> {
         let mut out = Vec::new();
 
         let is_continuation = record.prefix.is_none() && self.pending.is_some();
@@ -72,6 +84,7 @@ impl Grouper {
         }
 
         let event = GroupedEvent {
+            received_at,
             category,
             stream,
             lines: vec![record],

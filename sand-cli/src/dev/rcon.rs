@@ -29,7 +29,7 @@ impl Rcon {
         )
     }
 
-    pub fn reload(&self) -> Result<()> {
+    pub fn reload(&self, dispatching: impl FnOnce()) -> Result<()> {
         let mut stream = TcpStream::connect_timeout(
             &SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port).into(),
             Duration::from_secs(2),
@@ -40,6 +40,7 @@ impl Rcon {
         write_packet(&mut stream, 1, 3, &self.secret)?;
         let (id, kind) = read_packet(&mut stream)?;
         ensure!(id == 1 && kind == 2, "local RCON authentication rejected");
+        dispatching();
         write_packet(&mut stream, 2, 2, "reload")?;
         let (id, kind) = read_packet(&mut stream)?;
         ensure!(id == 2 && kind == 0, "unexpected RCON command response");
@@ -163,7 +164,7 @@ mod tests {
             port,
             secret: "test-only".into(),
         };
-        let error = rcon.reload().unwrap_err().to_string();
+        let error = rcon.reload(|| {}).unwrap_err().to_string();
         assert!(error.contains("authentication rejected"));
         assert!(!error.contains(&rcon.secret));
         worker.join().unwrap();

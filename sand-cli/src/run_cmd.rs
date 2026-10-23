@@ -179,7 +179,7 @@ pub fn run(args: RunArgs) -> Result<()> {
 /// vanilla load-handler semantics; registry/configuration changes require a
 /// graceful restart with `R`. See `docs/dev-workflow.md` for the supported boundary.
 pub fn dev(args: RunArgs) -> Result<()> {
-    let mut console = None;
+    let mut console = Some(crate::console::process::ConsoleSession::new()?);
     let mut managed_pack = crate::dev::ManagedPack::default();
     while run_internal(args.clone(), true, &mut console, &mut managed_pack)? {}
     Ok(())

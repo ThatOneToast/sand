@@ -244,6 +244,35 @@ def validate_restart_cancellation(binary, project, output, env, secrets, checks)
                 flag.unlink(missing_ok=True)
 
 
+def validate_initial_cancellation(binary, project, output, env, checks):
+    """Capture cancellation on the first build, before dev mutates the server."""
+    for kind in ['q', 'eof'] + ([] if os.name == 'nt' else ['interrupt']):
+        flags = [project / 'dist' / name for name in
+                 ['block-restart-build', 'restart-build-blocked', 'release-restart-build']]
+        flags[0].touch()
+        before = snapshot(project / 'dist/server')
+        dev = Dev(binary, project, output / f'initial-cancel-{kind}-console.log', env)
+        try:
+            wait_for_file(flags[1], dev.process)
+            if kind == 'q':
+                dev.send('q')
+            elif kind == 'eof':
+                dev.process.stdin.close()
+            else:
+                os.kill(dev.process.pid, signal.SIGINT)
+            time.sleep(0.1)
+            flags[2].touch()
+            assert dev.process.wait(timeout=45) == 0
+            assert snapshot(project / 'dist/server') == before
+            assert not any('Minecraft 26.2 ready' in line for line in dev.lines)
+            checks.append(f'{kind} during initial build preserves server files and prevents JVM launch')
+        finally:
+            flags[2].touch()
+            dev.close()
+            for flag in flags:
+                flag.unlink(missing_ok=True)
+
+
 def validate_ordinary_shutdown(binary, project, output, env, checks):
     if os.name == 'nt':
         return  # Deterministic portable fake-child coverage remains in Rust.
@@ -490,6 +519,7 @@ def validate(binary, output):
     validate_ordinary_shutdown(binary, project, output, env, checks)
     validate_namespace_replacement(binary, project, output, env, secrets, checks)
     validate_restart_cancellation(binary, project, output, env, secrets, checks)
+    validate_initial_cancellation(binary, project, output, env, checks)
     for log in output.glob('*console.log'):
         text = log.read_text()
         assert all(secret not in text for secret in secrets), 'credential appeared in console'

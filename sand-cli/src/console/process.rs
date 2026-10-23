@@ -31,6 +31,7 @@ enum Event {
         generation: u64,
         stream: Stream,
         line: String,
+        received_at: Instant,
     },
     StreamClosed {
         generation: u64,
@@ -80,20 +81,21 @@ pub(crate) struct ConsoleSession {
     generation: u64,
 }
 impl ConsoleSession {
-    fn new() -> Self {
+    pub(crate) fn new() -> Result<Self> {
         let (tx, rx) = mpsc::channel();
-        spawn_stdin_forwarder(tx.clone());
         let ctrlc_tx = tx.clone();
-        let _ = ctrlc::set_handler(move || {
+        ctrlc::set_handler(move || {
             let _ = ctrlc_tx.send(Event::Interrupt);
-        });
-        Self {
+        })
+        .context("failed to install console Ctrl-C handler")?;
+        spawn_stdin_forwarder(tx.clone());
+        Ok(Self {
             tx,
             rx,
             pending: Default::default(),
             cancelled: false,
             generation: 0,
-        }
+        })
     }
 
     /// Observe queued cancellation between synchronous restart stages. Keep
@@ -124,6 +126,10 @@ pub(crate) fn run_server_with_dev(
     dev: Option<&mut crate::dev::Session>,
     console: &mut Option<ConsoleSession>,
 ) -> Result<RunOutcome> {
+    if console.is_none() {
+        *console = Some(ConsoleSession::new()?);
+    }
+    let console = console.as_mut().expect("initialized console");
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -137,7 +143,6 @@ pub(crate) fn run_server_with_dev(
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
 
-    let console = console.get_or_insert_with(ConsoleSession::new);
     console.generation += 1;
     spawn_reader(
         stdout,
@@ -190,11 +195,16 @@ fn drive(
             .unwrap_or_else(|| rx.recv_timeout(QUIET_FLUSH))
         {
             Ok(event) if !event.belongs_to(generation) => continue,
-            Ok(Event::Log { stream, line, .. }) => {
+            Ok(Event::Log {
+                stream,
+                line,
+                received_at,
+                ..
+            }) => {
                 let record = parse_line(&line);
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
-                for grouped in grouper.feed(stream, record, category) {
+                for grouped in grouper.feed_at(stream, record, category, received_at) {
                     render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
                 }
             }
@@ -326,11 +336,9 @@ fn render_group(
     phase: super::phase::RunPhase,
     dev: Option<&mut crate::dev::Session>,
 ) {
-    let current = if dev.as_ref().is_some_and(|dev| dev.is_reloading()) {
-        super::phase::RunPhase::Reload
-    } else {
-        phase
-    };
+    let current = dev
+        .as_ref()
+        .map_or(phase, |dev| dev.event_phase(grouped, phase));
     if let Some(dev) = dev {
         dev.observe(grouped, current);
     }
@@ -371,11 +379,16 @@ fn drain_remaining(
     while (!stdout_closed || !stderr_closed) && Instant::now() < deadline {
         match rx.recv_timeout(Duration::from_millis(50)) {
             Ok(event) if !event.belongs_to(generation) => continue,
-            Ok(Event::Log { stream, line, .. }) => {
+            Ok(Event::Log {
+                stream,
+                line,
+                received_at,
+                ..
+            }) => {
                 let record = parse_line(&line);
                 phase.observe_log(&record.message);
                 let category = classify(stream, &record);
-                for grouped in grouper.feed(stream, record, category) {
+                for grouped in grouper.feed_at(stream, record, category, received_at) {
                     render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
                 }
             }
@@ -418,6 +431,7 @@ fn spawn_reader<R: Read + Send + 'static>(
                     let line = String::from_utf8_lossy(&buf).into_owned();
                     if tx
                         .send(Event::Log {
+                            received_at: Instant::now(),
                             generation,
                             stream,
                             line,
@@ -589,6 +603,7 @@ mod tests {
             "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken",
         ] {
             tx.send(Event::Log {
+                received_at: Instant::now(),
                 generation: 1,
                 stream: Stream::Stdout,
                 line: line.into(),
@@ -630,6 +645,7 @@ mod tests {
         assert!(pending.is_empty());
         // Current-generation output must still be classified normally.
         tx.send(Event::Log {
+            received_at: Instant::now(),
             generation: 2,
             stream: Stream::Stdout,
             line: "[12:00:01] [Server thread/ERROR]: Failed to load function new:broken".into(),
@@ -740,6 +756,7 @@ mod tests {
         std::thread::spawn(move || {
             // A reader from an earlier JVM may send after this drive starts.
             let _ = tx.send(Event::Log {
+                received_at: Instant::now(),
                 generation: 99,
                 stream: Stream::Stdout,
                 line: "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken".into(),

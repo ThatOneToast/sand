@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 pub(super) struct Reload {
     pub marker: String,
     started: Option<Instant>,
+    dispatch_started: Option<Instant>,
     failures: usize,
     warnings: usize,
 }
@@ -25,12 +26,24 @@ impl Reload {
         Ok(Self {
             marker: format!("sand_dev_reload_{token}"),
             started: None,
+            dispatch_started: None,
             failures: 0,
             warnings: 0,
         })
     }
-    /// Start the Minecraft loading budget only after installation and RCON
-    /// dispatch have finished; staging may take arbitrarily longer.
+    /// Correlate logs received from the point the reload command is sent,
+    /// including logs received while waiting for its RCON acknowledgement.
+    pub fn dispatching(&mut self, now: Instant) {
+        self.dispatch_started = Some(now);
+    }
+
+    pub fn includes(&self, received_at: Instant) -> bool {
+        self.dispatch_started
+            .is_some_and(|start| received_at >= start)
+    }
+
+    /// Start the loading deadline after RCON acknowledges dispatch; installation
+    /// and authentication do not spend Minecraft's loading budget.
     pub fn dispatched(&mut self, now: Instant) {
         self.started = Some(now);
     }

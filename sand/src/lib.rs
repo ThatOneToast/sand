@@ -358,12 +358,12 @@ pub mod component {
         CaveCarverConfig, ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType,
         ConfiguredCarver, ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
         DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
-        FlatGenerator, FlatLayer, Generator, IntoItemStack, ItemComponent, ItemStackComponents,
-        LootText, MonsterSpawnLightLevel, Noise, NoiseGenerator, NoiseSettingsRef, OreConfig,
-        OreTarget, PlacedFeature, PlacementModifier, PotionContents, RawComponent, RawJson,
-        RawSnbt, Result, RuleTest, SandError, SpawnCondition, SpawnCost, StatusEffectInstance,
-        StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry, TemperatureModifier,
-        TypedTag, VanillaNoiseSettings,
+        FlatGenerator, FlatLayer, Generator, Instrument, IntoItemStack, ItemComponent,
+        ItemStackComponents, JukeboxSong, LootText, MonsterSpawnLightLevel, Noise, NoiseGenerator,
+        NoiseSettingsRef, OreConfig, OreTarget, PlacedFeature, PlacementModifier, PotionContents,
+        RawComponent, RawJson, RawSnbt, Result, RuleTest, SandError, SoundEventDefinition,
+        SpawnCondition, SpawnCost, StatusEffectInstance, StructureTemplate, SuspiciousStewEffect,
+        TagEntry, TagRegistry, TemperatureModifier, TypedTag, VanillaNoiseSettings,
     };
     pub use sand_core::components::*;
 }

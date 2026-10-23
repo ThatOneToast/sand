@@ -11,13 +11,13 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use sand_core::event::vanilla::OnJoin;
-//! use sand_core::event::Event;
-//! use sand_macros::on_event;
+//! use sand::event::vanilla::OnJoin;
+//! use sand::event::Event;
+//! use sand::prelude::*;
 //!
 //! #[on_event]
 //! pub fn on_join(event: Event<OnJoin>) {
-//!     cmd::tellraw(event.player(), Text::new("Welcome!").gold());
+//!     cmd::tellraw(Target::from(event.player()), Text::new("Welcome!").gold());
 //! }
 //! ```
 

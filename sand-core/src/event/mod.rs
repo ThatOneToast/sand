@@ -371,17 +371,23 @@ impl EventPlayer for crate::events::OnRespawnEvent {}
 /// handler.
 ///
 /// ```rust,ignore
-/// use sand_macros::on_event;
-/// use sand_core::prelude::*;
+/// use sand::prelude::*;
+/// use sand::advanced::state::ScoreVar;
 ///
 /// pub struct AteGoldenApple;
-/// impl AdvancementEvent for AteGoldenApple { /* … */ }
+/// impl AdvancementEvent for AteGoldenApple {
+///     type Trigger = ConsumeItemTrigger;
+///     fn trigger() -> Self::Trigger {
+///         ConsumeItemTrigger::new()
+///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple").unwrap()))
+///     }
+/// }
 ///
 /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 ///
 /// #[on_event]
 /// pub fn ate_golden_apple(event: Event<AteGoldenApple>) {
-///     MANA.add(sand_commands::Target::from(event.player()), 25);
+///     MANA.add(Target::from(event.player()), 25);
 /// }
 /// ```
 pub struct Event<E> {

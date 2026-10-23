@@ -2169,8 +2169,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// # Advancement-backed event
 ///
 /// ```rust,ignore
-/// use sand_core::prelude::*;
-/// use sand_macros::on_event;
+/// use sand::prelude::*;
 ///
 /// pub struct AteGoldenApple;
 ///
@@ -2179,13 +2178,13 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 ///     fn trigger() -> Self::Trigger {
 ///         ConsumeItemTrigger::new()
-///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple")?))
+///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple").unwrap()))
 ///     }
 /// }
 ///
 /// #[on_event]
 /// pub fn on_ate(event: Event<AteGoldenApple>) {
-///     cmd::tellraw(event.player(), Text::new("Golden apple eaten"));
+///     cmd::tellraw(Target::from(event.player()), Text::new("Golden apple eaten"));
 /// }
 /// ```
 ///
@@ -2197,8 +2196,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
-/// use sand_core::prelude::*;
-/// use sand_macros::on_event;
+/// use sand::prelude::*;
 ///
 /// static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
 /// static PREVIOUS_JUMPS: ScoreVar<i32> = ScoreVar::new("previous_jumps");

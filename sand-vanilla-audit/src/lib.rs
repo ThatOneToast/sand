@@ -656,7 +656,9 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
 #[datapack_component]
 pub fn audit_instrument() -> sand_core::Instrument {
     sand_core::Instrument::new("sand_audit:horn".parse().unwrap())
-        .sound_event("minecraft:item.goat_horn.sound.0")
+        .sound_event(sand::component::SoundEventDefinition::reference(
+            "minecraft:item.goat_horn.sound.0".parse::<sand::registry::SoundEventId>().unwrap(),
+        ))
         .description(TextComponent::translate("instrument.sand_audit.horn"))
 }
 
@@ -664,10 +666,60 @@ pub fn audit_instrument() -> sand_core::Instrument {
 #[datapack_component]
 pub fn audit_jukebox_song() -> sand_core::JukeboxSong {
     sand_core::JukeboxSong::new("sand_audit:song".parse().unwrap())
-        .sound_event("minecraft:music_disc.13")
+        .sound_event(sand::component::SoundEventDefinition::reference(
+            "minecraft:music_disc.13".parse::<sand::registry::SoundEventId>().unwrap(),
+        ))
         .song_length(178.0)
         .comparator_output(0)
         .description(TextComponent::literal("Sand audit song"))
+}
+
+/// Sound holder codec fixtures: reference, variable range, positive, zero and negative fixed ranges.
+#[datapack_component]
+pub fn audit_sound_definitions() -> sand::registration::DatapackRegistration {
+    use sand::component::{Instrument, JukeboxSong, SoundEventDefinition};
+    let mut registration = sand::registration::DatapackRegistration::new();
+    for (name, sound) in [
+        (
+            "reference",
+            SoundEventDefinition::reference(sand::vanilla::SoundEvent::BlockNoteBlockHarp),
+        ),
+        (
+            "inline",
+            SoundEventDefinition::inline("sand_audit:custom_track".parse().unwrap(), None),
+        ),
+        (
+            "fixed",
+            SoundEventDefinition::inline("sand_audit:custom_track".parse().unwrap(), Some(32.0)),
+        ),
+        (
+            "zero",
+            SoundEventDefinition::inline("sand_audit:custom_track".parse().unwrap(), Some(0.0)),
+        ),
+        (
+            "negative",
+            SoundEventDefinition::inline("sand_audit:custom_track".parse().unwrap(), Some(-1.0)),
+        ),
+    ] {
+        let location = format!("sand_audit:sound/{name}")
+            .parse::<sand::ResourceLocation>()
+            .unwrap();
+        registration = registration
+            .component(
+                Instrument::new(location.clone())
+                    .sound_event(sound.clone())
+                    .range(256.0)
+                    .description(TextComponent::literal(name)),
+            )
+            .component(
+                JukeboxSong::new(location)
+                    .sound_event(sound)
+                    .song_length(10.0)
+                    .comparator_output(0)
+                    .description(TextComponent::literal(name)),
+            );
+    }
+    registration
 }
 
 /// Typed interaction resources used by the vanilla text decode/encode audit.
@@ -708,7 +760,9 @@ pub fn audit_typed_text_interactions() -> sand::registration::DatapackRegistrati
     ] {
         registration = registration.component(
             sand_core::Instrument::new(format!("sand_audit:typed_text/{name}").parse().unwrap())
-                .sound_event("minecraft:item.goat_horn.sound.0")
+                .sound_event(sand::component::SoundEventDefinition::reference(
+            "minecraft:item.goat_horn.sound.0".parse::<sand::registry::SoundEventId>().unwrap(),
+        ))
                 .description(description),
         );
     }
@@ -767,7 +821,9 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
         description[field] = event;
         registration = registration.component(
             sand_core::Instrument::new(format!("sand_audit:raw_text/{name}").parse().unwrap())
-                .sound_event("minecraft:item.goat_horn.sound.0")
+                .sound_event(sand::component::SoundEventDefinition::reference(
+            "minecraft:item.goat_horn.sound.0".parse::<sand::registry::SoundEventId>().unwrap(),
+        ))
                 .raw_description(sand::component::RawJson::new(description)),
         );
     }
@@ -856,7 +912,9 @@ pub fn audit_raw_text_interactions() -> sand::registration::DatapackRegistration
     ] {
         registration = registration.component(
             sand_core::Instrument::new(format!("sand_audit:raw_text/{name}").parse().unwrap())
-                .sound_event("minecraft:item.goat_horn.sound.0")
+                .sound_event(sand::component::SoundEventDefinition::reference(
+            "minecraft:item.goat_horn.sound.0".parse::<sand::registry::SoundEventId>().unwrap(),
+        ))
                 .raw_description(sand_core::RawJson::new(description)),
         );
     }

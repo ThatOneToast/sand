@@ -270,24 +270,28 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "jukebox_song",
         tag_dir: None,
         sand_module: Some("sand_components::jukebox_song"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
+        api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
         notes: "JukeboxSong validates sound_event, length_in_seconds and comparator_output against vanilla's schema. \
                 Descriptions are required typed TextComponent values, with an explicit RawJson \
-                escape hatch that shares canonical recursive text validation. Sound events currently accept \
-                references only; inline sound-event definitions are not yet modelled. Follow-up: #463.",
+                escape hatch that shares canonical recursive text validation. Shared SoundEventDefinition covers \
+                registered references and inline sound_id/optional range; non-finite ranges and malformed \
+                raw known fields fail before export, while explicit raw extensions are preserved. \
+                Minecraft 26.2 exported-resource fixtures cover both consumers (#463).",
     },
     RegistryCoverage {
         registry_key: "minecraft:instrument",
         datapack_dir: "instrument",
         tag_dir: None,
         sand_module: Some("sand_components::instrument"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
+        api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
         notes: "Instrument validates sound_event, use_duration and range against vanilla's schema. \
                 Descriptions are required typed TextComponent values, with an explicit RawJson \
-                escape hatch that shares canonical recursive text validation. Sound events currently accept \
-                references only; inline sound-event definitions are not yet modelled. Follow-up: #463.",
+                escape hatch that shares canonical recursive text validation. Shared SoundEventDefinition covers \
+                registered references and inline sound_id/optional range; non-finite ranges and malformed \
+                raw known fields fail before export, while explicit raw extensions are preserved. \
+                Minecraft 26.2 exported-resource fixtures cover both consumers (#463).",
     },
     RegistryCoverage {
         registry_key: "minecraft:painting_variant",
@@ -806,8 +810,6 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// the same change that promotes its `REGISTRY_COVERAGE` row — that keeps a
 /// promotion from silently slipping in without a corresponding audit.
 pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
-    ("minecraft:jukebox_song", &["#463"]),
-    ("minecraft:instrument", &["#463"]),
     ("minecraft:loot_table", &["#137"]),
     ("minecraft:trade_set", &["#185", "#204", "#296"]),
     ("minecraft:villager_trade", &["#185", "#204", "#296"]),

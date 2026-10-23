@@ -4,14 +4,23 @@ use serde_json::{Value, json};
 
 /// Build the required non-text fields for instrument validation cases.
 fn instrument() -> Instrument {
-    Instrument::new(ResourceLocation::new("test", "horn").unwrap())
-        .sound_event("minecraft:item.goat_horn.sound.0")
+    Instrument::new(ResourceLocation::new("test", "horn").unwrap()).sound_event(
+        sand_components::SoundEventDefinition::reference(
+            "minecraft:item.goat_horn.sound.0"
+                .parse::<sand_components::SoundEventId>()
+                .unwrap(),
+        ),
+    )
 }
 
 /// Build the required non-text fields for jukebox validation cases.
 fn song() -> JukeboxSong {
     JukeboxSong::new(ResourceLocation::new("test", "song").unwrap())
-        .sound_event("minecraft:music_disc.13")
+        .sound_event(sand_components::SoundEventDefinition::reference(
+            "minecraft:music_disc.13"
+                .parse::<sand_components::SoundEventId>()
+                .unwrap(),
+        ))
         .song_length(178.0)
 }
 

@@ -22,8 +22,8 @@ use crate::config::SandConfig;
 use crate::output::OutputFormat;
 use crate::pack_format::pack_format_for;
 
-pub(crate) use config::cargo_target_dir;
 use config::resolve_mc_version;
+pub(crate) use config::{cargo_target_dir, cargo_target_dir_at};
 use explain::{RebuildExplanation, observe_exporter_rebuild};
 use export::{ExportBuildPlan, Exporter, run_exporter};
 use output_manifest::ChangeSummary;

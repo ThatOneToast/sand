@@ -17,7 +17,7 @@ impl BuildInputs {
     pub(crate) fn capture() -> Result<Self> {
         let target = crate::build::cargo_target_dir()?;
         Ok(Self(
-            watch::snapshot_with_target(&std::env::current_dir()?, Some(&target))?,
+            watch::snapshot_excluding(&std::env::current_dir()?, std::slice::from_ref(&target))?,
             target,
         ))
     }
@@ -31,7 +31,7 @@ pub(crate) struct Session {
     original_session_settings: String,
     rcon: rcon::Rcon,
     watcher: Watch,
-    target_directory: PathBuf,
+    target_directories: Vec<PathBuf>,
     last_poll: Instant,
     ready: bool,
     build: Option<(Child, Instant)>,
@@ -69,7 +69,7 @@ impl Session {
     ) -> Result<Self> {
         let mut watcher = Watch::new(inputs.0);
         watcher.observe(
-            watch::snapshot_with_target(&root, Some(&inputs.1))?,
+            watch::snapshot_excluding(&root, std::slice::from_ref(&inputs.1))?,
             Instant::now(),
         );
         let restart_inputs = restart_inputs(&root, &namespace)?;
@@ -111,7 +111,7 @@ impl Session {
             original_session_settings,
             rcon,
             watcher,
-            target_directory: inputs.1,
+            target_directories: vec![inputs.1],
             last_poll: Instant::now(),
             ready: false,
             build: None,
@@ -205,7 +205,7 @@ impl Session {
         if now.duration_since(self.last_poll) >= Duration::from_millis(250) {
             self.last_poll = now;
             self.watcher.observe(
-                watch::snapshot_with_target(&self.root, Some(&self.target_directory))?,
+                watch::snapshot_excluding(&self.root, &self.target_directories)?,
                 now,
             );
         }
@@ -278,6 +278,7 @@ impl Session {
             && self.pending_reload.is_none()
             && self.watcher.take_ready(now)
         {
+            self.refresh_target_directory(crate::build::cargo_target_dir_at(&self.root)?)?;
             let output = std::fs::File::create(self.build_log())?;
             let child = Command::new(std::env::current_exe()?)
                 .args(["build", "--format", "json", "--profile", &self.profile])
@@ -292,6 +293,19 @@ impl Session {
         }
         Ok(())
     }
+    fn refresh_target_directory(&mut self, target: PathBuf) -> Result<()> {
+        if !self.target_directories.contains(&target) {
+            self.target_directories.push(target);
+            // The imminent build consumes current inputs. Keep all prior output
+            // roots excluded, and observe edits made after this baseline normally.
+            self.watcher = Watch::new(watch::snapshot_excluding(
+                &self.root,
+                &self.target_directories,
+            )?);
+        }
+        Ok(())
+    }
+
     fn build_log(&self) -> PathBuf {
         self.root.join("dist/.sand-dev-build.json")
     }
@@ -596,6 +610,78 @@ mod tests {
             BuildInputs(watch::snapshot(root).unwrap(), root.join("target")),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn changing_cargo_target_during_session_excludes_old_and_new_outputs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join(".cargo")).unwrap();
+        std::fs::create_dir(root.join("src")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "// initial").unwrap();
+        std::fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname='dev-target-transition'\nversion='0.1.0'\n[workspace]\n",
+        )
+        .unwrap();
+        // Resolve real metadata with isolated environment, without mutating the
+        // test process's environment or current directory.
+        let resolve = || {
+            let output = Command::new("cargo")
+                .args(["metadata", "--format-version=1", "--no-deps"])
+                .current_dir(&root)
+                .env_remove("CARGO_TARGET_DIR")
+                .env_remove("CARGO_BUILD_TARGET_DIR")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            PathBuf::from(metadata["target_directory"].as_str().unwrap())
+        };
+        std::fs::write(
+            root.join(".cargo/config.toml"),
+            "[build]\ntarget-dir='build-one'\n",
+        )
+        .unwrap();
+        let mut session = health_session(&root);
+        session.refresh_target_directory(resolve()).unwrap();
+        std::fs::create_dir(root.join("build-one")).unwrap();
+        std::fs::write(root.join("build-one/artifact"), "first build").unwrap();
+        std::fs::write(
+            root.join(".cargo/config.toml"),
+            "[build]\ntarget-dir='build-two'\n",
+        )
+        .unwrap();
+        let now = Instant::now();
+        session.watcher.observe(
+            watch::snapshot_excluding(&root, &session.target_directories).unwrap(),
+            now,
+        );
+        assert!(session.watcher.take_ready(now + Duration::from_secs(1)));
+        let target = resolve();
+        assert_eq!(target, root.join("build-two"));
+        session.refresh_target_directory(target).unwrap();
+        std::fs::create_dir(root.join("build-two")).unwrap();
+        for name in ["build-one", "build-two"] {
+            std::fs::write(root.join(name).join("artifact"), "new compiler output").unwrap();
+        }
+        session.watcher.observe(
+            watch::snapshot_excluding(&root, &session.target_directories).unwrap(),
+            now,
+        );
+        assert!(!session.watcher.take_ready(now + Duration::from_secs(1)));
+        // Edits during compilation must still enqueue the next build.
+        std::fs::write(root.join("src/lib.rs"), "// edited while building").unwrap();
+        session.watcher.observe(
+            watch::snapshot_excluding(&root, &session.target_directories).unwrap(),
+            now,
+        );
+        assert!(session.watcher.take_ready(now + Duration::from_secs(1)));
+        assert!(!session.watcher.take_ready(now + Duration::from_secs(2)));
     }
 
     fn log_event(raw: &str) -> crate::console::diagnostic::GroupedEvent {

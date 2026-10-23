@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -12,7 +12,11 @@ pub(super) fn resolve_mc_version(mc_version: &str) -> String {
 }
 
 pub(crate) fn cargo_target_dir() -> Result<PathBuf> {
-    target_dir_from_metadata(&mut std::process::Command::new("cargo"))
+    cargo_target_dir_at(&std::env::current_dir()?)
+}
+
+pub(crate) fn cargo_target_dir_at(root: &Path) -> Result<PathBuf> {
+    target_dir_from_metadata(std::process::Command::new("cargo").current_dir(root))
 }
 
 fn target_dir_from_metadata(command: &mut std::process::Command) -> Result<PathBuf> {

@@ -7,15 +7,18 @@ use std::time::{Duration, Instant};
 pub(super) type Snapshot = BTreeMap<PathBuf, String>;
 
 pub(super) fn snapshot(root: &Path) -> Result<Snapshot> {
-    snapshot_with_target(root, None)
+    snapshot_excluding(root, &[])
 }
 
-pub(super) fn snapshot_with_target(root: &Path, target: Option<&Path>) -> Result<Snapshot> {
+pub(super) fn snapshot_excluding(root: &Path, targets: &[PathBuf]) -> Result<Snapshot> {
     let root = root.canonicalize()?;
-    let target = target.map(|path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf()));
+    let targets: Vec<_> = targets
+        .iter()
+        .map(|path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf()))
+        .collect();
     let mut files = BTreeMap::new();
     for entry in walkdir::WalkDir::new(&root).into_iter().filter_entry(|e| {
-        target.as_deref() != Some(e.path())
+        !targets.iter().any(|target| target == e.path())
             && (e.depth() != 1
                 || !matches!(e.file_name().to_str(), Some("target" | "dist" | ".git")))
     }) {
@@ -74,11 +77,17 @@ mod tests {
         for relative in ["build", "artifacts/cargo-output"] {
             let target = root.join(relative);
             std::fs::create_dir_all(&target).unwrap();
-            let before = snapshot_with_target(root, Some(&target)).unwrap();
+            let before = snapshot_excluding(root, std::slice::from_ref(&target)).unwrap();
             std::fs::write(target.join("compiler-output"), "generated").unwrap();
-            assert_eq!(before, snapshot_with_target(root, Some(&target)).unwrap());
+            assert_eq!(
+                before,
+                snapshot_excluding(root, std::slice::from_ref(&target)).unwrap()
+            );
             std::fs::write(root.join("src/build/mod.rs"), relative).unwrap();
-            assert_ne!(before, snapshot_with_target(root, Some(&target)).unwrap());
+            assert_ne!(
+                before,
+                snapshot_excluding(root, std::slice::from_ref(&target)).unwrap()
+            );
         }
     }
 

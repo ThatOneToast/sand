@@ -97,11 +97,17 @@ impl Renderer {
     /// the final health status, so nothing is lost and the run's true
     /// outcome is never left implicit. Call once after the last `render`.
     pub fn finish(&mut self) {
+        self.finish_dev(self.health.current());
+    }
+
+    /// Report dev's confirmed current health without mutating the historical
+    /// tracker used by ordinary `sand run` and diagnostic rendering.
+    pub(crate) fn finish_dev(&mut self, health: RunHealth) {
         self.flush_pending_correlation();
         if let Some(summary) = self.dedup.flush() {
             self.print_repeat_summary(&summary);
         }
-        self.print_final_health();
+        self.print_final_health(health);
     }
 
     /// Flush a diagnostic the correlator is holding in case a consequence
@@ -198,12 +204,12 @@ impl Renderer {
     /// Silent when [`RunHealth::Healthy`], so the common/happy path isn't
     /// cluttered with a redundant confirmation beyond the ready banner
     /// already printed by [`Self::render_ready`].
-    fn print_final_health(&self) {
+    fn print_final_health(&self, health: RunHealth) {
         match self.mode {
             OutputMode::Json => {
-                println!("{}", serde_json::json!({ "health": self.health.current() }));
+                println!("{}", serde_json::json!({ "health": health }));
             }
-            OutputMode::Classified | OutputMode::Verbose => match self.health.current() {
+            OutputMode::Classified | OutputMode::Verbose => match health {
                 RunHealth::Healthy => {}
                 RunHealth::Degraded => {
                     println!();
@@ -544,7 +550,7 @@ mod tests {
             let mut phase = crate::console::phase::PhaseTracker::new();
             for line in FIXTURE.lines() {
                 let record = parse_line(line);
-                phase.observe_log(&record.message);
+                phase.observe_log(&record);
                 let category = classify(Stream::Stdout, &record);
                 for group in grouper.feed(Stream::Stdout, record, category) {
                     renderer.render(&group, phase.current());

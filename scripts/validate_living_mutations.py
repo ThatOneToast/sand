@@ -33,12 +33,15 @@ def export_fixture():
 class LivingHarness(PlayerHarness):
     def prepare(self):
         super().prepare()
+        with (self.server / "server.properties").open("a", encoding="utf-8") as properties:
+            properties.write("server-ip=127.0.0.1\n")
         self.checks = []
         self.persist("running")
 
     def persist(self, status):
         (self.output / "evidence.json").write_text(json.dumps({
             "status": status, "minecraft": "26.2", **self.provenance,
+            "server_ip": "127.0.0.1", "server_port": self.port,
             "checks": self.checks,
         }, indent=2))
 
@@ -153,6 +156,10 @@ def main():
             "worktree_status": subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True),
             "fixture_sha256": digest(ROOT / "sand/tests/living_mutations.rs"),
             "harness_sha256": digest(__file__), "server_jar_sha256": digest(args.jar),
+            "shared_harness_sha256": {name: digest(ROOT / "scripts" / name) for name in (
+                "player_validation_harness.py", "validate_world_gameplay.py",
+                "vanilla_reload_harness.py", "mc_validation/minimal_join_client.py",
+            )},
             "pack_files": {p.relative_to(pack).as_posix(): digest(p) for p in sorted(pack.rglob("*")) if p.is_file()},
         }
         try:

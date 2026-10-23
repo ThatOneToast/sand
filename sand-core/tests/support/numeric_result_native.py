@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 import subprocess
+import time
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -57,6 +58,18 @@ class Probe(ServerHarness):
             "scoreboard objectives add observed dummy",
             f"scoreboard objectives add {self.author['gate']} dummy",
             "forceload add 0 0",
+        ])
+        # forceload returns before a newly generated chunk is entity-ticking.
+        # Do not summon fixtures into a chunk still being asynchronously loaded.
+        deadline = time.monotonic() + self.args.timeout
+        while True:
+            lines = self.batch(["execute if loaded 0 100 0 run say NUMERIC_CHUNK_LOADED"])
+            if any("NUMERIC_CHUNK_LOADED" in line for line in lines):
+                break
+            if time.monotonic() >= deadline:
+                raise ValidationFailure("numeric setup", "probe chunk did not load")
+            time.sleep(0.1)
+        self.batch([
             "kill @e[tag=numeric_probe]",
             'summon minecraft:armor_stand 0 100 0 {Tags:["numeric_probe","probe_first"],NoGravity:1b}',
             'summon minecraft:armor_stand 1 100 0 {Tags:["numeric_probe","probe_second"],NoGravity:1b}',

@@ -68,8 +68,8 @@ CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/tmp/sand-448-constant-target \
 The ignored probe emits `CONSTANT_REPORT` JSON and a separate
 `CONSTANT_STATIC_COMMAND_LINES` count. Its candidate regression assertions are
 in another test, so the probe runs unchanged against the baseline lowering.
-Shared example runtime baselines were neither regenerated nor hand-edited.
-Their coordinated refresh must use `scripts/check-examples.sh --update-runtime-baselines`.
+The integrated example baselines were regenerated only with the canonical
+`scripts/check-examples.sh --update-runtime-baselines`; see the audit below.
 
 Result-sensitive nested execute/return composition retains the original function
 boundary even when its body shrinks to one write; see the
@@ -96,6 +96,31 @@ probe; and Clippy for the library plus those five targets with `-D warnings`.
 Formatting and `git diff --check` also passed. All Cargo invocations used two
 jobs and `/tmp/sand-448-constant-target`.
 
-Full `scripts/check.sh`, native validation, and shared example baseline refresh
-are held for root coordination after pending merges. This is a focused source
-candidate for independent review and CI, not a claim that those gates passed.
+## Integration baseline audit
+
+Main `399b4175cc7e0232c4a03b0d3f0959234a485ae2` was merged without changing the
+reviewed numeric implementation. The canonical example baseline update passed
+all six example test/export runs, using two jobs and the same absolute target.
+The [complete report delta](evidence/numeric-constant-example-deltas.json) records
+every changed function and verifies unchanged lifecycle reports, provenance,
+limitations, report metadata, and function-definition counts.
+
+Only `book_project` changes:
+
+| Function | Before | After | Explanation |
+| --- | ---: | ---: | --- |
+| `trail:on_death` | 8 | 6 | Two clamps removed after bounded stamina `.set(100)` |
+| `trail:on_first_join/body` | 6 | 4 | The same two clamps removed from the join body |
+| `trail:on_first_join` | 7 | 5 | Transitive reduction from its body; call retained |
+
+The removed selector sites are exactly the clamp commands: lines 7/8 in
+`on_death`, and lines 2/3 in `on_first_join/body`. No other selector sites change.
+All five other example baselines are identical to main. These exact static
+per-invocation counts must not be summed as independent runtime work: the join
+entry already includes its body. No MSPT or server-speed claim is made.
+
+The original 128-observation native proof remains retained as described in the
+[result-boundary notes](numeric-constant-results.md). The strengthened native
+comparison and full `scripts/check.sh` are authorized after this clean freeze;
+their results are reported separately against the exact candidate SHA. This
+slice remains partial work on #448, with root owning review, CI, and merge.

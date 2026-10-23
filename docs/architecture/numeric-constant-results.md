@@ -52,12 +52,16 @@ The numeric unit fixture starts with the canonical FixedScore accessor's `.set`
 action. Its 600 emitted combinations cover five bounds forms, self/fake/wildcard/
 random selectors, dirty tracking, both resource wrappers, nested execute, and
 return-run. The native fixture exports 112 representative compositions of those
-actions, including direct ReturnRun nodes; the public export adds 16 observations.
-Random-owner checks pair value and dirty scores on two eligible entities rather
-than assuming the same random entity wins in two independent runs.
+actions, including direct ReturnRun nodes; the public export adds 16 true-path
+observations and four false-gate controls. All 132 observations run both before
+and after reload (264 per pack). The false gates must preserve an intentionally
+out-of-bounds destination value of 17, and callback observations must match the
+baseline and their pre-reload values. Random-owner checks pair value and dirty
+scores on two eligible entities rather than assuming the same random entity wins in two independent runs.
 
-Export the same test files on the pre-elision base
-`655e4f0cd2f1cc828eac724aabe045e3c47ffe0f` and candidate. On the base, add only the
+Export the same test files on the integration base
+`399b4175cc7e0232c4a03b0d3f0959234a485ae2` and candidate. The earlier proof used
+pre-elision base `655e4f0cd2f1cc828eac724aabe045e3c47ffe0f`. On the base, add only the
 `#[cfg(test)]` result_tests module declaration to numeric.rs. Keep production
 lowering unchanged. Use each side's output paths below:
 
@@ -78,6 +82,7 @@ a clean, frozen candidate commit. Use a new output directory and the cached
 ```sh
 python3 sand-core/tests/support/numeric_result_native.py \
   --commit "$(git rev-parse HEAD)" \
+  --baseline-commit 399b4175cc7e0232c4a03b0d3f0959234a485ae2 \
   --baseline-numeric /tmp/sand-488-baseline-numeric.json \
   --baseline-author /tmp/sand-488-baseline-author.json \
   --candidate-numeric /tmp/sand-488-candidate-numeric.json \
@@ -87,9 +92,17 @@ python3 sand-core/tests/support/numeric_result_native.py \
 ```
 
 The runner reuses `scripts/vanilla_reload_harness.py`, binds loopback, allocates
-a fresh port for each private server, and checks startup/reload/shutdown. It
-requires a clean matching commit and records source/tree, fixture, JAR, and
-pack hashes with all observations and log paths. Explicit known callback
+a fresh port for each private server, and checks startup/reload/shutdown. A test
+marker appended after the exported load-tag members proves that actual lifecycle
+callbacks completed before the post-reload assertions; the console reload marker
+alone is insufficient. Focused Python regressions verify the hook order and that
+ordinary observation waits do not recursively rerun assertions. It requires a
+clean matching commit and records source/tree, fixture, JAR, and pack hashes with all observations and log paths. Explicit known callback
 expectations supplement baseline/candidate equality, preventing a vacuous
 comparison of two broken exports. Full checks and shared example baseline
 regeneration remain separate, root-coordinated gates.
+
+The earlier 128-observation native proof at clean commit `7c641b13` is retained
+in `/tmp/sand-488-results-7c641b13/`. That run checked semantic observations before
+reload and checked reload completion separately; it did not claim semantic
+assertions after reload. The expanded maintained harness closes that evidence gap.

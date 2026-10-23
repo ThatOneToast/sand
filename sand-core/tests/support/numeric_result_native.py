@@ -51,8 +51,18 @@ class Probe(ServerHarness):
             result[name] = matches[0]
         return result
 
+    def wait_for(self, pattern, phase, start=0):
+        position = super().wait_for(pattern, phase, start)
+        if phase == "reload-complete":
+            # The console marker alone can precede asynchronous resource reload.
+            # This marker is the final member of the exported load tag, after
+            # lifecycle/setup functions have actually run again.
+            super().wait_for("NUMERIC_RESULT_LOADED", "numeric-reload-load", start)
+            self.run_assertions("after_reload")
+            return len(self.lines) - 1
+        return position
+
     def run_client(self):
-        fixture = self.numeric
         self.batch([
             "function result_probe:setup",
             "scoreboard objectives add observed dummy",
@@ -75,6 +85,10 @@ class Probe(ServerHarness):
             'summon minecraft:armor_stand 1 100 0 {Tags:["numeric_probe","probe_second"],NoGravity:1b}',
             "scoreboard players set #gate probe_gate 1",
         ])
+        self.run_assertions("before_reload")
+
+    def run_assertions(self, phase):
+        fixture = self.numeric
         first = "@e[tag=probe_first,limit=1]"
         second = "@e[tag=probe_second,limit=1]"
         for case in fixture["cases"]:
@@ -100,7 +114,7 @@ class Probe(ServerHarness):
             # Random ownership is compared as paired value/dirty tuples, not
             # entity identity: exactly one of two eligible entities must commit.
             normalized = {"result": result["#observed"], "fake": fake, "entities": entities}
-            self.observations[case["name"]] = normalized
+            self.observations[f"{phase}/{case['name']}"] = normalized
             if case["holder"] == "fake":
                 sequence = case["dirty"] or case["bound"] in ["bounded", "lower"]
                 expected = (0 if case["context"].startswith("return") else -999) if sequence else (1 if case["success"] else 7)
@@ -124,7 +138,30 @@ class Probe(ServerHarness):
                 expected_outer = 0 if path.startswith("return") else -999
                 if result != {"#observed": expected, "#outer": expected_outer, "#value": 7}:
                     raise ValidationFailure("public authoring callback", f"{path}/{mode}: {result}")
-                self.observations[f"public/{path}/{mode}"] = result
+                self.observations[f"{phase}/public/{path}/{mode}"] = result
+
+        for path in ["operand_wrapper", "condition_wrapper"]:
+            for mode in ["result", "success"]:
+                result = self.observe([
+                    "scoreboard players set #observed observed -999",
+                    "scoreboard players set #outer probe_result -999",
+                    f"scoreboard players set #gate {author['gate']} 0",
+                    f"scoreboard players set {author['holder']} {author['bounded']} 17",
+                    f"scoreboard players set {author['holder']} {author['unbounded']} 0",
+                    f"execute store {mode} score #outer probe_result run function author_probe:{path}",
+                    "scoreboard players operation #observed probe_result = #observed observed",
+                    f"scoreboard players operation #value probe_result = {author['holder']} {author['bounded']}",
+                ], ["#observed", "#outer", "#value"])
+                if result["#value"] != 17 or result["#outer"] != -999:
+                    raise ValidationFailure("false public gate", f"{phase}/{path}/{mode}: {result}")
+                # The legacy export defines the skipped branch's callback;
+                # retain it for exact differential and before/after-reload checks.
+                self.observations[f"{phase}/false_public/{path}/{mode}"] = result
+        if phase == "after_reload":
+            before = {key.removeprefix("before_reload/"): value for key, value in self.observations.items() if key.startswith("before_reload/")}
+            after = {key.removeprefix("after_reload/"): value for key, value in self.observations.items() if key.startswith("after_reload/")}
+            if before != after:
+                raise ValidationFailure("numeric reload invariance", "observations changed after reload")
 
 
 def run(args, label):
@@ -139,6 +176,14 @@ def run(args, label):
         path = pack / "data" / record["namespace"] / record["dir"] / f"{record['path']}.{record['ext']}"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(record["content"])
+    # Append a readiness marker after all authored load callbacks, without
+    # replacing their exported lifecycle order or any tested function body.
+    marker = pack / "data/result_probe/function/loaded.mcfunction"
+    marker.write_text("say NUMERIC_RESULT_LOADED\n")
+    load_path = pack / "data/minecraft/tags/function/load.json"
+    load_tag = json.loads(load_path.read_text())
+    load_tag["values"].append("result_probe:loaded")
+    load_path.write_text(json.dumps(load_tag))
     harness_args = argparse.Namespace(version="26.2", pack=str(pack), jar=str(args.jar), java=args.java, output=str(args.output / label), timeout=args.timeout, op_player=None, client_command=None)
     probe = Probe(harness_args, numeric, author)
     probe.run()
@@ -173,7 +218,7 @@ def main():
     args.source_tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, text=True).strip()
     sources = ["sand-core/src/ir/mod.rs", "sand-core/src/ir/numeric.rs",
                "sand-core/src/ir/numeric/result_tests.rs", "sand-core/tests/numeric_constant_results.rs",
-               "sand-core/tests/support/numeric_result_native.py"]
+               "sand-core/tests/support/numeric_result_native.py", "sand-core/tests/support/test_numeric_result_native.py"]
     args.source_hashes = {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in sources}
     args.output.mkdir(parents=True, exist_ok=False)
     baseline = run(args, "baseline")

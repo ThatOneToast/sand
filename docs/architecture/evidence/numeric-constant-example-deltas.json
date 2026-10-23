@@ -1,0 +1,189 @@
+{
+  "comparison_base": "399b4175cc7e0232c4a03b0d3f0959234a485ae2",
+  "examples": {
+    "arcane_pack": {
+      "changed": false,
+      "function_definitions_after": 36,
+      "function_definitions_before": 36,
+      "functions": {},
+      "lifecycle": {},
+      "limitations_changed": false,
+      "provenance_changed": false
+    },
+    "book_project": {
+      "changed": true,
+      "function_definitions_after": 37,
+      "function_definitions_before": 37,
+      "functions": {
+        "trail:on_death": {
+          "after": {
+            "evaluations": {
+              "maximum": 6,
+              "minimum": 6,
+              "unknown": []
+            },
+            "owners": [
+              "book_project::on_death"
+            ],
+            "selector_sites": [
+              {
+                "line": 2,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 3,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 5,
+                "operation": "if",
+                "selector": "@s"
+              }
+            ]
+          },
+          "before": {
+            "evaluations": {
+              "maximum": 8,
+              "minimum": 8,
+              "unknown": []
+            },
+            "owners": [
+              "book_project::on_death"
+            ],
+            "selector_sites": [
+              {
+                "line": 2,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 3,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 5,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 7,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 8,
+                "operation": "if",
+                "selector": "@s"
+              }
+            ]
+          }
+        },
+        "trail:on_first_join": {
+          "after": {
+            "evaluations": {
+              "maximum": 5,
+              "minimum": 5,
+              "unknown": []
+            },
+            "owners": [
+              "book_project::on_first_join"
+            ],
+            "selector_sites": []
+          },
+          "before": {
+            "evaluations": {
+              "maximum": 7,
+              "minimum": 7,
+              "unknown": []
+            },
+            "owners": [
+              "book_project::on_first_join"
+            ],
+            "selector_sites": []
+          }
+        },
+        "trail:on_first_join/body": {
+          "after": {
+            "evaluations": {
+              "maximum": 4,
+              "minimum": 4,
+              "unknown": []
+            },
+            "owners": [
+              "book_project::on_first_join"
+            ],
+            "selector_sites": []
+          },
+          "before": {
+            "evaluations": {
+              "maximum": 6,
+              "minimum": 6,
+              "unknown": []
+            },
+            "owners": [
+              "book_project::on_first_join"
+            ],
+            "selector_sites": [
+              {
+                "line": 2,
+                "operation": "if",
+                "selector": "@s"
+              },
+              {
+                "line": 3,
+                "operation": "if",
+                "selector": "@s"
+              }
+            ]
+          }
+        }
+      },
+      "lifecycle": {},
+      "limitations_changed": false,
+      "provenance_changed": false
+    },
+    "participant_audit": {
+      "changed": false,
+      "function_definitions_after": 61,
+      "function_definitions_before": 61,
+      "functions": {},
+      "lifecycle": {},
+      "limitations_changed": false,
+      "provenance_changed": false
+    },
+    "portable_counter": {
+      "changed": false,
+      "function_definitions_after": 5,
+      "function_definitions_before": 5,
+      "functions": {},
+      "lifecycle": {},
+      "limitations_changed": false,
+      "provenance_changed": false
+    },
+    "rpg_entity": {
+      "changed": false,
+      "function_definitions_after": 59,
+      "function_definitions_before": 59,
+      "functions": {},
+      "lifecycle": {},
+      "limitations_changed": false,
+      "provenance_changed": false
+    },
+    "unified_state": {
+      "changed": false,
+      "function_definitions_after": 82,
+      "function_definitions_before": 82,
+      "functions": {},
+      "lifecycle": {},
+      "limitations_changed": false,
+      "provenance_changed": false
+    }
+  },
+  "explanation": "Only book_project bounded stamina.set(100) drops two clamps at each authored call. on_first_join includes its body transitively; do not sum these ranges.",
+  "generator": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/tmp/sand-448-constant-target scripts/check-examples.sh --update-runtime-baselines",
+  "reviewed_numeric_commit": "7c641b13adeb3b759084bc44f73d06112d538f67",
+  "validation": "Canonical script exited 0; all six example tests and exports passed. Static report counts only; no MSPT measurement."
+}

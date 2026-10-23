@@ -1,0 +1,459 @@
+{
+  "after": {
+    "runtime_report": {
+      "functions": {
+        "constant_a:__sand_lifecycle_load": {
+          "evaluations": {
+            "maximum": 12,
+            "minimum": 12,
+            "unknown": []
+          },
+          "owners": [
+            "constant_fixture:numbers",
+            "constant_fixture:world"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:fake": {
+          "evaluations": {
+            "maximum": 3,
+            "minimum": 3,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::fake"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:global": {
+          "evaluations": {
+            "maximum": 1,
+            "minimum": 1,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::global"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:players": {
+          "evaluations": {
+            "maximum": null,
+            "minimum": 1,
+            "unknown": [
+              "unknown selector multiplicity: execute as @a run function constant_a:sand/numeric_commit/1c91836c"
+            ]
+          },
+          "owners": [
+            "numeric_constant_assignment::players"
+          ],
+          "selector_sites": [
+            {
+              "line": 1,
+              "operation": "as",
+              "selector": "@a"
+            }
+          ]
+        },
+        "constant_a:random": {
+          "evaluations": {
+            "maximum": null,
+            "minimum": 1,
+            "unknown": [
+              "unknown selector multiplicity: execute as @r run function constant_a:sand/numeric_commit/d12ac63d"
+            ]
+          },
+          "owners": [
+            "numeric_constant_assignment::random"
+          ],
+          "selector_sites": [
+            {
+              "line": 1,
+              "operation": "as",
+              "selector": "@r"
+            }
+          ]
+        },
+        "constant_a:sand/numeric_commit/1c91836c": {
+          "evaluations": {
+            "maximum": 3,
+            "minimum": 3,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::players"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:sand/numeric_commit/d12ac63d": {
+          "evaluations": {
+            "maximum": 3,
+            "minimum": 3,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::random"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:single": {
+          "evaluations": {
+            "maximum": 3,
+            "minimum": 3,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::single"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:wildcard": {
+          "evaluations": {
+            "maximum": 3,
+            "minimum": 3,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::wildcard"
+          ],
+          "selector_sites": []
+        }
+      },
+      "limitations": [
+        "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+        "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+        "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+        "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+        "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+      ],
+      "load": [
+        {
+          "contributors": [
+            "constant_fixture:numbers",
+            "constant_fixture:world"
+          ],
+          "evaluations": {
+            "maximum": 12,
+            "minimum": 12,
+            "unknown": []
+          },
+          "reference": "constant_a:__sand_lifecycle_load",
+          "required": true
+        }
+      ],
+      "provenance": {
+        "archetypes": [],
+        "function_owners": {
+          "constant_a:__sand_lifecycle_load": [
+            "constant_fixture:numbers",
+            "constant_fixture:world"
+          ],
+          "constant_a:fake": [
+            "numeric_constant_assignment::fake"
+          ],
+          "constant_a:global": [
+            "numeric_constant_assignment::global"
+          ],
+          "constant_a:players": [
+            "numeric_constant_assignment::players"
+          ],
+          "constant_a:random": [
+            "numeric_constant_assignment::random"
+          ],
+          "constant_a:sand/numeric_commit/1c91836c": [
+            "numeric_constant_assignment::players"
+          ],
+          "constant_a:sand/numeric_commit/d12ac63d": [
+            "numeric_constant_assignment::random"
+          ],
+          "constant_a:single": [
+            "numeric_constant_assignment::single"
+          ],
+          "constant_a:wildcard": [
+            "numeric_constant_assignment::wildcard"
+          ]
+        },
+        "lifecycle_owners": {},
+        "systems": [],
+        "tag_contributors": [
+          {
+            "member": "constant_a:__sand_lifecycle_load",
+            "owners": [
+              "constant_fixture:numbers",
+              "constant_fixture:world"
+            ],
+            "tag": "minecraft:load"
+          }
+        ]
+      },
+      "schema_version": 1,
+      "tick": []
+    },
+    "static_command_lines": 30
+  },
+  "base_commit": "655e4f0cd2f1cc828eac724aabe045e3c47ffe0f",
+  "before": {
+    "runtime_report": {
+      "functions": {
+        "constant_a:__sand_lifecycle_load": {
+          "evaluations": {
+            "maximum": 12,
+            "minimum": 12,
+            "unknown": []
+          },
+          "owners": [
+            "constant_fixture:numbers",
+            "constant_fixture:world"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:__sand_score_init": {
+          "evaluations": {
+            "maximum": 2,
+            "minimum": 2,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::wildcard"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:fake": {
+          "evaluations": {
+            "maximum": 5,
+            "minimum": 5,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::fake"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:global": {
+          "evaluations": {
+            "maximum": 3,
+            "minimum": 3,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::global"
+          ],
+          "selector_sites": []
+        },
+        "constant_a:players": {
+          "evaluations": {
+            "maximum": null,
+            "minimum": 1,
+            "unknown": [
+              "unknown selector multiplicity: execute as @a run function constant_a:sand/numeric_commit/5472d74e"
+            ]
+          },
+          "owners": [
+            "numeric_constant_assignment::players"
+          ],
+          "selector_sites": [
+            {
+              "line": 1,
+              "operation": "as",
+              "selector": "@a"
+            }
+          ]
+        },
+        "constant_a:random": {
+          "evaluations": {
+            "maximum": null,
+            "minimum": 1,
+            "unknown": [
+              "unknown selector multiplicity: execute as @r run function constant_a:sand/numeric_commit/df5f81f3"
+            ]
+          },
+          "owners": [
+            "numeric_constant_assignment::random"
+          ],
+          "selector_sites": [
+            {
+              "line": 1,
+              "operation": "as",
+              "selector": "@r"
+            }
+          ]
+        },
+        "constant_a:sand/numeric_commit/5472d74e": {
+          "evaluations": {
+            "maximum": 5,
+            "minimum": 5,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::players"
+          ],
+          "selector_sites": [
+            {
+              "line": 2,
+              "operation": "if",
+              "selector": "@s"
+            },
+            {
+              "line": 3,
+              "operation": "if",
+              "selector": "@s"
+            }
+          ]
+        },
+        "constant_a:sand/numeric_commit/df5f81f3": {
+          "evaluations": {
+            "maximum": 5,
+            "minimum": 5,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::random"
+          ],
+          "selector_sites": [
+            {
+              "line": 2,
+              "operation": "if",
+              "selector": "@s"
+            },
+            {
+              "line": 3,
+              "operation": "if",
+              "selector": "@s"
+            }
+          ]
+        },
+        "constant_a:single": {
+          "evaluations": {
+            "maximum": 5,
+            "minimum": 5,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::single"
+          ],
+          "selector_sites": [
+            {
+              "line": 2,
+              "operation": "if",
+              "selector": "@s"
+            },
+            {
+              "line": 3,
+              "operation": "if",
+              "selector": "@s"
+            }
+          ]
+        },
+        "constant_a:wildcard": {
+          "evaluations": {
+            "maximum": 7,
+            "minimum": 7,
+            "unknown": []
+          },
+          "owners": [
+            "numeric_constant_assignment::wildcard"
+          ],
+          "selector_sites": []
+        }
+      },
+      "limitations": [
+        "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+        "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+        "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+        "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+        "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+      ],
+      "load": [
+        {
+          "contributors": [
+            "numeric_constant_assignment::wildcard"
+          ],
+          "evaluations": {
+            "maximum": 2,
+            "minimum": 2,
+            "unknown": []
+          },
+          "reference": "constant_a:__sand_score_init",
+          "required": true
+        },
+        {
+          "contributors": [
+            "constant_fixture:numbers",
+            "constant_fixture:world"
+          ],
+          "evaluations": {
+            "maximum": 12,
+            "minimum": 12,
+            "unknown": []
+          },
+          "reference": "constant_a:__sand_lifecycle_load",
+          "required": true
+        }
+      ],
+      "provenance": {
+        "archetypes": [],
+        "function_owners": {
+          "constant_a:__sand_lifecycle_load": [
+            "constant_fixture:numbers",
+            "constant_fixture:world"
+          ],
+          "constant_a:__sand_score_init": [
+            "numeric_constant_assignment::wildcard"
+          ],
+          "constant_a:fake": [
+            "numeric_constant_assignment::fake"
+          ],
+          "constant_a:global": [
+            "numeric_constant_assignment::global"
+          ],
+          "constant_a:players": [
+            "numeric_constant_assignment::players"
+          ],
+          "constant_a:random": [
+            "numeric_constant_assignment::random"
+          ],
+          "constant_a:sand/numeric_commit/5472d74e": [
+            "numeric_constant_assignment::players"
+          ],
+          "constant_a:sand/numeric_commit/df5f81f3": [
+            "numeric_constant_assignment::random"
+          ],
+          "constant_a:single": [
+            "numeric_constant_assignment::single"
+          ],
+          "constant_a:wildcard": [
+            "numeric_constant_assignment::wildcard"
+          ]
+        },
+        "lifecycle_owners": {},
+        "systems": [],
+        "tag_contributors": [
+          {
+            "member": "constant_a:__sand_lifecycle_load",
+            "owners": [
+              "constant_fixture:numbers",
+              "constant_fixture:world"
+            ],
+            "tag": "minecraft:load"
+          },
+          {
+            "member": "constant_a:__sand_score_init",
+            "owners": [
+              "numeric_constant_assignment::wildcard"
+            ],
+            "tag": "minecraft:load"
+          }
+        ]
+      },
+      "schema_version": 1,
+      "tick": []
+    },
+    "static_command_lines": 46
+  },
+  "candidate_ir_mod_rs_sha256": "a6f5e1110a21ef2ddcafd2065eb73fc8541a07b157df6f1fa45ceb0eb57b1819",
+  "candidate_numeric_rs_sha256": "ac1c685d767d03a142f36315d755530494a105fc55d096485124263757d45f0e",
+  "fixture": "sand-core/tests/numeric_constant_assignment.rs",
+  "fixture_sha256": "0b7bb368e4c4f16ce26a73fece7600aa0f3ca3d91c924ffca35f70a81d77eae2",
+  "kind": "static compiler export; no Minecraft server or MSPT measurement",
+  "minecraft_profile": "26.2"
+}

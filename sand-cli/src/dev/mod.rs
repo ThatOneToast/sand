@@ -304,6 +304,15 @@ impl Session {
                         .dispatched(Instant::now());
                     eprintln!("dev reload #{} pending…", self.reload_number);
                 }
+                Err(error) if pending.dispatch_attempted() => {
+                    // The command may already have run, even if its write or
+                    // acknowledgement failed. Keep the original marker, log
+                    // boundary, and attempt-time deadline; never resend here.
+                    eprintln!(
+                        "dev reload #{} acknowledgement unavailable: {error:#}; awaiting load confirmation…",
+                        self.reload_number
+                    );
+                }
                 Err(error) => {
                     self.pending_reload = None;
                     eprintln!(
@@ -1960,6 +1969,25 @@ mod tests {
     }
 
     fn acknowledge_reload(listener: std::net::TcpListener) -> std::thread::JoinHandle<()> {
+        serve_reload(listener, true, |socket| {
+            use std::io::Write;
+            let reply = [
+                10_i32.to_le_bytes(),
+                2_i32.to_le_bytes(),
+                0_i32.to_le_bytes(),
+            ]
+            .concat();
+            socket
+                .write_all(&[reply.as_slice(), &[0, 0]].concat())
+                .unwrap();
+        })
+    }
+
+    fn serve_reload(
+        listener: std::net::TcpListener,
+        authenticate: bool,
+        command_reply: impl FnOnce(&mut std::net::TcpStream) + Send + 'static,
+    ) -> std::thread::JoinHandle<()> {
         use std::io::{Read, Write};
         std::thread::spawn(move || {
             let deadline = Instant::now() + Duration::from_secs(5);
@@ -1987,11 +2015,23 @@ mod tests {
                 assert_eq!(&body[..4], &id.to_le_bytes());
                 if id == 2 {
                     assert_eq!(&body[8..body.len() - 2], b"reload");
+                    command_reply(&mut socket);
+                    return;
                 }
+                let id = if authenticate { id } else { -1 };
                 let reply = [10_i32.to_le_bytes(), id.to_le_bytes(), kind.to_le_bytes()].concat();
                 socket
                     .write_all(&[reply.as_slice(), &[0, 0]].concat())
                     .unwrap();
+                if !authenticate {
+                    let mut byte = [0];
+                    assert_eq!(
+                        socket.read(&mut byte).unwrap(),
+                        0,
+                        "authentication failure must not send reload"
+                    );
+                    return;
+                }
             }
         })
     }
@@ -2015,6 +2055,156 @@ mod tests {
             r#"{"success":true,"namespace":"demo","runtime_report":{}}"#,
         )
         .unwrap();
+    }
+
+    fn owned_reload_session(root: &Path) -> Session {
+        let mut session = health_session(root);
+        session.ready = true;
+        let dest = root.join("dist/server/world/datapacks/demo");
+        let mut managed = ManagedPack::default();
+        let installed = managed.install(&root.join("dist/demo"), &dest).unwrap();
+        managed.installed(&dest, &installed.identity).unwrap();
+        session.track_pack(&managed);
+        session
+    }
+
+    #[test]
+    fn uncertain_rcon_acknowledgement_retains_bounded_sentinel_tracking() {
+        use crate::console::{RunHealth, phase::RunPhase};
+        for delayed in [true, false] {
+            for outcome in ["success", "diagnostic", "no-sentinel"] {
+                let tmp = tempfile::tempdir().unwrap();
+                let mut session = owned_reload_session(tmp.path());
+                let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+                listener.set_nonblocking(true).unwrap();
+                session.rcon.port = listener.local_addr().unwrap().port();
+                let tag = tmp.path().join(
+                    "dist/server/world/datapacks/demo/data/minecraft/tags/function/load.json",
+                );
+                let (events_tx, events_rx) = std::sync::mpsc::channel();
+                let (release_tx, release_rx) = std::sync::mpsc::channel();
+                let server = serve_reload(listener, true, move |socket| {
+                    let tag: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(tag).unwrap()).unwrap();
+                    let marker = tag["values"]
+                        .as_array()
+                        .unwrap()
+                        .last()
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .split_once(':')
+                        .unwrap()
+                        .1;
+                    let mut events = Vec::new();
+                    if outcome == "diagnostic" {
+                        events.push(log_event(
+                            "[12:00:00] [Server thread/ERROR]: Failed to load function demo:broken",
+                        ));
+                    }
+                    if outcome != "no-sentinel" {
+                        events.push(log_event(&format!(
+                            "[12:00:01] [Server thread/INFO]: [Server] {marker}"
+                        )));
+                    }
+                    // Queue actual parsed logs while poll is still waiting for
+                    // RCON. Their receive times must remain inside this reload.
+                    events_tx.send((Instant::now(), events)).unwrap();
+                    if delayed {
+                        release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                        use std::io::Write;
+                        let reply = [
+                            10_i32.to_le_bytes(),
+                            2_i32.to_le_bytes(),
+                            0_i32.to_le_bytes(),
+                        ]
+                        .concat();
+                        // The timed-out client may already have closed its socket.
+                        let _ = socket.write_all(&[reply.as_slice(), &[0, 0]].concat());
+                    }
+                    // Otherwise close without any acknowledgement.
+                });
+                completed_reload_build(&mut session);
+                session.poll().unwrap();
+                if delayed {
+                    release_tx.send(()).unwrap();
+                }
+                server.join().unwrap();
+                let (received_command, events) =
+                    events_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+                assert_eq!(
+                    session.reload_number, 1,
+                    "never resend an uncertain command"
+                );
+                assert!(
+                    session.pending_reload.is_some(),
+                    "postdispatch transport failure must retain the unique sentinel"
+                );
+                assert_ne!(
+                    session.health(),
+                    RunHealth::Healthy,
+                    "unconfirmed reload must fail at quit"
+                );
+                for event in events {
+                    assert!(session.is_reload_event(&event));
+                    session.observe(&event, RunPhase::Runtime);
+                }
+                if outcome == "no-sentinel" {
+                    let pending = session.pending_reload.as_ref().unwrap();
+                    assert_eq!(pending.timeout(received_command), None);
+                    // Deadline is anchored no later than command receipt, not
+                    // extended by the acknowledgement read timeout.
+                    let timeout = pending
+                        .timeout(received_command + Duration::from_secs(30))
+                        .unwrap();
+                    assert_eq!(timeout, reload::Outcome::TimedOut);
+                    session.finish_reload(timeout);
+                }
+                assert!(session.pending_reload.is_none());
+                assert_eq!(
+                    session.health(),
+                    if outcome == "success" {
+                        RunHealth::Healthy
+                    } else {
+                        RunHealth::Degraded
+                    }
+                );
+                session.poll().unwrap();
+                assert_eq!(session.reload_number, 1);
+            }
+        }
+    }
+
+    #[test]
+    fn predispatch_rcon_failure_does_not_wait_for_a_sentinel() {
+        for authentication_failure in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let mut session = owned_reload_session(tmp.path());
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            session.rcon.port = listener.local_addr().unwrap().port();
+            let server = if authentication_failure {
+                Some(serve_reload(listener, false, |_| {
+                    panic!("must not send reload after rejected auth")
+                }))
+            } else {
+                drop(listener);
+                None
+            };
+            completed_reload_build(&mut session);
+            session.poll().unwrap();
+            if let Some(server) = server {
+                server.join().unwrap();
+            }
+            assert!(session.pending_reload.is_none());
+            assert_eq!(session.health(), crate::console::RunHealth::Degraded);
+            assert_eq!(session.reload_number, 1);
+            session.poll().unwrap();
+            assert_eq!(
+                session.reload_number, 1,
+                "failed dispatch must not retry automatically"
+            );
+        }
     }
 
     #[test]

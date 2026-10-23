@@ -31,10 +31,18 @@ impl Reload {
             warnings: 0,
         })
     }
-    /// Correlate logs received from the point the reload command is sent,
-    /// including logs received while waiting for its RCON acknowledgement.
+    /// Correlate logs and arm the completion deadline immediately before the
+    /// command write is attempted. A failed write/acknowledgement is uncertain,
+    /// so it must still have bounded sentinel tracking. Installation and RCON
+    /// authentication happen before this boundary and consume no loading budget.
     pub fn dispatching(&mut self, now: Instant) {
         self.dispatch_started = Some(now);
+        self.started = Some(now);
+    }
+
+    /// Whether transport failure occurred after command dispatch was attempted.
+    pub fn dispatch_attempted(&self) -> bool {
+        self.dispatch_started.is_some()
     }
 
     pub fn includes(&self, received_at: Instant) -> bool {
@@ -42,10 +50,10 @@ impl Reload {
             .is_some_and(|start| received_at >= start)
     }
 
-    /// Start the loading deadline after RCON acknowledges dispatch; installation
-    /// and authentication do not spend Minecraft's loading budget.
+    /// Record dispatch acknowledgement without extending an already-armed
+    /// completion deadline or changing the queued-log correlation boundary.
     pub fn dispatched(&mut self, now: Instant) {
-        self.started = Some(now);
+        self.started.get_or_insert(now);
     }
 
     pub fn observe(&mut self, category: Category, message: &str) -> Option<Outcome> {
@@ -132,6 +140,33 @@ mod tests {
             reload.timeout(after_dispatch + Duration::from_secs(30)),
             Some(Outcome::TimedOut)
         );
+    }
+
+    #[test]
+    fn attempted_dispatch_bounds_completion_even_without_acknowledgement() {
+        let before_install_and_auth = Instant::now();
+        for acknowledged in [false, true] {
+            let mut reload = Reload::new().unwrap();
+            let attempted = before_install_and_auth + Duration::from_secs(90);
+            assert!(!reload.dispatch_attempted());
+            assert_eq!(reload.timeout(attempted), None);
+            reload.dispatching(attempted);
+            assert!(reload.dispatch_attempted());
+            assert!(!reload.includes(attempted - Duration::from_nanos(1)));
+            assert!(reload.includes(attempted));
+            if acknowledged {
+                reload.dispatched(attempted + Duration::from_secs(2));
+            }
+            assert_eq!(reload.timeout(attempted + Duration::from_secs(29)), None);
+            assert_eq!(
+                reload.timeout(attempted + Duration::from_secs(30)),
+                Some(Outcome::TimedOut)
+            );
+            assert!(
+                reload.includes(attempted),
+                "ack must not move the queued-log boundary"
+            );
+        }
     }
 
     #[test]

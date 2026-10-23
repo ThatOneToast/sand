@@ -56,7 +56,7 @@ and #465 runtime report. The console says whether the report changed relative
 to the preceding installed rebuild (the first rebuild establishes a baseline).
 Those are static explicit evaluation bounds, **not** player/entity scan counts,
 whole-tick totals, command-budget units, or MSPT. Unknown ranges stay unknown.
-RCON acknowledges dispatch before Minecraft finishes resource loading. A unique
+RCON acknowledgement alone does not prove resource loading finished. A unique
 load-tag sentinel is added only to the installed development pack, after its
 load entries. Each reload remains pending until that sentinel is observed or
 30 seconds elapse. The existing console diagnostic model separates load failures
@@ -119,8 +119,14 @@ it takes effect at the next checkpoint. No fixed cancellation latency is claimed
 for those synchronous operations. Cancellation before reset preserves the world,
 including with `AlwaysReset`; it cannot undo a reset that has already begun.
 
-The 30-second reload budget starts after installation and successful RCON
-dispatch, so copying a large pack does not consume Minecraft's loading window.
+The 30-second reload budget starts immediately before the RCON command write
+is attempted, after installation and authentication. Slow copying/authentication
+does not consume Minecraft's loading window. A command-write or acknowledgement
+error after this boundary retains the unique sentinel and its original deadline;
+queued load diagnostics still count, and only a clean matching sentinel can
+confirm success. Missing evidence times out. Connection/authentication failures
+before dispatch fail immediately. Sand never automatically resends an uncertain
+reload, and acknowledgement does not extend the completion deadline.
 For `sand dev`, a confirmed successful sentinel clears failures from earlier
 managed reloads: error, fix, reload, then `q` can exit successfully without `R`.
 An unrecovered failure, timeout, unconfirmed dispatch, or quit during a pending

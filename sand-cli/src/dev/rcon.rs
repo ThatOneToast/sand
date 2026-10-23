@@ -29,6 +29,9 @@ impl Rcon {
         )
     }
 
+    /// Invoke `dispatching` only after authentication, immediately before the
+    /// single command-write attempt. Errors after that callback cannot prove
+    /// the command did not run; callers retain bounded load confirmation.
     pub fn reload(&self, dispatching: impl FnOnce()) -> Result<()> {
         let mut stream = TcpStream::connect_timeout(
             &SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port).into(),
@@ -164,7 +167,10 @@ mod tests {
             port,
             secret: "test-only".into(),
         };
-        let error = rcon.reload(|| {}).unwrap_err().to_string();
+        let error = rcon
+            .reload(|| panic!("authentication failure must not cross the dispatch boundary"))
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("authentication rejected"));
         assert!(!error.contains(&rcon.secret));
         worker.join().unwrap();

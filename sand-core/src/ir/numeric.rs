@@ -29,6 +29,22 @@ pub struct NumericWrite {
 }
 
 impl NumericWrite {
+    // Removing constant clamps must not expose a terminal command's result
+    // where single-command composition previously called a sequence function.
+    pub(super) fn requires_sequence_boundary(&self) -> bool {
+        self.value.constant_value().is_some()
+            && self.dirty.is_empty()
+            && sand_commands::__private::score_holder_selector(&self.holder)
+                .is_none_or(|selector| selector.to_string() == "@s")
+            && self.bounds.is_some_and(|(min, max)| {
+                self.holder
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err()
+                    || min != i32::MIN
+                    || max != i32::MAX
+            })
+    }
+
     pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
         let profile = CommandProfile::unprofiled();
         self.holder.validate(&profile)?;
@@ -773,3 +789,7 @@ mod tests {
         assert!(crate::state::score::drain_internal_score_setup().is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "numeric/result_tests.rs"]
+mod result_tests;

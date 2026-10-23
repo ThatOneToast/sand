@@ -52,7 +52,8 @@ Across the complete fixture, nonblank, noncomment command lines fall from
 **46 to 30** (16 fewer, 34.8%). Function definitions fall from **10 to 9**.
 These are static generated-command counts and conservative report estimates,
 not MSPT, selector search cost, terminal execution multiplicity, Minecraft
-command-budget units, or a measured server speedup. No native run was launched.
+command-budget units, or a measured server speedup. Result-sensitive composition and its separate
+[native validation workflow](numeric-constant-results.md) are documented independently.
 
 To reproduce the probe, copy `sand-core/tests/numeric_constant_assignment.rs`
 from this change into a clean base checkout and run the same command in each
@@ -69,6 +70,10 @@ The ignored probe emits `CONSTANT_REPORT` JSON and a separate
 in another test, so the probe runs unchanged against the baseline lowering.
 Shared example runtime baselines were neither regenerated nor hand-edited.
 Their coordinated refresh must use `scripts/check-examples.sh --update-runtime-baselines`.
+
+Result-sensitive nested execute/return composition retains the original function
+boundary even when its body shrinks to one write; see the
+[result-boundary correction](numeric-constant-results.md).
 
 ## Focused validation and remaining gates
 

@@ -450,7 +450,8 @@
     },
     "static_command_lines": 46
   },
-  "candidate_numeric_rs_sha256": "99d4872f4f753df98408304e2dcdcc542ea9368561df99f340979499c161aeaa",
+  "candidate_ir_mod_rs_sha256": "a6f5e1110a21ef2ddcafd2065eb73fc8541a07b157df6f1fa45ceb0eb57b1819",
+  "candidate_numeric_rs_sha256": "ac1c685d767d03a142f36315d755530494a105fc55d096485124263757d45f0e",
   "fixture": "sand-core/tests/numeric_constant_assignment.rs",
   "fixture_sha256": "0b7bb368e4c4f16ce26a73fece7600aa0f3ca3d91c924ffca35f70a81d77eae2",
   "kind": "static compiler export; no Minecraft server or MSPT measurement",

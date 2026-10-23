@@ -488,6 +488,7 @@ impl ManagedPack {
     /// fail. Only a successful ownership handoff clears it. Once a pack is
     /// tracked, a different destination must be absent: a marker copied into
     /// another namespace or world does not establish invocation ownership.
+    /// An existing current destination must still carry the tracked owner.
     pub(crate) fn install(&self, src: &Path, dest: &Path) -> Result<InstalledPack> {
         ensure_handoffs_complete(dest.parent().context("datapack has no parent")?)?;
         install_prepared(
@@ -495,12 +496,17 @@ impl ManagedPack {
             dest,
             None,
             |expected| {
-                if let Some((previous, _)) = &self.0
-                    && expected.is_some()
+                if let Some((previous, owner)) = &self.0
+                    && let Some(expected) = expected
                 {
                     ensure!(
                         std::fs::canonicalize(dest)? == *previous,
                         "namespace destination already exists and is not the current invocation-managed pack; preserving {}",
+                        dest.display()
+                    );
+                    ensure!(
+                        expected.owner.as_ref() == Some(owner),
+                        "current managed datapack was replaced; preserving {}",
                         dest.display()
                     );
                 }
@@ -1372,6 +1378,58 @@ mod tests {
                 );
                 ensure_handoffs_complete(new.parent().unwrap()).unwrap();
             }
+        }
+    }
+
+    #[test]
+    fn current_namespace_replacement_is_preserved_before_restart_staging() {
+        for foreign_marker in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("src");
+            let dest = tmp.path().join("world/datapacks/demo");
+            std::fs::create_dir(&src).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "project pack").unwrap();
+            let mut managed = ManagedPack::default();
+            let initial = managed.install(&src, &dest).unwrap();
+            managed.installed(&dest, &initial.identity).unwrap();
+            // R retains this tracker across run_internal calls. Replace the
+            // directory before the next startup install captures its baseline.
+            let displaced = tmp.path().join("displaced");
+            std::fs::rename(&dest, &displaced).unwrap();
+            std::fs::create_dir(&dest).unwrap();
+            std::fs::write(dest.join("pack.mcmeta"), "operator pack").unwrap();
+            std::fs::write(dest.join("operator-data"), "preserve").unwrap();
+            if foreign_marker {
+                std::fs::write(dest.join(OWNER_FILE), "different invocation").unwrap();
+            }
+            let before = watch::snapshot(tmp.path()).unwrap();
+            let identity = LiveIdentity::capture(&dest).unwrap();
+            let result = managed.install(&src, &dest);
+            assert!(
+                result.is_err(),
+                "restart overwrote the operator replacement"
+            );
+            assert!(
+                result
+                    .err()
+                    .unwrap()
+                    .to_string()
+                    .contains("current managed datapack was replaced")
+            );
+            assert_eq!(watch::snapshot(tmp.path()).unwrap(), before);
+            assert_eq!(LiveIdentity::capture(&dest).unwrap(), identity);
+            ensure_handoffs_complete(dest.parent().unwrap()).unwrap();
+            // Restoring the still-owned pack allows the same invocation to
+            // restart without deleting the operator's displaced replacement.
+            let operator = tmp.path().join("operator-preserved");
+            std::fs::rename(&dest, &operator).unwrap();
+            std::fs::rename(&displaced, &dest).unwrap();
+            let resumed = managed.install(&src, &dest).unwrap();
+            managed.installed(&dest, &resumed.identity).unwrap();
+            assert_eq!(
+                std::fs::read_to_string(operator.join("operator-data")).unwrap(),
+                "preserve"
+            );
         }
     }
 

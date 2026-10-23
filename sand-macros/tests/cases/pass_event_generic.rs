@@ -29,7 +29,7 @@ pub fn golden_apple_reward() {
 
 #[on_event]
 pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
-    MANA.add(event.player(), 10);
+    MANA.add(Target::from(event.player()), 10);
     cmd::function(golden_apple_reward);
 }
 

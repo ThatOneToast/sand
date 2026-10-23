@@ -6,12 +6,12 @@
     aliases = ["sand::prelude::EntityParticipantRole"],
     module = "sand::participant",
     summary = "The role an entity/player participant plays in an event, independent of its [`ParticipantReliability`](super::reliability::ParticipantReliability).",
-    context = "The role an entity/player participant plays in an event, independent of its [`ParticipantReliability`](super::reliability::ParticipantReliability). This is a stable, deliberately small vocabulary. Every variant has either an existing vanilla mechanism it maps to (documented per-variant) or a clear planned Phase 9 use — roles without credible evidence are not included. `Actor`/`Subject` are distinguished because not every event's primary participant is a player (`Actor` covers the general case; `Subject` is specifically the player-subject role every `Event<T>` context already exposes via `.player()`/`.subject()`).",
+    context = "The role an entity/player participant plays in an event, independent of its [`ParticipantReliability`](super::reliability::ParticipantReliability). This is a stable, deliberately small vocabulary. Every variant has either an existing vanilla mechanism it maps to (documented per-variant) or a clear planned Phase 9 use — roles without credible evidence are not included. `Actor`/`Subject` are distinguished because not every event's primary participant is a player (`Actor` covers the general case; `Subject` is specifically the player-subject role every `Event<T>` context already exposes via `.player()`).",
     minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
     use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
     avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
     example = "use sand::participant::EntityParticipantRole;",
-    variants(Actor = "The primary non-player-specific actor of the event, when the event is not inherently player-scoped.", Attacker = "The entity credited with causing damage/an effect, which vanilla's own damage-source model may itself attribute indirectly (e.g. a thrown potion's thrower) — see [`DirectAttacker`](Self::DirectAttacker) for the immediate-cause distinction vanilla's damage source also draws.", DirectAttacker = "The entity that directly caused damage (e.g. the arrow itself, rather than the player who shot it) — distinct from [`Attacker`](Self::Attacker) the same way vanilla's damage source distinguishes a direct entity from a causing entity.", InteractedEntity = "The entity a player directly interacted with, as in `minecraft:player_interacted_with_entity`.", Killer = "The entity that landed a killing blow, as tracked by `minecraft:player_killed_entity`/`minecraft:entity_killed_player` criteria (see `sand-core/src/event/trigger.rs`).", Projectile = "A projectile entity (arrow, thrown item, fireball, ...).", ProjectileOwner = "The entity that fired/threw a [`Projectile`](Self::Projectile).", Subject = "The event's primary player subject — what `Event<T>::player()`/ `.subject()` already expose today, rendered as `@s`.", Target = "A generic targeted entity, for events whose vanilla criterion names its second entity \"target\" rather than attacker/victim.", Victim = "The entity that received damage/an effect."),
+    variants(Actor = "The primary non-player-specific actor of the event, when the event is not inherently player-scoped.", Attacker = "The entity credited with causing damage/an effect, which vanilla's own damage-source model may itself attribute indirectly (e.g. a thrown potion's thrower) — see [`DirectAttacker`](Self::DirectAttacker) for the immediate-cause distinction vanilla's damage source also draws.", DirectAttacker = "The entity that directly caused damage (e.g. the arrow itself, rather than the player who shot it) — distinct from [`Attacker`](Self::Attacker) the same way vanilla's damage source distinguishes a direct entity from a causing entity.", InteractedEntity = "The entity a player directly interacted with, as in `minecraft:player_interacted_with_entity`.", Killer = "The entity that landed a killing blow, as tracked by `minecraft:player_killed_entity`/`minecraft:entity_killed_player` criteria (see `sand-core/src/event/trigger.rs`).", Projectile = "A projectile entity (arrow, thrown item, fireball, ...).", ProjectileOwner = "The entity that fired/threw a [`Projectile`](Self::Projectile).", Subject = "The event's primary player subject — what `Event<T>::player()` exposes as an execution-scoped handle for `@s`.", Target = "A generic targeted entity, for events whose vanilla criterion names its second entity \"target\" rather than attacker/victim.", Victim = "The entity that received damage/an effect."),
 )]
 /// The role an entity/player participant plays in an event, independent of
 /// its [`ParticipantReliability`](super::reliability::ParticipantReliability).
@@ -22,11 +22,11 @@
 /// included. `Actor`/`Subject` are distinguished because not every event's
 /// primary participant is a player (`Actor` covers the general case;
 /// `Subject` is specifically the player-subject role every `Event<T>`
-/// context already exposes via `.player()`/`.subject()`).
+/// context already exposes via `.player()`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EntityParticipantRole {
-    /// The event's primary player subject — what `Event<T>::player()`/
-    /// `.subject()` already expose today, rendered as `@s`.
+    /// The event's primary player subject — what `Event<T>::player()`
+    /// exposes as an execution-scoped handle for `@s`.
     Subject,
     /// The primary non-player-specific actor of the event, when the event
     /// is not inherently player-scoped.

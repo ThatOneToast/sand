@@ -23,8 +23,8 @@ use crate::item::{EntityInventory, ItemLocation};
     aliases = ["sand::prelude::EntityContext"],
     module = "sand::entity",
     summary = "The current executor (`@s`) at a known point in a generated command chain, typed by entity kind.",
-    context = "The current executor (`@s`) at a known point in a generated command chain, typed by entity kind. `EntityContext` is execution-scoped: it is a handle for building commands that refer to whichever entity is bound to `@s` at the point the context is used, not a persistent reference to a specific entity. Once the generated command chain that produced a context has finished running, the context itself has no further meaning — it cannot be stored and replayed against a different entity later. To keep a working reference to a specific entity across a relationship traversal (which changes `@s`), use [`EntityScope::bind`].",
-    minecraft = "`EntityContext` is execution-scoped: it is a handle for building commands that refer to whichever entity is bound to `@s` at the point the context is used, not a persistent reference to a specific entity. Once the generated command chain that produced a context has finished running, the context itself has no further meaning — it cannot be stored and replayed against a different entity later. To keep a working reference to a specific entity across a relationship traversal (which changes `@s`), use [`EntityScope::bind`].",
+    context = "The current executor (`@s`) at a known point in a generated command chain, typed by entity kind. `EntityContext` is execution-scoped: it is a handle for building commands that refer to whichever entity is bound to `@s` at the point the context is used, not a persistent reference to a specific entity. Keeping or replaying this authoring value does not retain the original entity: its actions always refer to the current executor. Default assumes that the executor has the declared kind; it does not select or verify an entity. To keep a working reference to a specific entity across a relationship traversal (which changes `@s`), use [`EntityScope::bind`].",
+    minecraft = "`EntityContext` is execution-scoped: it is a handle for building commands that refer to whichever entity is bound to `@s` at the point the context is used, not a persistent reference to a specific entity. Keeping or replaying this authoring value does not retain the original entity: its actions always refer to the current executor. Default assumes that the executor has the declared kind; it does not select or verify an entity. To keep a working reference to a specific entity across a relationship traversal (which changes `@s`), use [`EntityScope::bind`].",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::EntityContext;",
@@ -34,15 +34,28 @@ use crate::item::{EntityInventory, ItemLocation};
 ///
 /// `EntityContext` is **execution-scoped**: it is a handle for building
 /// commands that refer to whichever entity is bound to `@s` at the point the
-/// context is used, not a persistent reference to a specific entity. Once the
-/// generated command chain that produced a context has finished running,
-/// the context itself has no further meaning — it cannot be stored and
-/// replayed against a different entity later. To keep a working reference to
+/// context is used, not a persistent reference to a specific entity. Keeping
+/// or replaying this authoring value does not retain the original entity.
+/// To keep a working reference to
 /// a specific entity across a relationship traversal (which changes `@s`),
 /// use [`EntityScope::bind`].
+///
+/// `Default` is an explicit authoring assumption about the current executor,
+/// not an unforgeable scope proof. It neither selects an entity nor checks its
+/// kind. Prefer handles supplied by events, queries, and player functions.
+/// Capabilities refer to the executor where their generated actions run;
+/// moving actions outside that context can change their meaning.
 #[derive(Debug, Clone, Copy)]
 pub struct EntityContext<K> {
     _kind: PhantomData<K>,
+}
+
+/// Convert a player execution handle to the canonical single-player command
+/// target. This preserves `@s`, not a persistent identity or runtime kind proof.
+impl From<EntityContext<PlayerKind>> for sand_commands::Target<sand_commands::PlayersOnly, One> {
+    fn from(_: EntityContext<PlayerKind>) -> Self {
+        Self::current_player()
+    }
 }
 
 impl<K: EntityKind> Default for EntityContext<K> {
@@ -400,6 +413,37 @@ impl<K: EquipmentEntityKind> EntityContext<K> {
 }
 
 impl EntityContext<PlayerKind> {
+    /// Call a registered Sand function under this player executor.
+    ///
+    /// Export resolves the canonical `FunctionRef`, verifies registration, and
+    /// applies its shared execution-context requirement. A player-only callee
+    /// is guarded by `if entity @s[type=minecraft:player]`; server-compatible
+    /// callees inherit the executor too. Neither form changes position,
+    /// rotation, dimension, or anchor. A handle constructed with `Default`
+    /// still assumes an externally established player executor.
+    ///
+    /// The returned actions must run where this handle's `@s` is meaningful.
+    /// Unknown/external IDs are rejected; use the explicit raw command escape
+    /// hatch when Sand does not own the function definition.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::call",
+        aliases = ["sand::prelude::EntityContext::call"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Call a registered function while preserving the current player execution context.",
+        context = "Available on EntityContext<PlayerKind>, including event, query, and injected function handles. Default remains an authoring assumption, not a scope proof.",
+        minecraft = "Retains the registered function call until export validates its identity and shared execution-context requirement. Player callees are guarded by the current executor's player type; calls preserve position and anchor.",
+        use_when = ["Composing registered gameplay behavior for the current player"],
+        avoid_when = ["Calling an external function unknown to Sand's registry"],
+        params(function = "A registered function item or its canonical FunctionId."),
+        returns = "Structured actions retaining the registered call until export.",
+        example = "use sand::prelude::*; #[function(\"reward\", context = player)] fn reward() {} let player = EntityContext::<PlayerKind>::default(); let actions = player.call(reward);",
+    )]
+    pub fn call(&self, function: impl crate::function::FunctionRef) -> Actions {
+        Actions(vec![Cmd::RegisteredFunction(function.function_id())])
+    }
+
     /// Typed inventory locations for the current player executor.
     #[sand_macros::api(
         registry = sand_api_contract,

@@ -393,7 +393,7 @@ impl SandEvent for SprintingWhileExhaustedEvent {
 #[on_event]
 pub fn on_first_join(event: FirstJoin) {
     traversal().stamina.set(100);
-    Title::of(event.player())
+    Title::of(Target::from(event.player()))
         .title(Text::new("Trailforge").gold().bold(true))
         .subtitle(Text::new("Craft a Grapple Core to begin").aqua())
         .build();
@@ -416,7 +416,7 @@ pub fn on_death(event: OnDeath) {
 #[on_event]
 pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
     cmd::tellraw(
-        event.player(),
+        Target::from(event.player()),
         Text::new("The core hums. Run /function trail:claim_striders").aqua(),
     );
     cmd::function(open_menu);

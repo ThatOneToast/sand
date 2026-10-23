@@ -29,26 +29,26 @@ impl AdvancementEvent for AteGoldenApple {
 
 #[on_event]
 pub fn on_ate(event: Event<AteGoldenApple>) {
-    cmd::tellraw(event.player(), Text::new("Golden apple eaten").gold());
+    cmd::tellraw(Target::from(event.player()), Text::new("Golden apple eaten").gold());
 }
 
 // Generated built-ins share Event<T> context without claiming that their
 // marker types implement AdvancementEvent.
 #[on_event]
 pub fn on_join(event: Event<OnJoinEvent>) {
-    cmd::tellraw(event.player(), Text::new("Welcome"));
+    cmd::tellraw(Target::from(event.player()), Text::new("Welcome"));
 }
 
 // Compatibility contract: bare built-in marker handlers still expose the
 // executing player through EventPlayer.
 #[on_event]
 pub fn on_join_legacy(event: OnJoinEvent) {
-    cmd::tellraw(event.player(), Text::new("Welcome"));
+    cmd::tellraw(Target::from(event.player()), Text::new("Welcome"));
 }
 
 #[on_event]
 pub fn on_sneak_start(event: Event<PlayerStartSneakingEvent>) {
-    cmd::tellraw(event.subject(), Text::new("Sneaking"));
+    cmd::tellraw(Target::from(event.player()), Text::new("Sneaking"));
 }
 
 static CURRENT: ScoreVar<i32> = ScoreVar::new("docs_current_jump");

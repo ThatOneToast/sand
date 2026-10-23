@@ -29,8 +29,8 @@ impl AdvancementEvent for UsedDashWandEvent {
 
 #[on_event]
 pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
-    MANA.remove(event.player(), 25);
-    DASH.start(event.player());
+    MANA.remove(Target::from(event.player()), 25);
+    DASH.start(Target::from(event.player()));
 }
 
 fn main() {

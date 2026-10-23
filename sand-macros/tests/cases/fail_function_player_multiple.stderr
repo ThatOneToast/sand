@@ -1,0 +1,5 @@
+error: #[function] context = player permits only one EntityContext<PlayerKind> authoring parameter
+ --> tests/cases/fail_function_player_multiple.rs:3:10
+  |
+3 | fn wrong(a: EntityContext<PlayerKind>, b: EntityContext<PlayerKind>) {
+  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

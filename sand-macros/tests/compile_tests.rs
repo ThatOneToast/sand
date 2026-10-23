@@ -181,3 +181,13 @@ fn block_raycast_compile_tests() {
     t.pass("tests/cases/pass_block_raycast.rs");
     t.compile_fail("tests/cases/fail_block_raycast_callback.rs");
 }
+
+#[test]
+fn player_context_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_player_context.rs");
+    t.compile_fail("tests/cases/fail_function_player_wrong_kind.rs");
+    t.compile_fail("tests/cases/fail_function_player_multiple.rs");
+    t.compile_fail("tests/cases/fail_function_server_player_parameter.rs");
+    t.compile_fail("tests/cases/fail_entity_context_player_call.rs");
+}

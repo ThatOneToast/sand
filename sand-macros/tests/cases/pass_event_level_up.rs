@@ -9,12 +9,12 @@ static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 
 #[on_event]
 pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
-    MANA.add(event.player(), 10);
+    MANA.add(Target::from(event.player()), 10);
 }
 
 #[on_event]
 pub fn on_levels_up_alias(event: Event<PlayerLevelsUp>) {
-    MANA.add(event.player(), 5);
+    MANA.add(Target::from(event.player()), 5);
 }
 
 fn main() {

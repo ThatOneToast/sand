@@ -6,7 +6,7 @@
     aliases = ["sand::prelude::EntityParticipantRole"],
     module = "sand::participant",
     summary = "The role an entity/player participant plays in an event, independent of its [`ParticipantReliability`](super::reliability::ParticipantReliability).",
-    context = "The role an entity/player participant plays in an event, independent of its [`ParticipantReliability`](super::reliability::ParticipantReliability). This is a stable, deliberately small vocabulary. Every variant has either an existing vanilla mechanism it maps to (documented per-variant) or a clear planned Phase 9 use — roles without credible evidence are not included. `Actor`/`Subject` are distinguished because not every event's primary participant is a player (`Actor` covers the general case; `Subject` is specifically the player-subject role every `Event<T>` context already exposes via `.player()`/`.subject()`).",
+    context = "The role an entity/player participant plays in an event, independent of its [`ParticipantReliability`](super::reliability::ParticipantReliability). This is a stable, deliberately small vocabulary. Every variant has either an existing vanilla mechanism it maps to (documented per-variant) or a clear planned Phase 9 use — roles without credible evidence are not included. `Actor`/`Subject` are distinguished because not every event's primary participant is a player (`Actor` covers the general case; `Subject` is specifically the player-subject role every `Event<T>` context already exposes via `.player()`).",
     minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
     use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
     avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
@@ -22,7 +22,7 @@
 /// included. `Actor`/`Subject` are distinguished because not every event's
 /// primary participant is a player (`Actor` covers the general case;
 /// `Subject` is specifically the player-subject role every `Event<T>`
-/// context already exposes via `.player()`/`.subject()`).
+/// context already exposes via `.player()`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EntityParticipantRole {
     /// The event's primary player subject — what `Event<T>::player()`/

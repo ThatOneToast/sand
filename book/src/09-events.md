@@ -21,7 +21,10 @@ occurrences vanilla Minecraft already signals natively (an advancement
 join-flag, and death). `#[on_event]` generates the scoreboard-backed detection
 and dispatch wiring; the handler just receives an `Event<T>` (or, for
 built-ins with a stable player accessor, the marker type directly) with
-`.player()` giving you the affected entity's selector.
+`.player()` giving you the canonical `EntityContext<PlayerKind>` handle.
+Use `State::on(event.player())` and `event.player().inventory()` directly;
+`Target::from(event.player())` is the boundary for typed command builders.
+The old `Event::subject()` alias has been removed.
 
 ## Joins and reconnects
 
@@ -285,7 +288,7 @@ impl SandEvent for DiamondsIncreased {
 
 #[on_event]
 fn diamonds_increased(event: DiamondsIncreased) {
-    cmd::tellraw(event.player(), Text::new("You gained diamonds!"));
+    cmd::tellraw(Target::from(event.player()), Text::new("You gained diamonds!"));
 }
 ```
 

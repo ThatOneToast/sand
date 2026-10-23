@@ -3357,7 +3357,7 @@ pub struct PlayerLevelUpEvent;
 impl PlayerLevelUpEvent {
     /// Read the player's current XP level as a typed numeric expression.
     ///
-    /// The value is sampled before level-up callbacks run. Pass the callback's `event.player()` target.
+    /// The value is sampled before level-up callbacks run. Pass the callback's `Target::from(event.player())` target.
     /// The snapshot belongs to the exporting datapack namespace; it is not a
     /// live experience query. Compose the returned [`crate::entity::StatCurve`]
     /// in a condition or numeric State assignment. Constructing it does not
@@ -3373,9 +3373,9 @@ impl PlayerLevelUpEvent {
         minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
         use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
         avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
-        params(player = "The callback's typed player target, normally event.player()."),
+        params(player = "The callback's typed player target, normally Target::from(event.player())."),
         returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
-        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::current_level(event.player()); }",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::current_level(Target::from(event.player())); }",
     )]
     #[must_use = "compose this snapshot in a numeric expression or condition"]
     pub fn current_level(
@@ -3389,7 +3389,7 @@ impl PlayerLevelUpEvent {
 
     /// Read the player's previous XP level as a typed numeric expression.
     ///
-    /// During a level-up callback this is the baseline from the preceding observation. Pass the callback's `event.player()` target.
+    /// During a level-up callback this is the baseline from the preceding observation. Pass the callback's `Target::from(event.player())` target.
     /// The snapshot belongs to the exporting datapack namespace; it is not a
     /// live experience query. Compose the returned [`crate::entity::StatCurve`]
     /// in a condition or numeric State assignment. Constructing it does not
@@ -3405,9 +3405,9 @@ impl PlayerLevelUpEvent {
         minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
         use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
         avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
-        params(player = "The callback's typed player target, normally event.player()."),
+        params(player = "The callback's typed player target, normally Target::from(event.player())."),
         returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
-        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::previous_level(event.player()); }",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::previous_level(Target::from(event.player())); }",
     )]
     #[must_use = "compose this snapshot in a numeric expression or condition"]
     pub fn previous_level(
@@ -3421,7 +3421,7 @@ impl PlayerLevelUpEvent {
 
     /// Read the player's XP level increase as a typed numeric expression.
     ///
-    /// During a level-up callback for this player, the value is current minus previous and is positive. Pass the callback's `event.player()` target.
+    /// During a level-up callback for this player, the value is current minus previous and is positive. Pass the callback's `Target::from(event.player())` target.
     /// The snapshot belongs to the exporting datapack namespace; it is not a
     /// live experience query. Compose the returned [`crate::entity::StatCurve`]
     /// in a condition or numeric State assignment. Constructing it does not
@@ -3437,9 +3437,9 @@ impl PlayerLevelUpEvent {
         minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
         use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
         avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
-        params(player = "The callback's typed player target, normally event.player()."),
+        params(player = "The callback's typed player target, normally Target::from(event.player())."),
         returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
-        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::level_delta(event.player()); }",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::level_delta(Target::from(event.player())); }",
     )]
     #[must_use = "compose this snapshot in a numeric expression or condition"]
     pub fn level_delta(
@@ -3962,7 +3962,7 @@ pub(crate) const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
 ///
 /// #[on_event]
 /// pub fn while_sneaking(event: PlayerSneakEvent) {
-///     cmd::particle(Particle::Smoke, event.player());
+///     cmd::particle(Particle::Smoke, Target::from(event.player()));
 /// }
 /// ```
 pub struct PlayerSneakEvent;

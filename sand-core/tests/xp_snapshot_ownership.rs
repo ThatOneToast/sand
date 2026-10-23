@@ -28,14 +28,14 @@ fn verify(namespace: &str) -> String {
     let records: Vec<serde_json::Value> = serde_json::from_str(&export).unwrap();
     let check = records
         .iter()
-        .find(|r| r["dir"] == "function" && r["path"] == "__sand_xp_check")
+        .find(|r| r["dir"] == "function" && r["path"] == "__sand_xp_observe")
         .unwrap()["content"]
         .as_str()
         .unwrap();
     let lines = check.lines().collect::<Vec<_>>();
-    let current = lines[0].split_whitespace().nth(5).unwrap();
+    let current = lines[0].split_whitespace().nth(7).unwrap();
     let previous = lines.last().unwrap().split_whitespace().nth(4).unwrap();
-    let delta = lines[3].split_whitespace().nth(4).unwrap();
+    let delta = lines[0].split_whitespace().nth(4).unwrap();
     let expected = [current.to_string(), previous.to_string(), delta.to_string()]
         .into_iter()
         .collect::<BTreeSet<_>>();

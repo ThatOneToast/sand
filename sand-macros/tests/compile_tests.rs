@@ -174,3 +174,10 @@ fn concrete_archetype_compile_tests() {
     t.pass("tests/cases/pass_concrete_archetype.rs");
     t.compile_fail("tests/cases/fail_archetype_*.rs");
 }
+
+#[test]
+fn block_raycast_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_block_raycast.rs");
+    t.compile_fail("tests/cases/fail_block_raycast_callback.rs");
+}

@@ -14,6 +14,7 @@
 # Typed biome spawn costs and replacement raw table setters add four source items.
 # Shared generators add twelve source items and NoiseSettingsId adds four generated items.
 # DimensionType dragon-fight configuration adds one enforced component method.
+# Registered block raycasting adds 14 enforced source items (two modules, one type, eleven methods).
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -22,12 +23,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5004
+static_surface_items = 5018
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11104
+static_surface_items = 11118
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

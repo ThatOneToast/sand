@@ -58,6 +58,12 @@ pub struct Actions(pub(crate) Vec<Cmd>);
 
 impl sand_components::function::FunctionBody for Actions {}
 
+impl crate::IntoCommands for Cmd {
+    fn into_commands(self) -> Actions {
+        Actions(vec![self])
+    }
+}
+
 impl<A: crate::IntoCommands> Extend<A> for Actions {
     fn extend<T: IntoIterator<Item = A>>(&mut self, actions: T) {
         for action in actions {
@@ -279,6 +285,11 @@ pub enum Cmd {
     /// `function <id>`
     Function(String),
 
+    /// A checked call to an inventory-registered function. Export resolves its
+    /// identity and canonical context; Player callbacks run only for players.
+    /// Unlike raw Function, unknown IDs fail with an owner/callback diagnostic.
+    RegisteredFunction(sand_components::FunctionId),
+
     /// An owned anonymous function whose resource is registered during export.
     /// Keeping the body here makes cached actions independent of registry lifetime.
     AnonymousFunction { prefix: String, body: Actions },
@@ -384,6 +395,26 @@ impl Cmd {
         owner: &sand_components::ResourceLocation,
     ) -> sand_commands::CommandResult<Vec<Self>> {
         Ok(match self {
+            Self::RegisteredFunction(id) => {
+                let (location, context) = crate::function::registered_function_context(id)
+                    .map_err(|error| {
+                        error.with_context(format!("{owner}: registered function callback"))
+                    })?;
+                let call = Self::Function(location.to_string());
+                if context == crate::advanced::compiler::ExecutionContext::Player {
+                    vec![Self::Execute {
+                        operations: vec![ExecuteOp::If(ConditionIr::Entity(
+                            sand_commands::Selector::self_().entity_type(
+                                sand_components::EntityTypeId::minecraft("player")
+                                    .expect("static player ID"),
+                            ),
+                        ))],
+                        run: Box::new(call),
+                    }]
+                } else {
+                    vec![call]
+                }
+            }
             Self::NumericWrite(write) => return write.lower(owner),
             Self::ItemMutation(write) => return write.lower(owner),
             Self::ItemMatch(query) => return query.lower(owner),
@@ -559,6 +590,13 @@ impl Cmd {
                     .join("\n")
             }
 
+            Self::RegisteredFunction(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "registered function",
+                    "callback",
+                    "registered function calls require function export lowering",
+                ));
+            }
             Self::BlockMatch(_) | Self::BlockMutation(_) => {
                 return Err(sand_commands::CommandError::new(
                     "block gameplay",

@@ -54,7 +54,6 @@ fn rejects_helper_paths_and_same_criterion_baseline_declarations() {
     let objectives = load
         .lines()
         .filter_map(|line| line.strip_prefix("scoreboard objectives add "))
-        .filter(|line| line.ends_with(" dummy"))
         .map(|line| line.split_whitespace().next().unwrap());
     let helpers = [
         "__sand_death_check",
@@ -63,6 +62,8 @@ fn rejects_helper_paths_and_same_criterion_baseline_declarations() {
         "__sand_respawn_dispatch",
         "__sand_xp_check",
         "__sand_xp_dispatch",
+        "__sand_xp_init",
+        "__sand_xp_observe",
     ];
     for (function, name) in helpers
         .into_iter()

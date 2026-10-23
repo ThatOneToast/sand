@@ -704,3 +704,33 @@ pub mod __private {
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};
 }
+
+#[path = "systems/raycast/mod.rs"]
+mod block_raycast;
+
+/// Reusable gameplay systems built from canonical Sand resources and actions.
+#[api(
+    path = "sand::systems", module = "sand",
+    summary = "Provides reusable registered gameplay features.",
+    context = "Systems compose Sand's typed resources and lifecycle registration rather than requiring private command choreography.",
+    minecraft = "Exports feature-owned resources through the ordinary datapack pipeline.",
+    use_when = ["Reusing a complete gameplay feature"],
+    avoid_when = ["A single command or condition already expresses the behavior"],
+    example = "use sand::systems::raycast::BlockRaycast;"
+)]
+pub mod systems {
+
+    /// Synchronous block raycasting with registered callbacks and isolated counters.
+    #[sand_macros::api(
+    path = "sand::systems::raycast", module = "sand::systems",
+    summary = "Samples blocks along the current command view with typed callbacks.",
+    context = "Definitions compose existing predicates, function actions, and datapack registration.",
+    minecraft = "Exports bounded synchronous traversal functions and per-entity counters.",
+    use_when = ["Finding a sampled block target or first collision"],
+    avoid_when = ["Exact voxel traversal or entity raycasting is required"],
+    example = "use sand::systems::raycast::BlockRaycast;"
+)]
+    pub mod raycast {
+        pub use crate::block_raycast::BlockRaycast;
+    }
+}

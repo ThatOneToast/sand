@@ -2041,6 +2041,8 @@ fn compile_dirty_distribution(
 ) -> Vec<String> {
     let root = generated_root(&definition.id.to_string());
     let mut dispatch = Vec::new();
+    let mut internal_resets = Vec::new();
+    let mut clean_internal = Vec::new();
     for (index, field) in fields.values().enumerate() {
         let mut commands = Vec::new();
         let internal = dirty_internal_name(&field.dirty_objective);
@@ -2078,9 +2080,8 @@ fn compile_dirty_distribution(
             field.dirty_objective,
             definition.id.namespace(),
         ));
-        // Retain the existing phase boundary: even a clean field clears a stale
-        // internal-cause bit before a later authored write can be observed.
-        dispatch.push(format!("scoreboard players set @s {internal} 0"));
+        internal_resets.push(format!("scoreboard players set @s {internal} 0"));
+        clean_internal.push(format!("{internal}=0"));
         functions.insert(path.clone());
         records.push(ComponentRecord::function(
             definition.id.namespace(),
@@ -2088,23 +2089,57 @@ fn compile_dirty_distribution(
             commands,
         ));
     }
+    // Fan-out bodies have no callbacks and only read their own internal-cause
+    // bit. Clear those bits together after fan-out, at the same phase boundary.
+    // Missing or nonzero scores still enter the reset body, including stale
+    // internal causes on otherwise clean fields exposed through raw interop.
+    if !internal_resets.is_empty() {
+        let path = format!("{root}/reset_internal_causes");
+        dispatch.push(format!(
+            "execute unless entity @s[scores={{{}}}] run function {}:{path}",
+            clean_internal.join(","),
+            definition.id.namespace(),
+        ));
+        functions.insert(path.clone());
+        records.push(ComponentRecord::function(
+            definition.id.namespace(),
+            &path,
+            internal_resets,
+        ));
+    }
     dispatch
 }
 
-fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
+fn compile_dirty_acknowledgement(
+    definition: &ArchetypeDefinition,
+    fields: &ArchetypeFields,
+    marker: &str,
+    records: &mut Vec<ComponentRecord>,
+    functions: &mut BTreeSet<String>,
+) -> Vec<String> {
+    let root = generated_root(&definition.id.to_string());
     fields
         .values()
-        .flat_map(|field| {
-            [
-                format!(
-                    "scoreboard players set @s {} 0",
-                    dirty_pending_name(&field.dirty_objective, marker)
-                ),
-                format!(
-                    "scoreboard players set @s {} 0",
-                    dirty_cause_pending_name(&field.dirty_objective, marker)
-                ),
-            ]
+        .enumerate()
+        .map(|(index, field)| {
+            let pending = dirty_pending_name(&field.dirty_objective, marker);
+            let cause = dirty_cause_pending_name(&field.dirty_objective, marker);
+            let path = format!("{root}/acknowledge/{index}");
+            functions.insert(path.clone());
+            records.push(ComponentRecord::function(
+                definition.id.namespace(),
+                &path,
+                vec![
+                    format!("scoreboard players set @s {pending} 0"),
+                    format!("scoreboard players set @s {cause} 0"),
+                ],
+            ));
+            // Only this composition's pending generation is consumed. Check
+            // both bits, and normalize missing/noncanonical scores as before.
+            format!(
+                "execute unless entity @s[scores={{{pending}=0,{cause}=0}}] run function {}:{path}",
+                definition.id.namespace(),
+            )
         })
         .collect()
 }
@@ -2345,6 +2380,8 @@ fn compile_definition_with_claims(
         &mut records,
         &mut functions,
     );
+    let dirty_acknowledgement =
+        compile_dirty_acknowledgement(definition, &fields, &marker, &mut records, &mut functions);
     let load_path = format!("{root}/load");
     functions.insert(load_path.clone());
     records.push(ComponentRecord::function(
@@ -2608,7 +2645,7 @@ fn compile_definition_with_claims(
         let repair_path = format!("{root}/repair_refresh");
         functions.insert(repair_path.clone());
         let mut commands = dirty_distribution.clone();
-        commands.extend(dirty_acknowledgement_commands(&fields, &marker));
+        commands.extend(dirty_acknowledgement.iter().cloned());
         commands.extend(repair_refresh_commands);
         records.push(ComponentRecord::function(
             definition.id.namespace(),
@@ -2683,7 +2720,7 @@ fn compile_definition_with_claims(
     } else if let Some(path) = &derivations.refresh_function {
         reconcile_commands.push(format!("function {path}"));
     }
-    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
+    reconcile_commands.extend(dirty_acknowledgement.iter().cloned());
     reconcile_commands.extend(dirty_distribution.iter().cloned());
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
@@ -4673,7 +4710,8 @@ mod tests {
         .unwrap()
     }
 
-    /// Follow the change-dispatch calls when checking cross-function command order.
+    /// Expand possible bookkeeping bodies for cross-function ordering assertions.
+    /// This does not evaluate guards; the native audits exercise those paths.
     fn with_change_bodies(
         record: &ComponentRecord,
         records: &[ComponentRecord],
@@ -4689,7 +4727,10 @@ mod tests {
                 let Some((namespace, path)) = target.split_once(':') else {
                     return line.to_owned();
                 };
-                if !path.contains("/changes/") {
+                if !path.contains("/changes/")
+                    && !path.contains("/acknowledge/")
+                    && !path.ends_with("/reset_internal_causes")
+                {
                     return line.to_owned();
                 }
                 let body = records
@@ -4701,6 +4742,91 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         expanded
+    }
+
+    #[test]
+    fn bookkeeping_guards_preserve_missing_scores_and_owner_boundaries() {
+        for namespace in ["ack_a", "ack_b"] {
+            let definition = EntityArchetype::<ZombieKind>::new(
+                ResourceLocation::new(namespace, "guarded").unwrap(),
+            )
+            .components::<MobState>()
+            .definition();
+            let compiled = compile_definition(&definition, &profile()).unwrap();
+            let marker = initialized_tag(&definition.id.to_string());
+            let fields = ArchetypeFields::new(&definition).unwrap();
+            let reconcile = compiled
+                .records
+                .iter()
+                .find(|record| record.path.ends_with("/reconcile"))
+                .unwrap();
+            let reset = compiled
+                .records
+                .iter()
+                .find(|record| record.path.ends_with("/reset_internal_causes"))
+                .unwrap();
+            let clean = fields
+                .values()
+                .map(|field| format!("{}=0", dirty_internal_name(&field.dirty_objective)))
+                .collect::<Vec<_>>()
+                .join(",");
+            let reset_call = format!(
+                "execute unless entity @s[scores={{{clean}}}] run function {namespace}:{}",
+                reset.path,
+            );
+            assert_eq!(
+                reconcile
+                    .content
+                    .lines()
+                    .filter(|line| *line == reset_call)
+                    .count(),
+                3
+            );
+            assert_eq!(reset.content.lines().count(), fields.values().count());
+            for (index, field) in fields.values().enumerate() {
+                let pending = dirty_pending_name(&field.dirty_objective, &marker);
+                let cause = dirty_cause_pending_name(&field.dirty_objective, &marker);
+                let ack = compiled
+                    .records
+                    .iter()
+                    .find(|record| record.path.ends_with(&format!("/acknowledge/{index}")))
+                    .unwrap();
+                assert_eq!(ack.namespace, namespace);
+                assert_eq!(
+                    ack.content.lines().collect::<Vec<_>>(),
+                    vec![
+                        format!("scoreboard players set @s {pending} 0"),
+                        format!("scoreboard players set @s {cause} 0"),
+                    ]
+                );
+                // Negating the complete zero selector covers missing scores,
+                // stale cause-only flags, and noncanonical raw values as well.
+                assert!(reconcile.content.contains(&format!(
+                    "execute unless entity @s[scores={{{pending}=0,{cause}=0}}] run function {namespace}:{}",
+                    ack.path,
+                )));
+                assert!(compiled.report.functions.contains(&ack.path));
+                assert!(reset.content.lines().any(|line| line
+                    == format!(
+                        "scoreboard players set @s {} 0",
+                        dirty_internal_name(&field.dirty_objective)
+                    )));
+            }
+            let expected = compiled
+                .records
+                .iter()
+                .map(|r| (&r.path, &r.content))
+                .collect::<Vec<_>>();
+            let again = compile_definition(&definition, &profile()).unwrap();
+            assert_eq!(
+                expected,
+                again
+                    .records
+                    .iter()
+                    .map(|r| (&r.path, &r.content))
+                    .collect::<Vec<_>>()
+            );
+        }
     }
 
     /// Clean fields never enter the shared fan-out body; dirty fields retain it.

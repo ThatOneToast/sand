@@ -591,6 +591,7 @@ pub(crate) enum GeneratedOrigin {
 
 /// Export-local resources and their current semantic registration origins.
 struct GeneratedRegistry {
+    namespace: Option<String>,
     resources: Vec<GeneratedResource>,
     origins: std::collections::BTreeSet<GeneratedOrigin>,
     score_origins: std::collections::BTreeSet<GeneratedOrigin>,
@@ -670,7 +671,7 @@ pub(crate) fn take_dialog_origins() -> std::collections::BTreeSet<GeneratedOrigi
 }
 
 thread_local! {
-    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { resources: Vec::new(), origins: std::collections::BTreeSet::new(), score_origins: std::collections::BTreeSet::new(), dialog_origins: std::collections::BTreeSet::new() }) };
+    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { namespace: None, resources: Vec::new(), origins: std::collections::BTreeSet::new(), score_origins: std::collections::BTreeSet::new(), dialog_origins: std::collections::BTreeSet::new() }) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
     static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
     static GENERATED_OBJECTIVE_OWNERS: RefCell<std::collections::BTreeMap<String, GeneratedObjectiveOwner>> = const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -684,6 +685,12 @@ thread_local! {
 pub(crate) struct ExportFunctionRegistryScope;
 
 impl ExportFunctionRegistryScope {
+    pub(crate) fn enter_namespace(namespace: &str) -> Self {
+        let scope = Self::enter();
+        REGISTRY.with_borrow_mut(|registry| registry.namespace = Some(namespace.to_owned()));
+        scope
+    }
+
     pub(crate) fn enter() -> Self {
         clear_function_export_state();
         Self
@@ -699,6 +706,7 @@ impl Drop for ExportFunctionRegistryScope {
 /// Discard generated resources, origins, constants, and objective reservations between exports.
 fn clear_function_export_state() {
     REGISTRY.with_borrow_mut(|registry| {
+        registry.namespace = None;
         registry.resources.clear();
         registry.origins.clear();
         registry.score_origins.clear();
@@ -710,6 +718,60 @@ fn clear_function_export_state() {
     GENERATED_OBJECTIVE_OWNERS.with_borrow_mut(|owners| owners.clear());
 }
 
+/// Resolve a resource identity within the current export transaction.
+/// Internal framework composition hook; callers retain identities until export.
+#[doc(hidden)]
+pub fn resolve_export_location(
+    location: &sand_components::ResourceLocation,
+) -> sand_commands::CommandResult<sand_components::ResourceLocation> {
+    if location.namespace() != SAND_LOCAL_NS {
+        return Ok(location.clone());
+    }
+    REGISTRY.with_borrow(|registry| {
+        let namespace = registry.namespace.as_deref().ok_or_else(|| {
+            sand_commands::CommandError::new(
+                "resource reference",
+                "namespace",
+                "local resource resolution requires an active export",
+            )
+        })?;
+        sand_components::ResourceLocation::new(namespace, location.path()).map_err(|error| {
+            sand_commands::CommandError::new("resource reference", "namespace", error.to_string())
+        })
+    })
+}
+
+pub(crate) fn registered_function_context(
+    id: &sand_components::FunctionId,
+) -> sand_commands::CommandResult<(
+    sand_components::ResourceLocation,
+    crate::advanced::compiler::ExecutionContext,
+)> {
+    let resolved = resolve_export_location(id.as_resource_location())?;
+    for descriptor in inventory::iter::<FunctionDescriptor>() {
+        // Descriptors store a path only; the same export namespace used by
+        // the pipeline supplies its resource identity.
+        let declared = sand_components::ResourceLocation::new(SAND_LOCAL_NS, descriptor.path)
+            .map_err(|error: sand_components::SandError| {
+                sand_commands::CommandError::new(
+                    "registered function",
+                    "callback",
+                    error.to_string(),
+                )
+            })?;
+        if resolve_export_location(&declared)? == resolved {
+            return Ok((resolved, descriptor.context));
+        }
+    }
+    Err(sand_commands::CommandError::new(
+        "registered function",
+        "callback",
+        format!(
+            "callback `{resolved}` is not a registered #[function]; external function IDs are not accepted"
+        ),
+    ))
+}
+
 /// Logical storage identity and the function allowed to declare it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GeneratedObjectiveOwner {
@@ -718,7 +780,9 @@ pub(crate) struct GeneratedObjectiveOwner {
     pub(crate) initializer: Option<sand_components::ResourceLocation>,
 }
 
-pub(crate) fn reserve_generated_objectives(
+/// Internal framework hook: reserve logical objective identities during export.
+#[doc(hidden)]
+pub fn reserve_generated_objectives(
     objectives: impl IntoIterator<Item = sand_commands::ObjectiveName>,
     initializer: Option<sand_components::ResourceLocation>,
 ) -> sand_commands::CommandResult<()> {

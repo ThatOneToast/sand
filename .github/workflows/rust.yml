@@ -11,6 +11,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Avoid intermittent HTTP/2 registry failures in nested consumer builds.
+  CARGO_HTTP_MULTIPLEXING: "false"
   RUSTC_WRAPPER: sccache
   SCCACHE_GHA_ENABLED: "true"
 

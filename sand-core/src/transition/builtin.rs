@@ -125,19 +125,46 @@ pub(super) fn resolve(
         let previous = XpPrevious.objective(namespace);
         let delta = XpDelta.objective(namespace);
         let seen = XpSeen.objective(namespace);
+        // Query at the existing observation point: vanilla's `level` criterion
+        // updates during the player tick, after datapack tick functions, and
+        // would miss XP mutations from earlier handlers in this same cycle.
         let check = vec![
             format!("execute store result score @s {current} run experience query @s levels"),
             format!(
-                "execute unless score @s {seen} matches 1 run scoreboard players operation @s {previous} = @s {current}"
+                "execute unless score @s {seen} matches 1 run function {namespace}:__sand_xp_init"
             ),
-            format!("scoreboard players set @s {seen} 1"),
-            format!("scoreboard players operation @s {delta} = @s {current}"),
-            format!("scoreboard players operation @s {delta} -= @s {previous}"),
             format!(
-                "execute if score @s {delta} matches 1.. run function {namespace}:__sand_xp_dispatch"
+                "execute unless score @s {current} = @s {previous} run function {namespace}:__sand_xp_observe"
             ),
-            format!("scoreboard players operation @s {previous} = @s {current}"),
         ];
+        add_function(
+            &mut plan,
+            namespace,
+            XpCurrent,
+            "__sand_xp_init",
+            &level_origins,
+            vec![
+                format!("scoreboard players operation @s {previous} = @s {current}"),
+                format!("scoreboard players set @s {seen} 1"),
+            ],
+        );
+        add_function(
+            &mut plan,
+            namespace,
+            XpCurrent,
+            "__sand_xp_observe",
+            &level_origins,
+            vec![
+                format!("scoreboard players operation @s {delta} = @s {current}"),
+                format!("scoreboard players operation @s {delta} -= @s {previous}"),
+                format!(
+                    "execute if score @s {delta} matches 1.. run function {namespace}:__sand_xp_dispatch"
+                ),
+                // Callbacks may change live XP. Advance from the sampled value
+                // so that those changes are observed on the following tick.
+                format!("scoreboard players operation @s {previous} = @s {current}"),
+            ],
+        );
         add_function(
             &mut plan,
             namespace,
@@ -214,34 +241,65 @@ mod tests {
         use DetectorScore::*;
         let plan = resolve("xp", &[], &[], &["leveled"]);
         assert_eq!(plan, resolve("xp", &[], &[], &["leveled"]));
-        let commands = &plan
-            .functions
-            .iter()
-            .find(|function| function.path == "__sand_xp_check")
-            .unwrap()
-            .commands;
-        let (current, previous, delta, seen) = (
+        let body = |path| {
+            &plan
+                .functions
+                .iter()
+                .find(|f| f.path == path)
+                .unwrap()
+                .commands
+        };
+        let (current, previous, delta) = (
             XpCurrent.objective("xp"),
             XpPrevious.objective("xp"),
             XpDelta.objective("xp"),
-            XpSeen.objective("xp"),
         );
         assert_eq!(
-            *commands,
-            vec![
-                format!("execute store result score @s {current} run experience query @s levels"),
-                format!(
-                    "execute unless score @s {seen} matches 1 run scoreboard players operation @s {previous} = @s {current}"
-                ),
-                format!("scoreboard players set @s {seen} 1"),
+            body("__sand_xp_observe"),
+            &vec![
                 format!("scoreboard players operation @s {delta} = @s {current}"),
                 format!("scoreboard players operation @s {delta} -= @s {previous}"),
-                "execute if score @s ".to_owned()
-                    + &delta
-                    + " matches 1.. run function xp:__sand_xp_dispatch",
+                format!(
+                    "execute if score @s {delta} matches 1.. run function xp:__sand_xp_dispatch"
+                ),
                 format!("scoreboard players operation @s {previous} = @s {current}"),
             ]
         );
         assert_eq!(plan.tick_commands, ["function xp:__sand_xp_check"]);
+    }
+
+    #[test]
+    fn xp_idle_queries_once_without_rewriting_bookkeeping() {
+        let plan = resolve("xp", &[], &[], &["leveled"]);
+        let body = |path| {
+            &plan
+                .functions
+                .iter()
+                .find(|f| f.path == path)
+                .unwrap()
+                .commands
+        };
+        assert_eq!(
+            body("__sand_xp_check"),
+            &vec![
+                "execute store result score @s __sx_xp.c run experience query @s levels",
+                "execute unless score @s __sx_xp.s matches 1 run function xp:__sand_xp_init",
+                "execute unless score @s __sx_xp.c = @s __sx_xp.p run function xp:__sand_xp_observe",
+            ]
+        );
+        assert_eq!(
+            body("__sand_xp_init"),
+            &vec![
+                "scoreboard players operation @s __sx_xp.p = @s __sx_xp.c",
+                "scoreboard players set @s __sx_xp.s 1",
+            ]
+        );
+        assert_eq!(plan.private_objectives.len(), 4);
+        assert!(plan.reload_commands.is_empty());
+        assert!(
+            plan.load_commands
+                .iter()
+                .all(|line| line.ends_with(" dummy"))
+        );
     }
 }

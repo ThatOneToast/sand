@@ -36,7 +36,8 @@ class SoundEventHarness(WorldGameplayHarness):
         ]:
             for name in ["reference", "inline", "fixed", "zero", "negative"]:
                 resource_id = f"sand_audit:sound/{name}"
-                value = resource_id if kind == "instrument" else {"song": resource_id}
+                # Both 26.2 item components encode their registry holder as a string.
+                value = resource_id
                 tag = f"sand_sound_{kind}_{name}"
                 item = {"id": item_id, "count": 1, "components": {component: value}}
                 nbt = json.dumps({"Tags": [tag], "Item": item})

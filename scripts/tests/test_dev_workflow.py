@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location(
     "dev_workflow", Path(__file__).resolve().parents[1] / "validate_dev_workflow.py")
@@ -58,15 +59,22 @@ class ProcessCleanup(unittest.TestCase):
         path.chmod(0o755)
         return path
 
+    def wait_for_descendant(self, root, process):
+        deadline = time.monotonic() + 30
+        path = root / "child.pid"
+        while time.monotonic() < deadline:
+            if path.exists() and path.read_text().strip():
+                return int(path.read_text())
+            self.assertIsNone(process.poll(), "fixture exited before creating its descendant")
+            time.sleep(0.01)
+        self.fail("fixture did not create its descendant within 30 seconds")
+
     def test_dev_timeout_reaps_parent_and_kills_descendant(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             dev = workflow.Dev(self.fixture(root), root, root / "console.log", dict(os.environ))
             try:
-                deadline = time.monotonic() + 3
-                while not (root / "child.pid").exists() and time.monotonic() < deadline:
-                    time.sleep(0.01)
-                pid = int((root / "child.pid").read_text())
+                pid = self.wait_for_descendant(root, dev.process)
                 dev.close(timeout=0.1)
                 self.assertIsNotNone(dev.process.returncode)
                 self.assert_stopped(pid)
@@ -76,10 +84,30 @@ class ProcessCleanup(unittest.TestCase):
     def test_release_deadline_kills_descendant(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            with self.assertRaises(subprocess.TimeoutExpired):
-                workflow.run_bounded([str(self.fixture(root))], cwd=root, timeout=1,
-                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            self.assert_stopped(int((root / "child.pid").read_text()))
+            launch = subprocess.Popen
+            descendant = None
+
+            def launch_ready(*args, **kwargs):
+                # Start the deadline only after a real descendant exists. Slow
+                # interpreter startup must not turn this into a parent-only test.
+                nonlocal descendant
+                process = launch(*args, **kwargs)
+                try:
+                    descendant = self.wait_for_descendant(root, process)
+                except BaseException:
+                    workflow.kill_process_tree(process)
+                    for pipe in (process.stdin, process.stdout, process.stderr):
+                        if pipe is not None:
+                            pipe.close()
+                    raise
+                return process
+
+            with patch.object(workflow.subprocess, "Popen", side_effect=launch_ready):
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    workflow.run_bounded([str(self.fixture(root))], cwd=root, timeout=1,
+                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.assertIsNotNone(descendant)
+            self.assert_stopped(descendant)
 
 
 if __name__ == "__main__":

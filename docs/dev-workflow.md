@@ -136,6 +136,13 @@ moves the previous managed namespace into a private quarantine outside
 `world/datapacks`, only within the same world. Recursive deletion occurs only
 after that move; cleanup failure retains the quarantine and reports its path,
 without making the old namespace loadable. Other datapacks are preserved.
+Once an invocation tracks a pack, switching to a different canonical pack path
+requires an absent destination, even in another world. Existing destinations
+are refused before staging; copied or foreign ownership markers do not authorize
+overwriting a neighboring pack. Refusal creates no pending handoff and preserves
+both directories. Move a conflicting operator pack aside before retrying.
+Initial dev startup still adopts its configured destination, and restarts and
+hot reloads at the currently tracked path retain their existing sync behavior.
 Cancellation before the install commit or failed installation retains the old
 pack. The original `server-ip` setting is restored on cleanup; loopback binding
 is temporary, and the RCON port is chosen distinct from the configured game port.

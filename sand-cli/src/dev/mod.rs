@@ -485,13 +485,27 @@ fn pack_owner(path: &Path) -> Result<Option<String>> {
 impl ManagedPack {
     /// Publish a startup pack with a persisted launch barrier. The marker is
     /// committed with the pack, before status output or ownership cleanup can
-    /// fail. Only a successful ownership handoff clears it.
+    /// fail. Only a successful ownership handoff clears it. Once a pack is
+    /// tracked, a different destination must be absent: a marker copied into
+    /// another namespace or world does not establish invocation ownership.
     pub(crate) fn install(&self, src: &Path, dest: &Path) -> Result<InstalledPack> {
         ensure_handoffs_complete(dest.parent().context("datapack has no parent")?)?;
         install_prepared(
             src,
             dest,
             None,
+            |expected| {
+                if let Some((previous, _)) = &self.0
+                    && expected.is_some()
+                {
+                    ensure!(
+                        std::fs::canonicalize(dest)? == *previous,
+                        "namespace destination already exists and is not the current invocation-managed pack; preserving {}",
+                        dest.display()
+                    );
+                }
+                Ok(())
+            },
             |stage| {
                 use std::io::Write;
                 let mut marker = std::fs::OpenOptions::new()
@@ -658,13 +672,14 @@ fn install_with_cleanup(
     marker: Option<(&str, &str)>,
     cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
 ) -> Result<InstalledPack> {
-    install_prepared(src, dest, marker, |_| Ok(()), cleanup)
+    install_prepared(src, dest, marker, |_| Ok(()), |_| Ok(()), cleanup)
 }
 
 fn install_prepared(
     src: &Path,
     dest: &Path,
     marker: Option<(&str, &str)>,
+    validate_destination: impl FnOnce(Option<&LiveIdentity>) -> Result<()>,
     prepare_handoff: impl FnOnce(&Path) -> Result<()>,
     cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
 ) -> Result<InstalledPack> {
@@ -672,6 +687,9 @@ fn install_prepared(
     // Keep the invocation's ownership through staged hot reloads. This file
     // exists only in the live server tree, never the build/release output.
     let expected = LiveIdentity::capture(dest)?;
+    // Authorize this exact baseline before allocating staging or copying any
+    // files. commit_install rejects later arrivals/replacements against it.
+    validate_destination(expected.as_ref())?;
     let owner = expected
         .as_ref()
         .and_then(|identity| identity.owner.as_ref());
@@ -1260,11 +1278,11 @@ mod tests {
         std::fs::create_dir_all(&manual).unwrap();
         std::fs::write(manual.join("keep"), "operator").unwrap();
         let mut managed = ManagedPack::default();
-        let old_install = install(&src, &old, None).unwrap();
+        let old_install = managed.install(&src, &old).unwrap();
         managed.installed(&old, &old_install.identity).unwrap();
-        assert!(install(&root.join("missing"), &new, None).is_err());
+        assert!(managed.install(&root.join("missing"), &new).is_err());
         assert!(old.exists(), "failed preparation retains previous pack");
-        let new_install = install(&src, &new, None).unwrap();
+        let new_install = managed.install(&src, &new).unwrap();
         assert!(
             old.exists(),
             "cancellation before commit retains previous pack"
@@ -1274,11 +1292,161 @@ mod tests {
         assert!(new.join("pack.mcmeta").exists());
         assert!(manual.join("keep").exists());
         let other_world = root.join("other-world/datapacks/third");
-        let other_install = install(&src, &other_world, None).unwrap();
+        let other_install = managed.install(&src, &other_world).unwrap();
         managed
             .installed(&other_world, &other_install.identity)
             .unwrap();
         assert!(new.exists(), "never prune a previous world");
+    }
+
+    #[test]
+    fn namespace_destination_conflicts_preserve_operator_data_without_poisoning_recovery() {
+        for destination in [
+            "world/datapacks/new",
+            "other-world/datapacks/new",
+            "other-world/datapacks/old",
+        ] {
+            let other_world = destination.starts_with("other-world/");
+            for marker in ["absent", "foreign", "copied"] {
+                let tmp = tempfile::tempdir().unwrap();
+                let src = tmp.path().join("src");
+                let old = tmp.path().join("world/datapacks/old");
+                let new = tmp.path().join(destination);
+                std::fs::create_dir(&src).unwrap();
+                std::fs::write(src.join("pack.mcmeta"), "project pack").unwrap();
+                let mut managed = ManagedPack::default();
+                let initial = managed.install(&src, &old).unwrap();
+                managed.installed(&old, &initial.identity).unwrap();
+                std::fs::create_dir_all(&new).unwrap();
+                std::fs::write(new.join("pack.mcmeta"), "operator pack").unwrap();
+                std::fs::write(new.join("operator-data"), "preserve").unwrap();
+                match marker {
+                    "foreign" => {
+                        std::fs::write(new.join(OWNER_FILE), "another invocation").unwrap()
+                    }
+                    "copied" => {
+                        std::fs::copy(old.join(OWNER_FILE), new.join(OWNER_FILE)).unwrap();
+                    }
+                    _ => {}
+                }
+                let before = watch::snapshot(tmp.path()).unwrap();
+                let old_identity = LiveIdentity::capture(&old).unwrap();
+                let new_identity = LiveIdentity::capture(&new).unwrap();
+                // Also use a missing source to prove the conflict is rejected
+                // before staging/copying rather than failing late in publication.
+                for source in [&src, &tmp.path().join("missing")] {
+                    let error = managed.install(source, &new).err().unwrap();
+                    assert!(
+                        error
+                            .to_string()
+                            .contains("namespace destination already exists")
+                    );
+                    assert_eq!(watch::snapshot(tmp.path()).unwrap(), before);
+                    assert_eq!(LiveIdentity::capture(&old).unwrap(), old_identity);
+                    assert_eq!(LiveIdentity::capture(&new).unwrap(), new_identity);
+                    ensure_handoffs_complete(new.parent().unwrap()).unwrap();
+                }
+                // Refusal creates no pending handoff. A fresh invocation can
+                // resume the old namespace, then use the new name after the
+                // operator has moved the conflict aside without losing bytes.
+                drop(managed);
+                let mut fresh = ManagedPack::default();
+                let resumed = fresh.install(&src, &old).unwrap();
+                fresh.installed(&old, &resumed.identity).unwrap();
+                let preserved = tmp.path().join("operator-preserved");
+                std::fs::rename(&new, &preserved).unwrap();
+                let next = fresh.install(&src, &new).unwrap();
+                fresh.installed(&new, &next.identity).unwrap();
+                assert_eq!(
+                    std::fs::read_to_string(preserved.join("operator-data")).unwrap(),
+                    "preserve"
+                );
+                assert_eq!(
+                    std::fs::read_to_string(preserved.join("pack.mcmeta")).unwrap(),
+                    "operator pack"
+                );
+                assert_eq!(
+                    old.exists(),
+                    other_world,
+                    "never retire a namespace in another world"
+                );
+                ensure_handoffs_complete(new.parent().unwrap()).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn initial_adoption_and_current_namespace_refresh_keep_existing_contract() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dest = tmp.path().join("world/datapacks/demo");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::create_dir_all(&dest).unwrap();
+        std::fs::write(src.join("pack.mcmeta"), "first").unwrap();
+        std::fs::write(dest.join("old-output"), "prior installation").unwrap();
+        let mut managed = ManagedPack::default();
+        let initial = managed.install(&src, &dest).unwrap();
+        managed.installed(&dest, &initial.identity).unwrap();
+        assert!(!dest.join("old-output").exists());
+        std::fs::write(src.join("pack.mcmeta"), "second").unwrap();
+        let restart = managed.install(&src, &dest).unwrap();
+        managed.installed(&dest, &restart.identity).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(dest.join("pack.mcmeta")).unwrap(),
+            "second"
+        );
+        let owner = pack_owner(&dest).unwrap();
+        std::fs::write(src.join("pack.mcmeta"), "third").unwrap();
+        install(&src, &dest, None).unwrap();
+        assert_eq!(
+            pack_owner(&dest).unwrap(),
+            owner,
+            "hot reload retains current ownership"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dest.join("pack.mcmeta")).unwrap(),
+            "third"
+        );
+        ensure_handoffs_complete(dest.parent().unwrap()).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn namespace_destination_symlinks_and_symlinked_markers_are_never_adopted() {
+        for marker_symlink in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("src");
+            let old = tmp.path().join("world/datapacks/old");
+            let new = tmp.path().join("world/datapacks/new");
+            let external = tmp.path().join("external");
+            std::fs::create_dir(&src).unwrap();
+            std::fs::create_dir(&external).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "project").unwrap();
+            std::fs::write(external.join("keep"), "operator").unwrap();
+            let mut managed = ManagedPack::default();
+            let initial = managed.install(&src, &old).unwrap();
+            managed.installed(&old, &initial.identity).unwrap();
+            if marker_symlink {
+                std::fs::create_dir(&new).unwrap();
+                std::os::unix::fs::symlink(old.join(OWNER_FILE), new.join(OWNER_FILE)).unwrap();
+            } else {
+                std::os::unix::fs::symlink(&external, &new).unwrap();
+            }
+            let original_owner = pack_owner(&old).unwrap();
+            assert!(managed.install(&src, &new).is_err());
+            assert_eq!(pack_owner(&old).unwrap(), original_owner);
+            assert_eq!(
+                std::fs::read_to_string(external.join("keep")).unwrap(),
+                "operator"
+            );
+            assert!(!new.join(HANDOFF_FILE).exists());
+            assert!(!new.join("pack.mcmeta").exists());
+            assert!(if marker_symlink {
+                new.join(OWNER_FILE).is_symlink()
+            } else {
+                new.is_symlink()
+            });
+        }
     }
 
     #[test]

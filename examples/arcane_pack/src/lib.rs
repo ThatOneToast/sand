@@ -299,7 +299,7 @@ static GOLDEN_APPLE_HANDLE: EventHandle<events::AteGoldenAppleEvent> = EventHand
 #[on_event]
 pub fn on_join(event: OnJoin) {
     cmd::tellraw(
-        event.player(),
+        Target::from(event.player()),
         Text::new("Welcome to the Arcane Pack!").gold(),
     );
 }
@@ -309,16 +309,16 @@ pub fn on_join(event: OnJoin) {
 /// FirstJoinEvent uses a tick advancement with no revoke.
 #[on_event]
 pub fn on_first_join(event: FirstJoin) {
-    MANA.set(event.player(), 100);
+    MANA.set(Target::from(event.player()), 100);
     STORED_MANA.set(100);
     MAGIC_SCHOOL.set("unbound");
     UNLOCKED_SPELLS.append("dash");
-    Title::of(event.player())
+    Title::of(Target::from(event.player()))
         .title(Text::new("Arcane Pack").gold().bold(true))
         .subtitle(Text::new("Your journey begins").green())
         .build();
     cmd::tellraw(
-        event.player(),
+        Target::from(event.player()),
         Text::new("You have been granted 100 mana!").aqua(),
     );
 }
@@ -331,7 +331,7 @@ pub fn on_death(event: OnDeath) {
     SHIELD.disable(Target::self_());
     MAGIC_SCHOOL.remove();
     cmd::effect_clear(Target::self_());
-    Title::of(event.player())
+    Title::of(Target::from(event.player()))
         .title(Text::new("You died!").red())
         .subtitle(Text::new("Shield deactivated, cooldowns cleared").gray())
         .build();
@@ -346,7 +346,7 @@ pub fn on_respawn(event: OnRespawn) {
     DASH.stop(Target::self_());
     FIREBALL.stop(Target::self_());
     cmd::tellraw(
-        event.player(),
+        Target::from(event.player()),
         Text::new("You have been granted 50 mana on respawn.").aqua(),
     );
 }
@@ -355,9 +355,9 @@ pub fn on_respawn(event: OnRespawn) {
 /// Uses a custom AdvancementEvent with guard() and function pointer call.
 #[on_event]
 pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
-    MANA.add(event.player(), 10);
+    MANA.add(Target::from(event.player()), 10);
     STORED_MANA.set(110);
-    Actionbar::show(event.player(), Text::new("+10 mana (golden apple)").green());
+    Actionbar::show(Target::from(event.player()), Text::new("+10 mana (golden apple)").green());
     cmd::function(golden_apple_reward);
 }
 
@@ -372,9 +372,9 @@ pub fn golden_apple_reward() {
 /// Uses a custom AdvancementEvent with guard() and function pointer call.
 #[on_event]
 pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
-    MANA.remove(event.player(), 25);
-    DASH.start(event.player());
-    Actionbar::show(event.player(), Text::new("Dash wand activated!").gold());
+    MANA.remove(Target::from(event.player()), 25);
+    DASH.start(Target::from(event.player()));
+    Actionbar::show(Target::from(event.player()), Text::new("Dash wand activated!").gold());
     cmd::function(dash_wand_effect);
 }
 

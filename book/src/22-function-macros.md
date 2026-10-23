@@ -52,3 +52,53 @@ syntax; `function_with` still requires a typed `NbtRef`. Function macros are par
 of Sand's 26+ command baseline; there is no pre-26 lowering or rejection path.
 Builds that require exact generated Minecraft data still reject unverified
 future profiles.
+
+## Player execution handles
+
+A player-context function may receive one authoring-time parameter:
+
+```rust,ignore
+use sand::prelude::*;
+use sand::events::OnJoinEvent;
+
+#[function("refresh_supplies", context = player)]
+fn refresh_supplies(player: EntityContext<PlayerKind>) {
+    Supplies::on(player).diamonds.set(player.inventory().count(vanilla::Item::Diamond));
+}
+
+#[on_event]
+fn joined(event: Event<OnJoinEvent>) {
+    event.player().call(refresh_supplies);
+}
+```
+
+`Supplies` is a player-scoped `State` with a numeric `diamonds` field. Events,
+player queries, and injected function parameters all supply the same
+`EntityContext<PlayerKind>`. The function macro still produces a zero-argument
+Rust function item usable as a canonical `FunctionRef`; the parameter is
+injected while building the datapack, never passed at Minecraft runtime.
+Functions without the parameter remain supported. Server-context functions
+cannot request a player parameter, and generic entity handles cannot use the
+player `call` capability.
+
+`player.call` returns `Actions` that retain the registered function identity
+until export. Export rejects unknown/external IDs and reads the existing
+`ExecutionContext` metadata. Player callees run behind a current-executor player
+guard; server-compatible callees inherit the current executor too. Neither call
+changes position, rotation, dimension, or anchor. Player entry initialization
+still uses the canonical State lifecycle.
+
+The handle means the current `@s` where its generated actions execute; it is not
+a captured or persistent player identity. Use `EntityScope::bind` when retaining
+an entity across relationship traversal. `EntityContext::default()` remains an
+explicit assumption, not an unforgeable proof: it selects nothing and verifies
+no kind. Likewise manually constructed event contexts do not establish an
+executor. Direct external Minecraft invocation must establish the declared
+context itself. Sand does not statically analyze arbitrary Rust factories or
+raw commands; existing advanced `cmd::function` and raw calls retain their
+separate documented boundary.
+
+`Target` answers which entities to select; the execution handle exposes the
+capabilities of the current entity; `State` owns its persistent gameplay data.
+Use `Target::from(player)` when crossing from gameplay handles to typed command
+builders. `EntityContext::target()` continues to mean relationship traversal.

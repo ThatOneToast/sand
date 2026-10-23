@@ -1,0 +1,11 @@
+error[E0308]: mismatched types
+ --> tests/cases/fail_function_player_wrong_kind.rs:2:1
+  |
+2 | #[function("wrong", context = player)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `EntityContext<AnyEntity>`, found `EntityContext<PlayerKind>`
+3 | fn wrong(player: EntityContext<AnyEntity>) {
+  |                  ------------------------ expected due to this
+  |
+  = note: expected struct `sand::prelude::EntityContext<sand::prelude::AnyEntity>`
+             found struct `sand::prelude::EntityContext<PlayerKind>`
+  = note: this error originates in the attribute macro `function` (in Nightly builds, run with -Z macro-backtrace for more info)

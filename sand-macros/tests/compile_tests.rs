@@ -181,3 +181,63 @@ fn block_raycast_compile_tests() {
     t.pass("tests/cases/pass_block_raycast.rs");
     t.compile_fail("tests/cases/fail_block_raycast_callback.rs");
 }
+
+#[test]
+fn player_context_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_player_context.rs");
+    t.compile_fail("tests/cases/fail_function_player_wrong_kind.rs");
+    t.compile_fail("tests/cases/fail_function_player_multiple.rs");
+    t.compile_fail("tests/cases/fail_function_server_player_parameter.rs");
+    t.compile_fail("tests/cases/fail_entity_context_player_call.rs");
+}
+
+/// Keep the formerly ignored public player-handle examples compile checked.
+#[test]
+fn player_handle_rustdoc_examples_compile() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut fixture =
+        String::from("#![allow(dead_code, unused_imports, unused_variables)]\nfn main() {}\n");
+    let mut count = 0;
+    for source in [
+        "../sand-core/src/events/mod.rs",
+        "../sand-core/src/event/mod.rs",
+        "../sand-core/src/event/vanilla.rs",
+        "src/lib.rs",
+    ] {
+        let text = std::fs::read_to_string(root.join(source)).unwrap();
+        let mut block = None::<String>;
+        for line in text.lines() {
+            let line = line.trim_start();
+            let Some(doc) = line
+                .strip_prefix("///")
+                .or_else(|| line.strip_prefix("//!"))
+            else {
+                continue;
+            };
+            let doc = doc.strip_prefix(' ').unwrap_or(doc);
+            if doc.starts_with("```") {
+                if let Some(body) = block.take() {
+                    if body.contains(".player()") {
+                        fixture.push_str(&format!("mod example_{count} {{\n{body}\n}}\n"));
+                        count += 1;
+                    }
+                } else if doc.starts_with("```rust,ignore") {
+                    block = Some(String::new());
+                }
+            } else if let Some(body) = &mut block {
+                body.push_str(doc);
+                body.push('\n');
+            }
+        }
+    }
+    assert!(count > 0, "no player-handle Rustdoc examples found");
+    let directory = std::env::temp_dir().join(format!("sand-player-docs-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("player_handle_docs.rs");
+    std::fs::write(&path, fixture).unwrap();
+    let cases = trybuild::TestCases::new();
+    cases.pass(&path);
+    drop(cases);
+    std::fs::remove_dir_all(directory).unwrap();
+}

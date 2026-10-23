@@ -1651,6 +1651,11 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// entry point. Sand prefixes canonical player State initialization before its
 /// body; callers must establish a player executor. The default is server context.
 ///
+/// With `context = player`, one optional `EntityContext<PlayerKind>` parameter
+/// is injected during authoring. The generated function item still takes no
+/// arguments and remains a canonical `FunctionRef`. No Rust argument is passed
+/// at Minecraft runtime. Other contexts accept no parameters.
+///
 /// The annotated function must not take runtime arguments: its body is compiled
 /// as authoring code that produces Minecraft commands during the Sand build.
 #[proc_macro_attribute]
@@ -1817,13 +1822,38 @@ fn expand_function(
         ));
     }
 
-    // Validate: no parameters.
-    if !func.sig.inputs.is_empty() {
-        return Err(syn::Error::new_spanned(
-            &func.sig.inputs,
-            "#[function] functions must take no parameters",
-        ));
-    }
+    // The optional player parameter is injected at authoring time. The
+    // registered function item remains a zero-argument FunctionRef.
+    let injection = if func.sig.inputs.is_empty() {
+        quote!()
+    } else if player && func.sig.inputs.len() == 1 {
+        let syn::FnArg::Typed(arg) = &func.sig.inputs[0] else {
+            unreachable!()
+        };
+        let syn::Pat::Ident(binding) = &*arg.pat else {
+            return Err(syn::Error::new_spanned(
+                &arg.pat,
+                "player context parameter must be a simple named binding",
+            ));
+        };
+        if binding.by_ref.is_some() || binding.subpat.is_some() {
+            return Err(syn::Error::new_spanned(
+                binding,
+                "player context parameter must be a simple named binding",
+            ));
+        }
+        let ty = &arg.ty;
+        quote! {
+            let #binding: #ty = ::sand::__private::EntityContext::<::sand::__private::PlayerKind>::default();
+        }
+    } else {
+        let message = if player {
+            "#[function] context = player permits only one EntityContext<PlayerKind> authoring parameter"
+        } else {
+            "#[function] functions must take no parameters"
+        };
+        return Err(syn::Error::new_spanned(&func.sig.inputs, message));
+    };
 
     let factory_ident = proc_macro2::Ident::new(
         &format!("__sand_fn_{}_make", fn_name),
@@ -1839,6 +1869,7 @@ fn expand_function(
     Ok(quote! {
         #(#attrs)*
         #vis fn #fn_name() -> ::sand::command::Actions {
+            #injection
             #body
         }
 
@@ -2138,8 +2169,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// # Advancement-backed event
 ///
 /// ```rust,ignore
-/// use sand_core::prelude::*;
-/// use sand_macros::on_event;
+/// use sand::prelude::*;
 ///
 /// pub struct AteGoldenApple;
 ///
@@ -2148,13 +2178,13 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 ///     fn trigger() -> Self::Trigger {
 ///         ConsumeItemTrigger::new()
-///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple")?))
+///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple").unwrap()))
 ///     }
 /// }
 ///
 /// #[on_event]
 /// pub fn on_ate(event: Event<AteGoldenApple>) {
-///     cmd::tellraw(event.player(), Text::new("Golden apple eaten"));
+///     cmd::tellraw(Target::from(event.player()), Text::new("Golden apple eaten"));
 /// }
 /// ```
 ///
@@ -2166,8 +2196,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
-/// use sand_core::prelude::*;
-/// use sand_macros::on_event;
+/// use sand::prelude::*;
 ///
 /// static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
 /// static PREVIOUS_JUMPS: ScoreVar<i32> = ScoreVar::new("previous_jumps");

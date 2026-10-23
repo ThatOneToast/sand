@@ -301,21 +301,21 @@ pub trait DamageAdvancementEvent: AdvancementEvent {}
     path = "sand::event::EventPlayer",
     aliases = ["sand::prelude::EventPlayer"],
     module = "sand::event",
-    summary = "Provides the executing-player selector to legacy bare-marker event handlers.",
-    context = "Provides the executing-player selector to legacy bare-marker event handlers. `#[on_event]` still accepts built-in marker parameters such as `event: OnJoinEvent`. In that compatibility form the marker is a stateless context value and `player()` returns the `@s` player selected by Sand's generated dispatcher. Prefer [`Event<E>`] for new advancement-backed handlers; this trait keeps existing bare-marker authoring source-compatible.",
+    summary = "Provides the execution-scoped player handle to legacy bare-marker event handlers.",
+    context = "Provides the execution-scoped player handle to legacy bare-marker event handlers. `#[on_event]` still accepts built-in marker parameters such as `event: OnJoinEvent`. In that compatibility form the marker is a stateless context value and `player()` returns the `@s` player selected by Sand's generated dispatcher. Prefer [`Event<E>`] for new advancement-backed handlers; this trait supplies the same handle as Event<E> and player queries.",
     minecraft = "Sand runs supported player-scoped handlers as `@s`; new advancement-backed handlers should prefer Event<E>.",
     use_when = ["Defining, composing, or handling a typed Sand event"],
     avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
     example = "use sand::event::EventPlayer;",
 )]
-/// Provides the executing-player selector to legacy bare-marker event
+/// Provides the execution-scoped player handle to legacy bare-marker event
 /// handlers.
 ///
 /// `#[on_event]` still accepts built-in marker parameters such as
 /// `event: OnJoinEvent`. In that compatibility form the marker is a stateless
 /// context value and `player()` returns the `@s` player selected by Sand's
 /// generated dispatcher. Prefer [`Event<E>`] for new advancement-backed
-/// handlers; this trait keeps existing bare-marker authoring source-compatible.
+/// handlers; this trait supplies the same handle as Event<E> and player queries.
 pub trait EventPlayer {
     /// Returns `@s`, the player for whom the event handler is executing.
     #[sand_macros::api(
@@ -325,14 +325,17 @@ pub trait EventPlayer {
         module = "sand::event",
         summary = "Returns `@s`, the player for whom the event handler is executing.",
         context = "Returns `@s`, the player for whom the event handler is executing. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
-        minecraft = "The selector is Minecraft's current `@s` player supplied by Sand's generated dispatcher.",
+        minecraft = "The handle refers to the current `@s` supplied by a player-scoped dispatcher; it neither captures identity nor establishes an executor.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
         returns = "Returns `@s`, the player for whom the event handler is executing.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::event::EventPlayer>(event_player_value: &T)  {\n    let player = event_player_value.player();\n}",
     )]
-    fn player(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
-        sand_commands::Target::current_player()
+    /// The handle follows the current `@s`; it does not capture a player identity.
+    /// Use `EntityScope::bind` before changing executors. Manually constructed
+    /// event markers do not establish a player executor.
+    fn player(&self) -> crate::entity::EntityContext<crate::entity::PlayerKind> {
+        crate::entity::EntityContext::default()
     }
 }
 
@@ -368,17 +371,23 @@ impl EventPlayer for crate::events::OnRespawnEvent {}
 /// handler.
 ///
 /// ```rust,ignore
-/// use sand_macros::on_event;
-/// use sand_core::prelude::*;
+/// use sand::prelude::*;
+/// use sand::advanced::state::ScoreVar;
 ///
 /// pub struct AteGoldenApple;
-/// impl AdvancementEvent for AteGoldenApple { /* … */ }
+/// impl AdvancementEvent for AteGoldenApple {
+///     type Trigger = ConsumeItemTrigger;
+///     fn trigger() -> Self::Trigger {
+///         ConsumeItemTrigger::new()
+///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple").unwrap()))
+///     }
+/// }
 ///
 /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 ///
 /// #[on_event]
 /// pub fn ate_golden_apple(event: Event<AteGoldenApple>) {
-///     MANA.add(event.player(), 25);
+///     MANA.add(Target::from(event.player()), 25);
 /// }
 /// ```
 pub struct Event<E> {
@@ -409,7 +418,7 @@ impl<E> Event<E> {
         }
     }
 
-    /// Returns `Target::self_()` — the player who triggered the event.
+    /// Returns the canonical execution-scoped handle for the player who triggered the event.
     ///
     /// `@s` is the player selected by the advancement reward or generated
     /// per-player dispatcher.
@@ -419,35 +428,19 @@ impl<E> Event<E> {
         aliases = ["sand::prelude::Event::player"],
         module = "sand::event",
         kind = "method",
-        summary = "Returns `Target::self_()` — the player who triggered the event.",
-        context = "Returns `Target::self_()` — the player who triggered the event. `@s` is the player selected by the advancement reward or generated per-player dispatcher.",
+        summary = "Returns the canonical execution-scoped handle for the player who triggered the event.",
+        context = "Returns the canonical execution-scoped handle for the player who triggered the event. `@s` is the player selected by the advancement reward or generated per-player dispatcher.",
         minecraft = "Resolves to the reward function's @s player, not an arbitrary entity.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "Returns `Target::self_()` — the player who triggered the event.",
+        returns = "Returns the canonical execution-scoped handle for the player who triggered the event.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_value: &sand::event::Event < E >)  {\n    let player = event_value.player();\n}",
     )]
-    pub fn player(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
-        sand_commands::Target::current_player()
-    }
-
-    /// Returns `Target::self_()` — alias for [`player`](Event::player).
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::event::Event::subject",
-        aliases = ["sand::prelude::Event::subject"],
-        module = "sand::event",
-        kind = "method",
-        summary = "Returns `Target::self_()` — alias for [`player`](Event::player).",
-        context = "Returns `Target::self_()` — alias for [`player`](Event::player). This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
-        minecraft = "For advancement events this is the triggering player bound to @s.",
-        use_when = ["Defining, composing, or handling a typed Sand event"],
-        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "Returns `Target::self_()` — alias for [`player`](Event::player).",
-        example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_value: &sand::event::Event < E >)  {\n    let subject = event_value.subject();\n}",
-    )]
-    pub fn subject(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
-        sand_commands::Target::current_player()
+    /// The handle follows the current `@s`; it does not capture a player identity.
+    /// Use `EntityScope::bind` before changing executors. Constructing the event
+    /// context manually does not establish a player executor.
+    pub fn player(&self) -> crate::entity::EntityContext<crate::entity::PlayerKind> {
+        crate::entity::EntityContext::default()
     }
 }
 
@@ -706,16 +699,16 @@ impl<E: DamageAdvancementEvent> Event<E> {
     aliases = ["sand::prelude::DamageEvent"],
     module = "sand::event",
     summary = "Damage-specific event handler context for `#[on_event]` functions.",
-    context = "Damage-specific event handler context for `#[on_event]` functions. Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the triggering player as a statically single player/entity target and provides a first-class reflected-damage builder.",
+    context = "Damage-specific event handler context for `#[on_event]` functions. Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the triggering player as the canonical execution-scoped player handle and provides a first-class reflected-damage builder.",
     minecraft = "Runs in the triggering player's advancement reward function and reflects the captured vanilla damage predicate context.",
-    use_when = ["Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the triggering player as a statically single player/entity target and provides a first-class reflected-damage builder."],
+    use_when = ["Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the triggering player as the canonical execution-scoped player handle and provides a first-class reflected-damage builder."],
     avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
     example = "use sand::event::DamageEvent;",
 )]
 /// Damage-specific event handler context for `#[on_event]` functions.
 ///
 /// Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the
-/// triggering player as a statically single player/entity target and provides
+/// triggering player as the canonical execution-scoped player handle and provides
 /// a first-class reflected-damage builder.
 pub struct DamageEvent<E: DamageAdvancementEvent> {
     _marker: PhantomData<E>,
@@ -745,23 +738,26 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
         }
     }
 
-    /// Returns `@s` as a single player: the player who triggered the event.
+    /// Returns the canonical execution-scoped player handle for the triggering player.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::event::DamageEvent::player",
         aliases = ["sand::prelude::DamageEvent::player"],
         module = "sand::event",
         kind = "method",
-        summary = "Returns `@s` as a single player: the player who triggered the event.",
-        context = "Returns `@s` as a single player: the player who triggered the event. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        summary = "Returns the canonical execution-scoped player handle for the triggering player.",
+        context = "Returns the canonical execution-scoped player handle for the triggering player. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
         minecraft = "Always resolves the advancement reward function's @s player.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "Returns `@s` as a single player: the player who triggered the event.",
+        returns = "Returns the canonical execution-scoped player handle for the triggering player.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(damage_event_value: &sand::event::DamageEvent < E >)  {\n    let player = damage_event_value.player();\n}",
     )]
-    pub fn player(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
-        sand_commands::Target::current_player()
+    /// The handle follows the current `@s`; it does not capture a player identity.
+    /// Use `EntityScope::bind` before changing executors. Constructing the event
+    /// context manually does not establish a player executor.
+    pub fn player(&self) -> crate::entity::EntityContext<crate::entity::PlayerKind> {
+        crate::entity::EntityContext::default()
     }
 
     /// Returns `@s` as a single entity: the damaged subject.
@@ -825,14 +821,7 @@ mod tests {
     #[test]
     fn event_context_player_returns_self() {
         let event = Event::<TestTickEvent>::context();
-        let sel = event.player();
-        assert_eq!(sel.to_string(), "@s");
-    }
-
-    #[test]
-    fn event_context_subject_alias() {
-        let event = Event::<TestTickEvent>::default();
-        let sel = event.subject();
+        let sel = sand_commands::Target::from(event.player());
         assert_eq!(sel.to_string(), "@s");
     }
 

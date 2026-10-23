@@ -78,8 +78,8 @@ fn ensure_reward_cooldown_score(selector: &str) -> String {
 pub fn on_level_up(event: Event<PlayerLevelsUp>) {
     let _ = event;
     // In an event handler the executing entity is always @s — the player whose
-    // level just increased. `event.player()` returns a Target, but Cooldown
-    // guards take &str, so we use the "@s" literal directly.
+    // level just increased. `event.player()` is the canonical player handle;
+    // this advanced cooldown helper takes &str, so it uses the current "@s".
     cmd::raw(ensure_reward_cooldown_score("@s"));
     when(REWARD_CD.ready("@s")).then_all([cmd::function(FunctionId::custom(
         ResourceLocation::new("hello_world", "lvl_grant_reward").unwrap(),

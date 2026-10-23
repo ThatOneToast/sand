@@ -194,8 +194,11 @@ Existing Rust authoring keeps its collection path. The supported State slice,
 lifecycle assembly, tags, entry initialization and pack metadata share backend
 code with portable programs. Declare a Rust player entry with
 `#[function("demo:increment", context = player)]`; callers must establish a
-player executor. This annotation does not statically analyze arbitrary Rust
-command factories for context correctness.
+player executor. The optional `EntityContext<PlayerKind>` parameter and
+`player.call(function)` retain registered calls for context-aware export and
+player guards (see [function macros](../22-function-macros.md)). This annotation
+does not statically analyze arbitrary Rust command factories for context
+correctness.
 
 ## Bounds and escape hatches
 

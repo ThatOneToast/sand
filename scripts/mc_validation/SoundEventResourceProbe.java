@@ -16,6 +16,8 @@ import java.util.Optional;
 class SoundEventResourceProbe {
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion();
+        if (!SharedConstants.getCurrentVersion().name().equals("26.2")) throw new AssertionError("expected Minecraft 26.2");
+        System.out.println("Minecraft " + SharedConstants.getCurrentVersion().name());
         Bootstrap.bootStrap();
         var ops = RegistryOps.create(JsonOps.INSTANCE, VanillaRegistries.createLookup());
         for (String name : new String[]{"reference", "inline", "fixed", "zero", "negative"}) {

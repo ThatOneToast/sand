@@ -15,6 +15,7 @@
 # Shared generators add twelve source items and NoiseSettingsId adds four generated items.
 # DimensionType dragon-fight configuration adds one enforced component method.
 # Registered block raycasting adds 14 enforced source items (two modules, one type, eleven methods).
+# Shared sound definitions and the instrument/song facade add three types and fifteen methods (+18 enforced source items).
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -23,12 +24,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5018
+static_surface_items = 5036
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11118
+static_surface_items = 11136
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

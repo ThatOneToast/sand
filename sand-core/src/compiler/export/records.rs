@@ -1197,7 +1197,8 @@ mod tests {
                 error.contains("sound_factory_0") && error.contains("sound_factory_1"),
                 "{error}"
             );
-            assert!(error.contains("same"), "{error}");
+            assert!(error.contains("test:same"), "{error}");
+            assert!(error.contains("[field: <registration>]"), "{error}");
         }
     }
 

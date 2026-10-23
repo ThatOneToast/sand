@@ -106,14 +106,22 @@ class LivingHarness(PlayerHarness):
                 self.send("execute as @e[tag=living_zombie,limit=1] run function living:nonplayer")
                 self.check("NONPLAYER_DAMAGE", "if entity @e[tag=living_zombie,nbt={Health:18.0f}]")
                 self.check("NONPLAYER_EFFECT", 'if entity @e[tag=living_zombie,nbt={active_effects:[{id:"minecraft:glowing"}]}]')
+                # Player hurt timers are not frozen like ordinary entities.
+                # Start the scoped test from measured full health after a fresh
+                # hurt window, rather than infer health from earlier commands.
+                for player in self.players:
+                    self.send(f"effect give {player} minecraft:instant_health 1 10 true")
+                self.send("tick unfreeze")
+                time.sleep(1.2)
+                self.send("tick freeze")
+                for player in self.players:
+                    self.check(f"SCOPED_BASELINE_{player}", f"if entity @a[name={player},nbt={{Health:20.0f}}]")
                 self.send(f"tag {b} add living_other")
                 self.send(f"execute as {a} run function living:scoped")
                 self.check("SCOPED_ORIGINAL_TARGET", f'if entity @a[name={a},nbt={{active_effects:[{{id:"minecraft:glowing"}}]}}]')
                 self.check("SCOPED_CURRENT_EXECUTOR", f"unless data entity {b} active_effects[0]")
-                # A stronger hit during the frozen hurt window applies only its
-                # excess over the earlier two-point hit, to the bound player.
                 self.check("SCOPED_DAMAGE_OWNER", f"if entity @a[name={a},nbt={{Health:17.0f}}]")
-                self.check("SCOPED_DAMAGE_OTHER_UNTOUCHED", f"if entity @a[name={b},nbt={{Health:18.0f}}]")
+                self.check("SCOPED_DAMAGE_OTHER_UNTOUCHED", f"if entity @a[name={b},nbt={{Health:20.0f}}]")
                 for dimension in ("minecraft:overworld", "minecraft:the_nether"):
                     self.send(f"execute in {dimension} run fill 0 84 0 6 89 6 minecraft:air")
                 self.send(f"tp {a} 20 85 20 0 0")

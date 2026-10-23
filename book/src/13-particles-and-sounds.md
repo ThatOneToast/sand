@@ -61,3 +61,45 @@ sounds down via their own "Players" volume slider without muting hostile
 mobs); `.pitch(1.4)` shifts the sound higher than the pearl's default
 throw pitch, differentiating "you dashed" from "you threw a pearl" even
 though the underlying sample is identical.
+
+## Instrument and jukebox sound definitions
+
+`Instrument` and `JukeboxSong` share `SoundEventDefinition` from
+`sand::component`. A reference names an existing sound-event registry entry;
+an inline definition names a resource-pack sound directly. Neither form
+packages audio assets. Custom registered IDs require the target event to exist
+when Minecraft loads the pack.
+
+```rust,ignore
+use sand::component::{Instrument, JukeboxSong, SoundEventDefinition};
+use sand::registry::SoundEventId;
+use sand::text::TextComponent;
+use sand::vanilla::SoundEvent;
+
+let vanilla = SoundEventDefinition::reference(SoundEvent::BlockNoteBlockHarp);
+let custom = SoundEventDefinition::reference(
+    "example:registered_chime".parse::<SoundEventId>().unwrap(),
+);
+let inline = SoundEventDefinition::inline("example:chime".parse().unwrap(), Some(32.0));
+let horn = Instrument::new("example:horn".parse().unwrap())
+    .sound_event(inline.clone())
+    .range(256.0)
+    .description(TextComponent::literal("Chime horn"));
+let song = JukeboxSong::new("example:song".parse().unwrap())
+    .sound_event(inline)
+    .song_length(180.0)
+    .comparator_output(0)
+    .description(TextComponent::literal("Chime song"));
+```
+
+Inline `Some(32.0)` becomes `{"sound_id":"example:chime","range":32.0}`;
+`None` omits `range` for Minecraft's volume-dependent behavior. This nested
+range is independent of the instrument's positive outer `range`. Minecraft
+26.2 accepts finite negative and zero inline ranges; Sand rejects NaN and
+infinity before export. The old string-only `.sound_event("…")` setter is
+replaced by the shared typed definition.
+
+`SoundEventDefinition::raw(RawJson)` preserves unknown extension fields for
+unsupported forms. It still validates the reference or required inline
+`sound_id`, and any known `range` must be a finite f32 number. Selecting a new
+sound replaces the entire previous typed or raw value; fields are never merged.

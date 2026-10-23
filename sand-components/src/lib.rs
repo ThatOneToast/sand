@@ -52,6 +52,8 @@ pub mod error;
 pub mod function;
 pub use function::FunctionRef;
 pub mod instrument;
+mod sound_event;
+pub use sound_event::SoundEventDefinition;
 pub mod item;
 pub mod item_modifier;
 pub mod jukebox_song;

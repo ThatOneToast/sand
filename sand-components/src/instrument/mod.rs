@@ -5,9 +5,8 @@
 //! # Validation
 //!
 //! The export path calls [`DatapackComponent::validate`] before serialization:
-//! - `sound_event` must be non-empty and a valid **plain** resource location
-//!   (a `#namespace:path` tag reference is rejected — the field is
-//!   serialized as a single concrete sound event, not a tag).
+//! - `sound_event` is required and uses the shared [`SoundEventDefinition`] model.
+//!   References and inline identifiers are validated; inline ranges must be finite.
 //! - `use_duration` must be finite and positive.
 //! - `range` must be finite and positive.
 //!
@@ -16,12 +15,13 @@
 //! # Example
 //! ```rust,ignore
 //! let horn = Instrument::new(rl)
-//!     .sound_event("minecraft:item.goat_horn.sound.0")
+//!     .sound_event(crate::SoundEventDefinition::reference("minecraft:item.goat_horn.sound.0".parse::<crate::SoundEventId>().unwrap()))
 //!     .use_duration(7.0)
 //!     .range(256.0)
 //!     .description(TextComponent::translate("instrument.minecraft.ponder_goat_horn"));
 //! ```
 
+use crate::SoundEventDefinition;
 use sand_commands::TextComponent;
 use serde_json::Value;
 
@@ -34,9 +34,10 @@ use crate::resource_location::ResourceLocation;
 use crate::validation;
 
 /// A goat horn instrument definition (`data/<namespace>/instrument/<id>.json`).
+#[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument", module = "sand::component", summary = "A goat horn instrument with a required sound and display description.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;")]
 pub struct Instrument {
     location: ResourceLocation,
-    sound_event: String,
+    sound_event: Option<SoundEventDefinition>,
     use_duration: f32,
     range: f32,
     description: Option<ComponentText>,
@@ -44,26 +45,36 @@ pub struct Instrument {
 
 impl Instrument {
     /// Begin a resource definition; set its required sound and description before export.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument::new", module = "sand::component", summary = "Begin an instrument definition with default duration and range.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;\nlet horn = Instrument::new(\"example:horn\".parse().unwrap());", params(location = "The instrument resource identifier."), returns = "An instrument requiring sound and description before export.")]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
-            sound_event: String::new(),
+            sound_event: None,
             use_duration: 7.0,
             range: 256.0,
             description: None,
         }
     }
 
-    pub fn sound_event(mut self, event: impl Into<String>) -> Self {
-        self.sound_event = event.into();
+    /// Set the required registered or inline sound using the shared sound-event model.
+    ///
+    /// This replaces any earlier sound, including an explicit raw definition.
+    /// Export validates the selected definition before writing the resource.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument::sound_event", module = "sand::component", summary = "Set the required registered or inline instrument sound.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;\nlet horn = Instrument::new(\"example:horn\".parse().unwrap());\nlet sound = sand::component::SoundEventDefinition::inline(\"example:chime\".parse().unwrap(), None);\nlet horn = horn.sound_event(sound);", params(event = "The shared sound definition, replacing any previous sound."), returns = "The instrument with the selected sound.")]
+    pub fn sound_event(mut self, event: SoundEventDefinition) -> Self {
+        self.sound_event = Some(event);
         self
     }
 
+    /// Set the finite, positive horn use duration in seconds.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument::use_duration", module = "sand::component", summary = "Set the positive horn use duration in seconds.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;\nlet horn = Instrument::new(\"example:horn\".parse().unwrap());\nlet horn = horn.use_duration(7.0);", params(seconds = "A finite positive duration."), returns = "The instrument with the requested duration.")]
     pub fn use_duration(mut self, seconds: f32) -> Self {
         self.use_duration = seconds;
         self
     }
 
+    /// Set the finite, positive instrument range, independent of an inline sound range.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument::range", module = "sand::component", summary = "Set the positive instrument range independently of inline sound range.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;\nlet horn = Instrument::new(\"example:horn\".parse().unwrap());\nlet horn = horn.range(256.0);", params(blocks = "A finite positive instrument range in blocks."), returns = "The instrument with the requested outer range.")]
     pub fn range(mut self, blocks: f32) -> Self {
         self.range = blocks;
         self
@@ -74,6 +85,7 @@ impl Instrument {
     /// Export validates text recursively and reports the resource and field
     /// path on failure. Use [`Self::raw_description`] only for JSON text shapes
     /// that [`TextComponent`] cannot express.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument::description", module = "sand::component", summary = "Set the required instrument display description using typed text.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;\nlet horn = Instrument::new(\"example:horn\".parse().unwrap());\nlet horn = horn.description(sand::text::TextComponent::literal(\"Horn\"));", params(desc = "The text displayed for this instrument."), returns = "The instrument with the typed description.")]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(ComponentText::Typed(Box::new(desc)));
         self
@@ -84,6 +96,7 @@ impl Instrument {
     /// Export still applies the canonical text shape and known-field checks;
     /// unknown extension fields are preserved. Prefer [`Self::description`]
     /// for ordinary literal, translated or styled text.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Instrument::raw_description", module = "sand::component", summary = "Set an explicit JSON instrument description with canonical text validation.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::Instrument;\nlet horn = Instrument::new(\"example:horn\".parse().unwrap());\nlet horn = horn.raw_description(sand::component::RawJson::new(serde_json::json!(\"Horn\")));", params(desc = "Raw text JSON; known fields are still validated at export."), returns = "The instrument with a raw description.")]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(ComponentText::Raw(desc));
         self
@@ -97,13 +110,15 @@ impl DatapackComponent for Instrument {
 
     fn validate(&self) -> SandResult<()> {
         let kind = "instrument";
-        validation::require_non_empty(&self.location, kind, "sound_event", &self.sound_event)?;
-        validation::validate_resource_location_str(
-            &self.location,
-            kind,
-            "sound_event",
-            &self.sound_event,
-        )?;
+        let sound = self.sound_event.as_ref().ok_or_else(|| {
+            validation::error(
+                &self.location,
+                kind,
+                "sound_event",
+                "sound_event is required",
+            )
+        })?;
+        sound.validate(&self.location, kind, "sound_event")?;
         validation::require_positive_f32(&self.location, kind, "use_duration", self.use_duration)?;
         validation::require_positive_f32(&self.location, kind, "range", self.range)?;
         let description = self.description.as_ref().ok_or_else(|| {
@@ -125,10 +140,9 @@ impl DatapackComponent for Instrument {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert(
-            "sound_event".to_string(),
-            Value::String(self.sound_event.clone()),
-        );
+        if let Some(sound) = &self.sound_event {
+            map.insert("sound_event".to_string(), sound.to_json());
+        }
         map.insert(
             "use_duration".to_string(),
             serde_json::json!(self.use_duration),
@@ -155,7 +169,11 @@ mod tests {
 
     fn valid() -> Instrument {
         Instrument::new(rl())
-            .sound_event("minecraft:item.goat_horn.sound.0")
+            .sound_event(crate::SoundEventDefinition::reference(
+                "minecraft:item.goat_horn.sound.0"
+                    .parse::<crate::SoundEventId>()
+                    .unwrap(),
+            ))
             .description(TextComponent::literal("Test horn"))
     }
 
@@ -177,14 +195,18 @@ mod tests {
 
     #[test]
     fn invalid_sound_event_is_rejected() {
-        let inst = Instrument::new(rl()).sound_event("not valid!!");
+        let inst = Instrument::new(rl()).sound_event(crate::SoundEventDefinition::raw(
+            crate::RawJson::new(serde_json::json!("not valid!!")),
+        ));
         let err = inst.validate().unwrap_err();
         assert!(err.to_string().contains("sound_event"), "{err}");
     }
 
     #[test]
     fn tag_prefixed_sound_event_is_rejected() {
-        let inst = Instrument::new(rl()).sound_event("#minecraft:music_disc");
+        let inst = Instrument::new(rl()).sound_event(crate::SoundEventDefinition::raw(
+            crate::RawJson::new(serde_json::json!("#minecraft:music_disc")),
+        ));
         let err = inst.validate().unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("sound_event"), "{msg}");
@@ -193,7 +215,11 @@ mod tests {
 
     #[test]
     fn dotted_sound_event_is_accepted() {
-        let inst = valid().sound_event("minecraft:music_disc.13");
+        let inst = valid().sound_event(crate::SoundEventDefinition::reference(
+            "minecraft:music_disc.13"
+                .parse::<crate::SoundEventId>()
+                .unwrap(),
+        ));
         assert!(inst.validate().is_ok());
     }
 

@@ -152,7 +152,11 @@ fn command_clicks_allow_empty_chat_strings_without_allowing_controls() {
             sand_commands::text::validate_json_text(&json, &CommandProfile::unprofiled(), "text")
                 .unwrap();
             Instrument::new(ResourceLocation::new("test", "empty_command").unwrap())
-                .sound_event("minecraft:item.goat_horn.sound.0")
+                .sound_event(sand_components::SoundEventDefinition::reference(
+                    "minecraft:item.goat_horn.sound.0"
+                        .parse::<sand_components::SoundEventId>()
+                        .unwrap(),
+                ))
                 .description(text)
                 .try_content()
                 .unwrap();

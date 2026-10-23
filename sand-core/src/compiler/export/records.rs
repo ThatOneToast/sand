@@ -1123,6 +1123,85 @@ mod tests {
     // ── Structured validation export integration (#138, #139, #140) ──────────
 
     #[test]
+    fn shared_sound_definitions_validate_at_record_boundary() {
+        use sand_components::{Instrument, JukeboxSong, RawJson, SoundEventDefinition};
+        for sound in [
+            SoundEventDefinition::inline(test_rl("test", "asset"), Some(f32::NAN)),
+            SoundEventDefinition::raw(RawJson::new(
+                serde_json::json!({"sound_id":"test:asset", "range":1e100}),
+            )),
+        ] {
+            let resources: Vec<Box<dyn DatapackComponent>> = vec![
+                Box::new(
+                    Instrument::new(test_rl("test", "horn"))
+                        .sound_event(sound.clone())
+                        .description(sand_commands::TextComponent::literal("Horn")),
+                ),
+                Box::new(
+                    JukeboxSong::new(test_rl("test", "song"))
+                        .sound_event(sound)
+                        .song_length(10.0)
+                        .description(sand_commands::TextComponent::literal("Song")),
+                ),
+            ];
+            for resource in resources {
+                let error = component_to_record(resource.as_ref(), None)
+                    .unwrap_err()
+                    .to_string();
+                assert!(error.contains("[field: sound_event.range]"), "{error}");
+                assert!(
+                    error.contains(&resource.resource_location().to_string()),
+                    "{error}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn typed_and_raw_sound_resources_share_collision_identity() {
+        use sand_components::{Instrument, JukeboxSong, RawJson, SoundEventDefinition};
+        for song in [false, true] {
+            let resources = [
+                SoundEventDefinition::inline(test_rl("test", "asset"), None),
+                SoundEventDefinition::raw(RawJson::new(
+                    serde_json::json!({"sound_id":"test:asset"}),
+                )),
+            ]
+            .into_iter()
+            .enumerate()
+            .map(|(index, sound)| {
+                let owner = format!("sound_factory_{index}");
+                if song {
+                    registered(
+                        &owner,
+                        JukeboxSong::new(test_rl("test", "same"))
+                            .sound_event(sound)
+                            .song_length(10.0)
+                            .description(sand_commands::TextComponent::literal("Song")),
+                    )
+                } else {
+                    registered(
+                        &owner,
+                        Instrument::new(test_rl("test", "same"))
+                            .sound_event(sound)
+                            .description(sand_commands::TextComponent::literal("Horn")),
+                    )
+                }
+            })
+            .collect();
+            let error = super::expand_with_nested(resources, None)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("collides"), "{error}");
+            assert!(
+                error.contains("sound_factory_0") && error.contains("sound_factory_1"),
+                "{error}"
+            );
+            assert!(error.contains("same"), "{error}");
+        }
+    }
+
+    #[test]
     fn invalid_damage_type_fails_at_record_boundary() {
         let dt = sand_components::DamageType::new(test_rl("test", "spike"));
         let err = component_to_record(&dt, None).unwrap_err().to_string();
@@ -1152,7 +1231,11 @@ mod tests {
     #[test]
     fn invalid_jukebox_song_fails_at_record_boundary() {
         let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
-            .sound_event("minecraft:music.disc.13")
+            .sound_event(sand_components::SoundEventDefinition::reference(
+                "minecraft:music.disc.13"
+                    .parse::<sand_components::SoundEventId>()
+                    .unwrap(),
+            ))
             .song_length(10.0)
             .comparator_output(16);
         let err = component_to_record(&song, None).unwrap_err().to_string();
@@ -1167,12 +1250,20 @@ mod tests {
         let resources: Vec<Box<dyn DatapackComponent>> = vec![
             Box::new(
                 sand_components::Instrument::new(test_rl("test", "horn"))
-                    .sound_event("minecraft:item.goat_horn.sound.0")
+                    .sound_event(sand_components::SoundEventDefinition::reference(
+                        "minecraft:item.goat_horn.sound.0"
+                            .parse::<sand_components::SoundEventId>()
+                            .unwrap(),
+                    ))
                     .raw_description(sand_components::RawJson::new(serde_json::json!(42))),
             ),
             Box::new(
                 sand_components::JukeboxSong::new(test_rl("test", "song"))
-                    .sound_event("minecraft:music_disc.13")
+                    .sound_event(sand_components::SoundEventDefinition::reference(
+                        "minecraft:music_disc.13"
+                            .parse::<sand_components::SoundEventId>()
+                            .unwrap(),
+                    ))
                     .song_length(178.0)
                     .raw_description(sand_components::RawJson::new(serde_json::json!(42))),
             ),
@@ -1193,8 +1284,11 @@ mod tests {
 
     #[test]
     fn tag_prefixed_instrument_sound_event_fails_at_record_boundary() {
-        let inst = sand_components::Instrument::new(test_rl("test", "horn"))
-            .sound_event("#minecraft:music_disc");
+        let inst = sand_components::Instrument::new(test_rl("test", "horn")).sound_event(
+            sand_components::SoundEventDefinition::raw(sand_components::RawJson::new(
+                serde_json::json!("#minecraft:music_disc"),
+            )),
+        );
         let err = component_to_record(&inst, None).unwrap_err().to_string();
         assert!(err.contains("test:horn"), "{err}");
         assert!(err.contains("instrument"), "{err}");
@@ -1205,7 +1299,9 @@ mod tests {
     #[test]
     fn tag_prefixed_jukebox_song_sound_event_fails_at_record_boundary() {
         let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
-            .sound_event("#minecraft:music_disc")
+            .sound_event(sand_components::SoundEventDefinition::raw(
+                sand_components::RawJson::new(serde_json::json!("#minecraft:music_disc")),
+            ))
             .song_length(10.0)
             .comparator_output(5);
         let err = component_to_record(&song, None).unwrap_err().to_string();
@@ -1309,7 +1405,11 @@ mod tests {
     #[test]
     fn valid_instrument_exports_deterministically() {
         let inst = sand_components::Instrument::new(test_rl("test", "horn"))
-            .sound_event("minecraft:item.goat_horn.sound.0")
+            .sound_event(sand_components::SoundEventDefinition::reference(
+                "minecraft:item.goat_horn.sound.0"
+                    .parse::<sand_components::SoundEventId>()
+                    .unwrap(),
+            ))
             .description(sand_commands::TextComponent::literal("Horn"));
         let a = component_to_record(&inst, None).unwrap();
         let b = component_to_record(&inst, None).unwrap();
@@ -1320,7 +1420,11 @@ mod tests {
     #[test]
     fn valid_jukebox_song_exports_deterministically() {
         let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
-            .sound_event("minecraft:music.disc.13")
+            .sound_event(sand_components::SoundEventDefinition::reference(
+                "minecraft:music.disc.13"
+                    .parse::<sand_components::SoundEventId>()
+                    .unwrap(),
+            ))
             .song_length(178.0)
             .comparator_output(5)
             .description(sand_commands::TextComponent::literal("Song"));

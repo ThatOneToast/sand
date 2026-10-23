@@ -144,7 +144,11 @@ both directories. Move a conflicting operator pack aside before retrying.
 Initial dev startup still adopts its configured destination. A restart at the
 currently tracked path requires its ownership marker to match the retained
 invocation owner; an unowned or foreign-marker replacement is preserved before
-staging. Legitimate owned refreshes and hot reloads retain their sync behavior.
+staging. The running dev session retains that completed handoff's owner for
+watched and manual hot reloads, using the same path/owner authorization. A
+missing live directory or missing/foreign marker refuses publication before
+staging or RCON dispatch. The consumed build can be retried after restoring the
+owned pack; normal hot reloads preserve its owner across directory swaps.
 Cancellation before the install commit or failed installation retains the old
 pack. The original `server-ip` setting is restored on cleanup; loopback binding
 is temporary, and the RCON port is chosen distinct from the configured game port.

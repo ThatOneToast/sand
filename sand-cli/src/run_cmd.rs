@@ -383,6 +383,12 @@ fn run_internal(
         return Ok(false);
     }
 
+    // Copy the completed startup handoff into the running session. Rebuilds
+    // must validate against this owner, never adopt a later on-disk marker.
+    if let Some(dev) = dev.as_mut() {
+        dev.track_pack(managed_pack);
+    }
+
     // ── 8. Launch the server ─────────────────────────────────────────────────
     println!(
         "\n{} Minecraft {} with {}RAM...\n",

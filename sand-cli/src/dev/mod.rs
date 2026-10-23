@@ -42,6 +42,7 @@ pub(crate) struct Session {
     // Failures outside managed reloads (especially startup) remain sticky.
     persistent_health: crate::console::health::HealthTracker,
     reload_failed: bool,
+    managed_pack: ManagedPack,
 }
 
 impl Session {
@@ -121,7 +122,14 @@ impl Session {
             pending_reload: None,
             persistent_health: crate::console::health::HealthTracker::new(),
             reload_failed: false,
+            managed_pack: ManagedPack::default(),
         })
+    }
+
+    /// Retain the startup handoff's ownership rather than trusting a fresh
+    /// on-disk marker when a later watched/manual rebuild completes.
+    pub(crate) fn track_pack(&mut self, managed: &ManagedPack) {
+        self.managed_pack = managed.clone();
     }
 
     pub(crate) fn is_reload_event(&self, event: &crate::console::diagnostic::GroupedEvent) -> bool {
@@ -265,13 +273,13 @@ impl Session {
                 return Ok(());
             }
             let pending = reload::Reload::new()?;
-            let installed = install_with_cleanup(
+            let installed = self.managed_pack.install_reload(
                 &self.root.join("dist").join(&self.namespace),
                 &self
                     .root
                     .join("dist/server/world/datapacks")
                     .join(&self.namespace),
-                Some((&self.namespace, &pending.marker)),
+                (&self.namespace, &pending.marker),
                 cleanup,
             )?;
             self.reload_number += 1;
@@ -436,7 +444,7 @@ fn restart_inputs(root: &Path, namespace: &str) -> Result<Snapshot> {
 }
 
 /// The one live pack owned by this dev invocation, retained across JVM restarts.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ManagedPack(Option<(PathBuf, String)>);
 
 const OWNER_FILE: &str = ".sand-dev-owner";
@@ -496,19 +504,10 @@ impl ManagedPack {
             dest,
             None,
             |expected| {
-                if let Some((previous, owner)) = &self.0
+                if self.0.is_some()
                     && let Some(expected) = expected
                 {
-                    ensure!(
-                        std::fs::canonicalize(dest)? == *previous,
-                        "namespace destination already exists and is not the current invocation-managed pack; preserving {}",
-                        dest.display()
-                    );
-                    ensure!(
-                        expected.owner.as_ref() == Some(owner),
-                        "current managed datapack was replaced; preserving {}",
-                        dest.display()
-                    );
+                    self.authorize_current(dest, expected)?;
                 }
                 Ok(())
             },
@@ -528,6 +527,51 @@ impl ManagedPack {
             },
             |path| std::fs::remove_dir_all(path),
         )
+    }
+
+    /// Hot reload always requires the already-installed invocation-owned pack.
+    /// Missing paths/markers cannot be adopted while a JVM is running.
+    fn install_reload(
+        &self,
+        src: &Path,
+        dest: &Path,
+        marker: (&str, &str),
+        cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
+    ) -> Result<InstalledPack> {
+        install_prepared(
+            src,
+            dest,
+            Some(marker),
+            |expected| {
+                self.authorize_current(
+                    dest,
+                    expected
+                        .context("current managed datapack disappeared; refusing hot reload")?,
+                )
+            },
+            |_| Ok(()),
+            cleanup,
+        )
+    }
+
+    /// Shared startup/reload authorization, applied to the same captured
+    /// destination baseline that commit_install later checks for replacement.
+    fn authorize_current(&self, dest: &Path, expected: &LiveIdentity) -> Result<()> {
+        let (previous, owner) = self
+            .0
+            .as_ref()
+            .context("no installed invocation-owned datapack")?;
+        ensure!(
+            std::fs::canonicalize(dest)? == *previous,
+            "namespace destination already exists and is not the current invocation-managed pack; preserving {}",
+            dest.display()
+        );
+        ensure!(
+            expected.owner.as_ref() == Some(owner),
+            "current managed datapack was replaced; preserving {}",
+            dest.display()
+        );
+        Ok(())
     }
 
     /// Verify the committed directory before claiming it or removing the old
@@ -669,16 +713,14 @@ pub(crate) fn install(
     dest: &Path,
     marker: Option<(&str, &str)>,
 ) -> Result<InstalledPack> {
-    install_with_cleanup(src, dest, marker, |path| std::fs::remove_dir_all(path))
-}
-
-fn install_with_cleanup(
-    src: &Path,
-    dest: &Path,
-    marker: Option<(&str, &str)>,
-    cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
-) -> Result<InstalledPack> {
-    install_prepared(src, dest, marker, |_| Ok(()), |_| Ok(()), cleanup)
+    install_prepared(
+        src,
+        dest,
+        marker,
+        |_| Ok(()),
+        |_| Ok(()),
+        |path| std::fs::remove_dir_all(path),
+    )
 }
 
 fn install_prepared(
@@ -1917,38 +1959,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn cleanup_failure_still_dispatches_reload_and_requires_confirmation() {
-        use crate::console::RunHealth;
+    fn acknowledge_reload(listener: std::net::TcpListener) -> std::thread::JoinHandle<()> {
         use std::io::{Read, Write};
-        let tmp = tempfile::tempdir().unwrap();
-        let mut session = health_session(tmp.path());
-        session.ready = true;
-        let dest = tmp.path().join("dist/server/world/datapacks/demo");
-        std::fs::create_dir_all(&dest).unwrap();
-        std::fs::write(dest.join("old"), "old pack").unwrap();
-        let mut command = if cfg!(windows) {
-            Command::new("cmd")
-        } else {
-            Command::new("sh")
-        };
-        command.args(if cfg!(windows) {
-            ["/C", "exit 0"]
-        } else {
-            ["-c", "exit 0"]
-        });
-        let mut child = command.spawn().unwrap();
-        child.wait().unwrap();
-        session.build = Some((child, Instant::now()));
-        std::fs::write(
-            session.build_log(),
-            r#"{"success":true,"namespace":"demo","runtime_report":{}}"#,
-        )
-        .unwrap();
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        session.rcon.port = listener.local_addr().unwrap().port();
-        let server = std::thread::spawn(move || {
+        std::thread::spawn(move || {
             let deadline = Instant::now() + Duration::from_secs(5);
             let mut socket = loop {
                 match listener.accept() {
@@ -1980,7 +1993,132 @@ mod tests {
                     .write_all(&[reply.as_slice(), &[0, 0]].concat())
                     .unwrap();
             }
+        })
+    }
+
+    fn completed_reload_build(session: &mut Session) {
+        let mut command = if cfg!(windows) {
+            Command::new("cmd")
+        } else {
+            Command::new("sh")
+        };
+        command.args(if cfg!(windows) {
+            ["/C", "exit 0"]
+        } else {
+            ["-c", "exit 0"]
         });
+        let mut child = command.spawn().unwrap();
+        child.wait().unwrap();
+        session.build = Some((child, Instant::now()));
+        std::fs::write(
+            session.build_log(),
+            r#"{"success":true,"namespace":"demo","runtime_report":{}}"#,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn hot_reload_refuses_replaced_pack_before_staging_or_rcon() {
+        for replacement in ["unowned", "foreign", "missing"] {
+            let tmp = tempfile::tempdir().unwrap();
+            let mut session = health_session(tmp.path());
+            session.ready = true;
+            let src = tmp.path().join("dist/demo");
+            let dest = tmp.path().join("dist/server/world/datapacks/demo");
+            let mut managed = ManagedPack::default();
+            let initial = managed.install(&src, &dest).unwrap();
+            managed.installed(&dest, &initial.identity).unwrap();
+            session.track_pack(&managed);
+            let displaced = tmp.path().join("dist/displaced");
+            std::fs::rename(&dest, &displaced).unwrap();
+            if replacement != "missing" {
+                std::fs::create_dir(&dest).unwrap();
+                std::fs::write(dest.join("operator-data"), "preserve").unwrap();
+            }
+            if replacement == "foreign" {
+                std::fs::write(dest.join(OWNER_FILE), "foreign invocation").unwrap();
+            }
+            let before = watch::snapshot(dest.parent().unwrap()).unwrap();
+            let identity = LiveIdentity::capture(&dest).unwrap();
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            session.rcon.port = listener.local_addr().unwrap().port();
+            completed_reload_build(&mut session);
+            let result = session.poll();
+            assert!(
+                result.is_err(),
+                "hot reload must refuse the operator replacement"
+            );
+            assert_eq!(watch::snapshot(dest.parent().unwrap()).unwrap(), before);
+            assert_eq!(LiveIdentity::capture(&dest).unwrap(), identity);
+            assert_eq!(
+                listener.accept().unwrap_err().kind(),
+                std::io::ErrorKind::WouldBlock,
+                "refused install must not even connect to RCON"
+            );
+            assert_eq!(session.reload_number, 0);
+            assert!(session.pending_reload.is_none());
+            assert!(session.build.is_none());
+            assert!(
+                session.poll().is_ok(),
+                "failed build result must be consumed"
+            );
+            let preserved = tmp.path().join("dist/operator-preserved");
+            if replacement != "missing" {
+                std::fs::rename(&dest, &preserved).unwrap();
+            }
+            std::fs::rename(&displaced, &dest).unwrap();
+            let owner = pack_owner(&dest).unwrap();
+            completed_reload_build(&mut session);
+            let server = acknowledge_reload(listener);
+            session.poll().unwrap();
+            server.join().unwrap();
+            assert_eq!(session.reload_number, 1);
+            assert!(session.pending_reload.is_some());
+            assert_eq!(pack_owner(&dest).unwrap(), owner);
+            complete_reload(&mut session);
+            assert_eq!(session.health(), crate::console::RunHealth::Healthy);
+            if replacement != "missing" {
+                assert_eq!(
+                    std::fs::read_to_string(preserved.join("operator-data")).unwrap(),
+                    "preserve"
+                );
+            }
+            // Publication changed the directory identity, but the retained
+            // invocation owner must still authorize the next normal reload.
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            session.rcon.port = listener.local_addr().unwrap().port();
+            let server = acknowledge_reload(listener);
+            completed_reload_build(&mut session);
+            session.poll().unwrap();
+            server.join().unwrap();
+            assert_eq!(session.reload_number, 2);
+            assert_eq!(pack_owner(&dest).unwrap(), owner);
+            complete_reload(&mut session);
+            assert_eq!(session.health(), crate::console::RunHealth::Healthy);
+        }
+    }
+
+    #[test]
+    fn cleanup_failure_still_dispatches_reload_and_requires_confirmation() {
+        use crate::console::RunHealth;
+        let tmp = tempfile::tempdir().unwrap();
+        let mut session = health_session(tmp.path());
+        session.ready = true;
+        let dest = tmp.path().join("dist/server/world/datapacks/demo");
+        let mut managed = ManagedPack::default();
+        let initial = managed
+            .install(&tmp.path().join("dist/demo"), &dest)
+            .unwrap();
+        managed.installed(&dest, &initial.identity).unwrap();
+        session.track_pack(&managed);
+        std::fs::write(dest.join("old"), "old pack").unwrap();
+        completed_reload_build(&mut session);
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        session.rcon.port = listener.local_addr().unwrap().port();
+        let server = acknowledge_reload(listener);
         let mut retained = None;
         session
             .poll_with_cleanup(|path| {

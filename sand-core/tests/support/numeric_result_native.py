@@ -55,6 +55,7 @@ class Probe(ServerHarness):
         self.batch([
             "function result_probe:setup",
             "scoreboard objectives add observed dummy",
+            f"scoreboard objectives add {self.author['gate']} dummy",
             "forceload add 0 0",
             "kill @e[tag=numeric_probe]",
             'summon minecraft:armor_stand 0 100 0 {Tags:["numeric_probe","probe_first"],NoGravity:1b}',

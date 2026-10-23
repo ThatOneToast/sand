@@ -1098,6 +1098,7 @@ dependencies = [
  "sand-api-contract",
  "sand-api-enforce",
  "sand-build",
+ "sand-commands",
  "sand-components",
  "sand-core",
  "sand-macros",

@@ -33,6 +33,7 @@
   - [Numeric State: Scales, Rounding, And Arithmetic](23a-numeric-state.md)
 
 - [Runtime World And Block Gameplay](23b-runtime-world-blocks.md)
+- [Block Raycasting](23c-block-raycasting.md)
 
 # Typed World & Server Configuration
 

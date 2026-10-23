@@ -23,17 +23,23 @@ Each rebuild invokes the existing `sand build --format json --profile …`
 pipeline. A failed build leaves the installed datapack untouched. A successful
 build stages the existing incremental mirror, swaps it into the managed pack
 path, and sends RCON `reload`. It does not touch neighboring packs. Copy failures
-preserve the live pack; interrupted swaps retain a `.sand-dev-backup` directory
-for manual recovery and block further installation. The server console stays
-responsive while compilation runs. Quit reaps the CLI build worker; Cargo
+preserve the live pack. Failed rollback retains the backup inside the private
+`.sand-dev-install-*/backup` directory and reports its path for manual recovery.
+Subsequent installations are not blocked by that retained directory. The server
+console stays responsive while compilation runs. Quit reaps the CLI build worker; Cargo
 subprocesses may finish cache writes, but cannot install or reload a pack.
 
 Enter `r` followed by Enter to rebuild/reload, or `q` to stop. Other lines pass
 through to the server. `R` stops and reaps the JVM, rebuilds, reapplies the
 configured world-reset policy, and starts a new JVM with fresh credentials.
-The same stdin reader and Ctrl-C handler survive repeated restarts.
-EOF and Ctrl-C request a graceful stop,
-with a 30-second bound. On normal/error cleanup, RCON is disabled and its
+The same process-wide stdin reader and interrupt router survive repeated
+restarts and sequential console sessions. Only one Sand console session can own
+process input at a time. When embedded in a host that already registered a
+Ctrl-C handler, Sand preserves it and reports that interrupt handling remains
+the host's responsibility; console `stop` and EOF remain available.
+`q`, EOF and Ctrl-C request a graceful stop with no shutdown deadline, allowing
+the server to finish saving. Only `R` arms a 30-second shutdown bound; cancelling
+the restart disarms it. On normal/error cleanup, RCON is disabled and its
 password removed. Forced process termination can leave the local credential in
 `dist/server/server.properties`; the next dev session replaces it. Unix file
 permissions are 0600. Windows uses the current directory's inherited ACL.

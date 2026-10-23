@@ -5,6 +5,7 @@
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::Mutex;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
@@ -71,30 +72,91 @@ impl RunOutcome {
     }
 }
 
-/// One stdin reader and Ctrl-C handler retained across dev-server restarts.
-/// Each JVM tags its log events; late readers cannot affect a later session.
+// One process-wide input owner. Keeping the reader alive avoids abandoned
+// stdin readers stealing input from a subsequent public run_server call.
+struct ConsoleRouter {
+    initialized: bool,
+    stdin_closed: bool,
+    next_owner: u64,
+    active: Option<(u64, Sender<Event>)>,
+}
+static CONSOLE_ROUTER: Mutex<ConsoleRouter> = Mutex::new(ConsoleRouter {
+    initialized: false,
+    stdin_closed: false,
+    next_owner: 0,
+    active: None,
+});
+
+fn route_input(event: Event) {
+    let mut router = CONSOLE_ROUTER.lock().expect("console router poisoned");
+    if matches!(event, Event::InputClosed) {
+        router.stdin_closed = true;
+    }
+    if let Some((_, tx)) = &router.active {
+        let _ = tx.send(event);
+    } else if matches!(event, Event::Interrupt) {
+        // Our handler is installed only when no host handler exists. Between
+        // sessions, retain normal interrupt termination instead of swallowing
+        // Ctrl-C forever merely because Sand was used earlier in this process.
+        drop(router);
+        std::process::exit(130);
+    }
+}
+
+/// Exclusive console ownership, retained across dev-server restarts and
+/// released on every return path. JVM readers remain scoped by generation.
 pub(crate) struct ConsoleSession {
     tx: Sender<Event>,
     rx: Receiver<Event>,
     pending: std::collections::VecDeque<Event>,
     cancelled: bool,
     generation: u64,
+    owner: Option<u64>,
+}
+impl Drop for ConsoleSession {
+    fn drop(&mut self) {
+        let mut router = CONSOLE_ROUTER.lock().expect("console router poisoned");
+        if self.owner.is_some() && router.active.as_ref().map(|(id, _)| *id) == self.owner {
+            router.active = None;
+        }
+    }
 }
 impl ConsoleSession {
     pub(crate) fn new() -> Result<Self> {
         let (tx, rx) = mpsc::channel();
-        let ctrlc_tx = tx.clone();
-        ctrlc::set_handler(move || {
-            let _ = ctrlc_tx.send(Event::Interrupt);
-        })
-        .context("failed to install console Ctrl-C handler")?;
-        spawn_stdin_forwarder(tx.clone());
+        let mut router = CONSOLE_ROUTER.lock().expect("console router poisoned");
+        anyhow::ensure!(
+            router.active.is_none(),
+            "another Sand console session owns process input"
+        );
+        if !router.initialized {
+            // Never replace an embedding application's existing signal handler.
+            // Such hosts retain responsibility for Ctrl-C; stdin/EOF still work.
+            match ctrlc::try_set_handler(|| route_input(Event::Interrupt)) {
+                Ok(()) => {}
+                Err(ctrlc::Error::MultipleHandlers) => eprintln!(
+                    "console: existing Ctrl-C handler retained; the host owns interrupt handling (use stop or EOF to quit)"
+                ),
+                Err(error) => {
+                    return Err(error).context("failed to install console Ctrl-C handler");
+                }
+            }
+            router.initialized = true;
+            spawn_stdin_forwarder();
+        }
+        router.next_owner += 1;
+        let owner = router.next_owner;
+        router.active = Some((owner, tx.clone()));
+        if router.stdin_closed {
+            let _ = tx.send(Event::InputClosed);
+        }
         Ok(Self {
             tx,
             rx,
             pending: Default::default(),
             cancelled: false,
             generation: 0,
+            owner: Some(owner),
         })
     }
 
@@ -114,7 +176,12 @@ impl ConsoleSession {
 
 /// Spawn `command` with piped stdio and drive it until it exits, forwarding
 /// stdin interactively and rendering classified stdout/stderr. The child is
-/// waited on exactly once, on every return path.
+/// waited on exactly once, on every return path. Only one console session may
+/// own process input at a time; sequential calls reuse the process-wide reader
+/// and interrupt router. If an embedding host already owns Ctrl-C, its handler
+/// is preserved and Sand reports that the host remains responsible for signals;
+/// console `stop` and EOF still request graceful shutdown. With Sand's handler,
+/// Ctrl-C between sessions terminates the process with exit code 130.
 pub fn run_server(command: Command, mode: OutputMode, mc_version: &str) -> Result<RunOutcome> {
     run_server_with_dev(command, mode, mc_version, None, &mut None)
 }
@@ -202,7 +269,7 @@ fn drive(
                 ..
             }) => {
                 let record = parse_line(&line);
-                phase.observe_log(&record.message);
+                phase.observe_log(&record);
                 let category = classify(stream, &record);
                 for grouped in grouper.feed_at(stream, record, category, received_at) {
                     render_group(&grouped, &mut renderer, phase.current(), dev.as_deref_mut());
@@ -386,7 +453,7 @@ fn drain_remaining(
                 ..
             }) => {
                 let record = parse_line(&line);
-                phase.observe_log(&record.message);
+                phase.observe_log(&record);
                 let category = classify(stream, &record);
                 for grouped in grouper.feed_at(stream, record, category, received_at) {
                     render_group(&grouped, renderer, phase.current(), dev.as_deref_mut());
@@ -448,7 +515,7 @@ fn spawn_reader<R: Read + Send + 'static>(
     });
 }
 
-fn spawn_stdin_forwarder(tx: Sender<Event>) {
+fn spawn_stdin_forwarder() {
     std::thread::spawn(move || {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
@@ -460,13 +527,11 @@ fn spawn_stdin_forwarder(tx: Sender<Event>) {
                 Err(_) => break,
                 Ok(_) => {
                     let trimmed = line.trim_end_matches(['\n', '\r']);
-                    if tx.send(Event::Input(trimmed.to_string())).is_err() {
-                        break;
-                    }
+                    route_input(Event::Input(trimmed.to_string()));
                 }
             }
         }
-        let _ = tx.send(Event::InputClosed);
+        route_input(Event::InputClosed);
     });
 }
 
@@ -474,6 +539,153 @@ fn spawn_stdin_forwarder(tx: Sender<Event>) {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn process_wide_console_ownership() {
+        const CHILD_MODE: &str = "SAND_TEST_CONSOLE_ROUTER";
+        if let Ok(mode) = std::env::var(CHILD_MODE) {
+            let host_interrupted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            if mode == "host" {
+                let interrupted = host_interrupted.clone();
+                ctrlc::set_handler(move || {
+                    interrupted.store(true, std::sync::atomic::Ordering::SeqCst);
+                })
+                .unwrap();
+            }
+            #[cfg(unix)]
+            if mode == "idle" {
+                drop(ConsoleSession::new().unwrap());
+                assert!(
+                    Command::new("kill")
+                        .args(["-INT", &std::process::id().to_string()])
+                        .status()
+                        .unwrap()
+                        .success()
+                );
+                std::thread::sleep(Duration::from_secs(5));
+                panic!("idle interrupt was swallowed");
+            }
+            if mode == "routing" || mode == "host" {
+                for _ in 0..2 {
+                    let console = ConsoleSession::new().unwrap();
+                    assert!(console.owner.is_some());
+                    assert!(
+                        ConsoleSession::new().is_err(),
+                        "concurrent owners must be rejected"
+                    );
+                    #[cfg(unix)]
+                    {
+                        let mut console = console;
+                        assert!(
+                            Command::new("kill")
+                                .args(["-INT", &std::process::id().to_string()])
+                                .status()
+                                .unwrap()
+                                .success()
+                        );
+                        if mode == "host" {
+                            let deadline = Instant::now() + Duration::from_secs(5);
+                            while !host_interrupted.load(std::sync::atomic::Ordering::SeqCst) {
+                                assert!(Instant::now() < deadline, "host handler was replaced");
+                                std::thread::sleep(Duration::from_millis(10));
+                            }
+                            host_interrupted.store(false, std::sync::atomic::Ordering::SeqCst);
+                            assert!(
+                                !console
+                                    .rx
+                                    .try_iter()
+                                    .any(|event| matches!(event, Event::Interrupt))
+                            );
+                        } else {
+                            // Captured before any build or JVM exists, including
+                            // after a previous session has released ownership.
+                            loop {
+                                let event =
+                                    console.rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                                if matches!(event, Event::Interrupt) {
+                                    console.pending.push_back(event);
+                                    assert!(console.cancellation_requested());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            assert!(
+                run_server(
+                    Command::new("sand-test-missing-executable-for-console-ownership"),
+                    OutputMode::Classified,
+                    "26.2",
+                )
+                .is_err(),
+                "failed spawn must release ownership too"
+            );
+            // Exercise the public entry point twice. EOF must reach each
+            // session, including when the singleton reader has already exited.
+            for _ in 0..2 {
+                let mut command = Command::new(test_fixture_command());
+                if cfg!(windows) {
+                    command.args(["/C", "set /p line= & exit 0"]);
+                } else {
+                    command.args(["-c", "read line; test \"$line\" = stop"]);
+                }
+                assert!(
+                    run_server(command, OutputMode::Classified, "26.2")
+                        .unwrap()
+                        .exit_status
+                        .success()
+                );
+            }
+            return;
+        }
+        let modes = if cfg!(unix) {
+            &["sequential", "routing", "host", "idle"][..]
+        } else {
+            &["sequential", "routing", "host"][..]
+        };
+        for &mode in modes {
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "console::process::tests::process_wide_console_ownership",
+                    "--nocapture",
+                ])
+                .env(CHILD_MODE, mode)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(20);
+            loop {
+                if child.try_wait().unwrap().is_some() {
+                    break;
+                }
+                if Instant::now() >= deadline {
+                    child.kill().unwrap();
+                    let output = child.wait_with_output().unwrap();
+                    panic!("console subprocess {mode} hung: {output:?}");
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let output = child.wait_with_output().unwrap();
+            if mode == "idle" {
+                assert_eq!(output.status.code(), Some(130), "{output:?}");
+                continue;
+            }
+            assert!(
+                output.status.success(),
+                "console subprocess {mode}: {output:?}"
+            );
+            if mode == "host" {
+                assert!(
+                    String::from_utf8_lossy(&output.stderr)
+                        .contains("existing Ctrl-C handler retained")
+                );
+            }
+        }
+    }
 
     #[test]
     fn graceful_shutdown_is_unbounded_and_cancellation_disarms_restart_deadline() {
@@ -574,6 +786,7 @@ mod tests {
                 pending: Default::default(),
                 cancelled: false,
                 generation: 0,
+                owner: None,
             };
             console.pending.push_back(Event::Input("say before".into()));
             assert!(!console.cancellation_requested());
@@ -730,12 +943,33 @@ mod tests {
     /// crate's own test binary support via `sh`-free `std::process`.
     #[test]
     fn drive_handles_interleaved_output_and_stop_command_without_deadlock() {
-        // We can't easily spin up a real child `Command` here without a
-        // fixture binary; instead we unit-test `drive`'s event loop by
-        // exercising `spawn_reader`/`spawn_stdin_forwarder` against pipes
-        // wired to an actual short-lived child process (`cat`-like echo).
-        let mut child = Command::new(test_fixture_command())
-            .args(test_fixture_args())
+        const FIXTURE: &str = "SAND_TEST_EOF_FIXTURE";
+        if std::env::var_os(FIXTURE).is_some() {
+            let (tx, rx) = mpsc::channel();
+            std::thread::spawn(move || {
+                for line in std::io::stdin().lock().lines().take(2) {
+                    tx.send(line.unwrap()).unwrap();
+                }
+            });
+            println!("ready");
+            assert_eq!(
+                rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+                "say hello"
+            );
+            eprintln!("got: say hello");
+            // Missing EOF forwarding fails this child within a fixed bound;
+            // merely forwarding the first command cannot make the test pass.
+            assert_eq!(rx.recv_timeout(Duration::from_secs(5)).unwrap(), "stop");
+            println!("got: stop");
+            return;
+        }
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "console::process::tests::drive_handles_interleaved_output_and_stop_command_without_deadlock",
+                "--nocapture",
+            ])
+            .env(FIXTURE, "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -750,9 +984,8 @@ mod tests {
         spawn_reader(stdout, Stream::Stdout, tx.clone(), 0);
         spawn_reader(stderr, Stream::Stderr, tx.clone(), 0);
         // Feed synthetic input instead of real stdin so the test is
-        // hermetic: send a command, then close input. The fixture script
-        // blocks on `read line`, so this proves input forwarding and
-        // shutdown-on-EOF both work without deadlocking.
+        // hermetic: send a command, then close input. The fixture waits for
+        // both commands, proving input forwarding and shutdown-on-EOF.
         std::thread::spawn(move || {
             // A reader from an earlier JVM may send after this drive starts.
             let _ = tx.send(Event::Log {
@@ -762,7 +995,7 @@ mod tests {
                 line: "[12:00:01] [Server thread/ERROR]: Failed to load function old:broken".into(),
             });
             let _ = tx.send(Event::Input("say hello".to_string()));
-            let _ = tx.send(Event::InputClosed);
+            tx.send(Event::InputClosed).unwrap();
         });
 
         let result = drive(
@@ -774,21 +1007,15 @@ mod tests {
             None,
             &mut Default::default(),
         );
-        // The fixture script isn't a real Minecraft server, so we only
-        // assert the loop terminates cleanly with a status, proving no
-        // deadlock — not any particular exit code.
-        assert_eq!(result.unwrap().health, RunHealth::Healthy);
+        let outcome = result.unwrap();
+        assert!(
+            outcome.exit_status.success(),
+            "fixture must receive say hello then stop"
+        );
+        assert_eq!(outcome.health, RunHealth::Healthy);
     }
 
     fn test_fixture_command() -> &'static str {
         if cfg!(windows) { "cmd" } else { "sh" }
-    }
-
-    fn test_fixture_args() -> Vec<&'static str> {
-        if cfg!(windows) {
-            vec!["/C", "echo ready & exit 0"]
-        } else {
-            vec!["-c", "echo ready; read line; echo \"got: $line\"; exit 0"]
-        }
     }
 }

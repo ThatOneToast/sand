@@ -65,14 +65,40 @@ const SUPPRESS_SUBSTRINGS: &[&str] = &[
     "Flushing Chunk IO",
 ];
 
-const READY_SUBSTRINGS: &[&str] = &["For help, type \"help\""];
+/// Lifecycle evidence must come from the server logger, not chat/command text
+/// or unprefixed diagnostic continuations.
+pub(crate) fn is_server_info(record: &LogRecord) -> bool {
+    record
+        .prefix
+        .as_ref()
+        .is_some_and(|p| p.thread == "Server thread" && p.level == "INFO")
+}
 
-const SHUTDOWN_SUBSTRINGS: &[&str] = &[
-    "Stopping the server",
-    "Stopping server",
-    "Closing Server",
-    "Saving worlds",
-];
+pub(crate) fn lifecycle(record: &LogRecord) -> Option<Category> {
+    if !is_server_info(record) {
+        return None;
+    }
+    let message = record.message.as_str();
+    if let Some(rest) = message.strip_prefix("Done (")
+        && let Some((seconds, suffix)) = rest.split_once("s)!")
+        && !seconds.is_empty()
+        && seconds.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+        && seconds.parse::<f64>().is_ok()
+        && matches!(
+            suffix,
+            "" | " For help, type \"help\"" | " For help, type \"help\" or \"?\""
+        )
+    {
+        return Some(Category::Ready);
+    }
+    if matches!(
+        message,
+        "Stopping the server" | "Stopping server" | "Closing Server" | "Saving worlds"
+    ) {
+        return Some(Category::Shutdown);
+    }
+    None
+}
 
 const DATAPACK_ERROR_KEYWORDS: &[&str] = &[
     "couldn't parse command",
@@ -165,15 +191,8 @@ pub fn classify(stream: Stream, record: &LogRecord) -> Category {
         return Category::DatapackError;
     }
 
-    if message.contains("Done (") && message.contains(")!") {
-        return Category::Ready;
-    }
-    if READY_SUBSTRINGS.iter().any(|s| message.contains(s)) {
-        return Category::Ready;
-    }
-
-    if SHUTDOWN_SUBSTRINGS.iter().any(|s| message.contains(s)) {
-        return Category::Shutdown;
+    if let Some(category) = lifecycle(record) {
+        return category;
     }
 
     if is_player_event(message) {
@@ -208,7 +227,8 @@ fn is_player_event(message: &str) -> bool {
 fn is_command_response(message: &str) -> bool {
     // Broadcast feedback from an op-issued command looks like
     // `[Server: Set the time to 0]` once the log prefix is stripped.
-    message.starts_with('[') && message.ends_with(']') && message.len() > 2
+    message.starts_with("[Server] ")
+        || (message.starts_with('[') && message.ends_with(']') && message.len() > 2)
 }
 
 #[cfg(test)]
@@ -218,6 +238,44 @@ mod tests {
 
     fn classify_line(line: &str) -> Category {
         classify(Stream::Stdout, &parse_line(line))
+    }
+
+    #[test]
+    fn lifecycle_requires_genuine_server_messages() {
+        for message in [
+            "Stopping server",
+            "Saving worlds",
+            "Done (1.23s)! For help, type \"help\"",
+        ] {
+            for prefix in [
+                "[12:00:00] [Worker/INFO]: ",
+                "[12:00:00] [Server thread/WARN]: ",
+                "",
+            ] {
+                assert!(!matches!(
+                    classify_line(&format!("{prefix}{message}")),
+                    Category::Ready | Category::Shutdown
+                ));
+            }
+            for quoted in [
+                format!("[Server] {message}"),
+                format!("[Server: {message}]"),
+                format!("<Player> {message}"),
+            ] {
+                assert!(!matches!(
+                    classify_line(&format!("[12:00:00] [Server thread/INFO]: {quoted}")),
+                    Category::Ready | Category::Shutdown
+                ));
+            }
+        }
+        assert_eq!(
+            classify_line("[12:00:00] [Server thread/INFO]: [Server] Stopping server"),
+            Category::CommandResponse
+        );
+        assert_eq!(
+            classify_line("[12:00:00] [Server thread/INFO]: Stopping server"),
+            Category::Shutdown
+        );
     }
 
     #[test]

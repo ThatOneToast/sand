@@ -723,6 +723,37 @@ mod tests {
         }
     }
 
+    #[test]
+    fn command_text_cannot_enable_or_disable_dev_readiness() {
+        let root = tempfile::tempdir().unwrap();
+        let mut session = health_session(root.path());
+        for ready in [false, true] {
+            session.ready = ready;
+            for message in [
+                "[Server] Stopping server",
+                "[Server: Stopping the server]",
+                "[Server] Done (1s)! For help, type \"help\"",
+                "<Player> Done (1s)! For help, type \"help\"",
+            ] {
+                session.observe(
+                    &log_event(&format!("[12:00:00] [Server thread/INFO]: {message}")),
+                    crate::console::phase::RunPhase::Runtime,
+                );
+                assert_eq!(session.ready, ready, "{message}");
+            }
+        }
+        session.observe(
+            &log_event("[12:00:00] [Server thread/INFO]: Stopping server"),
+            crate::console::phase::RunPhase::Shutdown,
+        );
+        assert!(!session.ready);
+        session.observe(
+            &log_event("[12:00:00] [Server thread/INFO]: Done (1s)! For help, type \"help\""),
+            crate::console::phase::RunPhase::ServerStartup,
+        );
+        assert!(session.ready);
+    }
+
     fn complete_reload(session: &mut Session) {
         use crate::console::phase::RunPhase;
         let marker = session.pending_reload.as_ref().unwrap().marker.clone();

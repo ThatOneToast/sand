@@ -1,0 +1,1491 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.2",
+  "namespace": "paudit",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "paudit:__sand_event_advancement_bridge/f6a08801": {
+        "evaluations": {
+          "maximum": 21,
+          "minimum": 17,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_check/1a332fa1": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 2 run function paudit:__sand_event_dispatch/1a332fa1"
+          ]
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_event_check/d75c34e5": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 1 run function paudit:__sand_event_dispatch/d75c34e5"
+          ]
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_event_cycle": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function paudit:__sand_event_subject_cycle",
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 1 run function paudit:__sand_event_dispatch/d75c34e5",
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 2 run function paudit:__sand_event_dispatch/1a332fa1",
+            "unknown selector multiplicity: execute as @s at @s unless score @s se_0a8b2cd4_m matches 1 if score @s se_1a332fa1_o matches 1 run function paudit:__sand_event_multi_gate/0a8b2cd4",
+            "unknown selector multiplicity: execute as @s at @s unless score @s se_0a8b2cd4_m matches 1 if score @s se_d75c34e5_o matches 1 run function paudit:__sand_event_multi_gate/0a8b2cd4"
+          ]
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_event_dispatch/1a332fa1": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_dispatch/661b548b": {
+        "evaluations": {
+          "maximum": 14,
+          "minimum": 10,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_event_dispatch/d75c34e5": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 15,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "selector_sites": [
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_event_multi_eval/0a8b2cd4": {
+        "evaluations": {
+          "maximum": 20,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_multi_gate/0a8b2cd4": {
+        "evaluations": {
+          "maximum": 22,
+          "minimum": 10,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_setup/0a8b2cd4": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_setup/1a332fa1": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_setup/d75c34e5": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_event_subject_cycle": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 21,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 1 run function paudit:__sand_event_dispatch/d75c34e5",
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 2 run function paudit:__sand_event_dispatch/1a332fa1",
+            "unknown selector multiplicity: execute as @s at @s unless score @s se_0a8b2cd4_m matches 1 if score @s se_1a332fa1_o matches 1 run function paudit:__sand_event_multi_gate/0a8b2cd4",
+            "unknown selector multiplicity: execute as @s at @s unless score @s se_0a8b2cd4_m matches 1 if score @s se_d75c34e5_o matches 1 run function paudit:__sand_event_multi_gate/0a8b2cd4"
+          ]
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "selector_sites": [
+          {
+            "line": 7,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run execute at @s run function paudit:__sand_transition/bad4ea9220",
+            "unknown selector multiplicity: execute at @s run function paudit:__sand_transition/bad4ea9220",
+            "unknown selector multiplicity: execute if score @s __st_bad4ea9220a matches 1 if score @s __st_bad4ea9220s matches 1 if score @s __st_bad4ea9220c < @s __st_bad4ea9220p at @s run function paudit:audit_on_observed_health_loss",
+            "unsupported execute grammar: execute store success score @s __st_bad4ea9220a if score @s __st_bad4ea9220c matches -2147483648.."
+          ]
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:__sand_score_init": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:__sand_transition/bad4ea9220": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 7,
+          "unknown": [
+            "unknown selector multiplicity: execute if score @s __st_bad4ea9220a matches 1 if score @s __st_bad4ea9220s matches 1 if score @s __st_bad4ea9220c < @s __st_bad4ea9220p at @s run function paudit:audit_on_observed_health_loss",
+            "unsupported execute grammar: execute store success score @s __st_bad4ea9220a if score @s __st_bad4ea9220c matches -2147483648.."
+          ]
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": [
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_composed_alternative": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_alternative"
+        ],
+        "selector_sites": []
+      },
+      "paudit:audit_on_composed_child": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_child"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_d75c34e5,limit=1]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_composed_fan_in": {
+        "evaluations": {
+          "maximum": 19,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": [
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s[tag=paudit_subject_0]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s[tag=paudit_subject_1]"
+          }
+        ]
+      },
+      "paudit:audit_on_composed_parent": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_parent"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_d75c34e5,limit=1]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_composed_sibling": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_d75c34e5,limit=1]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_hurt_by_entity_a": {
+        "evaluations": {
+          "maximum": 13,
+          "minimum": 13,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_by_entity_a"
+        ],
+        "selector_sites": []
+      },
+      "paudit:audit_on_hurt_by_entity_a/body": {
+        "evaluations": {
+          "maximum": 11,
+          "minimum": 11,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_by_entity_a"
+        ],
+        "selector_sites": [
+          {
+            "line": 9,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_f797eaf3,limit=1]"
+          },
+          {
+            "line": 9,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_hurt_by_entity_b": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_by_entity_b"
+        ],
+        "selector_sites": []
+      },
+      "paudit:audit_on_hurt_by_entity_b/body": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_by_entity_b"
+        ],
+        "selector_sites": [
+          {
+            "line": 5,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_f797eaf3,limit=1]"
+          },
+          {
+            "line": 5,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_hurt_entity": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 13,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:audit_on_hurt_entity/body": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 11,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_killed": {
+        "evaluations": {
+          "maximum": 12,
+          "minimum": 12,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed"
+        ],
+        "selector_sites": []
+      },
+      "paudit:audit_on_killed/body": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 10,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed"
+        ],
+        "selector_sites": [
+          {
+            "line": 8,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_f6a08801,limit=1]"
+          },
+          {
+            "line": 8,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_killed_entity": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 13,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:audit_on_killed_entity/body": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 11,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_observed_health_loss": {
+        "evaluations": {
+          "maximum": 34,
+          "minimum": 26,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": [
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_09f4a8e7,limit=1]"
+          },
+          {
+            "line": 14,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_09f4a8e7,limit=1]"
+          },
+          {
+            "line": 16,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:audit_on_special_kill": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_f6a08801,limit=1]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:init": {
+        "evaluations": {
+          "maximum": 16,
+          "minimum": 16,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::init"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/0c636a16": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/1b13c435": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/1f914ce7": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/21a85b16": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@e[tag=__sand_observed_d75c34e5,limit=1]"
+          }
+        ]
+      },
+      "paudit:sand/branches/25df5545": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/31e5059d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/35c898d3": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/368b0fad": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/38039908": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/3cc6b07f": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/3d5c894d": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_d75c34e5,limit=1]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:sand/branches/3dc473c5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/3ff5fe2f": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/4897ea5a": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/74b16bd6": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/9773f6c5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/9f79a0fd": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/a3cc91cd": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/a4361fda": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/ae5765c1": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/b6e79331": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[tag=__sand_observed_d75c34e5,limit=1]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "paudit:sand/branches/cf0e172d": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/d1de0287": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/d5ce9693": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/branches/f2a1ef43": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "selector_sites": []
+      },
+      "paudit:sand/numeric/see58ec10387c628/f38e3ed2": {
+        "evaluations": {
+          "maximum": 13,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "reference": "paudit:__sand_score_init",
+        "required": true
+      },
+      {
+        "contributors": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "reference": "paudit:__sand_event_setup/1a332fa1",
+        "required": true
+      },
+      {
+        "contributors": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "reference": "paudit:__sand_event_setup/d75c34e5",
+        "required": true
+      },
+      {
+        "contributors": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "reference": "paudit:__sand_event_setup/0a8b2cd4",
+        "required": true
+      },
+      {
+        "contributors": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "reference": "paudit:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "paudit:__sand_event_advancement_bridge/f6a08801": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "paudit:__sand_event_check/1a332fa1": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:__sand_event_check/d75c34e5": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "paudit:__sand_event_cycle": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "paudit:__sand_event_dispatch/1a332fa1": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:__sand_event_dispatch/661b548b": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "paudit:__sand_event_dispatch/d75c34e5": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "paudit:__sand_event_multi_eval/0a8b2cd4": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:__sand_event_multi_gate/0a8b2cd4": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:__sand_event_setup/0a8b2cd4": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:__sand_event_setup/1a332fa1": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:__sand_event_setup/d75c34e5": [
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "paudit:__sand_event_subject_cycle": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "paudit:__sand_lifecycle_load": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:__sand_lifecycle_tick": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:__sand_score_init": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:__sand_transition/bad4ea9220": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:audit_on_composed_alternative": [
+          "participant_audit::audit_on_composed_alternative"
+        ],
+        "paudit:audit_on_composed_child": [
+          "participant_audit::audit_on_composed_child"
+        ],
+        "paudit:audit_on_composed_fan_in": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:audit_on_composed_parent": [
+          "participant_audit::audit_on_composed_parent"
+        ],
+        "paudit:audit_on_composed_sibling": [
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "paudit:audit_on_hurt_by_entity_a": [
+          "participant_audit::audit_on_hurt_by_entity_a"
+        ],
+        "paudit:audit_on_hurt_by_entity_a/body": [
+          "participant_audit::audit_on_hurt_by_entity_a"
+        ],
+        "paudit:audit_on_hurt_by_entity_b": [
+          "participant_audit::audit_on_hurt_by_entity_b"
+        ],
+        "paudit:audit_on_hurt_by_entity_b/body": [
+          "participant_audit::audit_on_hurt_by_entity_b"
+        ],
+        "paudit:audit_on_hurt_entity": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "paudit:audit_on_hurt_entity/body": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "paudit:audit_on_killed": [
+          "participant_audit::audit_on_killed"
+        ],
+        "paudit:audit_on_killed/body": [
+          "participant_audit::audit_on_killed"
+        ],
+        "paudit:audit_on_killed_entity": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "paudit:audit_on_killed_entity/body": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "paudit:audit_on_observed_health_loss": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:audit_on_special_kill": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "paudit:init": [
+          "participant_audit::init"
+        ],
+        "paudit:sand/branches/0c636a16": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "paudit:sand/branches/1b13c435": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/1f914ce7": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/21a85b16": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/25df5545": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:sand/branches/31e5059d": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "paudit:sand/branches/35c898d3": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "paudit:sand/branches/368b0fad": [
+          "participant_audit::audit_on_killed_entity"
+        ],
+        "paudit:sand/branches/38039908": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:sand/branches/3cc6b07f": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:sand/branches/3d5c894d": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/3dc473c5": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "paudit:sand/branches/3ff5fe2f": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:sand/branches/4897ea5a": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/74b16bd6": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/9773f6c5": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "paudit:sand/branches/9f79a0fd": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/a3cc91cd": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "paudit:sand/branches/a4361fda": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:sand/branches/ae5765c1": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/b6e79331": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/branches/cf0e172d": [
+          "participant_audit::audit_on_special_kill"
+        ],
+        "paudit:sand/branches/d1de0287": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "paudit:sand/branches/d5ce9693": [
+          "participant_audit::audit_on_hurt_entity"
+        ],
+        "paudit:sand/branches/f2a1ef43": [
+          "participant_audit::audit_on_composed_fan_in"
+        ],
+        "paudit:sand/numeric/see58ec10387c628/f38e3ed2": [
+          "participant_audit::audit_on_observed_health_loss"
+        ]
+      },
+      "lifecycle_owners": {},
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "paudit:__sand_event_cycle",
+          "owners": [
+            "participant_audit::audit_on_composed_alternative",
+            "participant_audit::audit_on_composed_child",
+            "participant_audit::audit_on_composed_fan_in",
+            "participant_audit::audit_on_composed_parent",
+            "participant_audit::audit_on_composed_sibling"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "paudit:__sand_event_setup/0a8b2cd4",
+          "owners": [
+            "participant_audit::audit_on_composed_fan_in"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "paudit:__sand_event_setup/1a332fa1",
+          "owners": [
+            "participant_audit::audit_on_composed_alternative",
+            "participant_audit::audit_on_composed_fan_in"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "paudit:__sand_event_setup/d75c34e5",
+          "owners": [
+            "participant_audit::audit_on_composed_child",
+            "participant_audit::audit_on_composed_fan_in",
+            "participant_audit::audit_on_composed_parent",
+            "participant_audit::audit_on_composed_sibling"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "paudit:__sand_lifecycle_load",
+          "owners": [
+            "participant_audit::audit_on_observed_health_loss"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "paudit:__sand_lifecycle_tick",
+          "owners": [
+            "participant_audit::audit_on_observed_health_loss"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "paudit:__sand_score_init",
+          "owners": [
+            "participant_audit::audit_on_observed_health_loss"
+          ],
+          "tag": "minecraft:load"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "participant_audit::audit_on_composed_alternative",
+          "participant_audit::audit_on_composed_child",
+          "participant_audit::audit_on_composed_fan_in",
+          "participant_audit::audit_on_composed_parent",
+          "participant_audit::audit_on_composed_sibling"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function paudit:__sand_event_subject_cycle",
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 1 run function paudit:__sand_event_dispatch/d75c34e5",
+            "unknown selector multiplicity: execute as @s at @s if score @s paudit_cmp_trg matches 2 run function paudit:__sand_event_dispatch/1a332fa1",
+            "unknown selector multiplicity: execute as @s at @s unless score @s se_0a8b2cd4_m matches 1 if score @s se_1a332fa1_o matches 1 run function paudit:__sand_event_multi_gate/0a8b2cd4",
+            "unknown selector multiplicity: execute as @s at @s unless score @s se_0a8b2cd4_m matches 1 if score @s se_d75c34e5_o matches 1 run function paudit:__sand_event_multi_gate/0a8b2cd4"
+          ]
+        },
+        "reference": "paudit:__sand_event_cycle",
+        "required": true
+      },
+      {
+        "contributors": [
+          "participant_audit::audit_on_observed_health_loss"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a run execute at @s run function paudit:__sand_transition/bad4ea9220",
+            "unknown selector multiplicity: execute at @s run function paudit:__sand_transition/bad4ea9220",
+            "unknown selector multiplicity: execute if score @s __st_bad4ea9220a matches 1 if score @s __st_bad4ea9220s matches 1 if score @s __st_bad4ea9220c < @s __st_bad4ea9220p at @s run function paudit:audit_on_observed_health_loss",
+            "unsupported execute grammar: execute store success score @s __st_bad4ea9220a if score @s __st_bad4ea9220c matches -2147483648.."
+          ]
+        },
+        "reference": "paudit:__sand_lifecycle_tick",
+        "required": true
+      }
+    ]
+  }
+}

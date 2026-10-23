@@ -43,3 +43,9 @@ python3 scripts/validate_keyed_literals.py --version 26.2 \
 ```
 
 The latest-version vanilla CI job runs this audit and retains failure evidence.
+
+`count_diamonds` demonstrates a player-context function receiving the same
+`EntityContext<PlayerKind>` used by `Event<OnJoinEvent>::player()` and player
+queries. The join handler calls it through `player.call`; its semantic inventory
+count writes directly to `Supplies::on(player).diamonds`. The handle is the
+current execution's `@s`, not a persistent player identity.

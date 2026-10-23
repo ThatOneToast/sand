@@ -29,8 +29,8 @@ command-source module=sand::command state=enforced tier=ordinary provider=source
 component-source module=sand::component state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=1551 contracted=1551 aliases=sand::prelude features=-
 condition-source module=sand::condition state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=12 contracted=12 aliases=sand::prelude features=-
 data-source module=sand::data state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=152 contracted=152 aliases=sand::prelude features=-
-entity-source module=sand::entity state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=742 contracted=742 aliases=sand::prelude features=-
-event-source module=sand::event state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=117 contracted=117 aliases=sand::prelude features=-
+entity-source module=sand::entity state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=743 contracted=743 aliases=sand::prelude features=-
+event-source module=sand::event state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=116 contracted=116 aliases=sand::prelude features=-
 events-source module=sand::events state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=155 contracted=155 aliases=sand::prelude features=-
 execute-when-source module=sand::execute_when state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=22 contracted=22 aliases=sand::prelude features=-
 generated-commands module=sand::command state=enforced tier=ordinary provider=generator:generated_commands precedence=50 recursive=true active=true items=0 contracted=0 aliases=sand::cmd,sand::prelude features=-

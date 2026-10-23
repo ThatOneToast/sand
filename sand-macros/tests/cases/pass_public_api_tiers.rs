@@ -49,7 +49,7 @@ pub fn spend_mana() {
 
 #[on_event]
 pub fn on_ate_apple(event: Event<AteApple>) {
-    MANA.add(event.player(), 1);
+    MANA.add(Target::from(event.player()), 1);
     cmd::function(spend_mana);
 }
 

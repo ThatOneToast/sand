@@ -1083,17 +1083,97 @@
         ],
         "selector_sites": []
       },
+      "unified_state:__sand_join_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0",
+            "unknown selector multiplicity: execute at @s run function unified_state:welcome_player"
+          ]
+        },
+        "owners": [
+          "unified_state::welcome_player"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:__sand_join_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0",
+            "unknown selector multiplicity: execute at @s run function unified_state:welcome_player"
+          ]
+        },
+        "owners": [
+          "unified_state::welcome_player"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
       "unified_state:__sand_lifecycle_init": {
         "evaluations": {
           "maximum": null,
-          "minimum": 14,
+          "minimum": 16,
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner"
           ]
         },
         "owners": [
-          "rpg:progression"
+          "rpg:progression",
+          "rpg:supplies"
         ],
         "selector_sites": [
           {
@@ -1185,13 +1265,33 @@
             "line": 14,
             "operation": "unless",
             "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s"
           }
         ]
       },
       "unified_state:__sand_lifecycle_load": {
         "evaluations": {
-          "maximum": 41,
-          "minimum": 41,
+          "maximum": 48,
+          "minimum": 48,
           "unknown": []
         },
         "owners": [
@@ -1201,26 +1301,33 @@
           "rpg:health",
           "rpg:progression",
           "rpg:status",
-          "rpg:world"
+          "rpg:supplies",
+          "rpg:world",
+          "unified_state::welcome_player"
         ],
         "selector_sites": []
       },
       "unified_state:__sand_lifecycle_tick": {
         "evaluations": {
           "maximum": null,
-          "minimum": 3,
+          "minimum": 4,
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @a run function unified_state:__sand_join_check",
             "unknown selector multiplicity: execute as @a run function unified_state:__sand_lifecycle_init",
             "unknown selector multiplicity: execute as @e[scores={s2eb987913797037=1}] at @s run function unified_state:sand/state_tick/c3988963",
-            "unknown selector multiplicity: execute as @e[scores={saccea77c2a68f21=2}] at @s run function unified_state:sand/state_tick/8f6b69d7"
+            "unknown selector multiplicity: execute as @e[scores={saccea77c2a68f21=2}] at @s run function unified_state:sand/state_tick/8f6b69d7",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0",
+            "unknown selector multiplicity: execute at @s run function unified_state:welcome_player"
           ]
         },
         "owners": [
           "rpg:attack",
           "rpg:progression",
-          "rpg:status"
+          "rpg:status",
+          "rpg:supplies",
+          "unified_state::welcome_player"
         ],
         "selector_sites": [
           {
@@ -1231,24 +1338,40 @@
           {
             "line": 2,
             "operation": "as",
-            "selector": "@e[scores={saccea77c2a68f21=2}]"
-          },
-          {
-            "line": 2,
-            "operation": "at",
-            "selector": "@s"
+            "selector": "@a"
           },
           {
             "line": 3,
             "operation": "as",
-            "selector": "@e[scores={s2eb987913797037=1}]"
+            "selector": "@e[scores={saccea77c2a68f21=2}]"
           },
           {
             "line": 3,
             "operation": "at",
             "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[scores={s2eb987913797037=1}]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
           }
         ]
+      },
+      "unified_state:__sand_score_init": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "unified_state::count_diamonds"
+        ],
+        "selector_sites": []
       },
       "unified_state:__sand_system/s5646254cabff619": {
         "evaluations": {
@@ -1416,6 +1539,21 @@
           }
         ]
       },
+      "unified_state:count_diamonds": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 21,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0"
+          ]
+        },
+        "owners": [
+          "unified_state::count_diamonds"
+        ],
+        "selector_sites": []
+      },
       "unified_state:detach_attack": {
         "evaluations": {
           "maximum": 6,
@@ -1578,6 +1716,42 @@
             "line": 1,
             "operation": "unless",
             "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0"
+          ]
+        },
+        "owners": [
+          "unified_state::count_diamonds"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "unified_state::count_diamonds"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
           }
         ]
       },
@@ -1947,9 +2121,11 @@
       "unified_state:set_player_literals": {
         "evaluations": {
           "maximum": null,
-          "minimum": 18,
+          "minimum": 35,
           "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/88552def with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d0df2869 with storage rpg:state __sand_owner"
           ]
         },
@@ -2068,6 +2244,27 @@
             "selector": "@s"
           }
         ]
+      },
+      "unified_state:welcome_player": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0"
+          ]
+        },
+        "owners": [
+          "unified_state::welcome_player"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
       }
     },
     "limitations": [
@@ -2078,6 +2275,18 @@
       "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
     ],
     "load": [
+      {
+        "contributors": [
+          "unified_state::count_diamonds"
+        ],
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "reference": "unified_state:__sand_score_init",
+        "required": true
+      },
       {
         "contributors": [
           "unified_state::__sand_system_event_attack"
@@ -2124,11 +2333,13 @@
           "rpg:health",
           "rpg:progression",
           "rpg:status",
-          "rpg:world"
+          "rpg:supplies",
+          "rpg:world",
+          "unified_state::welcome_player"
         ],
         "evaluations": {
-          "maximum": 41,
-          "minimum": 41,
+          "maximum": 48,
+          "minimum": 48,
           "unknown": []
         },
         "reference": "unified_state:__sand_lifecycle_load",
@@ -2301,8 +2512,15 @@
         "unified_state:__sand_event_setup/7d3ae18c": [
           "unified_state::__sand_system_event_attack"
         ],
+        "unified_state:__sand_join_check": [
+          "unified_state::welcome_player"
+        ],
+        "unified_state:__sand_join_dispatch": [
+          "unified_state::welcome_player"
+        ],
         "unified_state:__sand_lifecycle_init": [
-          "rpg:progression"
+          "rpg:progression",
+          "rpg:supplies"
         ],
         "unified_state:__sand_lifecycle_load": [
           "rpg:attack",
@@ -2311,12 +2529,19 @@
           "rpg:health",
           "rpg:progression",
           "rpg:status",
-          "rpg:world"
+          "rpg:supplies",
+          "rpg:world",
+          "unified_state::welcome_player"
         ],
         "unified_state:__sand_lifecycle_tick": [
           "rpg:attack",
           "rpg:progression",
-          "rpg:status"
+          "rpg:status",
+          "rpg:supplies",
+          "unified_state::welcome_player"
+        ],
+        "unified_state:__sand_score_init": [
+          "unified_state::count_diamonds"
         ],
         "unified_state:__sand_system/s5646254cabff619": [
           "unified_state::regenerate_health"
@@ -2341,6 +2566,9 @@
         "unified_state:attach_zombie_components": [
           "unified_state::attach_zombie_components"
         ],
+        "unified_state:count_diamonds": [
+          "unified_state::count_diamonds"
+        ],
         "unified_state:detach_attack": [
           "unified_state::detach_attack"
         ],
@@ -2361,6 +2589,12 @@
         ],
         "unified_state:sand/entity_query/bf8dae6b": [
           "unified_state::CombatSystems::train_attack"
+        ],
+        "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999": [
+          "unified_state::count_diamonds"
+        ],
+        "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0": [
+          "unified_state::count_diamonds"
         ],
         "unified_state:sand/state_data/body/03c58b5c": [
           "unified_state::advance_world"
@@ -2468,6 +2702,9 @@
         ],
         "unified_state:state_mutation/d155f7a6": [
           "unified_state::regenerate_health"
+        ],
+        "unified_state:welcome_player": [
+          "unified_state::welcome_player"
         ]
       },
       "lifecycle_owners": {},
@@ -2528,7 +2765,9 @@
             "rpg:health",
             "rpg:progression",
             "rpg:status",
-            "rpg:world"
+            "rpg:supplies",
+            "rpg:world",
+            "unified_state::welcome_player"
           ],
           "tag": "minecraft:load"
         },
@@ -2537,9 +2776,18 @@
           "owners": [
             "rpg:attack",
             "rpg:progression",
-            "rpg:status"
+            "rpg:status",
+            "rpg:supplies",
+            "unified_state::welcome_player"
           ],
           "tag": "minecraft:tick"
+        },
+        {
+          "member": "unified_state:__sand_score_init",
+          "owners": [
+            "unified_state::count_diamonds"
+          ],
+          "tag": "minecraft:load"
         },
         {
           "member": "unified_state:__sand_system_load",
@@ -2615,17 +2863,22 @@
         "contributors": [
           "rpg:attack",
           "rpg:progression",
-          "rpg:status"
+          "rpg:status",
+          "rpg:supplies",
+          "unified_state::welcome_player"
         ],
         "evaluations": {
           "maximum": null,
-          "minimum": 3,
+          "minimum": 4,
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/422b24b2 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/bb3549eb with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @a run function unified_state:__sand_join_check",
             "unknown selector multiplicity: execute as @a run function unified_state:__sand_lifecycle_init",
             "unknown selector multiplicity: execute as @e[scores={s2eb987913797037=1}] at @s run function unified_state:sand/state_tick/c3988963",
-            "unknown selector multiplicity: execute as @e[scores={saccea77c2a68f21=2}] at @s run function unified_state:sand/state_tick/8f6b69d7"
+            "unknown selector multiplicity: execute as @e[scores={saccea77c2a68f21=2}] at @s run function unified_state:sand/state_tick/8f6b69d7",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0",
+            "unknown selector multiplicity: execute at @s run function unified_state:welcome_player"
           ]
         },
         "reference": "unified_state:__sand_lifecycle_tick",

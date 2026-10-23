@@ -18,7 +18,7 @@ Three pieces of state would otherwise persist incorrectly across a death:
   so a respawned player isn't stuck waiting out a dash cooldown from a
   dash that (from their perspective, after respawning at the world spawn
   or their bed) has no continuity with their new position.
-- **`STAMINA.set(event.player(), 100)`** — restores full stamina, mirroring
+- **`STAMINA.set(Target::from(event.player()), 100)`** — restores full stamina, mirroring
   vanilla's own full-health/full-hunger respawn convention. Trailforge's
   own resource should follow the same "you get a clean slate" expectation
   players already have from vanilla respawn.

@@ -44,9 +44,10 @@
 //! [`AdvancementEvent`](crate::event::AdvancementEvent):
 //!
 //! ```rust,ignore
-//! use sand_macros::on_event;
-//! use sand_core::prelude::*;
-//! use sand_core::events::{OnJoinEvent, OnDeathEvent, ArmorEquipEvent};
+//! use sand::advanced::state::ScoreVar;
+//! use sand::on_event;
+//! use sand::prelude::*;
+//! use sand::events::{OnJoinEvent, OnDeathEvent, ArmorEquipEvent};
 //!
 //! static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 //!
@@ -60,7 +61,7 @@
 //!
 //! #[on_event]
 //! pub fn on_death(event: Event<OnDeathEvent>) {
-//!     TOTAL_DEATHS.add(event.player(), 1);
+//!     TOTAL_DEATHS.add(Target::from(event.player()), 1);
 //! }
 //!
 //! // Slot filter required; item is optional
@@ -2423,11 +2424,14 @@ pub struct FirstJoinEvent;
 /// # Example
 ///
 /// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::events::*;
+/// use sand::advanced::state::ScoreVar;
 /// static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 ///
 /// #[on_event]
 /// pub fn on_death(event: Event<OnDeathEvent>) {
-///     TOTAL_DEATHS.add(event.player(), 1);
+///     TOTAL_DEATHS.add(Target::from(event.player()), 1);
 /// }
 /// ```
 pub struct OnDeathEvent;
@@ -2508,7 +2512,11 @@ pub struct OnRespawnEvent;
 /// # Example
 ///
 /// ```rust,ignore
-/// static MANA_REGEN: Flag = Flag::new("mana_regen");
+/// use sand::prelude::*;
+/// use sand::events::*;
+/// #[derive(State)]
+/// #[state(namespace = "example", scope = player)]
+/// struct EquipmentStatus { mana_regen: Flag }
 ///
 /// // Any item equipped in the feet slot
 /// #[on_event(slot = Feet)]
@@ -2519,7 +2527,7 @@ pub struct OnRespawnEvent;
 /// // Specific item with custom NBT
 /// #[on_event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
 /// pub fn mana_boots_equipped(event: Event<ArmorEquipEvent>) {
-///     MANA_REGEN.enable(event.player());
+///     EquipmentStatus::on(event.player()).mana_regen.enable();
 /// }
 /// ```
 pub struct ArmorEquipEvent;
@@ -2542,11 +2550,15 @@ pub struct ArmorEquipEvent;
 /// # Example
 ///
 /// ```rust,ignore
-/// static MANA_REGEN: Flag = Flag::new("mana_regen");
+/// use sand::prelude::*;
+/// use sand::events::*;
+/// #[derive(State)]
+/// #[state(namespace = "example", scope = player)]
+/// struct EquipmentStatus { mana_regen: Flag }
 ///
 /// #[on_event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
 /// pub fn mana_boots_removed(event: Event<ArmorUnequipEvent>) {
-///     MANA_REGEN.disable(event.player());
+///     EquipmentStatus::on(event.player()).mana_regen.disable();
 /// }
 /// ```
 pub struct ArmorUnequipEvent;
@@ -2578,16 +2590,23 @@ pub struct ArmorUnequipEvent;
 /// # Example
 ///
 /// ```rust,ignore
-/// static BLOCKING: Flag = Flag::new("blocking");
+/// use sand::prelude::*;
+/// use sand::events::*;
+/// #[derive(State)]
+/// #[state(namespace = "example", scope = player)]
+/// struct ShieldStatus { blocking: Flag }
 ///
 /// #[on_event(item = "minecraft:diamond_sword")]
 /// pub fn holding_diamond_sword(event: Event<HoldingItemEvent>) {
-///     cmd::particle(Particle::Crit, event.player());
+///     Target::from(event.player()).each(|_| {
+///         ParticleBuilder::new(Particle::named(ParticleId::minecraft("crit").unwrap()))
+///             .points_at(&[[0.0, 1.0, 0.0]])
+///     });
 /// }
 ///
 /// #[on_event(item = "minecraft:shield", slot = Offhand)]
 /// pub fn holding_shield_offhand(event: Event<HoldingItemEvent>) {
-///     BLOCKING.enable(event.player());
+///     ShieldStatus::on(event.player()).blocking.enable();
 /// }
 /// ```
 pub struct HoldingItemEvent;
@@ -2619,9 +2638,14 @@ pub struct HoldingItemEvent;
 /// # Example
 ///
 /// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::events::*;
 /// #[on_event(slot = Head, item = "minecraft:diamond_helmet")]
 /// pub fn wearing_diamond_helmet(event: Event<CurrentlyWearingEvent>) {
-///     cmd::particle(Particle::Enchant, event.player());
+///     Target::from(event.player()).each(|_| {
+///         ParticleBuilder::new(Particle::named(ParticleId::minecraft("enchant").unwrap()))
+///             .points_at(&[[0.0, 1.0, 0.0]])
+///     });
 /// }
 /// ```
 pub struct CurrentlyWearingEvent;
@@ -2658,11 +2682,14 @@ pub struct CurrentlyWearingEvent;
 ///
 /// # Example
 /// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::events::*;
+/// use sand::advanced::state::ScoreVar;
 /// static TOTAL_KILLS: ScoreVar<i32> = ScoreVar::new("total_kills");
 ///
 /// #[on_event]
 /// pub fn on_kill(event: Event<EntityKillEvent>) {
-///     TOTAL_KILLS.add(event.player(), 1);
+///     TOTAL_KILLS.add(Target::from(event.player()), 1);
 /// }
 /// ```
 pub struct EntityKillEvent;
@@ -2696,10 +2723,12 @@ impl SandEvent for EntityKillEvent {
 ///
 /// # Example
 /// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::events::*;
 /// #[on_event]
 /// pub fn on_killed(event: Event<PlayerKillEvent>) {
 ///     cmd::tellraw(
-///         event.player(),
+///         Target::from(event.player()),
 ///         Text::new("You were slain!").red(),
 ///     );
 /// }
@@ -3112,11 +3141,14 @@ impl SandEvent for RecipeUnlockEvent {
 ///
 /// # Example
 /// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::events::*;
+/// use sand::advanced::state::ScoreVar;
 /// static BLOCKS_PLACED: ScoreVar<i32> = ScoreVar::new("blocks_placed");
 ///
 /// #[on_event]
 /// pub fn on_place(event: Event<BlockPlaceEvent>) {
-///     BLOCKS_PLACED.add(event.player(), 1);
+///     BLOCKS_PLACED.add(Target::from(event.player()), 1);
 /// }
 /// ```
 pub struct BlockPlaceEvent;
@@ -3291,12 +3323,13 @@ impl SandEvent for PlayerSleepEvent {
 ///
 /// # Example
 /// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::events::*;
 /// #[on_event]
 /// pub fn on_fall(event: Event<FallFromHeightEvent>) {
-///     cmd::playsound(
-///         ResourceLocation::new("minecraft", "entity.player.hurt").unwrap(),
-///         event.player(),
-///     );
+///     Sound::play(SoundEventId::minecraft("entity.player.hurt").unwrap())
+///         .to(Target::from(event.player()))
+///         .build();
 /// }
 /// ```
 pub struct FallFromHeightEvent;
@@ -3341,15 +3374,16 @@ impl SandEvent for FallFromHeightEvent {
 /// # Example
 ///
 /// ```rust,ignore
-/// use sand_core::events::PlayerLevelUpEvent;
-/// use sand_core::prelude::*;
-/// use sand_macros::on_event;
+/// use sand::advanced::state::ScoreVar;
+/// use sand::events::PlayerLevelUpEvent;
+/// use sand::prelude::*;
+/// use sand::on_event;
 ///
 /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 ///
 /// #[on_event]
 /// pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
-///     MANA.add(event.player(), 10);
+///     MANA.add(Target::from(event.player()), 10);
 /// }
 /// ```
 pub struct PlayerLevelUpEvent;
@@ -3357,7 +3391,7 @@ pub struct PlayerLevelUpEvent;
 impl PlayerLevelUpEvent {
     /// Read the player's current XP level as a typed numeric expression.
     ///
-    /// The value is sampled before level-up callbacks run. Pass the callback's `event.player()` target.
+    /// The value is sampled before level-up callbacks run. Pass the callback's `Target::from(event.player())` target.
     /// The snapshot belongs to the exporting datapack namespace; it is not a
     /// live experience query. Compose the returned [`crate::entity::StatCurve`]
     /// in a condition or numeric State assignment. Constructing it does not
@@ -3373,9 +3407,9 @@ impl PlayerLevelUpEvent {
         minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
         use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
         avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
-        params(player = "The callback's typed player target, normally event.player()."),
+        params(player = "The callback's typed player target, normally Target::from(event.player())."),
         returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
-        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::current_level(event.player()); }",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::current_level(Target::from(event.player())); }",
     )]
     #[must_use = "compose this snapshot in a numeric expression or condition"]
     pub fn current_level(
@@ -3389,7 +3423,7 @@ impl PlayerLevelUpEvent {
 
     /// Read the player's previous XP level as a typed numeric expression.
     ///
-    /// During a level-up callback this is the baseline from the preceding observation. Pass the callback's `event.player()` target.
+    /// During a level-up callback this is the baseline from the preceding observation. Pass the callback's `Target::from(event.player())` target.
     /// The snapshot belongs to the exporting datapack namespace; it is not a
     /// live experience query. Compose the returned [`crate::entity::StatCurve`]
     /// in a condition or numeric State assignment. Constructing it does not
@@ -3405,9 +3439,9 @@ impl PlayerLevelUpEvent {
         minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
         use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
         avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
-        params(player = "The callback's typed player target, normally event.player()."),
+        params(player = "The callback's typed player target, normally Target::from(event.player())."),
         returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
-        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::previous_level(event.player()); }",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::previous_level(Target::from(event.player())); }",
     )]
     #[must_use = "compose this snapshot in a numeric expression or condition"]
     pub fn previous_level(
@@ -3421,7 +3455,7 @@ impl PlayerLevelUpEvent {
 
     /// Read the player's XP level increase as a typed numeric expression.
     ///
-    /// During a level-up callback for this player, the value is current minus previous and is positive. Pass the callback's `event.player()` target.
+    /// During a level-up callback for this player, the value is current minus previous and is positive. Pass the callback's `Target::from(event.player())` target.
     /// The snapshot belongs to the exporting datapack namespace; it is not a
     /// live experience query. Compose the returned [`crate::entity::StatCurve`]
     /// in a condition or numeric State assignment. Constructing it does not
@@ -3437,9 +3471,9 @@ impl PlayerLevelUpEvent {
         minecraft = "Reads the current datapack's XP observation snapshot for one typed player target.",
         use_when = ["Reading XP values inside a PlayerLevelUpEvent callback"],
         avoid_when = ["Polling current experience outside the registered XP event lifecycle"],
-        params(player = "The callback's typed player target, normally event.player()."),
+        params(player = "The callback's typed player target, normally Target::from(event.player())."),
         returns = "A namespace-independent StatCurve declaration resolved against the exporting pack's owned XP snapshot.",
-        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::level_delta(event.player()); }",
+        example = "use sand::prelude::*;\nuse sand::events::PlayerLevelUpEvent;\n\nfn inspect(event: Event<PlayerLevelUpEvent>) { let value = PlayerLevelUpEvent::level_delta(Target::from(event.player())); }",
     )]
     #[must_use = "compose this snapshot in a numeric expression or condition"]
     pub fn level_delta(
@@ -3956,13 +3990,16 @@ pub(crate) const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
 ///
 /// # Example
 /// ```rust,ignore
-/// use sand_core::events::PlayerSneakEvent;
-/// use sand_core::prelude::*;
-/// use sand_macros::on_event;
+/// use sand::events::PlayerSneakEvent;
+/// use sand::prelude::*;
+/// use sand::on_event;
 ///
 /// #[on_event]
 /// pub fn while_sneaking(event: PlayerSneakEvent) {
-///     cmd::particle(Particle::Smoke, event.player());
+///     Target::from(event.player()).each(|_| {
+///         ParticleBuilder::new(Particle::named(ParticleId::minecraft("smoke").unwrap()))
+///             .points_at(&[[0.0, 1.0, 0.0]])
+///     });
 /// }
 /// ```
 pub struct PlayerSneakEvent;

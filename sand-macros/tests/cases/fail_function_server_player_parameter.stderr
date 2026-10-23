@@ -1,0 +1,5 @@
+error: #[function] functions must take no parameters
+ --> tests/cases/fail_function_server_player_parameter.rs:3:10
+  |
+3 | fn wrong(player: EntityContext<PlayerKind>) {
+  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

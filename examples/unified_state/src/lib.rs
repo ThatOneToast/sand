@@ -2,7 +2,7 @@
 //! presence, queries, tick/event systems, archetype attachment, migrations,
 //! player progression, and a global typed-data resource.
 
-use sand::events::{EventSetup, SandEvent, SandEventDispatch};
+use sand::events::{EventSetup, OnJoinEvent, SandEvent, SandEventDispatch};
 use sand::prelude::*;
 // These objectives observe vanilla statistics for the custom event below;
 // gameplay-owned fields use the derived State schemas in this example.
@@ -251,9 +251,9 @@ fn literal_payload() -> sand::command::NbtValue {
 }
 
 /// Replace only the current player's text and nested preferences with literal data.
-#[function]
-pub fn set_player_literals() {
-    let state = Progression::on(EntityContext::<PlayerKind>::default());
+#[function("set_player_literals", context = player)]
+pub fn set_player_literals(player: EntityContext<PlayerKind>) {
+    let state = Progression::on(player);
     state.template.set(LITERAL_TEMPLATE);
     state.preferences.set(literal_payload());
 }
@@ -278,4 +278,25 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
     let json = sand::advanced::try_export_pack_json(namespace, mc_version)
         .unwrap_or_else(|error| panic!("unified State export failed: {error}"));
     println!("{json}");
+}
+
+/// Current inventory snapshot, independent of persistent progression experience.
+#[derive(State)]
+#[state(namespace = "rpg", scope = player)]
+pub struct Supplies {
+    pub diamonds: Score,
+}
+
+/// Player entry demonstrating a semantic inventory read into canonical State.
+#[function("count_diamonds", context = player)]
+pub fn count_diamonds(player: EntityContext<PlayerKind>) {
+    Supplies::on(player)
+        .diamonds
+        .set(player.inventory().count(vanilla::Item::Diamond));
+}
+
+/// Events use the same handle and typed call path as player queries/functions.
+#[on_event]
+pub fn welcome_player(event: Event<OnJoinEvent>) {
+    event.player().call(count_diamonds);
 }

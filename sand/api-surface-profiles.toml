@@ -16,6 +16,7 @@
 # DimensionType dragon-fight configuration adds one enforced component method.
 # Registered block raycasting adds 14 enforced source items (two modules, one type, eleven methods).
 # Shared sound definitions and the instrument/song facade add three types and fifteen methods (+18 enforced source items).
+# Player context calls replace the redundant Event::subject alias (net zero source items).
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has

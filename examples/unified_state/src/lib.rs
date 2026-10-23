@@ -280,11 +280,18 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
     println!("{json}");
 }
 
+/// Current inventory snapshot, independent of persistent progression experience.
+#[derive(State)]
+#[state(namespace = "rpg", scope = player)]
+pub struct Supplies {
+    pub diamonds: Score,
+}
+
 /// Player entry demonstrating a semantic inventory read into canonical State.
 #[function("count_diamonds", context = player)]
 pub fn count_diamonds(player: EntityContext<PlayerKind>) {
-    Progression::on(player)
-        .experience
+    Supplies::on(player)
+        .diamonds
         .set(player.inventory().count(vanilla::Item::Diamond));
 }
 

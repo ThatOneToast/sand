@@ -246,9 +246,11 @@ fn drive(
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        if stop_requested {
-            stop_deadline.get_or_insert_with(|| Instant::now() + Duration::from_secs(30));
-        }
+        update_restart_deadline(
+            &mut stop_deadline,
+            dev.is_some() && restart_requested,
+            Instant::now(),
+        );
         if !stop_requested
             && let Some(dev) = dev.as_deref_mut()
             && let Err(error) = dev.poll()
@@ -284,6 +286,16 @@ fn drive(
         restart_requested,
         forced_shutdown: false,
     })
+}
+
+fn update_restart_deadline(deadline: &mut Option<Instant>, restarting: bool, now: Instant) {
+    if restarting {
+        deadline.get_or_insert(now + Duration::from_secs(30));
+    } else {
+        // Ordinary run and graceful quit may need arbitrarily long world saves.
+        // q/EOF/Ctrl-C also cancel a previously requested forced restart.
+        *deadline = None;
+    }
 }
 
 /// Poll before enforcing the deadline so an independently exited/crashed child
@@ -448,6 +460,35 @@ fn spawn_stdin_forwarder(tx: Sender<Event>) {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn graceful_shutdown_is_unbounded_and_cancellation_disarms_restart_deadline() {
+        let now = Instant::now();
+        let mut deadline = None;
+        for _ in ["stop", "q", "EOF", "Ctrl-C"] {
+            update_restart_deadline(&mut deadline, false, now);
+            assert!(deadline.is_none());
+            update_restart_deadline(&mut deadline, true, now);
+            assert_eq!(deadline, Some(now + Duration::from_secs(30)));
+            update_restart_deadline(&mut deadline, false, now + Duration::from_secs(1));
+            assert!(deadline.is_none());
+        }
+        let mut command = Command::new(test_fixture_command());
+        if cfg!(windows) {
+            command.args(["/C", "set /p line="]);
+        } else {
+            command.args(["-c", "read line"]);
+        }
+        let mut child = command.stdin(Stdio::piped()).spawn().unwrap();
+        let (status, forced) =
+            poll_shutdown(&mut child, deadline, now + Duration::from_secs(120)).unwrap();
+        assert!(
+            status.is_none() && !forced,
+            "ordinary saves must survive past the restart bound"
+        );
+        child.kill().unwrap();
+        child.wait().unwrap();
+    }
 
     #[test]
     fn restart_survives_expected_forced_shutdown_but_not_an_unrelated_crash() {

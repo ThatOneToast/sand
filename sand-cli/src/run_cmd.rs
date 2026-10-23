@@ -368,12 +368,10 @@ fn run_internal(
         sync.pruned
     );
 
-    if preparation_cancelled(console) {
+    // Installation has committed: finish namespace ownership before a queued
+    // cancellation can exit and discard this invocation's tracking.
+    if watch && finish_dev_install(managed_pack, &dest, || preparation_cancelled(console))? {
         return Ok(false);
-    }
-
-    if watch {
-        managed_pack.installed(&dest)?;
     }
 
     // ── 8. Launch the server ─────────────────────────────────────────────────
@@ -448,6 +446,15 @@ fn run_internal(
     }
 
     Ok(false)
+}
+
+fn finish_dev_install(
+    managed_pack: &mut crate::dev::ManagedPack,
+    dest: &Path,
+    cancelled: impl FnOnce() -> bool,
+) -> Result<bool> {
+    managed_pack.installed(dest)?;
+    Ok(cancelled())
 }
 
 /// Synchronous build/download work cannot be interrupted here; cancellation is
@@ -606,6 +613,33 @@ mod tests {
             world_reset_policy_always_reset: Some(world_reset_policy_always_reset),
             seed: None,
             level_type: None,
+        }
+    }
+
+    #[test]
+    fn cancellation_after_install_finishes_namespace_transition_before_exit() {
+        for cancellation in ["q", "EOF", "Ctrl-C"] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("source");
+            let old = tmp.path().join("world/datapacks/old");
+            let new = tmp.path().join("world/datapacks/new");
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+            let mut managed = crate::dev::ManagedPack::default();
+            crate::dev::install(&src, &old, None).unwrap();
+            managed.installed(&old).unwrap();
+            crate::dev::install(&src, &new, None).unwrap();
+            let cancelled = super::finish_dev_install(&mut managed, &new, || {
+                assert!(
+                    !old.exists(),
+                    "{cancellation} must not strand the old namespace"
+                );
+                assert!(new.join("pack.mcmeta").is_file());
+                true
+            })
+            .unwrap();
+            assert!(cancelled, "queued {cancellation} must still prevent launch");
+            assert_eq!(std::fs::read_dir(new.parent().unwrap()).unwrap().count(), 1);
         }
     }
 

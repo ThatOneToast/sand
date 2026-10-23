@@ -99,7 +99,7 @@ EOF, credential rotation/cleanup and release exclusion. Logs and a commit-labele
 evidence file remain in the output directory; secrets are never printed.
 Validation subprocesses have dedicated process groups and bounded shutdown; a
 failed run kills its descendants. The release build has a five-minute deadline.
-The fixture uses `<output>/target` for Cargo artifacts, isolating its `sand_export`
+The fixture uses `<output>/project/build-cache` for Cargo artifacts, isolating its `sand_export`
 executable from workspace builds while sharing Cargo's registry/download cache.
 
 Restart preparation checks queued `q`, EOF and Ctrl-C before preparing the next
@@ -137,3 +137,12 @@ with staging and backup inside it; dotted namespaces and neighboring operator
 packs cannot alias these paths. Failed rollback retains the backup and reports
 its location. If `R` reaches the 30-second shutdown limit, dev terminates and reaps
 the JVM before restarting. An unrelated nonzero process exit remains an error.
+
+Watching excludes Cargo's resolved `target_directory`, including in-tree custom
+paths from Cargo configuration or environment overrides. A live install checks
+its destination identity and ownership again immediately before swapping; a
+replacement discovered during staging is preserved. Once an install commits,
+namespace ownership cleanup finishes before honoring queued cancellation, so
+quit cannot leave both project namespaces installed. Only a dev `R` restart
+arms forced termination; ordinary `sand run` and graceful dev quit may take as
+long as necessary to finish saving. Cancelling `R` also disarms its deadline.

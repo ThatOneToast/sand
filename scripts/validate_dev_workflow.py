@@ -99,11 +99,11 @@ pub fn probe() {{ cmd::say("dev_probe_{version}"); }}
 
 
 class Dev:
-    def __init__(self, binary, project, log, env):
+    def __init__(self, binary, project, log, env, mode="dev"):
         self.lines = []
         self.events = queue.Queue()
         self.log = log
-        self.process = subprocess.Popen([str(binary), 'dev', '--offline', '--ram', '1G'],
+        self.process = subprocess.Popen([str(binary), mode, '--offline', '--ram', '1G'],
                                         cwd=project, env=env, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, bufsize=1, **process_group_options())
@@ -235,6 +235,44 @@ def validate_restart_cancellation(binary, project, output, env, secrets, checks)
                 flag.unlink(missing_ok=True)
 
 
+def validate_ordinary_shutdown(binary, project, output, env, checks):
+    if os.name == 'nt':
+        return  # Deterministic portable fake-child coverage remains in Rust.
+    props_path = project / 'dist/server/server.properties'
+    original = props_path.read_text()
+    props_path.write_text(original.replace('server-ip=0.0.0.0', 'server-ip=127.0.0.1'))
+    run = Dev(binary, project, output / 'ordinary-run-console.log', env, mode='run')
+    frozen = None
+    try:
+        run.wait('Minecraft 26.2 ready')
+        rows = subprocess.check_output(['ps', '-axo', 'pid=,ppid=,comm='], text=True)
+        children = [int(parts[0]) for row in rows.splitlines()
+                    if len(parts := row.strip().split(None, 2)) == 3
+                    and int(parts[1]) == run.process.pid and Path(parts[2]).name == 'java']
+        assert len(children) == 1
+        frozen = children[0]
+        os.kill(frozen, signal.SIGSTOP)
+        run.send('stop')
+        time.sleep(32)
+        assert run.process.poll() is None, 'ordinary run was force-killed during graceful shutdown'
+        os.kill(frozen, 0)
+        os.kill(frozen, signal.SIGCONT)
+        frozen = None
+        assert run.process.wait(timeout=45) == 0
+        assert not any('shutdown deadline reached' in line for line in run.lines)
+        checks.append('ordinary sand run survives beyond 30 seconds during shutdown then exits gracefully')
+    finally:
+        if frozen is not None:
+            try:
+                os.kill(frozen, signal.SIGCONT)
+            except ProcessLookupError:
+                pass
+        if run.process.poll() is None:
+            run.send('stop')
+        run.close()
+        props_path.write_text(original)
+
+
 def validate_namespace_replacement(binary, project, output, env, secrets, checks):
     block_restart_export(project)
     dev = Dev(binary, project, output / 'namespace-replacement-console.log', env)
@@ -281,7 +319,12 @@ def validate(binary, output):
     port = fixture(project)
     # The fixture also builds sand_export; sharing workspace target binaries
     # would overwrite sand-example's exporter during concurrent checks.
-    env = dict(os.environ, CARGO_TARGET_DIR=str(output / 'target'), NO_COLOR='1')
+    target = project / 'build-cache'
+    # The private cache remains under the disposable output directory, now
+    # inside the fixture to prove Cargo's actual output path is not watched.
+    if (output / 'target').exists():
+        (output / 'target').rename(target)
+    env = dict(os.environ, CARGO_TARGET_DIR=str(target), NO_COLOR='1')
     secrets = []
     checks = []
     live = project / 'dist/server/world/datapacks/devprobe'
@@ -298,6 +341,11 @@ def validate(binary, output):
         with socket.create_connection(('127.0.0.1', int(props['rcon.port'])), timeout=2):
             pass
         checks.append('loopback game and RCON reachable; fresh 256-bit credential')
+        builds = sum('dev: building (' in line for line in dev.lines)
+        (target / 'watcher-output-probe').write_text('compiler output must be ignored')
+        time.sleep(2)
+        assert sum('dev: building (' in line for line in dev.lines) == builds
+        checks.append('custom in-tree Cargo target output is excluded from source watching')
         before = snapshot(live)
         (project / 'src/target/mod.rs').write_text('this is not valid Rust')
         dev.wait('live pack unchanged')
@@ -311,6 +359,9 @@ def validate(binary, output):
         dev.wait('dev_probe_v2')
         assert 'dev_probe_v2' in (live / 'data/devprobe/function/probe.mcfunction').read_text()
         checks.append('src/target edit debounces, builds, syncs and changes live behavior')
+        builds = sum('dev: building (' in line for line in dev.lines)
+        time.sleep(2)
+        assert sum('dev: building (' in line for line in dev.lines) == builds, 'Cargo outputs caused a rebuild loop'
         # Unmanaged copied output is included by the publisher. This intentionally
         # malformed vanilla function tests Minecraft loading, not Rust validation.
         broken = project / 'dist/devprobe/data/devprobe/function/broken.mcfunction'
@@ -426,6 +477,7 @@ def validate(binary, output):
     finally:
         dev.close()
     assert 'rcon.password' not in properties(project)
+    validate_ordinary_shutdown(binary, project, output, env, checks)
     validate_namespace_replacement(binary, project, output, env, secrets, checks)
     validate_restart_cancellation(binary, project, output, env, secrets, checks)
     for log in output.glob('*console.log'):

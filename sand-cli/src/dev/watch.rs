@@ -7,14 +7,22 @@ use std::time::{Duration, Instant};
 pub(super) type Snapshot = BTreeMap<PathBuf, String>;
 
 pub(super) fn snapshot(root: &Path) -> Result<Snapshot> {
+    snapshot_with_target(root, None)
+}
+
+pub(super) fn snapshot_with_target(root: &Path, target: Option<&Path>) -> Result<Snapshot> {
+    let root = root.canonicalize()?;
+    let target = target.map(|path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf()));
     let mut files = BTreeMap::new();
-    for entry in walkdir::WalkDir::new(root).into_iter().filter_entry(|e| {
-        e.depth() != 1 || !matches!(e.file_name().to_str(), Some("target" | "dist" | ".git"))
+    for entry in walkdir::WalkDir::new(&root).into_iter().filter_entry(|e| {
+        target.as_deref() != Some(e.path())
+            && (e.depth() != 1
+                || !matches!(e.file_name().to_str(), Some("target" | "dist" | ".git")))
     }) {
         let entry = entry?;
         if entry.file_type().is_file() {
             files.insert(
-                entry.path().strip_prefix(root)?.to_owned(),
+                entry.path().strip_prefix(&root)?.to_owned(),
                 sand_build::fingerprint::hash_bytes(&std::fs::read(entry.path())?),
             );
         }
@@ -58,6 +66,22 @@ impl Watch {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn resolved_custom_target_is_excluded_without_hiding_nested_source_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("src/build")).unwrap();
+        for relative in ["build", "artifacts/cargo-output"] {
+            let target = root.join(relative);
+            std::fs::create_dir_all(&target).unwrap();
+            let before = snapshot_with_target(root, Some(&target)).unwrap();
+            std::fs::write(target.join("compiler-output"), "generated").unwrap();
+            assert_eq!(before, snapshot_with_target(root, Some(&target)).unwrap());
+            std::fs::write(root.join("src/build/mod.rs"), relative).unwrap();
+            assert_ne!(before, snapshot_with_target(root, Some(&target)).unwrap());
+        }
+    }
+
     #[test]
     fn source_target_and_nested_resource_dist_are_watched() {
         let tmp = tempfile::tempdir().unwrap();

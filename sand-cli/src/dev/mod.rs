@@ -11,11 +11,15 @@ use std::time::{Duration, Instant};
 use watch::{Snapshot, Watch};
 
 /// Inputs observed before the initial build, including a restart's build.
-pub(crate) struct BuildInputs(Snapshot);
+pub(crate) struct BuildInputs(Snapshot, PathBuf);
 
 impl BuildInputs {
     pub(crate) fn capture() -> Result<Self> {
-        Ok(Self(watch::snapshot(&std::env::current_dir()?)?))
+        let target = crate::build::cargo_target_dir()?;
+        Ok(Self(
+            watch::snapshot_with_target(&std::env::current_dir()?, Some(&target))?,
+            target,
+        ))
     }
 }
 
@@ -27,6 +31,7 @@ pub(crate) struct Session {
     original_session_settings: String,
     rcon: rcon::Rcon,
     watcher: Watch,
+    target_directory: PathBuf,
     last_poll: Instant,
     ready: bool,
     build: Option<(Child, Instant)>,
@@ -63,7 +68,10 @@ impl Session {
         inputs: BuildInputs,
     ) -> Result<Self> {
         let mut watcher = Watch::new(inputs.0);
-        watcher.observe(watch::snapshot(&root)?, Instant::now());
+        watcher.observe(
+            watch::snapshot_with_target(&root, Some(&inputs.1))?,
+            Instant::now(),
+        );
         let restart_inputs = restart_inputs(&root, &namespace)?;
         let existing = std::fs::read_to_string(properties)?;
         let game_port = existing
@@ -103,6 +111,7 @@ impl Session {
             original_session_settings,
             rcon,
             watcher,
+            target_directory: inputs.1,
             last_poll: Instant::now(),
             ready: false,
             build: None,
@@ -195,7 +204,10 @@ impl Session {
         }
         if now.duration_since(self.last_poll) >= Duration::from_millis(250) {
             self.last_poll = now;
-            self.watcher.observe(watch::snapshot(&self.root)?, now);
+            self.watcher.observe(
+                watch::snapshot_with_target(&self.root, Some(&self.target_directory))?,
+                now,
+            );
         }
         if let Some((child, _)) = self.build.as_mut()
             && let Some(status) = child.try_wait()?
@@ -428,6 +440,45 @@ impl ManagedPack {
     }
 }
 
+/// Identity observed before copying, checked again immediately before swap.
+#[derive(PartialEq, Eq)]
+struct LiveIdentity {
+    owner: Option<String>,
+    #[cfg(unix)]
+    device: u64,
+    #[cfg(unix)]
+    inode: u64,
+    #[cfg(not(unix))]
+    created: std::time::SystemTime,
+}
+
+impl LiveIdentity {
+    fn capture(path: &Path) -> Result<Option<Self>> {
+        let metadata = match std::fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        ensure!(
+            metadata.is_dir() && !metadata.is_symlink(),
+            "live datapack must remain an ordinary directory"
+        );
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+        Ok(Some(Self {
+            owner: pack_owner(path)?,
+            #[cfg(unix)]
+            device: metadata.dev(),
+            #[cfg(unix)]
+            inode: metadata.ino(),
+            #[cfg(not(unix))]
+            created: metadata
+                .created()
+                .context("cannot establish live datapack identity")?,
+        }))
+    }
+}
+
 pub(crate) fn install(
     src: &Path,
     dest: &Path,
@@ -436,7 +487,10 @@ pub(crate) fn install(
     ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
     // Keep the invocation's ownership through staged hot reloads. This file
     // exists only in the live server tree, never the build/release output.
-    let owner = pack_owner(dest)?;
+    let expected = LiveIdentity::capture(dest)?;
+    let owner = expected
+        .as_ref()
+        .and_then(|identity| identity.owner.as_ref());
     let container = install_container(dest)?;
     let stage = container.path().join("stage");
     // Stage a copy of the live tree so the canonical incremental mirror can
@@ -455,7 +509,9 @@ pub(crate) fn install(
         Ok(stats)
     })();
     let stats = prepare?;
-    commit_install(container, dest, |from, to| std::fs::rename(from, to))?;
+    commit_install(container, dest, expected, |from, to| {
+        std::fs::rename(from, to)
+    })?;
     Ok(stats)
 }
 
@@ -481,11 +537,17 @@ fn install_container(dest: &Path) -> Result<tempfile::TempDir> {
 fn commit_install(
     container: tempfile::TempDir,
     dest: &Path,
+    expected: Option<LiveIdentity>,
     mut rename: impl FnMut(&Path, &Path) -> std::io::Result<()>,
 ) -> Result<()> {
     let stage = container.path().join("stage");
     let backup = container.path().join("backup");
-    let existed = dest.exists();
+    ensure!(
+        LiveIdentity::capture(dest)? == expected,
+        "live datapack changed during installation; preserving {}",
+        dest.display()
+    );
+    let existed = expected.is_some();
     if existed {
         rename(dest, &backup)?;
     }
@@ -531,7 +593,7 @@ mod tests {
             "demo".into(),
             "dev",
             &props,
-            BuildInputs(watch::snapshot(root).unwrap()),
+            BuildInputs(watch::snapshot(root).unwrap(), root.join("target")),
         )
         .unwrap()
     }
@@ -637,7 +699,7 @@ mod tests {
             std::fs::write(root.join("sand.toml"), "config").unwrap();
             let source = root.join("main.rs");
             std::fs::write(&source, "before build").unwrap();
-            let inputs = BuildInputs(watch::snapshot(root).unwrap());
+            let inputs = BuildInputs(watch::snapshot(root).unwrap(), root.join("target"));
             // Compilation consumed the old input; an edit during compilation
             // must remain pending even though the session has not started yet.
             std::fs::write(&source, "saved while building").unwrap();
@@ -686,7 +748,7 @@ mod tests {
             std::fs::write(root.join("sand.toml"), "config").unwrap();
             let props = root.join("dist/server/server.properties");
             std::fs::write(&props, "server-port=25565\n").unwrap();
-            let inputs = BuildInputs(watch::snapshot(root).unwrap());
+            let inputs = BuildInputs(watch::snapshot(root).unwrap(), root.join("target"));
             let mut session =
                 Session::at(root.into(), "demo".into(), "dev", &props, inputs).unwrap();
             session.ready = true;
@@ -742,7 +804,7 @@ mod tests {
                     "demo".into(),
                     "dev",
                     &props,
-                    BuildInputs(watch::snapshot(root).unwrap()),
+                    BuildInputs(watch::snapshot(root).unwrap(), root.join("target")),
                 )
                 .unwrap();
                 assert_ne!(session.rcon.port, 49152);
@@ -855,6 +917,49 @@ mod tests {
         assert_eq!(without_rcon(original), "# note\nserver-port=25566\n");
     }
     #[test]
+    fn staged_swap_preserves_replacement_or_newly_arrived_destination() {
+        for initial in ["absent", "unmanaged", "managed"] {
+            let initially_present = initial != "absent";
+            let tmp = tempfile::tempdir().unwrap();
+            let dest = tmp.path().join("live");
+            if initially_present {
+                std::fs::create_dir(&dest).unwrap();
+                if initial == "managed" {
+                    ManagedPack::default().installed(&dest).unwrap();
+                }
+            }
+            let expected = LiveIdentity::capture(&dest).unwrap();
+            let container = install_container(&dest).unwrap();
+            let staging_path = container.path().to_path_buf();
+            std::fs::create_dir(staging_path.join("stage")).unwrap();
+            std::fs::write(staging_path.join("stage/new"), "new pack").unwrap();
+            // Deterministic replacement after staging started, before swap.
+            if initially_present {
+                // Keep the old inode allocated so this tests identity rather
+                // than relying on filesystem inode-reuse timing.
+                std::fs::rename(&dest, tmp.path().join("removed-original")).unwrap();
+            }
+            std::fs::create_dir(&dest).unwrap();
+            std::fs::write(dest.join("operator-data"), "preserve").unwrap();
+            let result = commit_install(container, &dest, expected, |_, _| {
+                panic!("must not rename replacement")
+            });
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("changed during installation")
+            );
+            assert_eq!(
+                std::fs::read_to_string(dest.join("operator-data")).unwrap(),
+                "preserve"
+            );
+            assert!(!dest.join("new").exists());
+            assert!(!staging_path.exists());
+        }
+    }
+
+    #[test]
     fn staging_never_aliases_dotted_suffix_namespaces_or_operator_neighbors() {
         for namespace in [
             "demo.sand-dev-stage",
@@ -916,14 +1021,19 @@ mod tests {
             let retained = container.path().to_path_buf();
             std::fs::create_dir(retained.join("stage")).unwrap();
             let mut calls = 0;
-            let result = commit_install(container, &dest, |from, to| {
-                calls += 1;
-                if calls == 2 || (calls == 3 && fail_rollback) {
-                    Err(std::io::Error::other("injected rename failure"))
-                } else {
-                    std::fs::rename(from, to)
-                }
-            });
+            let result = commit_install(
+                container,
+                &dest,
+                LiveIdentity::capture(&dest).unwrap(),
+                |from, to| {
+                    calls += 1;
+                    if calls == 2 || (calls == 3 && fail_rollback) {
+                        Err(std::io::Error::other("injected rename failure"))
+                    } else {
+                        std::fs::rename(from, to)
+                    }
+                },
+            );
             assert!(result.is_err());
             if fail_rollback {
                 assert!(!dest.exists());

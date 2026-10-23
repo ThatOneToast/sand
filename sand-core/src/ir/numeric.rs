@@ -70,9 +70,10 @@ impl NumericWrite {
                 objective: self.objective.to_string(),
                 value: crate::entity::state::encode_fixed(value, self.scale, self.bounds),
             })];
-            let mut objectives = BTreeSet::new();
-            self.append_bounds_and_dirty(&mut commands, &destination, owner, &mut objectives)?;
-            crate::function::request_numeric_objectives(objectives)?;
+            // Encoding already rounds, saturates to i32, and applies destination
+            // bounds. Only dependency invalidation remains at runtime; wildcard
+            // constants likewise need no generated bound objectives.
+            self.append_dirty(&mut commands, &destination);
             return Ok(bind_destination(commands, selector));
         }
 
@@ -188,6 +189,11 @@ impl NumericWrite {
                 commands.extend(score_bounds(holder, self.objective.as_str(), (min, max)));
             }
         }
+        self.append_dirty(commands, holder);
+        Ok(())
+    }
+
+    fn append_dirty(&self, commands: &mut Vec<Cmd>, holder: &ScoreHolder) {
         for objective in &self.dirty {
             commands.push(Cmd::ScorePlayers(ScorePlayersOp::Set {
                 selector: holder.to_string(),
@@ -195,7 +201,6 @@ impl NumericWrite {
                 value: 1,
             }));
         }
-        Ok(())
     }
 }
 
@@ -308,6 +313,114 @@ mod tests {
     }
 
     #[test]
+    fn constants_encode_once_without_bounds_storage_and_keep_dirty_order() {
+        // Expected stored values are explicit, independent of encode_fixed.
+        let cases = [
+            (4.0, 1, Some((0, 10)), 4),
+            (-1.0, 1, Some((0, 10)), 0),
+            (11.0, 1, Some((0, 10)), 10),
+            (1.5, 1, None, 2),
+            (-1.5, 1, None, -2),
+            (0.875, 100, Some((-200, 500)), 88),
+            (-0.875, 100, Some((-200, 500)), -88),
+            (-9.0, 100, Some((-200, 500)), -200),
+            (9.0, 100, Some((-200, 500)), 500),
+            (f64::from(i32::MAX), 1, None, i32::MAX),
+            (f64::from(i32::MIN), 1, None, i32::MIN),
+            (f64::from(i32::MAX) + 1.0, 1, None, i32::MAX),
+            (f64::from(i32::MIN) - 1.0, 1, None, i32::MIN),
+            (f64::MAX, 100, None, i32::MAX),
+            (-f64::MAX, 100, None, i32::MIN),
+            (f64::INFINITY, 100, Some((-200, 500)), 500),
+            (f64::NEG_INFINITY, 100, Some((-200, 500)), -200),
+            (42.0, 100, Some((7, 7)), 7),
+            (f64::from(i32::MAX), 1, Some((i32::MIN, i32::MAX)), i32::MAX),
+        ];
+        for holder in ["@s", "#fake", "*"] {
+            for (value, scale, bounds, expected) in cases {
+                for dirty in [
+                    vec![],
+                    vec![
+                        ObjectiveName::minecraft("field_dirty"),
+                        ObjectiveName::minecraft("component_dirty"),
+                    ],
+                ] {
+                    let _scope = ExportFunctionRegistryScope::enter();
+                    let write = NumericWrite {
+                        value: StatCurve::constant(value),
+                        holder: sand_commands::__private::score_holder_compat(holder.into()),
+                        objective: ObjectiveName::minecraft("result"),
+                        scale,
+                        fixed: FixedPoint::default(),
+                        bounds,
+                        dirty: dirty.clone(),
+                    };
+                    let body = Actions(vec![Cmd::NumericWrite(Box::new(write))])
+                        .lower(&"test:constant".parse().unwrap())
+                        .unwrap();
+                    let mut expected_lines =
+                        vec![format!("scoreboard players set {holder} result {expected}")];
+                    expected_lines.extend(
+                        dirty.iter().map(|objective| {
+                            format!("scoreboard players set {holder} {objective} 1")
+                        }),
+                    );
+                    assert_eq!(body, expected_lines, "{holder}: {value} at scale {scale}");
+                    assert!(crate::function::generated_objective_owners().is_empty());
+                    assert!(crate::state::score::drain_internal_score_setup().is_empty());
+                    assert!(crate::function::drain_dyn_fns().is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn constant_destination_validation_precedes_emission() {
+        let valid = NumericWrite {
+            value: StatCurve::constant(1.0),
+            holder: ScoreHolder::self_(),
+            objective: ObjectiveName::minecraft("result"),
+            scale: 1,
+            fixed: FixedPoint::default(),
+            bounds: Some((0, 10)),
+            dirty: vec![],
+        };
+        let invalid = [
+            NumericWrite {
+                scale: 0,
+                ..valid.clone()
+            },
+            NumericWrite {
+                bounds: Some((10, 0)),
+                ..valid.clone()
+            },
+            NumericWrite {
+                objective: ObjectiveName::minecraft("bad objective"),
+                ..valid.clone()
+            },
+            NumericWrite {
+                dirty: vec![ObjectiveName::minecraft("bad objective")],
+                ..valid.clone()
+            },
+            NumericWrite {
+                holder: ScoreHolder::fake("bad holder"),
+                ..valid.clone()
+            },
+            NumericWrite {
+                value: StatCurve::constant(f64::NAN),
+                ..valid
+            },
+        ];
+        for write in invalid {
+            let _scope = ExportFunctionRegistryScope::enter();
+            assert!(write.lower(&"test:invalid".parse().unwrap()).is_err());
+            assert!(crate::function::generated_objective_owners().is_empty());
+            assert!(crate::state::score::drain_internal_score_setup().is_empty());
+            assert!(crate::function::drain_dyn_fns().is_empty());
+        }
+    }
+
+    #[test]
     fn nested_numeric_assignment_provisions_late_helpers_and_preserves_precision() {
         fn export() -> (Vec<crate::component::ComponentRecord>, Vec<String>) {
             let _scope = ExportFunctionRegistryScope::enter();
@@ -346,7 +459,8 @@ mod tests {
                 .content
                 .find("scoreboard players set @s result_dirty 1")
                 .unwrap();
-            assert!(write < clamp && clamp < dirty);
+            let failure = numeric.content.find("run return fail").unwrap();
+            assert!(failure < write && write < clamp && clamp < dirty);
             assert!(
                 numeric.content[..write].contains("/="),
                 "scale conversion must precede the destination write"
@@ -460,14 +574,20 @@ mod tests {
                         !all.contains("score *"),
                         "wildcards are not legal score conditions"
                     );
-                    assert!(all.contains(&format!(
-                        "scoreboard players operation * {} > #value ",
-                        field.objective()
-                    )));
-                    assert!(all.contains(&format!(
-                        "scoreboard players operation * {} < #value ",
-                        field.objective()
-                    )));
+                    assert_eq!(
+                        all.contains(&format!(
+                            "scoreboard players operation * {} > #value ",
+                            field.objective()
+                        )),
+                        !constant
+                    );
+                    assert_eq!(
+                        all.contains(&format!(
+                            "scoreboard players operation * {} < #value ",
+                            field.objective()
+                        )),
+                        !constant
+                    );
                     assert!(all.contains(&format!(
                         "scoreboard players set * {} 1",
                         field.dirty_objective()
@@ -482,10 +602,11 @@ mod tests {
                         .iter()
                         .find(|record| record.path.starts_with("sand/numeric_commit/"))
                         .unwrap();
-                    assert!(
+                    assert_eq!(
                         commit
                             .content
-                            .contains(&format!("if score @s {} matches 501..", field.objective()))
+                            .contains(&format!("if score @s {} matches 501..", field.objective())),
+                        !constant
                     );
                     assert!(commit.content.contains(&format!(
                         "scoreboard players set @s {} 1",

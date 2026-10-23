@@ -353,8 +353,12 @@ fn run_internal(
         );
     }
 
+    // A failed prior namespace handoff must not be overwritten by this sync,
+    // even in a fresh process or when switching from dev to ordinary run.
+    crate::dev::ensure_handoffs_complete(dest.parent().expect("datapacks parent"))?;
     let (sync, committed) = if watch {
-        crate::dev::install(&src, &dest, None)
+        managed_pack
+            .install(&src, &dest)
             .map(|installed| (installed.stats, Some(installed.identity)))
     } else {
         sync_dir(&src, &dest).map(|stats| (stats, None))
@@ -632,9 +636,9 @@ mod tests {
             std::fs::create_dir_all(&src).unwrap();
             std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
             let mut managed = crate::dev::ManagedPack::default();
-            let old_install = crate::dev::install(&src, &old, None).unwrap();
+            let old_install = managed.install(&src, &old).unwrap();
             managed.installed(&old, &old_install.identity).unwrap();
-            let new_install = crate::dev::install(&src, &new, None).unwrap();
+            let new_install = managed.install(&src, &new).unwrap();
             let cancelled =
                 super::finish_dev_install(&mut managed, &new, &new_install.identity, || {
                     assert!(

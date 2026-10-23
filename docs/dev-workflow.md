@@ -131,8 +131,11 @@ and unrecovered quit outcomes and queued restart cancellation with `AlwaysReset`
 
 Across `R` restarts, console log events are scoped to their originating JVM;
 late output cannot mark the next JVM ready or carry errors into it. A namespace
-change installs the new pack before removing the previous pack managed by that
-dev invocation, only within the same world. Other datapacks are preserved.
+change installs the new pack with a pending-handoff marker, then atomically
+moves the previous managed namespace into a private quarantine outside
+`world/datapacks`, only within the same world. Recursive deletion occurs only
+after that move; cleanup failure retains the quarantine and reports its path,
+without making the old namespace loadable. Other datapacks are preserved.
 Cancellation before the install commit or failed installation retains the old
 pack. The original `server-ip` setting is restored on cleanup; loopback binding
 is temporary, and the RCON port is chosen distinct from the configured game port.
@@ -140,6 +143,17 @@ The live pack carries a per-invocation ownership marker across hot reloads.
 Before deleting a previous namespace, dev verifies that marker; a replaced
 directory is preserved and the restart fails with a diagnostic. The marker is
 not written to build output or release archives.
+
+The pending `.sand-dev-handoff` marker is committed with every startup dev
+install and removed only after namespace retirement and ownership recording
+succeed. Failed retirement or interrupted handoff leaves this marker on disk.
+Both fresh `sand dev` and ordinary `sand run` refuse to sync or launch a world
+containing it, even if the original invocation's ownership tracker is gone.
+This safety barrier does not depend on a successful rollback. Inspect the
+reported paths, move any unwanted namespace outside `world/datapacks`, and
+remove the pending marker only after resolving the handoff. Sand does not
+adopt or delete operator replacements during recovery. An explicit world reset
+still removes the whole world according to the configured reset policy.
 
 Live installs allocate an atomically owned temporary directory beside the pack,
 with staging and backup inside it; dotted namespaces and neighboring operator

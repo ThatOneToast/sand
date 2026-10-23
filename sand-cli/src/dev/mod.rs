@@ -440,6 +440,34 @@ fn restart_inputs(root: &Path, namespace: &str) -> Result<Snapshot> {
 pub(crate) struct ManagedPack(Option<(PathBuf, String)>);
 
 const OWNER_FILE: &str = ".sand-dev-owner";
+const HANDOFF_FILE: &str = ".sand-dev-handoff";
+
+/// An interrupted namespace transition must survive loss of in-memory ownership.
+/// Check before any startup sync (including ordinary run), so it cannot erase the
+/// evidence and launch both packs. Never adopt or delete paths during recovery.
+pub(crate) fn ensure_handoffs_complete(datapacks: &Path) -> Result<()> {
+    let entries = match std::fs::read_dir(datapacks) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    for entry in entries {
+        let marker = entry?.path().join(HANDOFF_FILE);
+        match std::fs::symlink_metadata(&marker) {
+            Ok(_) => bail!(
+                "incomplete dev namespace handoff at {}; refusing to launch Minecraft. Inspect the world/datapacks directories, move any unwanted namespace outside datapacks, then remove this marker after resolving the handoff",
+                marker.display()
+            ),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+                ) => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(())
+}
 
 fn pack_owner(path: &Path) -> Result<Option<String>> {
     let marker = path.join(OWNER_FILE);
@@ -455,10 +483,52 @@ fn pack_owner(path: &Path) -> Result<Option<String>> {
 }
 
 impl ManagedPack {
+    /// Publish a startup pack with a persisted launch barrier. The marker is
+    /// committed with the pack, before status output or ownership cleanup can
+    /// fail. Only a successful ownership handoff clears it.
+    pub(crate) fn install(&self, src: &Path, dest: &Path) -> Result<InstalledPack> {
+        ensure_handoffs_complete(dest.parent().context("datapack has no parent")?)?;
+        install_prepared(
+            src,
+            dest,
+            None,
+            |stage| {
+                use std::io::Write;
+                let mut marker = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(stage.join(HANDOFF_FILE))?;
+                writeln!(
+                    marker,
+                    "Pending Sand namespace handoff; previous pack: {:?}",
+                    self.0.as_ref().map(|(path, _)| path)
+                )?;
+                marker.sync_all()?;
+                Ok(())
+            },
+            |path| std::fs::remove_dir_all(path),
+        )
+    }
+
     /// Verify the committed directory before claiming it or removing the old
     /// namespace. Finish this handoff before honoring queued cancellation.
     /// Never remove a pack in a different world or follow a directory symlink.
     pub(crate) fn installed(&mut self, dest: &Path, committed: &LiveIdentity) -> Result<()> {
+        self.installed_with(
+            dest,
+            committed,
+            |from, to| std::fs::rename(from, to),
+            |path| std::fs::remove_dir_all(path),
+        )
+    }
+
+    fn installed_with(
+        &mut self,
+        dest: &Path,
+        committed: &LiveIdentity,
+        retire: impl FnOnce(&Path, &Path) -> std::io::Result<()>,
+        cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
+    ) -> Result<()> {
         ensure!(
             LiveIdentity::capture(dest)?.as_ref() == Some(committed),
             "committed datapack was replaced; preserving it and the previous namespace at {}",
@@ -480,13 +550,45 @@ impl ManagedPack {
                 "previous managed datapack was replaced; preserving it at {}",
                 previous.display()
             );
-            std::fs::remove_dir_all(previous)
-                .context("failed to remove previous session-managed datapack")?;
+            // Remove the old namespace from discovery atomically, before any
+            // recursive deletion. Keep quarantine outside datapacks entirely.
+            // If retirement fails, the new pack's persisted barrier remains;
+            // no rollback (which could also fail) is needed to prevent launch.
+            let world = current
+                .parent()
+                .and_then(Path::parent)
+                .context("datapack has no world directory")?;
+            let quarantine = tempfile::Builder::new()
+                .prefix(".sand-dev-retired-")
+                .tempdir_in(world)?;
+            retire(previous, &quarantine.path().join("pack"))
+                .context("failed to retire previous session-managed datapack; namespace handoff remains incomplete")?;
+            let retained = quarantine.keep();
+            if let Err(error) = cleanup(&retained) {
+                eprintln!(
+                    "dev: previous namespace retired; failed to clean quarantine at {}: {error}",
+                    retained.display()
+                );
+            }
         }
         let mut bytes = [0u8; 16];
         getrandom::fill(&mut bytes).map_err(|_| anyhow::anyhow!("OS entropy unavailable"))?;
         let owner: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+        // Quarantine cleanup or its status output may have taken time. Never
+        // claim a replacement that arrived after the initial identity check.
+        ensure!(
+            LiveIdentity::capture(&current)?.as_ref() == Some(committed),
+            "committed datapack was replaced during namespace handoff; preserving {}",
+            current.display()
+        );
         std::fs::write(current.join(OWNER_FILE), &owner)?;
+        // Marker removal is the final commit point. Any earlier failure keeps
+        // fresh invocations blocked even if this invocation's tracker is lost.
+        match std::fs::remove_file(current.join(HANDOFF_FILE)) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("failed to finish dev namespace handoff"),
+        }
         self.0 = Some((current, owner));
         Ok(())
     }
@@ -552,6 +654,16 @@ fn install_with_cleanup(
     marker: Option<(&str, &str)>,
     cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
 ) -> Result<InstalledPack> {
+    install_prepared(src, dest, marker, |_| Ok(()), cleanup)
+}
+
+fn install_prepared(
+    src: &Path,
+    dest: &Path,
+    marker: Option<(&str, &str)>,
+    prepare_handoff: impl FnOnce(&Path) -> Result<()>,
+    cleanup: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<InstalledPack> {
     ensure!(!dest.is_symlink(), "live datapack cannot be a symlink");
     // Keep the invocation's ownership through staged hot reloads. This file
     // exists only in the live server tree, never the build/release output.
@@ -574,6 +686,7 @@ fn install_with_cleanup(
         if let Some((namespace, marker)) = marker {
             reload::add_marker(&stage, namespace, marker)?;
         }
+        prepare_handoff(&stage)?;
         Ok(stats)
     })();
     let stats = prepare?;
@@ -1162,6 +1275,203 @@ mod tests {
             .installed(&other_world, &other_install.identity)
             .unwrap();
         assert!(new.exists(), "never prune a previous world");
+    }
+
+    #[test]
+    fn failed_namespace_retirement_blocks_fresh_invocations_without_rollback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let packs = tmp.path().join("world/datapacks");
+        let old = packs.join("old");
+        let new = packs.join("new");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+        let mut managed = ManagedPack::default();
+        let first = managed.install(&src, &old).unwrap();
+        managed.installed(&old, &first.identity).unwrap();
+        let committed = managed.install(&src, &new).unwrap();
+        assert!(new.join(HANDOFF_FILE).exists());
+        let mut renames = 0;
+        let error = managed
+            .installed_with(
+                &new,
+                &committed.identity,
+                |_, _| {
+                    // Model a filesystem that rejects all renames, including any
+                    // attempted rollback of the newly committed directory.
+                    renames += 1;
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "injected locked namespace",
+                    ))
+                },
+                |_| panic!("must not recursively delete an active namespace"),
+            )
+            .unwrap_err();
+        assert!(error.to_string().contains("failed to retire"));
+        assert_eq!(
+            renames, 1,
+            "safety must not depend on a successful rollback"
+        );
+        assert_eq!(
+            std::fs::read_to_string(old.join("pack.mcmeta")).unwrap(),
+            "pack"
+        );
+        assert!(new.join(HANDOFF_FILE).is_file());
+        assert!(!new.join(OWNER_FILE).exists());
+        drop(managed);
+        let before = watch::snapshot(&packs).unwrap();
+        let fresh = ManagedPack::default();
+        for destination in [&new, &old, &packs.join("third")] {
+            assert!(
+                fresh
+                    .install(&src, destination)
+                    .err()
+                    .unwrap()
+                    .to_string()
+                    .contains("incomplete dev namespace handoff")
+            );
+        }
+        assert!(
+            ensure_handoffs_complete(&packs).is_err(),
+            "ordinary run must also refuse launch"
+        );
+        assert_eq!(
+            watch::snapshot(&packs).unwrap(),
+            before,
+            "fresh attempts must not erase recovery evidence"
+        );
+    }
+
+    #[test]
+    fn partial_retired_namespace_cleanup_cannot_be_loaded_by_a_fresh_invocation() {
+        for partial in [false, true] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("src");
+            let packs = tmp.path().join("world/datapacks");
+            let old = packs.join("old");
+            let new = packs.join("new");
+            std::fs::create_dir(&src).unwrap();
+            std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+            std::fs::write(src.join("function"), "old behavior").unwrap();
+            let mut managed = ManagedPack::default();
+            let first = managed.install(&src, &old).unwrap();
+            managed.installed(&old, &first.identity).unwrap();
+            let committed = managed.install(&src, &new).unwrap();
+            let mut retained = None;
+            managed
+                .installed_with(
+                    &new,
+                    &committed.identity,
+                    |from, to| std::fs::rename(from, to),
+                    |quarantine| {
+                        assert!(
+                            !old.exists(),
+                            "recursive cleanup must start only after retirement"
+                        );
+                        assert!(!quarantine.starts_with(&packs));
+                        if partial {
+                            std::fs::remove_file(quarantine.join("pack/function"))?;
+                        }
+                        retained = Some(quarantine.to_path_buf());
+                        Err(std::io::Error::new(
+                            std::io::ErrorKind::PermissionDenied,
+                            "injected partial cleanup failure",
+                        ))
+                    },
+                )
+                .unwrap();
+            let retained = retained.unwrap();
+            assert!(retained.join("pack/pack.mcmeta").exists());
+            assert_eq!(retained.join("pack/function").exists(), !partial);
+            assert!(!new.join(HANDOFF_FILE).exists());
+            assert!(new.join(OWNER_FILE).is_file());
+            assert!(!old.exists());
+            drop(managed);
+            let mut fresh = ManagedPack::default();
+            ensure_handoffs_complete(&packs).unwrap();
+            let committed = fresh.install(&src, &new).unwrap();
+            fresh.installed(&new, &committed.identity).unwrap();
+            ensure_handoffs_complete(&packs).unwrap();
+            let loadable: Vec<_> = std::fs::read_dir(&packs)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| path.join("pack.mcmeta").is_file())
+                .collect();
+            assert_eq!(loadable, [new]);
+            assert!(
+                retained.join("pack/pack.mcmeta").exists(),
+                "fresh invocation must not adopt quarantine"
+            );
+        }
+    }
+
+    #[test]
+    fn replacement_during_retirement_cleanup_is_never_claimed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let packs = tmp.path().join("world/datapacks");
+        let old = packs.join("old");
+        let new = packs.join("new");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+        let mut managed = ManagedPack::default();
+        let first = managed.install(&src, &old).unwrap();
+        managed.installed(&old, &first.identity).unwrap();
+        let committed = managed.install(&src, &new).unwrap();
+        let error = managed
+            .installed_with(
+                &new,
+                &committed.identity,
+                |from, to| std::fs::rename(from, to),
+                |quarantine| {
+                    std::fs::rename(&new, tmp.path().join("displaced"))?;
+                    std::fs::create_dir(&new)?;
+                    std::fs::write(new.join("operator-data"), "preserve")?;
+                    std::fs::remove_dir_all(quarantine)
+                },
+            )
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("replaced during namespace handoff")
+        );
+        assert_eq!(
+            std::fs::read_to_string(new.join("operator-data")).unwrap(),
+            "preserve"
+        );
+        assert!(!new.join(OWNER_FILE).exists());
+        assert!(!old.exists());
+    }
+
+    #[test]
+    fn pending_handoff_is_committed_before_callback_and_preserves_replacements() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let packs = tmp.path().join("world/datapacks");
+        let old = packs.join("old");
+        let new = packs.join("new");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("pack.mcmeta"), "pack").unwrap();
+        let mut managed = ManagedPack::default();
+        let first = managed.install(&src, &old).unwrap();
+        managed.installed(&old, &first.identity).unwrap();
+        let committed = managed.install(&src, &new).unwrap();
+        assert!(
+            ensure_handoffs_complete(&packs).is_err(),
+            "process loss before callback must block a fresh launch"
+        );
+        std::fs::rename(&old, tmp.path().join("displaced")).unwrap();
+        std::fs::create_dir(&old).unwrap();
+        std::fs::write(old.join("operator-data"), "preserve").unwrap();
+        assert!(managed.installed(&new, &committed.identity).is_err());
+        assert_eq!(
+            std::fs::read_to_string(old.join("operator-data")).unwrap(),
+            "preserve"
+        );
+        assert!(new.join(HANDOFF_FILE).exists());
+        assert!(ManagedPack::default().install(&src, &new).is_err());
     }
 
     #[test]

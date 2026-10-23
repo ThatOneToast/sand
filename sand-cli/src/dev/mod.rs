@@ -640,6 +640,10 @@ pub(crate) struct InstalledPack {
     pub identity: LiveIdentity,
 }
 
+// Test fixtures exercise raw staged swaps independently of startup ownership.
+// Production startup uses ManagedPack::install; hot reload supplies cleanup
+// through Session::poll_with_cleanup.
+#[cfg(test)]
 pub(crate) fn install(
     src: &Path,
     dest: &Path,

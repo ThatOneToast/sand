@@ -103,6 +103,10 @@ Focused component Clippy with warnings denied and all 29 ambient/canonical
 integration tests passed after the equivalent integer-validation lint fix.
 Facade, API discovery, CLI catalog, normal profile, and true invalid-version
 placeholder checks passed earlier. Interim profile counts are 11143 normal and
-5043 placeholder. Final integration must regenerate affected canonical profiles
-after the pending living API changes and run the coordinated full workspace
-gate; that full gate is not claimed here.
+5043 placeholder. Integration of exact main
+`887b8ab0507945b6a92e85db6c2d4a83b23b1202` subsequently measured 11145 normal,
+5045 true invalid-version placeholder, and 4767 authored declarations. Both
+reports were copied verbatim from canonical build output. The ambient model,
+shared sound model, audit fixture, and native harness/probe sources are unchanged
+from `042a7f8b`; the native evidence remains attributed to that commit. The
+coordinated full workspace gate is not yet claimed here.

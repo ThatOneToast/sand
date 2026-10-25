@@ -5,6 +5,9 @@ import com.mojang.serialization.JsonOps;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.data.registries.VanillaRegistries;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.attribute.AmbientSounds;
@@ -20,7 +23,14 @@ class BiomeAmbientSoundProbe {
         SharedConstants.tryDetectVersion();
         if (!SharedConstants.getCurrentVersion().name().equals("26.2")) throw new AssertionError("expected 26.2");
         Bootstrap.bootStrap();
-        var ops = RegistryOps.create(JsonOps.INSTANCE, VanillaRegistries.createLookup());
+        // RegistrySetBuilder's lookup wraps builtin registries for bootstrap;
+        // encoding their reference holders requires the actual registry owners.
+        var builtins = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
+        var builtinKeys = builtins.listRegistryKeys().collect(java.util.stream.Collectors.toSet());
+        var lookup = HolderLookup.Provider.create(java.util.stream.Stream.concat(
+            builtins.listRegistries(),
+            VanillaRegistries.createLookup().listRegistries().filter(registry -> !builtinKeys.contains(registry.key()))));
+        var ops = RegistryOps.create(JsonOps.INSTANCE, lookup);
         for (String name : new String[]{"reference","inline","fixed","zero","negative"}) {
             var path = Path.of(args[0],"data","sand_audit","worldgen","biome","ambient",name+".json");
             var json = JsonParser.parseString(Files.readString(path));

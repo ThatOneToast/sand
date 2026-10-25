@@ -657,13 +657,16 @@ impl<K: LivingEntityKind> LivingEntity<K> {
 ///
 /// Live item NBT is deliberately read-only, so player entity-NBT mutation is
 /// rejected at compile time. Use the typed `/item` operations on
-/// [`ItemLocation`] to change equipment.
+/// [`ItemLocation`] to change equipment. The six named hand and armor accessors
+/// return locations directly; [`slot`](Self::slot) validates a slot chosen at
+/// runtime. Equipment access does not grant a non-player an inventory, create
+/// change observers, or add transfer semantics.
 ///
 /// ```compile_fail
 /// use sand::prelude::*;
 ///
 /// let player = EntityContext::<PlayerKind>::default();
-/// let helmet = player.equipment().slot(EquipmentSlot::Head).unwrap();
+/// let helmet = player.equipment().helmet();
 /// helmet.nbt().set(NbtValue::Compound(Default::default()));
 /// ```
 #[derive(Debug, Clone)]
@@ -699,6 +702,149 @@ impl<K: EquipmentEntityKind> EntityEquipmentHandle<K> {
         }
     }
 
+    /// Returns the entity's main-hand equipment location as a canonical item location.
+    ///
+    /// Preserves the handle's owner for item matching, reads, and typed item
+    /// mutations. This fixed slot is supported by every equipment-capable kind;
+    /// use [`slot`](Self::slot) when the slot is chosen at runtime.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEquipmentHandle::mainhand",
+        aliases = ["sand::prelude::EntityEquipmentHandle::mainhand"],
+        module = "sand::entity", kind = "method",
+        summary = "Returns the entity's main-hand equipment location infallibly.",
+        context = "Keeps the current or scoped entity owner attached to the canonical ItemLocation; creates no runtime state or observation.",
+        minecraft = "Uses the existing kind-specific equipment NBT path and typed item command slot.",
+        use_when = ["Reading, matching, or changing the entity's main-hand equipment"],
+        avoid_when = ["Selecting a computed EquipmentSlot; use slot instead"],
+        returns = "The canonical owner-preserving item location.",
+        example = "use sand::prelude::*;\nfn demonstrate(player: EntityContext<PlayerKind>) {\n    let location: ItemLocation = player.equipment().mainhand();\n}",
+    )]
+    pub fn mainhand(&self) -> ItemLocation {
+        self.fixed_slot(EquipmentSlot::Mainhand)
+    }
+
+    /// Returns the entity's offhand equipment location as a canonical item location.
+    ///
+    /// Preserves the handle's owner for item matching, reads, and typed item
+    /// mutations. This fixed slot is supported by every equipment-capable kind;
+    /// use [`slot`](Self::slot) when the slot is chosen at runtime.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEquipmentHandle::offhand",
+        aliases = ["sand::prelude::EntityEquipmentHandle::offhand"],
+        module = "sand::entity", kind = "method",
+        summary = "Returns the entity's offhand equipment location infallibly.",
+        context = "Keeps the current or scoped entity owner attached to the canonical ItemLocation; creates no runtime state or observation.",
+        minecraft = "Uses the existing kind-specific equipment NBT path and typed item command slot.",
+        use_when = ["Reading, matching, or changing the entity's offhand equipment"],
+        avoid_when = ["Selecting a computed EquipmentSlot; use slot instead"],
+        returns = "The canonical owner-preserving item location.",
+        example = "use sand::prelude::*;\nfn demonstrate(player: EntityContext<PlayerKind>) {\n    let location: ItemLocation = player.equipment().offhand();\n}",
+    )]
+    pub fn offhand(&self) -> ItemLocation {
+        self.fixed_slot(EquipmentSlot::Offhand)
+    }
+
+    /// Returns the entity's head equipment location as a canonical item location.
+    ///
+    /// Preserves the handle's owner for item matching, reads, and typed item
+    /// mutations. This fixed slot is supported by every equipment-capable kind;
+    /// use [`slot`](Self::slot) when the slot is chosen at runtime.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEquipmentHandle::helmet",
+        aliases = ["sand::prelude::EntityEquipmentHandle::helmet"],
+        module = "sand::entity", kind = "method",
+        summary = "Returns the entity's head equipment location infallibly.",
+        context = "Keeps the current or scoped entity owner attached to the canonical ItemLocation; creates no runtime state or observation.",
+        minecraft = "Uses the existing kind-specific equipment NBT path and typed item command slot.",
+        use_when = ["Reading, matching, or changing the entity's head equipment"],
+        avoid_when = ["Selecting a computed EquipmentSlot; use slot instead"],
+        returns = "The canonical owner-preserving item location.",
+        example = "use sand::prelude::*;\nfn demonstrate(player: EntityContext<PlayerKind>) {\n    let location: ItemLocation = player.equipment().helmet();\n}",
+    )]
+    pub fn helmet(&self) -> ItemLocation {
+        self.fixed_slot(EquipmentSlot::Head)
+    }
+
+    /// Returns the entity's chest equipment location as a canonical item location.
+    ///
+    /// Preserves the handle's owner for item matching, reads, and typed item
+    /// mutations. This fixed slot is supported by every equipment-capable kind;
+    /// use [`slot`](Self::slot) when the slot is chosen at runtime.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEquipmentHandle::chestplate",
+        aliases = ["sand::prelude::EntityEquipmentHandle::chestplate"],
+        module = "sand::entity", kind = "method",
+        summary = "Returns the entity's chest equipment location infallibly.",
+        context = "Keeps the current or scoped entity owner attached to the canonical ItemLocation; creates no runtime state or observation.",
+        minecraft = "Uses the existing kind-specific equipment NBT path and typed item command slot.",
+        use_when = ["Reading, matching, or changing the entity's chest equipment"],
+        avoid_when = ["Selecting a computed EquipmentSlot; use slot instead"],
+        returns = "The canonical owner-preserving item location.",
+        example = "use sand::prelude::*;\nfn demonstrate(player: EntityContext<PlayerKind>) {\n    let location: ItemLocation = player.equipment().chestplate();\n}",
+    )]
+    pub fn chestplate(&self) -> ItemLocation {
+        self.fixed_slot(EquipmentSlot::Chest)
+    }
+
+    /// Returns the entity's leg equipment location as a canonical item location.
+    ///
+    /// Preserves the handle's owner for item matching, reads, and typed item
+    /// mutations. This fixed slot is supported by every equipment-capable kind;
+    /// use [`slot`](Self::slot) when the slot is chosen at runtime.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEquipmentHandle::leggings",
+        aliases = ["sand::prelude::EntityEquipmentHandle::leggings"],
+        module = "sand::entity", kind = "method",
+        summary = "Returns the entity's leg equipment location infallibly.",
+        context = "Keeps the current or scoped entity owner attached to the canonical ItemLocation; creates no runtime state or observation.",
+        minecraft = "Uses the existing kind-specific equipment NBT path and typed item command slot.",
+        use_when = ["Reading, matching, or changing the entity's leg equipment"],
+        avoid_when = ["Selecting a computed EquipmentSlot; use slot instead"],
+        returns = "The canonical owner-preserving item location.",
+        example = "use sand::prelude::*;\nfn demonstrate(player: EntityContext<PlayerKind>) {\n    let location: ItemLocation = player.equipment().leggings();\n}",
+    )]
+    pub fn leggings(&self) -> ItemLocation {
+        self.fixed_slot(EquipmentSlot::Legs)
+    }
+
+    /// Returns the entity's feet equipment location as a canonical item location.
+    ///
+    /// Preserves the handle's owner for item matching, reads, and typed item
+    /// mutations. This fixed slot is supported by every equipment-capable kind;
+    /// use [`slot`](Self::slot) when the slot is chosen at runtime.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEquipmentHandle::boots",
+        aliases = ["sand::prelude::EntityEquipmentHandle::boots"],
+        module = "sand::entity", kind = "method",
+        summary = "Returns the entity's feet equipment location infallibly.",
+        context = "Keeps the current or scoped entity owner attached to the canonical ItemLocation; creates no runtime state or observation.",
+        minecraft = "Uses the existing kind-specific equipment NBT path and typed item command slot.",
+        use_when = ["Reading, matching, or changing the entity's feet equipment"],
+        avoid_when = ["Selecting a computed EquipmentSlot; use slot instead"],
+        returns = "The canonical owner-preserving item location.",
+        example = "use sand::prelude::*;\nfn demonstrate(player: EntityContext<PlayerKind>) {\n    let location: ItemLocation = player.equipment().boots();\n}",
+    )]
+    pub fn boots(&self) -> ItemLocation {
+        self.fixed_slot(EquipmentSlot::Feet)
+    }
+
+    // Only the six fixed accessors call this helper. Both sealed equipment
+    // kinds support those slots; Body remains on the fallible public path.
+    fn fixed_slot(&self, slot: EquipmentSlot) -> ItemLocation {
+        self.slot(slot)
+            .expect("fixed equipment slots are supported by every EquipmentEntityKind")
+    }
+
+    /// Resolves a slot selected at runtime, preserving this handle's owner.
+    ///
+    /// Returns an error for unsupported slots, including [`EquipmentSlot::Body`].
+    /// Prefer the named accessors for the six common hand and armor slots.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityEquipmentHandle::slot",
@@ -1350,6 +1496,42 @@ mod tests {
             zombie.data().field::<i32>("mod.key").get().to_string(),
             "data get entity @s \"mod.key\""
         );
+    }
+
+    #[test]
+    fn fixed_equipment_slots_preserve_explicit_owners_for_both_kinds() {
+        fn check<K: EquipmentEntityKind>(selector: Selector) {
+            let equipment = EntityEquipmentHandle::<K>::new(selector.clone());
+            let named = [
+                equipment.mainhand(),
+                equipment.offhand(),
+                equipment.helmet(),
+                equipment.chestplate(),
+                equipment.leggings(),
+                equipment.boots(),
+            ];
+            let slots = [
+                EquipmentSlot::Mainhand,
+                EquipmentSlot::Offhand,
+                EquipmentSlot::Head,
+                EquipmentSlot::Chest,
+                EquipmentSlot::Legs,
+                EquipmentSlot::Feet,
+            ];
+            for (location, slot) in named.into_iter().zip(slots) {
+                assert_eq!(location, equipment.slot(slot).unwrap());
+                assert!(
+                    location
+                        .nbt()
+                        .get()
+                        .to_string()
+                        .starts_with(&format!("data get entity {selector} "))
+                );
+            }
+            assert!(equipment.slot(EquipmentSlot::Body).is_err());
+        }
+        check::<PlayerKind>(Selector::all_players().name("EquipmentOwner").limit(1));
+        check::<ZombieKind>(Selector::all_entities().tag("equipment_zombie").limit(1));
     }
 
     #[test]

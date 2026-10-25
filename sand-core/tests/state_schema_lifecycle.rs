@@ -887,15 +887,7 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
     let mana = PlayerState::mana.objective();
     assert_eq!(
         emitted(player.mana.set(25)),
-        vec![
-            format!("scoreboard players set @s {mana} 25"),
-            format!(
-                "execute if score @s {mana} matches ..-1 run scoreboard players set @s {mana} 0"
-            ),
-            format!(
-                "execute if score @s {mana} matches 101.. run scoreboard players set @s {mana} 100"
-            ),
-        ]
+        vec![format!("scoreboard players set @s {mana} 25")]
     );
     let enabled = PlayerState::enabled.objective();
     assert_eq!(

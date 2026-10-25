@@ -3,8 +3,8 @@
 Keeps a real ServerPlayer connected for the requested duration by handling the
 login/configuration handshake, keep-alive challenges, and teleport acknowledgments. Packet IDs were read
 from the 26.2 server's GameProtocols registry, not inferred from an older client.
-This is a passive test client: it does not implement movement, combat, inventory
-interaction, or rendering. Server-driven gameplay assertions belong in a harness.
+By default this is a passive test client. Opt-in --control-dir enables bounded
+grounded movement and melee attack packets; it is not a gameplay bot or renderer.
 An early disconnect is a failure even if the player briefly joined.
 
 Usage:
@@ -16,6 +16,7 @@ Pass --auto-respawn for death/respawn lifecycle audits; other audits leave it of
 
 from contextlib import closing
 import argparse
+import select
 
 import socket
 import struct
@@ -153,6 +154,7 @@ def main():
     parser.add_argument("run_seconds", nargs="?", type=float, default=30)
     parser.add_argument("on_join", nargs="?")
     parser.add_argument("--auto-respawn", action="store_true")
+    parser.add_argument("--control-dir", help="existing private directory for atomic JSON commands/status")
     args = parser.parse_args()
     host, port, protocol_version, username = args.host, args.port, args.protocol_version, args.username
     if protocol_version != SUPPORTED_PROTOCOL:
@@ -160,13 +162,22 @@ def main():
     run_seconds, on_join = args.run_seconds, args.on_join
     if run_seconds <= 0:
         raise ValueError("run_seconds must be positive")
+    controls = None
+    if args.control_dir:
+        if __package__:
+            from .scripted_input import ScriptedInput
+        else:
+            from scripted_input import ScriptedInput
+        controls = ScriptedInput(args.control_dir, protocol_version)
     conn = Conn(host, port)
     with closing(conn.sock):
         return run_session(conn, host, port, protocol_version, username, run_seconds, on_join,
-                           auto_respawn=args.auto_respawn)
+                           auto_respawn=args.auto_respawn, controls=controls)
 
 
-def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *, auto_respawn=False):
+def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *, auto_respawn=False, controls=None):
+    if protocol_version != SUPPORTED_PROTOCOL:
+        raise ValueError("This audit client supports protocol 776 only")
     payload = write_varint(protocol_version) + write_string(host) + struct.pack(">H", port) + write_varint(2)
     conn.send_packet(0x00, payload)
 
@@ -180,11 +191,32 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
     loading = False
     while time.monotonic() < deadline:
         try:
+            if controls is not None:
+                # Drain incoming entity lifecycle packets before processing input.
+                # One loop owns every outbound write, including keep-alive and
+                # teleport responses. Never shorten a partially read frame's
+                # socket timeout merely to poll the local control mailbox.
+                readable, _, _ = select.select([conn.sock], [], [], 0.05)
+                if not readable:
+                    controls.poll(conn, write_varint)
+                    continue
             pid, data = conn.recv_packet(timeout=min(8, max(0.001, deadline - time.monotonic())))
         except socket.timeout:
+            if controls is not None:
+                # select already reported incoming bytes. A stalled partial
+                # frame cannot safely be discarded and read as a new packet.
+                controls.error = "timed out reading a Minecraft packet"
+                controls.publish()
+                return False
             continue
         except ConnectionError as e:
             print(f"stopped: {e}")
+            return False
+        except (ValueError, OSError, OverflowError, RecursionError) as error:
+            if controls is None:
+                raise
+            controls.error = str(error)
+            controls.publish()
             return False
 
         if state == "login":
@@ -234,6 +266,16 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                 print(f"  DISCONNECT payload: {data!r}")
                 return False
         elif state == "play":
+            if controls is not None:
+                try:
+                    response = controls.observe(pid, data)
+                    if response is not None:
+                        conn.send_packet(*response)
+                        print("[play] chunk batch acknowledged")
+                except ValueError as error:
+                    controls.error = str(error)
+                    controls.publish()
+                    return False
             if pid == PLAY_CLIENTBOUND_KEEP_ALIVE and len(data) == 8:
                 conn.send_packet(PLAY_SERVERBOUND_KEEP_ALIVE, data)
                 print("[play] keep_alive echoed")
@@ -248,6 +290,8 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                     conn.send_packet(PLAY_SERVERBOUND_PLAYER_LOADED, b"")
                     loading = False
                     print("[play] player loaded")
+                if controls is not None:
+                    controls.teleported()
             elif pid == PLAY_CLIENTBOUND_COMBAT_KILL and auto_respawn:
                 # Protocol 776 GameProtocols maps ClientCommand to 0x0c;
                 # ServerboundClientCommandPacket.Action.PERFORM_RESPAWN is 0.
@@ -255,9 +299,13 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                 print("[play] requested respawn after death")
             elif pid == PLAY_CLIENTBOUND_RESPAWN:
                 loading = True
+                if controls is not None:
+                    controls.reset()
                 print("[play] respawn/dimension change")
             elif pid == PLAY_CLIENTBOUND_LOGIN:
                 loading = True
+                if controls is not None:
+                    controls.reset()
                 joined = True
                 print("[play] LOGIN (join game) packet received -- player entity should now exist")
                 if on_join is not None:

@@ -247,3 +247,9 @@ fn living_mutation_compile_tests() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/cases/fail_nonliving_mutations.rs");
 }
+
+#[test]
+fn named_equipment_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/cases/fail_named_equipment_kinds.rs");
+}

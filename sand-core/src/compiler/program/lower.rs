@@ -5,7 +5,7 @@ use crate::compiler::export::{
     records::{self, ComponentRecord},
     tags,
 };
-use crate::ir::{Cmd, ScorePlayersOp};
+use crate::ir::{Cmd, NumericWrite};
 use std::collections::BTreeMap;
 
 /// Portable resource bytes and the same runtime provenance used by Rust export.
@@ -486,6 +486,11 @@ impl Lower {
                 format!("{path}/{index}")
             };
             let ptr = format!("{ptr}/{index}");
+            let fail = |error: String| {
+                let mut error = Diagnostic::error("SAND_PROGRAM_COMMAND", module, &ptr, error);
+                error.origin = operation.origin.clone();
+                vec![error]
+            };
             let cmds = match &operation.action {
                 Action::ScoreSet { score, value } | Action::ScoreAdd { score, value } => {
                     let bounds = self
@@ -494,19 +499,29 @@ impl Lower {
                         .copied();
                     let objective = objective(score);
                     let holder = &self.holders[&score.state.to_string()];
-                    let mut commands = if matches!(operation.action, Action::ScoreSet { .. }) {
-                        vec![Cmd::ScorePlayers(ScorePlayersOp::Set {
-                            selector: holder.to_string(),
-                            objective: objective.clone(),
-                            value: crate::entity::state::encode_fixed(f64::from(*value), 1, bounds),
-                        })]
+                    if matches!(operation.action, Action::ScoreSet { .. }) {
+                        // Portable v1 assigns only integer literals to @s or a
+                        // global holder. Canonical constant lowering is local:
+                        // it allocates no helpers or ambient registry state.
+                        NumericWrite {
+                            value: crate::entity::StatCurve::from(*value),
+                            holder: holder.clone(),
+                            objective: sand_commands::ObjectiveName::logical(objective),
+                            scale: 1,
+                            fixed: crate::entity::FixedPoint::default(),
+                            bounds,
+                            dirty: Vec::new(),
+                        }
+                        .lower(&module.parse().expect("validated module identity"))
+                        .map_err(|error| fail(error.to_string()))?
                     } else {
-                        crate::ir::score_delta(holder, &objective, *value, false)
-                    };
-                    if let Some(bounds) = bounds {
-                        commands.extend(crate::ir::score_bounds(holder, &objective, bounds));
+                        let mut commands =
+                            crate::ir::score_delta(holder, &objective, *value, false);
+                        if let Some(bounds) = bounds {
+                            commands.extend(crate::ir::score_bounds(holder, &objective, bounds));
+                        }
+                        commands
                     }
-                    commands
                 }
                 Action::Call { function } => vec![Cmd::Function(reference_id(function))],
                 Action::Raw { command } => vec![Cmd::Raw(command.clone())],
@@ -598,11 +613,6 @@ impl Lower {
                     )?;
                     vec![Cmd::Function(decision)]
                 }
-            };
-            let fail = |error: String| {
-                let mut error = Diagnostic::error("SAND_PROGRAM_COMMAND", module, &ptr, error);
-                error.origin = operation.origin.clone();
-                vec![error]
             };
             for cmd in cmds {
                 let rendered = cmd.try_render().map_err(|e| fail(e.to_string()))?;

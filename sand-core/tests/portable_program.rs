@@ -845,18 +845,17 @@ fn bounded_writes_match_complete_constructed_and_decoded_exports() {
         let path = "data/demo/function/increment.mcfunction";
         let original = String::from_utf8(expected[path].clone()).unwrap();
         let init = original.lines().next().unwrap();
-        let mut lines = vec![init.to_owned()];
-        for command in [
+        let mut lines = vec![
+            init.to_owned(),
             format!("scoreboard players set @s sffe99bc0114fb8b {}", bounds.1),
             "scoreboard players remove @s sffe99bc0114fb8b 200".into(),
-        ] {
-            lines.push(command);
-            if bounds.0 != i32::MIN {
-                lines.push(format!("execute if score @s sffe99bc0114fb8b matches ..{} run scoreboard players set @s sffe99bc0114fb8b {}", bounds.0 - 1, bounds.0));
-            }
-            if bounds.1 != i32::MAX {
-                lines.push(format!("execute if score @s sffe99bc0114fb8b matches {}.. run scoreboard players set @s sffe99bc0114fb8b {}", bounds.1 + 1, bounds.1));
-            }
+        ];
+        // The literal is already encoded; only the runtime addition needs clamps.
+        if bounds.0 != i32::MIN {
+            lines.push(format!("execute if score @s sffe99bc0114fb8b matches ..{} run scoreboard players set @s sffe99bc0114fb8b {}", bounds.0 - 1, bounds.0));
+        }
+        if bounds.1 != i32::MAX {
+            lines.push(format!("execute if score @s sffe99bc0114fb8b matches {}.. run scoreboard players set @s sffe99bc0114fb8b {}", bounds.1 + 1, bounds.1));
         }
         expected.insert(path.into(), lines.join("\n").into_bytes());
         assert_eq!(Compiler::compile(&program).unwrap().resources, expected);
@@ -968,4 +967,102 @@ fn global_load_mutations_follow_canonical_initialization() {
         ))
         .unwrap();
     assert!(initialized < mutated, "{load}");
+}
+
+#[test]
+fn constant_assignments_encode_bounds_for_both_owned_scopes_without_extra_work() {
+    for scope in ["player", "global"] {
+        for bounds in [
+            None,
+            Some((0, 100)),
+            Some((-10, -5)),
+            Some((7, 7)),
+            Some((i32::MIN, i32::MAX)),
+        ] {
+            for value in [i32::MIN, -7, 0, 50, i32::MAX] {
+                let mut program = counter();
+                program.modules[0].states[0].scope = scope.into();
+                program.modules[0].states[0].fields[0].bounds = bounds;
+                program.modules[0].functions[1].body = vec![operation(Action::ScoreSet {
+                    score: FieldReference {
+                        state: "demo:counter".parse().unwrap(),
+                        field: "value".into(),
+                    },
+                    value,
+                })];
+                let compiled = Compiler::compile(&program).unwrap();
+                let body = std::str::from_utf8(
+                    &compiled.resources["data/demo/function/increment.mcfunction"],
+                )
+                .unwrap();
+                let holder = if scope == "player" {
+                    "@s".to_owned()
+                } else {
+                    sand_core::GlobalStateHolder::new("demo:counter")
+                        .as_str()
+                        .to_owned()
+                };
+                let encoded = bounds.map_or(value, |(min, max)| value.clamp(min, max));
+                let assignment =
+                    format!("scoreboard players set {holder} sffe99bc0114fb8b {encoded}");
+                let expected = if scope == "player" {
+                    format!("function demo:__sand_lifecycle_init\n{assignment}")
+                } else {
+                    assignment
+                };
+                assert_eq!(body, expected, "{scope} {bounds:?} {value}");
+                let decoded =
+                    Compiler::decode(&serde_json::to_vec(&program).unwrap(), &BTreeMap::new())
+                        .unwrap();
+                assert_eq!(
+                    Compiler::compile(&decoded).unwrap().resources,
+                    compiled.resources
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn bounded_constant_branch_keeps_one_decision_and_owned_return_run_helpers() {
+    let mut document = serde_json::to_value(counter()).unwrap();
+    document["modules"][0]["states"][0]["fields"][0]["bounds"] = serde_json::json!([0, 100]);
+    document["modules"][0]["functions"][1]["body"] = serde_json::json!([{
+        "action": {"op": "branch", "condition": {
+            "score": {"state": "demo:counter", "field": "value"}, "max": 49
+        }, "then": [{"action": {"op": "score_set", "score": {"state": "demo:counter", "field": "value"}, "value": 200}}],
+        "otherwise": [{"action": {"op": "score_set", "score": {"state": "demo:counter", "field": "value"}, "value": -200}}]}
+    }]);
+    let program =
+        Compiler::decode(&serde_json::to_vec(&document).unwrap(), &BTreeMap::new()).unwrap();
+    let compiled = Compiler::compile(&program).unwrap();
+    let bodies: Vec<_> = compiled
+        .resources
+        .iter()
+        .filter(|(path, _)| path.ends_with(".mcfunction"))
+        .map(|(_, bytes)| std::str::from_utf8(bytes).unwrap())
+        .collect();
+    assert!(bodies.contains(&"scoreboard players set @s sffe99bc0114fb8b 100"));
+    assert!(bodies.contains(&"scoreboard players set @s sffe99bc0114fb8b 0"));
+    let decisions: Vec<_> = bodies
+        .iter()
+        .filter(|body| body.contains("return run function"))
+        .collect();
+    assert_eq!(decisions.len(), 1);
+    assert_eq!(decisions[0].lines().count(), 2);
+    assert_eq!(
+        decisions[0]
+            .matches("if score @s sffe99bc0114fb8b matches -2147483648..49")
+            .count(),
+        1
+    );
+    assert!(
+        !bodies
+            .iter()
+            .any(|body| body.contains("matches ..-1") || body.contains("matches 101.."))
+    );
+    assert_eq!(
+        Compiler::compile(&program).unwrap().resources,
+        compiled.resources
+    );
 }

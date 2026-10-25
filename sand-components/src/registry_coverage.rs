@@ -566,7 +566,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::worldgen::biome"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Biome struct has typed ambient sound (SoundEventId), temperature_modifier (enum), and per-generation-step feature references (GenerationStep + ConfiguredFeatureId); #182 slice. Carvers typing is #191; spawners/spawn_costs remain raw Value.",
+        notes: "Biome has typed 26.2 ambient audio attributes (shared sound holders, mood and additions), temperature modifier, per-step features, carvers, spawn tables and spawn costs. Other environment attributes remain incomplete; legacy effects music/particle fields are ignored by 26.2. #182 remains open.",
     },
     RegistryCoverage {
         registry_key: "minecraft:worldgen/placed_feature",

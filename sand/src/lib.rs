@@ -354,9 +354,10 @@ pub mod component {
         Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag, DialogText,
     };
     pub use sand_components::{
-        BannerPattern, Biome, BiomeEffects, BiomeSource, CarverFloatRange, CarvingStep,
-        CaveCarverConfig, ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType,
-        ConfiguredCarver, ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
+        BannerPattern, Biome, BiomeAdditionsSound, BiomeAmbientSounds, BiomeEffects,
+        BiomeMoodSound, BiomeSource, CarverFloatRange, CarvingStep, CaveCarverConfig,
+        ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
+        ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
         DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
         FlatGenerator, FlatLayer, Generator, Instrument, IntoItemStack, ItemComponent,
         ItemStackComponents, JukeboxSong, LootText, MonsterSpawnLightLevel, Noise, NoiseGenerator,

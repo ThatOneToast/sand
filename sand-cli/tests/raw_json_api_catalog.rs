@@ -28,8 +28,7 @@ fn exported_builder_signatures_use_the_explicit_raw_json_boundary() {
 
     for path in [
         "sand::component::BiomeEffects::particle",
-        "sand::component::BiomeEffects::mood_sound",
-        "sand::component::BiomeEffects::additions_sound",
+        "sand::component::Biome::raw_ambient_sounds",
         "sand::component::BiomeEffects::music",
         "sand::component::Biome::raw_carvers",
         "sand::component::Biome::raw_features",
@@ -87,6 +86,22 @@ fn exported_builder_signatures_use_the_explicit_raw_json_boundary() {
     }
 
     for (path, model) in [
+        (
+            "sand::component::Biome::ambient_sounds",
+            "BiomeAmbientSounds",
+        ),
+        (
+            "sand::component::BiomeAmbientSounds::mood_sound",
+            "BiomeMoodSound",
+        ),
+        (
+            "sand::component::BiomeAmbientSounds::additions_sound",
+            "BiomeAdditionsSound",
+        ),
+        (
+            "sand::component::BiomeAmbientSounds::loop_sound",
+            "SoundEventDefinition",
+        ),
         ("sand::component::Biome::spawners", "SpawnEntry"),
         ("sand::component::Dimension::new", "Generator"),
         (
@@ -113,6 +128,19 @@ fn exported_builder_signatures_use_the_explicit_raw_json_boundary() {
         assert!(
             !signature.contains("RawJson") && !signature.contains("Value"),
             "{path}: {signature}"
+        );
+    }
+
+    for obsolete in [
+        "ambient_sound",
+        "raw_ambient_sound",
+        "mood_sound",
+        "additions_sound",
+    ] {
+        let path = format!("sand::component::BiomeEffects::{obsolete}");
+        assert!(
+            !entries.iter().any(|entry| entry["canonical_path"] == path),
+            "obsolete ignored API: {path}"
         );
     }
 

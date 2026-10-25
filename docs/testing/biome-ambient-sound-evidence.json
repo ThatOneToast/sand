@@ -1,0 +1,346 @@
+{
+  "minecraft": "26.2",
+  "complete": true,
+  "source_head": "042a7f8b438b5fb5f9dd7228278d3cf52f877ac4",
+  "source_dirty": false,
+  "source_sha256": {
+    "sand-vanilla-audit/src/lib.rs": "3d134b7038ad90e6b4804c392224a0719eef51be6dcffc79b312a7736d1e73c6",
+    "scripts/validate_biome_ambient_sounds.py": "1801ad96fcf700e2b8afa410d74a56d6aa9c8e43c8b231c16e8a8486a0ee60b8",
+    "scripts/mc_validation/BiomeAmbientSoundProbe.java": "bcca4fc756836be27960d8a0d5fc21de6d9815aaf5a3137dd1241c5a72262fa0",
+    "scripts/vanilla_reload_harness.py": "7bfbc893574a1ce9ccbf52add946458c9bbc6d08b815e21d95352fb00a606bfb",
+    "scripts/validate_world_gameplay.py": "a07498d1813f963b5289c8f30a25f713498701be31bcbbd63b3de66751c70353"
+  },
+  "server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5",
+  "pack_file_count": 191,
+  "pack_sha256": "0730907c913bf92929055cba946de10091d7dac3f58eb284a6286f354eb475ad",
+  "resources": {
+    "data/sand_audit/worldgen/biome/ambient/reference.json": {
+      "sha256": "0cda833393cc2971d97531e59b99ba5f9b6b0c0f68d9d9be1c7495b447a5bc05",
+      "json": {
+        "attributes": {
+          "minecraft:audio/ambient_sounds": {
+            "additions": [
+              {
+                "sound": "minecraft:ambient.cave",
+                "tick_chance": -1.0
+              },
+              {
+                "sound": "minecraft:ambient.cave",
+                "tick_chance": 2.0
+              }
+            ],
+            "loop": "minecraft:ambient.cave",
+            "mood": {
+              "block_search_extent": 8,
+              "offset": 2.0,
+              "sound": "minecraft:ambient.cave",
+              "tick_delay": 6000
+            }
+          }
+        },
+        "carvers": [],
+        "downfall": 0.5,
+        "effects": {
+          "fog_color": 0,
+          "sky_color": 0,
+          "water_color": 0,
+          "water_fog_color": 0
+        },
+        "features": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "has_precipitation": true,
+        "spawn_costs": {},
+        "spawners": {},
+        "temperature": 0.5,
+        "temperature_modifier": "none"
+      }
+    },
+    "data/sand_audit/worldgen/biome/ambient/inline.json": {
+      "sha256": "0fc0c251337125ad97d14baa5a8bf18395f68265560c46be16ad3c2b2c685d6d",
+      "json": {
+        "attributes": {
+          "minecraft:audio/ambient_sounds": {
+            "additions": [
+              {
+                "sound": {
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": -1.0
+              },
+              {
+                "sound": {
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": 2.0
+              }
+            ],
+            "loop": {
+              "sound_id": "sand_audit:custom_track"
+            },
+            "mood": {
+              "block_search_extent": 8,
+              "offset": 2.0,
+              "sound": {
+                "sound_id": "sand_audit:custom_track"
+              },
+              "tick_delay": 6000
+            }
+          }
+        },
+        "carvers": [],
+        "downfall": 0.5,
+        "effects": {
+          "fog_color": 0,
+          "sky_color": 0,
+          "water_color": 0,
+          "water_fog_color": 0
+        },
+        "features": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "has_precipitation": true,
+        "spawn_costs": {},
+        "spawners": {},
+        "temperature": 0.5,
+        "temperature_modifier": "none"
+      }
+    },
+    "data/sand_audit/worldgen/biome/ambient/fixed.json": {
+      "sha256": "0d052813467b8a32411a3a3648e2d374b554481a666925ecc1bf7ebe4971a8de",
+      "json": {
+        "attributes": {
+          "minecraft:audio/ambient_sounds": {
+            "additions": [
+              {
+                "sound": {
+                  "range": 32.0,
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": -1.0
+              },
+              {
+                "sound": {
+                  "range": 32.0,
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": 2.0
+              }
+            ],
+            "loop": {
+              "range": 32.0,
+              "sound_id": "sand_audit:custom_track"
+            },
+            "mood": {
+              "block_search_extent": 8,
+              "offset": 2.0,
+              "sound": {
+                "range": 32.0,
+                "sound_id": "sand_audit:custom_track"
+              },
+              "tick_delay": 6000
+            }
+          }
+        },
+        "carvers": [],
+        "downfall": 0.5,
+        "effects": {
+          "fog_color": 0,
+          "sky_color": 0,
+          "water_color": 0,
+          "water_fog_color": 0
+        },
+        "features": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "has_precipitation": true,
+        "spawn_costs": {},
+        "spawners": {},
+        "temperature": 0.5,
+        "temperature_modifier": "none"
+      }
+    },
+    "data/sand_audit/worldgen/biome/ambient/zero.json": {
+      "sha256": "74aa1432f35926ada6f9aeaaca5a71e6223c8d6f3bf4b71825a061ba7f82d031",
+      "json": {
+        "attributes": {
+          "minecraft:audio/ambient_sounds": {
+            "additions": [
+              {
+                "sound": {
+                  "range": 0.0,
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": -1.0
+              },
+              {
+                "sound": {
+                  "range": 0.0,
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": 2.0
+              }
+            ],
+            "loop": {
+              "range": 0.0,
+              "sound_id": "sand_audit:custom_track"
+            },
+            "mood": {
+              "block_search_extent": 8,
+              "offset": 2.0,
+              "sound": {
+                "range": 0.0,
+                "sound_id": "sand_audit:custom_track"
+              },
+              "tick_delay": 6000
+            }
+          }
+        },
+        "carvers": [],
+        "downfall": 0.5,
+        "effects": {
+          "fog_color": 0,
+          "sky_color": 0,
+          "water_color": 0,
+          "water_fog_color": 0
+        },
+        "features": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "has_precipitation": true,
+        "spawn_costs": {},
+        "spawners": {},
+        "temperature": 0.5,
+        "temperature_modifier": "none"
+      }
+    },
+    "data/sand_audit/worldgen/biome/ambient/negative.json": {
+      "sha256": "7316e43aacc8512a6187395736e19c1eec85b167f05ae7aec965e13776b91c19",
+      "json": {
+        "attributes": {
+          "minecraft:audio/ambient_sounds": {
+            "additions": [
+              {
+                "sound": {
+                  "range": -1.0,
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": -1.0
+              },
+              {
+                "sound": {
+                  "range": -1.0,
+                  "sound_id": "sand_audit:custom_track"
+                },
+                "tick_chance": 2.0
+              }
+            ],
+            "loop": {
+              "range": -1.0,
+              "sound_id": "sand_audit:custom_track"
+            },
+            "mood": {
+              "block_search_extent": 8,
+              "offset": 2.0,
+              "sound": {
+                "range": -1.0,
+                "sound_id": "sand_audit:custom_track"
+              },
+              "tick_delay": 6000
+            }
+          }
+        },
+        "carvers": [],
+        "downfall": 0.5,
+        "effects": {
+          "fog_color": 0,
+          "sky_color": 0,
+          "water_color": 0,
+          "water_fog_color": 0
+        },
+        "features": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "has_precipitation": true,
+        "spawn_costs": {},
+        "spawners": {},
+        "temperature": 0.5,
+        "temperature_modifier": "none"
+      }
+    }
+  },
+  "checks": {
+    "reference": true,
+    "inline": true,
+    "fixed": true,
+    "zero": true,
+    "negative": true
+  },
+  "port": 57294,
+  "lifecycle": {
+    "startup": true,
+    "reload": true,
+    "shutdown": true
+  },
+  "extracted_server_jar_sha256": {
+    "versions/26.2/server-26.2.jar": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8"
+  },
+  "javac": {
+    "returncode": 0,
+    "output": ""
+  },
+  "codec_probe": {
+    "returncode": 0,
+    "output": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/private/tmp/sand182-native-042a7f8b/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)\nWARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe\nWARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release\n[17:07:04] [main/INFO]: [STDOUT]: PASS reference {\"loop\":\"minecraft:ambient.cave\",\"mood\":{\"sound\":\"minecraft:ambient.cave\",\"tick_delay\":6000,\"block_search_extent\":8,\"offset\":2.0},\"additions\":[{\"sound\":\"minecraft:ambient.cave\",\"tick_chance\":-1.0},{\"sound\":\"minecraft:ambient.cave\",\"tick_chance\":2.0}]}\n[17:07:04] [main/INFO]: [STDOUT]: PASS inline {\"loop\":{\"sound_id\":\"sand_audit:custom_track\"},\"mood\":{\"sound\":{\"sound_id\":\"sand_audit:custom_track\"},\"tick_delay\":6000,\"block_search_extent\":8,\"offset\":2.0},\"additions\":[{\"sound\":{\"sound_id\":\"sand_audit:custom_track\"},\"tick_chance\":-1.0},{\"sound\":{\"sound_id\":\"sand_audit:custom_track\"},\"tick_chance\":2.0}]}\n[17:07:04] [main/INFO]: [STDOUT]: PASS fixed {\"loop\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":32.0},\"mood\":{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":32.0},\"tick_delay\":6000,\"block_search_extent\":8,\"offset\":2.0},\"additions\":[{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":32.0},\"tick_chance\":-1.0},{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":32.0},\"tick_chance\":2.0}]}\n[17:07:04] [main/INFO]: [STDOUT]: PASS zero {\"loop\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":0.0},\"mood\":{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":0.0},\"tick_delay\":6000,\"block_search_extent\":8,\"offset\":2.0},\"additions\":[{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":0.0},\"tick_chance\":-1.0},{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":0.0},\"tick_chance\":2.0}]}\n[17:07:04] [main/INFO]: [STDOUT]: PASS negative {\"loop\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":-1.0},\"mood\":{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":-1.0},\"tick_delay\":6000,\"block_search_extent\":8,\"offset\":2.0},\"additions\":[{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":-1.0},\"tick_chance\":-1.0},{\"sound\":{\"sound_id\":\"sand_audit:custom_track\",\"range\":-1.0},\"tick_chance\":2.0}]}\n[17:07:04] [main/INFO]: [STDOUT]: PASS native signed bounds, defaults, compact additions, required fields\n"
+  }
+}

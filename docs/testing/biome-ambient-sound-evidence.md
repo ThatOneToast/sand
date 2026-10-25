@@ -80,5 +80,29 @@ python3 scripts/validate_biome_ambient_sounds.py --version 26.2 \
   --output /tmp/biome-audio-proof --timeout 180
 ```
 
-Native exported-fixture execution and full workspace gates are pending resource
-coordination. Probe compilation alone is not exported-fixture evidence.
+Native exported-fixture validation passed on clean source commit
+`042a7f8b438b5fb5f9dd7228278d3cf52f877ac4`. The verbatim
+[machine evidence](biome-ambient-sound-evidence.json) records all five in-world
+biome assertions, startup/reload/shutdown, and successful native getters and
+re-encoding for every fixture, plus codec boundary/default checks. It includes
+source, fixture, harness, bootstrap/extracted JAR, and pack hashes. The evidence
+was committed afterward; its source commit identifies the tested code.
+
+The harness fills a region within loaded chunk 0,0 and checks its interior.
+Native `BiomeManager` subtracts two from block coordinates and selects among
+eight neighboring quart cells using jitter; filling only one cell does not
+necessarily cover the queried block's sampled biome. The original failed run
+is preserved at `/tmp/sand182-native-bc4277b2`. A second incomplete run at
+`/tmp/sand182-native-8d188664` passed all server checks but exposed the probe's
+bootstrap registry-owner mismatch during reference encoding. The probe now
+uses actual built-in registry owners alongside vanilla dynamic lookups. Neither
+correction removes an assertion or changes exported resources. The complete run
+is at `/tmp/sand182-native-042a7f8b`.
+
+Focused component Clippy with warnings denied and all 29 ambient/canonical
+integration tests passed after the equivalent integer-validation lint fix.
+Facade, API discovery, CLI catalog, normal profile, and true invalid-version
+placeholder checks passed earlier. Interim profile counts are 11143 normal and
+5043 placeholder. Final integration must regenerate affected canonical profiles
+after the pending living API changes and run the coordinated full workspace
+gate; that full gate is not claimed here.

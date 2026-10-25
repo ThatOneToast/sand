@@ -18,6 +18,7 @@
 # Shared sound definitions and the instrument/song facade add three types and fifteen methods (+18 enforced source items).
 # Player context calls replace the redundant Event::subject alias (net zero source items).
 # Native effect clear/clear_effect add two canonical command-source constructors.
+# Named entity equipment accessors add six enforced entity-source methods.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -26,12 +27,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5038
+static_surface_items = 5044
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11138
+static_surface_items = 11144
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

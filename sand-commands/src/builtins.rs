@@ -1067,6 +1067,16 @@ enum DamageTargets {
 }
 
 impl Damage {
+    pub(crate) fn one(selector: Selector, amount: DamageAmount, kind: DamageKind) -> Self {
+        Self {
+            targets: DamageTargets::One(selector),
+            amount,
+            damage_type: kind.as_str().into(),
+            source: None,
+            centered_at: None,
+        }
+    }
+
     /// Create a damage builder with default generic fixed 1.0 damage to `@s`.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -1334,7 +1344,10 @@ impl Damage {
     pub fn try_run(self) -> CommandResult<Vec<String>> {
         let profile = crate::CommandProfile::unprofiled();
         match &self.targets {
-            DamageTargets::One(target) | DamageTargets::Many(target) => {
+            DamageTargets::One(target) => {
+                crate::ScoreHolder::entity(target.clone()).validate_single(&profile)?;
+            }
+            DamageTargets::Many(target) => {
                 crate::Validate::validate(target, &profile)?;
             }
         }

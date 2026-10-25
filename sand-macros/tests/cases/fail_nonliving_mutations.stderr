@@ -1,0 +1,27 @@
+error[E0599]: the method `living` exists for struct `sand::prelude::EntityContext<sand::prelude::AnyEntity>`, but its trait bounds were not satisfied
+ --> tests/cases/fail_nonliving_mutations.rs:5:12
+  |
+5 |     entity.living().damage(1.0, DamageKind::Generic);
+  |            ^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: $WORKSPACE/sand-core/src/entity/kind.rs
+  |
+  | pub struct AnyEntity;
+  | -------------------- doesn't satisfy `sand::prelude::AnyEntity: LivingEntityKind`
+  |
+  = note: the following trait bounds were not satisfied:
+          `sand::prelude::AnyEntity: LivingEntityKind`
+
+error[E0599]: the method `living` exists for struct `sand::prelude::EntityContext<sand::prelude::MarkerKind>`, but its trait bounds were not satisfied
+ --> tests/cases/fail_nonliving_mutations.rs:7:12
+  |
+7 |     marker.living().give_effect(EffectId::Speed);
+  |            ^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: $WORKSPACE/sand-core/src/entity/kind.rs
+  |
+  | pub struct MarkerKind;
+  | --------------------- doesn't satisfy `sand::prelude::MarkerKind: LivingEntityKind`
+  |
+  = note: the following trait bounds were not satisfied:
+          `sand::prelude::MarkerKind: LivingEntityKind`

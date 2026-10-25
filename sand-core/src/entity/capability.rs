@@ -8,8 +8,8 @@ use sand_commands::{
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
 use crate::cmd::{
-    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
-    Vec3,
+    Anchor, CommandProfile, CommandResult, DamageAmount, DamageKind, EffectGive, One, Rotation,
+    Target, Validate, Vec3,
 };
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
@@ -432,23 +432,33 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         EntityDataRoot::<K>::new(self.selector.clone()).field("Health")
     }
 
+    /// Applies native Minecraft damage through an authored action.
+    ///
+    /// Amount and selector validation occurs at fallible pack export, with the
+    /// owning function in diagnostics, rather than returning an immediate error.
+    /// This preserves native damage rules and does not observe exact damage
+    /// events or synchronize a Sand State field named `health`. Archetype native
+    /// property bindings continue to own State-to-health reconciliation.
+    /// The action preserves the caller's executor and spatial frame.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::damage",
         aliases = ["sand::prelude::LivingEntity::damage"],
         module = "sand::entity",
         kind = "method",
-        summary = "Applies validated typed damage to this entity.",
+        summary = "Authors native damage with amount and selector validation at export.",
         context = "Focused entity capability reached from an execution-scoped EntityContext or ScopedEntityRef; it stores no persistent entity identity and creates no state or lifecycle resources.",
         minecraft = "Delegates to Sand's canonical typed command, item, or NBT lowering for the entity selector carried by the handle.",
         use_when = ["Discovering legal operations on the current or scoped entity"],
         avoid_when = ["Keeping an entity identity across ticks"],
         example = "use sand::prelude::*;",
-        returns = "The requested capability value or canonical Minecraft command.",
-        params(amount = "The typed amount used by this operation.", kind = "The typed kind used by this operation."),
+        returns = "Owned native mutation actions validated when their function is exported.",
+        params(amount = "Fixed native damage in hit points, or an existing DamageAmount such as DamageAmount::hearts(1.0).", kind = "Minecraft damage kind; native armor, resistance and immunity rules remain authoritative."),
     )]
-    pub fn damage(&self, amount: f64, kind: DamageKind) -> CommandResult<String> {
-        sand_commands::__private::try_damage_one(self.selector.clone(), amount, kind)
+    pub fn damage(&self, amount: impl Into<DamageAmount>, kind: DamageKind) -> crate::ir::Actions {
+        crate::ir::Actions(vec![crate::ir::Cmd::Damage(Box::new(
+            sand_commands::__private::damage_one(self.selector.clone(), amount.into(), kind),
+        ))])
     }
 
     /// Tests whether this living entity currently has an active effect.
@@ -477,6 +487,10 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         crate::condition::Condition::effect_presence(self.selector.clone(), effect.into())
     }
 
+    /// Configures a native effect application using the canonical builder.
+    /// Return it from a helper or collect it in a function/Condition body to
+    /// retain target, duration and amplifier intent through fallible export.
+    /// This does not install effect observers or mutate Sand-owned State.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::give_effect",
@@ -489,13 +503,15 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         use_when = ["Discovering legal operations on the current or scoped entity"],
         avoid_when = ["Keeping an entity identity across ticks"],
         example = "use sand::prelude::*;",
-        returns = "The requested capability value or canonical Minecraft command.",
+        returns = "The canonical EffectGive builder, collected as a typed action without text conversion.",
         params(effect = "The typed effect used by this operation."),
     )]
     pub fn give_effect(&self, effect: impl Into<EffectId>) -> EffectGive {
         crate::cmd::effect_give(self.selector.clone(), effect)
     }
 
+    /// Removes one native effect as an authored action.
+    /// Selector validation is deferred to fallible export with function ownership.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::clear_effect",
@@ -508,13 +524,17 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         use_when = ["Discovering legal operations on the current or scoped entity"],
         avoid_when = ["Keeping an entity identity across ticks"],
         example = "use sand::prelude::*;",
-        returns = "The requested capability value or canonical Minecraft command.",
+        returns = "Owned native mutation actions validated when their function is exported.",
         params(effect = "The typed effect used by this operation."),
     )]
-    pub fn clear_effect(&self, effect: impl Into<EffectId>) -> String {
-        crate::cmd::effect_clear_effect(self.selector.clone(), effect)
+    pub fn clear_effect(&self, effect: impl Into<EffectId>) -> crate::ir::Actions {
+        crate::ir::Actions(vec![crate::ir::Cmd::Effect(
+            sand_commands::EffectCommand::clear_effect(self.selector.clone(), effect.into()),
+        )])
     }
 
+    /// Removes all native effects as an authored action.
+    /// Selector validation is deferred to fallible export with function ownership.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::clear_effects",
@@ -527,10 +547,12 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         use_when = ["Discovering legal operations on the current or scoped entity"],
         avoid_when = ["Keeping an entity identity across ticks"],
         example = "use sand::prelude::*;",
-        returns = "The requested capability value or canonical Minecraft command.",
+        returns = "Owned native mutation actions validated when their function is exported.",
     )]
-    pub fn clear_effects(&self) -> String {
-        crate::cmd::effect_clear(self.selector.clone())
+    pub fn clear_effects(&self) -> crate::ir::Actions {
+        crate::ir::Actions(vec![crate::ir::Cmd::Effect(
+            sand_commands::EffectCommand::clear(self.selector.clone()),
+        )])
     }
 
     /// Reads the effective native attribute, including Minecraft modifiers, as
@@ -1250,8 +1272,48 @@ mod tests {
         assert!(invalid_identity.kill().is_err());
         let invalid_living =
             LivingEntity::<ZombieKind>::new(Target::entities().tag("invalid tag").nearest().into());
-        assert!(invalid_living.damage(1.0, DamageKind::Generic).is_err());
-        assert!(zombie.living().damage(-1.0, DamageKind::Generic).is_err());
+        assert!(
+            invalid_living
+                .damage(1.0, DamageKind::Generic)
+                .lower(&"test:invalid".parse().unwrap())
+                .is_err()
+        );
+        assert!(
+            zombie
+                .living()
+                .damage(-1.0, DamageKind::Generic)
+                .lower(&"test:invalid".parse().unwrap())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn living_mutations_keep_invalid_scoped_selectors_until_owned_export() {
+        let bad =
+            LivingEntity::<ZombieKind>::new(Target::entities().tag("invalid tag").nearest().into());
+        let actions = [
+            bad.damage(1.0, DamageKind::Generic),
+            crate::IntoCommands::into_commands(bad.give_effect(EffectId::Speed)),
+            bad.clear_effect(EffectId::Speed),
+            bad.clear_effects(),
+        ];
+        for action in actions {
+            for owner in ["first:mutation", "second:mutation", "first:mutation"] {
+                let error = action
+                    .lower(&owner.parse().unwrap())
+                    .unwrap_err()
+                    .to_string();
+                assert!(error.contains(owner), "{error}");
+                assert!(error.contains("tag"), "{error}");
+            }
+        }
+        let plural = LivingEntity::<ZombieKind>::new(Selector::all_entities());
+        assert!(
+            plural
+                .damage(1.0, DamageKind::Generic)
+                .lower(&"test:plural".parse().unwrap())
+                .is_err()
+        );
     }
 
     #[test]
@@ -1260,7 +1322,12 @@ mod tests {
         let vehicle = Target::entities().tag("vehicle").nearest();
 
         assert_eq!(
-            zombie.living().damage(3.5, DamageKind::Magic).unwrap(),
+            zombie
+                .living()
+                .damage(3.5, DamageKind::Magic)
+                .lower(&"test:damage".parse().unwrap())
+                .unwrap()
+                .join("\n"),
             sand_commands::builtins::try_damage(
                 sand_commands::Target::self_(),
                 3.5,

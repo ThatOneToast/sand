@@ -221,15 +221,19 @@ pub fn grapple() {
 // ANCHOR: fn_grapple_execute
 /// Applies the grapple dash: pay stamina, start the cooldown, launch, sparkle.
 #[function("trail:grapple/execute", context = player)]
-pub fn grapple_execute() {
+pub fn grapple_execute(player: EntityContext<PlayerKind>) {
     let state = traversal();
     state.stamina.subtract(30);
     state.grapple.start(Ticks::seconds(4));
-    cmd::effect_give(Target::self_(), EffectId::Speed)
+    player
+        .living()
+        .give_effect(EffectId::Speed)
         .duration(Ticks::seconds(3))
         .amplifier(2)
         .particles(false);
-    cmd::effect_give(Target::self_(), EffectId::SlowFalling)
+    player
+        .living()
+        .give_effect(EffectId::SlowFalling)
         .duration(Ticks::seconds(4))
         .particles(false);
     grapple_vfx().play_at(Target::self_());
@@ -605,6 +609,14 @@ mod tests {
     #[test]
     fn grapple_execute_pays_stamina_and_plays_vfx() {
         let cmds = emitted(grapple_execute());
+        assert!(
+            cmds.iter()
+                .any(|line| line == "effect give @s minecraft:speed 3 2 true")
+        );
+        assert!(
+            cmds.iter()
+                .any(|line| line == "effect give @s minecraft:slow_falling 4 0 true")
+        );
         let functions = exported_functions();
         let body = reachable_body(&functions, "grapple/execute");
         assert!(

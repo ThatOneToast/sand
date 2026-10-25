@@ -1,4 +1,4 @@
-//! Typed `effect give` command IR and whole-second duration semantics.
+//! Typed effect command IR and whole-second duration semantics.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -93,25 +93,88 @@ impl EffectDuration {
     path = "sand::command::EffectCommand",
     aliases = ["sand::cmd::EffectCommand", "sand::prelude::cmd::EffectCommand"],
     module = "sand::command",
-    summary = "Structured `effect give` terminal command.",
-    context = "Structured `effect give` terminal command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    summary = "Structured effect give or clear terminal command.",
+    context = "Structured effect give or clear terminal command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::EffectCommand;",
 )]
-/// Structured `effect give` terminal command.
+/// Structured effect give or clear terminal command.
 #[derive(Debug, Clone)]
 pub struct EffectCommand {
     target: Selector,
-    effect: String,
+    operation: EffectOperation,
     raw_effect: bool,
     duration: Option<EffectDuration>,
     amplifier: Option<u8>,
     show_particles: bool,
 }
 
+#[derive(Debug, Clone)]
+enum EffectOperation {
+    Give(String),
+    Clear(Option<String>),
+}
+
 impl EffectCommand {
+    /// Clears one native effect from the selected entities.
+    /// Validation is deferred until rendering; no effect watcher or State is created.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::clear_effect",
+        aliases = ["sand::cmd::EffectCommand::clear_effect", "sand::prelude::cmd::EffectCommand::clear_effect"],
+        module = "sand::command", kind = "method",
+        summary = "Clears one native effect from the selected entities.",
+        context = "Retains typed native effect removal intent until command validation and rendering.",
+        minecraft = "Emits effect clear for the selected entities; absent effects are harmless.",
+        use_when = ["Removing native Minecraft effects"],
+        avoid_when = ["Observing effect transitions"],
+        params(target = "Entities whose effect is cleared.", effect = "The canonical effect identifier to remove."),
+        returns = "A structured effect removal command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, effect: sand::registry::StatusEffectId) {\n    let effect_command = sand::command::EffectCommand::clear_effect(target, effect);\n}",
+    )]
+    pub fn clear_effect(
+        target: impl TargetArgument,
+        effect: impl RegistryReference<StatusEffectRegistry>,
+    ) -> Self {
+        Self {
+            target: target.into_target_selector(),
+            operation: EffectOperation::Clear(Some(effect.registry_id().to_string())),
+            raw_effect: false,
+            duration: None,
+            amplifier: None,
+            show_particles: true,
+        }
+    }
+
+    /// Clears all native effects from the selected entities.
+    /// Validation is deferred until rendering; no effect watcher or State is created.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::clear",
+        aliases = ["sand::cmd::EffectCommand::clear", "sand::prelude::cmd::EffectCommand::clear"],
+        module = "sand::command", kind = "method",
+        summary = "Clears all native effects from the selected entities.",
+        context = "Retains typed native effect removal intent until command validation and rendering.",
+        minecraft = "Emits effect clear for the selected entities; absent effects are harmless.",
+        use_when = ["Removing native Minecraft effects"],
+        avoid_when = ["Observing effect transitions"],
+        params(target = "Entities whose effects are cleared."),
+        returns = "A structured effect removal command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target) {\n    let effect_command = sand::command::EffectCommand::clear(target);\n}",
+    )]
+    pub fn clear(target: impl TargetArgument) -> Self {
+        Self {
+            target: target.into_target_selector(),
+            operation: EffectOperation::Clear(None),
+            raw_effect: false,
+            duration: None,
+            amplifier: None,
+            show_particles: true,
+        }
+    }
+
     /// Creates a typed effect command builder from the supplied command inputs.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -134,7 +197,7 @@ impl EffectCommand {
     ) -> Self {
         Self {
             target: target.into_target_selector(),
-            effect: effect.registry_id().to_string(),
+            operation: EffectOperation::Give(effect.registry_id().to_string()),
             raw_effect: false,
             duration: None,
             amplifier: None,
@@ -161,7 +224,7 @@ impl EffectCommand {
     pub fn give_raw(target: impl TargetArgument, effect: impl Into<String>) -> Self {
         Self {
             target: target.into_target_selector(),
-            effect: effect.into(),
+            operation: EffectOperation::Give(effect.into()),
             raw_effect: true,
             duration: None,
             amplifier: None,
@@ -169,7 +232,7 @@ impl EffectCommand {
         }
     }
 
-    /// Sets the effect duration on this command builder.
+    /// Sets the duration for effect give. Clear commands reject give-only options at validation.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::EffectCommand::duration",
@@ -238,8 +301,21 @@ impl Validate for EffectCommand {
         self.target
             .validate(profile)
             .map_err(|error| effect_error("SAND-EFFECT-TARGET", "target", error.to_string()))?;
-        if !self.raw_effect {
-            crate::validate::resource_location_shape(&self.effect, "EffectCommand", "effect")
+        let effect = match &self.operation {
+            EffectOperation::Give(effect) => Some(effect),
+            EffectOperation::Clear(effect) => effect.as_ref(),
+        };
+        if matches!(self.operation, EffectOperation::Clear(_))
+            && (self.duration.is_some() || self.amplifier.is_some() || !self.show_particles)
+        {
+            return Err(effect_error(
+                "SAND-EFFECT-CLEAR",
+                "options",
+                "duration, amplifier and particles apply only to effect give",
+            ));
+        }
+        if let Some(effect) = effect.filter(|_| !self.raw_effect) {
+            crate::validate::resource_location_shape(effect, "EffectCommand", "effect")
                 .map_err(|error| effect_error("SAND-EFFECT-ID", "effect", error.message))?;
         }
         if let Some(duration) = self.duration {
@@ -266,7 +342,16 @@ impl Validate for EffectCommand {
 
 impl RenderCommand for EffectCommand {
     fn render_unchecked(&self, _profile: &CommandProfile) -> String {
-        let mut output = format!("effect give {} {}", self.target, self.effect);
+        let effect = match &self.operation {
+            EffectOperation::Give(effect) => effect,
+            EffectOperation::Clear(effect) => {
+                return match effect {
+                    Some(effect) => format!("effect clear {} {effect}", self.target),
+                    None => format!("effect clear {}", self.target),
+                };
+            }
+        };
+        let mut output = format!("effect give {} {effect}", self.target);
         if let Some(duration) = self.duration {
             output.push(' ');
             output.push_str(&duration.render());
@@ -375,6 +460,32 @@ mod tests {
                 .unwrap(),
             "effect give @s minecraft:speed 10 1 true"
         );
+    }
+
+    #[test]
+    fn clear_commands_retain_target_and_validate_options() {
+        let profile = CommandProfile::unprofiled();
+        assert_eq!(
+            EffectCommand::clear(Selector::self_())
+                .render(&profile)
+                .unwrap(),
+            "effect clear @s"
+        );
+        assert!(
+            EffectCommand::clear(Selector::all_entities().tag("bad tag"))
+                .render(&profile)
+                .is_err()
+        );
+        for command in [
+            EffectCommand::clear(Selector::self_()).duration(EffectDuration::Seconds(10)),
+            EffectCommand::clear(Selector::self_()).amplifier(1),
+            EffectCommand::clear(Selector::self_()).particles(false),
+        ] {
+            assert_eq!(
+                command.render(&profile).unwrap_err().code,
+                "SAND-EFFECT-CLEAR"
+            );
+        }
     }
 
     #[test]

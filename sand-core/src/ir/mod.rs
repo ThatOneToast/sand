@@ -325,6 +325,12 @@ pub enum Cmd {
     /// Standalone typed `data get|remove|modify|merge` command IR.
     Data(sand_commands::DataCommand),
 
+    /// Native damage intent, retained until validated command rendering.
+    Damage(Box<sand_commands::Damage>),
+
+    /// Native effect give or removal, retained until validated command rendering.
+    Effect(sand_commands::EffectCommand),
+
     /// `execute <operations…> run <cmd>`, retaining ordered typed operations.
     Execute {
         operations: Vec<ExecuteOp>,
@@ -559,6 +565,11 @@ impl Cmd {
                 op.render()
             }
 
+            Self::Damage(command) => command.as_ref().clone().try_run()?.join("\n"),
+            Self::Effect(command) => sand_commands::RenderCommand::render(
+                command,
+                &sand_commands::CommandProfile::unprofiled(),
+            )?,
             Self::Data(command) => {
                 command.try_render(&sand_commands::CommandProfile::unprofiled())?
             }

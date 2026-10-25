@@ -3,7 +3,7 @@ use std::fmt;
 use sand_commands::{Build, EffectCommand, EffectDuration, RenderCommand, TargetArgument};
 use sand_components::{EffectId, Ticks};
 
-use super::Command;
+use crate::ir::{Actions, Cmd};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -17,7 +17,9 @@ use super::Command;
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::EffectGive;",
 )]
-/// Builder for `effect give`.
+/// Builder for native effect application. Function macros, Conditions and
+/// `Execute::run_actions` retain this builder as typed actions until export.
+/// Use `build` or `try_build` only when explicit command text is required.
 #[derive(Debug, Clone)]
 pub struct EffectGive {
     command: EffectCommand,
@@ -195,7 +197,11 @@ impl fmt::Display for EffectGive {
     }
 }
 
-impl Command for EffectGive {}
+impl crate::IntoCommands for EffectGive {
+    fn into_commands(self) -> Actions {
+        Actions(vec![Cmd::Effect(self.command)])
+    }
+}
 
 impl From<EffectGive> for String {
     fn from(value: EffectGive) -> Self {

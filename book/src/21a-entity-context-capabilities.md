@@ -67,3 +67,48 @@ The owner is selected once. A missing entity or absent effect makes the query
 false; negation also matches missing entities. This creates no polling loop or
 persistent observation State. Use `give_effect`, `clear_effect`, and
 `clear_effects` for native effect mutations.
+
+## Native damage and effect actions
+
+Living capabilities produce authored operations: `damage`, `clear_effect`, and
+`clear_effects` return `Actions`. `give_effect` returns the canonical `EffectGive`
+builder, which function macros, `when(...).then(...)`, and
+`Execute::run_actions` collect without converting it to text. Player handles
+injected into functions or obtained from events use the same living capability:
+
+```rust,ignore
+#[function("combat:dispel", context = player)]
+fn dispel(player: EntityContext<PlayerKind>) {
+    when(player.living().has_effect(EffectId::Speed)).then(mcfunction![
+        player.living().damage(DamageAmount::hearts(0.5), DamageKind::Magic);
+        player.living().clear_effect(EffectId::Speed);
+        player.living().give_effect(EffectId::Glowing)
+            .duration(Ticks::seconds(3)).particles(false);
+    ]);
+}
+```
+
+The maintained Trailforge grapple action uses the same builder to apply its
+short speed and slow-falling buffs. Query and `EntityScope::bind` handles also
+retain their targets through these operations. Mutations do not implicitly
+change the executor, position, dimension, rotation, or anchor.
+
+Damage amounts use `DamageAmount` (or a convertible fixed number), and effects
+use canonical effect IDs and durations. Durations must be positive whole seconds;
+`Ticks` inputs must be exactly divisible by 20. Invalid amounts, durations, or
+selectors are reported by fallible pack export with the owning function. This
+replaces the former immediate `CommandResult<String>` damage result. Cached
+invalid actions remain invalid on every export. Explicit `build`/`try_build`
+methods remain available when advanced command-layer code needs text.
+
+These actions mutate **native Minecraft health and effects**. They do not
+synchronize an unrelated Sand State field named `health`, take ownership from
+archetype property bindings, install observers, or provide exact damage-event
+payloads. Minecraft damage immunity, armor and other native rules still apply.
+Native health reads remain `EntityData`; arithmetic uses `StatCurve`/`ScoreExpr`.
+Generic entities and known nonliving kinds cannot obtain living capabilities.
+
+This is partial coverage of #383/#381: fixed native damage and effect mutations
+compose with existing reads and Conditions. General health writes, dynamic
+damage/duration expressions, movement and exact damage observation are outside
+this slice; both issues remain open.

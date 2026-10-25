@@ -241,3 +241,9 @@ fn player_handle_rustdoc_examples_compile() {
     drop(cases);
     std::fs::remove_dir_all(directory).unwrap();
 }
+
+#[test]
+fn living_mutation_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/cases/fail_nonliving_mutations.rs");
+}

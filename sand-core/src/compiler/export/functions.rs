@@ -101,7 +101,7 @@ pub(crate) fn drain_generated_resources_into(
                     )
                     .map_err(|error| {
                         sand_components::error::SandError::ComponentValidation {
-                            location: owner.to_string(),
+                            location: owner,
                             kind: "generated gameplay requirement".into(),
                             field: "profile".into(),
                             message: error.to_string(),

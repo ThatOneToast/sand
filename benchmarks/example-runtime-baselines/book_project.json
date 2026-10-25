@@ -435,8 +435,8 @@
       },
       "trail:on_death": {
         "evaluations": {
-          "maximum": 8,
-          "minimum": 8,
+          "maximum": 6,
+          "minimum": 6,
           "unknown": []
         },
         "owners": [
@@ -457,23 +457,13 @@
             "line": 5,
             "operation": "if",
             "selector": "@s"
-          },
-          {
-            "line": 7,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 8,
-            "operation": "if",
-            "selector": "@s"
           }
         ]
       },
       "trail:on_first_join": {
         "evaluations": {
-          "maximum": 7,
-          "minimum": 7,
+          "maximum": 5,
+          "minimum": 5,
           "unknown": []
         },
         "owners": [
@@ -483,25 +473,14 @@
       },
       "trail:on_first_join/body": {
         "evaluations": {
-          "maximum": 6,
-          "minimum": 6,
+          "maximum": 4,
+          "minimum": 4,
           "unknown": []
         },
         "owners": [
           "book_project::on_first_join"
         ],
-        "selector_sites": [
-          {
-            "line": 2,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 3,
-            "operation": "if",
-            "selector": "@s"
-          }
-        ]
+        "selector_sites": []
       },
       "trail:on_obtained_grapple_core": {
         "evaluations": {

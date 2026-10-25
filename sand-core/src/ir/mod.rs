@@ -458,13 +458,23 @@ impl Cmd {
         owner: &sand_components::ResourceLocation,
     ) -> sand_commands::CommandResult<Self> {
         let mut commands = self.lower_for_export(owner)?;
-        if commands.len() == 1 {
+        if commands.len() == 1 && !self.requires_sequence_boundary() {
             Ok(commands.remove(0))
         } else {
             Ok(Self::AnonymousFunction {
                 prefix: "sand/action_sequence".into(),
                 body: Actions(commands),
             })
+        }
+    }
+
+    fn requires_sequence_boundary(&self) -> bool {
+        match self {
+            Self::NumericWrite(write) => write.requires_sequence_boundary(),
+            Self::WithConditionResources { run, .. } | Self::WithScoreOperands { run, .. } => {
+                run.requires_sequence_boundary()
+            }
+            _ => false,
         }
     }
 

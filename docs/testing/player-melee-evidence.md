@@ -1,18 +1,32 @@
-# Scripted player melee: bounded candidate for #265
+# Scripted player melee: bounded native evidence for #265
 
 ## Validation status
 
-The source candidate adds an explicit two-player melee command using the existing
-`participant_audit` export and passive client's opt-in controls. Focused Python
-tests pass. The first clean native run at `b65f4031ad4171eeb5f7f46838546fd145e24fea`
+The two-player melee command passed locally on October 25, 2026 at clean commit
+`55e8b954adec9a5895e128b98b958da52aa699db`, using the unchanged `participant_audit`
+export and the existing client's opt-in controls. All 31 focused tests pass.
+Independent source review approved the tested protocol delta. Full checks and
+hosted CI remain separate gates; full checks were held for resource coordination
+when this evidence was recorded. No participant reliability label changes.
+#265 remains open.
+
+The [machine-readable evidence](player-melee-evidence.json) binds all seven
+transitively used Python harness/client files and all eight tracked participant
+fixture files to that exact commit's blobs, compared byte-for-byte with the files
+used locally. It includes both jar hashes, every exported pack file hash, an
+aggregate pack digest, and hashes of the native driver log, server `latest.log`,
+both client logs, both final command/status files and the original run provenance.
+The later documentation commit records this run; it does not imply a later rerun.
+No server properties, credentials, jars or world contents are included.
+
+The first clean native run at `b65f4031ad4171eeb5f7f46838546fd145e24fea`
 exited **2 / INCONCLUSIVE** waiting for target tracking: both client position
 updates and initial health/UUID/item checks passed, but neither attack was sent.
 Both clients were reaped and the server stopped cleanly. The unchanged fixture
-export passed. An opt-in chunk-batch acknowledgment correction now has focused
-tests; a fresh native run is pending. Full checks remain held for the coordinated
-resource slot. The assertions below describe intended proof, not acquired
-combat evidence.
-No participant reliability label changes. #265 remains open.
+export passed. The opt-in chunk-batch acknowledgment correction enabled the
+subsequent successful run. Both runs' evidence is retained under the private
+local directory `/tmp/sand491-native-019ef031`, in separate `run-b65f4031` and
+`run-55e8b954` directories; the JSON also hashes the earlier driver/provenance files.
 
 After exporting `examples/participant_audit` through the normal build, run:
 
@@ -30,7 +44,7 @@ command/status files. An explicit `--output` directory is replaced by the base
 harness; use a dedicated disposable path. Do not upload server jars or world
 directories as evidence. No credentials are used by these controls.
 
-## Intended native assertions
+## Observed native assertions
 
 Two players remain connected throughout sequential reciprocal, nonfatal attacks.
 Server commands establish a flat arena, survival mode, health and distinct
@@ -53,6 +67,18 @@ weapon presence and full-item snapshot comparisons establish participant behavio
 The other player's event counters and native statistic must remain unchanged.
 Clearing the attacking hand afterward must leave its captured item unchanged;
 temporary participant tags must be absent in all vanilla dimensions.
+
+All of these checks passed. Both victims' independently read health fell from
+20 to 13, with positive vanilla damage-dealt statistics. Each client sent command
+1 (movement) and command 2 (attack), with no attack retries. Both complete sword
+snapshots included the correct `melee_owner` custom-data marker and unbreakable
+component. The distinct UUIDs, positive ownership and other-player absence checks
+passed after each hit, as did post-capture hand edits and tag cleanup.
+
+**Both melee hits occurred before reload.** After the completed assertions, both
+players were kicked and their subprocesses reaped. The shared harness then
+performed a successful reload smoke check and clean shutdown. There was no
+post-reload melee repetition, so this run adds no proof of post-reload combat.
 
 The harness never supplies damage through `/damage`, grants advancements, or
 calls generated handlers. The existing initialization function only prepares the
@@ -133,7 +159,9 @@ decrements that count and clamps the requested rate to `0.01..64.0` (NaN becomes
 which excludes chunks still pending in that player's sender. The inconclusive
 run received one batch-finished packet but the old client never acknowledged it;
 after teleport, no target mapping arrived. These bytecode gates support the
-chunk-flow diagnosis; they are not yet a successful corrected native proof.
+chunk-flow diagnosis. The corrected clean-head run then received the required
+target mappings and passed both native attacks; this proves the bounded corrected
+path, not general client chunk-rendering or gameplay behavior.
 
 Reproduce the relevant codec inspection without launching a server:
 

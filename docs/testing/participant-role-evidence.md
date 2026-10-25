@@ -19,12 +19,14 @@ changes. #431 fixes missing teleport acknowledgments in the passive audit client
 this does not add movement or combat input support.
 A synchronous server-function sequence also checks three accepted alternating-attacker hits,
 independent UUIDs, both actual advancement handlers and the other player's unchanged
-counters. Mixed melee/projectile input and client attack-input packets remain open;
+counters. Mixed melee/projectile input remains open;
 the historical direct-handler evidence below does not imply those are covered.
 
-An opt-in [scripted melee candidate](player-melee-evidence.md) extends the existing
-client and reuses this participant fixture. Its packet/control unit tests pass;
-native proof is pending. It does not upgrade the runtime evidence summarized here.
+The opt-in [scripted melee audit](player-melee-evidence.md) now proves two sequential
+reciprocal client attack packets on 26.2, with independent native hit acceptance,
+attacker/victim UUIDs, full weapon snapshots, other-player counter isolation and
+cleanup. Both hits precede reload; the later reload is only a smoke check. This
+bounded result does not prove rapid/mixed projectile input or upgrade reliability.
 
 
 Role-by-role audit of what vanilla Minecraft Java actually exposes for

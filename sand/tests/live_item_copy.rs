@@ -217,6 +217,71 @@ fn body<'a>(pack: &'a Value, path: &str) -> &'a str {
         .unwrap()
 }
 
+// Discover helper calls and the bound tag from observable commands, never from
+// private generated names. Only copies reachable from `scoped` count as evidence.
+fn assert_scoped_owners(pack: &Value) {
+    fn visit(
+        pack: &Value,
+        path: &str,
+        changed_executor: bool,
+        seen: &mut std::collections::HashSet<(String, bool)>,
+        copies: &mut Vec<(String, bool)>,
+    ) {
+        if !seen.insert((path.to_owned(), changed_executor)) {
+            return;
+        }
+        for line in body(pack, path).lines() {
+            if line.starts_with("item replace ") {
+                copies.push((line.to_owned(), changed_executor));
+            }
+            let words: Vec<_> = line.split_whitespace().collect();
+            for pair in words.windows(2).filter(|pair| pair[0] == "function") {
+                let (_, child) = pair[1].split_once(':').expect("qualified helper");
+                visit(
+                    pack,
+                    child,
+                    changed_executor || line.starts_with("execute as @a[tag=copy_other] "),
+                    seen,
+                    copies,
+                );
+            }
+        }
+    }
+    let scoped = body(pack, "scoped");
+    let tags: Vec<_> = scoped
+        .lines()
+        .filter_map(|line| line.strip_prefix("tag @s add "))
+        .collect();
+    assert_eq!(tags.len(), 1, "one bound owner: {scoped}");
+    let owner = format!("@e[tag={},limit=1]", tags[0]);
+    let mut copies = Vec::new();
+    visit(
+        pack,
+        "scoped",
+        false,
+        &mut std::collections::HashSet::new(),
+        &mut copies,
+    );
+    assert_eq!(
+        copies,
+        vec![
+            (
+                format!(
+                    "item replace entity @s weapon.offhand from entity {owner} weapon.mainhand"
+                ),
+                true
+            ),
+            (
+                format!(
+                    "item replace entity {owner} weapon.offhand from entity @s weapon.mainhand"
+                ),
+                true
+            ),
+        ],
+        "both endpoints must retain the bound owner across the other-player query"
+    );
+}
+
 #[test]
 fn facade_copy_is_native_and_cached_exports_are_isolated_a_b_a() {
     let _ = cached();
@@ -260,15 +325,7 @@ fn facade_copy_is_native_and_cached_exports_are_isolated_a_b_a() {
         ] {
             assert_eq!(body(&pack, path), expected, "{path}");
         }
-        assert!(json.contains("execute as @a"));
-        assert!(
-            json.contains("from entity @e[tag="),
-            "scoped source retains owner"
-        );
-        assert!(
-            json.contains("item replace entity @e[tag="),
-            "scoped destination retains owner"
-        );
+        assert_scoped_owners(&pack);
         assert!(!json.contains("__sand_local:"));
         assert!(!json.contains("data modify entity"));
         assert!(!json.contains("with air"), "copy must not append a clear");

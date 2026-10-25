@@ -4,6 +4,12 @@
 Uses PlayerHarness unchanged. Rust owns all gameplay; console commands set up
 worlds/inventories and compare exact resulting NBT. Requires an isolated absolute
 Cargo target and builds with two jobs. No move or full #382 completion is claimed.
+
+Proof limits: source-read ordering and differently addressed aliases are delegated
+to the exported native instruction, not independently distinguished here. Self-copy
+no-elision is an export assertion; replay success is native-only evidence. Failure
+diagnostics replay native commands and unchanged-state checks cover that combined
+sequence. Invalid destination containers are not fully inventory-snapshotted.
 """
 import argparse
 import hashlib
@@ -116,9 +122,11 @@ class CopyHarness(PlayerHarness):
         self.equal("SOURCE_A", "source0", f"entity {a} SelectedItem")
         self.check("OTHER_UNTOUCHED", f"if items entity {b} weapon.offhand minecraft:stick")
         self.call("self_copy", f"as {a}")
+        self.equal("SELF_FIXTURE_CONTENTS", "source0", f"entity {a} SelectedItem")
+        # Native-only setter success; no-elision is proved by the Rust export test.
         self.send(f"execute store success score #self copy_oracle as {a} run {self.native['self_copy']}")
-        self.check("SELF_NATIVE_SUCCESS", "if score #self copy_oracle matches 1")
-        self.equal("SELF", "source0", f"entity {a} SelectedItem")
+        self.check("SELF_NATIVE_ONLY_SUCCESS", "if score #self copy_oracle matches 1")
+        self.equal("SELF_NATIVE_ONLY_CONTENTS", "source0", f"entity {a} SelectedItem")
         for player, enabled in ((a, 0), (b, 1)):
             self.equip(player, "minecraft:stick", slot="weapon.offhand")
             self.send(f"scoreboard players set {player} {self.objectives['enabled']} {enabled}")
@@ -131,9 +139,15 @@ class CopyHarness(PlayerHarness):
         for owner, other, oi, ti in ((a, b, 0, 1), (b, a, 1, 0)):
             self.send("tag @a remove copy_other")
             self.send(f"tag {other} add copy_other")
+            for destination in (owner, other):
+                self.equip(destination, "minecraft:stick", slot="weapon.offhand")
+                self.check(f"SCOPED_START_{owner}_{destination}",
+                           f"if items entity {destination} weapon.offhand minecraft:stick")
             self.call("scoped", f"as {owner}")
             self.equal(f"SCOPED_DEST_{owner}", f"source{ti}", f"entity {owner} equipment.offhand")
             self.equal(f"SCOPED_SOURCE_{owner}", f"source{oi}", f"entity {other} equipment.offhand")
+            self.equal(f"SCOPED_OWNER_UNCHANGED_{owner}", f"source{oi}", f"entity {owner} SelectedItem")
+            self.equal(f"SCOPED_OTHER_UNCHANGED_{owner}", f"source{ti}", f"entity {other} SelectedItem")
         self.equip(zombie, 'minecraft:diamond[minecraft:custom_data={zombie:1b}]', 5)
         self.capture("zombie", f"entity {zombie} equipment.mainhand")
         self.call("zombie", f"as {zombie}")
@@ -153,8 +167,14 @@ class CopyHarness(PlayerHarness):
         self.capture("block", "block 1 85 0 Items[{Slot:0b}]")
         self.send("data remove storage live_copy:oracle block.Slot")
         self.equal("BLOCK_BLOCK", "source0", "storage live_copy:oracle block")
+        self.equip(b, "minecraft:stick", slot="weapon.offhand")
+        self.check("BLOCK_ENTITY_START", f"if items entity {b} weapon.offhand minecraft:stick")
         self.call("from_block", f"as {b} positioned 1 85 0")
         self.equal("BLOCK_ENTITY", "source0", f"entity {b} equipment.offhand")
+        self.send("data remove storage live_copy:oracle block")
+        self.capture("block", "block 1 85 0 Items[{Slot:0b}]")
+        self.send("data remove storage live_copy:oracle block.Slot")
+        self.equal("BLOCK_ENTITY_SOURCE_UNCHANGED", "source0", "storage live_copy:oracle block")
         for dimension in ("minecraft:overworld", "minecraft:the_nether"):
             for y in (85, 86):
                 self.send(f"execute in {dimension} run setblock 1 {y} 0 minecraft:air")
@@ -167,12 +187,21 @@ class CopyHarness(PlayerHarness):
         self.check("NO_FEET_REANCHOR", "in minecraft:the_nether unless data block 1 85 0 Items[0]")
         self.check("NO_DIMENSION_CHANGE", "in minecraft:overworld unless data block 1 86 0 Items[0]")
         self.send(f"tag {b} add copy_destination")
+        self.equip(b, "minecraft:stick")
+        self.check("PLURAL_FIXTURE_START", f"if items entity {b} weapon.mainhand minecraft:stick")
         self.call("plural", f"as {a}")
+        # Observe the fixture before any replay can repair an ineffective call.
+        self.equal("PLURAL_FIXTURE_ACCEPTED", "source0", f"entity {b} SelectedItem")
+        self.check("PLURAL_FIXTURE_REJECTED", f"unless data entity {marker} Inventory")
+        self.equal("PLURAL_FIXTURE_SOURCE", "source0", f"entity {a} SelectedItem")
+        # Separate native-only acceptance-count experiment, with a fresh start.
+        self.equip(b, "minecraft:stick")
+        self.check("PLURAL_NATIVE_ONLY_START", f"if items entity {b} weapon.mainhand minecraft:stick")
         self.send(f"execute store result score #accepted copy_oracle as {a} run {self.native['plural']}")
-        self.check("PLURAL_ONE_ACCEPTED", "if score #accepted copy_oracle matches 1")
-        self.equal("PLURAL_ACCEPTED", "source0", f"entity {b} SelectedItem")
-        self.check("PLURAL_REJECTED", f"unless data entity {marker} Inventory")
-        self.equal("PLURAL_SOURCE", "source0", f"entity {a} SelectedItem")
+        self.check("PLURAL_NATIVE_ONLY_ONE_ACCEPTED", "if score #accepted copy_oracle matches 1")
+        self.equal("PLURAL_NATIVE_ONLY_ACCEPTED", "source0", f"entity {b} SelectedItem")
+        self.check("PLURAL_NATIVE_ONLY_REJECTED", f"unless data entity {marker} Inventory")
+        self.equal("PLURAL_NATIVE_ONLY_SOURCE", "source0", f"entity {a} SelectedItem")
         for path, frame, diagnostic in (
             ("missing_source", f"as {a}", r"No entit"),
             ("incompatible_source", f"as {a}", r"slot"),

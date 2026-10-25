@@ -324,9 +324,9 @@ fn validate_raw_ambient_sounds(value: &Value, owner: &ResourceLocation) -> SandR
         sound(&value["sound"], &format!("{path}.sound"))?;
         if mood {
             for field in ["tick_delay", "block_search_extent"] {
-                if !value[field]
+                if value[field]
                     .as_i64()
-                    .is_some_and(|n| i32::try_from(n).is_ok())
+                    .is_none_or(|n| i32::try_from(n).is_err())
                 {
                     return Err(validation::error(
                         owner,

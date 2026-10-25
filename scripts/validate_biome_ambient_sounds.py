@@ -31,8 +31,11 @@ class BiomeAmbientHarness(WorldGameplayHarness):
         for name in CASES:
             resource = f"sand_audit:ambient/{name}"
             self.checks[name] = False
-            self.send(f"execute in minecraft:overworld run fillbiome 0 80 0 0 80 0 {resource}")
-            self.check(name, f"in minecraft:overworld if biome 0 80 0 {resource}")
+            # BiomeManager samples one of eight jittered quart-cell neighbors
+            # after subtracting two from each block coordinate. Fill the loaded
+            # chunk around an interior point so every candidate cell is covered.
+            self.send(f"execute in minecraft:overworld run fillbiome 0 64 0 15 95 15 {resource}")
+            self.check(name, f"in minecraft:overworld if biome 8 80 8 {resource}")
             self.checks[name] = True
 
 

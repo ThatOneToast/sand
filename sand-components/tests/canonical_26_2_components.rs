@@ -58,6 +58,7 @@ use sand_components::{
     EnchantmentProvider, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
     ItemComponent, RawJson, ResourceLocation,
 };
+use sand_components::{BiomeAmbientSounds, SoundEventDefinition};
 
 fn id(path: &str) -> ResourceLocation {
     ResourceLocation::new("canon", path).unwrap()
@@ -923,8 +924,12 @@ fn canonical_26_2_worldgen_biome() {
         id("worldgen/biome/scorched_wastes"),
         BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF)
             .grass_color(0x8A_B689)
-            .foliage_color(0x71_A74D)
-            .ambient_sound(SoundEventId::minecraft("ambient.nether_wastes.loop").unwrap()),
+            .foliage_color(0x71_A74D),
+    )
+    .ambient_sounds(
+        BiomeAmbientSounds::new().loop_sound(SoundEventDefinition::reference(
+            SoundEventId::minecraft("ambient.nether_wastes.loop").unwrap(),
+        )),
     )
     .has_precipitation(false)
     .temperature(2.0)
@@ -939,6 +944,7 @@ fn canonical_26_2_worldgen_biome() {
     expected_features[GenerationStep::UndergroundOres as usize] = vec!["minecraft:ore_iron"];
     let expected = serde_json::json!({
         "has_precipitation": false,
+        "attributes": {"minecraft:audio/ambient_sounds":{"loop":"minecraft:ambient.nether_wastes.loop","additions":[]}},
         "temperature": 2.0,
         "temperature_modifier": "none",
         "downfall": 0.0,
@@ -949,7 +955,6 @@ fn canonical_26_2_worldgen_biome() {
             "sky_color": 0x78A7FF,
             "grass_color": 0x8A_B689,
             "foliage_color": 0x71_A74D,
-            "ambient_sound": "minecraft:ambient.nether_wastes.loop"
         },
         "features": expected_features,
         "carvers": [],

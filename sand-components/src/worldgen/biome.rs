@@ -1,9 +1,9 @@
 //! Biome builder for `data/<namespace>/worldgen/biome/<id>.json`.
 //!
-//! This module types the biome-effects ambient sound reference, the
+//! This module types biome ambient sound environment attributes, the
 //! `temperature_modifier` field, the per-generation-step `features`
 //! list-of-lists, and the step-grouped `carvers` map — see
-//! [`BiomeEffects::ambient_sound`], [`Biome::temperature_modifier`],
+//! [`Biome::ambient_sounds`], [`Biome::temperature_modifier`],
 //! [`Biome::feature`], [`Biome::carver_step`], [`Biome::spawners`], and
 //! [`Biome::spawn_costs`]. Explicit raw setters support unsupported schemas.
 
@@ -11,10 +11,11 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
+use crate::SoundEventDefinition;
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
 use crate::raw::RawJson;
-use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, EntityTypeId, SoundEventId};
+use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, EntityTypeId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 use crate::worldgen::structure::{GenerationStep, MobCategory, SpawnEntry};
@@ -99,24 +100,6 @@ enum SpawnValue<T> {
     Raw(Value),
 }
 
-// ── AmbientSoundReference ────────────────────────────────────────────────────
-
-/// How a [`BiomeEffects::ambient_sound`] reference was supplied.
-#[derive(Debug, Clone)]
-enum AmbientSoundReference {
-    Typed(SoundEventId),
-    Raw(String),
-}
-
-impl AmbientSoundReference {
-    fn as_string(&self) -> String {
-        match self {
-            Self::Typed(id) => id.to_string(),
-            Self::Raw(id) => id.clone(),
-        }
-    }
-}
-
 // ── FeaturesValue ─────────────────────────────────────────────────────────────
 
 /// How [`Biome::features`] was supplied.
@@ -181,6 +164,223 @@ impl TemperatureModifierValue {
     }
 }
 
+const AMBIENT_SOUNDS_ATTRIBUTE: &str = "minecraft:audio/ambient_sounds";
+const AMBIENT_SOUNDS_PATH: &str = "attributes.minecraft:audio/ambient_sounds";
+
+/// A darkness-driven biome mood sound with its sampling delay, extent, and position offset.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeMoodSound", module = "sand::component", summary = "A darkness-driven biome mood sound with its sampling delay, extent, and position offset.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet mood = BiomeMoodSound::new(sound, 6000, 8, 2.0);")]
+#[derive(Clone, Debug)]
+pub struct BiomeMoodSound {
+    sound: SoundEventDefinition,
+    tick_delay: i32,
+    block_search_extent: i32,
+    offset: f64,
+}
+impl BiomeMoodSound {
+    /// Creates mood settings. All fields are required by Minecraft 26.2.
+    /// Signed integers are preserved; offset must be finite. The native codec imposes no sign bounds.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeMoodSound::new", module = "sand::component", summary = "Creates biome mood sound settings.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet mood = BiomeMoodSound::new(sound, 6000, 8, 2.0);", params(sound = "A registered or inline sound holder.", tick_delay = "Signed tick delay used by mood accumulation.", block_search_extent = "Signed block sampling extent.", offset = "Finite offset from the sampled sound position."), returns = "Settings validated when the biome is exported.")]
+    pub fn new(
+        sound: SoundEventDefinition,
+        tick_delay: i32,
+        block_search_extent: i32,
+        offset: f64,
+    ) -> Self {
+        Self {
+            sound,
+            tick_delay,
+            block_search_extent,
+            offset,
+        }
+    }
+    fn validate(&self, owner: &ResourceLocation, path: &str) -> SandResult<()> {
+        self.sound.validate(owner, KIND, &format!("{path}.sound"))?;
+        require_audio_finite(owner, &format!("{path}.offset"), self.offset)
+    }
+    fn to_json(&self) -> Value {
+        serde_json::json!({"sound":self.sound.to_json(),"tick_delay":self.tick_delay,"block_search_extent":self.block_search_extent,"offset":self.offset})
+    }
+}
+/// An additional ambient sound and its per-tick chance.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAdditionsSound", module = "sand::component", summary = "An additional ambient sound and its per-tick chance.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet additions = BiomeAdditionsSound::new(sound, 0.01);")]
+#[derive(Clone, Debug)]
+pub struct BiomeAdditionsSound {
+    sound: SoundEventDefinition,
+    tick_chance: f64,
+}
+impl BiomeAdditionsSound {
+    /// Creates additions settings. Chance must be finite, but is not clamped to 0..1:
+    /// Minecraft 26.2 uses an unrestricted double codec for this field.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAdditionsSound::new", module = "sand::component", summary = "Creates an additional biome ambient sound.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet additions = BiomeAdditionsSound::new(sound, 0.01);", params(sound = "A registered or inline sound holder.", tick_chance = "Finite per-tick chance; the native codec has no sign or probability bounds."), returns = "Settings validated when the biome is exported.")]
+    pub fn new(sound: SoundEventDefinition, tick_chance: f64) -> Self {
+        Self { sound, tick_chance }
+    }
+    fn validate(&self, owner: &ResourceLocation, path: &str) -> SandResult<()> {
+        self.sound.validate(owner, KIND, &format!("{path}.sound"))?;
+        require_audio_finite(owner, &format!("{path}.tick_chance"), self.tick_chance)
+    }
+    fn to_json(&self) -> Value {
+        serde_json::json!({"sound":self.sound.to_json(),"tick_chance":self.tick_chance})
+    }
+}
+/// Ambient loop, optional mood, and ordered additional sounds for a biome.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAmbientSounds", module = "sand::component", summary = "Ambient loop, optional mood, and ordered additional sounds for a biome.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet ambient = BiomeAmbientSounds::new().loop_sound(sound);")]
+#[derive(Clone, Debug)]
+pub struct BiomeAmbientSounds {
+    loop_sound: Option<SoundEventDefinition>,
+    mood: Option<BiomeMoodSound>,
+    additions: Vec<BiomeAdditionsSound>,
+}
+impl BiomeAmbientSounds {
+    /// Creates an explicit empty ambient sound set. Omit Biome::ambient_sounds to inherit defaults.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAmbientSounds::new", module = "sand::component", summary = "Creates an empty biome ambient sound set.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet ambient = BiomeAmbientSounds::new().loop_sound(sound);", returns = "An empty set with no loop, mood, or additions.")]
+    pub fn new() -> Self {
+        Self {
+            loop_sound: None,
+            mood: None,
+            additions: Vec::new(),
+        }
+    }
+    /// Replaces the continuous ambient loop sound.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAmbientSounds::loop_sound", module = "sand::component", summary = "Replaces the continuous ambient loop sound.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet ambient = BiomeAmbientSounds::new().loop_sound(sound);", params(sound = "The sound settings replacing the previous value."), returns = "The updated ambient sound set.")]
+    pub fn loop_sound(mut self, sound: SoundEventDefinition) -> Self {
+        self.loop_sound = Some(sound);
+        self
+    }
+    /// Replaces the darkness-driven mood sound.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAmbientSounds::mood_sound", module = "sand::component", summary = "Replaces the darkness-driven mood sound.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet ambient = BiomeAmbientSounds::new().mood_sound(BiomeMoodSound::new(sound, 6000, 8, 2.0));", params(sound = "The sound settings replacing the previous value."), returns = "The updated ambient sound set.")]
+    pub fn mood_sound(mut self, sound: BiomeMoodSound) -> Self {
+        self.mood = Some(sound);
+        self
+    }
+    /// Replaces all additional ambient sounds, preserving input order.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::BiomeAmbientSounds::additions_sound", module = "sand::component", summary = "Replaces the ordered additional ambient sounds.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet ambient = BiomeAmbientSounds::new().additions_sound([BiomeAdditionsSound::new(sound, 0.01)]);", params(sounds = "The complete replacement collection; empty removes all additions."), returns = "The updated ambient sound set.")]
+    pub fn additions_sound(
+        mut self,
+        sounds: impl IntoIterator<Item = BiomeAdditionsSound>,
+    ) -> Self {
+        self.additions = sounds.into_iter().collect();
+        self
+    }
+    fn validate(&self, owner: &ResourceLocation) -> SandResult<()> {
+        if let Some(sound) = &self.loop_sound {
+            sound.validate(owner, KIND, &format!("{AMBIENT_SOUNDS_PATH}.loop"))?;
+        }
+        if let Some(mood) = &self.mood {
+            mood.validate(owner, &format!("{AMBIENT_SOUNDS_PATH}.mood"))?;
+        }
+        for (i, sound) in self.additions.iter().enumerate() {
+            sound.validate(owner, &format!("{AMBIENT_SOUNDS_PATH}.additions[{i}]"))?;
+        }
+        Ok(())
+    }
+    fn to_json(&self) -> Value {
+        let mut result = serde_json::json!({"additions":self.additions.iter().map(BiomeAdditionsSound::to_json).collect::<Vec<_>>()});
+        if let Some(sound) = &self.loop_sound {
+            result["loop"] = sound.to_json();
+        }
+        if let Some(mood) = &self.mood {
+            result["mood"] = mood.to_json();
+        }
+        result
+    }
+}
+impl Default for BiomeAmbientSounds {
+    /// Creates an empty ambient set, like [`Self::new`].
+    fn default() -> Self {
+        Self::new()
+    }
+}
+#[derive(Clone)]
+enum AmbientSoundsValue {
+    Typed(BiomeAmbientSounds),
+    Raw(Value),
+}
+impl AmbientSoundsValue {
+    fn to_json(&self) -> Value {
+        match self {
+            Self::Typed(value) => value.to_json(),
+            Self::Raw(value) => value.clone(),
+        }
+    }
+    fn validate(&self, owner: &ResourceLocation) -> SandResult<()> {
+        match self {
+            Self::Typed(value) => value.validate(owner),
+            Self::Raw(value) => validate_raw_ambient_sounds(value, owner),
+        }
+    }
+}
+fn validate_raw_ambient_sounds(value: &Value, owner: &ResourceLocation) -> SandResult<()> {
+    let path = AMBIENT_SOUNDS_PATH;
+    validation::require_json_object(owner, KIND, path, value)?;
+    let sound = |value: &Value, path: &str| {
+        SoundEventDefinition::raw(RawJson::new(value.clone())).validate(owner, KIND, path)
+    };
+    if let Some(value) = value.get("loop") {
+        sound(value, &format!("{path}.loop"))?;
+    }
+    let settings = |value: &Value, path: &str, mood: bool| -> SandResult<()> {
+        validation::require_json_object(owner, KIND, path, value)?;
+        sound(&value["sound"], &format!("{path}.sound"))?;
+        if mood {
+            for field in ["tick_delay", "block_search_extent"] {
+                if value[field]
+                    .as_i64()
+                    .is_none_or(|n| i32::try_from(n).is_err())
+                {
+                    return Err(validation::error(
+                        owner,
+                        KIND,
+                        &format!("{path}.{field}"),
+                        "required signed 32-bit integer",
+                    ));
+                }
+            }
+        }
+        let field = if mood { "offset" } else { "tick_chance" };
+        if !value[field].as_f64().is_some_and(f64::is_finite) {
+            return Err(validation::error(
+                owner,
+                KIND,
+                &format!("{path}.{field}"),
+                "required finite double",
+            ));
+        }
+        Ok(())
+    };
+    if let Some(value) = value.get("mood") {
+        settings(value, &format!("{path}.mood"), true)?;
+    }
+    if let Some(value) = value.get("additions") {
+        if let Some(values) = value.as_array() {
+            for (i, value) in values.iter().enumerate() {
+                settings(value, &format!("{path}.additions[{i}]"), false)?;
+            }
+        } else {
+            settings(value, &format!("{path}.additions"), false)?;
+        }
+    }
+    // These obsolete names are almost always an accidental legacy effects payload.
+    for field in [
+        "ambient_sound",
+        "mood_sound",
+        "additions_sound",
+        "attributes",
+        "effects",
+        AMBIENT_SOUNDS_ATTRIBUTE,
+    ] {
+        if value.get(field).is_some() {
+            return Err(validation::error(
+                owner,
+                KIND,
+                &format!("{path}.{field}"),
+                "expected the ambient attribute value with loop, mood, or additions, not a legacy field or enclosing map",
+            ));
+        }
+    }
+    Ok(())
+}
+
 // ── BiomeEffects ──────────────────────────────────────────────────────────────
 
 /// Visual and audio effects for a biome.
@@ -212,12 +412,6 @@ pub struct BiomeEffects {
     foliage_color: Option<u32>,
     /// Ambient particle effect (raw JSON, optional).
     particle: Option<Value>,
-    /// Ambient sound event reference (optional).
-    ambient_sound: Option<AmbientSoundReference>,
-    /// Mood sound (raw JSON, optional).
-    mood_sound: Option<Value>,
-    /// Additions sound (raw JSON, optional).
-    additions_sound: Option<Value>,
     /// Background music (raw JSON, optional).
     music: Option<Value>,
 }
@@ -247,9 +441,6 @@ impl BiomeEffects {
             grass_color: None,
             foliage_color: None,
             particle: None,
-            ambient_sound: None,
-            mood_sound: None,
-            additions_sound: None,
             music: None,
         }
     }
@@ -294,7 +485,8 @@ impl BiomeEffects {
         self
     }
 
-    /// Sets the ambient particle effect through the explicit raw JSON escape hatch.
+    /// Legacy particle effects JSON; Minecraft 26.2 ignores this effects field.
+    /// Typed ambient particle environment attributes remain unsupported.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::BiomeEffects::particle",
@@ -314,91 +506,8 @@ impl BiomeEffects {
         self
     }
 
-    /// Sets the ambient loop sound to a typed [`SoundEventId`].
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::BiomeEffects::ambient_sound",
-        module = "sand::component",
-        kind = "method",
-        summary = "Sets the ambient loop sound to a typed [`SoundEventId`].",
-        context = "Sets the ambient loop sound to a typed [`SoundEventId`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` provides the typed Minecraft resource identifier used to set the ambient loop sound to a typed [`SoundEventId`]."),
-        returns = "The `BiomeEffects` value with the documented change applied to set the ambient loop sound to a typed [`SoundEventId`].",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::registry::SoundEventId)  {\n    let updated_biome_effects = biome_effects_value.ambient_sound(sound);\n}",
-    )]
-    pub fn ambient_sound(mut self, sound: SoundEventId) -> Self {
-        self.ambient_sound = Some(AmbientSoundReference::Typed(sound));
-        self
-    }
-
-    /// Sets the ambient loop sound through the explicit raw compatibility
-    /// path.
-    ///
-    /// Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This
-    /// escape hatch exists for modded or version-specific sound references.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::BiomeEffects::raw_ambient_sound",
-        module = "sand::component",
-        kind = "method",
-        summary = "Sets the ambient loop sound through the explicit raw compatibility path.",
-        context = "Sets the ambient loop sound through the explicit raw compatibility path. Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This escape hatch exists for modded or version-specific sound references.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This escape hatch exists for modded or version-specific sound references."],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` provides the sound applied when setting the ambient loop sound through the explicit raw compatibility path."),
-        returns = "The `BiomeEffects` value with the documented change applied to set the ambient loop sound through the explicit raw compatibility path.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: impl Into < String >)  {\n    let updated_biome_effects = biome_effects_value.raw_ambient_sound(sound);\n}",
-    )]
-    pub fn raw_ambient_sound(mut self, sound: impl Into<String>) -> Self {
-        self.ambient_sound = Some(AmbientSoundReference::Raw(sound.into()));
-        self
-    }
-
-    /// Sets the mood sound through the explicit raw JSON escape hatch.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::BiomeEffects::mood_sound",
-        module = "sand::component",
-        kind = "method",
-        summary = "Sets the mood sound through the explicit raw JSON escape hatch.",
-        context = "Sets the mood sound through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` provides the sound applied when setting the mood sound through the explicit raw JSON escape hatch."),
-        returns = "The `BiomeEffects` value with the documented change applied to set the mood sound through the explicit raw JSON escape hatch.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.mood_sound(sound);\n}",
-    )]
-    pub fn mood_sound(mut self, sound: RawJson) -> Self {
-        self.mood_sound = Some(sound.into_value());
-        self
-    }
-
-    /// Sets the additions sound through the explicit raw JSON escape hatch.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::BiomeEffects::additions_sound",
-        module = "sand::component",
-        kind = "method",
-        summary = "Sets the additions sound through the explicit raw JSON escape hatch.",
-        context = "Sets the additions sound through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` provides the sound applied when setting the additions sound through the explicit raw JSON escape hatch."),
-        returns = "The `BiomeEffects` value with the documented change applied to set the additions sound through the explicit raw JSON escape hatch.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.additions_sound(sound);\n}",
-    )]
-    pub fn additions_sound(mut self, sound: RawJson) -> Self {
-        self.additions_sound = Some(sound.into_value());
-        self
-    }
-
-    /// Sets the background music through the explicit raw JSON escape hatch.
+    /// Legacy music effects JSON; Minecraft 26.2 ignores this effects field.
+    /// Typed background music environment attributes remain unsupported.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::BiomeEffects::music",
@@ -444,15 +553,6 @@ impl BiomeEffects {
         }
         if let Some(ref p) = self.particle {
             map.insert("particle".to_string(), p.clone());
-        }
-        if let Some(ref s) = self.ambient_sound {
-            map.insert("ambient_sound".to_string(), Value::String(s.as_string()));
-        }
-        if let Some(ref ms) = self.mood_sound {
-            map.insert("mood_sound".to_string(), ms.clone());
-        }
-        if let Some(ref ads) = self.additions_sound {
-            map.insert("additions_sound".to_string(), ads.clone());
         }
         if let Some(ref music) = self.music {
             map.insert("music".to_string(), music.clone());
@@ -511,14 +611,6 @@ impl BiomeEffects {
                 fc,
                 0,
                 MAX_RGB_COLOR,
-            )?;
-        }
-        if let Some(AmbientSoundReference::Raw(ref sound)) = self.ambient_sound {
-            validation::validate_resource_location_str(
-                location,
-                KIND,
-                &format!("{path}.ambient_sound"),
-                sound,
             )?;
         }
         Ok(())
@@ -588,7 +680,7 @@ impl CarvingStep {
     minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-    example = "use sand::component::Biome;",
+    example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet biome = sand::component::Biome::new(\"example:cave\".parse().unwrap(), sand::component::BiomeEffects::new(0, 0, 0, 0)).ambient_sounds(BiomeAmbientSounds::new().loop_sound(sound));",
 )]
 pub struct Biome {
     location: ResourceLocation,
@@ -602,6 +694,7 @@ pub struct Biome {
     downfall: f32,
     /// Visual and audio effects for this biome.
     effects: BiomeEffects,
+    ambient_sounds: Option<AmbientSoundsValue>,
     /// Carvers as raw JSON (explicit escape hatch; see [`Biome::raw_carvers`]).
     carvers: Option<Value>,
     /// Carvers referenced by typed ID, grouped by carving step (see
@@ -616,6 +709,28 @@ pub struct Biome {
 }
 
 impl Biome {
+    /// Replaces the biome ambient audio environment attribute.
+    /// Minecraft 26.2 reads this under attributes, not the legacy effects object.
+    /// Repeated typed or raw assignments replace the same attribute.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Biome::ambient_sounds", module = "sand::component", summary = "Replaces the biome ambient audio environment attribute.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{BiomeAmbientSounds, BiomeMoodSound, BiomeAdditionsSound, SoundEventDefinition};\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::minecraft(\"ambient.cave\").unwrap());\nlet biome = sand::component::Biome::new(\"example:cave\".parse().unwrap(), sand::component::BiomeEffects::new(0, 0, 0, 0)).ambient_sounds(BiomeAmbientSounds::new().loop_sound(sound));", params(sounds = "The replacement ambient sounds value."), returns = "The updated biome.")]
+    pub fn ambient_sounds(mut self, sounds: BiomeAmbientSounds) -> Self {
+        self.ambient_sounds = Some(AmbientSoundsValue::Typed(sounds));
+        self
+    }
+    /// Replaces ambient audio with explicit raw JSON, validating known fields.
+    ///
+    /// Accepts an object with optional `loop`, `mood`, and `additions` fields.
+    /// Additions may be one settings object or an array. Unknown fields are
+    /// preserved; known fields must have their native shapes and finite numbers.
+    /// Pass the attribute value, not an entire `attributes` or `effects` map.
+    /// Minecraft 26.2 reads this under attributes, not the legacy effects object.
+    /// Repeated typed or raw assignments replace the same attribute.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::Biome::raw_ambient_sounds", module = "sand::component", summary = "Replaces ambient audio with explicit raw JSON, validating known fields.", context = "Biome::ambient_sounds assigns ambient audio to the Minecraft 26.2 environment attribute.", minecraft = "Writes attributes.minecraft:audio/ambient_sounds; sound holders use the shared SoundEventDefinition model.", use_when = ["Configuring biome ambient audio"], avoid_when = ["Playing sounds immediately; use sound commands"], example = "use sand::component::{Biome, BiomeEffects, RawJson};\nlet biome = Biome::new(\"example:cave\".parse().unwrap(), BiomeEffects::new(0, 0, 0, 0)).raw_ambient_sounds(RawJson::new(serde_json::json!({\"loop\":\"minecraft:ambient.cave\"})));", params(sounds = "The replacement ambient sounds value."), returns = "The updated biome.")]
+    pub fn raw_ambient_sounds(mut self, sounds: RawJson) -> Self {
+        self.ambient_sounds = Some(AmbientSoundsValue::Raw(sounds.into_value()));
+        self
+    }
+
     /// Creates a new biome with required base fields.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -639,6 +754,7 @@ impl Biome {
             temperature_modifier: TemperatureModifierValue::Typed(TemperatureModifier::None),
             downfall: 0.5,
             effects,
+            ambient_sounds: None,
             carvers: None,
             typed_carvers: BTreeMap::new(),
             features: None,
@@ -963,6 +1079,13 @@ impl DatapackComponent for Biome {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
+        if let Some(sounds) = &self.ambient_sounds {
+            map.insert(
+                "attributes".into(),
+                serde_json::json!({AMBIENT_SOUNDS_ATTRIBUTE: sounds.to_json()}),
+            );
+        }
+
         map.insert(
             "has_precipitation".to_string(),
             Value::Bool(self.has_precipitation),
@@ -1071,6 +1194,9 @@ impl DatapackComponent for Biome {
             ));
         }
         self.effects.validate(&self.location, "effects")?;
+        if let Some(sounds) = &self.ambient_sounds {
+            sounds.validate(&self.location)?;
+        }
         if let Some(ref v) = self.carvers {
             if !self.typed_carvers.is_empty() {
                 return Err(validation::error(
@@ -1119,6 +1245,14 @@ impl DatapackComponent for Biome {
 
     fn component_dir(&self) -> &'static str {
         "worldgen/biome"
+    }
+}
+
+fn require_audio_finite(owner: &ResourceLocation, path: &str, value: f64) -> SandResult<()> {
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(validation::error(owner, KIND, path, "must be finite"))
     }
 }
 
@@ -1218,39 +1352,6 @@ mod tests {
     fn optional_color_override_above_max_rejected() {
         let biome = Biome::new(location(), effects().grass_color(0xFFFF_FFFF));
         assert!(biome.validate().is_err());
-    }
-
-    #[test]
-    fn malformed_raw_ambient_sound_rejected() {
-        let biome = Biome::new(location(), effects().raw_ambient_sound(""));
-        let err = biome.validate().unwrap_err().to_string();
-        assert!(err.contains("ambient_sound"), "{err}");
-    }
-
-    #[test]
-    fn typed_ambient_sound_accepted() {
-        let biome = Biome::new(
-            location(),
-            effects().ambient_sound(SoundEventId::minecraft("ambient.cave").unwrap()),
-        );
-        assert!(biome.validate().is_ok());
-        assert_eq!(
-            biome.to_json()["effects"]["ambient_sound"],
-            "minecraft:ambient.cave"
-        );
-    }
-
-    #[test]
-    fn raw_ambient_sound_escape_hatch_still_works() {
-        let biome = Biome::new(
-            location(),
-            effects().raw_ambient_sound("modded:custom.ambient"),
-        );
-        assert!(biome.validate().is_ok());
-        assert_eq!(
-            biome.to_json()["effects"]["ambient_sound"],
-            "modded:custom.ambient"
-        );
     }
 
     #[test]

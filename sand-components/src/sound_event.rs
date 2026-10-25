@@ -1,18 +1,18 @@
-//! Shared sound-event holders for instrument and jukebox song resources.
+//! Shared sound-event holders for instruments, jukebox songs, and biome ambient audio.
 
 use sand_commands::resource::{RegistryReference, SoundEvent};
 use serde_json::{Value, json};
 
 use crate::{RawJson, ResourceLocation, SoundEventId, error::Result, validation};
 
-/// A registered sound event or an inline sound definition shared by instruments and songs.
+/// A registered sound event or an inline sound definition shared by instruments, songs, and biome ambient audio.
 ///
 /// References resolve an existing sound-event registry entry. Inline definitions
 /// name a sound from a resource pack directly, optionally fixing its audible
 /// range; they do not register a new sound event or package audio assets.
 /// Use [`Self::raw`] only for forms the typed constructors cannot express.
 #[derive(Debug, Clone)]
-#[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition", module = "sand::component", summary = "A registered or inline sound definition shared by instruments and jukebox songs.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;")]
+#[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition", module = "sand::component", summary = "A registered or inline sound definition shared by instruments, jukebox songs, and biome ambient audio.", context = "Instrument, JukeboxSong, and BiomeAmbientSounds share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument, jukebox_song, or biome ambient attribute JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instruments, songs, or biome ambient audio"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;")]
 pub struct SoundEventDefinition(SoundEventKind);
 
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl SoundEventDefinition {
     /// let custom = SoundEventId::custom("example:registered_chime".parse().unwrap());
     /// let sound = SoundEventDefinition::reference(custom);
     /// ```
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition::reference", module = "sand::component", summary = "Reference an existing sound-event registry entry.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::custom(\"example:registered_chime\".parse().unwrap()));", params(event = "A generated vanilla sound or validated SoundEventId."), returns = "A definition serialized as a registry reference string.")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition::reference", module = "sand::component", summary = "Reference an existing sound-event registry entry.", context = "Instrument, JukeboxSong, and BiomeAmbientSounds share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument, jukebox_song, or biome ambient attribute JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instruments, songs, or biome ambient audio"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;\nlet sound = SoundEventDefinition::reference(sand::registry::SoundEventId::custom(\"example:registered_chime\".parse().unwrap()));", params(event = "A generated vanilla sound or validated SoundEventId."), returns = "A definition serialized as a registry reference string.")]
     pub fn reference(event: impl RegistryReference<SoundEvent>) -> Self {
         Self(SoundEventKind::Reference(
             event
@@ -55,7 +55,7 @@ impl SoundEventDefinition {
     /// inline object's `range` field. Export rejects non-finite values; finite
     /// negative values and zero are accepted by Minecraft 26.2's sound codec.
     /// This is independent of the positive outer [`crate::Instrument::range`].
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition::inline", module = "sand::component", summary = "Define a resource-pack sound with an optional fixed audible range.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;\nlet sound = SoundEventDefinition::inline(\"example:chime\".parse().unwrap(), Some(32.0));", params(sound_id = "The resource-pack sound identifier.", fixed_range = "None for volume-dependent range, or any finite f32 for fixed range."), returns = "An inline sound definition, validated when its resource is exported.")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition::inline", module = "sand::component", summary = "Define a resource-pack sound with an optional fixed audible range.", context = "Instrument, JukeboxSong, and BiomeAmbientSounds share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument, jukebox_song, or biome ambient attribute JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instruments, songs, or biome ambient audio"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;\nlet sound = SoundEventDefinition::inline(\"example:chime\".parse().unwrap(), Some(32.0));", params(sound_id = "The resource-pack sound identifier.", fixed_range = "None for volume-dependent range, or any finite f32 for fixed range."), returns = "An inline sound definition, validated when its resource is exported.")]
     pub fn inline(sound_id: ResourceLocation, fixed_range: Option<f32>) -> Self {
         Self(SoundEventKind::Inline {
             sound_id,
@@ -69,7 +69,7 @@ impl SoundEventDefinition {
     /// `sound_id`. A present `range` must be a finite, representable f32 number;
     /// null, strings, and overflow are rejected. Unknown fields are retained
     /// verbatim, but their meaning and Minecraft support are the caller's responsibility.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition::raw", module = "sand::component", summary = "Preserve raw sound JSON while validating known sound fields at export.", context = "Instrument and JukeboxSong share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument or jukebox_song JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instrument or jukebox song resources"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;\nlet sound = SoundEventDefinition::raw(sand::component::RawJson::new(serde_json::json!({\"sound_id\":\"example:chime\",\"extension\":true})));", params(value = "A reference string or inline object, optionally containing extension fields."), returns = "A raw sound definition retaining unknown fields.")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::SoundEventDefinition::raw", module = "sand::component", summary = "Preserve raw sound JSON while validating known sound fields at export.", context = "Instrument, JukeboxSong, and BiomeAmbientSounds share sound definitions and validate required resource fields before export.", minecraft = "Exports Minecraft instrument, jukebox_song, or biome ambient attribute JSON; inline sound range is independent of instrument range.", use_when = ["Authoring instruments, songs, or biome ambient audio"], avoid_when = ["Playing a sound immediately; use typed sound commands"], example = "use sand::component::SoundEventDefinition;\nlet sound = SoundEventDefinition::raw(sand::component::RawJson::new(serde_json::json!({\"sound_id\":\"example:chime\",\"extension\":true})));", params(value = "A reference string or inline object, optionally containing extension fields."), returns = "A raw sound definition retaining unknown fields.")]
     pub fn raw(value: RawJson) -> Self {
         Self(SoundEventKind::Raw(value))
     }

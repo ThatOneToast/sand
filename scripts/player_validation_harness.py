@@ -53,7 +53,7 @@ class PlayerHarness(WorldGameplayHarness):
                         stdout=log, stderr=subprocess.STDOUT)
                     processes.append(process)
                     self.wait_for(re.compile(re.escape(player) + r" joined the game$"), "player-join", start)
-                yield
+                yield processes
                 if any(process.poll() is not None for process in processes):
                     raise ValidationFailure("player-client", "a client exited during the assertions")
                 # Let the server close each connection before terminating the

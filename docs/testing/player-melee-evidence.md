@@ -72,8 +72,11 @@ at most a 20-second command deadline and never retries an attack.
 
 Status reports client loading readiness, teleport acknowledgments, the current
 UUID-to-wire-ID map, last **sent** command ID, and control errors. It never reports
-accepted hits. Readiness, position or native-hit timeout exits **2 / INCONCLUSIVE**;
-protocol errors or a mismatch after native acceptance exits **1 / FAILED**.
+accepted hits. A healthy unmet readiness, position or native-hit condition at the
+deadline exits **2 / INCONCLUSIVE**. Every polling stage checks server/client
+process liveness and both clients' published protocol errors. Server send/marker
+failures, exited processes, protocol errors or a mismatch after native acceptance
+exit **1 / FAILED**.
 Both outcomes are non-success. Process cleanup uses the existing harness's
 finally-protected termination/reaping on every exit. Normal completion disconnects
 players from the server before terminating their subprocesses.

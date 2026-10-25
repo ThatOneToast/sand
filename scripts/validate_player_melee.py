@@ -39,11 +39,22 @@ class PlayerMeleeHarness(PlayerParticipantHarness):
     def wait_status(self, player, predicate, phase):
         deadline = time.monotonic() + self.args.timeout
         while time.monotonic() < deadline:
+            self.poll_health()
             status = self.status(player)
             if status is not None and predicate(status):
                 return status
             time.sleep(0.05)
+        self.poll_health()
         raise InconclusiveSetup(phase, f"{player}: bounded client readiness/ack wait expired")
+
+    def poll_health(self):
+        """Failures in either session or the server are never setup timeouts."""
+        if self.process is None or self.process.poll() is not None:
+            raise ValidationFailure("melee-server", "server exited during melee polling")
+        if any(process.poll() is not None for process in getattr(self, "client_processes", ())):
+            raise ValidationFailure("player-client", "a client exited during melee polling")
+        for player in self.players:
+            self.status(player)  # Raises on a published protocol/control error.
 
     def command(self, player, action, **fields):
         status = self.wait_status(player, lambda value: value["ready"], "client-ready")
@@ -55,11 +66,22 @@ class PlayerMeleeHarness(PlayerParticipantHarness):
         self.wait_status(player, lambda value: value["sent_id"] == sequence, "command-sent")
         print(f"SENT ONLY: {player} {action} command {sequence}", flush=True)
 
-    def native_eventually(self, name, condition):
-        try:
-            self.eventually(name, condition)
-        except ValidationFailure as error:
-            raise InconclusiveSetup(name, "native setup/action acceptance not established; no attack retried") from error
+    def native_eventually(self, name, condition, *, refresh=None):
+        deadline = time.monotonic() + self.args.timeout
+        while time.monotonic() < deadline:
+            self.poll_health()
+            if refresh is not None:
+                refresh()
+            marker = f"__SAND_WORLD_{name}_OK__"
+            # Send/server-exit/marker failures propagate as FAILED. Only a
+            # healthy server response lacking the condition may be inconclusive.
+            satisfied = self.passed(name, f"execute {condition} run say {marker}")
+            self.poll_health()
+            if satisfied:
+                return
+            time.sleep(0.1)
+        self.poll_health()
+        raise InconclusiveSetup(name, "native setup/action acceptance not established; no attack retried")
 
     def position(self, player, x, yaw):
         prior = self.wait_status(player, lambda value: value["ready"], "client-ready")["teleports"]
@@ -79,7 +101,8 @@ class PlayerMeleeHarness(PlayerParticipantHarness):
         self.send("function paudit:init")
         self.send("scoreboard objectives add paudit_check dummy")
         self.send("scoreboard objectives add melee_native minecraft.custom:minecraft.damage_dealt")
-        with self.clients():
+        with self.clients() as processes:
+            self.client_processes = processes
             for index, player in enumerate(self.players):
                 self.send(f"gamemode survival {player}")
                 self.send(f"tag {player} add paudit_subject_{index}")
@@ -105,15 +128,11 @@ class PlayerMeleeHarness(PlayerParticipantHarness):
             self.send("execute store success score #clock_ok paudit_check store result score #start paudit_check run time query gametime")
             self.check("CLOCK_START", "if score #clock_ok paudit_check matches 1")
             self.send("scoreboard players add #start paudit_check 21")
-            deadline = time.monotonic() + self.args.timeout
-            while time.monotonic() < deadline:
+            def refresh_clock():
                 self.send("execute store success score #clock_ok paudit_check store result score #now paudit_check run time query gametime")
                 self.check("CLOCK_NOW", "if score #clock_ok paudit_check matches 1")
-                if self.passed("MELEE_TICKS", "execute if score #now paudit_check >= #start paudit_check run say __SAND_WORLD_MELEE_TICKS_OK__"):
-                    break
-                time.sleep(0.1)
-            else:
-                raise InconclusiveSetup("native-clock", "21 game ticks did not elapse")
+            self.native_eventually("MELEE_TICKS", "if score #now paudit_check >= #start paudit_check",
+                                   refresh=refresh_clock)
             for index, attacker in enumerate(self.players):
                 victim = self.players[1 - index]
                 for field in ("weapon_item", "attacker_uuid", "attacker_b_uuid", "subject_uuid"):

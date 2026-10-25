@@ -20,10 +20,61 @@ class PlayerHarnessTests(unittest.TestCase):
 
     def test_native_melee_acceptance_timeout_is_inconclusive_not_a_pass(self):
         harness = PlayerMeleeHarness.__new__(PlayerMeleeHarness)
-        harness.eventually = Mock(side_effect=ValidationFailure("native", "no hit"))
-        with self.assertRaises(InconclusiveSetup):
-            harness.native_eventually("hit", "if score SandAlpha native matches 1..")
-        harness.eventually.assert_called_once()
+        harness.args = argparse.Namespace(timeout=1)
+        harness.poll_health = Mock()
+        harness.passed = Mock(return_value=False)
+        with patch("validate_player_melee.time.monotonic", side_effect=[0, 0, 2]), patch("validate_player_melee.time.sleep"):
+            with self.assertRaises(InconclusiveSetup):
+                harness.native_eventually("hit", "if score SandAlpha native matches 1..")
+        harness.passed.assert_called_once()
+
+    def test_native_melee_server_send_or_marker_failure_stays_failed(self):
+        for phase in ("reload", "world-hit"):
+            harness = PlayerMeleeHarness.__new__(PlayerMeleeHarness)
+            harness.args = argparse.Namespace(timeout=1)
+            harness.poll_health = Mock()
+            failure = ValidationFailure(phase, "server/marker failure")
+            harness.passed = Mock(side_effect=failure)
+            with self.subTest(phase=phase), self.assertRaises(ValidationFailure) as raised:
+                harness.native_eventually("hit", "if score SandAlpha native matches 1..")
+            self.assertIs(raised.exception, failure)
+
+    def test_all_melee_poll_stages_fail_on_server_exit_or_client_protocol_error(self):
+        for stage in ("ready", "native_hit", "native_ticks"):
+            for failure_kind in ("server", "client", "client_exit"):
+                harness = PlayerMeleeHarness.__new__(PlayerMeleeHarness)
+                harness.args = argparse.Namespace(timeout=1)
+                harness.process = Mock()
+                harness.process.poll.return_value = 1 if failure_kind == "server" else None
+                client_process = Mock()
+                client_process.poll.return_value = 1 if failure_kind == "client_exit" else None
+                harness.client_processes = [client_process]
+                harness.status = Mock(side_effect=ValidationFailure("client-control", "protocol failure"))
+                harness.passed = Mock(return_value=True)
+                refresh = Mock()
+                with self.subTest(stage=stage, failure_kind=failure_kind), self.assertRaises(ValidationFailure) as raised:
+                    if stage == "ready":
+                        harness.wait_status("SandAlpha", lambda value: True, "ready")
+                    else:
+                        harness.native_eventually(stage, "if entity SandAlpha", refresh=refresh)
+                self.assertNotIsInstance(raised.exception, InconclusiveSetup)
+                self.assertEqual(raised.exception.phase, {
+                    "server": "melee-server", "client": "client-control", "client_exit": "player-client",
+                }[failure_kind])
+                harness.passed.assert_not_called()
+                refresh.assert_not_called()
+
+    def test_client_error_published_during_native_poll_cannot_be_hidden_by_success(self):
+        harness = PlayerMeleeHarness.__new__(PlayerMeleeHarness)
+        harness.args = argparse.Namespace(timeout=1)
+        harness.process = Mock()
+        harness.process.poll.return_value = None
+        failure = ValidationFailure("client-control", "late protocol failure")
+        harness.status = Mock(side_effect=[None, None, failure])
+        harness.passed = Mock(return_value=True)
+        with self.assertRaises(ValidationFailure) as raised:
+            harness.native_eventually("hit", "if entity SandAlpha")
+        self.assertIs(raised.exception, failure)
 
     def test_melee_protocol_error_is_failure_not_inconclusive(self):
         with tempfile.TemporaryDirectory() as output:

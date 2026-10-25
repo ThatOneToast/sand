@@ -17,7 +17,8 @@
 # Registered block raycasting adds 14 enforced source items (two modules, one type, eleven methods).
 # Shared sound definitions and the instrument/song facade add three types and fifteen methods (+18 enforced source items).
 # Player context calls replace the redundant Event::subject alias (net zero source items).
-# Native effect clear/clear_effect add two canonical command-source constructors.
+# Native biome ambient audio replaces four ignored effects setters with three types and eight methods (+7 source items).
+# Typed living damage/effect mutations add two enforced source methods.
 # Named entity equipment accessors add six enforced entity-source methods.
 schema_version = 1
 
@@ -27,12 +28,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5044
+static_surface_items = 5051
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11144
+static_surface_items = 11151
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

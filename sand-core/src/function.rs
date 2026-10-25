@@ -578,8 +578,48 @@ pub(crate) enum GeneratedResource {
     ),
     Requirement {
         owner: sand_components::ResourceLocation,
-        feature: sand_version::ComponentFeature,
+        requirement: GeneratedRequirement,
     },
+}
+
+/// Export-owned validation, independent of Minecraft runtime work.
+pub(crate) enum GeneratedRequirement {
+    Feature(sand_version::ComponentFeature),
+    ExactProfile {
+        version: &'static str,
+        capability: &'static str,
+    },
+}
+
+/// Validate a verified schema against the effective target, including baseline exports.
+pub(crate) fn validate_exact_profile(
+    version: &str,
+    capability: &str,
+    requested: &str,
+    fallback: bool,
+) -> sand_commands::CommandResult<()> {
+    use crate::version::MinecraftVersion;
+    let effective = if requested == "latest" {
+        sand_version::LATEST_KNOWN
+    } else {
+        requested
+    };
+    let supported = !fallback
+        && matches!(
+            (MinecraftVersion::parse(effective).ok().and_then(|v| v.components()),
+             MinecraftVersion::parse(version).ok().and_then(|v| v.components())),
+            (Some(actual), Some(expected)) if actual == expected
+        );
+    if supported {
+        return Ok(());
+    }
+    Err(sand_commands::CommandError::new(
+        capability,
+        "profile",
+        format!(
+            "requires verified Minecraft {version}; requested {requested}, effective {effective}, fallback={fallback}"
+        ),
+    ))
 }
 
 /// A registered helper's actual authoring origin, never inferred from its name.
@@ -947,7 +987,24 @@ pub(crate) fn require_generated_feature(
     REGISTRY.with_borrow_mut(|registry| {
         registry.resources.push(GeneratedResource::Requirement {
             owner: owner.clone(),
-            feature,
+            requirement: GeneratedRequirement::Feature(feature),
+        })
+    });
+}
+
+/// Register only while lowering an owned action or native read.
+pub(crate) fn require_generated_profile(
+    owner: &sand_components::ResourceLocation,
+    version: &'static str,
+    capability: &'static str,
+) {
+    REGISTRY.with_borrow_mut(|registry| {
+        registry.resources.push(GeneratedResource::Requirement {
+            owner: owner.clone(),
+            requirement: GeneratedRequirement::ExactProfile {
+                version,
+                capability,
+            },
         })
     });
 }

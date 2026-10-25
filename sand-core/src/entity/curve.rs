@@ -692,6 +692,7 @@ pub(crate) enum LoweredCurveOperation {
         destination: String,
         target: sand_commands::DataTarget,
         path: sand_commands::NbtPath,
+        required_profile: Option<(&'static str, &'static str)>,
         scale: i64,
         overflow: OverflowPolicy,
     },
@@ -1014,6 +1015,7 @@ enum CurveInput {
     Nbt {
         target: sand_commands::DataTarget,
         path: sand_commands::NbtPath,
+        required_profile: Option<(&'static str, &'static str)>,
     },
 }
 
@@ -1026,7 +1028,14 @@ impl CurveInput {
                 ..
             } => format!("{holder} {}", objective.key()),
             Self::Score { objective, .. } => objective.key(),
-            Self::Nbt { target, path } => format!("nbt {target} {path}"),
+            Self::Nbt {
+                target,
+                path,
+                required_profile,
+            } => match required_profile {
+                None => format!("nbt {target} {path}"),
+                Some(requirement) => format!("nbt {target} {path} profile {requirement:?}"),
+            },
             Self::Attribute {
                 target,
                 attribute,
@@ -1276,9 +1285,14 @@ impl StatCurve {
     pub(crate) fn native_nbt(
         target: sand_commands::DataTarget,
         path: sand_commands::NbtPath,
+        required_profile: Option<(&'static str, &'static str)>,
     ) -> Self {
         Self {
-            kind: CurveKind::Input(CurveInput::Nbt { target, path }),
+            kind: CurveKind::Input(CurveInput::Nbt {
+                target,
+                path,
+                required_profile,
+            }),
         }
     }
 
@@ -2582,15 +2596,18 @@ impl CurveLoweringBuilder<'_> {
                             overflow: self.fixed.overflow(),
                         });
                 }
-                CurveInput::Nbt { target, path } => {
-                    self.operations.push(LoweredCurveOperation::NbtToFixed {
-                        destination: destination.clone(),
-                        target: target.clone(),
-                        path: path.clone(),
-                        scale: self.fixed.scale(),
-                        overflow: self.fixed.overflow(),
-                    })
-                }
+                CurveInput::Nbt {
+                    target,
+                    path,
+                    required_profile,
+                } => self.operations.push(LoweredCurveOperation::NbtToFixed {
+                    destination: destination.clone(),
+                    target: target.clone(),
+                    path: path.clone(),
+                    required_profile: *required_profile,
+                    scale: self.fixed.scale(),
+                    overflow: self.fixed.overflow(),
+                }),
             },
             CurveKind::Linear {
                 input,

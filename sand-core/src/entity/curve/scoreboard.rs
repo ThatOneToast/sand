@@ -215,6 +215,7 @@ pub(crate) fn render_lowered_curve(
                 destination,
                 target,
                 path,
+                required_profile,
                 scale,
                 overflow,
             } => {
@@ -229,6 +230,9 @@ pub(crate) fn render_lowered_curve(
                 // Snapshot the source once, preserving both NBT type and selector
                 // identity. A list retains cardinality: `set from` would silently
                 // pick the last match of a multi-valued source path.
+                if let Some((version, capability)) = required_profile {
+                    crate::function::require_generated_profile(context.owner, version, capability);
+                }
                 let native =
                     sand_commands::NbtRef::<f64>::__from_parts(target.clone(), path.clone());
                 let snapshot_target = sand_commands::DataTarget::storage(context.owner.to_string());

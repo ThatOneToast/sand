@@ -307,6 +307,13 @@ pub enum Cmd {
         run: Box<Cmd>,
     },
 
+    /// Retain an exact verified schema requirement without runtime commands.
+    WithProfileRequirement {
+        version: &'static str,
+        capability: &'static str,
+        run: Box<Cmd>,
+    },
+
     /// Return a constant from the current function frame.
     Return(i32),
 
@@ -428,6 +435,14 @@ impl Cmd {
             Self::BlockMatch(query) => return query.lower(owner),
             Self::BlockMutation(write) => return write.lower(owner),
             Self::NumericComparison(comparison) => return comparison.lower(owner),
+            Self::WithProfileRequirement {
+                version,
+                capability,
+                run,
+            } => {
+                crate::function::require_generated_profile(owner, version, capability);
+                return run.lower_for_export(owner);
+            }
             Self::WithConditionResources { condition, run } => {
                 condition.register_owned_resources();
                 return run.lower_for_export(owner);
@@ -471,9 +486,9 @@ impl Cmd {
     fn requires_sequence_boundary(&self) -> bool {
         match self {
             Self::NumericWrite(write) => write.requires_sequence_boundary(),
-            Self::WithConditionResources { run, .. } | Self::WithScoreOperands { run, .. } => {
-                run.requires_sequence_boundary()
-            }
+            Self::WithConditionResources { run, .. }
+            | Self::WithScoreOperands { run, .. }
+            | Self::WithProfileRequirement { run, .. } => run.requires_sequence_boundary(),
             _ => false,
         }
     }
@@ -486,7 +501,8 @@ impl Cmd {
             Self::Execute { run, .. }
             | Self::ReturnRun(run)
             | Self::WithScoreOperands { run, .. }
-            | Self::WithConditionResources { run, .. } => run.has_macro_line(),
+            | Self::WithConditionResources { run, .. }
+            | Self::WithProfileRequirement { run, .. } => run.has_macro_line(),
             _ => false,
         }
     }
@@ -496,7 +512,8 @@ impl Cmd {
             Self::Return(_) | Self::ReturnRun(_) => true,
             Self::Execute { run, .. }
             | Self::WithScoreOperands { run, .. }
-            | Self::WithConditionResources { run, .. } => run.may_return_from_frame(),
+            | Self::WithConditionResources { run, .. }
+            | Self::WithProfileRequirement { run, .. } => run.may_return_from_frame(),
             // Inspect command positions through the canonical execute parser;
             // quoted arguments and ordinary words such as `say return` are data.
             Self::Raw(text) | Self::RetainedCommand { text, .. } => {
@@ -515,6 +532,19 @@ impl Cmd {
                 text.clone()
             }
             Self::Return(value) => sand_commands::return_cmd(*value),
+            Self::WithProfileRequirement {
+                version,
+                capability,
+                run,
+            } => {
+                crate::function::validate_exact_profile(
+                    version,
+                    capability,
+                    sand_version::LATEST_KNOWN,
+                    false,
+                )?;
+                run.try_render()?
+            }
             Self::WithConditionResources { condition, run } => {
                 condition.register_owned_resources();
                 run.try_render()?

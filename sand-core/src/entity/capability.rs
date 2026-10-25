@@ -1061,6 +1061,7 @@ fn numeric_entity_data<K: EntityKind, T>(value: EntityData<K, T>) -> super::Stat
     super::StatCurve::native_nbt(
         value.reference.__location().clone(),
         value.reference.path_value().clone(),
+        None,
     )
 }
 

@@ -175,7 +175,7 @@ pub fn capability_facade_example() -> Actions {
     let active = EntityTag::new("trail_active").unwrap();
 
     Target::players().each(|player| {
-        let boots = player.equipment().slot(EquipmentSlot::Feet).unwrap();
+        let boots = player.equipment().boots();
         let first_hotbar_slot = player.inventory().hotbar(0).unwrap();
         let wearing_boots = boots.matches(vanilla::Item::LeatherBoots).unwrap();
         let speed = player

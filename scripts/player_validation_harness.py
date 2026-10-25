@@ -14,6 +14,10 @@ class PlayerHarness(WorldGameplayHarness):
     players = ("SandAlpha", "SandBeta")
     auto_respawn = False
 
+    def client_options(self, player):
+        """Additional opt-in client arguments; normal audits remain passive."""
+        return []
+
     def prepare(self):
         super().prepare()
         with (self.server / "server.properties").open("a", encoding="utf-8") as properties:
@@ -45,7 +49,7 @@ class PlayerHarness(WorldGameplayHarness):
                     process = subprocess.Popen([
                         sys.executable, "-u", str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
                         "127.0.0.1", str(self.port), "776", player, str(self.args.timeout * 4 + 90),
-                    ] + (["--auto-respawn"] if self.auto_respawn else []),
+                    ] + (["--auto-respawn"] if self.auto_respawn else []) + self.client_options(player),
                         stdout=log, stderr=subprocess.STDOUT)
                     processes.append(process)
                     self.wait_for(re.compile(re.escape(player) + r" joined the game$"), "player-join", start)

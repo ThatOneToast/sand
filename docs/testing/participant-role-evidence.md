@@ -22,6 +22,10 @@ independent UUIDs, both actual advancement handlers and the other player's uncha
 counters. Mixed melee/projectile input and client attack-input packets remain open;
 the historical direct-handler evidence below does not imply those are covered.
 
+An opt-in [scripted melee candidate](player-melee-evidence.md) extends the existing
+client and reuses this participant fixture. Its packet/control unit tests pass;
+native proof is pending. It does not upgrade the runtime evidence summarized here.
+
 
 Role-by-role audit of what vanilla Minecraft Java actually exposes for
 combat, interaction, and item participant context, and what backend (if

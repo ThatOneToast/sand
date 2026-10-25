@@ -84,7 +84,11 @@ Sand-side bug was found.
 version-pinned Minecraft 26.2 client used by the real-player observation CI
 harness. Its corrected keep-alive handling supports sustained sessions, and teleport
 acknowledgments complete server-directed dimension changes.
-It does not implement client-driven attacks, movement or inventory actions.
+Its default mode does not send attacks, movement or inventory actions. An opt-in
+bounded movement/melee interface is exercised by
+[`validate_player_melee.py`](../validate_player_melee.py); see the
+[protocol sources, candidate status and evidence limits](../../docs/testing/player-melee-evidence.md).
+Native validation of that candidate is pending; inventory input is unsupported.
 Neither Python client is a dependency of an authored Sand datapack.
 
 Run the focused client regressions with

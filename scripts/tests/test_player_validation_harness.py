@@ -11,9 +11,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from player_validation_harness import PlayerHarness
 from vanilla_reload_harness import ValidationFailure
 from validate_player_participants import PlayerParticipantHarness
+from validate_player_melee import InconclusiveSetup, PlayerMeleeHarness
 
 
 class PlayerHarnessTests(unittest.TestCase):
+    def test_passive_client_options_are_empty(self):
+        self.assertEqual(PlayerHarness.__new__(PlayerHarness).client_options("SandAlpha"), [])
+
+    def test_native_melee_acceptance_timeout_is_inconclusive_not_a_pass(self):
+        harness = PlayerMeleeHarness.__new__(PlayerMeleeHarness)
+        harness.eventually = Mock(side_effect=ValidationFailure("native", "no hit"))
+        with self.assertRaises(InconclusiveSetup):
+            harness.native_eventually("hit", "if score SandAlpha native matches 1..")
+        harness.eventually.assert_called_once()
+
+    def test_melee_protocol_error_is_failure_not_inconclusive(self):
+        with tempfile.TemporaryDirectory() as output:
+            harness = PlayerMeleeHarness(argparse.Namespace(version="26.2", output=output, timeout=1))
+            harness.client_options("SandAlpha")
+            (Path(output) / "SandAlpha-control/status.json").write_text('{"error":"stale target"}')
+            with self.assertRaises(ValidationFailure) as raised:
+                harness.status("SandAlpha")
+            self.assertNotIsInstance(raised.exception, InconclusiveSetup)
+
     def make_harness(self, output):
         harness = PlayerHarness(argparse.Namespace(version="26.2", output=output, timeout=1))
         harness.send = Mock()

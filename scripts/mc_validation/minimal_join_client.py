@@ -268,7 +268,10 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
         elif state == "play":
             if controls is not None:
                 try:
-                    controls.observe(pid, data)
+                    response = controls.observe(pid, data)
+                    if response is not None:
+                        conn.send_packet(*response)
+                        print("[play] chunk batch acknowledged")
                 except ValueError as error:
                     controls.error = str(error)
                     controls.publish()

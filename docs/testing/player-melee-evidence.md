@@ -4,9 +4,14 @@
 
 The source candidate adds an explicit two-player melee command using the existing
 `participant_audit` export and passive client's opt-in controls. Focused Python
-tests pass. **Native validation has not run for this candidate:** Cargo, native
-server runs and full checks are held for the coordinated resource slot. The
-assertions below describe the intended proof, not acquired runtime evidence.
+tests pass. The first clean native run at `b65f4031ad4171eeb5f7f46838546fd145e24fea`
+exited **2 / INCONCLUSIVE** waiting for target tracking: both client position
+updates and initial health/UUID/item checks passed, but neither attack was sent.
+Both clients were reaped and the server stopped cleanly. The unchanged fixture
+export passed. An opt-in chunk-batch acknowledgment correction now has focused
+tests; a fresh native run is pending. Full checks remain held for the coordinated
+resource slot. The assertions below describe intended proof, not acquired
+combat evidence.
 No participant reliability label changes. #265 remains open.
 
 After exporting `examples/participant_audit` through the normal build, run:
@@ -70,6 +75,11 @@ finite bounded x/y/z/yaw/pitch values and sends grounded/no-horizontal-collision
 flags. The unchanged acknowledged mailbox is not sent again. The harness uses
 at most a 20-second command deadline and never retries an attack.
 
+Opt-in sessions also acknowledge each valid completed chunk batch exactly once,
+after a matching empty batch-start packet. Malformed, nested or unmatched batch
+packets fail the session. This is protocol flow control, not a new harness action;
+the passive default still sends no batch acknowledgments.
+
 Status reports client loading readiness, teleport acknowledgments, the current
 UUID-to-wire-ID map, last **sent** command ID, and control errors. It never reports
 accepted hits. A healthy unmet readiness, position or native-hit condition at the
@@ -103,6 +113,8 @@ ordered IDs (the clientbound bundle delimiter occupies ID zero):
 |---|---|
 | Serverbound `0x01` | `ServerboundAttackPacket`: record `entityId`; composite codec is `ByteBufCodecs.VAR_INT` only. **Not** the old interact-action encoding. |
 | Serverbound `0x1f` | `ServerboundMovePlayerPacket$PosRot`: three doubles, two floats, one unsigned flags byte. `packFlags` uses bit 0 for grounded and bit 1 for horizontal collision. |
+| Clientbound `0x0c`, `0x0b` | `ClientboundChunkBatchStartPacket`: unit/empty codec. `ClientboundChunkBatchFinishedPacket`: one VarInt batch size. |
+| Serverbound `0x0b` | `ServerboundChunkBatchReceivedPacket`: one big-endian float `desiredChunksPerTick`. Opt-in response is finite positive `9.0`, the vanilla sender's initial value. |
 | Clientbound `0x01` | `ClientboundAddEntityPacket`: begins with VarInt wire ID and UUID (two longs); the control client only needs this prefix. |
 | Clientbound `0x4d` | `ClientboundRemoveEntitiesPacket`: VarInt count and VarInt IDs. |
 | Clientbound `0x31`, `0x48`, `0x52` | Login, player-position and respawn; existing session loop acknowledges loading/teleport, and controls clear their map across login/respawn. |
@@ -112,6 +124,16 @@ a loaded, non-spectator player, resolves the entity in the player's current leve
 checks world border and attack range, rejects invalid targets and incompatible
 items, then calls `ServerPlayer.attack`. Sending the bytes alone cannot establish
 that those gates passed; this is why native acceptance is a separate assertion.
+
+`net.minecraft.server.network.PlayerChunkSender` starts with
+`maxUnacknowledgedBatches = 1` and `desiredChunksPerTick = 9.0`. `sendNextChunks`
+returns when unacknowledged batches reach the limit; `onChunkBatchReceivedByClient`
+decrements that count and clamps the requested rate to `0.01..64.0` (NaN becomes
+`0.01`). `ChunkMap$TrackedEntity.updatePlayer` requires `ChunkMap.isChunkTracked`,
+which excludes chunks still pending in that player's sender. The inconclusive
+run received one batch-finished packet but the old client never acknowledged it;
+after teleport, no target mapping arrived. These bytecode gates support the
+chunk-flow diagnosis; they are not yet a successful corrected native proof.
 
 Reproduce the relevant codec inspection without launching a server:
 
@@ -123,7 +145,13 @@ javap -classpath ~/.sand/cache/26.2/versions/26.2/server-26.2.jar -c -p \
   net.minecraft.network.protocol.game.ServerboundMovePlayerPacket \
   net.minecraft.network.protocol.game.ClientboundAddEntityPacket \
   net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket \
+  net.minecraft.network.protocol.game.ClientboundChunkBatchStartPacket \
+  net.minecraft.network.protocol.game.ClientboundChunkBatchFinishedPacket \
+  net.minecraft.network.protocol.game.ServerboundChunkBatchReceivedPacket \
   net.minecraft.network.FriendlyByteBuf \
+  net.minecraft.server.network.PlayerChunkSender \
+  'net.minecraft.server.level.ChunkMap$TrackedEntity' \
+  net.minecraft.server.level.ChunkMap \
   net.minecraft.server.network.ServerGamePacketListenerImpl
 ```
 

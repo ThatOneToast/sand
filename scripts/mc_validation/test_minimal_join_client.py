@@ -65,6 +65,11 @@ class MinimalClientTests(unittest.TestCase):
         _, sent = self.run_packets([(2, b""), (3, b""), (0x31, b""), (0x44, b"death")])
         self.assertNotIn((0x0C, b"\x00"), sent)
 
+    def test_passive_client_does_not_ack_chunk_batches(self):
+        _, sent = self.run_packets([(2, b""), (3, b""), (0x31, b""),
+                                    (0x0c, b""), (0x0b, b"\x09")])
+        self.assertNotIn(0x0b, [packet for packet, _ in sent])
+
     def test_each_death_requests_one_respawn_and_completes_loading(self):
         position = client.write_varint(42) + b"position"
         _, sent = self.run_packets([
@@ -197,6 +202,37 @@ class ScriptedInputTests(unittest.TestCase):
                                    (0x4d, b"\x01"), (0x4d, b"\x00extra")):
             with self.subTest(packet_id=packet_id, payload=payload), self.assertRaises(ValueError):
                 self.controls.observe(packet_id, payload)
+
+    def test_chunk_batch_ack_requires_one_valid_matching_finished_packet(self):
+        for invalid in (b"", b"\x09", b"\x80"):
+            with self.assertRaises(ValueError):
+                self.controls.observe(0x0b, invalid)
+        self.assertIsNone(self.controls.observe(0x0c, b""))
+        for invalid in (b"", b"\x00", b"\x09extra", b"\x80", b"\x81\x08"):
+            with self.assertRaises(ValueError):
+                self.controls.observe(0x0b, invalid)
+        self.assertEqual(self.controls.observe(0x0b, b"\x09"), (0x0b, struct.pack(">f", 9)))
+        with self.assertRaises(ValueError):
+            self.controls.observe(0x0b, b"\x09")
+        with self.assertRaises(ValueError):
+            self.controls.observe(0x0c, b"extra")
+        self.controls.observe(0x0c, b"")
+        with self.assertRaises(ValueError):
+            self.controls.observe(0x0c, b"")
+        self.controls.reset()
+        with self.assertRaises(ValueError):
+            self.controls.observe(0x0b, b"\x09")
+
+    def test_session_sends_exactly_one_ack_per_finished_batch(self):
+        conn = FakeConnection([(2, b""), (3, b""), (0x31, b""),
+                               (0x0c, b""), (0x27, b"chunk"), (0x0b, b"\x01"),
+                               (0x0c, b""), (0x0b, b"\x09")])
+        conn.sock = object()
+        with patch.object(client.select, "select", return_value=([conn.sock], [], [])), contextlib.redirect_stdout(io.StringIO()):
+            self.assertFalse(client.run_session(conn, "localhost", 25565, 776, "Probe", 10,
+                                                controls=self.controls))
+        self.assertEqual([packet for packet in conn.sent if packet[0] == 0x0b],
+                         [(0x0b, struct.pack(">f", 9.0))] * 2)
 
     def test_session_drains_keepalive_and_teleport_before_serial_attack(self):
         self.add_entity()

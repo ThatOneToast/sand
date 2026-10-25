@@ -48,6 +48,7 @@ class ScriptedInput:
         self.entities = {}
         self.sent_id = 0
         self.error = None
+        self.chunk_batch_started = False
         self.publish()
 
     def publish(self):
@@ -59,6 +60,7 @@ class ScriptedInput:
     def reset(self):
         self.ready = False
         self.entities.clear()
+        self.chunk_batch_started = False
         self.publish()
 
     def teleported(self):
@@ -68,7 +70,20 @@ class ScriptedInput:
         self.publish()
 
     def observe(self, packet_id, data):
-        if packet_id == 0x01:  # ClientboundAddEntityPacket
+        if packet_id == 0x0c:  # ClientboundChunkBatchStartPacket: empty
+            if data or self.chunk_batch_started:
+                raise ValueError("malformed or nested chunk batch start")
+            self.chunk_batch_started = True
+        elif packet_id == 0x0b:  # ClientboundChunkBatchFinishedPacket: VarInt size
+            count, offset = packet_varint(data)
+            if not self.chunk_batch_started or offset != len(data) or not 1 <= count <= 1024:
+                raise ValueError("malformed or unmatched chunk batch finish")
+            self.chunk_batch_started = False
+            # ServerboundChunkBatchReceivedPacket: one float. Vanilla's initial
+            # desiredChunksPerTick is 9; its accepted finite range is .01..64.
+            # The session loop, never this observer, performs the actual write.
+            return 0x0b, struct.pack(">f", 9.0)
+        elif packet_id == 0x01:  # ClientboundAddEntityPacket
             entity_id, offset = packet_varint(data)
             if len(data) < offset + 16:
                 raise ValueError("truncated entity UUID")

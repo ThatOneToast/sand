@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 
@@ -30,6 +31,7 @@ class FlowHarness(PlayerHarness):
         self.load_test_chunk("minecraft:overworld")
         self.send("tick freeze")
         trace, pulse = self.fixture["trace"], self.fixture["pulse"]
+        counter = self.fixture["counter"]
         with self.clients():
             for player in self.players:
                 for objective in ("fa_phase", trace, pulse):
@@ -93,20 +95,88 @@ class FlowHarness(PlayerHarness):
             self.score("RELOAD_STATE", "SandAlpha", "fa_phase", 20)
             self.score("RELOAD_HOOK_STATE", "SandAlpha", trace, 321)
             self.score("RELOAD_OTHER_PLAYER", "SandBeta", trace, 10000)
+            # Direct writes must repair the exact private score at the live hook
+            # position, including absent scores and signed extremes.
+            for state in (None, 7, 20):
+                for value in (None, 0, 1, -1, -2147483648, 2147483647):
+                    label = f"INACTIVE_{state}_{value}"
+                    if state is None:
+                        self.send("scoreboard players reset SandAlpha fa_phase")
+                    else:
+                        self.send(f"scoreboard players set SandAlpha fa_phase {state}")
+                    if value is None:
+                        self.send(f"scoreboard players reset SandAlpha {counter}")
+                    else:
+                        self.send(f"scoreboard players set SandAlpha {counter} {value}")
+                    self.send("scoreboard players set SandBeta fa_phase 10")
+                    self.send(f"scoreboard players set SandBeta {counter} 1")
+                    self.invoke()
+                    self.score(label, "SandAlpha", counter, 0)
+                    self.score(label + "_OTHER_SUBJECT", "SandBeta", counter, 1)
+            self.send("scoreboard players set SandAlpha fa_phase 10")
+            self.send(f"scoreboard players set SandAlpha {counter} 1")
+            self.send(f"scoreboard players set SandAlpha {pulse} 0")
+            self.send(f"scoreboard players set SandAlpha {trace} 0")
+            self.send("tag SandAlpha add mutate_early")
+            self.invoke()
+            self.score("EARLIER_HOOK_RESETS_AT_LIVE_POSITION", "SandAlpha", counter, 0)
+            self.score("EARLIER_HOOK_SUPPRESSES_DUE_PULSE", "SandAlpha", pulse, 0)
+            self.score("LATER_HOOK_SEES_EARLY_WRITE", "SandAlpha", trace, 1000)
+            self.send("tag SandAlpha remove mutate_early")
+            self.send(f"scoreboard players reset SandAlpha {counter}")
+            start = len(self.lines)
+            self.send("reload")
+            self.wait_for(RELOAD_START, "counter-reload", start)
+            self.check("RELOAD_DOES_NOT_CREATE_MISSING_COUNTER",
+                       f"unless score SandAlpha {counter} matches -2147483648..2147483647")
+            self.score("RELOAD_PRESERVES_ACTIVE_COUNTER", "SandBeta", counter, 1)
+            self.invoke()
+            self.score("POST_RELOAD_MISSING_COUNTER_REPAIRED", "SandAlpha", counter, 0)
+            self.invoke("SandBeta")
+            self.score("POST_RELOAD_DUE_COUNTER_RESET", "SandBeta", counter, 0)
+            # Capture function result/success and return-frame boundaries in the
+            # native log for old/new comparison. No presumed vanilla result is
+            # substituted for actually running these probes.
+            self.send("scoreboard objectives add fa_boundary dummy")
+            for wrapper in ("plain", "returned"):
+                for value in (None, 0, 1):
+                    for field in ("result", "success"):
+                        if value is None:
+                            self.send(f"scoreboard players reset SandAlpha {counter}")
+                        else:
+                            self.send(f"scoreboard players set SandAlpha {counter} {value}")
+                        self.send("scoreboard players set #fellthrough fa_boundary 0")
+                        self.send("scoreboard players set #probe fa_boundary -99")
+                        self.send(f"execute as SandAlpha at @s store {field} score #probe fa_boundary run function flow_audit:probe_{wrapper}")
+                        self.send(f"say BOUNDARY_{wrapper}_{value}_{field}")
+                        start = len(self.lines)
+                        self.send("scoreboard players get #probe fa_boundary")
+                        pattern = re.compile(r"#probe has (-?\d+) \[fa_boundary\]")
+                        index = self.wait_for(pattern, "flow-boundary", start)
+                        self.boundaries.append({"wrapper": wrapper, "counter_before": value,
+                                                "field": field, "value": int(pattern.search(self.lines[index])[1])})
+                        self.score(f"BOUNDARY_{wrapper}_{value}_{field}_COUNTER", "SandAlpha", counter, 0)
+                        self.score(f"BOUNDARY_{wrapper}_{value}_{field}_FRAME", "#fellthrough", "fa_boundary", 0)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", type=Path, required=True)
     parser.add_argument("--java", default="java")
+    parser.add_argument("--fixture", type=Path, help="Use an exact preserved export; do not invoke Cargo")
+    parser.add_argument("--compare-evidence", type=Path,
+                        help="Require checks and result/success boundaries to match a prior native run")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
     dump = root / "fixture.json"
-    subprocess.run(["cargo", "test", "-p", "sand-core", "--test", "state_flow_runtime",
-        "--", "--ignored", "--exact", "dump_state_flow_pack"], cwd=ROOT,
-        env=dict(os.environ, SAND_STATE_FLOW_DUMP_PATH=str(dump)), check=True)
+    if args.fixture:
+        dump.write_bytes(args.fixture.read_bytes())
+    else:
+        subprocess.run(["cargo", "test", "-p", "sand-core", "--test", "state_flow_runtime",
+            "--", "--ignored", "--exact", "dump_state_flow_pack"], cwd=ROOT,
+            env=dict(os.environ, SAND_STATE_FLOW_DUMP_PATH=str(dump)), check=True)
     fixture = json.loads(dump.read_text())
     pack = root / "pack"
     pack.mkdir()
@@ -116,6 +186,9 @@ def main():
         path = pack / "data" / record["namespace"] / record["dir"] / f"{record['path']}.{record['ext']}"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(record["content"])
+    functions = pack / "data/flow_audit/function"
+    (functions / "probe_plain.mcfunction").write_text(f"function flow_audit:{fixture['root']}\n")
+    (functions / "probe_returned.mcfunction").write_text(f"return run function flow_audit:{fixture['root']}\nscoreboard players set #fellthrough fa_boundary 1\n")
     digest = hashlib.sha256()
     for path in sorted(pack.rglob("*")):
         if path.is_file():
@@ -124,15 +197,21 @@ def main():
     options = argparse.Namespace(version="26.2", pack=str(pack), jar=str(args.jar.resolve()),
         java=args.java, timeout=90, output=str(root / "logs"), op_player=None, client_command=None)
     harness = FlowHarness(options)
-    harness.fixture, harness.checks = fixture, []
+    harness.fixture, harness.checks, harness.boundaries = fixture, [], []
     passed = False
     try:
         harness.run()
+        if args.compare_evidence:
+            baseline = json.loads(args.compare_evidence.read_text())
+            assert baseline["passed"], "baseline native run did not pass"
+            assert baseline["checks"] == harness.checks, "native gameplay checks differ"
+            assert baseline["boundaries"] == harness.boundaries, "native result/success boundaries differ"
         passed = True
     finally:
         (root / "evidence.json").write_text(json.dumps({"minecraft": "26.2", "passed": passed,
             "scope": "two real passive players; explicit flow invocations with automatic ticks frozen",
-            "pack_sha256": digest.hexdigest(), "checks": harness.checks}, indent=2) + "\n")
+            "pack_sha256": digest.hexdigest(), "checks": harness.checks,
+            "boundaries": harness.boundaries}, indent=2) + "\n")
     print("EVIDENCE", root / "evidence.json")
 
 

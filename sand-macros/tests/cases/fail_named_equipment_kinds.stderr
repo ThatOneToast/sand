@@ -1,0 +1,35 @@
+error[E0599]: the method `equipment` exists for struct `sand::prelude::EntityContext<sand::prelude::AnyEntity>`, but its trait bounds were not satisfied
+ --> tests/cases/fail_named_equipment_kinds.rs:4:43
+  |
+4 |     EntityContext::<AnyEntity>::default().equipment().mainhand();
+  |                                           ^^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: $WORKSPACE/sand-core/src/entity/kind.rs
+  |
+  | pub struct AnyEntity;
+  | -------------------- doesn't satisfy `sand::prelude::AnyEntity: EquipmentEntityKind`
+  |
+  = note: the following trait bounds were not satisfied:
+          `sand::prelude::AnyEntity: EquipmentEntityKind`
+
+error[E0599]: the method `equipment` exists for struct `sand::prelude::EntityContext<sand::prelude::MarkerKind>`, but its trait bounds were not satisfied
+ --> tests/cases/fail_named_equipment_kinds.rs:5:44
+  |
+5 |     EntityContext::<MarkerKind>::default().equipment().boots();
+  |                                            ^^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+  |
+ ::: $WORKSPACE/sand-core/src/entity/kind.rs
+  |
+  | pub struct MarkerKind;
+  | --------------------- doesn't satisfy `sand::prelude::MarkerKind: EquipmentEntityKind`
+  |
+  = note: the following trait bounds were not satisfied:
+          `sand::prelude::MarkerKind: EquipmentEntityKind`
+
+error[E0599]: no method named `inventory` found for struct `sand::prelude::EntityContext<sand::prelude::ZombieKind>` in the current scope
+ --> tests/cases/fail_named_equipment_kinds.rs:6:44
+  |
+6 |     EntityContext::<ZombieKind>::default().inventory().mainhand();
+  |                                            ^^^^^^^^^ method not found in `sand::prelude::EntityContext<sand::prelude::ZombieKind>`
+  |
+  = note: the method was found for `sand::prelude::EntityContext<PlayerKind>`

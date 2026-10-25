@@ -45,7 +45,7 @@ impl NumericWrite {
             })
     }
 
-    pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
+    pub(crate) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
         let profile = CommandProfile::unprofiled();
         self.holder.validate(&profile)?;
         self.objective.validate(&profile)?;

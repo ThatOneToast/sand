@@ -16,6 +16,22 @@ pub fn increment() {
     state.value.add(-300);
 }
 
+#[derive(State)]
+#[state(namespace = "demo", name = "world", scope = global, version = 1)]
+pub struct World {
+    #[state(default = 150, min = 0, max = 100)]
+    pub value: Score,
+}
+
+#[function("demo:global_write")]
+pub fn global_write() {
+    let state = World::global();
+    state.value.set(i32::MIN);
+    state.value.set(50);
+    state.value.set(i32::MAX);
+    state.value.add(-300);
+}
+
 fn expand(functions: &BTreeMap<String, String>, id: &str, depth: usize) -> Vec<String> {
     assert!(depth < 16, "unexpected recursive helper");
     functions[id]
@@ -41,9 +57,17 @@ fn rust_and_portable_writes_have_identical_reachable_commands_and_lifecycle() {
         "modules": [{"id": "demo:module", "states": [{
             "id": "demo:counter", "scope": "player", "revision": 1,
             "fields": [{"name": "value", "default": 150, "bounds": [0,100]}]
+        }, {
+            "id": "demo:world", "scope": "global", "revision": 1,
+            "fields": [{"name": "value", "default": 150, "bounds": [0,100]}]
         }], "functions": [{"id": "demo:increment", "context": "player", "body": [
             {"action": {"op": "score_set", "score": {"state": "demo:counter", "field": "value"}, "value": 200}},
             {"action": {"op": "score_add", "score": {"state": "demo:counter", "field": "value"}, "value": -300}}
+        ]}, {"id": "demo:global_write", "context": "server", "body": [
+            {"action": {"op": "score_set", "score": {"state": "demo:world", "field": "value"}, "value": i32::MIN}},
+            {"action": {"op": "score_set", "score": {"state": "demo:world", "field": "value"}, "value": 50}},
+            {"action": {"op": "score_set", "score": {"state": "demo:world", "field": "value"}, "value": i32::MAX}},
+            {"action": {"op": "score_add", "score": {"state": "demo:world", "field": "value"}, "value": -300}}
         ]}]}]
     });
     let program =
@@ -82,6 +106,7 @@ fn rust_and_portable_writes_have_identical_reachable_commands_and_lifecycle() {
             "demo:__sand_lifecycle_load",
             "demo:__sand_lifecycle_init",
             "demo:increment",
+            "demo:global_write",
         ] {
             assert_eq!(
                 expand(&portable, entry, 0),

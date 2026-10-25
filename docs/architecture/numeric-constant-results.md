@@ -106,3 +106,37 @@ The earlier 128-observation native proof at clean commit `7c641b13` is retained
 in `/tmp/sand-488-results-7c641b13/`. That run checked semantic observations before
 reload and checked reload completion separately; it did not claim semantic
 assertions after reload. The expanded maintained harness closes that evidence gap.
+
+## Portable frontend parity correction
+
+The full check at `e43ad07c` failed the unchanged exact Rust/portable parity test:
+portable `score_set` still encoded its literal and then emitted two redundant
+bounds commands. That run is a failure, not completed full validation.
+
+Portable assignment now constructs the same private `NumericWrite` model as Rust
+State accessors and calls its canonical lowering. Only the method's crate-private
+visibility changes. Portable v1 accepts i32 literals and player-self/global
+holders, so this constant path neither registers generated helpers nor accesses
+ambient export registries. Errors retain the operation's module, pointer and
+origin; target-specific standalone command validation still follows lowering.
+`score_add` retains its existing delta and runtime clamps. Defaults and lifecycle
+initialization remain separate from assignment encoding.
+
+The exact reachable-command/lifecycle parity assertion remains intact and now
+also covers global writes, in-range values, both i32 extremes, and subsequent
+runtime addition. Constructed/decoded tests cover 50 combinations of player and
+global ownership, absent/full/equal/positive/negative bounds, and i32 literals.
+An explicit branch regression retains the single decision and return-run helper
+boundary while both branch bodies contain only their bounded literal write.
+Portable v1 has no typed result/success-store operation; this correction adds no
+new operation or raw escape hatch to imitate one.
+
+The earlier 264-observation native evidence covers the Rust numeric path, not
+this newly shared portable frontend. The maintained
+`scripts/validate_portable_global.py` audit already compiles authored portable
+input and asserts bounded assignment, conditional assignment, no-player global
+ownership, and reload preservation. It is the focused native follow-up for this
+change after a frozen candidate is reviewed. The player counter audit currently
+exercises addition, not literal assignment; player assignment has exact emitted
+Rust/portable parity coverage here, not a newly claimed live multiplayer proof.
+No new native or full-check pass is claimed by this note.

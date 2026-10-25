@@ -317,7 +317,7 @@ impl Condition {
         actions: crate::ir::Actions,
     ) -> crate::ir::Actions {
         let operands = self.score_operands();
-        let plans = self.to_ir_plans(negated);
+        let plans = self.ir_plans(negated, false);
         let has_owned_resources = self.has_owned_resources();
         let mut output = crate::ir::Actions::default();
         for action in actions.0 {
@@ -791,16 +791,28 @@ impl Condition {
     /// The Cartesian product of `[[a], [b]]` and `[[c], [d]]` is
     /// `[[a, c], [a, d], [b, c], [b, d]]`.
     pub(crate) fn to_ir_plans(&self, negated: bool) -> Vec<ExecuteIrPlan> {
+        self.ir_plans(negated, true)
+    }
+
+    // Direct plan consumers register eagerly; retained Actions replay owned
+    // resources through WithConditionResources when they actually lower.
+    fn ir_plans(&self, negated: bool, register: bool) -> Vec<ExecuteIrPlan> {
         use sand_commands::{ConditionIr, ScoreCmp, Selector};
 
         let clause = |condition| vec![vec![ExecuteClause { negated, condition }]];
         match &self.kind {
             ConditionKind::NumericCompare(comparison) => {
-                clause(ConditionIr::Function(comparison.register()))
+                clause(ConditionIr::Function(comparison.reference(register)))
             }
-            ConditionKind::ItemMatch(query) => clause(ConditionIr::Function(query.register())),
-            ConditionKind::EffectPresence(query) => clause(ConditionIr::Function(query.register())),
-            ConditionKind::BlockMatch(query) => clause(ConditionIr::Function(query.register())),
+            ConditionKind::ItemMatch(query) => {
+                clause(ConditionIr::Function(query.reference(register)))
+            }
+            ConditionKind::EffectPresence(query) => {
+                clause(ConditionIr::Function(query.reference(register)))
+            }
+            ConditionKind::BlockMatch(query) => {
+                clause(ConditionIr::Function(query.reference(register)))
+            }
             ConditionKind::Score {
                 selector,
                 objective,
@@ -862,17 +874,20 @@ impl Condition {
             ConditionKind::Raw(fragment) => clause(ConditionIr::Raw(fragment.clone())),
 
             // Not: flip the negated flag and delegate
-            ConditionKind::Not(inner) => inner.to_ir_plans(!negated),
+            ConditionKind::Not(inner) => inner.ir_plans(!negated, register),
 
             // All(cs) negated=false → AND  → Cartesian product of each child's plans
             // All(cs) negated=true  → NOT(AND) = OR of NOTs → union of negated children
             ConditionKind::All(conds) => {
                 if negated {
                     // NOT(a AND b) = NOT a OR NOT b
-                    conds.iter().flat_map(|c| c.to_ir_plans(true)).collect()
+                    conds
+                        .iter()
+                        .flat_map(|c| c.ir_plans(true, register))
+                        .collect()
                 } else {
                     let sub_plan_sets: Vec<Vec<ExecuteIrPlan>> =
-                        conds.iter().map(|c| c.to_ir_plans(false)).collect();
+                        conds.iter().map(|c| c.ir_plans(false, register)).collect();
                     cartesian_product_plans(sub_plan_sets)
                 }
             }
@@ -883,10 +898,13 @@ impl Condition {
                 if negated {
                     // NOT(a OR b) = NOT a AND NOT b
                     let sub_plan_sets: Vec<Vec<ExecuteIrPlan>> =
-                        conds.iter().map(|c| c.to_ir_plans(true)).collect();
+                        conds.iter().map(|c| c.ir_plans(true, register)).collect();
                     cartesian_product_plans(sub_plan_sets)
                 } else {
-                    conds.iter().flat_map(|c| c.to_ir_plans(false)).collect()
+                    conds
+                        .iter()
+                        .flat_map(|c| c.ir_plans(false, register))
+                        .collect()
                 }
             }
         }
@@ -968,6 +986,69 @@ fn cartesian_product_plans(plan_sets: Vec<Vec<ExecuteIrPlan>>) -> Vec<ExecuteIrP
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retained_owned_guards_replay_the_same_direct_plan_resources() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let block = crate::world::WorldContext::current().block(sand_commands::BlockPos::here());
+        let conditions = [
+            block.matches(crate::generated::Block::Furnace),
+            crate::item::ItemLocation::PlayerOffHand
+                .matches(crate::generated::Item::Coal)
+                .unwrap(),
+            Condition::effect_presence(
+                sand_commands::Selector::self_(),
+                "minecraft:speed".parse().unwrap(),
+            ),
+            crate::entity::StatCurve::constant(1.0).gt(0),
+        ];
+        for condition in conditions {
+            let direct = condition.execute_commands(false, "say used");
+            let expected = crate::ir::test_support::drain_emitted();
+            assert!(!expected.is_empty(), "direct plan consumers remain eager");
+            let _ = crate::function::drain_generated_resources();
+            let retained = crate::execute_when::when(condition).then_one("say used");
+            assert!(crate::function::drain_generated_resources().is_empty());
+            for _ in 0..2 {
+                assert_eq!(crate::ir::test_support::emitted(retained.clone()), direct);
+                assert_eq!(
+                    crate::ir::test_support::drain_emitted(),
+                    expected,
+                    "cached guards replay identical helpers and validation"
+                );
+                let _ = crate::function::drain_generated_resources();
+            }
+        }
+    }
+
+    #[test]
+    fn discarded_owned_guards_do_not_register_resources() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let block = crate::world::WorldContext::current().block(sand_commands::BlockPos::here());
+        let conditions = [
+            block.matches(crate::generated::Block::Furnace),
+            crate::item::ItemLocation::PlayerOffHand
+                .matches(crate::generated::Item::Coal)
+                .unwrap(),
+            Condition::effect_presence(
+                sand_commands::Selector::self_(),
+                "minecraft:speed".parse().unwrap(),
+            ),
+            crate::entity::StatCurve::constant(1.0).gt(0),
+        ];
+        for condition in conditions {
+            let discarded =
+                crate::execute_when::if_(Condition::any([condition.clone(), !condition]))
+                    .then_all([block.destroy()])
+                    .else_all([block.replace(crate::generated::Block::Smoker)]);
+            drop(discarded);
+        }
+        assert!(
+            crate::function::drain_generated_resources().is_empty(),
+            "discarded guards must not emit owned helper resources"
+        );
+        assert!(crate::function::take_numeric_objectives().is_empty());
+    }
 
     fn score(sel: &str, obj: &str, range: ScoreRange) -> Condition {
         Condition::score(sel.to_string(), obj.to_string(), range)

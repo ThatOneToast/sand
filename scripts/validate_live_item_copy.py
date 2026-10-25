@@ -8,15 +8,15 @@ Cargo target and builds with two jobs. No move or full #382 completion is claime
 Proof limits: source-read ordering and differently addressed aliases are delegated
 to the exported native instruction, not independently distinguished here. Self-copy
 no-elision is an export assertion; replay success is native-only evidence. Failure
-diagnostics replay native commands and unchanged-state checks cover that combined
-sequence. Invalid destination containers are not fully inventory-snapshotted.
+callbacks replay native commands separately from fixture unchanged-state checks.
+Forked execute chains suppress textual errors in 26.2; preseeded success/result
+scores must both be overwritten with zero, with explicit failure preconditions. Invalid destination containers are not fully inventory-snapshotted.
 """
 import argparse
 import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -84,23 +84,32 @@ class CopyHarness(PlayerHarness):
         self.send("execute store success score #changed copy_oracle run data modify storage live_copy:oracle compare set from storage live_copy:oracle actual")
         self.check(label, "if score #changed copy_oracle matches 0")
 
-    def expected_failure(self, path, frame, diagnostic):
-        start = len(self.lines)
-        self.call(path, frame)
-        # Console diagnostic oracle replays the exact exported native instruction.
-        # Function execution can suppress feedback; do not rewrite its gameplay.
+    def expected_failure(self, path, frame, player, precondition):
         command = self.native[path]
         if "\n" in command or not command.startswith("item replace "):
             raise ValidationFailure("copy-oracle", f"expected one native copy: {path}")
-        self.send(f"execute {frame} run {command}")
-        marker = f"__COPY_FAILURE_{self.phase}_{path}__"
-        self.send(f"say {marker}")
-        end = self.wait_for(self.marker_pattern(marker), "copy-diagnostic", start)
-        output = "\n".join(self.lines[start:end])
-        if not re.search(diagnostic, output, re.IGNORECASE):
-            raise ValidationFailure("copy-diagnostic", f"missing {diagnostic!r}: {output}")
-        self.checks.append({"name": f"{self.phase}_{path}_DIAGNOSTIC", "output": output})
-        self.persist("running")
+        self.check(path + "_PRECONDITION", precondition)
+        source = f"entity {player} SelectedItem"
+        destination = f"entity {player} equipment.offhand"
+        for key, address in (("failure_source", source), ("failure_destination", destination)):
+            self.send(f"data remove storage live_copy:oracle {key}")
+            self.capture(key, address)
+            self.check(path + "_" + key.upper(), f"if data storage live_copy:oracle {key}")
+        self.call(path, frame)
+        self.equal(path + "_FIXTURE_NO_WRITE", "failure_destination", destination)
+        self.equal(path + "_FIXTURE_NO_MOVE", "failure_source", source)
+
+        # In 26.2 execute-as forks suppress sendFailure text. Numeric callbacks
+        # still report (false, 0). Distinct sentinels reject a skipped callback;
+        # zero is required for BOTH fields, so silence never implies failure.
+        self.send("scoreboard players set #failure_success copy_oracle -71")
+        self.send("scoreboard players set #failure_result copy_oracle -93")
+        self.send(f"execute {frame} store success score #failure_success copy_oracle "
+                  f"store result score #failure_result copy_oracle run {command}")
+        self.check(path + "_NATIVE_ONLY_FAILURE_SUCCESS", "if score #failure_success copy_oracle matches 0")
+        self.check(path + "_NATIVE_ONLY_FAILURE_RESULT", "if score #failure_result copy_oracle matches 0")
+        self.equal(path + "_NATIVE_ONLY_NO_WRITE", "failure_destination", destination)
+        self.equal(path + "_NATIVE_ONLY_NO_MOVE", "failure_source", source)
 
     def suite(self):
         a, b = self.players
@@ -124,8 +133,12 @@ class CopyHarness(PlayerHarness):
         self.call("self_copy", f"as {a}")
         self.equal("SELF_FIXTURE_CONTENTS", "source0", f"entity {a} SelectedItem")
         # Native-only setter success; no-elision is proved by the Rust export test.
-        self.send(f"execute store success score #self copy_oracle as {a} run {self.native['self_copy']}")
+        self.send("scoreboard players set #self copy_oracle -71")
+        self.send("scoreboard players set #self_result copy_oracle -93")
+        self.send(f"execute as {a} store success score #self copy_oracle "
+                  f"store result score #self_result copy_oracle run {self.native['self_copy']}")
         self.check("SELF_NATIVE_ONLY_SUCCESS", "if score #self copy_oracle matches 1")
+        self.check("SELF_NATIVE_ONLY_RESULT", "if score #self_result copy_oracle matches 1")
         self.equal("SELF_NATIVE_ONLY_CONTENTS", "source0", f"entity {a} SelectedItem")
         for player, enabled in ((a, 0), (b, 1)):
             self.equip(player, "minecraft:stick", slot="weapon.offhand")
@@ -202,18 +215,18 @@ class CopyHarness(PlayerHarness):
         self.equal("PLURAL_NATIVE_ONLY_ACCEPTED", "source0", f"entity {b} SelectedItem")
         self.check("PLURAL_NATIVE_ONLY_REJECTED", f"unless data entity {marker} Inventory")
         self.equal("PLURAL_NATIVE_ONLY_SOURCE", "source0", f"entity {a} SelectedItem")
-        for path, frame, diagnostic in (
-            ("missing_source", f"as {a}", r"No entit"),
-            ("incompatible_source", f"as {a}", r"slot"),
-            ("incompatible_destination", f"as {a}", r"slot|replac|chang"),
-            ("invalid_block_source", f"as {a} positioned 0 85 0", r"slot"),
-            ("invalid_block_destination", f"as {a} positioned 0 85 0", r"slot"),
-            ("from_block", f"as {a} positioned 6 85 6", r"container"),
-            ("to_block", f"as {a} positioned 6 85 6", r"container"),
+        for path, frame, precondition in (
+            ("missing_source", f"as {a}", "unless entity @e[tag=copy_absent]"),
+            ("incompatible_source", f"as {a}", "if entity @e[type=minecraft:marker,tag=copy_marker,limit=1]"),
+            ("incompatible_destination", f"as {a}", "if entity @e[type=minecraft:marker,tag=copy_marker,limit=1]"),
+            ("invalid_block_source", f"as {a} positioned 0 85 0", "if block 0 85 0 minecraft:chest"),
+            ("invalid_block_destination", f"as {a} positioned 0 85 0", "if block 0 85 0 minecraft:chest"),
+            ("from_block", f"as {a} positioned 6 85 6", "if block 6 85 6 minecraft:air"),
+            ("to_block", f"as {a} positioned 6 85 6", "if block 6 85 6 minecraft:air"),
         ):
             self.send("setblock 6 85 6 minecraft:air")
             self.equip(a, "minecraft:stick", slot="weapon.offhand")
-            self.expected_failure(path, frame, diagnostic)
+            self.expected_failure(path, frame, a, precondition)
             self.check(path + "_NO_WRITE", f"if items entity {a} weapon.offhand minecraft:stick")
             self.equal(path + "_NO_MOVE", "source0", f"entity {a} SelectedItem")
         self.equip(a, "minecraft:air")

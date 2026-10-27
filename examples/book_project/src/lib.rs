@@ -251,7 +251,7 @@ fn attempt_anchor(player: EntityContext<PlayerKind>, cost: i32, ray: BlockRaycas
 }
 
 fn anchor_ray(name: &str, distance: f64, hit: impl FunctionRef) -> BlockRaycast {
-    BlockRaycast::new(ResourceLocation::new("__sand_local", name).unwrap())
+    BlockRaycast::new(ResourceLocation::local(name).unwrap())
         .origin(Anchor::Eyes)
         .first_collision()
         .pass_through(BlockPredicate::new().blocks(vec![BlockId::minecraft("air").unwrap()]))

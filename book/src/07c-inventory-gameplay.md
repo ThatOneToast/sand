@@ -63,10 +63,31 @@ so State does not receive a stale value.
 
 ## Copying and containers
 
-`destination.replace_from(&source)` copies the source's current stack, including
-count and components. It does not remove the source. Copying an empty source
-clears the destination. A missing source entity fails without writing. Entity
-sources must select one entity; destinations can select several.
+`destination.replace_from(&source)` returns owned `Actions` that copy the source's
+live stack, including count and components. Include those actions in a function
+or condition branch. Execution reads the source before writing destinations,
+overwrites existing contents rather than merging, and adds no source clear.
+A valid empty source clears an accepting destination; a missing source entity,
+missing container, or invalid source slot fails before any destination write.
+
+Entity sources must select a single entity, which need not exist at runtime.
+Entity destinations may select several: each slot setter accepts independently,
+so some destinations can change while others reject the copy. There is no rollback.
+Self-copy is sent to vanilla even if the contents will be unchanged; its success
+still depends on the setter. Different addresses can alias the same physical slot.
+
+Player handles use their canonical inventory paths. Living handles use the
+existing equipment capability, with fallible slot selection:
+
+```rust,ignore
+let source = player.inventory().mainhand();
+let destination = zombie.equipment().slot(EquipmentSlot::Offhand)?;
+let actions = destination.replace_from(&source)?;
+```
+
+Copying does not implicitly change executor, position, rotation, dimension, or
+anchor. Scoped owners stay attached to their locations across executor changes;
+relative and local block positions use the caller's execution frame.
 
 The same location model addresses a block container:
 
@@ -81,7 +102,13 @@ runtime block at arbitrary coordinates.
 
 `ender_chest(index)` supports observation through the existing NBT view, but
 slot writes reject it because vanilla has no corresponding item-command slot.
-There is no atomic move/transfer guarantee.
+`ItemLocation::copy_to` copies live NBT to an NBT destination;
+`ItemSnapshot::copy_to` persists captured evidence. These are separate operations,
+not alternate live-slot copy APIs. NBT copying is not a fallback for player writes.
+
+Do not implement a move by appending `source.clear()`: a failed copy can destroy
+the source, an aliased destination can be cleared, and plural destinations can
+duplicate the stack. Safe move/transfer semantics remain outside this copy API.
 Inventory-change observation remains separate capability work; use only the
 operations documented here as supported gameplay actions.
 

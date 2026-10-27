@@ -485,13 +485,41 @@ impl ItemLocation {
         }
     }
 
-    /// Copy a live stack using vanilla `/item replace ... from ...`.
+    /// Replace this destination with a copy of a live source stack.
     ///
-    /// Returns owned actions for a function or gameplay guard. Components and
-    /// count are copied at runtime; copying an empty source clears the destination.
-    /// A missing source entity fails without writing. Entity sources must resolve to one entity;
-    /// destinations may select several. Unsupported NBT-only slots fail early,
-    /// while selector and command-profile validation runs during export.
+    /// Returns owned [`Actions`](crate::ir::Actions): include them in a function,
+    /// `when` branch, or other action composition. Constructing or
+    /// discarding the actions does not read or write an inventory. At execution,
+    /// vanilla reads the source before writing destinations and copies its count
+    /// and components, overwriting rather than merging the destination stack.
+    /// No source-clearing action is added.
+    ///
+    /// A valid empty source clears each accepting destination. A missing source
+    /// entity, missing source container, or invalid source slot fails before any
+    /// write. An entity source must be single-target; this cardinality constraint
+    /// does not guarantee that the entity exists. Destinations may select several
+    /// entities, whose slot setters accept or reject independently. Partial success
+    /// is possible; there is no rollback or all-or-nothing guarantee.
+    ///
+    /// Self-copy is passed through to vanilla, not elided. Its success depends on
+    /// the destination setter, even when the resulting stack is unchanged. Two
+    /// different selectors or coordinates can also address the same physical slot.
+    ///
+    /// This operation does not change executor, position, rotation, dimension, or
+    /// anchor. Explicit/scoped owners remain attached to their locations; relative
+    /// and local block positions resolve in the caller's execution frame.
+    ///
+    /// Both endpoints must support vanilla item commands. NBT-only locations
+    /// (including ender-chest slots) fail during construction; selector, coordinate,
+    /// and source-cardinality validation also runs during export. Runtime container
+    /// existence and destination acceptance cannot be guaranteed at export.
+    ///
+    /// This is distinct from [`copy_to`](Self::copy_to), which copies live NBT to
+    /// an NBT destination, and [`ItemSnapshot::copy_to`](super::snapshot::ItemSnapshot::copy_to),
+    /// which persists captured evidence. Neither is a live-slot move. Appending
+    /// [`clear`](Self::clear) does not make a safe move: a failed copy can lose the
+    /// source, aliases can clear the destination, and plural destinations duplicate
+    /// the stack. Use this method only when replacement by copy is intended.
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::replace_from", summary = "Copies a live stack between two typed locations as owned gameplay actions.", context = "Both endpoints must be /item-addressable; NBT-only locations fail instead of rendering an invalid command.", minecraft = "Renders item replace ... from ... using each location's validated target and slot.", use_when = ["Copying a live stack between player, entity, or block-container slots"], avoid_when = ["Copying arbitrary NBT or an ender-chest entry"], params(source = "The live source location."), returns = "Owned inventory-copy actions or an unsupported-location diagnostic.", example = "let actions = ItemLocation::PlayerOffHand.replace_from(&ItemLocation::PlayerMainHand)?;")]
     // Keep the canonical Sand diagnostic, as at the Actions export boundary.
     #[allow(clippy::result_large_err)]

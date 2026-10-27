@@ -85,7 +85,38 @@ pub(crate) fn drain_generated_resources_into(
                         }
                     }
                 }
-                crate::function::GeneratedResource::Requirement { owner, feature } => {
+                crate::function::GeneratedResource::Requirement {
+                    owner,
+                    requirement:
+                        crate::function::GeneratedRequirement::ExactProfile {
+                            version,
+                            capability,
+                        },
+                } => {
+                    let owner = if owner.namespace() == crate::function::SAND_LOCAL_NS {
+                        sand_components::ResourceLocation::new(namespace, owner.path())?
+                    } else {
+                        owner
+                    };
+                    crate::function::validate_exact_profile(
+                        version,
+                        capability,
+                        ctx.map_or(sand_version::LATEST_KNOWN, |ctx| ctx.requested_version),
+                        ctx.is_some_and(|ctx| ctx.is_fallback),
+                    )
+                    .map_err(|error| {
+                        sand_components::error::SandError::ComponentValidation {
+                            location: owner,
+                            kind: "generated gameplay requirement".into(),
+                            field: "profile".into(),
+                            message: error.to_string(),
+                        }
+                    })?;
+                }
+                crate::function::GeneratedResource::Requirement {
+                    owner,
+                    requirement: crate::function::GeneratedRequirement::Feature(feature),
+                } => {
                     if let Some(ctx) = ctx
                         && !ctx.caps.supports(feature)
                     {
@@ -297,6 +328,7 @@ mod tests {
                 ObservationSource::Numeric(StatCurve::native_nbt(
                     DataTarget::entity(Selector::self_()),
                     "Health".into(),
+                    None,
                 )),
                 TransitionKind::ScoreDecreased,
             ),

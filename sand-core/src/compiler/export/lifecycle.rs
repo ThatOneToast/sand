@@ -67,6 +67,7 @@ pub(crate) struct LifecycleAssembly {
     load_contributors: std::collections::BTreeSet<String>,
     init_contributors: std::collections::BTreeSet<String>,
     tick_contributors: std::collections::BTreeSet<String>,
+    helper_owners: Vec<(String, String)>,
     /// Initializer that player-context entry functions must invoke.
     pub(crate) player_initializer: Option<String>,
     /// Load-command spans and their original registration owners.
@@ -82,6 +83,9 @@ impl LifecycleAssembly {
         namespace: &str,
         runtime: &mut crate::compiler::runtime::RuntimePlan,
     ) {
+        for (path, owner) in &self.helper_owners {
+            runtime.own_function(format!("{namespace}:{path}"), owner.clone());
+        }
         for (phase, owners) in [
             ("load", &self.load_contributors),
             ("tick", &self.tick_contributors),
@@ -257,6 +261,19 @@ pub(crate) fn assemble_lifecycle(
             .push(format!("{namespace}:{path}"));
     }
 
+    let mut helper_owners = Vec::new();
+    for helper in automatic.player_init_helpers {
+        ensure_private_lifecycle_path_available(records, &helper.path)?;
+        records.push(ComponentRecord::function(
+            namespace,
+            &helper.path,
+            helper.commands,
+        ));
+        helper_owners.push((helper.path, helper.owner));
+    }
+    for command in &mut automatic.player_init_commands {
+        *command = super::functions::resolve_local_refs(command, namespace);
+    }
     let init_path = "__sand_lifecycle_init";
     if !automatic.player_init_commands.is_empty() {
         ensure_private_lifecycle_path_available(records, init_path)?;
@@ -320,6 +337,7 @@ pub(crate) fn assemble_lifecycle(
     let mut tick_contributors = automatic.tick_origins;
     tick_contributors.extend(tick_owners.iter().map(|origin| origin.owner.clone()));
     Ok(LifecycleAssembly {
+        helper_owners,
         load_contributors,
         init_contributors: automatic.init_origins,
         tick_contributors,
@@ -410,6 +428,39 @@ mod runtime_origin_tests {
     use crate::compiler::runtime::CommandOrigin;
     use crate::state::registry::AutomaticLifecycle;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn owned_player_helper_cannot_overwrite_an_existing_function() {
+        let path = "sand/state_init/collision";
+        let mut records = vec![ComponentRecord::function(
+            "demo",
+            path,
+            vec!["say user".into()],
+        )];
+        let result = assemble_lifecycle(
+            "demo",
+            &mut records,
+            &mut BTreeMap::new(),
+            AutomaticLifecycle {
+                player_init_helpers: vec![crate::state::registry::PlayerInitHelper {
+                    path: path.into(),
+                    commands: vec!["say helper".into()],
+                    owner: "demo:state".into(),
+                }],
+                ..AutomaticLifecycle::default()
+            },
+            vec![],
+            vec![],
+            vec![],
+        );
+        let error = result
+            .err()
+            .expect("private helper collision must fail")
+            .to_string();
+        assert!(error.contains(path), "{error}");
+        assert!(error.contains("collides"), "{error}");
+        assert_eq!(records[0].content, "say user");
+    }
 
     #[test]
     fn declarations_precede_provisioning_and_user_actions_follow_initialization() {

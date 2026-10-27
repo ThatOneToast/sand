@@ -131,7 +131,7 @@ fn furnace_frames_preserve_return_and_reject_macro_or_position_errors() {
     assert!(output.contains("setblock ~ ~ ~ minecraft:smoker"));
     assert_eq!(
         output
-            .matches("run return run function forge:sand/branches/")
+            .matches("return run function forge:sand/branches/")
             .count(),
         4
     );

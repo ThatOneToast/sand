@@ -90,3 +90,31 @@ Focused validation covers lifecycle, portable compilation, StateFlow, entry
 ordering, report ownership, authored return boundaries, and the maintained
 native harness. The required full gate is `scripts/check.sh` plus
 `git diff --check` on the integrated revision.
+
+## Portable lifecycle integration correction
+
+Player cold-path helpers are owned by `AutomaticLifecycle`, rather than only
+registered in the Rust exporter's ambient dynamic-function registry. Shared
+lifecycle assembly emits the helper, checks private-path collisions, resolves
+the pack namespace and retains its State owner in the runtime report. This is
+required by both Rust and portable frontends. The helper path and initializer
+body remain unchanged for Rust exports.
+
+The full integration gate exposed the original portable defect through the
+StateFlow golden: the initializer referenced an unexported `__sand_local`
+helper. The [retained failing native run](../benchmarks/evidence/portable-player-init-2026-10-27/before/evidence.json)
+passes four global checks then fails the first player transition.
+The [corrected native run](../benchmarks/evidence/portable-player-init-2026-10-27/after/evidence.json)
+passes all 21 assertions using the CLI built from clean runtime revision
+`a4b601c1`. Each directory retains source/binary/harness provenance, the input
+program and server log. This maintained portable harness verifies transitions,
+hook order and two-player isolation; its reload phase observes reload-start
+and explicitly calls load, so it does not establish actual load-tag completion.
+Trailforge's separate observer-pack test establishes that stronger guarantee.
+
+The flows golden was regenerated with `sand program compile` only after fixing
+the missing target. Its complete prior initializer is now the emitted helper,
+with one new guarded call in the original entry. Tests require that target to
+exist, preserve its exact body, retain its State attribution, isolate repeated
+namespaces and leave unrelated pending resources untouched. All 12 Python
+frontend tests pass, including full-byte Rust/portable comparisons.

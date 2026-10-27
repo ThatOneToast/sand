@@ -1,0 +1,255 @@
+{
+  "format": "sand.program",
+  "format_version": 1,
+  "target": {
+    "minecraft": "26.2"
+  },
+  "pack": {
+    "namespace": "demo",
+    "description": "Player encounters and shared world flow"
+  },
+  "modules": [
+    {
+      "id": "demo:encounters",
+      "states": [
+        {
+          "id": "demo:player",
+          "scope": "player",
+          "revision": 1,
+          "fields": [
+            {
+              "name": "phase",
+              "default": 0
+            },
+            {
+              "name": "energy",
+              "default": 100,
+              "bounds": [
+                0,
+                100
+              ]
+            },
+            {
+              "name": "events",
+              "default": 0
+            }
+          ]
+        },
+        {
+          "id": "demo:world",
+          "scope": "global",
+          "revision": 1,
+          "fields": [
+            {
+              "name": "phase",
+              "default": 0
+            },
+            {
+              "name": "ticks",
+              "default": 0
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "id": "demo:start",
+          "context": "player",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:player",
+                  "field": "energy"
+                },
+                "value": -30
+              }
+            },
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:player",
+                  "field": "events"
+                },
+                "value": 10
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:active",
+          "context": "player",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:player",
+                  "field": "events"
+                },
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:pulse",
+          "context": "player",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:player",
+                  "field": "energy"
+                },
+                "value": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:rest",
+          "context": "player",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:player",
+                  "field": "events"
+                },
+                "value": 100
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:world_tick",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:world",
+                  "field": "ticks"
+                },
+                "value": 1
+              }
+            }
+          ]
+        }
+      ],
+      "flows": [
+        {
+          "id": "demo:encounter",
+          "state": {
+            "state": "demo:player",
+            "field": "phase"
+          },
+          "transitions": [
+            {
+              "from": 0,
+              "to": 1,
+              "when": {
+                "score": {
+                  "state": "demo:player",
+                  "field": "energy"
+                },
+                "min": 30
+              },
+              "priority": 100
+            },
+            {
+              "from": 0,
+              "to": 2,
+              "priority": 0
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "when": {
+                "score": {
+                  "state": "demo:player",
+                  "field": "energy"
+                },
+                "max": 10
+              }
+            }
+          ],
+          "hooks": [
+            {
+              "phase": "enter",
+              "state": 1,
+              "function": {
+                "kind": "internal",
+                "id": "demo:start"
+              },
+              "cadence": 1
+            },
+            {
+              "phase": "tick",
+              "state": 1,
+              "function": {
+                "kind": "internal",
+                "id": "demo:active"
+              },
+              "cadence": 1
+            },
+            {
+              "phase": "tick",
+              "state": 1,
+              "function": {
+                "kind": "internal",
+                "id": "demo:pulse"
+              },
+              "cadence": 2
+            },
+            {
+              "phase": "enter",
+              "state": 2,
+              "function": {
+                "kind": "internal",
+                "id": "demo:rest"
+              },
+              "cadence": 1
+            }
+          ]
+        },
+        {
+          "id": "demo:round",
+          "state": {
+            "state": "demo:world",
+            "field": "phase"
+          },
+          "transitions": [
+            {
+              "from": 0,
+              "to": 1
+            }
+          ],
+          "hooks": [
+            {
+              "phase": "tick",
+              "state": 1,
+              "function": {
+                "kind": "internal",
+                "id": "demo:world_tick"
+              },
+              "cadence": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "requires": [
+    "state_flows",
+    "global_state",
+    "state_defaults",
+    "state_bounds"
+  ]
+}

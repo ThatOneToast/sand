@@ -1137,6 +1137,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "syn 2.0.119",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

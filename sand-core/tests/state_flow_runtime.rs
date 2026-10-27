@@ -65,6 +65,10 @@ fn fixture() -> serde_json::Value {
         .on_enter(Phase::Active, metrics.trace.add(10))
         .on_exit(Phase::Active, metrics.trace.add(2))
         .on_enter(Phase::Rest, metrics.trace.add(20))
+        .on_tick(
+            Phase::Active,
+            when(tagged("mutate_early")).then_one(PHASE.of("@s").set(Phase::Rest)),
+        )
         .on_tick(Phase::Active, metrics.trace.add(100))
         .on_tick_every(Phase::Active, Ticks::new(2), metrics.pulse.add(1))
         .on_tick(
@@ -90,7 +94,26 @@ fn fixture() -> serde_json::Value {
         .unwrap()["path"]
         .as_str()
         .unwrap();
-    serde_json::json!({"records": records, "root": root, "trace": Metrics::trace.objective(), "pulse": Metrics::pulse.objective()})
+    let body = records
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|record| record["path"] == root)
+        .unwrap()["content"]
+        .as_str()
+        .unwrap();
+    let reset = body
+        .lines()
+        .find(|line| line.starts_with("execute unless score @s fa_phase matches 10 "))
+        .unwrap();
+    let counter = reset
+        .split("run scoreboard players set @s ")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+    serde_json::json!({"records": records, "root": root, "counter": counter, "trace": Metrics::trace.objective(), "pulse": Metrics::pulse.objective()})
 }
 
 #[test]
@@ -105,6 +128,14 @@ fn gameplay_flow_exports_without_transition_lock_and_is_repeatable() {
         .unwrap()["content"]
         .as_str()
         .unwrap();
+    let counter = first["counter"].as_str().unwrap();
+    let reset = format!(
+        "execute unless score @s fa_phase matches 10 unless score @s {counter} matches 0 run scoreboard players set @s {counter} 0"
+    );
+    let early = body.find("/tick_0").unwrap();
+    let reset_position = body.find(&reset).unwrap();
+    let later = body.find("/tick_3").unwrap();
+    assert!(early < reset_position && reset_position < later);
     assert!(body.contains("/select"));
     assert!(body.find("/select").unwrap() < body.find("/tick_").unwrap());
     assert!(

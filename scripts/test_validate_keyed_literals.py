@@ -1,7 +1,10 @@
 """Focused checks for extraction of production owner resolution in native probes."""
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from validate_keyed_literals import owner_resolver, trace_metrics
 

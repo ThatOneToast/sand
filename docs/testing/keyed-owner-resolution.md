@@ -108,5 +108,12 @@ and UUID reads count executed UUID-copy commands regardless of success. An
 unchanged copy is an evaluation and read, but not a successful mutation. These
 metrics make no MSPT or internal command-budget claim.
 
-The lead integration owns `scripts/check.sh` and final API/runtime baselines.
-This slice runs focused checks and `git diff --check` only.
+The required integrated gate is `scripts/check.sh` plus `git diff --check`;
+the Python trace regressions are part of that gate.
+
+The [retained comparison](../../benchmarks/evidence/keyed-owner-2026-10-27/summary.json)
+links the baseline stale-owner failure, rejected unconditional-clear candidate,
+and corrected native run. Each has its own source revision, pack/harness hashes,
+assertions and raw traces. The corrected source passed 36 native assertions.
+These records predate final stack integration and are not relabeled as a run of
+a later revision.

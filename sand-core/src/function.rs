@@ -594,7 +594,7 @@ pub(crate) enum GeneratedRequirement {
 /// Validate a verified schema against the effective target, including baseline exports.
 pub(crate) fn validate_exact_profile(
     version: &str,
-    capability: &str,
+    capability: &'static str,
     requested: &str,
     fallback: bool,
 ) -> sand_commands::CommandResult<()> {

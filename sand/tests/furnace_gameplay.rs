@@ -128,8 +128,13 @@ fn local_snapshot() {
 
 #[function("absolute_snapshot", context = player)]
 fn absolute_snapshot() {
-    WorldContext::current().block(BlockPos::new(0, 85, 0)).when_furnace(|f|
-        Probe::on(EntityContext::<PlayerKind>::default()).burn.set(f.burn_remaining()));
+    WorldContext::current()
+        .block(BlockPos::new(0, 85, 0))
+        .when_furnace(|f| {
+            Probe::on(EntityContext::<PlayerKind>::default())
+                .burn
+                .set(f.burn_remaining())
+        });
 }
 
 // Each traversal binds execution position to the selected player. Both players
@@ -147,24 +152,37 @@ fn both_same_machine() {
 #[function("nested_players", context = player)]
 fn nested_players() {
     let state = Probe::on(EntityContext::<PlayerKind>::default());
-    WorldContext::current().block(BlockPos::here()).when_furnace(|outer| mcfunction![
-        Target::players().tag("furnace_other").each(|other|
-            Probe::on(*other).burn.set(outer.burn_remaining()));
-        state.elapsed.set(outer.burn_remaining());
-    ]);
+    WorldContext::current()
+        .block(BlockPos::here())
+        .when_furnace(|outer| {
+            mcfunction![
+                Target::players().tag("furnace_other").each(|other|
+                    Probe::on(*other).burn.set(outer.burn_remaining()));
+                state.elapsed.set(outer.burn_remaining());
+            ]
+        });
 }
 
 #[function]
 fn macro_message() {
-    FunctionMacroArgs::new(["message"]).unwrap().line("say $(message)").unwrap();
+    FunctionMacroArgs::new(["message"])
+        .unwrap()
+        .line("say $(message)")
+        .unwrap();
 }
 
 #[function("explicit_macro", context = player)]
 fn explicit_macro() {
-    WorldContext::current().block(BlockPos::here()).when_furnace(|_| {
-        let values = Nbt::storage(ResourceLocation::new("furnace", "macro").unwrap()).path("args");
-        FunctionMacroArgs::new(["message"]).unwrap().call_with(macro_message, &values).unwrap()
-    });
+    WorldContext::current()
+        .block(BlockPos::here())
+        .when_furnace(|_| {
+            let values =
+                Nbt::storage(ResourceLocation::new("furnace", "macro").unwrap()).path("args");
+            FunctionMacroArgs::new(["message"])
+                .unwrap()
+                .call_with(macro_message, &values)
+                .unwrap()
+        });
 }
 
 fn pack() -> serde_json::Value {
@@ -186,19 +204,34 @@ fn public_furnace_fixture_exports_state_and_conditions() {
     }
     assert_eq!(pack, self::pack());
     let functions = pack["components"].as_array().unwrap();
-    let failure = functions.iter().find_map(|record| record["content"].as_str()
-        .filter(|body| body.contains(" -909"))).unwrap();
+    let failure = functions
+        .iter()
+        .find_map(|record| {
+            record["content"]
+                .as_str()
+                .filter(|body| body.contains(" -909"))
+        })
+        .unwrap();
     let lines: Vec<_> = failure.lines().collect();
     assert_eq!(lines.len(), 5);
     assert!(lines[0].starts_with("function furnace:sand/numeric/"));
-    assert_eq!(lines[0], lines[3], "prime and failure must invoke the identical read/helper");
+    assert_eq!(
+        lines[0], lines[3],
+        "prime and failure must invoke the identical read/helper"
+    );
     assert!(lines[1].ends_with(" -909"));
     assert_eq!(lines[2], "setblock ~ ~ ~ minecraft:air");
     assert!(lines[4].starts_with("scoreboard players add @s "));
     for path in ["both_players", "both_same_machine"] {
-        let body = functions.iter().find(|r| r["path"] == path).unwrap()["content"].as_str().unwrap();
+        let body = functions.iter().find(|r| r["path"] == path).unwrap()["content"]
+            .as_str()
+            .unwrap();
         assert!(body.starts_with("execute as @a at @s run function "));
-        assert_eq!(body.lines().count(), 1, "one invocation must schedule both players synchronously");
+        assert_eq!(
+            body.lines().count(),
+            1,
+            "one invocation must schedule both players synchronously"
+        );
     }
     assert!(text.contains("function furnace:macro_message with storage furnace:macro args"));
 }

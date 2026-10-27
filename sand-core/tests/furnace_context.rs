@@ -17,7 +17,9 @@ enum Case {
 #[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "forge", scope = global)]
-struct FurnaceState { burn: Score }
+struct FurnaceState {
+    burn: Score,
+}
 
 thread_local! { static CASE: Cell<Case> = const { Cell::new(Case::Used) }; }
 
@@ -119,7 +121,10 @@ fn unused_furnaces_emit_no_helpers_or_profile_requirement() {
 #[test]
 fn malformed_public_profiles_are_rejected() {
     for version in ["", "garbage", "26.2.invalid", "26..2"] {
-        assert!(export(Case::EscapedState, "forge", version).is_err(), "{version}");
+        assert!(
+            export(Case::EscapedState, "forge", version).is_err(),
+            "{version}"
+        );
     }
 }
 
@@ -156,19 +161,35 @@ fn furnace_frames_preserve_return_and_reject_macro_or_position_errors() {
     );
     let pack: sand_core::serde_json::Value = sand_core::serde_json::from_str(&output).unwrap();
     let functions = pack["components"].as_array().unwrap();
-    let dispatcher = functions.iter().find(|r| r["content"].as_str()
-        .is_some_and(|s| s.matches("return run function forge:sand/branches/").count() == 4)).unwrap();
+    let dispatcher = functions
+        .iter()
+        .find(|r| {
+            r["content"].as_str().is_some_and(|s| {
+                s.matches("return run function forge:sand/branches/")
+                    .count()
+                    == 4
+            })
+        })
+        .unwrap();
     let lines: Vec<_> = dispatcher["content"].as_str().unwrap().lines().collect();
     assert_eq!(lines.len(), 4);
     let body = lines[0].split("return run function ").nth(1).unwrap();
     for line in &lines[..3] {
-        assert!(line.starts_with("execute if function forge:sand/conditions/"), "{line}");
-        assert!(line.ends_with(&format!("return run function {body}")), "{line}");
+        assert!(
+            line.starts_with("execute if function forge:sand/conditions/"),
+            "{line}"
+        );
+        assert!(
+            line.ends_with(&format!("return run function {body}")),
+            "{line}"
+        );
     }
     assert!(lines[3].starts_with("return run function "));
     assert_ne!(lines[3], format!("return run function {body}"));
     let body_path = body.strip_prefix("forge:").unwrap();
-    let body = functions.iter().find(|r| r["path"] == body_path).unwrap()["content"].as_str().unwrap();
+    let body = functions.iter().find(|r| r["path"] == body_path).unwrap()["content"]
+        .as_str()
+        .unwrap();
     assert_eq!(body, "setblock ~ ~ ~ minecraft:smoker\nreturn fail");
     let error = export(Case::Macro, "forge", "26.2").unwrap_err();
     assert!(

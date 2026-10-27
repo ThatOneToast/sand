@@ -104,9 +104,12 @@ Report publication crash can leave an invalid entry absent/regenerable. There is
 no hostile-local-write guarantee or power-loss promise. No broad speed claim.
 
 Full scripts/check.sh, shared-cache/public-helper execution, integrated Java
-reruns and native gameplay remain held for coordination. PR #494 (frozen head 464b3726) remains a
-legacy cache user. No CI polling, profile changes or main merge authorization is
-implied by these results.
+reruns and native gameplay remain held for explicit coordinated release. PR #494
+full validation at frozen 3d268 passed, and PR #494 merged as exact main
+`735de6547db857ae940a4c38435604a3a7e22bbd`; root reported no furnace survivors.
+Read-only inventory and private backup are authorized only after independent
+process/cwd checks establish quiescence. This is not release to execute full
+validation or shared-cache writes. No CI polling or profile changes are implied.
 
 ## Shared-cache rollout plan (not executed)
 
@@ -128,14 +131,14 @@ New OS-lock inodes remain stable and must never be manually removed. No mutable
 server.jar alias, global GC or eager migration is introduced.
 
 Before release, coordinate completion of furnace and all other legacy writers.
-After quiescence, inventory affected paths read-only (relative path, type, size,
+After independently verifying quiescence, inventory affected paths read-only (relative path, type, size,
 mtime and SHA-256 for regular files; record symlinks without following them).
 Include the shared rust-codegen namespace and pre-existing v1 entries. Copy a
 verified backup into a unique private directory outside the cache, check copied
 hashes against the quiescent inventory and retain sufficient disk headroom
 (20 GiB minimum during validation). Do not call a live-writer copy consistent.
-Do not dump raw properties or secrets into logs. No backup or cache scan is
-performed by this document's preparation.
+Do not dump raw properties or secrets into logs. Inventory/backup execution and hashes belong to the separate rollout checkpoint;
+this document does not certify a live cache snapshot.
 
 Freeze the exact candidate/commands and obtain coordinated full/shared release
 before executing. Afterward compare protected legacy hashes and inventory new
@@ -143,3 +146,13 @@ writes against the list above; separately account for expected rust-codegen
 changes. Preserve failures and all evidence; no automatic retry, deletion,
 restore or stale-lock removal. Any rollback requires quiescence and review of
 specific paths against the backup; do not replace an entire live cache.
+
+## Integration after PR #494
+
+Merge `934e60bc9b579758e9840b09b8873ed89f5511d6` integrates only exact main
+`735de6547db857ae940a4c38435604a3a7e22bbd`. The sole conflict was the
+`scripts/check.sh` Python check list: retain main's furnace checks and the
+branch's returned-JAR consumer test. No generated reports were edited.
+All sand-build source/private harness and operational JAR consumers remain
+byte-identical to private-tested 6bc8. Inherited main changes and this check-list
+union are integration evidence, not a rerun of the original private experiments.

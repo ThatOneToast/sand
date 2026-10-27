@@ -31,7 +31,8 @@ def owner_resolver(directory):
     prefix = "data modify storage rpg:state __sand_owner."
     old = [f"{prefix}u{i} set from entity @s UUID[{i}]" for i in range(4)]
     new = ["data remove storage rpg:state __sand_owner.uuid", f"{prefix}uuid set from entity @s UUID"]
-    if (resolver not in (old, new)
+    corrected = ["execute unless entity @s run " + new[0], new[1]]
+    if (resolver not in (old, new, corrected)
             or frame[0] != "data remove storage rpg:state __sand_owner.value"
             or not frame[1].startswith("data modify storage rpg:state __sand_owner.value set value ")
             or not frame[-2].startswith("function unified_state:sand/state_data/keyed/")
@@ -39,6 +40,30 @@ def owner_resolver(directory):
             or frame[-1] != frame[0]):
         raise ValueError("unexpected keyed write frame")
     return resolver
+
+
+def trace_metrics(content):
+    """Count evaluated commands separately from successful storage operations.
+
+    A positive [R] for a data mutation is one successful mutation command, not
+    its numeric result or a count of NBT nodes. [C] includes the probe wrapper.
+    Failed/unchanged data copies have no positive [R] and are not mutations.
+    """
+    lines = content.splitlines()
+    successes = [match[1] for line in lines
+                 if (match := re.search(r"\[R = [1-9][0-9]*\] (.*)$", line))]
+    return {
+        "command_evaluations_including_wrapper": sum("[C] " in line for line in lines),
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": sum(
+            "[C] data modify storage rpg:state __sand_owner." in line
+            and "set from entity @s UUID" in line for line in lines),
+        "successful_storage_mutation_commands": sum(
+            bool(re.search(r"(?:^| run )data (?:modify|remove) storage rpg:state ", command))
+            for command in successes),
+        "successful_storage_get_commands": sum(
+            command.startswith("data get storage rpg:state ") for command in successes),
+    }
 
 
 class KeyedLiteralHarness(PlayerHarness):
@@ -100,6 +125,8 @@ class KeyedLiteralHarness(PlayerHarness):
             (functions / f"trace_{name}.mcfunction").write_text(
                 f"execute as {actor} run function unified_state:{target}\n")
         (functions / "loaded.mcfunction").write_text(f"say {RELOADED}\n")
+        (functions / "trace_get.mcfunction").write_text(
+            f"execute as @e[tag=keyed_literal_a,limit=1] run function {PROBE}:get\n")
         load_path = pack / "data/minecraft/tags/function/load.json"
         load = json.loads(load_path.read_text())
         load["values"].append(f"{PROBE}:loaded")
@@ -154,15 +181,20 @@ class KeyedLiteralHarness(PlayerHarness):
             raise ValidationFailure("keyed-trace", f"expected one trace output: {names}")
         content = (self.server / "debug" / names[0]).read_text()
         (self.output / f"{label}.trace.txt").write_text(content)
-        reads = sum("[C] data modify storage rpg:state __sand_owner." in line
-                    and "set from entity @s UUID" in line for line in content.splitlines())
-        self.traces[label] = {"entity_uuid_read_commands": reads,
-                              "sha256": hashlib.sha256(content.encode()).hexdigest()}
+        metrics = trace_metrics(content)
+        reads = metrics["entity_uuid_read_commands"]
+        self.traces[label] = {**metrics, "sha256": hashlib.sha256(content.encode()).hexdigest()}
+        if label in ("existing_attach", "existing_attach_repeat", "same_owner_get"):
+            mutations = metrics["successful_storage_mutation_commands"]
+            if mutations != 0:
+                raise ValidationFailure("keyed-trace", f"{label}: expected zero successful storage mutations, got {mutations}")
+        if label == "same_owner_get" and metrics["successful_storage_get_commands"] != 1:
+            raise ValidationFailure("keyed-trace", "unchanged UUID copy must still execute the get macro")
         # The fixture's attach builder already deduplicates identical inline
         # commands. Measure that exported shape, not a per-field multiplication.
-        expected = ({"fresh_attach": 12, "existing_attach": 4}.get(label, 8)
+        expected = ({"fresh_attach": 12, "existing_attach": 4, "existing_attach_repeat": 4, "same_owner_get": 4}.get(label, 8)
                     if self.owner_read_count == 4 else
-                    {"fresh_attach": 1, "existing_attach": 1}.get(label, 2))
+                    {"fresh_attach": 1, "existing_attach": 1, "existing_attach_repeat": 1, "same_owner_get": 1}.get(label, 2))
         if reads != expected:
             raise ValidationFailure("keyed-trace", f"{label}: expected {expected} UUID reads, got {reads}")
 
@@ -242,6 +274,8 @@ class KeyedLiteralHarness(PlayerHarness):
             self.send(f"execute as {first} run function unified_state:detach_status")
             self.trace("fresh_attach", "attach")
             self.trace("existing_attach", "attach")
+            self.trace("existing_attach_repeat", "attach")
+            self.trace("same_owner_get", "get")
 
             # Seed the ambient production arguments with B, then invoke the same
             # compiled write without an executor. It must not overwrite B.

@@ -2494,8 +2494,9 @@ impl<T> Data<T> {
 /// A typed command-storage field keyed by the current entity or player's UUID.
 ///
 /// The UUID lives in a shared owner record while the value remains under its
-/// component-owned path. Each owner resolution clears its scratch UUID and
-/// copies the whole UUID array with one entity NBT read before calling a macro.
+/// component-owned path. Resolution clears its scratch UUID only when there is
+/// no executor, then copies the whole UUID array with one entity NBT read before
+/// calling a macro. An unchanged UUID copy still runs the macro normally.
 /// Without an executing entity, resolution fails and no owner value is read,
 /// written or removed, and no `if_present` callback runs. Literal write staging
 /// is still cleaned up. Valid-owner macro result/success behavior is unchanged.
@@ -2510,8 +2511,8 @@ impl<T> Data<T> {
     aliases = ["sand::prelude::KeyedData"],
     module = "sand::entity",
     summary = "A typed command-storage field keyed by the current entity or player's UUID.",
-    context = "A typed command-storage field keyed by the current entity or player's UUID. The UUID lives in a shared owner record while the value remains under its component-owned path. Each owner resolution clears its scratch UUID and copies the whole UUID array with one entity NBT read before running a generated helper. A missing executor cannot access stale owner data or run callbacks. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
-    minecraft = "The UUID lives in a shared owner record while the value remains under its component-owned path. Each owner resolution clears its scratch UUID and copies the whole UUID array with one entity NBT read before running a generated helper. A missing executor cannot access stale owner data or run callbacks. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
+    context = "A typed command-storage field keyed by the current entity or player's UUID. The UUID lives in a shared owner record while the value remains under its component-owned path. Each owner resolution clears its scratch UUID only without an executor and copies the whole UUID array with one entity NBT read before running a generated helper. A missing executor cannot access stale owner data or run callbacks. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
+    minecraft = "The UUID lives in a shared owner record while the value remains under its component-owned path. Each owner resolution clears its scratch UUID only without an executor and copies the whole UUID array with one entity NBT read before running a generated helper. A missing executor cannot access stale owner data or run callbacks. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::KeyedData;",
@@ -2777,13 +2778,14 @@ fn keyed_data_staged_call(
 fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
     let call = keyed_data_macro_call(storage, macro_body);
     let args = "__sand_owner";
-    // Clear first: a failed entity read must not reuse the preceding owner.
+    // Invalidate only when no executor exists; a valid unchanged UUID needs
+    // no storage mutation. Missing executors must not reuse the prior owner.
     // Do not gate on the copy's success: unchanged NBT is not a successful
     // modification. A missing UUID makes macro instantiation fail safely.
     // Macro arguments are instantiated before callbacks run, so nested calls
     // may replace this scratch UUID without changing the outer owner's paths.
     vec![
-        format!("data remove storage {storage} {args}.uuid"),
+        format!("execute unless entity @s run data remove storage {storage} {args}.uuid"),
         format!("data modify storage {storage} {args}.uuid set from entity @s UUID"),
         call,
     ]
@@ -4092,7 +4094,7 @@ mod tests {
         assert_eq!(commands.len(), 3);
         assert_eq!(
             commands[0],
-            "data remove storage rpg:state __sand_owner.uuid"
+            "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid"
         );
         assert_eq!(
             commands[1],
@@ -4124,7 +4126,7 @@ mod tests {
             assert_eq!(commands.len(), 3);
             assert_eq!(
                 commands[0],
-                "data remove storage rpg:state __sand_owner.uuid"
+                "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid"
             );
             assert_eq!(
                 commands[1],
@@ -4141,7 +4143,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             write.1[2],
-            "data remove storage rpg:state __sand_owner.uuid"
+            "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid"
         );
         assert_eq!(
             write.1[3],
@@ -4195,7 +4197,7 @@ mod tests {
                 if line.contains("set from entity @s UUID") {
                     assert_eq!(
                         body[index - 1],
-                        "data remove storage rpg:state __sand_owner.uuid"
+                        "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid"
                     );
                     assert!(body[index + 1].ends_with(" with storage rpg:state __sand_owner"));
                 }

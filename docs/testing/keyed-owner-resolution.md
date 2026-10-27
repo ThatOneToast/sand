@@ -136,3 +136,9 @@ The rebuilt unified-state pack SHA256 is
 the corrected isolated fixture. Raw traces are retained beside that evidence.
 The later lifecycle-test expectation update accounts for the two fewer resolver
 lines and explicitly asserts one whole-UUID read; it changes no exported code.
+
+A [fresh final-stack run](../../benchmarks/evidence/gameplay-integration-2026-10-27/final/keyed/keyed-literal-evidence.json)
+on clean `067dab3b7c0ea7cf8b5641d593156e3fbb386cfb` again passes all 36 assertions
+after the shared lifecycle-helper correction. Its pack hash remains identical;
+the companion summary retains the 120-assertion Trailforge and 21-assertion
+portable-flow reruns on that same source revision.

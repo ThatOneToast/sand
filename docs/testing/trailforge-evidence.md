@@ -110,3 +110,12 @@ is retained beside the evidence. This is a new Minecraft 26.2 / Java 25.0.3 run;
 it does not relabel the historical gameplay-only run above. Its evidence limits
 are unchanged. Subsequent baseline and evidence documentation commits do not
 change the gameplay source tested by this run.
+
+The [final stack rerun](../../benchmarks/evidence/gameplay-integration-2026-10-27/final/summary.json)
+records fresh native runs after the portable helper ownership correction, all
+on clean source `067dab3b7c0ea7cf8b5641d593156e3fbb386cfb`: Trailforge 120,
+keyed State 36, and portable flows 21 assertions. Trailforge and unified-State
+pack hashes remain identical to the earlier integrated runs. Their static
+runtime baselines match without further regeneration. The portable fixture's
+reload limitation remains separately documented; Trailforge still uses the
+actual load-tag observer. The archive commit changes evidence/docs only.

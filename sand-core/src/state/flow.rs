@@ -712,7 +712,7 @@ pub(crate) fn resolve_state_flow_plan(
                     (flow.id.clone(), format!("interval tick hook {index}")),
                 );
                 root_commands.push(format!(
-                    "execute unless score {holder} {} matches {} run scoreboard players set {holder} {counter} 0",
+                    "execute unless score {holder} {} matches {} unless score {holder} {counter} matches 0 run scoreboard players set {holder} {counter} 0",
                     flow.objective, hook.state
                 ));
                 root_commands.push(format!(

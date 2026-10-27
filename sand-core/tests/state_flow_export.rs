@@ -169,7 +169,57 @@ fn unified_flow_exports_one_ordered_lifecycle() {
         content.contains("function flowpack:enraged_tick")
             && !content.contains("function flowpack:enraged_pulse")
     }));
-    assert!(root.contains("matches 5.."));
+    let lines: Vec<_> = root.lines().collect();
+    let reset_index = lines
+        .iter()
+        .position(|line| line.starts_with("execute unless score @s boss_phase matches 2 "))
+        .unwrap();
+    let counter = lines[reset_index]
+        .split("run scoreboard players set @s ")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+    assert_eq!(
+        lines[reset_index],
+        format!(
+            "execute unless score @s boss_phase matches 2 unless score @s {counter} matches 0 run scoreboard players set @s {counter} 0"
+        )
+    );
+    assert_eq!(
+        lines[reset_index + 1],
+        format!(
+            "execute if score @s boss_phase matches 2 run scoreboard players add @s {counter} 1"
+        )
+    );
+    let (pulse_path, pulse_body) = functions
+        .iter()
+        .find(|(_, body)| body.contains("function flowpack:enraged_pulse"))
+        .unwrap();
+    assert_eq!(
+        lines[reset_index + 2],
+        format!(
+            "execute if score @s boss_phase matches 2 if score @s {counter} matches 5.. run function flowpack:{pulse_path}"
+        )
+    );
+    assert_eq!(
+        *pulse_body,
+        format!("function flowpack:enraged_pulse\nscoreboard players set @s {counter} 0")
+    );
+    // The lifecycle caller consumes neither the reset's result nor its success.
+    let (root_path, _) = functions.iter().find(|(_, body)| *body == *root).unwrap();
+    let callers: Vec<_> = functions
+        .iter()
+        .flat_map(|(_, body)| body.lines())
+        .filter(|line| line.ends_with(&format!("function flowpack:{root_path}")))
+        .collect();
+    assert_eq!(
+        callers,
+        [format!(
+            "execute as @a at @s run function flowpack:{root_path}"
+        )]
+    );
 
     register_boss_flow();
     register_boss_flow();

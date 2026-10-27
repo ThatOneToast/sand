@@ -18,7 +18,7 @@ struct WorldProbe {
     burn: Score,
 }
 
-#[function(context = player)]
+#[function("snapshot", context = player)]
 fn snapshot() {
     let state = Probe::on(EntityContext::<PlayerKind>::default());
     WorldContext::current().block(BlockPos::here()).when_furnace(|f| mcfunction![
@@ -40,7 +40,7 @@ fn global_snapshot() {
         .when_furnace(|f| WorldProbe::global().burn.set(f.burn_remaining()));
 }
 
-#[function(context = player)]
+#[function("seed_iron", context = player)]
 fn seed_iron() {
     WorldContext::current()
         .block(BlockPos::here())
@@ -52,7 +52,7 @@ fn seed_iron() {
             ]
         });
 }
-#[function(context = player)]
+#[function("seed_food", context = player)]
 fn seed_food() {
     WorldContext::current()
         .block(BlockPos::here())
@@ -64,7 +64,7 @@ fn seed_food() {
             ]
         });
 }
-#[function(context = player)]
+#[function("mutate_once", context = player)]
 fn mutate_once() {
     let state = Probe::on(EntityContext::<PlayerKind>::default());
     let block = WorldContext::current().block(BlockPos::here());
@@ -78,7 +78,7 @@ fn mutate_once() {
     });
     state.after.add(1);
 }
-#[function(context = player)]
+#[function("fail_after_valid", context = player)]
 fn fail_after_valid() {
     let state = Probe::on(EntityContext::<PlayerKind>::default());
     let block = WorldContext::current().block(BlockPos::here());
@@ -91,7 +91,7 @@ fn fail_after_valid() {
         ]
     });
 }
-#[function(context = player)]
+#[function("nested", context = player)]
 fn nested() {
     let state = Probe::on(EntityContext::<PlayerKind>::default());
     let world = WorldContext::current();
@@ -101,7 +101,7 @@ fn nested() {
         state.elapsed.set(outer.burn_remaining());
     ]);
 }
-#[function(context = player)]
+#[function("in_nether", context = player)]
 fn in_nether() {
     WorldContext::current().in_dimension(
         sand::registry::DimensionId::minecraft("the_nether").unwrap(),
@@ -111,7 +111,7 @@ fn in_nether() {
         .after
         .add(10);
 }
-#[function(context = player)]
+#[function("local_snapshot", context = player)]
 fn local_snapshot() {
     let state = Probe::on(EntityContext::<PlayerKind>::default());
     WorldContext::current()

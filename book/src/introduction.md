@@ -4,7 +4,8 @@ This book teaches Sand by building one datapack from an empty directory to a
 finished, running pack: **Trailforge**, a small equipment-and-traversal
 gameplay mod. Trailforge adds a craftable **Grapple Core**, a pair of
 upgraded boots called **Trail Striders**, a stamina resource that fuels a
-grapple dash, and a small upgrade menu. Every chapter adds the next piece of
+grapple dash, and a small upgrade menu. Equipped players can target a gold
+anchor for the dash or an iron anchor for a cheaper scouting burst. Every chapter adds the next piece of
 that pack and explains *why* it's built that way, not just *how* to call the
 API.
 
@@ -46,7 +47,10 @@ behind) every system Trailforge demonstrates:
 - **Events** — vanilla events (`FirstJoin`, `OnDeath`), an
   advancement-backed custom event, a tick-backed custom event, and a chained
   event that composes off another event.
-- **Equipment and attributes** — an `AttributeModifier` on armor.
+- **Equipment and attributes** — canonical custom boots identity and a passive
+  `AttributeModifier` on armor.
+- **Bounded interactions** — first-collision block rays, accepted-hit resource
+  costs, and two abilities composed with one ordinary Rust helper.
 - **A dialog** — a multi-button upgrade menu.
 - **Particles and sounds** — a reusable `Vfx` sequence for the dash.
 - **Framework systems** — typed `#[system]` behavior over State, events, and archetypes.

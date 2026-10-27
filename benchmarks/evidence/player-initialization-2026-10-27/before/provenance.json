@@ -1,0 +1,8 @@
+{
+  "label": "before",
+  "pack_sha256": "1c5307488f074e20ef3717fbcc90048a2f17c9f7951aed3ce75a87bd6f0c76f5",
+  "fixture_revision": "6f77dcb64d7bc5cd34793b5918f2285b0831766b",
+  "fixture": "examples/book_project (unchanged between source commits)",
+  "source_revision_at_capture": "6f77dcb64d7bc5cd34793b5918f2285b0831766b",
+  "source_capture_state": "baseline before runtime edits; cleanliness not independently recorded"
+}

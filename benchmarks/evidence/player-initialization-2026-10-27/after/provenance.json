@@ -1,0 +1,17 @@
+{
+  "label": "after",
+  "pack_sha256": "f81a61a45d4c1cf04d6e4e71a28a05cacbebfd92c4e5e0c37a6f482e83d6ddc4",
+  "fixture_revision": "6f77dcb64d7bc5cd34793b5918f2285b0831766b",
+  "fixture": "examples/book_project (unchanged between source commits)",
+  "source_revision_at_capture": "6f77dcb64d7bc5cd34793b5918f2285b0831766b",
+  "source_capture_state": "uncommitted runtime implementation; not captured from a clean commit",
+  "candidate_commit": "0e47c6c180c4cd6d1721a36fb02fb4b45ec2c172",
+  "subsequent_clean_rebuild_verification": {
+    "commit": "0e47c6c180c4cd6d1721a36fb02fb4b45ec2c172",
+    "worktree_dirty": false,
+    "pack_sha256": "f81a61a45d4c1cf04d6e4e71a28a05cacbebfd92c4e5e0c37a6f482e83d6ddc4",
+    "matches_captured_pack": true,
+    "runtime_report_sha256": "8215ca7528d2b3c722521768f2f1433de431ab8b0bd804ea0d186d01e3f78320",
+    "note": "Rebuilt through sand build --format json at clean commit; compared every pack path and byte via digest before maintained harness rerun."
+  }
+}

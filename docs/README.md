@@ -22,3 +22,5 @@ for typed state, commands, conditions, events, items, and more.
 For contributor workflow (checks, toolchain policy, testing commands), see
 [`CONTRIBUTING.md`](../CONTRIBUTING.md). For release process, see
 [`RELEASE.md`](../RELEASE.md).
+
+Artifact download and migration contract: [Verified Minecraft artifact cache](architecture/verified-download-cache.md).

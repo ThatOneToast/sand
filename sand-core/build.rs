@@ -69,7 +69,7 @@ fn main() {
                  \n\
                  Codegen requires a Java runtime new enough for the selected Minecraft\n\
                  server (Java 25 for the current 26.2 baseline) and either\n\
-                 network access or a cached jar in ~/.sand/cache/{version}/.\n\
+                 network access or a verified cached manifest, package metadata, and jar.\n\
                  \n\
                  To compile ordinary facade code with empty placeholder APIs (sand-core\n\
                  test builds are unavailable), set SAND_ALLOW_PLACEHOLDER_CODEGEN=1."

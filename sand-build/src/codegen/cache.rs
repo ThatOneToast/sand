@@ -68,10 +68,8 @@
 //! identical either way; that failure is treated as "someone else already
 //! published this," not an error. This needs no locking beyond the
 //! atomicity `rename` already provides — no global lock is held for cache
-//! population itself (the existing coarse `VersionCacheLock` in
-//! `crate::lib` still serializes the surrounding jar-download/
-//! report-generation steps; narrowing that further is tracked as follow-up,
-//! see the issue #347 PR description).
+//! population itself. The private `cache::VersionCache` OS lock serializes
+//! surrounding artifact verification, report generation, and consumption.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

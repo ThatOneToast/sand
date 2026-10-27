@@ -127,15 +127,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.sand/cache
-          key: ${{ runner.os }}-sand-minecraft-${{ matrix.version }}
+          key: ${{ runner.os }}-sand-artifacts-v1-${{ matrix.version }}
           restore-keys: |
-            ${{ runner.os }}-sand-minecraft-
+            ${{ runner.os }}-sand-artifacts-v1-
 
       - name: Prepare artifact directories
         run: mkdir -p "target/vanilla-reload/${{ matrix.version }}" sand-vanilla-audit/dist
 
       - name: Ensure SHA-verified server jar
-        run: cargo run --quiet -p sand-build --bin ensure-server-jar -- "${{ matrix.version }}"
+        run: |
+          jar="$(cargo run --quiet -p sand-build --bin ensure-server-jar -- "${{ matrix.version }}")"
+          test -f "$jar"
+          echo "SAND_SERVER_JAR=$jar" >> "$GITHUB_ENV"
 
       - name: Build representative audit pack
         working-directory: sand-vanilla-audit
@@ -152,6 +155,7 @@ jobs:
           scripts/validate-vanilla-reload.sh \
             --version "${{ matrix.version }}" \
             --pack sand-vanilla-audit/dist/sand_audit \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}"
 
       - name: Compare runtime reports with completed vanilla command traces
@@ -159,7 +163,7 @@ jobs:
         run: |
           python3 scripts/validate_runtime_report.py \
             --binary target/debug/sand \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/runtime-report"
 
       - name: Validate portable State defaults and bounds with real players
@@ -169,13 +173,13 @@ jobs:
             --binary target/debug/sand \
             --initial-value 100 \
             --bounds 0 102 \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --evidence "target/vanilla-reload/${{ matrix.version }}/portable-state/evidence.json"
           for increment in -1 -2147483648; do
             python3 scripts/mc_validation/run_portable_program_audit.py \
               --binary target/debug/sand \
               --initial-value 0 --bounds -2 2 --increment="$increment" \
-              --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+              --jar "$SAND_SERVER_JAR" \
               --evidence "target/vanilla-reload/${{ matrix.version }}/portable-state/$increment/evidence.json"
           done
 
@@ -184,14 +188,14 @@ jobs:
         run: |
           python3 scripts/validate_portable_global.py \
             --binary target/debug/sand \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/portable-global"
 
       - name: Validate StateFlow gameplay with two players
         if: matrix.target == 'latest'
         run: |
           python3 scripts/validate_state_flow.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/state-flow"
 
       - name: Validate runtime world and block gameplay
@@ -199,8 +203,9 @@ jobs:
         run: |
           python3 scripts/validate_world_gameplay.py \
             --version "${{ matrix.version }}" \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --pack sand-vanilla-audit/dist/sand_audit \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/world-gameplay"
 
       - name: Validate real-player observation isolation and reload
@@ -208,8 +213,9 @@ jobs:
         run: |
           python3 scripts/validate_player_observations.py \
             --version "${{ matrix.version }}" \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --pack sand-vanilla-audit/dist/sand_audit \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/player-observations"
 
       - name: Validate typed text interaction codec round trips
@@ -217,8 +223,9 @@ jobs:
         run: |
           python3 scripts/validate_text_interactions.py \
             --version "${{ matrix.version }}" \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --pack sand-vanilla-audit/dist/sand_audit \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/text-interactions"
 
       - name: Build participant regression pack
@@ -234,7 +241,7 @@ jobs:
         run: |
           python3 scripts/validate_player_participants.py \
             --version "${{ matrix.version }}" \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --pack examples/participant_audit/dist/paudit \
             --output "target/vanilla-reload/${{ matrix.version }}/player-participants"
 
@@ -242,55 +249,55 @@ jobs:
         if: matrix.target == 'latest'
         run: |
           python3 scripts/mc_validation/run_bounded_item_event_proof.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/bounded-items"
 
       - name: Validate real-player reconnect and datapack join isolation
         if: matrix.target == 'latest'
         run: |
           python3 scripts/validate_player_joins.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/player-joins"
 
       - name: Validate guarded bounded State writes for real players
         if: matrix.target == 'latest'
         run: |
           python3 scripts/validate_bounded_state_writes.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/bounded-state"
       - name: Validate atomic inventory match branches for real players
         if: matrix.target == 'latest'
         run: |
           python3 scripts/validate_inventory_matches.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/inventory-matches"
 
       - name: Validate block raycasting with two real players
         if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_block_raycast.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/block-raycast"
 
       - name: Validate built-in detector ownership in both tick orders
         if: matrix.target == 'latest'
         run: |
           python3 scripts/validate_detector_ownership.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/detector-ownership"
 
       - name: Validate overlapping archetype dirty acknowledgement in both orders
         if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_archetype_dirty.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/archetype-dirty"
 
       - name: Validate XP snapshot timing, respawn and idle bookkeeping cost
         if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_xp_level.py \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/xp-level"
 
       - name: Validate portable player and global gameplay flows
@@ -298,7 +305,7 @@ jobs:
         run: |
           python3 scripts/validate_portable_flows.py \
             --binary target/debug/sand \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/portable-flows"
 
       - name: Validate Trailforge upgrade and ability isolation
@@ -307,14 +314,14 @@ jobs:
           (cd examples/book_project && CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target" "$GITHUB_WORKSPACE/target/debug/sand" build)
           python3 scripts/validate_trailforge.py \
             --pack examples/book_project/dist/trail \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/trailforge"
 
       - name: Validate unified State example with real players and entities
         if: matrix.target == 'latest'
         run: |
           python3 scripts/mc_validation/run_unified_state_audit.py --build \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --evidence "target/vanilla-reload/${{ matrix.version }}/unified-state/evidence.json"
 
       - name: Validate literal keyed State values with real players and entities
@@ -323,7 +330,7 @@ jobs:
           python3 scripts/validate_keyed_literals.py \
             --version "${{ matrix.version }}" \
             --pack examples/unified_state/dist/unified_state \
-            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/keyed-literals"
 
       - name: Validate dev to release world-build profile switching

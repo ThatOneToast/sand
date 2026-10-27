@@ -20,7 +20,7 @@ vanilla workflow also runs its real-server State audit; from the repository root
 
 ```sh
 python3 scripts/mc_validation/run_unified_state_audit.py --build \
-  --jar "$HOME/.sand/cache/26.2/server.jar"
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"
 ```
 
 The audit installs the CLI-built datapack and checks two connected players,
@@ -39,7 +39,7 @@ reload retention and selective detach against the CLI-built pack:
 ```sh
 python3 scripts/validate_keyed_literals.py --version 26.2 \
   --pack examples/unified_state/dist/unified_state \
-  --jar "$HOME/.sand/cache/26.2/server.jar"
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"
 ```
 
 The latest-version vanilla CI job runs this audit and retains failure evidence.

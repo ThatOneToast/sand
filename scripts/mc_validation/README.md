@@ -6,7 +6,7 @@ this directory and validates `examples/rpg_entity` against a real 26.2 server:
 ```bash
 python3 scripts/mc_validation/run_entity_archetype_audit.py \
   --build \
-  --jar ~/.sand/cache/26.2/server.jar \
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)" \
   --evidence /tmp/entity-archetype-evidence.json
 ```
 
@@ -26,7 +26,7 @@ real 26.2 server:
 ```bash
 python3 scripts/mc_validation/run_unified_state_audit.py \
   --build \
-  --jar ~/.sand/cache/26.2/server.jar \
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)" \
   --evidence /tmp/unified-state-evidence.json
 ```
 
@@ -103,7 +103,7 @@ participant backends merged in #266. Run with:
 
 ```bash
 cargo run -p sand-build --bin ensure-server-jar -- 26.2   # downloads a real server jar
-python3 scripts/mc_validation/run_audit.py --build --jar ~/.sand/cache/26.2/server.jar
+python3 scripts/mc_validation/run_audit.py --build --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"
 ```
 
 This starts a **real** Minecraft Java 26.2 server (downloaded from Mojang's
@@ -354,7 +354,7 @@ participant harness described above.
 
 ## Real-player bounded item transport
 
-`run_bounded_item_event_proof.py --jar ~/.sand/cache/26.2/server.jar` exports
+`run_bounded_item_event_proof.py --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"` exports
 the unmodified Rust bounded-item fixture and connects two passive players.
 Actual held items feed generated source capture; direct source/child/expiry
 dispatch isolates storage transport from event detection. The audit compares
@@ -381,7 +381,7 @@ contracts and limits.
 
 ```bash
 python3 scripts/validate_archetype_dirty.py \
-  --jar ~/.sand/cache/26.2/server.jar \
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)" \
   --output /tmp/archetype-dirty
 ```
 

@@ -191,7 +191,7 @@ pub mod inventory {
     example = "use sand::world::WorldContext;"
 )]
 pub mod world {
-    pub use sand_core::world::{BlockContext, WorldContext};
+    pub use sand_core::world::{BlockContext, Furnace, WorldContext};
 }
 
 /// Predicate resources and the typed conditions used to build them.

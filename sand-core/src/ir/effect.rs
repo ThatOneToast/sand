@@ -16,10 +16,18 @@ pub struct EffectPresence {
 
 impl EffectPresence {
     pub(crate) fn register(&self) -> String {
-        let path = crate::function::register_dyn_fn_dedup(
-            "sand/conditions/effects",
-            Actions(vec![Cmd::EffectPresence(Box::new(self.clone()))]),
-        );
+        self.reference(true)
+    }
+
+    /// Compute the same owned identity without registering discarded Actions.
+    pub(crate) fn reference(&self, register: bool) -> String {
+        let body = Actions(vec![Cmd::EffectPresence(Box::new(self.clone()))]);
+        let prefix = "sand/conditions/effects";
+        let path = if register {
+            crate::function::register_dyn_fn_dedup(prefix, body)
+        } else {
+            crate::function::generated_function_path(prefix, &body)
+        };
         format!("{}:{path}", crate::function::SAND_LOCAL_NS)
     }
 

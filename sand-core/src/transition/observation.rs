@@ -344,6 +344,30 @@ fn set(objective: &str, value: i32) -> Cmd {
 mod tests {
     use super::*;
 
+    #[test]
+    fn legacy_native_health_observation_identity_is_stable() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let player = crate::entity::EntityContext::<crate::entity::PlayerKind>::default();
+        let source = ObservationSource::Numeric(StatCurve::from(player.living().health()));
+        let plan = resolve(
+            "paudit",
+            &[handler(
+                "health",
+                "health_loss",
+                source,
+                TransitionKind::ScoreDecreased,
+            )],
+        )
+        .unwrap();
+        assert_eq!(plan.functions[0].path, "__sand_transition/bad4ea9220");
+        assert!(
+            plan.functions[0]
+                .commands
+                .join("\n")
+                .contains("sand/numeric/see58ec10387c628/f38e3ed2")
+        );
+    }
+
     fn handler(
         id: &str,
         path: &str,

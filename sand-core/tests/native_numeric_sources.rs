@@ -24,6 +24,8 @@ fn snapshot_native() {
 #[test]
 fn native_reads_are_owned_scaled_and_repeat_export_stable() {
     let first = sand_core::try_export_components_json("native_numeric").unwrap();
+    let other = sand_core::try_export_components_json("native_other").unwrap();
+    assert_ne!(first, other);
     assert_eq!(
         first,
         sand_core::try_export_components_json("native_numeric").unwrap()

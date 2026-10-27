@@ -1,0 +1,113 @@
+{
+  "minecraft": "26.2",
+  "passed": true,
+  "scope": "Python producer compiled without Cargo; zero-player global flow and two real passive players; automatic ticks frozen",
+  "pack_sha256": "90ca358aa6d60263e792aa1d6a9d0714c8303d67a1ceacb5e3adb0ed2294f58d",
+  "checks": [
+    {
+      "name": "NO_PLAYERS",
+      "condition": "unless entity @a",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_TRANSITION_WITHOUT_PLAYERS",
+      "condition": "if score #sand_demo_world_78d17ea0 s709d2ddbe2c2931 matches 1",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_CADENCE_FIRST_TICK",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 0",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_CADENCE_SECOND_TICK",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 1",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_GUARDED_TRANSITION",
+      "condition": "if score SandAlpha s8dec516490d2d08 matches 1",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_ENTER_COST",
+      "condition": "if score SandAlpha s108eb94c11c6345 matches 70",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_ENTER_THEN_TICK",
+      "condition": "if score SandAlpha scd0adc2a8a41b14 matches 11",
+      "passed": true
+    },
+    {
+      "name": "BETA_FALLBACK_TRANSITION",
+      "condition": "if score SandBeta s8dec516490d2d08 matches 2",
+      "passed": true
+    },
+    {
+      "name": "BETA_ENTER_ONCE",
+      "condition": "if score SandBeta scd0adc2a8a41b14 matches 100",
+      "passed": true
+    },
+    {
+      "name": "BETA_COST_ISOLATED",
+      "condition": "if score SandBeta s108eb94c11c6345 matches 5",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_INTERVAL_COST",
+      "condition": "if score SandAlpha s108eb94c11c6345 matches 65",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_SECOND_TICK",
+      "condition": "if score SandAlpha scd0adc2a8a41b14 matches 12",
+      "passed": true
+    },
+    {
+      "name": "BETA_HOOK_ISOLATED",
+      "condition": "if score SandBeta scd0adc2a8a41b14 matches 100",
+      "passed": true
+    },
+    {
+      "name": "ALPHA_REST_TRANSITION",
+      "condition": "if score SandAlpha s8dec516490d2d08 matches 2",
+      "passed": true
+    },
+    {
+      "name": "REST_ENTER_WITHOUT_ACTIVE_TICK",
+      "condition": "if score SandAlpha scd0adc2a8a41b14 matches 112",
+      "passed": true
+    },
+    {
+      "name": "REST_HAS_NO_PULSE",
+      "condition": "if score SandAlpha s108eb94c11c6345 matches 10",
+      "passed": true
+    },
+    {
+      "name": "PLAYER_FLOW_DOES_NOT_ADVANCE_GLOBAL_CLOCK",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 1",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_PLAYER_STATE",
+      "condition": "if score SandAlpha s8dec516490d2d08 matches 2",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_PLAYER_HOOK_STATE",
+      "condition": "if score SandAlpha scd0adc2a8a41b14 matches 112",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_GLOBAL_STATE",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 1",
+      "passed": true
+    },
+    {
+      "name": "RELOAD_PRESERVES_GLOBAL_CADENCE",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 2",
+      "passed": true
+    }
+  ]
+}

@@ -952,3 +952,21 @@ retain both packs' identities and ten complete native traces.
 
 See the [initialization contract](docs/player-initialization-fast-path.md) for
 eligibility, excluded hooks/storage/migrations, and reproduction instructions.
+
+## Keyed owner resolution (2026-10-27)
+
+The unchanged unified_state fixture compares baseline owner reads, a rejected
+unconditional-clear candidate, and conditional UUID invalidation on vanilla 26.2.
+[Comparison and raw traces](benchmarks/evidence/keyed-owner-2026-10-27/summary.json)
+retain all three outcomes, including the baseline stale-owner failure.
+
+- Static emitted owner resolution: four partial UUID reads become one whole-array
+  read, with conditional stale-argument invalidation and the existing macro call.
+- Native existing-attachment evaluations: 24→22 including the identical one-command
+  observer wrapper; UUID reads 4→1. Repeated corrected attachment remains 22/1.
+- Observed successful storage-mutation commands: existing attachment remains zero.
+  The rejected candidate performed two and is retained as failed evidence.
+- Same-owner get: five evaluations including the wrapper, one UUID read, zero
+  successful storage mutations, and one executed storage get.
+- No MSPT, internal command-budget, constant-time owner lookup, or reclamation
+  claim follows from these bounded measurements.

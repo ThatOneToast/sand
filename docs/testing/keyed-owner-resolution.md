@@ -117,3 +117,14 @@ and corrected native run. Each has its own source revision, pack/harness hashes,
 assertions and raw traces. The corrected source passed 36 native assertions.
 These records predate final stack integration and are not relabeled as a run of
 a later revision.
+
+## Integrated static baseline
+
+Canonical `scripts/check-examples.sh --update-runtime-baselines` passed all six
+examples after integration. Only `unified_state.json` changes for this slice;
+it still contains 82 functions. Whole-UUID macro bodies have new content-derived
+identifiers, and conditional missing-executor clearing adds attributed selector
+sites. The reported minimum evaluations for `set_entity_literals` fall from 18
+to 14 and `set_player_literals` from 35 to 27. Their upper bounds remain unknown
+because macro arguments are not analyzed. These static bounds are not the
+native executed counts above and are not summed into a whole-tick estimate.

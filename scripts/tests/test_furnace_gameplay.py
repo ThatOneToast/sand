@@ -64,5 +64,76 @@ class FurnaceOracleTests(unittest.TestCase):
         self.assertEqual(failure.exception.phase, "PROBE_NESTED_TARGET_REBINDS")
 
 
+class FreshMachineModel(FurnaceHarness):
+    """Model retained block-entity state while executing the real setup helper."""
+
+    def __init__(self, machine, skip_removal=False, nonzero_default=None):
+        self.machine = machine
+        self.values = {"cooking_time_spent": 0, "cooking_total_time": 200,
+                       "lit_time_remaining": 1401}
+        self.skip_removal = skip_removal
+        self.nonzero_default = nonzero_default
+        self.events = []
+
+    def send(self, command):
+        self.events.append(command)
+        block = command.removeprefix("setblock 0 85 0 minecraft:")
+        if block == "air":
+            if not self.skip_removal:
+                self.machine = None
+        else:
+            if self.machine != block:
+                self.values = dict.fromkeys(self.values, 0)
+                if self.nonzero_default:
+                    self.values[self.nonzero_default] = 7
+            self.machine = block
+
+    def check(self, name, condition):
+        match = re.fullmatch(r"if data block 0 85 0 \{(\w+):0s\}", condition)
+        if match is None:
+            raise AssertionError(f"unexpected default assertion: {condition}")
+        key = match[1]
+        if self.values[key] != 0:
+            raise ValidationFailure(name, condition)
+        self.events.append(key)
+
+    def native_snapshot(self, label, player):
+        self.events.append("snapshot")
+
+    def score(self, label, player, field, value):
+        self.events.append(f"score:{field}={value}")
+
+    def call(self, name):
+        self.events.append(f"seed:{name}")
+
+
+class FreshMachineTests(unittest.TestCase):
+    def test_each_family_removes_checks_defaults_and_snapshots_before_seed(self):
+        for machine in ("furnace", "blast_furnace", "smoker"):
+            with self.subTest(machine=machine):
+                harness = FreshMachineModel(machine)
+                harness.fresh_machine("FRESH", machine, "seed", "Alpha")
+                self.assertEqual(harness.events, [
+                    "setblock 0 85 0 minecraft:air",
+                    f"setblock 0 85 0 minecraft:{machine}",
+                    "cooking_time_spent", "cooking_total_time", "lit_time_remaining",
+                    "snapshot", "score:elapsed=0", "score:total=0", "score:burn=0",
+                    "seed:seed"])
+
+    def test_skipped_removal_rejects_retained_state_before_seed(self):
+        harness = FreshMachineModel("furnace", skip_removal=True)
+        with self.assertRaises(ValidationFailure):
+            harness.fresh_machine("FRESH", "furnace", "seed", "Alpha")
+        self.assertNotIn("seed:seed", harness.events)
+
+    def test_each_nonzero_native_default_stops_before_seed(self):
+        for key in ("cooking_time_spent", "cooking_total_time", "lit_time_remaining"):
+            with self.subTest(key=key):
+                harness = FreshMachineModel("furnace", nonzero_default=key)
+                with self.assertRaises(ValidationFailure):
+                    harness.fresh_machine("FRESH", "furnace", "seed", "Alpha")
+                self.assertNotIn("seed:seed", harness.events)
+
+
 if __name__ == "__main__":
     unittest.main()

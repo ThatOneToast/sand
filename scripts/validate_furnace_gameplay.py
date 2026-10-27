@@ -126,6 +126,20 @@ class FurnaceHarness(PlayerHarness):
         self.score(f"{label}_NESTED_TARGET_REBINDS", inner, "burn", 93)
         self.score(f"{label}_NESTED_TARGET_RESTORES", outer, "elapsed", 71)
 
+    def fresh_machine(self, label, machine, seed, player):
+        # Same-type setblock can retain the block entity, including live burn.
+        # Remove it first and verify native defaults before installing any items.
+        self.send("setblock 0 85 0 minecraft:air")
+        self.send(f"setblock 0 85 0 minecraft:{machine}")
+        for field, key in (("elapsed", "cooking_time_spent"),
+                           ("total", "cooking_total_time"),
+                           ("burn", "lit_time_remaining")):
+            self.check(f"{label}_DEFAULT_{field}", f"if data block 0 85 0 {{{key}:0s}}")
+        self.native_snapshot(label, player)
+        for field in ("elapsed", "total", "burn"):
+            self.score(f"{label}_{field.upper()}", player, field, 0)
+        self.call(seed)
+
     def scenarios(self, label):
         a, b = self.players
         for player in self.players:
@@ -134,10 +148,7 @@ class FurnaceHarness(PlayerHarness):
                 ("furnace", "seed_iron", "iron_ingot", 200),
                 ("blast_furnace", "seed_iron", "iron_ingot", 100),
                 ("smoker", "seed_food", "cooked_beef", 100)):
-            self.send(f"setblock 0 85 0 minecraft:{machine}")
-            self.native_snapshot(f"{label}_{machine}_ZERO", a)
-            self.score(f"{label}_{machine}_ZERO_BURN", a, "burn", 0)
-            self.call(seed)
+            self.fresh_machine(f"{label}_{machine}_ZERO", machine, seed, a)
             self.native_snapshot(f"{label}_{machine}_SEEDED", a)
             self.score(f"{label}_{machine}_RECIPE_TOTAL", a, "total", total)
             self.step(1, f"{label}_{machine}_IGNITION_TICK")
@@ -153,8 +164,7 @@ class FurnaceHarness(PlayerHarness):
 
             # Empty fuel, unusable recipe and blocked output are distinct states.
             for edge in ("NO_FUEL", "INVALID_INPUT", "FULL_OUTPUT", "WRONG_OUTPUT"):
-                self.send(f"setblock 0 85 0 minecraft:{machine}")
-                self.call(seed)
+                self.fresh_machine(f"{label}_{machine}_{edge}_FRESH", machine, seed, a)
                 if edge == "NO_FUEL":
                     self.send("item replace block 0 85 0 container.1 with minecraft:air")
                 elif edge == "INVALID_INPUT":
@@ -167,8 +177,7 @@ class FurnaceHarness(PlayerHarness):
                 self.score(f"{label}_{machine}_{edge}_PROGRESS", a, "elapsed", 0)
                 self.score(f"{label}_{machine}_{edge}_BURN", a, "burn", 0)
 
-            self.send(f"setblock 0 85 0 minecraft:{machine}")
-            self.call(seed)
+            self.fresh_machine(f"{label}_{machine}_PARTIAL_FRESH", machine, seed, a)
             self.step(8, f"{label}_{machine}_PARTIAL_TICKS")
             self.native_snapshot(f"{label}_{machine}_PARTIAL", a)
             self.score(f"{label}_{machine}_PARTIAL_PROGRESS", a, "elapsed", 8)

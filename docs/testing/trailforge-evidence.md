@@ -20,6 +20,18 @@ cooldown. Scout reuses the eligibility path with an iron anchor, a 4-block range
 10 stamina, and a 20-tick shared cooldown. Both rays sample every 0.25 blocks;
 these tests do not establish exact voxel collision for thin obstacles.
 
+The canonical gameplay-only runtime baseline grows from 37 to 58 emitted
+functions, including the two registered raycasts and their callbacks. The
+authored `tick` function now uses one positioned player pass instead of four
+separate passes, and groups regeneration behind one timer decision. Raycasts
+run only on eligible requests; they add no tick observer. The report retains
+unknown upper bounds for recursive ray helpers and population-dependent calls.
+The 32/16 sample bounds come from the ray definitions and their tests, not a
+whole-tick budget inferred from that report. This is an intentional static
+output delta for new behavior, not a measured speedup over the old untargeted
+dash. The separate initialization optimization has its own unchanged-fixture
+before/after evidence.
+
 The harness covers:
 
 - Recipe-result custom identity, plain-item rejection, exact upgrade consumption
@@ -74,7 +86,7 @@ python3 scripts/validate_trailforge.py \
   --pack examples/book_project/dist/trail \
   --source-root "$PWD" \
   --jar "$HOME/.sand/cache/26.2/server.jar" \
-  --java "$(/usr/libexec/java_home -v 25)/bin/java" \
+  --java java \
   --output target/vanilla-reload/26.2/trailforge
 python3 -m unittest scripts.tests.test_trailforge
 ```

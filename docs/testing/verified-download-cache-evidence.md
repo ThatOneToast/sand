@@ -104,7 +104,7 @@ Report publication crash can leave an invalid entry absent/regenerable. There is
 no hostile-local-write guarantee or power-loss promise. No broad speed claim.
 
 Full scripts/check.sh, shared-cache/public-helper execution, integrated Java
-reruns and native gameplay remain held for coordination. Furnace #464 remains a
+reruns and native gameplay remain held for coordination. PR #494 (frozen head 464b3726) remains a
 legacy cache user. No CI polling, profile changes or main merge authorization is
 implied by these results.
 

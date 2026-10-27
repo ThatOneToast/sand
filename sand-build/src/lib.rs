@@ -151,3 +151,6 @@ pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()
 
     Ok(())
 }
+
+#[cfg(test)]
+mod private_cache_validation;

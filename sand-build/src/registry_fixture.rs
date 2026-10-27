@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, VersionCacheLock, download, report, resolve_version};
+use crate::{Result, cache, download, report, resolve_version};
 
 const PROVENANCE: &str = "Mojang server data generator generated/reports/datapack.json";
 
@@ -72,12 +72,13 @@ fn normalize(version: &str, report: &str) -> Result<String> {
 /// selected Minecraft version's data generator. It is never called by normal
 /// tests or CI.
 pub fn refresh_registry_coverage_fixture(version: &str, output: &Path) -> Result<()> {
-    let (version_id, version_json_url) = resolve_version(version)?;
-    let _lock = VersionCacheLock::acquire(&version_id)?;
-    let jar = download::ensure_server_jar(&version_id, &version_json_url)?;
-    let reports = report::ensure_reports(&version_id, &jar)?;
+    let root = cache::cache_dir()?;
+    let entry = resolve_version(&root, version, &download::Http)?;
+    let cache = cache::VersionCache::acquire(&root, &entry.id)?;
+    let jar = download::ensure_server_jar(&cache, &entry, &download::Http)?;
+    let reports = report::ensure_reports(&cache, &jar)?;
     let datapack = std::fs::read_to_string(reports.join("datapack.json"))?;
-    std::fs::write(output, normalize(&version_id, &datapack)?)?;
+    std::fs::write(output, normalize(&entry.id, &datapack)?)?;
     Ok(())
 }
 

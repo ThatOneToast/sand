@@ -1,43 +1,103 @@
-use std::path::PathBuf;
+use crate::cache::{VersionCache, invalid, read_optional};
+use crate::error::{Error, Result};
+use crate::fingerprint::hash_bytes;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::{
-    cache::version_dir,
-    error::{Error, Result},
-};
+const REQUIRED: &[&str] = &[
+    "registries.json",
+    "blocks.json",
+    "commands.json",
+    "datapack.json",
+];
 
-/// Ensures the data generator reports exist for `version_id`.
-///
-/// If `generated/reports/registries.json` is already present inside the
-/// version cache directory, the generator is skipped. Otherwise, `java` is
-/// invoked to produce the reports.
-///
-/// Returns the path to the `generated/reports/` directory.
-pub fn ensure_reports(version_id: &str, jar_path: &PathBuf) -> Result<PathBuf> {
-    let version_dir = version_dir(version_id)?;
-    let reports_dir = version_dir.join("generated").join("reports");
-    let sentinel = reports_dir.join("registries.json");
-
-    if sentinel.exists() {
-        return Ok(reports_dir);
-    }
-
-    run_generator(&version_dir, jar_path)?;
-
-    if !sentinel.exists() {
-        return Err(Error::DataGeneratorFailed {
-            code: 0,
-            stderr: format!(
-                "Generator ran but '{}' was not produced.",
-                sentinel.display()
-            ),
-        });
-    }
-
-    Ok(reports_dir)
+#[derive(Serialize, Deserialize)]
+struct Provenance {
+    schema: u32,
+    jar_sha1: String,
+    files: std::collections::BTreeMap<String, String>,
 }
 
-fn run_generator(working_dir: &PathBuf, jar_path: &PathBuf) -> Result<()> {
+/// Only called while the artifact guard is held. Reports live with their JAR,
+/// not at the legacy version-only sentinel. Staging is private until complete.
+pub(crate) fn ensure_reports(cache: &VersionCache, jar: &Path) -> Result<PathBuf> {
+    ensure_reports_with(cache, jar, run_generator)
+}
+
+fn ensure_reports_with(
+    cache: &VersionCache,
+    jar: &Path,
+    generate: impl FnOnce(&Path, &Path) -> Result<()>,
+) -> Result<PathBuf> {
+    let digest = cache.digest_for_jar(jar)?;
+    let artifact = cache.artifact_dir(digest);
+    let sha1 = digest.hex();
+    let published = cache.reports_dir(digest);
+    if valid_reports(&published, &sha1)? {
+        return Ok(published);
+    }
+    let stage = tempfile::Builder::new()
+        .prefix(".reports-")
+        .tempdir_in(artifact)?;
+    generate(stage.path(), jar)?;
+    let reports = stage.path().join("generated/reports");
+    let files = report_files(&reports)?
+        .ok_or_else(|| invalid("generator did not produce complete JSON reports"))?;
+    let provenance = Provenance {
+        schema: 1,
+        jar_sha1: sha1,
+        files,
+    };
+    std::fs::write(
+        reports.join(".sand-provenance.json"),
+        serde_json::to_vec(&provenance)?,
+    )?;
+
+    // All readers hold this version lock. Quarantine an invalid old directory
+    // only after a complete replacement exists; restore it if publication fails.
+    let backup = stage.path().join("previous");
+    let had_previous = match std::fs::rename(&published, &backup) {
+        Ok(()) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+        Err(e) => return Err(e.into()),
+    };
+    if let Err(error) = std::fs::rename(&reports, &published) {
+        if had_previous {
+            std::fs::rename(&backup, &published)?;
+        }
+        return Err(error.into());
+    }
+    Ok(published)
+}
+
+fn report_files(dir: &Path) -> Result<Option<std::collections::BTreeMap<String, String>>> {
+    let mut files = std::collections::BTreeMap::new();
+    for name in REQUIRED {
+        let Some(bytes) = read_optional(&dir.join(name))? else {
+            return Ok(None);
+        };
+        if !serde_json::from_slice::<serde_json::Value>(&bytes).is_ok_and(|v| v.is_object()) {
+            return Ok(None);
+        }
+        files.insert((*name).to_owned(), hash_bytes(&bytes));
+    }
+    Ok(Some(files))
+}
+
+fn valid_reports(dir: &Path, sha1: &str) -> Result<bool> {
+    let Some(bytes) = read_optional(&dir.join(".sand-provenance.json"))? else {
+        return Ok(false);
+    };
+    let Ok(provenance) = serde_json::from_slice::<Provenance>(&bytes) else {
+        return Ok(false);
+    };
+    Ok(provenance.schema == 1
+        && provenance.jar_sha1 == sha1
+        && report_files(dir)?.is_some_and(|files| files == provenance.files))
+}
+
+fn run_generator(working_dir: &Path, jar_path: &Path) -> Result<()> {
     // Probe for java on PATH first so we can give a clear error.
     let java = which_java()?;
 
@@ -76,3 +136,6 @@ fn which_java() -> Result<String> {
         Err(e) => Err(Error::Io(e)),
     }
 }
+
+#[cfg(test)]
+mod tests;

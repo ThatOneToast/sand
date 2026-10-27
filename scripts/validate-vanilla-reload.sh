@@ -3,7 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CACHE_ROOT="${SAND_JAR_CACHE:-$HOME/.sand/cache}"
 
 usage() {
     cat <<'EOF'
@@ -17,9 +16,11 @@ Options:
   --client-command   Run the remaining argv as a gameplay client after startup
   --help             Show this help
 
-The default jar is ~/.sand/cache/<version>/server.jar. Set SAND_JAR_CACHE to
-override the Sand cache root. Populate it with:
+Without --jar, the Sand helper resolves and verifies the selected JAR and returns
+its immutable artifact path (this may download missing metadata or JAR bytes):
   cargo run -p sand-build --bin ensure-server-jar -- <version>
+Pass --jar explicitly to use an already prepared artifact without invoking Cargo.
+The old SAND_JAR_CACHE/version-only path convention is no longer used.
 EOF
 }
 
@@ -49,9 +50,8 @@ done
 [[ -f "$PACK/pack.mcmeta" ]] || { echo "error: missing $PACK/pack.mcmeta" >&2; exit 2; }
 
 if [[ -z "$JAR" ]]; then
-    JAR="$CACHE_ROOT/$VERSION/server.jar"
-    legacy="$CACHE_ROOT/server-$VERSION.jar"
-    [[ -f "$JAR" || ! -f "$legacy" ]] || JAR="$legacy"
+    JAR="$(cargo run --quiet --manifest-path "$REPO_ROOT/sand-build/Cargo.toml" \
+        --bin ensure-server-jar -- "$VERSION")"
 fi
 [[ -f "$JAR" ]] || {
     echo "error: no cached server jar for $VERSION at $JAR" >&2

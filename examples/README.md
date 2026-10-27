@@ -57,7 +57,7 @@ Run it locally with Minecraft 26.2 and Java 25:
 
 ```sh
 python3 scripts/mc_validation/run_unified_state_audit.py --build \
-  --jar "$HOME/.sand/cache/26.2/server.jar"
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"
 ```
 
 Additional attribute and component golden tests live in `sand-example/src/`.

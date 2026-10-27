@@ -25,7 +25,7 @@ scoreboard value, so fake players stand in for real ones):
 
 Usage:
     python3 scripts/mc_validation/run_bounded_item_proof.py \
-        --jar ~/.sand/cache/26.2/server.jar
+        --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"
 
 The stdout-drain threading below is load-bearing; see the long comment in
 `run_audit.py` (a stalled pipe silently corrupts every post-startup RCON

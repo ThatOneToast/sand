@@ -629,7 +629,7 @@ Build the fixture, then measure it with Minecraft 26.2 and Java 25:
 ```sh
 (cd examples/rpg_entity && cargo run --manifest-path ../../sand-cli/Cargo.toml --bin sand -- build)
 scripts/bench_runtime.sh --archetype-idle \
-  --jar "$HOME/.sand/cache/26.2/server.jar"
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)"
 ```
 
 Use `--java /path/to/java` when Java 25 is not the default, or `--pack /path/to/rpg`
@@ -740,7 +740,7 @@ Reproduce the active workload against either exported pack with:
 
 ```sh
 python3 scripts/measure_archetype_idle.py --workload level-up \
-  --pack /path/to/rpg --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --pack /path/to/rpg --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)" \
   --java /path/to/java25
 ```
 
@@ -791,7 +791,7 @@ Reproduce using a fresh output directory:
 cargo build -p sand-cli
 python3 scripts/validate_runtime_report.py \
   --binary target/debug/sand \
-  --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --jar "$(cargo run --quiet -p sand-build --bin ensure-server-jar -- 26.2)" \
   --output /tmp/sand-runtime-report-evidence
 ```
 

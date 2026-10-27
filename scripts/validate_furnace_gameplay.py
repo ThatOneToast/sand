@@ -118,6 +118,14 @@ class FurnaceHarness(PlayerHarness):
             time.sleep(0.05)
         raise ValidationFailure(label, "stepped ticks did not finish")
 
+    def nested_player_probe(self, label, outer, inner):
+        # Poison the previously successful read so a skipped inner assignment
+        # cannot satisfy the rebinding oracle with its old value.
+        self.send(f"scoreboard players set {inner} {self.objectives['burn']} -707")
+        self.call("nested_players", outer)
+        self.score(f"{label}_NESTED_TARGET_REBINDS", inner, "burn", 93)
+        self.score(f"{label}_NESTED_TARGET_RESTORES", outer, "elapsed", 71)
+
     def scenarios(self, label):
         a, b = self.players
         for player in self.players:
@@ -186,9 +194,7 @@ class FurnaceHarness(PlayerHarness):
         self.score(f"{label}_PLAYER_A", a, "burn", 71)
         self.score(f"{label}_PLAYER_B", b, "burn", 93)
         self.send(f"tag {b} add furnace_other")
-        self.call("nested_players", a)
-        self.score(f"{label}_NESTED_TARGET_REBINDS", b, "burn", 93)
-        self.score(f"{label}_NESTED_TARGET_RESTORES", a, "elapsed", 71)
+        self.nested_player_probe(label, a, b)
         self.send("function furnace:both_same_machine")
         self.score(f"{label}_SAME_MACHINE_A", a, "burn", 71)
         self.score(f"{label}_SAME_MACHINE_B", b, "burn", 71)

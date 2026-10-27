@@ -205,7 +205,6 @@ jobs:
             --version "${{ matrix.version }}" \
             --jar "$SAND_SERVER_JAR" \
             --pack sand-vanilla-audit/dist/sand_audit \
-            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/world-gameplay"
 
       - name: Validate real-player observation isolation and reload
@@ -215,7 +214,6 @@ jobs:
             --version "${{ matrix.version }}" \
             --jar "$SAND_SERVER_JAR" \
             --pack sand-vanilla-audit/dist/sand_audit \
-            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/player-observations"
 
       - name: Validate typed text interaction codec round trips
@@ -225,7 +223,6 @@ jobs:
             --version "${{ matrix.version }}" \
             --jar "$SAND_SERVER_JAR" \
             --pack sand-vanilla-audit/dist/sand_audit \
-            --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/text-interactions"
 
       - name: Build participant regression pack

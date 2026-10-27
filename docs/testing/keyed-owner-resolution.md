@@ -128,3 +128,11 @@ sites. The reported minimum evaluations for `set_entity_literals` fall from 18
 to 14 and `set_player_literals` from 35 to 27. Their upper bounds remain unknown
 because macro arguments are not analyzed. These static bounds are not the
 native executed counts above and are not summed into a whole-tick estimate.
+
+The [integrated native rerun](../../benchmarks/evidence/gameplay-integration-2026-10-27/keyed/keyed-literal-evidence.json)
+passes all 36 assertions on source `da299c178ba76cdd25c95c582af79ae9289e0323`.
+The rebuilt unified-state pack SHA256 is
+`e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769`, identical to
+the corrected isolated fixture. Raw traces are retained beside that evidence.
+The later lifecycle-test expectation update accounts for the two fewer resolver
+lines and explicitly asserts one whole-UUID read; it changes no exported code.

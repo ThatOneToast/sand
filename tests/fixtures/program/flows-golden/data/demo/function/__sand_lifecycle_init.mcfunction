@@ -1,4 +1,1 @@
-execute unless score @s s8dfc581660963e7 matches 1.. unless score @s s8dec516490d2d08 matches -2147483648.. run scoreboard players set @s s8dec516490d2d08 0
-execute unless score @s s8dfc581660963e7 matches 1.. unless score @s s108eb94c11c6345 matches -2147483648.. run scoreboard players set @s s108eb94c11c6345 100
-execute unless score @s s8dfc581660963e7 matches 1.. unless score @s scd0adc2a8a41b14 matches -2147483648.. run scoreboard players set @s scd0adc2a8a41b14 0
-execute unless score @s s8dfc581660963e7 matches 1.. unless score @s s593376572d2b874 matches 1.. run scoreboard players set @s s593376572d2b874 1
+execute unless entity @s[scores={s593376572d2b874=1,s8dec516490d2d08=-2147483648..,s108eb94c11c6345=-2147483648..,scd0adc2a8a41b14=-2147483648..}] run function demo:sand/state_init/54af896e

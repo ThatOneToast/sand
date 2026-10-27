@@ -304,3 +304,42 @@ fn shared_lifecycle_evaluates_flows_before_authored_tick_writes() {
         "{tick}"
     );
 }
+
+#[test]
+fn player_initializer_calls_emitted_owned_helper_in_each_namespace() {
+    let first = Compiler::compile(&program()).unwrap();
+    for namespace in ["demo", "isolated", "demo"] {
+        let mut input = program();
+        input.pack.namespace = namespace.into();
+        let pack = Compiler::compile(&input).unwrap();
+        let init_path = format!("data/{namespace}/function/__sand_lifecycle_init.mcfunction");
+        let init = std::str::from_utf8(&pack.resources[&init_path]).unwrap();
+        let target = init.split("run function ").nth(1).unwrap();
+        let (actual_namespace, path) = target.split_once(':').unwrap();
+        assert_eq!(actual_namespace, namespace);
+        assert_eq!(path, "sand/state_init/54af896e");
+        let body = &pack.resources[&format!("data/{namespace}/function/{path}.mcfunction")];
+        // Preserve the complete pre-fast-path initializer, including suppression
+        // on every command and presence publication last.
+        assert_eq!(
+            body,
+            include_bytes!(
+                "../../tests/fixtures/program/flows-golden/data/demo/function/sand/state_init/54af896e.mcfunction"
+            )
+        );
+        assert!(
+            !pack
+                .resources
+                .values()
+                .any(|bytes| String::from_utf8_lossy(bytes).contains("__sand_local:"))
+        );
+        let report = serde_json::to_value(&pack.runtime_report).unwrap();
+        assert_eq!(
+            report["functions"][target]["owners"],
+            serde_json::json!(["demo:player"])
+        );
+        if namespace == "demo" {
+            assert_eq!(first.resources, pack.resources);
+        }
+    }
+}

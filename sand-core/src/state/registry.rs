@@ -217,10 +217,20 @@ pub(crate) struct AutomaticLifecycle {
     pub load_commands: Vec<String>,
     pub provision_commands: Vec<String>,
     pub player_init_commands: Vec<String>,
+    /// Owned cold-path helpers; generation never registers these in ambient state.
+    pub player_init_helpers: Vec<PlayerInitHelper>,
     pub player_tick_commands: Vec<String>,
     pub entity_tick_commands: Vec<String>,
     pub global_init_commands: Vec<String>,
     pub global_tick_commands: Vec<String>,
+}
+
+/// One private player initializer, retaining its canonical State owner.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct PlayerInitHelper {
+    pub path: String,
+    pub commands: Vec<String>,
+    pub owner: String,
 }
 
 /// Rust collection binds callbacks before adapting descriptors into owned data.
@@ -538,7 +548,15 @@ fn emit_player(
                 .map(|field| format!("{}=-2147483648..", objective_name(field.objective))),
         );
         let body = output.player_init_commands.split_off(init_start);
-        let path = crate::function::register_dyn_fn_dedup("sand/state_init", body);
+        let path = crate::function::generated_function_path(
+            "sand/state_init",
+            &crate::IntoCommands::into_commands(body.clone()),
+        );
+        output.player_init_helpers.push(PlayerInitHelper {
+            path: path.clone(),
+            commands: body,
+            owner: component.id.to_owned(),
+        });
         output.player_init_commands.push(format!(
             "execute unless entity @s[scores={{{}}}] run function __sand_local:{path}",
             scores.join(",")

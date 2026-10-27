@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "pack_digest_algorithm": {
+    "name": "sha256-path-components-nul-content-nul-v1",
+    "definition": "Sort all regular file pathlib.Path objects by their path components (NOT by the complete relative POSIX string); for each update SHA256 with UTF-8 POSIX relative path, one NUL byte, raw file bytes, one NUL byte. No file count, sizes or timestamps.",
+    "includes_hidden_files": true,
+    "includes_build_manifest": true,
+    "implementation": "scripts/validate_trailforge.py:pack_digest"
+  },
+  "before_pack_sha256": "1c5307488f074e20ef3717fbcc90048a2f17c9f7951aed3ce75a87bd6f0c76f5",
+  "after_pack_sha256": "f81a61a45d4c1cf04d6e4e71a28a05cacbebfd92c4e5e0c37a6f482e83d6ddc4",
+  "native_checks_per_pack": 21,
+  "metric": "Completed vanilla debug [C] initializer evaluations; excludes identical two-command observer wrapper. Not mutation counts, internal command-budget units or MSPT.",
+  "samples": [
+    {
+      "scenario": "healthy_0",
+      "players": 0,
+      "before": 0,
+      "after": 0
+    },
+    {
+      "scenario": "healthy_1",
+      "players": 1,
+      "before": 6,
+      "after": 1
+    },
+    {
+      "scenario": "healthy_2",
+      "players": 2,
+      "before": 12,
+      "after": 2
+    },
+    {
+      "scenario": "missing_2",
+      "players": 2,
+      "before": 12,
+      "after": 8
+    },
+    {
+      "scenario": "suppressed_2",
+      "players": 2,
+      "before": 12,
+      "after": 8
+    }
+  ],
+  "reproduction": {
+    "before": [
+      "python3",
+      "scripts/validate_player_initialization.py",
+      "--pack",
+      "<before-pack>",
+      "--provenance",
+      "benchmarks/evidence/player-initialization-2026-10-27/before/provenance.json",
+      "--jar",
+      "<26.2/server.jar>",
+      "--java",
+      "<Java25/bin/java>",
+      "--output",
+      "<fresh-output-directory>"
+    ],
+    "after": "Use after-pack and after/provenance.json with the same harness and a separate fresh output directory."
+  },
+  "limitations": [
+    "Pack exports are not archived here; regenerate from identified source revisions and match the supplied provenance digest before validation.",
+    "Candidate was originally exported while uncommitted; a subsequent clean rebuild at 0e47c6c1 matched the entire captured pack, including build manifest.",
+    "Baseline source cleanliness at original capture was not independently recorded.",
+    "No whole-tick, reload, reconnect, storage-backed schema, or MSPT claim is made by this harness."
+  ],
+  "source_verification": {
+    "base_revision": "6f77dcb64d7bc5cd34793b5918f2285b0831766b",
+    "runtime_revision": "0e47c6c180c4cd6d1721a36fb02fb4b45ec2c172",
+    "fixture_changed_between_revisions": false,
+    "files": {
+      "sand-core/src/state/registry.rs": {
+        "6f77dcb64d7bc5cd34793b5918f2285b0831766b": "4dd7413e598f896b78ed13192cf83a934abb6d69ba72476af9422258a52f26bb",
+        "0e47c6c180c4cd6d1721a36fb02fb4b45ec2c172": "907e005f888098372f691134c0a908edbd5baa530ad15772f0aa72d71b72549b"
+      },
+      "examples/book_project/src/lib.rs": {
+        "6f77dcb64d7bc5cd34793b5918f2285b0831766b": "864dd66d341de7696412742cd54499f413e7fbc9300cab848c4edcb71eee7b6f",
+        "0e47c6c180c4cd6d1721a36fb02fb4b45ec2c172": "864dd66d341de7696412742cd54499f413e7fbc9300cab848c4edcb71eee7b6f"
+      }
+    }
+  },
+  "digest_reconciliation": {
+    "reason": "Different ordering only: comparison.json sorts complete relative POSIX strings; maintained harness sorts pathlib.Path objects by components. Both include every regular file including .sand-build-manifest.json and use path + NUL + content + NUL.",
+    "legacy_algorithm": "sha256-relative-posix-string-nul-content-nul-v1",
+    "first_order_divergence": {
+      "index_zero_based": 20,
+      "legacy_string_order": "data/trail/function/grapple.mcfunction",
+      "maintained_path_component_order": "data/trail/function/grapple/execute.mcfunction"
+    },
+    "digests": {
+      "before": {
+        "files_including_build_manifest": 47,
+        "legacy_string_order_sha256": "4658cc126bf4b9e4ffdee74f0fb85fdd92567fba7e369d9b417ed5d67dcf18a6",
+        "maintained_path_component_order_sha256": "1c5307488f074e20ef3717fbcc90048a2f17c9f7951aed3ce75a87bd6f0c76f5",
+        "build_manifest_sha256": "34e7cecb5438f0c93a42e38cda71d3edce4a054f7ba8b79ede2062bf37798dcb"
+      },
+      "after": {
+        "files_including_build_manifest": 48,
+        "legacy_string_order_sha256": "3e20ae0a122726c6708158f5f142061c3013eb7a385734fbf83e8bc95b1297b7",
+        "maintained_path_component_order_sha256": "f81a61a45d4c1cf04d6e4e71a28a05cacbebfd92c4e5e0c37a6f482e83d6ddc4",
+        "build_manifest_sha256": "5e0c5515edc04cd7e750fd420d809cd8c4a0f46b22ae7cb64efdec5f9e28a65c"
+      }
+    }
+  }
+}

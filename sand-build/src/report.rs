@@ -30,18 +30,10 @@ fn ensure_reports_with(
     jar: &Path,
     generate: impl FnOnce(&Path, &Path) -> Result<()>,
 ) -> Result<PathBuf> {
-    let artifact = jar
-        .parent()
-        .ok_or_else(|| invalid("JAR has no artifact directory"))?;
-    let sha1 = artifact
-        .file_name()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| invalid("invalid artifact path"))?;
-    let sha1 = crate::download::digest(sha1)?;
-    if jar != cache.dir.join("artifacts").join(&sha1).join("server.jar") {
-        return Err(invalid("report JAR does not belong to locked artifact"));
-    }
-    let published = artifact.join("reports-v1");
+    let digest = cache.digest_for_jar(jar)?;
+    let artifact = cache.artifact_dir(digest);
+    let sha1 = digest.hex();
+    let published = cache.reports_dir(digest);
     if valid_reports(&published, &sha1)? {
         return Ok(published);
     }

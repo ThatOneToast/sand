@@ -138,6 +138,22 @@ fn warm(root: &Path, jar: &[u8]) -> (VersionEntry, Vec<u8>, PathBuf) {
 }
 
 #[test]
+fn mixed_case_descriptor_digests_preserve_the_existing_immutable_jar_path() {
+    let root = tempfile::tempdir().unwrap();
+    let (mut entry, pkg, original) = warm(root.path(), b"jar");
+    let mut package: serde_json::Value = serde_json::from_slice(&pkg).unwrap();
+    package["downloads"]["server"]["sha1"] = hash_bytes(b"jar").to_uppercase().into();
+    let pkg = serde_json::to_vec(&package).unwrap();
+    entry.sha1 = hash_bytes(&pkg).to_uppercase();
+    let fake = Fake::new();
+    fake.push(&entry.url, &pkg);
+    let cache = VersionCache::acquire(root.path(), &entry.id).unwrap();
+    assert_eq!(ensure_server_jar(&cache, &entry, &fake).unwrap(), original);
+    assert_eq!(fake.calls.borrow().as_slice(), [entry.url.as_str()]);
+    assert_eq!(std::fs::read(original).unwrap(), b"jar");
+}
+
+#[test]
 fn warm_outage_reuses_verified_package_and_rehashes_jar_without_http() {
     let root = tempfile::tempdir().unwrap();
     let (entry, _, path) = warm(root.path(), b"synthetic jar");

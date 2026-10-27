@@ -32,6 +32,24 @@ pub(crate) fn validate_version(id: &str) -> Result<()> {
     Ok(())
 }
 
+/// A parsed SHA-1, never a caller-controlled path component. Rendering always
+/// produces exactly forty lowercase ASCII hex characters.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Sha1Digest([u8; 20]);
+
+impl Sha1Digest {
+    pub(crate) fn parse(value: &str) -> Result<Self> {
+        let mut bytes = [0; 20];
+        hex::decode_to_slice(value, &mut bytes)
+            .map_err(|_| invalid(format!("invalid SHA-1 digest {value:?}")))?;
+        Ok(Self(bytes))
+    }
+
+    pub(crate) fn hex(self) -> String {
+        hex::encode(self.0)
+    }
+}
+
 /// Missing cache data is a miss; permission and other storage errors are not.
 pub(crate) fn read_optional(path: &Path) -> Result<Option<Vec<u8>>> {
     match std::fs::read(path) {
@@ -123,12 +141,95 @@ impl VersionCache {
             _lock: lock,
         })
     }
+
+    pub(crate) fn artifact_dir(&self, digest: Sha1Digest) -> PathBuf {
+        self.dir.join("artifacts").join(digest.hex())
+    }
+
+    pub(crate) fn jar_path(&self, digest: Sha1Digest) -> PathBuf {
+        self.artifact_dir(digest).join("server.jar")
+    }
+
+    pub(crate) fn reports_dir(&self, digest: Sha1Digest) -> PathBuf {
+        self.artifact_dir(digest).join("reports-v1")
+    }
+
+    /// Accept only the canonical JAR path owned by this locked version. Callers
+    /// reconstruct subsequent paths from the parsed digest and this guard.
+    pub(crate) fn digest_for_jar(&self, jar: &Path) -> Result<Sha1Digest> {
+        let value = jar
+            .parent()
+            .and_then(Path::file_name)
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| invalid("invalid artifact path"))?;
+        let digest = Sha1Digest::parse(value)?;
+        if jar != self.jar_path(digest) {
+            return Err(invalid("report JAR does not belong to locked artifact"));
+        }
+        Ok(digest)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::process::{Command, Stdio};
+
+    #[test]
+    fn digest_and_version_components_cannot_escape_the_locked_version() {
+        for invalid in [
+            "",
+            ".",
+            "..",
+            "../escape",
+            "/absolute",
+            "a/b",
+            "a\\b",
+            "C:escape",
+            "%2e%2e",
+            "a%2fb",
+            "é",
+            "26.2\0",
+        ] {
+            assert!(validate_version(invalid).is_err(), "{invalid:?}");
+        }
+        for invalid in [
+            "",
+            "..",
+            "../012345678901234567890123456789012345678",
+            "01234567890123456789012345678901234567890",
+            "012345678901234567890123456789012345678901",
+            "g123456789012345678901234567890123456789",
+            "01234567890123456789/1234567890123456789",
+            "01234567890123456789\\1234567890123456789",
+            "01234567890123456789:1234567890123456789",
+            "é123456789012345678901234567890123456789",
+        ] {
+            assert!(Sha1Digest::parse(invalid).is_err(), "{invalid:?}");
+        }
+        let root = tempfile::tempdir().unwrap();
+        let cache = VersionCache::acquire(root.path(), "26.2").unwrap();
+        let lower = "abcdef0123456789abcdef0123456789abcdef01";
+        let digest = Sha1Digest::parse("aBcDeF0123456789AbCdEf0123456789ABCDEF01").unwrap();
+        assert_eq!(digest.hex(), lower);
+        let artifact = root.path().join("26.2/artifacts").join(lower);
+        assert_eq!(cache.jar_path(digest), artifact.join("server.jar"));
+        assert_eq!(cache.reports_dir(digest), artifact.join("reports-v1"));
+        assert_eq!(
+            cache.digest_for_jar(&cache.jar_path(digest)).unwrap(),
+            digest
+        );
+        for foreign in [
+            root.path()
+                .join("26.1/artifacts")
+                .join(lower)
+                .join("server.jar"),
+            artifact.join("different.jar"),
+            root.path().join("outside").join(lower).join("server.jar"),
+        ] {
+            assert!(cache.digest_for_jar(&foreign).is_err());
+        }
+    }
 
     fn child(root: &Path, mode: &str) -> std::process::Child {
         Command::new(std::env::current_exe().unwrap())

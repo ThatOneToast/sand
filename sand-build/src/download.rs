@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
-use crate::cache::{VersionCache, ensure_dir, invalid, read_optional, write_atomic};
+use crate::cache::{Sha1Digest, VersionCache, ensure_dir, invalid, read_optional, write_atomic};
 use crate::error::{Error, Result};
 use crate::fingerprint::{combine, hash_bytes};
 use crate::manifest::VersionEntry;
@@ -117,10 +117,7 @@ struct PackageRecord {
 }
 
 pub(crate) fn digest(value: &str) -> Result<String> {
-    if value.len() != 40 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err(invalid(format!("invalid SHA-1 digest {value:?}")));
-    }
-    Ok(value.to_ascii_lowercase())
+    Ok(Sha1Digest::parse(value)?.hex())
 }
 
 fn validate_url(url: &str) -> Result<()> {
@@ -200,9 +197,10 @@ pub(crate) fn ensure_server_jar(
     http: &impl Transport,
 ) -> Result<PathBuf> {
     let server = server_download(cache, entry, http)?;
-    let dir = cache.dir.join("artifacts").join(&server.sha1);
+    let sha1 = Sha1Digest::parse(&server.sha1)?;
+    let dir = cache.artifact_dir(sha1);
     ensure_dir(&dir)?;
-    let jar = dir.join("server.jar");
+    let jar = cache.jar_path(sha1);
     if matches_file(&jar, &server)? {
         return Ok(jar);
     }

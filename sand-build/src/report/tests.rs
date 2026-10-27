@@ -18,6 +18,20 @@ fn generate(dir: &Path, _: &Path) -> Result<()> {
 }
 
 #[test]
+fn reports_reject_a_jar_outside_the_locked_version_before_generation() {
+    let root = tempfile::tempdir().unwrap();
+    let cache = VersionCache::acquire(root.path(), "26.2").unwrap();
+    let digest = crate::cache::Sha1Digest::parse(&hash_bytes(b"jar")).unwrap();
+    let foreign = root
+        .path()
+        .join("26.1/artifacts")
+        .join(digest.hex())
+        .join("server.jar");
+    assert!(ensure_reports_with(&cache, &foreign, |_, _| panic!("foreign JAR generated")).is_err());
+    assert!(!cache.reports_dir(digest).exists());
+}
+
+#[test]
 fn reports_follow_jar_provenance_and_never_reuse_legacy_sentinel() {
     let root = tempfile::tempdir().unwrap();
     let cache = VersionCache::acquire(root.path(), "26.2").unwrap();

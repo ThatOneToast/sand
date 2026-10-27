@@ -1,0 +1,952 @@
+Unpacking 26.2/server-26.2.jar (versions:26.2) to versions/26.2/server-26.2.jar
+Unpacking at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar (libraries:at.yawk.lz4:lz4-java:1.10.1) to libraries/at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar
+Unpacking com/azure/azure-json/1.4.0/azure-json-1.4.0.jar (libraries:com.azure:azure-json:1.4.0) to libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar
+Unpacking com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar (libraries:com.github.oshi:oshi-core:6.9.0) to libraries/com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar
+Unpacking com/google/code/gson/gson/2.14.0/gson-2.14.0.jar (libraries:com.google.code.gson:gson:2.14.0) to libraries/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar
+Unpacking com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar (libraries:com.google.guava:failureaccess:1.0.3) to libraries/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar
+Unpacking com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar (libraries:com.google.guava:guava:33.6.0-jre) to libraries/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar
+Unpacking com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar (libraries:com.microsoft.azure:msal4j:1.24.1) to libraries/com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar
+Unpacking com/mojang/authlib/9.0.75/authlib-9.0.75.jar (libraries:com.mojang:authlib:9.0.75) to libraries/com/mojang/authlib/9.0.75/authlib-9.0.75.jar
+Unpacking com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar (libraries:com.mojang:brigadier:1.3.10) to libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar
+Unpacking com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar (libraries:com.mojang:datafixerupper:10.0.21) to libraries/com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar
+Unpacking com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar (libraries:com.mojang:jtracy:1.0.37) to libraries/com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar
+Unpacking com/mojang/logging/1.7.12/logging-1.7.12.jar (libraries:com.mojang:logging:1.7.12) to libraries/com/mojang/logging/1.7.12/logging-1.7.12.jar
+Unpacking commons-io/commons-io/2.20.0/commons-io-2.20.0.jar (libraries:commons-io:commons-io:2.20.0) to libraries/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar
+Unpacking io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar (libraries:io.netty:netty-buffer:4.2.15.Final) to libraries/io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar (libraries:io.netty:netty-codec-base:4.2.15.Final) to libraries/io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar (libraries:io.netty:netty-codec-compression:4.2.15.Final) to libraries/io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar (libraries:io.netty:netty-codec-http:4.2.15.Final) to libraries/io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar
+Unpacking io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar (libraries:io.netty:netty-common:4.2.15.Final) to libraries/io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar
+Unpacking io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar (libraries:io.netty:netty-handler:4.2.15.Final) to libraries/io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar
+Unpacking io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar (libraries:io.netty:netty-resolver:4.2.15.Final) to libraries/io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar
+Unpacking io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar (libraries:io.netty:netty-transport:4.2.15.Final) to libraries/io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-epoll:4.2.15.Final) to libraries/io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-kqueue:4.2.15.Final) to libraries/io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-x86_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-aarch_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-x86_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-aarch_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar
+Unpacking io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar (libraries:io.netty:netty-transport-native-unix-common:4.2.15.Final) to libraries/io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar
+Unpacking it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar (libraries:it.unimi.dsi:fastutil:8.5.18) to libraries/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar
+Unpacking net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar (libraries:net.java.dev.jna:jna:5.17.0) to libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar
+Unpacking net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar (libraries:net.java.dev.jna:jna-platform:5.17.0) to libraries/net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar
+Unpacking net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar (libraries:net.sf.jopt-simple:jopt-simple:5.0.4) to libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar
+Unpacking org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar (libraries:org.apache.commons:commons-lang3:3.20.0) to libraries/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar
+Unpacking org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-api:2.26.0) to libraries/org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-core:2.26.0) to libraries/org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0) to libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar
+Unpacking org/joml/joml/1.10.8/joml-1.10.8.jar (libraries:org.joml:joml:1.10.8) to libraries/org/joml/joml/1.10.8/joml-1.10.8.jar
+Unpacking org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar (libraries:org.jspecify:jspecify:1.0.0) to libraries/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar
+Unpacking org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar (libraries:org.slf4j:slf4j-api:2.0.17) to libraries/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar
+Starting net.minecraft.server.Main
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/private/tmp/sand-milestone-integrated-trailforge-5be0fd8d/server/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[18:09:59] [ServerMain/WARN]: Unable to parse version 27.2 to a codename.
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/private/tmp/sand-milestone-integrated-trailforge-5be0fd8d/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[18:10:02] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[18:10:02] [ServerMain/INFO]: Found new data pack file/trail, loading it automatically
+[18:10:02] [ServerMain/INFO]: Found new data pack file/trail_audit_probe, loading it automatically
+[18:10:02] [Worker-Main-3/INFO]: No existing world data, creating new world
+[18:10:03] [ServerMain/INFO]: Loaded 1586 recipes
+[18:10:03] [ServerMain/INFO]: Loaded 1690 advancements
+[18:10:03] [Server thread/INFO]: Starting minecraft server version 26.2
+[18:10:03] [Server thread/INFO]: Loading properties
+[18:10:03] [Server thread/INFO]: Default game type: SURVIVAL
+[18:10:03] [Server thread/INFO]: Generating keypair
+[18:10:03] [Server thread/INFO]: Starting Minecraft server on 127.0.0.1:64301
+[18:10:03] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[18:10:03] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[18:10:03] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[18:10:03] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[18:10:03] [Server thread/INFO]: Preparing level "world"
+[18:10:03] [Server thread/INFO]: Selecting global world spawn...
+[18:10:03] [Server thread/INFO]: Loading 0 persistent chunks...
+[18:10:03] [Server thread/INFO]: Preparing spawn area: 100%
+[18:10:03] [Server thread/INFO]: Time elapsed: 233 ms
+[18:10:03] [Server thread/INFO]: Done (0.303s)! For help, type "help"
+[18:10:03] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[18:10:04] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[18:10:04] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[18:10:04] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:10:04] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:10:04] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:10:04] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[18:10:04] [Server thread/INFO]: [Not Secure] [Server] __TRAIL_AUDIT_LOAD__
+[18:10:04] [Server thread/INFO]: Marked chunk [0, 0] in minecraft:overworld to be force loaded
+[18:10:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_OK__
+[18:10:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:04] [Server thread/INFO]: The game is frozen
+[18:10:04] [Server thread/INFO]: SandAlpha[/127.0.0.1:64306] logged in with entity id 1 at (6.5, -30.0, 2.5)
+[18:10:04] [Server thread/INFO]: SandAlpha joined the game
+[18:10:05] [Server thread/INFO]: SandBeta[/127.0.0.1:64332] logged in with entity id 2 at (-5.5, -30.0, -5.5)
+[18:10:05] [Server thread/INFO]: SandBeta joined the game
+[18:10:05] [Server thread/INFO]: Created new objective [trail_audit]
+[18:10:05] [Server thread/INFO]: Set SandAlpha's game mode to Creative Mode
+[18:10:05] [Server thread/INFO]: Teleported SandAlpha to 0.500000, 80.000000, 0.500000
+[18:10:05] [Server thread/INFO]: Set SandBeta's game mode to Creative Mode
+[18:10:05] [Server thread/INFO]: Teleported SandBeta to 0.500000, 80.000000, 0.500000
+[18:10:05] [Server thread/INFO]: The game time is 5 tick(s)
+[18:10:05] [Server thread/INFO]: Added 2 to [trail_audit] for #tick_end (now 7)
+[18:10:05] [Server thread/INFO]: Stepping 2 tick(s)
+[18:10:05] [Server thread/INFO]: The game time is 5 tick(s)
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FIRST_JOIN_SETTLED_DONE__
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FIRST_JOIN_SETTLED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FIRST_JOIN_SETTLED_DONE__
+[18:10:05] [Server thread/INFO]: Gave 2 [Heart of the Sea] to SandAlpha
+[18:10:05] [Server thread/INFO]: Gave 2 [Grapple Core] to SandBeta
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: Triggered [sand.dialog] (set value to 2)
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_1_SAME_TICK_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_1_SAME_TICK_DONE__
+[18:10:05] [Server thread/INFO]: No items were found on player SandAlpha
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_ITEM_REJECTED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_ITEM_REJECTED_DONE__
+[18:10:05] [Server thread/INFO]: Found 2 matching item(s) on player SandAlpha
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_ITEM_PRESERVED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_ITEM_PRESERVED_DONE__
+[18:10:05] [Server thread/INFO]: Found 2 matching item(s) on player SandBeta
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_COST_UNTOUCHED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_COST_UNTOUCHED_DONE__
+[18:10:05] [Server thread/INFO]: Gave 2 [Grapple Core] to SandAlpha
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: Triggered [sand.dialog] (set value to 2)
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_2_SAME_TICK_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_2_SAME_TICK_DONE__
+[18:10:05] [Server thread/INFO]: Found 1 matching item(s) on player SandAlpha
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ONE_CORE_CONSUMED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ONE_CORE_CONSUMED_DONE__
+[18:10:05] [Server thread/INFO]: Found 1 matching item(s) on player SandAlpha
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ONE_REWARD_GRANTED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ONE_REWARD_GRANTED_DONE__
+[18:10:05] [Server thread/INFO]: Found 2 matching item(s) on player SandBeta
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_STILL_HAS_TWO_CORES_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_STILL_HAS_TWO_CORES_DONE__
+[18:10:05] [Server thread/INFO]: No items were found on player SandBeta
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_HAS_NO_REWARD_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_HAS_NO_REWARD_DONE__
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: Triggered [sand.dialog] (set value to 2)
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_3_SAME_TICK_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_3_SAME_TICK_DONE__
+[18:10:05] [Server thread/INFO]: Found 1 matching item(s) on player SandAlpha
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REPEAT_COST_UNCHANGED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REPEAT_COST_UNCHANGED_DONE__
+[18:10:05] [Server thread/INFO]: Found 1 matching item(s) on player SandAlpha
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REPEAT_REWARD_UNCHANGED_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REPEAT_REWARD_UNCHANGED_DONE__
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: Triggered [sand.dialog] (set value to 2)
+[18:10:05] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:05] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_4_SAME_TICK_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_4_SAME_TICK_DONE__
+[18:10:05] [Server thread/INFO]: Found 1 matching item(s) on player SandBeta
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_INDEPENDENT_UPGRADE_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_INDEPENDENT_UPGRADE_DONE__
+[18:10:05] [Server thread/INFO]: Found 1 matching item(s) on player SandBeta
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_INDEPENDENT_COST_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BETA_INDEPENDENT_COST_DONE__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SandAlpha_INITIAL_STAMINA_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SandAlpha_INITIAL_STAMINA_DONE__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SandBeta_INITIAL_STAMINA_OK__
+[18:10:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SandBeta_INITIAL_STAMINA_DONE__
+[18:10:06] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:06] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:06] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Target has no effects to remove
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:06] [Server thread/INFO]: No blocks were filled
+[18:10:06] [Server thread/INFO]: Changed the block at 2, 79, 0
+[18:10:06] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:06] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:06] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandBeta to 100
+[18:10:06] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandBeta to 0
+[18:10:06] [Server thread/INFO]: Set [s8520e22d64708b4] for SandBeta to 40
+[18:10:06] [Server thread/INFO]: Set [saafb19392893dee] for SandBeta to 0
+[18:10:06] [Server thread/INFO]: Target has no effects to remove
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandBeta with [Trail Striders]
+[18:10:06] [Server thread/INFO]: No blocks were filled
+[18:10:06] [Server thread/INFO]: Changed the block at 10, 79, 0
+[18:10:06] [Server thread/INFO]: Teleported SandBeta to 10.500000, 80.000000, 0.500000
+[18:10:06] [Server thread/INFO]: Changed the block at 10, 81, 3
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_5_SAME_TICK_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_5_SAME_TICK_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SUCCESS_STAMINA_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SUCCESS_STAMINA_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SUCCESS_COOLDOWN_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SUCCESS_COOLDOWN_DONE__
+[18:10:06] [Server thread/INFO]: SandAlpha has the following entity data: [{duration: 77, show_icon: 0b, id: "minecraft:slow_falling", show_particles: 0b}, {duration: 57, show_icon: 0b, amplifier: 2b, id: "minecraft:speed", show_particles: 0b}]
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SUCCESS_EFFECT_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SUCCESS_EFFECT_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_STAMINA_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_STAMINA_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_COOLDOWN_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_COOLDOWN_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_NO_SPEED_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_NO_SPEED_DONE__
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_6_SAME_TICK_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_6_SAME_TICK_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ACTIVE_COOLDOWN_STAMINA_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ACTIVE_COOLDOWN_STAMINA_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ACTIVE_COOLDOWN_COOLDOWN_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_ACTIVE_COOLDOWN_COOLDOWN_DONE__
+[18:10:06] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 29
+[18:10:06] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:06] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_7_SAME_TICK_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_7_SAME_TICK_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_STAMINA_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_STAMINA_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_COOLDOWN_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_COOLDOWN_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_NO_SPEED_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_NO_SPEED_DONE__
+[18:10:06] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:06] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:06] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Target has no effects to remove
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandAlpha with [Air]
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_8_SAME_TICK_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_8_SAME_TICK_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_STAMINA_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_STAMINA_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_COOLDOWN_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_COOLDOWN_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_NO_SPEED_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_NO_SPEED_DONE__
+[18:10:06] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:06] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:06] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:06] [Server thread/INFO]: Target has no effects to remove
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:06] [Server thread/INFO]: Replaced a slot on SandAlpha with [Leather Boots]
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:06] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:06] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_9_SAME_TICK_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_9_SAME_TICK_DONE__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_BOOTS_STAMINA_OK__
+[18:10:06] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_BOOTS_STAMINA_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_BOOTS_COOLDOWN_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_BOOTS_COOLDOWN_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_BOOTS_NO_SPEED_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PLAIN_BOOTS_NO_SPEED_DONE__
+[18:10:07] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:07] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:07] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Target has no effects to remove
+[18:10:07] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:07] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 1
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_10_SAME_TICK_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_10_SAME_TICK_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXHAUSTED_POLICY_STAMINA_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXHAUSTED_POLICY_STAMINA_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXHAUSTED_POLICY_COOLDOWN_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXHAUSTED_POLICY_COOLDOWN_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXHAUSTED_POLICY_NO_SPEED_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXHAUSTED_POLICY_NO_SPEED_DONE__
+[18:10:07] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:07] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:07] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Target has no effects to remove
+[18:10:07] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:07] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:07] [Server thread/INFO]: Could not set the block
+[18:10:07] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_11_SAME_TICK_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_11_SAME_TICK_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISS_STAMINA_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISS_STAMINA_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISS_COOLDOWN_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISS_COOLDOWN_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISS_NO_SPEED_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISS_NO_SPEED_DONE__
+[18:10:07] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:07] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:07] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Target has no effects to remove
+[18:10:07] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:07] [Server thread/INFO]: No blocks were filled
+[18:10:07] [Server thread/INFO]: Could not set the block
+[18:10:07] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:07] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_12_SAME_TICK_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_12_SAME_TICK_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INVALID_ANCHOR_STAMINA_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INVALID_ANCHOR_STAMINA_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INVALID_ANCHOR_COOLDOWN_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INVALID_ANCHOR_COOLDOWN_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INVALID_ANCHOR_NO_SPEED_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INVALID_ANCHOR_NO_SPEED_DONE__
+[18:10:07] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:07] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:07] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Target has no effects to remove
+[18:10:07] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:07] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:07] [Server thread/INFO]: Could not set the block
+[18:10:07] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:07] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:07] [Server thread/INFO]: Changed the block at 2, 81, 1
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_13_SAME_TICK_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_13_SAME_TICK_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OBSTRUCTED_STAMINA_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OBSTRUCTED_STAMINA_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OBSTRUCTED_COOLDOWN_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OBSTRUCTED_COOLDOWN_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OBSTRUCTED_NO_SPEED_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OBSTRUCTED_NO_SPEED_DONE__
+[18:10:07] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:07] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:07] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:07] [Server thread/INFO]: Target has no effects to remove
+[18:10:07] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:07] [Server thread/INFO]: Successfully filled 2 block(s)
+[18:10:07] [Server thread/INFO]: Could not set the block
+[18:10:07] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:07] [Server thread/INFO]: Changed the block at 2, 81, 9
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:07] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:07] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_14_SAME_TICK_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_14_SAME_TICK_DONE__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OUT_OF_RANGE_STAMINA_OK__
+[18:10:07] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OUT_OF_RANGE_STAMINA_DONE__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OUT_OF_RANGE_COOLDOWN_OK__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OUT_OF_RANGE_COOLDOWN_DONE__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OUT_OF_RANGE_NO_SPEED_OK__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OUT_OF_RANGE_NO_SPEED_DONE__
+[18:10:08] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:08] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:08] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:08] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:08] [Server thread/INFO]: Target has no effects to remove
+[18:10:08] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:08] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:08] [Server thread/INFO]: Could not set the block
+[18:10:08] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:08] [Server thread/INFO]: Changed the block at 2, 81, 8
+[18:10:08] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:08] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:08] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:08] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:08] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_15_SAME_TICK_OK__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_15_SAME_TICK_DONE__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LAST_BLOCK_IN_RANGE_STAMINA_OK__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LAST_BLOCK_IN_RANGE_STAMINA_DONE__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LAST_BLOCK_IN_RANGE_COOLDOWN_OK__
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LAST_BLOCK_IN_RANGE_COOLDOWN_DONE__
+[18:10:08] [Server thread/INFO]: Marked chunk [0, 0] in minecraft:the_nether to be force loaded
+[18:10:08] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[18:10:09] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:09] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:09] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:09] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:09] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:09] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:09] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:09] [Server thread/INFO]: Could not set the block
+[18:10:09] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:09] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:09] [Server thread/INFO]: Running function trail:grapple
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_DIMENSION_ANCHOR_STAMINA_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_DIMENSION_ANCHOR_STAMINA_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_DIMENSION_ANCHOR_COOLDOWN_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_DIMENSION_ANCHOR_COOLDOWN_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_DIMENSION_ANCHOR_NO_SPEED_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_DIMENSION_ANCHOR_NO_SPEED_DONE__
+[18:10:09] [Server thread/INFO]: No blocks were filled
+[18:10:09] [Server thread/INFO]: Could not set the block
+[18:10:09] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:09] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:09] [Server thread/INFO]: Running function trail:grapple
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXTERNAL_CONTEXT_REANCHORED_STAMINA_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXTERNAL_CONTEXT_REANCHORED_STAMINA_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXTERNAL_CONTEXT_REANCHORED_COOLDOWN_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXTERNAL_CONTEXT_REANCHORED_COOLDOWN_DONE__
+[18:10:09] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:09] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:09] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:09] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:09] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:09] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:09] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:09] [Server thread/INFO]: Could not set the block
+[18:10:09] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:09] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:09] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandBeta to 100
+[18:10:09] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandBeta to 0
+[18:10:09] [Server thread/INFO]: Set [s8520e22d64708b4] for SandBeta to 40
+[18:10:09] [Server thread/INFO]: Set [saafb19392893dee] for SandBeta to 0
+[18:10:09] [Server thread/INFO]: Target has no effects to remove
+[18:10:09] [Server thread/INFO]: Replaced a slot on SandBeta with [Trail Striders]
+[18:10:09] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:09] [Server thread/INFO]: Could not set the block
+[18:10:09] [Server thread/INFO]: Teleported SandBeta to 10.500000, 80.000000, 0.500000
+[18:10:09] [Server thread/INFO]: Changed the block at 10, 81, 3
+[18:10:09] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:09] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:09] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:09] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:09] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:09] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_16_SAME_TICK_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_16_SAME_TICK_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_STAMINA_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_STAMINA_DONE__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_COOLDOWN_OK__
+[18:10:09] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_EFFECT_SandAlpha_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_EFFECT_SandAlpha_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_STAMINA_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_STAMINA_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_COOLDOWN_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_EFFECT_SandBeta_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_EFFECT_SandBeta_DONE__
+[18:10:10] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:10] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:10] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:10] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:10] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:10] [Server thread/INFO]: Could not set the block
+[18:10:10] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:10] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:10] [Server thread/INFO]: Running function trail:scout
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_STAMINA_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_STAMINA_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_COOLDOWN_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_EFFECT_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_EFFECT_DONE__
+[18:10:10] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:10] [Server thread/INFO]: Could not set the block
+[18:10:10] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:10] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_17_SAME_TICK_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_17_SAME_TICK_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_STAMINA_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_STAMINA_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_COOLDOWN_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:10] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:10] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:10] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:10] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:10] [Server thread/INFO]: Could not set the block
+[18:10:10] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:10] [Server thread/INFO]: Changed the block at 2, 81, 5
+[18:10:10] [Server thread/INFO]: Running function trail:scout
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_SHORT_RANGE_STAMINA_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_SHORT_RANGE_STAMINA_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_SHORT_RANGE_COOLDOWN_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_SHORT_RANGE_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_SHORT_RANGE_NO_SPEED_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SCOUT_SHORT_RANGE_NO_SPEED_DONE__
+[18:10:10] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 100
+[18:10:10] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:10] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Target has no effects to remove
+[18:10:10] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:10] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:10] [Server thread/INFO]: Could not set the block
+[18:10:10] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:10] [Server thread/INFO]: Reset [sfa49ff66aebe47c] for SandAlpha
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_18_SAME_TICK_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_18_SAME_TICK_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_STATE_DEFAULT_STAMINA_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_STATE_DEFAULT_STAMINA_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_STATE_DEFAULT_COOLDOWN_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_STATE_DEFAULT_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 30
+[18:10:10] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:10] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:10] [Server thread/INFO]: Target has no effects to remove
+[18:10:10] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:10] [Server thread/INFO]: No blocks were filled
+[18:10:10] [Server thread/INFO]: Could not set the block
+[18:10:10] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:10] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_19_SAME_TICK_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_19_SAME_TICK_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_LOWER_BOUND_STAMINA_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_LOWER_BOUND_STAMINA_DONE__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_LOWER_BOUND_COOLDOWN_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_LOWER_BOUND_COOLDOWN_DONE__
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:10] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:10] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_20_SAME_TICK_OK__
+[18:10:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_20_SAME_TICK_DONE__
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_UNDERFLOW_STAMINA_OK__
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_UNDERFLOW_STAMINA_DONE__
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_UNDERFLOW_COOLDOWN_OK__
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_UNDERFLOW_COOLDOWN_DONE__
+[18:10:11] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 95
+[18:10:11] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 0
+[18:10:11] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:11] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:11] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:11] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:11] [Server thread/INFO]: Replaced a slot on SandAlpha with [Air]
+[18:10:11] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:11] [Server thread/INFO]: Added 39 to [trail_audit] for #tick_end (now 46)
+[18:10:11] [Server thread/INFO]: Stepping 39 tick(s)
+[18:10:11] [Server thread/INFO]: The game time is 7 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 8 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 10 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 12 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 14 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 16 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 18 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 20 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 22 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:11] [Server thread/INFO]: The game time is 24 tick(s)
+[18:10:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 26 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 28 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 30 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 32 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 34 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 36 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 38 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 40 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 42 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:12] [Server thread/INFO]: The game time is 44 tick(s)
+[18:10:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 46 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_OK__
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BEFORE_DONE__
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_EARLY_REGEN_OK__
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_EARLY_REGEN_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 46 tick(s)
+[18:10:13] [Server thread/INFO]: Added 1 to [trail_audit] for #tick_end (now 47)
+[18:10:13] [Server thread/INFO]: Stepping 1 tick(s)
+[18:10:13] [Server thread/INFO]: The game time is 46 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BOUNDARY_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 47 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BOUNDARY_OK__
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_BOUNDARY_DONE__
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_REGEN_CLAMP_OK__
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_UNEQUIPPED_REGEN_CLAMP_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 47 tick(s)
+[18:10:13] [Server thread/INFO]: Added 40 to [trail_audit] for #tick_end (now 87)
+[18:10:13] [Server thread/INFO]: Stepping 40 tick(s)
+[18:10:13] [Server thread/INFO]: The game time is 47 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 49 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 51 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 53 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 55 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 57 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:13] [Server thread/INFO]: The game time is 59 tick(s)
+[18:10:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 61 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 63 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 65 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 67 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 69 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 71 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 73 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 75 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 77 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:14] [Server thread/INFO]: The game time is 79 tick(s)
+[18:10:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 81 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 83 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 85 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 87 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_OK__
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_REGEN_FULL_DONE__
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FULL_CAP_REGEN_OK__
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FULL_CAP_REGEN_DONE__
+[18:10:15] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 60
+[18:10:15] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 80
+[18:10:15] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:15] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:15] [Server thread/INFO]: Target has no effects to remove
+[18:10:15] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:15] [Server thread/INFO]: The game time is 87 tick(s)
+[18:10:15] [Server thread/INFO]: Added 39 to [trail_audit] for #tick_end (now 126)
+[18:10:15] [Server thread/INFO]: Stepping 39 tick(s)
+[18:10:15] [Server thread/INFO]: The game time is 87 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 89 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 91 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 93 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 95 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:15] [Server thread/INFO]: The game time is 97 tick(s)
+[18:10:15] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 99 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 101 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 103 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 104 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 106 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 108 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 110 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 112 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 114 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:16] [Server thread/INFO]: The game time is 116 tick(s)
+[18:10:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 118 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 120 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 122 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 124 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 126 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_OK__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_DONE__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_STAMINA_OK__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_STAMINA_DONE__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_COOLDOWN_OK__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BEFORE_COOLDOWN_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 126 tick(s)
+[18:10:17] [Server thread/INFO]: Added 1 to [trail_audit] for #tick_end (now 127)
+[18:10:17] [Server thread/INFO]: Stepping 1 tick(s)
+[18:10:17] [Server thread/INFO]: The game time is 126 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 127 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_OK__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_DONE__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_STAMINA_OK__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_STAMINA_DONE__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_COOLDOWN_OK__
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_FIRST_COOLDOWN_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 127 tick(s)
+[18:10:17] [Server thread/INFO]: Added 39 to [trail_audit] for #tick_end (now 166)
+[18:10:17] [Server thread/INFO]: Stepping 39 tick(s)
+[18:10:17] [Server thread/INFO]: The game time is 127 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:17] [Server thread/INFO]: The game time is 129 tick(s)
+[18:10:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 131 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 133 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 135 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 137 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 139 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 141 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 143 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 145 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 147 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:18] [Server thread/INFO]: The game time is 149 tick(s)
+[18:10:18] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 151 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 153 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 155 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 157 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 159 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 161 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 163 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 164 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 166 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_OK__
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_DONE__
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_STAMINA_OK__
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_STAMINA_DONE__
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_COOLDOWN_OK__
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_BETWEEN_COOLDOWN_DONE__
+[18:10:19] [Server thread/INFO]: The game time is 166 tick(s)
+[18:10:19] [Server thread/INFO]: Added 1 to [trail_audit] for #tick_end (now 167)
+[18:10:19] [Server thread/INFO]: Stepping 1 tick(s)
+[18:10:19] [Server thread/INFO]: The game time is 166 tick(s)
+[18:10:19] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_DONE__
+[18:10:20] [Server thread/INFO]: The game time is 167 tick(s)
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_STAMINA_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_STAMINA_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_COOLDOWN_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CADENCE_SECOND_COOLDOWN_DONE__
+[18:10:20] [Server thread/INFO]: Successfully filled 1 block(s)
+[18:10:20] [Server thread/INFO]: Could not set the block
+[18:10:20] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[18:10:20] [Server thread/INFO]: Changed the block at 2, 81, 3
+[18:10:20] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:20] [Server thread/INFO]: The game time is 167 tick(s)
+[18:10:20] [Server thread/INFO]: Triggered [sand.dialog] (set value to 1)
+[18:10:20] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:20] [Server thread/INFO]: The game time is 167 tick(s)
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_21_SAME_TICK_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_21_SAME_TICK_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_COOLDOWN_EXPIRES_STAMINA_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_COOLDOWN_EXPIRES_STAMINA_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_COOLDOWN_EXPIRES_COOLDOWN_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_COOLDOWN_EXPIRES_COOLDOWN_DONE__
+[18:10:20] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandAlpha to 61
+[18:10:20] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandAlpha to 70
+[18:10:20] [Server thread/INFO]: Set [s8520e22d64708b4] for SandAlpha to 40
+[18:10:20] [Server thread/INFO]: Set [saafb19392893dee] for SandAlpha to 0
+[18:10:20] [Server thread/INFO]: Removed every effect from SandAlpha
+[18:10:20] [Server thread/INFO]: Replaced a slot on SandAlpha with [Trail Striders]
+[18:10:20] [Server thread/INFO]: Set [sfa49ff66aebe47c] for SandBeta to 83
+[18:10:20] [Server thread/INFO]: Set [scf21a43c2b92f8a] for SandBeta to 50
+[18:10:20] [Server thread/INFO]: Set [s8520e22d64708b4] for SandBeta to 40
+[18:10:20] [Server thread/INFO]: Set [saafb19392893dee] for SandBeta to 0
+[18:10:20] [Server thread/INFO]: Target has no effects to remove
+[18:10:20] [Server thread/INFO]: Replaced a slot on SandBeta with [Trail Striders]
+[18:10:20] [Server thread/INFO]: Reloading!
+[18:10:20] [Server thread/INFO]: Loaded 1586 recipes
+[18:10:20] [Server thread/INFO]: Loaded 1690 advancements
+[18:10:20] [Server thread/INFO]: The game time is 167 tick(s)
+[18:10:20] [Server thread/INFO]: Added 1 to [trail_audit] for #tick_end (now 168)
+[18:10:20] [Server thread/INFO]: Stepping 1 tick(s)
+[18:10:20] [Server thread/INFO]: The game time is 167 tick(s)
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_TICK_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __TRAIL_AUDIT_LOAD__
+[18:10:20] [Server thread/INFO]: The game time is 168 tick(s)
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_TICK_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_TICK_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_PRESERVES_STAMINA_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_PRESERVES_STAMINA_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_PRESERVES_OTHER_STAMINA_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_PRESERVES_OTHER_STAMINA_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RETAINS_COOLDOWN_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RETAINS_COOLDOWN_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RETAINS_OTHER_COOLDOWN_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RETAINS_OTHER_COOLDOWN_DONE__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RETAINS_EQUIPMENT_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RETAINS_EQUIPMENT_DONE__
+[18:10:20] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:20] [Server thread/INFO]: The game time is 168 tick(s)
+[18:10:20] [Server thread/INFO]: Triggered [sand.dialog] (set value to 2)
+[18:10:20] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:20] [Server thread/INFO]: The game time is 168 tick(s)
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_22_SAME_TICK_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_22_SAME_TICK_DONE__
+[18:10:20] [Server thread/INFO]: Found 1 matching item(s) on player SandAlpha
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_PRESERVES_UNLOCK_OK__
+[18:10:20] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_PRESERVES_UNLOCK_DONE__
+[18:10:21] [Server thread/INFO]: Kicked SandAlpha: Validation complete
+[18:10:21] [Server thread/INFO]: SandAlpha lost connection: Validation complete
+[18:10:21] [Server thread/INFO]: SandAlpha left the game
+[18:10:21] [Server thread/INFO]: Kicked SandBeta: Validation complete
+[18:10:21] [Server thread/INFO]: SandBeta lost connection: Validation complete
+[18:10:21] [Server thread/INFO]: SandBeta left the game
+[18:10:21] [Server thread/INFO]: SandAlpha[/127.0.0.1:64384] logged in with entity id 16 at (2.5, 80.0, 0.5)
+[18:10:21] [Server thread/INFO]: SandAlpha joined the game
+[18:10:21] [Server thread/INFO]: SandBeta[/127.0.0.1:64385] logged in with entity id 17 at (10.5, 80.0, 0.5)
+[18:10:21] [Server thread/INFO]: SandBeta joined the game
+[18:10:21] [Server thread/INFO]: The game time is 168 tick(s)
+[18:10:21] [Server thread/INFO]: Added 2 to [trail_audit] for #tick_end (now 170)
+[18:10:21] [Server thread/INFO]: Stepping 2 tick(s)
+[18:10:21] [Server thread/INFO]: The game time is 168 tick(s)
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_SETTLED_DONE__
+[18:10:21] [Server thread/INFO]: The game time is 170 tick(s)
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_SETTLED_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_SETTLED_DONE__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_STAMINA_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_STAMINA_DONE__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_OTHER_STAMINA_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_OTHER_STAMINA_DONE__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_COOLDOWN_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_COOLDOWN_DONE__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_OTHER_COOLDOWN_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_OTHER_COOLDOWN_DONE__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_RETAINS_EQUIPMENT_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_RETAINS_EQUIPMENT_DONE__
+[18:10:21] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:21] [Server thread/INFO]: The game time is 170 tick(s)
+[18:10:21] [Server thread/INFO]: Triggered [sand.dialog] (set value to 2)
+[18:10:21] [Server thread/INFO]: Running function trail:__sand_dialog_tick
+[18:10:21] [Server thread/INFO]: The game time is 170 tick(s)
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_23_SAME_TICK_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_DISPATCH_23_SAME_TICK_DONE__
+[18:10:21] [Server thread/INFO]: Found 1 matching item(s) on player SandAlpha
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_UNLOCK_OK__
+[18:10:21] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_PRESERVES_UNLOCK_DONE__
+[18:10:22] [Server thread/INFO]: Kicked SandAlpha: Validation complete
+[18:10:22] [Server thread/INFO]: SandAlpha lost connection: Validation complete
+[18:10:22] [Server thread/INFO]: SandAlpha left the game
+[18:10:22] [Server thread/INFO]: Kicked SandBeta: Validation complete
+[18:10:22] [Server thread/INFO]: SandBeta lost connection: Validation complete
+[18:10:22] [Server thread/INFO]: SandBeta left the game
+[18:10:22] [Server thread/INFO]: The game is running normally
+[18:10:22] [Server thread/INFO]: [Not Secure] [Server] __SAND_RELOAD_SUBMITTED__
+[18:10:22] [Server thread/INFO]: Reloading!
+[18:10:22] [Server thread/INFO]: Loaded 1586 recipes
+[18:10:22] [Server thread/INFO]: Loaded 1690 advancements
+[18:10:22] [Server thread/INFO]: [Not Secure] [Server] __SAND_RELOAD_COMPLETE__
+[18:10:22] [Server thread/INFO]: [Not Secure] [Server] __TRAIL_AUDIT_LOAD__
+[18:10:22] [Server thread/INFO]: Stopping the server
+[18:10:22] [Server thread/INFO]: Stopping server
+[18:10:22] [Server thread/INFO]: Saving players
+[18:10:22] [Server thread/INFO]: Saving worlds
+[18:10:22] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[18:10:22] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[18:10:22] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[18:10:22] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:10:22] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:10:22] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:10:22] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved

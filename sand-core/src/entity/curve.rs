@@ -652,7 +652,7 @@ pub(crate) struct LoweredCurveBranch {
 /// Keeping rounding and overflow explicit lets the Minecraft backend expand
 /// the small arithmetic operations according to the selected version profile
 /// instead of baking host arithmetic into command strings.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(crate) enum LoweredCurveOperation {
     /// Set an objective to an already-scaled fixed-point constant.
@@ -835,6 +835,232 @@ pub(crate) enum LoweredCurveOperation {
     },
 }
 
+// Debug feeds canonical helper/observation identities. Preserve the legacy
+// representation for unrestricted reads; restricted reads retain their metadata.
+impl std::fmt::Debug for LoweredCurveOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SetConstant { destination, value } => {
+                let mut debug = f.debug_struct("SetConstant");
+                debug.field("destination", destination);
+                debug.field("value", value);
+                debug.finish()
+            }
+            Self::Copy {
+                destination,
+                source,
+            } => {
+                let mut debug = f.debug_struct("Copy");
+                debug.field("destination", destination);
+                debug.field("source", source);
+                debug.finish()
+            }
+            Self::AttributeToFixed {
+                destination,
+                target,
+                attribute,
+                value,
+                scale,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("AttributeToFixed");
+                debug.field("destination", destination);
+                debug.field("target", target);
+                debug.field("attribute", attribute);
+                debug.field("value", value);
+                debug.field("scale", scale);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::InventoryCountToFixed {
+                destination,
+                target,
+                item,
+                scale,
+                rounding,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("InventoryCountToFixed");
+                debug.field("destination", destination);
+                debug.field("target", target);
+                debug.field("item", item);
+                debug.field("scale", scale);
+                debug.field("rounding", rounding);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::NbtToFixed {
+                destination,
+                target,
+                path,
+                required_profile,
+                scale,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("NbtToFixed");
+                debug.field("destination", destination);
+                debug.field("target", target);
+                debug.field("path", path);
+                if required_profile.is_some() {
+                    debug.field("required_profile", required_profile);
+                }
+                debug.field("scale", scale);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::ScoreToFixed {
+                destination,
+                source,
+                source_holder,
+                source_scale,
+                target_scale,
+                rounding,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("ScoreToFixed");
+                debug.field("destination", destination);
+                debug.field("source", source);
+                debug.field("source_holder", source_holder);
+                debug.field("source_scale", source_scale);
+                debug.field("target_scale", target_scale);
+                debug.field("rounding", rounding);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::Add {
+                destination,
+                source,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("Add");
+                debug.field("destination", destination);
+                debug.field("source", source);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::MultiplyFixed {
+                destination,
+                factor,
+                scale,
+                rounding,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("MultiplyFixed");
+                debug.field("destination", destination);
+                debug.field("factor", factor);
+                debug.field("scale", scale);
+                debug.field("rounding", rounding);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::RatioFixed {
+                destination,
+                numerator,
+                denominator,
+                scale,
+                rounding,
+                overflow,
+            } => {
+                let mut debug = f.debug_struct("RatioFixed");
+                debug.field("destination", destination);
+                debug.field("numerator", numerator);
+                debug.field("denominator", denominator);
+                debug.field("scale", scale);
+                debug.field("rounding", rounding);
+                debug.field("overflow", overflow);
+                debug.finish()
+            }
+            Self::Clamp {
+                destination,
+                minimum,
+                maximum,
+            } => {
+                let mut debug = f.debug_struct("Clamp");
+                debug.field("destination", destination);
+                debug.field("minimum", minimum);
+                debug.field("maximum", maximum);
+                debug.finish()
+            }
+            Self::SelectStepped {
+                destination,
+                input,
+                bands,
+                below,
+            } => {
+                let mut debug = f.debug_struct("SelectStepped");
+                debug.field("destination", destination);
+                debug.field("input", input);
+                debug.field("bands", bands);
+                debug.field("below", below);
+                debug.finish()
+            }
+            Self::SelectPiecewise {
+                destination,
+                input,
+                branches,
+                fallback,
+            } => {
+                let mut debug = f.debug_struct("SelectPiecewise");
+                debug.field("destination", destination);
+                debug.field("input", input);
+                debug.field("branches", branches);
+                debug.field("fallback", fallback);
+                debug.finish()
+            }
+            Self::LookupTable {
+                destination,
+                input,
+                entries,
+                fallback,
+            } => {
+                let mut debug = f.debug_struct("LookupTable");
+                debug.field("destination", destination);
+                debug.field("input", input);
+                debug.field("entries", entries);
+                debug.field("fallback", fallback);
+                debug.finish()
+            }
+            Self::SelectEnum {
+                destination,
+                input,
+                entries,
+                fallback,
+            } => {
+                let mut debug = f.debug_struct("SelectEnum");
+                debug.field("destination", destination);
+                debug.field("input", input);
+                debug.field("entries", entries);
+                debug.field("fallback", fallback);
+                debug.finish()
+            }
+            Self::SelectFlag {
+                destination,
+                input,
+                disabled,
+                enabled,
+            } => {
+                let mut debug = f.debug_struct("SelectFlag");
+                debug.field("destination", destination);
+                debug.field("input", input);
+                debug.field("disabled", disabled);
+                debug.field("enabled", enabled);
+                debug.finish()
+            }
+            Self::Custom {
+                destination,
+                callback,
+                inputs,
+            } => {
+                let mut debug = f.debug_struct("Custom");
+                debug.field("destination", destination);
+                debug.field("callback", callback);
+                debug.field("inputs", inputs);
+                debug.finish()
+            }
+        }
+    }
+}
+
 /// Deterministic structured plan for lowering a curve to entity scoreboards.
 ///
 /// `scratch_objectives` must be provisioned as dummy objectives at load. The
@@ -995,7 +1221,7 @@ impl NumericObjective {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 enum CurveInput {
     Attribute {
         target: sand_commands::Selector,
@@ -1017,6 +1243,58 @@ enum CurveInput {
         path: sand_commands::NbtPath,
         required_profile: Option<(&'static str, &'static str)>,
     },
+}
+
+// Debug feeds canonical helper/observation identities. Preserve the legacy
+// representation for unrestricted reads; restricted reads retain their metadata.
+impl std::fmt::Debug for CurveInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Attribute {
+                target,
+                attribute,
+                value,
+            } => {
+                let mut debug = f.debug_struct("Attribute");
+                debug.field("target", target);
+                debug.field("attribute", attribute);
+                debug.field("value", value);
+                debug.finish()
+            }
+            Self::InventoryCount { target, item } => {
+                let mut debug = f.debug_struct("InventoryCount");
+                debug.field("target", target);
+                debug.field("item", item);
+                debug.finish()
+            }
+            Self::Score {
+                objective,
+                holder,
+                storage_scale,
+                field,
+            } => {
+                let mut debug = f.debug_struct("Score");
+                debug.field("objective", objective);
+                debug.field("holder", holder);
+                debug.field("storage_scale", storage_scale);
+                debug.field("field", field);
+                debug.finish()
+            }
+            Self::Nbt {
+                target,
+                path,
+                required_profile,
+            } => {
+                let mut debug = f.debug_struct("Nbt");
+                debug.field("target", target);
+                debug.field("path", path);
+                if required_profile.is_some() {
+                    debug.field("required_profile", required_profile);
+                }
+                debug.finish()
+            }
+        }
+    }
 }
 
 impl CurveInput {
@@ -3165,6 +3443,136 @@ fn overflow(archetype: &str, derivation: &str, detail: impl Into<String>) -> Ent
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_nbt_identity_omits_absent_profile() {
+        let target = sand_commands::DataTarget::storage("legacy:source");
+        let path = sand_commands::NbtPath::root("value");
+        let input = CurveInput::Nbt {
+            target: target.clone(),
+            path: path.clone(),
+            required_profile: None,
+        };
+        // This is the pre-profile derived Debug shape (base c1e1d053).
+        let legacy = format!("Nbt {{ target: {target:?}, path: {path:?} }}");
+        assert_eq!(format!("{input:?}"), legacy);
+        assert_eq!(input.key(), format!("nbt {target} {path}"));
+        let curve = StatCurve::native_nbt(target.clone(), path.clone(), None);
+        assert_eq!(
+            format!("{curve:?}"),
+            format!("StatCurve {{ kind: Input({legacy}) }}")
+        );
+    }
+
+    #[test]
+    fn legacy_lowered_nbt_identity_omits_absent_profile() {
+        let target = sand_commands::DataTarget::storage("legacy:source");
+        let path = sand_commands::NbtPath::root("value");
+        let operation = LoweredCurveOperation::NbtToFixed {
+            destination: "result".into(),
+            target,
+            path,
+            required_profile: None,
+            scale: 1000,
+            overflow: fixed().overflow(),
+        };
+        let LoweredCurveOperation::NbtToFixed {
+            destination,
+            target,
+            path,
+            scale,
+            overflow,
+            ..
+        } = &operation
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            format!("{operation:?}"),
+            format!(
+                "NbtToFixed {{ destination: {destination:?}, target: {target:?}, path: {path:?}, scale: {scale:?}, overflow: {overflow:?} }}"
+            )
+        );
+    }
+
+    #[test]
+    fn nbt_profiles_remain_distinct_in_all_identity_layers() {
+        use crate::ir::{Actions, Cmd, NumericWrite};
+        let mut keys = std::collections::BTreeSet::new();
+        let mut curves = std::collections::BTreeSet::new();
+        let mut operations = std::collections::BTreeSet::new();
+        let mut actions = std::collections::BTreeSet::new();
+        let mut helpers = std::collections::BTreeSet::new();
+        for required_profile in [
+            None,
+            Some(("26.2", "furnace timers")),
+            Some(("26.3", "furnace timers")),
+            Some(("26.2", "other capability")),
+        ] {
+            let target = sand_commands::DataTarget::storage("identity:source");
+            let path = sand_commands::NbtPath::root("value");
+            let input = CurveInput::Nbt {
+                target: target.clone(),
+                path: path.clone(),
+                required_profile,
+            };
+            assert!(keys.insert(input.key()));
+            let value = StatCurve::native_nbt(target.clone(), path.clone(), required_profile);
+            if required_profile.is_some() {
+                let expected_input = format!(
+                    "Nbt {{ target: {target:?}, path: {path:?}, required_profile: {required_profile:?} }}"
+                );
+                assert_eq!(format!("{input:?}"), expected_input);
+                assert_eq!(
+                    format!("{value:?}"),
+                    format!("StatCurve {{ kind: Input({expected_input}) }}")
+                );
+            }
+            assert!(curves.insert(format!("{value:?}")));
+            let operation = LoweredCurveOperation::NbtToFixed {
+                destination: "result".into(),
+                target,
+                path,
+                required_profile,
+                scale: 1000,
+                overflow: fixed().overflow(),
+            };
+            let debug = format!("{operation:?}");
+            if required_profile.is_some() {
+                let LoweredCurveOperation::NbtToFixed {
+                    destination,
+                    target,
+                    path,
+                    scale,
+                    overflow,
+                    ..
+                } = &operation
+                else {
+                    unreachable!()
+                };
+                assert_eq!(
+                    debug,
+                    format!(
+                        "NbtToFixed {{ destination: {destination:?}, target: {target:?}, path: {path:?}, required_profile: {required_profile:?}, scale: {scale:?}, overflow: {overflow:?} }}"
+                    )
+                );
+            }
+            assert!(operations.insert(debug));
+            let action = Actions(vec![Cmd::NumericWrite(Box::new(NumericWrite {
+                value,
+                holder: sand_commands::ScoreHolder::self_(),
+                objective: sand_commands::ObjectiveName::logical("identity.destination"),
+                scale: 1,
+                fixed: fixed(),
+                bounds: None,
+                dirty: vec![],
+            }))]);
+            assert!(actions.insert(action.identity()));
+            assert!(helpers.insert(crate::function::generated_function_path(
+                "identity", &action
+            )));
+        }
+    }
 
     fn fixed() -> FixedPoint {
         FixedPoint::default()

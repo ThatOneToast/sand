@@ -9,10 +9,16 @@ enum Case {
     Discarded,
     Slots,
     Escaped,
+    EscapedState,
     InvalidPosition,
     Macro,
     Return,
 }
+#[allow(dead_code)]
+#[derive(State)]
+#[state(namespace = "forge", scope = global)]
+struct FurnaceState { burn: Score }
+
 thread_local! { static CASE: Cell<Case> = const { Cell::new(Case::Used) }; }
 
 fn build() -> Actions {
@@ -29,6 +35,11 @@ fn build() -> Actions {
             let mut read = None;
             let _ = block.when_furnace(|f| { read = Some(f.cooking_elapsed()); Actions::default() });
             when(read.unwrap().gt(0)).then_all([block.destroy()])
+        }
+        Case::EscapedState => {
+            let mut read = None;
+            let _ = block.when_furnace(|f| { read = Some(f.burn_remaining()); Actions::default() });
+            FurnaceState::global().burn.set(read.unwrap())
         }
         Case::InvalidPosition => WorldContext::current().block(BlockPos::new(f64::NAN, 0, 0))
             .when_furnace(|f| f.output().clear().unwrap()),
@@ -61,18 +72,19 @@ fn export(case: Case, namespace: &str, version: &str) -> Result<String, String> 
 #[test]
 fn furnace_profiles_and_escaped_reads_are_checked_on_every_export() {
     for version in ["26.2", "26.2.0", "latest"] {
-        for case in [Case::Used, Case::Slots, Case::Escaped] {
+        for case in [Case::Used, Case::Slots, Case::Escaped, Case::EscapedState] {
             export(case, "forge", version).unwrap();
         }
     }
     for version in ["26.1", "26.1.1", "26.1.2", "26.2.1", "27.0"] {
-        for case in [Case::Used, Case::Slots, Case::Escaped] {
+        for case in [Case::Used, Case::Slots, Case::Escaped, Case::EscapedState] {
             let error = export(case, "forge", version).unwrap_err();
             assert!(
                 error.contains("requires verified Minecraft 26.2"),
                 "{error}"
             );
             assert!(error.contains("forge:"), "{error}");
+            assert!(!error.contains("__sand_local"), "{error}");
         }
     }
     CASE.with(|value| value.set(Case::Used));
@@ -101,6 +113,13 @@ fn unused_furnaces_emit_no_helpers_or_profile_requirement() {
         "lit_time",
     ] {
         assert!(!discarded.contains(needle), "{needle}");
+    }
+}
+
+#[test]
+fn malformed_public_profiles_are_rejected() {
+    for version in ["", "garbage", "26.2.invalid", "26..2"] {
+        assert!(export(Case::EscapedState, "forge", version).is_err(), "{version}");
     }
 }
 
@@ -135,6 +154,22 @@ fn furnace_frames_preserve_return_and_reject_macro_or_position_errors() {
             .count(),
         4
     );
+    let pack: sand_core::serde_json::Value = sand_core::serde_json::from_str(&output).unwrap();
+    let functions = pack["components"].as_array().unwrap();
+    let dispatcher = functions.iter().find(|r| r["content"].as_str()
+        .is_some_and(|s| s.matches("return run function forge:sand/branches/").count() == 4)).unwrap();
+    let lines: Vec<_> = dispatcher["content"].as_str().unwrap().lines().collect();
+    assert_eq!(lines.len(), 4);
+    let body = lines[0].split("return run function ").nth(1).unwrap();
+    for line in &lines[..3] {
+        assert!(line.starts_with("execute if function forge:sand/conditions/"), "{line}");
+        assert!(line.ends_with(&format!("return run function {body}")), "{line}");
+    }
+    assert!(lines[3].starts_with("return run function "));
+    assert_ne!(lines[3], format!("return run function {body}"));
+    let body_path = body.strip_prefix("forge:").unwrap();
+    let body = functions.iter().find(|r| r["path"] == body_path).unwrap()["content"].as_str().unwrap();
+    assert_eq!(body, "setblock ~ ~ ~ minecraft:smoker\nreturn fail");
     let error = export(Case::Macro, "forge", "26.2").unwrap_err();
     assert!(
         error.contains("macro lines cannot move into a helper"),

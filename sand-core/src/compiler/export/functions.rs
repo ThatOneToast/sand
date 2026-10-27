@@ -93,6 +93,11 @@ pub(crate) fn drain_generated_resources_into(
                             capability,
                         },
                 } => {
+                    let owner = if owner.namespace() == crate::function::SAND_LOCAL_NS {
+                        sand_components::ResourceLocation::new(namespace, owner.path())?
+                    } else {
+                        owner
+                    };
                     crate::function::validate_exact_profile(
                         version,
                         capability,

@@ -2,6 +2,7 @@
 use sand::prelude::*;
 use sand_core::serde_json;
 
+#[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "furnace", name = "probe", scope = player)]
 struct Probe {
@@ -12,6 +13,7 @@ struct Probe {
     ready: Score,
     after: Score,
 }
+#[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "furnace", name = "world", scope = global)]
 struct WorldProbe {
@@ -85,6 +87,7 @@ fn fail_after_valid() {
     block.when_furnace(|f| {
         mcfunction![
             state.burn.set(f.burn_remaining());
+            state.burn.set(-909);
             block.replace(vanilla::Block::Air);
             state.burn.set(f.burn_remaining());
             state.after.add(1);
@@ -123,6 +126,47 @@ fn local_snapshot() {
         .when_furnace(|f| state.burn.set(f.burn_remaining()));
 }
 
+#[function("absolute_snapshot", context = player)]
+fn absolute_snapshot() {
+    WorldContext::current().block(BlockPos::new(0, 85, 0)).when_furnace(|f|
+        Probe::on(EntityContext::<PlayerKind>::default()).burn.set(f.burn_remaining()));
+}
+
+// Each traversal binds execution position to the selected player. Both players
+// are visited by one emitted function invocation, with no server-tick boundary.
+#[function]
+fn both_players() {
+    Target::players().each(|_| cmd::function(snapshot));
+}
+
+#[function]
+fn both_same_machine() {
+    Target::players().each(|_| cmd::function(absolute_snapshot));
+}
+
+#[function("nested_players", context = player)]
+fn nested_players() {
+    let state = Probe::on(EntityContext::<PlayerKind>::default());
+    WorldContext::current().block(BlockPos::here()).when_furnace(|outer| mcfunction![
+        Target::players().tag("furnace_other").each(|other|
+            Probe::on(*other).burn.set(outer.burn_remaining()));
+        state.elapsed.set(outer.burn_remaining());
+    ]);
+}
+
+#[function]
+fn macro_message() {
+    FunctionMacroArgs::new(["message"]).unwrap().line("say $(message)").unwrap();
+}
+
+#[function("explicit_macro", context = player)]
+fn explicit_macro() {
+    WorldContext::current().block(BlockPos::here()).when_furnace(|_| {
+        let values = Nbt::storage(ResourceLocation::new("furnace", "macro").unwrap()).path("args");
+        FunctionMacroArgs::new(["message"]).unwrap().call_with(macro_message, &values).unwrap()
+    });
+}
+
 fn pack() -> serde_json::Value {
     serde_json::from_str(&sand::advanced::try_export_pack_json("furnace", "26.2").unwrap()).unwrap()
 }
@@ -141,6 +185,22 @@ fn public_furnace_fixture_exports_state_and_conditions() {
         assert!(text.contains(key), "{key}");
     }
     assert_eq!(pack, self::pack());
+    let functions = pack["components"].as_array().unwrap();
+    let failure = functions.iter().find_map(|record| record["content"].as_str()
+        .filter(|body| body.contains(" -909"))).unwrap();
+    let lines: Vec<_> = failure.lines().collect();
+    assert_eq!(lines.len(), 5);
+    assert!(lines[0].starts_with("function furnace:sand/numeric/"));
+    assert_eq!(lines[0], lines[3], "prime and failure must invoke the identical read/helper");
+    assert!(lines[1].ends_with(" -909"));
+    assert_eq!(lines[2], "setblock ~ ~ ~ minecraft:air");
+    assert!(lines[4].starts_with("scoreboard players add @s "));
+    for path in ["both_players", "both_same_machine"] {
+        let body = functions.iter().find(|r| r["path"] == path).unwrap()["content"].as_str().unwrap();
+        assert!(body.starts_with("execute as @a at @s run function "));
+        assert_eq!(body.lines().count(), 1, "one invocation must schedule both players synchronously");
+    }
+    assert!(text.contains("function furnace:macro_message with storage furnace:macro args"));
 }
 #[test]
 #[ignore = "dedicated native furnace fixture export"]

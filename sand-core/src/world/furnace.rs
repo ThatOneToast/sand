@@ -65,6 +65,31 @@ impl BlockContext {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restricted_and_raw_equivalent_nbt_have_distinct_helper_identities() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let furnace = Furnace { block: crate::world::WorldContext::current()
+            .block(sand_commands::BlockPos::here()) };
+        let reference = furnace.block.data().typed_path::<i16>(NbtPath::root("lit_time_remaining"));
+        let raw = StatCurve::native_nbt(reference.__location().clone(), reference.path_value().clone(), None);
+        let restricted = furnace.burn_remaining();
+        let call = |value: StatCurve| crate::ir::test_support::emitted(
+            crate::execute_when::when(value.gt(0)).then_one("say positive"));
+        let first = call(raw.clone());
+        let second = call(restricted.clone());
+        assert_ne!(first, second, "profile validation must not share an unprofiled helper identity");
+        assert_eq!(first, call(raw));
+        assert_eq!(second, call(restricted));
+        let helpers = crate::ir::test_support::drain_emitted();
+        assert_eq!(helpers.iter().filter(|(_, body)| body.iter().any(|line|
+            line.contains("append from block ~ ~ ~ lit_time_remaining"))).count(), 2);
+    }
+}
+
 /// Entry-scoped access shared by furnaces, blast furnaces and smokers.
 ///
 /// Constructed only by [`BlockContext::when_furnace`]. Locations and numeric reads

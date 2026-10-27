@@ -3,6 +3,72 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io::Cursor;
 
+#[test]
+fn real_http_policy_rejects_unapproved_destinations_before_dispatch() {
+    for url in [
+        "http://piston-meta.mojang.com/manifest",
+        "https://127.0.0.1/",
+        "https://[::1]/",
+        "https://2130706433/",
+        "https://internal.example/",
+        "https://piston-meta.mojang.com.evil.example/",
+        "https://evil-piston-meta.mojang.com/",
+        "https://piston-meta.mojang.com./",
+        "https://piston-meta.mojang.com:8443/",
+        "https://user@piston-meta.mojang.com/",
+        "https://user:password@piston-data.mojang.com/",
+        "https://@piston-meta.mojang.com/",
+        "https:////@piston-meta.mojang.com/",
+        "https:/@piston-meta.mojang.com/",
+        "https:piston-meta.mojang.com/",
+        "https://piston-meta.mojang.com@127.0.0.1/",
+        "https://piston-meta.mojang.com%2f.evil.example/",
+        "https://piston-data.mojang.com/server.jar#fragment",
+        "file:///tmp/server.jar",
+    ] {
+        assert!(Http::get_with(url, |_| panic!("unapproved URL dispatched: {url}")).is_err());
+    }
+}
+
+#[test]
+fn real_http_policy_accepts_supported_origins_without_changing_selected_identity() {
+    for url in [
+        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+        "https://piston-meta.mojang.com:443/v1/packages/digest/26.2.json?identity=a%2Fb",
+        "https://piston-data.mojang.com/v1/objects/digest/server.jar",
+    ] {
+        let selected = url.to_owned();
+        let response = Http::get_with(&selected, |parsed| {
+            assert_eq!(parsed, reqwest::Url::parse(url).unwrap());
+            Ok(Response {
+                status: 200,
+                size: Some(2),
+                body: Box::new(Cursor::new(b"ok")),
+            })
+        })
+        .unwrap();
+        assert_eq!(response.bytes(url).unwrap(), b"ok");
+        assert_eq!(selected, url);
+    }
+}
+
+#[test]
+fn real_http_adapter_rejects_all_redirect_statuses_without_another_dispatch() {
+    for status in 300..400 {
+        let mut calls = 0;
+        let result = Http::get_with("https://piston-meta.mojang.com/package", |_| {
+            calls += 1;
+            Ok(Response {
+                status,
+                size: Some(0),
+                body: Box::new(Cursor::new(Vec::<u8>::new())),
+            })
+        });
+        assert!(result.is_err(), "redirect status {status} was accepted");
+        assert_eq!(calls, 1);
+    }
+}
+
 pub(crate) struct Fake {
     pub(crate) calls: RefCell<Vec<String>>,
     replies: RefCell<VecDeque<(String, Result<Response>)>>,

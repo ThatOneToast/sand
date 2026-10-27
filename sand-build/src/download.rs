@@ -39,12 +39,53 @@ impl Response {
 pub(crate) struct Http;
 impl Transport for Http {
     fn get(&self, url: &str) -> Result<Response> {
-        let response = reqwest::blocking::get(url)?.error_for_status()?;
-        Ok(Response {
-            status: response.status().as_u16(),
-            size: response.content_length(),
-            body: Box::new(response),
+        Self::get_with(url, |url| {
+            let response = reqwest::blocking::Client::builder()
+                .https_only(true)
+                .redirect(reqwest::redirect::Policy::none())
+                .build()?
+                .get(url)
+                .send()?;
+            Ok(Response {
+                status: response.status().as_u16(),
+                size: response.content_length(),
+                body: Box::new(response),
+            })
         })
+    }
+}
+
+impl Http {
+    /// Validate before dispatch, and reject redirects without contacting Location.
+    /// Keep this in the real adapter: synthetic transports do not need a host override.
+    fn get_with(
+        url: &str,
+        dispatch: impl FnOnce(reqwest::Url) -> Result<Response>,
+    ) -> Result<Response> {
+        let parsed =
+            reqwest::Url::parse(url).map_err(|e| invalid(format!("invalid Mojang URL: {e}")))?;
+        // Url normalizes empty userinfo away; reject its explicit spelling too.
+        let authority = url
+            .split_once("://")
+            .and_then(|(_, rest)| rest.split(['/', '?', '#']).next())
+            .filter(|authority| !authority.is_empty())
+            .ok_or_else(|| invalid("download URL requires an explicit authority"))?;
+        let explicit_userinfo = authority.contains('@');
+        if parsed.scheme() != "https"
+            || !matches!(
+                parsed.host_str(),
+                Some("piston-meta.mojang.com" | "piston-data.mojang.com")
+            )
+            || parsed.port_or_known_default() != Some(443)
+            || !parsed.username().is_empty()
+            || parsed.password().is_some()
+            || explicit_userinfo
+            || parsed.fragment().is_some()
+        {
+            return Err(invalid("download requires an approved Mojang HTTPS origin"));
+        }
+        // error_for_status does not reject 3xx. Check every non-2xx explicitly.
+        dispatch(parsed)?.checked(url)
     }
 }
 

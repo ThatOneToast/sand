@@ -2494,18 +2494,24 @@ impl<T> Data<T> {
 /// A typed command-storage field keyed by the current entity or player's UUID.
 ///
 /// The UUID lives in a shared owner record while the value remains under its
-/// component-owned path. Every operation copies the four UUID integers into a
-/// short-lived macro argument compound and then runs a generated helper. This
-/// keeps values stable across unload/reload without writing custom top-level
-/// entity NBT.
+/// component-owned path. Each owner resolution clears its scratch UUID and
+/// copies the whole UUID array with one entity NBT read before calling a macro.
+/// Without an executing entity, resolution fails and no owner value is read,
+/// written or removed, and no `if_present` callback runs. Literal write staging
+/// is still cleaned up. Valid-owner macro result/success behavior is unchanged.
+///
+/// Nested callbacks resolve their own executor independently. Values remain
+/// stable across unload/reload without custom top-level entity NBT or a storage
+/// migration. Owner lookup still scans the shared list; resolution is repeated
+/// per access, and removing a field does not reclaim its owner record.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::entity::KeyedData",
     aliases = ["sand::prelude::KeyedData"],
     module = "sand::entity",
     summary = "A typed command-storage field keyed by the current entity or player's UUID.",
-    context = "A typed command-storage field keyed by the current entity or player's UUID. The UUID lives in a shared owner record while the value remains under its component-owned path. Every operation copies the four UUID integers into a short-lived macro argument compound and then runs a generated helper. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
-    minecraft = "The UUID lives in a shared owner record while the value remains under its component-owned path. Every operation copies the four UUID integers into a short-lived macro argument compound and then runs a generated helper. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
+    context = "A typed command-storage field keyed by the current entity or player's UUID. The UUID lives in a shared owner record while the value remains under its component-owned path. Each owner resolution clears its scratch UUID and copies the whole UUID array with one entity NBT read before running a generated helper. A missing executor cannot access stale owner data or run callbacks. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
+    minecraft = "The UUID lives in a shared owner record while the value remains under its component-owned path. Each owner resolution clears its scratch UUID and copies the whole UUID array with one entity NBT read before running a generated helper. A missing executor cannot access stale owner data or run callbacks. This keeps values stable across unload/reload without writing custom top-level entity NBT.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::KeyedData;",
@@ -2687,13 +2693,16 @@ pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) ->
     let value_path = keyed_path(field.path);
     // Existing defaults need only the ordinary UUID lookup and presence check.
     // Stage the authored value only when initialization will actually write it.
-    let write = keyed_data_value_call(
+    let write = keyed_data_staged_call(
         field.storage,
         sand_commands::NbtValue::raw(field.default_snbt),
-        format!(
-            "$data modify storage {0} {value_path} set from storage {0} __sand_owner.value",
+        vec![keyed_data_macro_call(
             field.storage,
-        ),
+            format!(
+                "$data modify storage {0} {value_path} set from storage {0} __sand_owner.value",
+                field.storage,
+            ),
+        )],
     );
     keyed_data_call(
         field.storage,
@@ -2725,7 +2734,7 @@ fn state_data_remove_commands(field: StateDataFieldDescriptor) -> Vec<String> {
 }
 
 fn keyed_uuid() -> &'static str {
-    "[I;$(u0),$(u1),$(u2),$(u3)]"
+    "$(uuid)"
 }
 
 fn keyed_owner_path() -> String {
@@ -2746,31 +2755,46 @@ fn keyed_data_value_call(
     value: sand_commands::NbtValue,
     macro_body: String,
 ) -> Vec<String> {
+    keyed_data_staged_call(storage, value, keyed_data_call(storage, macro_body))
+}
+
+// Initialization already resolved the owner before testing the default. Its
+// conditional write can use those arguments directly: staging contains only
+// ordinary data commands and cannot run a callback that changes the owner.
+fn keyed_data_staged_call(
+    storage: &str,
+    value: sand_commands::NbtValue,
+    owner_commands: Vec<String>,
+) -> Vec<String> {
     let staged = sand_commands::DataTarget::storage(storage).path("__sand_owner.value");
     let mut commands = vec![staged.remove().to_string(), staged.set(value).to_string()];
-    commands.extend(keyed_data_call(storage, macro_body));
+    commands.extend(owner_commands);
     commands.push(staged.remove().to_string());
     let path = crate::function::register_dyn_fn_dedup("sand/state_data/write", commands);
     vec![format!("function __sand_local:{path}")]
 }
 
 fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
+    let call = keyed_data_macro_call(storage, macro_body);
+    let args = "__sand_owner";
+    // Clear first: a failed entity read must not reuse the preceding owner.
+    // Do not gate on the copy's success: unchanged NBT is not a successful
+    // modification. A missing UUID makes macro instantiation fail safely.
+    // Macro arguments are instantiated before callbacks run, so nested calls
+    // may replace this scratch UUID without changing the outer owner's paths.
+    vec![
+        format!("data remove storage {storage} {args}.uuid"),
+        format!("data modify storage {storage} {args}.uuid set from entity @s UUID"),
+        call,
+    ]
+}
+
+fn keyed_data_macro_call(storage: &str, macro_body: String) -> String {
     let path = crate::function::register_dyn_fn_dedup(
         "sand/state_data/keyed",
         macro_body.lines().map(str::to_owned).collect::<Vec<_>>(),
     );
-    let args = "__sand_owner";
-    let mut commands = (0..4)
-        .map(|index| {
-            format!(
-                "data modify storage {storage} {args}.u{index} set from entity @s UUID[{index}]"
-            )
-        })
-        .collect::<Vec<_>>();
-    commands.push(format!(
-        "function __sand_local:{path} with storage {storage} {args}"
-    ));
-    commands
+    format!("function __sand_local:{path} with storage {storage} __sand_owner")
 }
 
 impl<T: EntityEnumValue> Copy for EntityEnum<T> {}
@@ -4022,11 +4046,20 @@ mod tests {
         let initialize = state_data_initialize_commands(keyed);
         assert_eq!(
             initialize.len(),
-            5,
+            3,
             "existing defaults only need UUID lookup"
         );
         let helpers = crate::ir::test_support::drain_emitted();
         let emitted = helpers.iter().flat_map(|(_, body)| body);
+        assert_eq!(
+            initialize
+                .iter()
+                .chain(emitted.clone())
+                .filter(|line| line.contains("set from entity @s UUID"))
+                .count(),
+            1,
+            "initialization reuses its resolved owner for the conditional staged write"
+        );
         assert!(
             emitted.clone().any(|line| {
                 line.starts_with("$execute unless data storage rpg:state owners[")
@@ -4056,17 +4089,17 @@ mod tests {
     fn keyed_data_uses_uuid_macro_storage_without_entity_nbt_writes() {
         let field = KeyedData::<i32>::new("rpg:state", "components.\"stats\".xp");
         let commands = field.get();
-        assert_eq!(commands.len(), 5);
-        for (index, command) in commands[..4].iter().enumerate() {
-            assert_eq!(
-                command,
-                &format!(
-                    "data modify storage rpg:state __sand_owner.u{index} set from entity @s UUID[{index}]"
-                )
-            );
-        }
-        assert!(commands[4].starts_with("function __sand_local:sand/state_data/keyed/"));
-        assert!(commands[4].ends_with(" with storage rpg:state __sand_owner"));
+        assert_eq!(commands.len(), 3);
+        assert_eq!(
+            commands[0],
+            "data remove storage rpg:state __sand_owner.uuid"
+        );
+        assert_eq!(
+            commands[1],
+            "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+        );
+        assert!(commands[2].starts_with("function __sand_local:sand/state_data/keyed/"));
+        assert!(commands[2].ends_with(" with storage rpg:state __sand_owner"));
         assert!(
             commands
                 .iter()
@@ -4074,7 +4107,100 @@ mod tests {
         );
         let helpers = crate::ir::test_support::drain_emitted();
         assert_eq!(helpers.len(), 1);
-        assert!(helpers[0].1[0].contains("owners[{uuid:[I;$(u0),$(u1),$(u2),$(u3)]}]"));
+        assert!(helpers[0].1[0].contains("owners[{uuid:$(uuid)}]"));
+    }
+
+    #[test]
+    fn keyed_owner_resolution_clears_stale_uuid_for_every_access() {
+        let field = KeyedData::<i32>::new("rpg:state", "components.stats.xp");
+        let descriptor = StateDataFieldDescriptor::keyed("rpg:state", "components.stats.xp", "7");
+        for commands in [
+            field.get(),
+            field.remove(),
+            state_data_remove_commands(descriptor),
+            state_data_initialize_commands(descriptor),
+            field.if_present(|| vec!["say present".into()]),
+        ] {
+            assert_eq!(commands.len(), 3);
+            assert_eq!(
+                commands[0],
+                "data remove storage rpg:state __sand_owner.uuid"
+            );
+            assert_eq!(
+                commands[1],
+                "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+            );
+            assert!(commands[2].ends_with(" with storage rpg:state __sand_owner"));
+        }
+        let _ = crate::ir::test_support::drain_emitted();
+        let _ = field.set(9);
+        let helpers = crate::ir::test_support::drain_emitted();
+        let write = helpers
+            .iter()
+            .find(|(name, _)| name.starts_with("sand/state_data/write/"))
+            .unwrap();
+        assert_eq!(
+            write.1[2],
+            "data remove storage rpg:state __sand_owner.uuid"
+        );
+        assert_eq!(
+            write.1[3],
+            "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+        );
+        assert_eq!(
+            write.1.last().unwrap(),
+            "data remove storage rpg:state __sand_owner.value"
+        );
+        assert_eq!(
+            write
+                .1
+                .iter()
+                .filter(|line| line.contains("set from entity"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn keyed_nested_callbacks_resolve_each_executor_without_macro_payloads() {
+        let outer = KeyedData::<i32>::new("rpg:state", "components.player.xp");
+        let inner = KeyedData::<i32>::new("rpg:state", "components.mob.xp");
+        let _ = outer.if_present(|| {
+            let nested = inner.if_present(|| inner.get());
+            let callback = crate::function::register_dyn_fn_dedup("test/nested", nested);
+            let mut body = vec![format!(
+                "execute as @e[tag=other,limit=1] run function __sand_local:{callback}"
+            )];
+            body.extend(outer.get());
+            body
+        });
+        let helpers = crate::ir::test_support::drain_emitted();
+        let lines = helpers
+            .iter()
+            .flat_map(|(_, body)| body)
+            .collect::<Vec<_>>();
+        for component in ["player", "mob"] {
+            let path = format!("owners[{{uuid:$(uuid)}}].components.{component}.xp");
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| **line == format!("$data get storage rpg:state {path}"))
+            );
+            assert!(lines.iter().any(|line| line.starts_with(&format!(
+                "$execute if data storage rpg:state {path} run function "
+            ))));
+        }
+        for (_, body) in &helpers {
+            for (index, line) in body.iter().enumerate() {
+                if line.contains("set from entity @s UUID") {
+                    assert_eq!(
+                        body[index - 1],
+                        "data remove storage rpg:state __sand_owner.uuid"
+                    );
+                    assert!(body[index + 1].ends_with(" with storage rpg:state __sand_owner"));
+                }
+            }
+        }
     }
 
     #[test]

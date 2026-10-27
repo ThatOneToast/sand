@@ -39,8 +39,8 @@ to `1..7`, with no unknown bounds. The helper retains the `trail:traversal` owne
 No objectives are added. Direct callers inherit the reduced minimum and the
 one-evaluation increase on cold/repair paths.
 
-A native probe with two real passive players passed the same 13 assertions for
-both packs: fresh initialization, existing-score preservation, missing-score
+The maintained native harness with two real passive players passed 21 assertions
+for each pack, including: fresh initialization, existing-score preservation, missing-score
 repair, explicit suppression, and other-player isolation. Result and success
 stores retain their sentinel values for ordinary initializer calls in all four
 cases; no explicit return callback was introduced.
@@ -61,17 +61,32 @@ The selector still evaluates score conditions. The missing stamina score repairs
 to 100, the other player's 61 remains unchanged, and suppression leaves the
 missing score absent.
 
-The milestone coordinator retains the unchanged packs, canonical reports,
-normalized baseline comparisons, raw traces, probe hashes, and native assertion
-results under `/tmp/sand-runtime-evidence/`. Boundary results are in
-`before-native-final/evidence.json` and `after-native-final/evidence.json`;
-trace results are in `before-traces/evidence.json` and `after-traces/evidence.json`.
-The frozen probes are `/tmp/sand-initializer-probe.py` and
-`/tmp/sand-initializer-trace.py`; each accepts a pack path and a fresh output
-path. The lead owns permanent evidence archival and integrated baseline updates.
+The [archived evidence](../benchmarks/evidence/player-initialization-2026-10-27/summary.json)
+contains both runs, ten complete traces, source-file hashes, pack digests, and
+provenance. It records the original candidate capture as uncommitted and
+separately verifies that a clean rebuild of `0e47c6c1` produces the same pack.
+The summary also distinguishes the two historical file-ordering conventions
+used for pack hashing; unlike digests are not compared as if they were identical.
 
-Focused validation passed 78 Rust tests across lifecycle, portable compiler,
-StateFlow, entry ordering and report ownership, plus strict Clippy for the changed
-core/test targets, formatting, documentation links and whitespace checks. Two
-fixture-export tests remain intentionally ignored. The lead runs the complete
-integrated repository gate; the child did not run a concurrent full check.
+Reproduce against the identified unchanged-fixture packs with Java 25:
+
+```sh
+python3 scripts/validate_player_initialization.py \
+  --pack /path/to/after-pack \
+  --provenance benchmarks/evidence/player-initialization-2026-10-27/after/provenance.json \
+  --jar "$HOME/.sand/cache/26.2/server.jar" \
+  --output /tmp/player-initialization-after
+```
+
+Use the before pack and before provenance in a separate output directory for
+the baseline. The harness rejects mismatching pack digests and incomplete traces.
+These probes isolate initialization; gameplay reload/reconnect validation is
+covered separately by the [Trailforge audit](testing/trailforge-evidence.md).
+Observed gameplay score changes include one repaired default, preservation of
+the other player's value, and no suppressed write. A complete mutation-count
+or MSPT benchmark was not measured.
+
+Focused validation covers lifecycle, portable compilation, StateFlow, entry
+ordering, report ownership, authored return boundaries, and the maintained
+native harness. The required full gate is `scripts/check.sh` plus
+`git diff --check` on the integrated revision.

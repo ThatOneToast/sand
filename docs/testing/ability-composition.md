@@ -61,3 +61,22 @@ retains its bounded raycast, menu, equipment, lifecycle and two-player assertion
 These are correctness assertions with console-driven activation and passive real
 clients. They do not establish client input behavior, death/respawn, MSPT, maximum
 population, command-budget capacity, asynchronous ownership or rollback.
+
+## Verified result
+
+Clean production revision `a716f157fa5cfa4c3f8bfb5d3a208bca9f38ea19` passed the
+full `scripts/check.sh` gate under the shared workload lock and Java 25 native
+runs with **120 Trailforge assertions and 54 Aether assertions**. Both consumers
+were rebuilt through the normal CLI pipeline before native execution. The
+[evidence summary](../../benchmarks/evidence/ability-composition-2026-10-28/summary.json)
+records pack hashes, source provenance, review contracts and limitations.
+[Trailforge](../../benchmarks/evidence/ability-composition-2026-10-28/trail/evidence.json)
+and [Aether](../../benchmarks/evidence/ability-composition-2026-10-28/aether/evidence.json)
+retain their exact assertion lists and native logs alongside the reports.
+
+The first full attempt detected a source-identity mismatch because Rustdoc was
+edited during the source audit. Its compressed log is retained; source was then
+frozen and the complete gate rerun successfully without weakening a check.
+The successful full log, API discovery output and both CLI build reports are
+retained in the same evidence directory. The later evidence commit changes no
+production Rust or harness behavior.

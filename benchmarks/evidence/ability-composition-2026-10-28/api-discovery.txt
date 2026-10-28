@@ -1,0 +1,67 @@
+Module sand::systems::ability
+
+Functions
+  sand::systems::ability::Ability::new
+    Configure a cost, cooldown duration and canonical eligibility Condition.
+  sand::systems::ability::ResourceMaintenance::new
+    Give a maintenance action a unique function identity for ordinary registration.
+  sand::systems::ability::ResourcePool::new
+    Bind a State score and the expression used to skip restoration at capacity.
+
+Methods
+  sand::systems::ability::Ability::accept
+    Recheck eligibility and target acceptance together, then commit once.
+  sand::systems::ability::Ability::attempt
+    Run synchronous target-search actions only while eligible, without payment.
+  sand::systems::ability::Ability::ready
+    Query the same resource, cooldown and caller Conditions used by activation.
+  sand::systems::ability::ResourcePool::regenerate
+    Restore a positive amount when the consumer's auto-ticking Timer elapses.
+
+Structs
+  sand::systems::ability::Ability
+    Eligibility and acceptance policy for one resource-backed activation.
+  sand::systems::ability::ResourceMaintenance
+    Explicit installation of one shared maintenance action in the tick lifecycle.
+  sand::systems::ability::ResourcePool
+    A view of a consumer-owned integer State resource and its capacity expression.
+sand::systems::ability::Ability::accept
+pub fn accept (& self , target : Condition , effects : impl IntoCommands) -> Actions
+
+Recheck eligibility and target acceptance together, then commit once.
+
+Context
+  Recheck eligibility and target acceptance together, then commit once. The grouped branch is evaluated before cost/cooldown writes, so those writes cannot suppress later effects. Effects may be Actions or typed function calls. A native failure after acceptance leaves the committed cost and cooldown.
+
+Minecraft behavior
+  Uses canonical State writes and grouped Conditions in the ordinary export pipeline.
+
+Parameters
+  target (`Condition`): Acceptance condition for the current terminal target.
+  effects (`impl IntoCommands`): Effects issued after payment, including typed function calls.
+
+Returns
+  `Actions` — One grouped acceptance branch with cost, cooldown and effects in order.
+
+Use when
+  - Composing shared resources and accepted-target abilities
+
+Avoid when
+  - Transactional rollback or asynchronous target ownership is required
+
+Example
+  use sand::prelude::*;
+
+fn demonstrate(ability_value: &sand::systems::ability::Ability, target: sand::condition::Condition, effects: impl sand::component::IntoCommands)  {
+    let accept = ability_value.accept(target, effects);
+}
+
+Related APIs
+  - sand::systems::ability::Ability::attempt
+  - sand::systems::ability::Ability::new
+  - sand::systems::ability::Ability::ready
+  - sand::systems::ability::Ability
+  - sand::systems::ability::ResourceMaintenance
+
+API Contract
+  sand api show sand::systems::ability::Ability::accept

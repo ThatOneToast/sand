@@ -89,6 +89,8 @@ class AbilityHarness(TrailforgeHarness):
                 self.score('INDEPENDENT_POOL', a, self.reserve, 16)
                 self.score('INDEPENDENT_COOLDOWN', a, self.reserve_cd, 9)
                 self.state('PRIMARY_UNCHANGED', a, 41, 12, 2)
+                self.activate(a, 'flare')
+                self.state('SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE', a, 41, 12, 2)
                 self.reset_actor(a, 30)
                 self.step(6, 'BEFORE_CADENCE')
                 self.score('NO_EARLY_REGEN', a, self.charge, 30)

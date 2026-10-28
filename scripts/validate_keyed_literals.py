@@ -205,7 +205,7 @@ class KeyedLiteralHarness(PlayerHarness):
 
     def prepare_scaling(self, functions, indexed):
         """Keep seeding, migration, warm reads, and warm writes separate."""
-        active = '{uuid:[I;-2147483648,2147483647,-1,0],components:{status:{template:"seed",details:{seed:1}},retained:{n:23}},unknown:{keep:1}}'
+        active = '{uuid:[I;-2147483648,2147483647,-1,1],components:{status:{template:"seed",details:{seed:1}},retained:{n:23}},unknown:{keep:1}}'
         for count in (10, 1000, 10000):
             rows = [active] + [f'{{uuid:[I;0,0,1,{i}],components:{{dormant:{{value:{i}}}}},unknown:{{keep:1}}}}' for i in range(1, count)]
             body = ["data remove storage rpg:state owners_v2",
@@ -225,7 +225,8 @@ class KeyedLiteralHarness(PlayerHarness):
         """Fixed one-active-owner workload; wall time includes console round trips."""
         self.send("tick freeze")
         self.send('kill @e[tag=keyed_boundary]')
-        self.send('summon minecraft:zombie 0 100 0 {UUID:[I;-2147483648,2147483647,-1,0],Tags:["keyed_scale"],NoAI:1b,NoGravity:1b,PersistenceRequired:1b}')
+        self.send('summon minecraft:zombie 0 100 0 {UUID:[I;-2147483648,2147483647,-1,1],Tags:["keyed_scale"],NoAI:1b,NoGravity:1b,PersistenceRequired:1b}')
+        self.check("SCALE_ACTIVE_EXECUTOR", 'if entity @e[tag=keyed_scale,limit=1]')
         def barrier(label, commands):
             start = len(self.lines)
             now = time.monotonic()
@@ -273,8 +274,14 @@ class KeyedLiteralHarness(PlayerHarness):
                 self.check(f"SCALE_{count}_DORMANT", f'if data storage rpg:state owners_v2."[I;0,0,1,{count-1}]".components.dormant{{value:{count-1}}}')
                 entry["migrated_storage"] = storage_snapshot(f"migrated_{count}")
             entry["changed_write"] = capture(f"changed_write_{count}", f"{PROBE}:scale_trace_write")
+            self.expect(f"SCALE_{count}_CHANGED_VALUE", '@e[tag=keyed_scale,limit=1]', "status", {"template": LITERAL, "details": PAYLOAD})
             entry["warm_read"] = capture(f"warm_read_{count}", f"{PROBE}:scale_trace_read")
             entry["warm_write"] = capture(f"warm_write_{count}", f"{PROBE}:scale_trace_write")
+            for kind, expected_reads in (("changed_write", 2), ("warm_read", 1), ("warm_write", 2)):
+                if entry[kind]["entity_uuid_read_commands"] != expected_reads:
+                    raise ValidationFailure("scaling", f"{kind}: expected {expected_reads} reached UUID reads")
+            if entry["warm_read"]["successful_storage_get_commands"] != 1:
+                raise ValidationFailure("scaling", "warm read must reach the value get")
             if entry["warm_read"]["successful_storage_mutation_commands"] != 0:
                 raise ValidationFailure("scaling", "warm same-owner reads mutated storage")
             for kind in ("read", "write"):

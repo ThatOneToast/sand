@@ -341,9 +341,11 @@ class KeyedLiteralHarness(PlayerHarness):
             raise ValidationFailure("keyed-trace", "unchanged UUID copy must still execute the get macro")
         # The fixture's attach builder already deduplicates identical inline
         # commands. Measure that exported shape, not a per-field multiplication.
+        # The player setter also invokes lifecycle initialization: its two
+        # guarded UUID copies are reached (one unchanged) in this fixture.
         expected = ({"fresh_attach": 12, "existing_attach": 4, "existing_attach_repeat": 4, "same_owner_get": 4}.get(label, 8)
                     if self.owner_read_count == 4 else
-                    {"fresh_attach": 1, "existing_attach": 1, "existing_attach_repeat": 1, "same_owner_get": 1, "actual_nested": 3}.get(label, 2))
+                    {"fresh_attach": 1, "existing_attach": 1, "existing_attach_repeat": 1, "same_owner_get": 1, "actual_nested": 3, "player_write": 4}.get(label, 2))
         if reads != expected:
             raise ValidationFailure("keyed-trace", f"{label}: expected {expected} UUID reads, got {reads}")
 

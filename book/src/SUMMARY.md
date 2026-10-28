@@ -20,6 +20,7 @@
 - [12. Dialogs](12-dialogs.md)
 - [13. Particles And Sounds](13-particles-and-sounds.md)
 - [14. Timers And Cooldowns](14-timers-and-cooldowns.md)
+- [14b. Shared Resources And Abilities](14b-resource-abilities.md)
 - [15. Death And Respawn](15-death-and-respawn.md)
 - [16. Debugging And Validation](16-debugging-and-validation.md)
 - [17. Packaging And Running](17-packaging-and-running.md)

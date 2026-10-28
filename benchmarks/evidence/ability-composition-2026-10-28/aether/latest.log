@@ -1,0 +1,434 @@
+Unpacking 26.2/server-26.2.jar (versions:26.2) to versions/26.2/server-26.2.jar
+Unpacking at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar (libraries:at.yawk.lz4:lz4-java:1.10.1) to libraries/at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar
+Unpacking com/azure/azure-json/1.4.0/azure-json-1.4.0.jar (libraries:com.azure:azure-json:1.4.0) to libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar
+Unpacking com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar (libraries:com.github.oshi:oshi-core:6.9.0) to libraries/com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar
+Unpacking com/google/code/gson/gson/2.14.0/gson-2.14.0.jar (libraries:com.google.code.gson:gson:2.14.0) to libraries/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar
+Unpacking com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar (libraries:com.google.guava:failureaccess:1.0.3) to libraries/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar
+Unpacking com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar (libraries:com.google.guava:guava:33.6.0-jre) to libraries/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar
+Unpacking com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar (libraries:com.microsoft.azure:msal4j:1.24.1) to libraries/com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar
+Unpacking com/mojang/authlib/9.0.75/authlib-9.0.75.jar (libraries:com.mojang:authlib:9.0.75) to libraries/com/mojang/authlib/9.0.75/authlib-9.0.75.jar
+Unpacking com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar (libraries:com.mojang:brigadier:1.3.10) to libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar
+Unpacking com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar (libraries:com.mojang:datafixerupper:10.0.21) to libraries/com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar
+Unpacking com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar (libraries:com.mojang:jtracy:1.0.37) to libraries/com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar
+Unpacking com/mojang/logging/1.7.12/logging-1.7.12.jar (libraries:com.mojang:logging:1.7.12) to libraries/com/mojang/logging/1.7.12/logging-1.7.12.jar
+Unpacking commons-io/commons-io/2.20.0/commons-io-2.20.0.jar (libraries:commons-io:commons-io:2.20.0) to libraries/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar
+Unpacking io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar (libraries:io.netty:netty-buffer:4.2.15.Final) to libraries/io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar (libraries:io.netty:netty-codec-base:4.2.15.Final) to libraries/io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar (libraries:io.netty:netty-codec-compression:4.2.15.Final) to libraries/io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar (libraries:io.netty:netty-codec-http:4.2.15.Final) to libraries/io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar
+Unpacking io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar (libraries:io.netty:netty-common:4.2.15.Final) to libraries/io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar
+Unpacking io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar (libraries:io.netty:netty-handler:4.2.15.Final) to libraries/io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar
+Unpacking io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar (libraries:io.netty:netty-resolver:4.2.15.Final) to libraries/io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar
+Unpacking io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar (libraries:io.netty:netty-transport:4.2.15.Final) to libraries/io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-epoll:4.2.15.Final) to libraries/io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-kqueue:4.2.15.Final) to libraries/io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-x86_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-aarch_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-x86_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-aarch_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar
+Unpacking io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar (libraries:io.netty:netty-transport-native-unix-common:4.2.15.Final) to libraries/io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar
+Unpacking it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar (libraries:it.unimi.dsi:fastutil:8.5.18) to libraries/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar
+Unpacking net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar (libraries:net.java.dev.jna:jna:5.17.0) to libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar
+Unpacking net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar (libraries:net.java.dev.jna:jna-platform:5.17.0) to libraries/net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar
+Unpacking net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar (libraries:net.sf.jopt-simple:jopt-simple:5.0.4) to libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar
+Unpacking org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar (libraries:org.apache.commons:commons-lang3:3.20.0) to libraries/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar
+Unpacking org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-api:2.26.0) to libraries/org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-core:2.26.0) to libraries/org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0) to libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar
+Unpacking org/joml/joml/1.10.8/joml-1.10.8.jar (libraries:org.joml:joml:1.10.8) to libraries/org/joml/joml/1.10.8/joml-1.10.8.jar
+Unpacking org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar (libraries:org.jspecify:jspecify:1.0.0) to libraries/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar
+Unpacking org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar (libraries:org.slf4j:slf4j-api:2.0.17) to libraries/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar
+Starting net.minecraft.server.Main
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/private/tmp/sand-ability-native-a716f157-1nE6OG/aether/server/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[14:26:46] [ServerMain/WARN]: Unable to parse version 27.2 to a codename.
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/private/tmp/sand-ability-native-a716f157-1nE6OG/aether/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[14:26:52] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[14:26:53] [ServerMain/INFO]: Found new data pack file/aether, loading it automatically
+[14:26:53] [ServerMain/INFO]: Found new data pack file/trail_audit_probe, loading it automatically
+[14:26:54] [Worker-Main-6/INFO]: No existing world data, creating new world
+[14:26:55] [ServerMain/INFO]: Loaded 1585 recipes
+[14:26:55] [ServerMain/INFO]: Loaded 1688 advancements
+[14:26:55] [Server thread/INFO]: Starting minecraft server version 26.2
+[14:26:55] [Server thread/INFO]: Loading properties
+[14:26:55] [Server thread/INFO]: Default game type: SURVIVAL
+[14:26:55] [Server thread/INFO]: Generating keypair
+[14:26:55] [Server thread/INFO]: Starting Minecraft server on 127.0.0.1:60918
+[14:26:56] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[14:26:56] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[14:26:56] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[14:26:56] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[14:26:56] [Server thread/INFO]: Preparing level "world"
+[14:26:56] [Server thread/INFO]: Selecting global world spawn...
+[14:27:02] [Server thread/INFO]: Loading 0 persistent chunks...
+[14:27:02] [Server thread/INFO]: Preparing spawn area: 100%
+[14:27:02] [Server thread/INFO]: Time elapsed: 5247 ms
+[14:27:02] [Server thread/INFO]: Done (5.722s)! For help, type "help"
+[14:27:02] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[14:27:02] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[14:27:02] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[14:27:02] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[14:27:02] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[14:27:02] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[14:27:02] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[14:27:02] [Server thread/INFO]: [Not Secure] [Server] __TRAIL_AUDIT_LOAD__
+[14:27:03] [Server thread/INFO]: Marked chunk [0, 0] in minecraft:overworld to be force loaded
+[14:27:03] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:03] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:03] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:04] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_OK__
+[14:27:05] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_LOADED_DONE__
+[14:27:05] [Server thread/INFO]: The game is frozen
+[14:27:09] [Server thread/INFO]: SandAlpha[/127.0.0.1:60925] logged in with entity id 18 at (-69.5, 69.0, 9.5)
+[14:27:09] [Server thread/INFO]: SandAlpha joined the game
+[14:27:10] [Server thread/INFO]: SandBeta[/127.0.0.1:60926] logged in with entity id 35 at (-65.5, 71.0, -3.5)
+[14:27:10] [Server thread/INFO]: SandBeta joined the game
+[14:27:10] [Server thread/INFO]: Created new objective [trail_audit]
+[14:27:10] [Server thread/INFO]: The game time is 75 tick(s)
+[14:27:10] [Server thread/INFO]: Added 2 to [trail_audit] for #tick_end (now 77)
+[14:27:10] [Server thread/INFO]: Stepping 2 tick(s)
+[14:27:10] [Server thread/INFO]: The game time is 75 tick(s)
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INITIALIZED_DONE__
+[14:27:10] [Server thread/INFO]: The game time is 77 tick(s)
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INITIALIZED_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INITIALIZED_DONE__
+[14:27:10] [Server thread/INFO]: Set SandAlpha's game mode to Creative Mode
+[14:27:10] [Server thread/INFO]: Teleported SandAlpha to 2.500000, 80.000000, 0.500000
+[14:27:10] [Server thread/INFO]: Changed the block at 2, 79, 0
+[14:27:10] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:10] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:10] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:10] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Running function aether:grant
+[14:27:10] [Server thread/INFO]: Set SandBeta's game mode to Creative Mode
+[14:27:10] [Server thread/INFO]: Teleported SandBeta to 10.500000, 80.000000, 0.500000
+[14:27:10] [Server thread/INFO]: Changed the block at 10, 79, 0
+[14:27:10] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandBeta to 48
+[14:27:10] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandBeta to 0
+[14:27:10] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandBeta to 7
+[14:27:10] [Server thread/INFO]: Set [s7cf28268f965f61] for SandBeta to 21
+[14:27:10] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandBeta to 0
+[14:27:10] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandBeta to 0
+[14:27:10] [Server thread/INFO]: Running function aether:grant
+[14:27:10] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 7
+[14:27:10] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:10] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:10] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Running function aether:grant
+[14:27:10] [Server thread/INFO]: Running function aether:pulse
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_COMPLETES_CHARGE_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_COMPLETES_CHARGE_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_COMPLETES_COOLDOWN_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_COMPLETES_COOLDOWN_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_COMPLETES_EFFECT_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_EXACT_COST_COMPLETES_EFFECT_DONE__
+[14:27:10] [Server thread/INFO]: Running function aether:flare
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_REJECTS_CHARGE_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_REJECTS_CHARGE_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_REJECTS_COOLDOWN_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_REJECTS_COOLDOWN_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_REJECTS_EFFECT_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_REJECTS_EFFECT_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_UNCHANGED_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_OTHER_PLAYER_UNCHANGED_DONE__
+[14:27:10] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:10] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:10] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:10] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:10] [Server thread/INFO]: Running function aether:grant
+[14:27:10] [Server thread/INFO]: Replaced a slot on SandAlpha with [Air]
+[14:27:10] [Server thread/INFO]: Running function aether:pulse
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_CHARGE_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_CHARGE_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_COOLDOWN_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_COOLDOWN_DONE__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_EFFECT_OK__
+[14:27:10] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MISSING_EFFECT_DONE__
+[14:27:11] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:11] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:11] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:11] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Running function aether:grant
+[14:27:11] [Server thread/INFO]: Replaced a slot on SandAlpha with [Amethyst Shard]
+[14:27:11] [Server thread/INFO]: Running function aether:pulse
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_CHARGE_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_CHARGE_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_COOLDOWN_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_COOLDOWN_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_EFFECT_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_WRONG_EFFECT_DONE__
+[14:27:11] [Server thread/INFO]: Running function aether:grant
+[14:27:11] [Server thread/INFO]: Running function aether:pulse
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CHANGED_TO_CORRECT_CHARGE_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CHANGED_TO_CORRECT_CHARGE_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CHANGED_TO_CORRECT_COOLDOWN_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CHANGED_TO_CORRECT_COOLDOWN_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CHANGED_TO_CORRECT_EFFECT_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CHANGED_TO_CORRECT_EFFECT_DONE__
+[14:27:11] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 6
+[14:27:11] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:11] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:11] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Running function aether:grant
+[14:27:11] [Server thread/INFO]: Running function aether:pulse
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_CHARGE_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_CHARGE_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_COOLDOWN_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_COOLDOWN_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_EFFECT_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INSUFFICIENT_EFFECT_DONE__
+[14:27:11] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:11] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:11] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:11] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Running function aether:grant
+[14:27:11] [Server thread/INFO]: Changed the block at 2, 79, 0
+[14:27:11] [Server thread/INFO]: Running function aether:pulse
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_TARGET_REJECTED_CHARGE_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_TARGET_REJECTED_CHARGE_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_TARGET_REJECTED_COOLDOWN_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_TARGET_REJECTED_COOLDOWN_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_TARGET_REJECTED_EFFECT_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_TARGET_REJECTED_EFFECT_DONE__
+[14:27:11] [Server thread/INFO]: Changed the block at 2, 79, 0
+[14:27:11] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:11] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:11] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:11] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:11] [Server thread/INFO]: Running function aether:grant
+[14:27:11] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandBeta to 48
+[14:27:11] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandBeta to 0
+[14:27:11] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandBeta to 7
+[14:27:11] [Server thread/INFO]: Set [s7cf28268f965f61] for SandBeta to 21
+[14:27:11] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandBeta to 0
+[14:27:11] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandBeta to 0
+[14:27:11] [Server thread/INFO]: Running function aether:grant
+[14:27:11] [Server thread/INFO]: The game time is 77 tick(s)
+[14:27:11] [Server thread/INFO]: Running function aether:pulse
+[14:27:11] [Server thread/INFO]: Running function aether:pulse
+[14:27:11] [Server thread/INFO]: The game time is 77 tick(s)
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MULTIPLAYER_SAME_TICK_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_MULTIPLAYER_SAME_TICK_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_CHARGE_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_CHARGE_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_COOLDOWN_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_COOLDOWN_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_EFFECT_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandAlpha_EFFECT_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_CHARGE_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_CHARGE_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_COOLDOWN_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_COOLDOWN_DONE__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_EFFECT_OK__
+[14:27:11] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SAME_TICK_SandBeta_EFFECT_DONE__
+[14:27:12] [Server thread/INFO]: Running function aether:reserve
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INDEPENDENT_POOL_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INDEPENDENT_POOL_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INDEPENDENT_COOLDOWN_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_INDEPENDENT_COOLDOWN_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PRIMARY_UNCHANGED_CHARGE_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PRIMARY_UNCHANGED_CHARGE_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PRIMARY_UNCHANGED_COOLDOWN_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PRIMARY_UNCHANGED_COOLDOWN_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PRIMARY_UNCHANGED_EFFECT_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_PRIMARY_UNCHANGED_EFFECT_DONE__
+[14:27:12] [Server thread/INFO]: Running function aether:flare
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE_CHARGE_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE_CHARGE_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE_COOLDOWN_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE_COOLDOWN_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE_EFFECT_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_COOLDOWN_WITH_SUFFICIENT_BALANCE_EFFECT_DONE__
+[14:27:12] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 30
+[14:27:12] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:12] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:12] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:12] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:12] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:12] [Server thread/INFO]: Running function aether:grant
+[14:27:12] [Server thread/INFO]: The game time is 77 tick(s)
+[14:27:12] [Server thread/INFO]: Added 6 to [trail_audit] for #tick_end (now 83)
+[14:27:12] [Server thread/INFO]: Stepping 6 tick(s)
+[14:27:12] [Server thread/INFO]: The game time is 77 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BEFORE_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: The game time is 79 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BEFORE_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: The game time is 80 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BEFORE_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: The game time is 82 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BEFORE_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: The game time is 83 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BEFORE_CADENCE_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_BEFORE_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_EARLY_REGEN_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NO_EARLY_REGEN_DONE__
+[14:27:12] [Server thread/INFO]: The game time is 83 tick(s)
+[14:27:12] [Server thread/INFO]: Added 1 to [trail_audit] for #tick_end (now 84)
+[14:27:12] [Server thread/INFO]: Stepping 1 tick(s)
+[14:27:12] [Server thread/INFO]: The game time is 83 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_AT_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: The game time is 84 tick(s)
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_AT_CADENCE_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_AT_CADENCE_DONE__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_POOL_REGENERATES_ONCE_OK__
+[14:27:12] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SHARED_POOL_REGENERATES_ONCE_DONE__
+[14:27:13] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 47
+[14:27:13] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:13] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:13] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Running function aether:grant
+[14:27:13] [Server thread/INFO]: The game time is 84 tick(s)
+[14:27:13] [Server thread/INFO]: Added 7 to [trail_audit] for #tick_end (now 91)
+[14:27:13] [Server thread/INFO]: Stepping 7 tick(s)
+[14:27:13] [Server thread/INFO]: The game time is 84 tick(s)
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CLAMP_CADENCE_DONE__
+[14:27:13] [Server thread/INFO]: The game time is 85 tick(s)
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CLAMP_CADENCE_DONE__
+[14:27:13] [Server thread/INFO]: The game time is 87 tick(s)
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CLAMP_CADENCE_DONE__
+[14:27:13] [Server thread/INFO]: The game time is 89 tick(s)
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CLAMP_CADENCE_DONE__
+[14:27:13] [Server thread/INFO]: The game time is 91 tick(s)
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CLAMP_CADENCE_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CLAMP_CADENCE_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_STATE_CAPACITY_CLAMP_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_STATE_CAPACITY_CLAMP_DONE__
+[14:27:13] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:13] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:13] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:13] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Running function aether:grant
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FAILURE_TARGET_UNLOADED_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_FAILURE_TARGET_UNLOADED_DONE__
+[14:27:13] [Server thread/INFO]: Running function aether:failure
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NATIVE_FAILURE_NO_ROLLBACK_CHARGE_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NATIVE_FAILURE_NO_ROLLBACK_CHARGE_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NATIVE_FAILURE_NO_ROLLBACK_COOLDOWN_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NATIVE_FAILURE_NO_ROLLBACK_COOLDOWN_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NATIVE_FAILURE_NO_ROLLBACK_EFFECT_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_NATIVE_FAILURE_NO_ROLLBACK_EFFECT_DONE__
+[14:27:13] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 48
+[14:27:13] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:13] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:13] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Running function aether:grant
+[14:27:13] [Server thread/INFO]: Running function aether:early_return
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CALLBACK_RETURN_NO_ROLLBACK_CHARGE_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CALLBACK_RETURN_NO_ROLLBACK_CHARGE_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CALLBACK_RETURN_NO_ROLLBACK_COOLDOWN_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CALLBACK_RETURN_NO_ROLLBACK_COOLDOWN_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CALLBACK_RETURN_NO_ROLLBACK_EFFECT_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_CALLBACK_RETURN_NO_ROLLBACK_EFFECT_DONE__
+[14:27:13] [Server thread/INFO]: Set [s19e1ea2f16315e7] for SandAlpha to 30
+[14:27:13] [Server thread/INFO]: Set [s7a6a5f24df3bec0] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s686ac41c5afb1ae] for SandAlpha to 7
+[14:27:13] [Server thread/INFO]: Set [s7cf28268f965f61] for SandAlpha to 21
+[14:27:13] [Server thread/INFO]: Set [safa89ddbad9c6fb] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Set [s2dc7b7f3902677c] for SandAlpha to 0
+[14:27:13] [Server thread/INFO]: Running function aether:grant
+[14:27:13] [Server thread/INFO]: Running function aether:flare
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SECOND_COST_CONFIGURATION_CHARGE_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SECOND_COST_CONFIGURATION_CHARGE_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SECOND_COST_CONFIGURATION_COOLDOWN_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SECOND_COST_CONFIGURATION_COOLDOWN_DONE__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SECOND_COST_CONFIGURATION_EFFECT_OK__
+[14:27:13] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_SECOND_COST_CONFIGURATION_EFFECT_DONE__
+[14:27:13] [Server thread/INFO]: Reloading!
+[14:27:14] [Server thread/INFO]: Loaded 1585 recipes
+[14:27:14] [Server thread/INFO]: Loaded 1688 advancements
+[14:27:14] [Server thread/INFO]: The game time is 91 tick(s)
+[14:27:14] [Server thread/INFO]: Added 1 to [trail_audit] for #tick_end (now 92)
+[14:27:14] [Server thread/INFO]: Stepping 1 tick(s)
+[14:27:14] [Server thread/INFO]: The game time is 91 tick(s)
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_TICK_DONE__
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __TRAIL_AUDIT_LOAD__
+[14:27:14] [Server thread/INFO]: The game time is 92 tick(s)
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_TICK_OK__
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_TICK_DONE__
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_COOLDOWN_RETAINED_OK__
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_COOLDOWN_RETAINED_DONE__
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RESOURCE_TICK_ACCOUNTED_OK__
+[14:27:14] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RELOAD_RESOURCE_TICK_ACCOUNTED_DONE__
+[14:27:14] [Server thread/INFO]: Kicked SandAlpha: Validation complete
+[14:27:14] [Server thread/INFO]: SandAlpha lost connection: Validation complete
+[14:27:14] [Server thread/INFO]: SandAlpha left the game
+[14:27:14] [Server thread/INFO]: Kicked SandBeta: Validation complete
+[14:27:14] [Server thread/INFO]: SandBeta lost connection: Validation complete
+[14:27:14] [Server thread/INFO]: SandBeta left the game
+[14:27:15] [Server thread/INFO]: SandAlpha[/127.0.0.1:60927] logged in with entity id 105 at (2.5, 80.0, 0.5)
+[14:27:15] [Server thread/INFO]: SandAlpha joined the game
+[14:27:16] [Server thread/INFO]: SandBeta[/127.0.0.1:60928] logged in with entity id 106 at (10.5, 80.0, 0.5)
+[14:27:16] [Server thread/INFO]: SandBeta joined the game
+[14:27:16] [Server thread/INFO]: The game time is 92 tick(s)
+[14:27:16] [Server thread/INFO]: Added 2 to [trail_audit] for #tick_end (now 94)
+[14:27:16] [Server thread/INFO]: Stepping 2 tick(s)
+[14:27:16] [Server thread/INFO]: The game time is 92 tick(s)
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_COMPLETE_DONE__
+[14:27:16] [Server thread/INFO]: The game time is 94 tick(s)
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_COMPLETE_OK__
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_COMPLETE_DONE__
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_RESOURCE_RETAINED_OK__
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_RESOURCE_RETAINED_DONE__
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_COOLDOWN_RETAINED_OK__
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_WORLD_RECONNECT_COOLDOWN_RETAINED_DONE__
+[14:27:16] [Server thread/INFO]: Kicked SandAlpha: Validation complete
+[14:27:16] [Server thread/INFO]: SandAlpha lost connection: Validation complete
+[14:27:16] [Server thread/INFO]: SandAlpha left the game
+[14:27:16] [Server thread/INFO]: Kicked SandBeta: Validation complete
+[14:27:16] [Server thread/INFO]: SandBeta lost connection: Validation complete
+[14:27:16] [Server thread/INFO]: SandBeta left the game
+[14:27:16] [Server thread/INFO]: The game is running normally
+[14:27:16] [Server thread/INFO]: [Not Secure] [Server] __SAND_RELOAD_SUBMITTED__
+[14:27:16] [Server thread/INFO]: Reloading!
+[14:27:17] [Server thread/INFO]: Loaded 1585 recipes
+[14:27:17] [Server thread/INFO]: Loaded 1688 advancements
+[14:27:17] [Server thread/INFO]: [Not Secure] [Server] __SAND_RELOAD_COMPLETE__
+[14:27:17] [Server thread/INFO]: [Not Secure] [Server] __TRAIL_AUDIT_LOAD__
+[14:27:17] [Server thread/INFO]: Stopping the server
+[14:27:17] [Server thread/INFO]: Stopping server
+[14:27:17] [Server thread/INFO]: Saving players
+[14:27:17] [Server thread/INFO]: Saving worlds
+[14:27:17] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[14:27:18] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[14:27:18] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[14:27:18] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[14:27:18] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[14:27:18] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[14:27:18] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved

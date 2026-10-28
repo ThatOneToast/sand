@@ -36,7 +36,7 @@ def pack_identity(directory):
 def owner_resolver(directory):
     """Extract a known production write frame; reject unsupported probe shapes."""
     frames = [path.read_text().splitlines() for path in sorted(directory.glob("*.mcfunction"))]
-    frame = next((lines for lines in frames if any("set from entity @s UUID" in line for line in lines)), None)
+    frame = next((lines for lines in frames if any("data modify storage rpg:state __sand_owner." in line and "set from entity @s UUID" in line for line in lines)), None)
     if frame is None:
         raise ValueError("no keyed write frame with an owner resolver")
     resolver = frame[2:-2]
@@ -144,10 +144,14 @@ class KeyedLiteralHarness(PlayerHarness):
         # the input pack. Rust regressions separately pin these emitted bodies.
         resolver = owner_resolver(pack / "data/unified_state/function/sand/state_data/write")
         if indexed:
-            steps = list((pack / "data/unified_state/function/sand/state_data/migrate").glob("*/step.mcfunction"))
-            if len(steps) != 1:
-                raise ValueError("expected exactly one migration step for rpg:state")
-            self.migration_step = "unified_state:" + steps[0].relative_to(pack / "data/unified_state/function").with_suffix("").as_posix()
+            all_steps = list((pack / "data/unified_state/function/sand/state_data/migrate").glob("*/step.mcfunction"))
+            def storage_step(storage):
+                steps = [path for path in all_steps if f"storage {storage} __sand_keyed" in path.read_text()]
+                if len(steps) != 1:
+                    raise ValueError(f"expected exactly one migration step for {storage}")
+                return "unified_state:" + steps[0].relative_to(pack / "data/unified_state/function").with_suffix("").as_posix()
+            self.migration_step = storage_step("rpg:state")
+            self.standalone_migration_step = storage_step("standalone_probe:state")
         self.resolver = resolver
         self.owner_read_count = sum("set from entity @s UUID" in line for line in resolver)
         uuid = "$(uuid)" if self.owner_read_count == 1 else "[I;$(u0),$(u1),$(u2),$(u3)]"
@@ -520,6 +524,18 @@ class KeyedLiteralHarness(PlayerHarness):
             self.send(f"execute as {actor} run function unified_state:set_entity_uuid_literal")
             self.check("LITERAL_UUID_PARAMETER", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": r'literal $(uuid) \"quoted\" \\ path'}))
             self.check("LITERAL_UUID_STAGING_CLEAN", "unless data storage rpg:state __sand_owner.value")
+            self.check("STANDALONE_PROVISIONED", "if data storage standalone_probe:state __sand_keyed{version:2}")
+            self.send(f"execute as {actor} run function unified_state:set_standalone_literal")
+            self.check("STANDALONE_LITERAL", f'if data storage standalone_probe:state owners_v2."{uuid}".components.manual' + json.dumps({"value": LITERAL}))
+            self.check("STANDALONE_STAGING_CLEAN", "unless data storage standalone_probe:state __sand_owner.value")
+            self.send("data remove storage standalone_probe:state owners_v2")
+            self.send("data modify storage standalone_probe:state owners set value [{uuid:" + uuid + ',components:{manual:{value:"legacy"}},unknown:{keep:1}}]')
+            self.send("data modify storage standalone_probe:state __sand_keyed set value {version:1,cursor:0}")
+            for _ in range(3):
+                self.send("function " + self.standalone_migration_step)
+            self.check("STANDALONE_MIGRATED", f'if data storage standalone_probe:state owners_v2."{uuid}".components.manual{{value:"legacy"}}')
+            self.check("STANDALONE_UNKNOWN_RETAINED", f'if data storage standalone_probe:state owners_v2."{uuid}".unknown{{keep:1}}')
+            self.check("STANDALONE_LEGACY_RETIRED", "unless data storage standalone_probe:state owners")
 
     def migration_cases(self):
         """Drive the exported migrator with independent literal UUID/value oracles."""

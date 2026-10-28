@@ -33,6 +33,17 @@ class OwnerResolverTests(unittest.TestCase):
                 self.frame(directory, resolver)
                 self.assertEqual(owner_resolver(directory), resolver)
 
+    def test_ignores_frames_for_independent_storage(self):
+        resolver = ["execute unless entity @s run data remove storage rpg:state __sand_owner.uuid",
+                    "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"]
+        with tempfile.TemporaryDirectory() as root:
+            directory = Path(root)
+            self.frame(directory, resolver, "a_other")
+            other = directory / "a_other.mcfunction"
+            other.write_text(other.read_text().replace("rpg:state", "standalone:state"))
+            self.frame(directory, resolver, "z_main")
+            self.assertEqual(owner_resolver(directory), resolver)
+
     def test_rejects_uncleared_single_uuid_and_missing_resolvers(self):
         for resolver in ([], ["data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"]):
             with self.subTest(resolver=resolver), tempfile.TemporaryDirectory() as root:

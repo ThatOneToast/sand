@@ -299,6 +299,17 @@ mod tests {
     }
 
     #[test]
+    fn standalone_storage_requirements_are_export_scoped() {
+        {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            let _commands = super::super::state::KeyedData::<i32>::new("one:state", "value").get();
+            assert_eq!(crate::function::keyed_storage_requirements(), ["one:state"]);
+        }
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        assert!(crate::function::keyed_storage_requirements().is_empty());
+    }
+
+    #[test]
     fn keyed_migration_generated_function_collisions_are_rejected() {
         let _scope = crate::function::ExportFunctionRegistryScope::enter();
         lifecycle("test:state");

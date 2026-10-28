@@ -18,8 +18,11 @@ creates a missing record before applying field defaults.
 
 ## Upgrade protocol
 
-Each registered keyed storage has one shared migration, independent of how many
-components use it. Fresh storage is provisioned with `__sand_keyed:{version:2}`.
+Each keyed storage has one shared migration, independent of how many components
+use it. State descriptors and standalone public `KeyedData::new` operations both
+request this canonical lifecycle. Requests are export-scoped and collected after
+deferred resources lower, so standalone handles cannot remain permanently
+unprovisioned and separate exports cannot inherit their storage requirements. Fresh storage is provisioned with `__sand_keyed:{version:2}`.
 A legacy `owners` container instead starts at `{version:1,cursor:0}`. Load does
 not scan or copy owner rows. The lifecycle tick calls one bounded step per
 storage until completion or an error. Migration does not select entities or
@@ -87,7 +90,7 @@ Retention policy for dead entities or offline players remains separate work.
 
 The maintained `validate_keyed_literals.py` recognizes only the known legacy
 and indexed layouts and rejects mixed or unknown paths. It executes exported
-get/set/remove/presence operations as well as the historical observer probes.
+get/set/remove/presence operations and standalone handles without State schemas as well as the historical observer probes.
 Independent UUID/value readback checks signed boundaries, multi-component and
 unknown data, dormant owners, duplicate/conflicting/malformed input, persistent
 journal phases, both sides of legacy-container retirement, and the actual

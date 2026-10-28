@@ -479,6 +479,43 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
     Ok(output)
 }
 
+/// Complete canonical lifecycle provisioning for public standalone KeyedData.
+/// State-declared storages are already present and must not be registered twice.
+pub(crate) fn append_keyed_storage_requirements(
+    output: &mut AutomaticLifecycle,
+) -> Result<(), String> {
+    for storage in crate::function::keyed_storage_requirements() {
+        let objective = objective_name(&format!("{storage}::keyed_migration"));
+        if let Some((owner, kind)) = output.private_objectives.get(&objective) {
+            if owner != &storage || kind != "keyed migration" {
+                return Err(format!(
+                    "keyed storage `{storage}` migration objective `{objective}` conflicts with `{owner}`"
+                ));
+            }
+            continue;
+        }
+        if output
+            .load_commands
+            .iter()
+            .any(|line| line.split_whitespace().nth(3) == Some(objective.as_str()))
+        {
+            return Err(format!(
+                "keyed storage `{storage}` migration objective `{objective}` conflicts with an automatic State objective"
+            ));
+        }
+        let (definition, provision, tick) = crate::entity::keyed_migration::lifecycle(&storage);
+        output
+            .private_objectives
+            .insert(objective, (storage, "keyed migration".into()));
+        output.load_commands.push(definition);
+        output.provision_commands.push(provision);
+        output.global_tick_commands.push(tick);
+    }
+    output.load_commands.sort();
+    output.provision_commands.sort();
+    Ok(())
+}
+
 fn emit_player(
     component: &StateDescriptor,
     hook: Option<&BoundStateHook<'_>>,

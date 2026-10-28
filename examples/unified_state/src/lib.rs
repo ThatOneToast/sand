@@ -266,6 +266,13 @@ pub fn set_entity_literals() {
     state.details.set(literal_payload());
 }
 
+/// Public standalone handles receive lifecycle provisioning without a State schema.
+#[function]
+pub fn set_standalone_literal() {
+    let value = KeyedData::<String>::new("standalone_probe:state", "components.manual.value");
+    value.set(LITERAL_TEMPLATE);
+}
+
 /// A literal that resembles the actual whole-UUID macro parameter.
 #[function]
 pub fn set_entity_uuid_literal() {

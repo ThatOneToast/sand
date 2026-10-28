@@ -2809,6 +2809,7 @@ fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
 }
 
 fn keyed_data_macro_call(storage: &str, macro_body: String) -> String {
+    crate::function::record_keyed_storage(storage);
     let path = crate::function::register_dyn_fn_dedup(
         "sand/state_data/keyed",
         std::iter::once(format!(

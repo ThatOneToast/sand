@@ -1,7 +1,7 @@
 # Keyed owner index evidence
 
 The final comparison is `baseline/` (50 assertions) and `candidate/`
-(155 assertions), both with three completed historical-owner workloads and the
+(161 assertions), both with three completed historical-owner workloads and the
 same harness hash. `summary.json` retains their complete stage-separated metrics.
 The baseline runs production source
 `8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a`. Its input-pack identity matches the
@@ -11,11 +11,17 @@ between its original production commit `067dab3b7c0ea7cf8b5641d593156e3fbb386cfb
 and the requested baseline are documentation/evidence only.
 
 Each JSON records source, harness/dependency, server, Java, host and pack
-identities. Raw traces and compressed vanilla storage snapshots remain beside
+identities. Server logs are retained losslessly as `latest.log.gz`, with both
+compressed and uncompressed hashes in `server-log-identities.json`. Raw traces
+and compressed vanilla storage snapshots remain beside
 it. Pack hashing includes sorted relative paths and file contents with framing.
 The probes live in a separate namespace in disposable server worlds.
 
 ## Earlier and rejected runs
+
+Historical folders listed below are retained losslessly inside `history.zip`.
+`history-identities.json` records every member hash and the archive hash.
+The final `baseline/` and `candidate/` remain directly inspectable.
 
 - `baseline-initial/` is an earlier completed workload. It predates the five-owner
   same-tick extension and is not the final comparison. Its metric replay covers
@@ -59,3 +65,39 @@ side effects are excluded, so its total storage mutations are unmeasured.
 Steady read/write traces contain no such side effects. The source worktree had
 pending documentation/evidence and generated runtime baselines during replay;
 exact harness hashes are authoritative even when the dirty-worktree flag is true.
+
+The first full gate stopped at a needless-borrow Clippy lint; the second passed
+934 core unit tests but found the old 25-objective lifecycle expectation. Both
+logs are retained compressed. The corrected integration test requires 26
+objectives, exactly one migration objective, readiness guards, and the original
+suppression behavior. Final full-gate status is recorded separately.
+
+`baseline-before-standalone/`, `candidate-before-standalone/` and
+`comparison-before-standalone.json` retain the valid earlier replay, before the
+public standalone-handle provisioning correction. The final replay repeats both
+sides with the same new harness and includes six standalone-storage assertions.
+The interrupted third full gate was deliberately stopped to implement this
+public-API correction; it is not a passed gate.
+
+## Reproduction
+
+Build `examples/unified_state` at each recorded production revision with the
+maintained CLI (`sand build`, Minecraft 26.2). Use the final harness source for
+both packs; its legacy/indexed recognition deliberately fails closed. Run each
+pack separately with `SAND_KEYED_SCALE=1`, `SAND_SOURCE_REVISION` set to that
+pack's actual source SHA, and:
+
+```sh
+python3 scripts/validate_keyed_literals.py --version 26.2 \
+  --pack /absolute/path/to/unified_state \
+  --jar /absolute/path/to/26.2/server.jar \
+  --output /new/absolute/evidence/directory
+```
+
+The output directory must not already exist. Compare the recorded input-pack,
+harness/dependency and server identities before comparing measurements. This
+team ran every Cargo/Java/build/full-check workload through
+`python3 /tmp/sand-milestone-validated-run.py <command> [args]`, with
+`CARGO_INCREMENTAL=0` and the shared build target. Canonical runtime baselines
+come only from `scripts/check-examples.sh --update-runtime-baselines`; full
+validation is `scripts/check.sh` followed by `git diff --check`.

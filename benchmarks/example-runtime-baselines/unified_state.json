@@ -1291,8 +1291,8 @@
       },
       "unified_state:__sand_lifecycle_load": {
         "evaluations": {
-          "maximum": 51,
-          "minimum": 51,
+          "maximum": 55,
+          "minimum": 55,
           "unknown": []
         },
         "owners": [
@@ -1311,16 +1311,15 @@
       "unified_state:__sand_lifecycle_tick": {
         "evaluations": {
           "maximum": null,
-          "minimum": 5,
+          "minimum": 6,
           "unknown": [
             "additional unknown causes omitted",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare with storage standalone_probe:state __sand_keyed",
             "function arguments are not analyzed: function unified_state:sand/state_data/migrate/scf437c73a0c2d28/prepare with storage rpg:state __sand_keyed",
             "unknown selector multiplicity: execute as @a run function unified_state:__sand_join_check",
-            "unknown selector multiplicity: execute as @a run function unified_state:__sand_lifecycle_init",
-            "unknown selector multiplicity: execute as @e[scores={s2eb987913797037=1}] at @s run function unified_state:sand/state_tick/c3988963",
-            "unknown selector multiplicity: execute as @e[scores={saccea77c2a68f21=2}] at @s run function unified_state:sand/state_tick/8f6b69d7"
+            "unknown selector multiplicity: execute as @a run function unified_state:__sand_lifecycle_init"
           ]
         },
         "owners": [
@@ -2036,6 +2035,19 @@
         ],
         "selector_sites": []
       },
+      "unified_state:sand/state_data/keyed/b9b6f894": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/keyed/b9b6f894"
+          ]
+        },
+        "owners": [
+          "unified_state::set_standalone_literal"
+        ],
+        "selector_sites": []
+      },
       "unified_state:sand/state_data/keyed/ce36e3c9": {
         "evaluations": {
           "maximum": null,
@@ -2115,6 +2127,88 @@
         "owners": [
           "rpg:progression"
         ],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/check_committed_cursor": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/commit": {
+        "evaluations": {
+          "maximum": 19,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/copy": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/migrate/s2930231d28e07e1/copy"
+          ]
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/finish": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare"
+          ]
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/resume": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare with storage standalone_probe:state __sand_keyed"
+          ]
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare with storage standalone_probe:state __sand_keyed"
+          ]
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migrate/s2930231d28e07e1/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/migrate/s2930231d28e07e1/validate"
+          ]
+        },
+        "owners": [],
         "selector_sites": []
       },
       "unified_state:sand/state_data/migrate/scf437c73a0c2d28/check_committed_cursor": {
@@ -2223,6 +2317,24 @@
         ],
         "selector_sites": []
       },
+      "unified_state:sand/state_data/migration_error/4ac3ebb9": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migration_error/5cba85bd": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [],
+        "selector_sites": []
+      },
       "unified_state:sand/state_data/migration_error/6731f9b5": {
         "evaluations": {
           "maximum": 3,
@@ -2233,6 +2345,15 @@
           "rpg:progression",
           "rpg:status"
         ],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migration_error/7a628fdb": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [],
         "selector_sites": []
       },
       "unified_state:sand/state_data/migration_error/98dd41ed": {
@@ -2269,6 +2390,15 @@
           "rpg:progression",
           "rpg:status"
         ],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/migration_provision/bcda7377": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [],
         "selector_sites": []
       },
       "unified_state:sand/state_data/write/0b0095fd": {
@@ -2347,6 +2477,25 @@
         },
         "owners": [
           "unified_state::set_entity_uuid_literal"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/state_data/write/79e3ddd8": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b9b6f894 with storage standalone_probe:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::set_standalone_literal"
         ],
         "selector_sites": [
           {
@@ -2544,6 +2693,19 @@
         },
         "owners": [
           "unified_state::set_player_literals"
+        ],
+        "selector_sites": []
+      },
+      "unified_state:set_standalone_literal": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 7,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b9b6f894 with storage standalone_probe:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::set_standalone_literal"
         ],
         "selector_sites": []
       },
@@ -2751,8 +2913,8 @@
           "unified_state::welcome_player"
         ],
         "evaluations": {
-          "maximum": 51,
-          "minimum": 51,
+          "maximum": 55,
+          "minimum": 55,
           "unknown": []
         },
         "reference": "unified_state:__sand_lifecycle_load",
@@ -3064,6 +3226,9 @@
         "unified_state:sand/state_data/keyed/b6d63290": [
           "rpg:progression"
         ],
+        "unified_state:sand/state_data/keyed/b9b6f894": [
+          "unified_state::set_standalone_literal"
+        ],
         "unified_state:sand/state_data/keyed/ce36e3c9": [
           "unified_state::get_entity_literal",
           "unified_state::present_entity_literal"
@@ -3150,6 +3315,9 @@
         "unified_state:sand/state_data/write/5b9bdf42": [
           "unified_state::set_entity_uuid_literal"
         ],
+        "unified_state:sand/state_data/write/79e3ddd8": [
+          "unified_state::set_standalone_literal"
+        ],
         "unified_state:sand/state_data/write/8ce5071b": [
           "rpg:progression"
         ],
@@ -3182,6 +3350,9 @@
         ],
         "unified_state:set_player_literals": [
           "unified_state::set_player_literals"
+        ],
+        "unified_state:set_standalone_literal": [
+          "unified_state::set_standalone_literal"
         ],
         "unified_state:state_mutation/0aa3e79a": [
           "unified_state::advance_world"
@@ -3365,16 +3536,15 @@
         ],
         "evaluations": {
           "maximum": null,
-          "minimum": 5,
+          "minimum": 6,
           "unknown": [
             "additional unknown causes omitted",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare with storage standalone_probe:state __sand_keyed",
             "function arguments are not analyzed: function unified_state:sand/state_data/migrate/scf437c73a0c2d28/prepare with storage rpg:state __sand_keyed",
             "unknown selector multiplicity: execute as @a run function unified_state:__sand_join_check",
-            "unknown selector multiplicity: execute as @a run function unified_state:__sand_lifecycle_init",
-            "unknown selector multiplicity: execute as @e[scores={s2eb987913797037=1}] at @s run function unified_state:sand/state_tick/c3988963",
-            "unknown selector multiplicity: execute as @e[scores={saccea77c2a68f21=2}] at @s run function unified_state:sand/state_tick/8f6b69d7"
+            "unknown selector multiplicity: execute as @a run function unified_state:__sand_lifecycle_init"
           ]
         },
         "reference": "unified_state:__sand_lifecycle_tick",

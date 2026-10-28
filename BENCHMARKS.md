@@ -981,7 +981,8 @@ availability, bounded resumable migration, conflict repair and the separate
 reclamation extension point.
 
 The maintained native harness uses actual exported get/set/remove/presence
-operations and independent UUID/value observations. It covers signed integer
+operations and independent UUID/value observations. Standalone public handles
+also receive canonical lifecycle provisioning without requiring a State schema. It covers signed integer
 boundaries, unchanged UUID copies, missing executors, alternating/nested owners,
 literal staging/cleanup, five owners within one game tick, actual load-tag
 reload, reconnect and entity unload/return. Migration cases retain unknown and
@@ -996,7 +997,7 @@ The inspected storage-access methods have no explicit root-copy call; this is
 not a complete allocation profile or whole-server complexity claim.
 
 Canonical regeneration changes only `unified_state`: 82 reported functions
-become 106, including migration helpers and four native regression entry points.
+become 121, including migration helpers and five native regression entry points.
 [The generated delta](benchmarks/evidence/keyed-index-2026-10-28/runtime-baseline-delta.json)
 retains added/removed identities and changed functions. Existing unknown upper
 bounds and report limitations remain intact. These are static report changes,
@@ -1008,16 +1009,16 @@ size are recorded separately. The first candidate scale run is explicitly
 rejected: a duplicate-UUID summon left no active executor. The corrected harness
 requires a live executor, independently verifies changed values and rejects
 missing UUID reads or missing successful gets. The corrected replay passes 50
-baseline assertions and 155 candidate assertions with an identical harness hash.
+baseline assertions and 161 candidate assertions with an identical harness hash.
 [Full stage-separated results](benchmarks/evidence/keyed-index-2026-10-28/summary.json)
 include seeding, the first migration step, remaining migration, changed writes,
 warm reads/writes and saved storage at each checkpoint.
 
-| Retained owners | Baseline read / write seconds | Candidate read / write seconds | Baseline / candidate raw NBT bytes |
-| ---: | ---: | ---: | ---: |
-| 10 | 0.133 / 0.165 | 0.110 / 0.147 | 1,249 / 1,438 |
-| 1,000 | 0.188 / 0.342 | 0.083 / 0.095 | 87,379 / 103,318 |
-| 10,000 | 1.276 / 2.581 | 0.074 / 0.070 | 870,379 / 1,039,318 |
+| Retained owners | Baseline read / write seconds | Candidate read / write seconds | Baseline / candidate raw NBT bytes | Baseline / candidate gzip bytes |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 0.102 / 0.061 | 0.084 / 0.106 | 1,249 / 1,438 | 345 / 423 |
+| 1,000 | 0.100 / 0.120 | 0.069 / 0.084 | 87,379 / 103,318 | 5,936 / 9,946 |
+| 10,000 | 0.773 / 1.182 | 0.068 / 0.046 | 870,379 / 1,039,318 | 58,667 / 107,025 |
 
 Each wall sample performs 1,000 operations on one active owner. Across all three
 populations, a warm read has baseline/candidate explicit evaluations 5/6, UUID
@@ -1027,8 +1028,8 @@ additional guards preserve upgrade readiness; the lookup change removes the
 legacy list-filter path rather than reducing these command counts.
 
 Migration takes 21, 2,001 and 20,001 bounded invocations respectively. After the
-separately traced first step, remaining migration wall samples are 0.036, 0.603
-and 2.495 seconds. These bulk probe invocations are not normal tick scheduling.
+separately traced first step, remaining migration wall samples are 0.033, 0.434
+and 1.640 seconds. These bulk probe invocations are not normal tick scheduling.
 Migration traces report 51 explicit evaluations for the first row at each
 population. Mutation counters cover positive `data modify/remove` outcomes;
 `execute store storage` side effects during migration are not mutation-counted.

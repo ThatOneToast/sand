@@ -1,13 +1,13 @@
 {
   "baseline": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
-  "candidate_source": "55e49d559a48daa44b82f9d9c93868972c450d77",
+  "candidate_source": "0a7bd9e32d93dda6de816921889d19d857fd2be2",
   "generator": "scripts/check-examples.sh --update-runtime-baselines",
   "changed_examples": [
     "unified_state"
   ],
   "function_count": {
     "baseline": 82,
-    "candidate": 106
+    "candidate": 121
   },
   "added_functions": [
     "unified_state:get_entity_literal",
@@ -25,12 +25,21 @@
     "unified_state:sand/state_data/keyed/871e6f62",
     "unified_state:sand/state_data/keyed/ada92cdb",
     "unified_state:sand/state_data/keyed/b6d63290",
+    "unified_state:sand/state_data/keyed/b9b6f894",
     "unified_state:sand/state_data/keyed/ce36e3c9",
     "unified_state:sand/state_data/keyed/d1ff6164",
     "unified_state:sand/state_data/keyed/d816ea4d",
     "unified_state:sand/state_data/keyed/dd755c36",
     "unified_state:sand/state_data/keyed/eab92235",
     "unified_state:sand/state_data/keyed/fa2c8918",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/check_committed_cursor",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/commit",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/copy",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/finish",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/prepare",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/resume",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/step",
+    "unified_state:sand/state_data/migrate/s2930231d28e07e1/validate",
     "unified_state:sand/state_data/migrate/scf437c73a0c2d28/check_committed_cursor",
     "unified_state:sand/state_data/migrate/scf437c73a0c2d28/commit",
     "unified_state:sand/state_data/migrate/scf437c73a0c2d28/copy",
@@ -39,21 +48,27 @@
     "unified_state:sand/state_data/migrate/scf437c73a0c2d28/resume",
     "unified_state:sand/state_data/migrate/scf437c73a0c2d28/step",
     "unified_state:sand/state_data/migrate/scf437c73a0c2d28/validate",
+    "unified_state:sand/state_data/migration_error/4ac3ebb9",
+    "unified_state:sand/state_data/migration_error/5cba85bd",
     "unified_state:sand/state_data/migration_error/6731f9b5",
+    "unified_state:sand/state_data/migration_error/7a628fdb",
     "unified_state:sand/state_data/migration_error/98dd41ed",
     "unified_state:sand/state_data/migration_error/c8183c5d",
     "unified_state:sand/state_data/migration_provision/739eec93",
+    "unified_state:sand/state_data/migration_provision/bcda7377",
     "unified_state:sand/state_data/write/0b0095fd",
     "unified_state:sand/state_data/write/1c5e35a3",
     "unified_state:sand/state_data/write/324d3ee5",
     "unified_state:sand/state_data/write/55c1460a",
     "unified_state:sand/state_data/write/5b9bdf42",
+    "unified_state:sand/state_data/write/79e3ddd8",
     "unified_state:sand/state_data/write/8ce5071b",
     "unified_state:sand/state_data/write/953a09cb",
     "unified_state:sand/state_data/write/9b4dd5d2",
     "unified_state:sand/state_data/write/ac734132",
     "unified_state:sand/state_data/write/b2199d63",
-    "unified_state:set_entity_uuid_literal"
+    "unified_state:set_entity_uuid_literal",
+    "unified_state:set_standalone_literal"
   ],
   "removed_functions": [
     "unified_state:sand/state_data/keyed/0594fae3",

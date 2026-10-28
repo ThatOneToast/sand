@@ -55,13 +55,13 @@
   },
   "input_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
   "source_revision": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
-  "harness_sha256": "251e88dce6bcadb3c0c13b7e2620e516e90e4859325ae0b01c6c1588d8c8bf08",
+  "harness_sha256": "626c719d3d1aee8ce500e31a9409373a1c41537c16bc8ca7608ff5d7c29bafec",
   "server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5",
   "host": {
     "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
     "machine": "arm64"
   },
-  "harness_source_revision": "55e49d559a48daa44b82f9d9c93868972c450d77",
+  "harness_source_revision": "0a7bd9e32d93dda6de816921889d19d857fd2be2",
   "harness_worktree_dirty": false,
   "harness_dependencies": {
     "vanilla_reload_harness.py": "7bfbc893574a1ce9ccbf52add946458c9bbc6d08b815e21d95352fb00a606bfb",
@@ -79,7 +79,7 @@
       "entity_uuid_read_commands": 2,
       "successful_storage_mutation_commands": 6,
       "successful_storage_get_commands": 0,
-      "sha256": "d8a31322bf41eda5b1831a1cc487051d94638f1be0bb1e1deeadddf160ac55a8"
+      "sha256": "87e90aeb82de5566b8a117b934c2df3c4267fc0cc863170b5d6c1ad345d6c7d6"
     },
     "player_write": {
       "command_evaluations_including_wrapper": 34,
@@ -95,7 +95,7 @@
       "entity_uuid_read_commands": 1,
       "successful_storage_mutation_commands": 6,
       "successful_storage_get_commands": 0,
-      "sha256": "cec41102068afe0571406973ef23fac1847c87756213ed810b88aaba3f53883e"
+      "sha256": "e441cf4922d9115c2414ac59a47a76e2f1914b90a0ca0e487ed12f136bedec69"
     },
     "existing_attach": {
       "command_evaluations_including_wrapper": 22,
@@ -103,7 +103,7 @@
       "entity_uuid_read_commands": 1,
       "successful_storage_mutation_commands": 0,
       "successful_storage_get_commands": 0,
-      "sha256": "b6859d4034493f9bed3640cfd2d42b78eed96de66f7b0911f2a05477d0d1c146"
+      "sha256": "9d2218000782ce00ff2532f744ebe5933b9381c6f19a24b774debcd615c689e6"
     },
     "existing_attach_repeat": {
       "command_evaluations_including_wrapper": 22,
@@ -111,7 +111,7 @@
       "entity_uuid_read_commands": 1,
       "successful_storage_mutation_commands": 0,
       "successful_storage_get_commands": 0,
-      "sha256": "b6859d4034493f9bed3640cfd2d42b78eed96de66f7b0911f2a05477d0d1c146"
+      "sha256": "9d2218000782ce00ff2532f744ebe5933b9381c6f19a24b774debcd615c689e6"
     },
     "same_owner_get": {
       "command_evaluations_including_wrapper": 5,
@@ -119,7 +119,7 @@
       "entity_uuid_read_commands": 1,
       "successful_storage_mutation_commands": 0,
       "successful_storage_get_commands": 1,
-      "sha256": "da5ff487482fc385bdf5517cec2f15b8845673650411ba4ef3e2ec3db3bbb9a1"
+      "sha256": "8e4e7b976d8798960fadea9e69d6914a9ce60cf98082d69786ffcbe64f50eb78"
     }
   },
   "historical_owner_scaling": [
@@ -129,7 +129,7 @@
       "layout": "legacy",
       "warm_operations_per_timing": 1000,
       "cleanup": "not measured; retention unchanged",
-      "seed_wall_seconds": 0.060076791094616055,
+      "seed_wall_seconds": 0.03009666595607996,
       "seed_storage": {
         "namespace": "rpg",
         "gzip_bytes": 325,
@@ -160,8 +160,8 @@
         "successful_storage_get_commands": 0,
         "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
       },
-      "warm_read_wall_seconds": 0.13278012513183057,
-      "warm_write_wall_seconds": 0.16545629198662937,
+      "warm_read_wall_seconds": 0.10153891704976559,
+      "warm_write_wall_seconds": 0.06089675007387996,
       "steady_storage": {
         "namespace": "rpg",
         "gzip_bytes": 345,
@@ -175,7 +175,7 @@
       "layout": "legacy",
       "warm_operations_per_timing": 1000,
       "cleanup": "not measured; retention unchanged",
-      "seed_wall_seconds": 0.047400375129655004,
+      "seed_wall_seconds": 0.05252283299341798,
       "seed_storage": {
         "namespace": "rpg",
         "gzip_bytes": 5884,
@@ -206,8 +206,8 @@
         "successful_storage_get_commands": 0,
         "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
       },
-      "warm_read_wall_seconds": 0.18763929116539657,
-      "warm_write_wall_seconds": 0.3422105419449508,
+      "warm_read_wall_seconds": 0.10019454197026789,
+      "warm_write_wall_seconds": 0.12026912509463727,
       "steady_storage": {
         "namespace": "rpg",
         "gzip_bytes": 5936,
@@ -221,7 +221,7 @@
       "layout": "legacy",
       "warm_operations_per_timing": 1000,
       "cleanup": "not measured; retention unchanged",
-      "seed_wall_seconds": 0.06913966592401266,
+      "seed_wall_seconds": 0.040768916020169854,
       "seed_storage": {
         "namespace": "rpg",
         "gzip_bytes": 58628,
@@ -252,8 +252,8 @@
         "successful_storage_get_commands": 0,
         "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
       },
-      "warm_read_wall_seconds": 1.276474584126845,
-      "warm_write_wall_seconds": 2.580934541998431,
+      "warm_read_wall_seconds": 0.7725649999920279,
+      "warm_write_wall_seconds": 1.1818559591192752,
       "steady_storage": {
         "namespace": "rpg",
         "gzip_bytes": 58667,

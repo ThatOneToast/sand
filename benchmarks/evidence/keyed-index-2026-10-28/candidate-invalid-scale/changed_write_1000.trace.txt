@@ -1,3 +1,0 @@
-keyed_literal_probe:scale_trace_write
-    [F] keyed_literal_probe:scale_trace_write size=1
-        [C] execute as @e[tag=keyed_scale,limit=1] run function unified_state:set_entity_literals

@@ -1,11 +1,11 @@
 {
   "baseline_source": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
-  "candidate_source": "89cab86997ccb520cb29400b7bb0bd4d95b0efaf",
+  "candidate_source": "0a7bd9e32d93dda6de816921889d19d857fd2be2",
   "baseline_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
-  "candidate_pack_sha256": "f85f9d0c446d665667f7b63b314dd743de2e7531e101982fca61a08339a0b3ed",
-  "common_harness_sha256": "251e88dce6bcadb3c0c13b7e2620e516e90e4859325ae0b01c6c1588d8c8bf08",
+  "candidate_pack_sha256": "8c229b2f89add11508dba7d55bf764e15fe533046ead095e693c12bf7b20e4a9",
+  "common_harness_sha256": "626c719d3d1aee8ce500e31a9409373a1c41537c16bc8ca7608ff5d7c29bafec",
   "baseline_assertions": 50,
-  "candidate_assertions": 155,
+  "candidate_assertions": 161,
   "active_owners": 1,
   "operations_per_wall_sample": 1000,
   "comparison": [
@@ -17,7 +17,7 @@
         "layout": "legacy",
         "warm_operations_per_timing": 1000,
         "cleanup": "not measured; retention unchanged",
-        "seed_wall_seconds": 0.060076791094616055,
+        "seed_wall_seconds": 0.03009666595607996,
         "seed_storage": {
           "namespace": "rpg",
           "gzip_bytes": 325,
@@ -48,8 +48,8 @@
           "successful_storage_get_commands": 0,
           "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
         },
-        "warm_read_wall_seconds": 0.13278012513183057,
-        "warm_write_wall_seconds": 0.16545629198662937,
+        "warm_read_wall_seconds": 0.10153891704976559,
+        "warm_write_wall_seconds": 0.06089675007387996,
         "steady_storage": {
           "namespace": "rpg",
           "gzip_bytes": 345,
@@ -63,7 +63,7 @@
         "layout": "indexed",
         "warm_operations_per_timing": 1000,
         "cleanup": "not measured; retention unchanged",
-        "seed_wall_seconds": 0.03522691689431667,
+        "seed_wall_seconds": 0.040388207882642746,
         "seed_storage": {
           "namespace": "rpg",
           "gzip_bytes": 344,
@@ -85,7 +85,7 @@
           "sha256": "be06a12da56bbf7bae1303553b44f8433f3ba922807dc3e4c7a2a2617f3465e3"
         },
         "migration_step_invocations": 21,
-        "migration_wall_seconds": 0.03580441698431969,
+        "migration_wall_seconds": 0.0334885420743376,
         "migrated_storage": {
           "namespace": "rpg",
           "gzip_bytes": 408,
@@ -116,8 +116,8 @@
           "successful_storage_get_commands": 0,
           "sha256": "e4f4f764a2a6181d88d00c04fd06177b26998cacf91111a659f465847aff5063"
         },
-        "warm_read_wall_seconds": 0.11042308411560953,
-        "warm_write_wall_seconds": 0.14696833305060863,
+        "warm_read_wall_seconds": 0.08411787496879697,
+        "warm_write_wall_seconds": 0.10636900016106665,
         "steady_storage": {
           "namespace": "rpg",
           "gzip_bytes": 423,
@@ -134,7 +134,7 @@
         "layout": "legacy",
         "warm_operations_per_timing": 1000,
         "cleanup": "not measured; retention unchanged",
-        "seed_wall_seconds": 0.047400375129655004,
+        "seed_wall_seconds": 0.05252283299341798,
         "seed_storage": {
           "namespace": "rpg",
           "gzip_bytes": 5884,
@@ -165,8 +165,8 @@
           "successful_storage_get_commands": 0,
           "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
         },
-        "warm_read_wall_seconds": 0.18763929116539657,
-        "warm_write_wall_seconds": 0.3422105419449508,
+        "warm_read_wall_seconds": 0.10019454197026789,
+        "warm_write_wall_seconds": 0.12026912509463727,
         "steady_storage": {
           "namespace": "rpg",
           "gzip_bytes": 5936,
@@ -180,7 +180,7 @@
         "layout": "indexed",
         "warm_operations_per_timing": 1000,
         "cleanup": "not measured; retention unchanged",
-        "seed_wall_seconds": 0.06289416691288352,
+        "seed_wall_seconds": 0.06167216715402901,
         "seed_storage": {
           "namespace": "rpg",
           "gzip_bytes": 5926,
@@ -202,7 +202,7 @@
           "sha256": "82ae19d98aa85dbf92b3ede4e02b69c03b218359f75f41a847cdaca4ac50018a"
         },
         "migration_step_invocations": 2001,
-        "migration_wall_seconds": 0.6028892919421196,
+        "migration_wall_seconds": 0.4340230419766158,
         "migrated_storage": {
           "namespace": "rpg",
           "gzip_bytes": 9879,
@@ -233,8 +233,8 @@
           "successful_storage_get_commands": 0,
           "sha256": "e4f4f764a2a6181d88d00c04fd06177b26998cacf91111a659f465847aff5063"
         },
-        "warm_read_wall_seconds": 0.08262916607782245,
-        "warm_write_wall_seconds": 0.09492012509144843,
+        "warm_read_wall_seconds": 0.06911241705529392,
+        "warm_write_wall_seconds": 0.08360087499022484,
         "steady_storage": {
           "namespace": "rpg",
           "gzip_bytes": 9946,
@@ -251,7 +251,7 @@
         "layout": "legacy",
         "warm_operations_per_timing": 1000,
         "cleanup": "not measured; retention unchanged",
-        "seed_wall_seconds": 0.06913966592401266,
+        "seed_wall_seconds": 0.040768916020169854,
         "seed_storage": {
           "namespace": "rpg",
           "gzip_bytes": 58628,
@@ -282,8 +282,8 @@
           "successful_storage_get_commands": 0,
           "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
         },
-        "warm_read_wall_seconds": 1.276474584126845,
-        "warm_write_wall_seconds": 2.580934541998431,
+        "warm_read_wall_seconds": 0.7725649999920279,
+        "warm_write_wall_seconds": 1.1818559591192752,
         "steady_storage": {
           "namespace": "rpg",
           "gzip_bytes": 58667,
@@ -297,7 +297,7 @@
         "layout": "indexed",
         "warm_operations_per_timing": 1000,
         "cleanup": "not measured; retention unchanged",
-        "seed_wall_seconds": 0.04564937483519316,
+        "seed_wall_seconds": 0.04476425005123019,
         "seed_storage": {
           "namespace": "rpg",
           "gzip_bytes": 58676,
@@ -319,7 +319,7 @@
           "sha256": "ebaf826dcdb34f404d2e50f65ce42044d72dbd02e86480a6edbc980ae6befdd8"
         },
         "migration_step_invocations": 20001,
-        "migration_wall_seconds": 2.4945354170631617,
+        "migration_wall_seconds": 1.6404208750464022,
         "migrated_storage": {
           "namespace": "rpg",
           "gzip_bytes": 106952,
@@ -350,8 +350,8 @@
           "successful_storage_get_commands": 0,
           "sha256": "e4f4f764a2a6181d88d00c04fd06177b26998cacf91111a659f465847aff5063"
         },
-        "warm_read_wall_seconds": 0.07403362519107759,
-        "warm_write_wall_seconds": 0.06984545779414475,
+        "warm_read_wall_seconds": 0.0679474591743201,
+        "warm_write_wall_seconds": 0.0460977079346776,
         "steady_storage": {
           "namespace": "rpg",
           "gzip_bytes": 107025,
@@ -368,7 +368,6 @@
     "Migration checkpoint is after first copied row, not peak memory/disk.",
     "Saved storage is the entire rpg namespace; unrelated fixture fields are retained. Gzip size depends on compression and NBT ordering.",
     "No MSPT, context reuse, reclamation or full #442 completion claim.",
-    "Candidate pack was built before a non-semantic needless-borrow Clippy fix; final canonical export hash must be checked against it.",
     "Successful mutation counters count positive native trace results for data modify/remove commands, not NBT nodes. They exclude execute-store storage side effects used by migration; total migration storage mutations were not measured. Steady get/set traces contain no execute-store storage side effects."
   ],
   "excluded_runs": [
@@ -378,6 +377,10 @@
     "rejected-long-diagnostic",
     "rejected-trace-counter",
     "rejected-baseline-probe-v6",
-    "rejected-baseline-probe-v7"
-  ]
+    "rejected-baseline-probe-v7",
+    "baseline-before-standalone",
+    "candidate-before-standalone"
+  ],
+  "canonical_regeneration_pack_sha256": "8c229b2f89add11508dba7d55bf764e15fe533046ead095e693c12bf7b20e4a9",
+  "canonical_regeneration_matches_native_pack": true
 }

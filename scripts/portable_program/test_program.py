@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -77,6 +78,23 @@ class Programs(unittest.TestCase):
             self.assertTrue(all(len(part.encode()) <= 255 for part in path.split("/")))
         module["functions"].reverse()
         self.assertEqual(self.compile(program, "reversed"), files)
+
+    def test_generated_player_initializer_helpers_are_exported_and_resolved(self):
+        program = counter()
+        program["modules"][0]["states"][0]["fields"].append({"name": "second", "default": 0})
+        files = self.compile(program, "two-fields")
+        helpers = [path for path in files if "/function/sand/state_init/" in path]
+        self.assertEqual(len(helpers), 1)
+        init = files["data/demo/function/__sand_lifecycle_init.mcfunction"].decode()
+        self.assertIn("function demo:sand/state_init/", init)
+        for path, body in files.items():
+            if not path.endswith(".mcfunction"):
+                continue
+            text = body.decode()
+            self.assertNotIn("__sand_local:", text)
+            for callee in re.findall(r"\bfunction (demo:[a-z0-9_./-]+)", text):
+                self.assertIn("data/demo/function/" + callee.split(":", 1)[1] + ".mcfunction", files)
+        self.assertEqual(self.compile(program, "repeat-two-fields"), files)
 
     def test_domain_schemas_resolve_entirely_offline(self):
         root = ROOT / "schemas/program"

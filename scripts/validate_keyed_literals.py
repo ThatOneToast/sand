@@ -506,7 +506,9 @@ class KeyedLiteralHarness(PlayerHarness):
         self.check("ABSENT_READS_DO_NOT_CREATE", "unless data storage rpg:state " + owner)
         self.send(f"execute as {actor} run function unified_state:set_entity_literals")
         self.check("ABSENT_SET_CREATES_OWNER", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": LITERAL, "details": PAYLOAD}))
-        self.check("ABSENT_SET_RETAINS_UUID", f"if data storage rpg:state {owner}{{uuid:{uuid}}}")
+        self.send(f"data remove storage {PROBE}:result absent")
+        self.send(f"data modify storage {PROBE}:result absent set from storage rpg:state {owner}")
+        self.check("ABSENT_SET_RETAINS_UUID", f"if data storage {PROBE}:result absent{{uuid:{uuid}}}")
         if self.indexed:
             self.send(f"execute as {actor} run function unified_state:set_entity_uuid_literal")
             self.check("LITERAL_UUID_PARAMETER", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": r'literal $(uuid) \"quoted\" \\ path'}))

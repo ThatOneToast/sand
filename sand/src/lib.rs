@@ -709,6 +709,9 @@ pub mod __private {
 #[path = "systems/raycast/mod.rs"]
 mod block_raycast;
 
+#[path = "systems/ability.rs"]
+mod ability_composition;
+
 /// Reusable gameplay systems built from canonical Sand resources and actions.
 #[api(
     path = "sand::systems", module = "sand",
@@ -720,6 +723,17 @@ mod block_raycast;
     example = "use sand::systems::raycast::BlockRaycast;"
 )]
 pub mod systems {
+    /// Consumer-owned resources, shared maintenance, and accepted-target abilities.
+    #[sand_macros::api(path = "sand::systems::ability", module = "sand::systems",
+        summary = "Composes resource-backed abilities using consumer State and Conditions.",
+        context = "Maintenance is installed separately from activation; unused values register nothing.",
+        minecraft = "Uses the ordinary State lifecycle and grouped command actions.",
+        use_when = ["Sharing a pool between configured abilities"],
+        avoid_when = ["Native transaction rollback is required"],
+        example = "use sand::systems::ability::{Ability, ResourcePool, ResourceMaintenance};")]
+    pub mod ability {
+        pub use crate::ability_composition::{Ability, ResourceMaintenance, ResourcePool};
+    }
 
     /// Synchronous block raycasting with registered callbacks and isolated counters.
     #[sand_macros::api(

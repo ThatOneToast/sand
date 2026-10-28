@@ -31,6 +31,10 @@ continues while unequipped. A full pool skips the restore write but still
 restarts its timer. The grouped timer branch evaluates elapsed once
 before either write, so restarting the timer cannot suppress the restore.
 
+`ResourceMaintenance` registers one shared regeneration action, separate from
+both ability configurations. Adding an ability does not register another timer
+loop. State auto-ticking runs before this maintenance action.
+
 Exhaustion clears at 50 stamina. The actionbar uses `ability_ready`, the same
 helper as activation: unlock, actual Trail Striders equipped, at least 30
 stamina, no exhaustion, and ready cooldown. It signals player readiness;

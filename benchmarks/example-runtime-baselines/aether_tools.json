@@ -1,0 +1,782 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.2",
+  "namespace": "aether",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "aether:__sand_lifecycle_init": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "aether:battery"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[scores={s9b1907d6dc354f6=1,s19e1ea2f16315e7=-2147483648..,s686ac41c5afb1ae=-2147483648..,s7a6a5f24df3bec0=-2147483648..,s7cf28268f965f61=-2147483648..,safa89ddbad9c6fb=-2147483648..,s2dc7b7f3902677c=-2147483648..}]"
+          }
+        ]
+      },
+      "aether:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [
+          "aether:battery"
+        ],
+        "selector_sites": []
+      },
+      "aether:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function aether:sand/entity_query/11acacf1",
+            "unknown selector multiplicity: execute as @a run function aether:__sand_lifecycle_init"
+          ]
+        },
+        "owners": [
+          "aether::recharge",
+          "aether:battery"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:__sand_score_init": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "aether::recharge"
+        ],
+        "selector_sites": []
+      },
+      "aether:early_return": {
+        "evaluations": {
+          "maximum": 29,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "aether::early_return"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:failure": {
+        "evaluations": {
+          "maximum": 20,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "aether::later_failure"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:flare": {
+        "evaluations": {
+          "maximum": 19,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "aether::flare"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:grant": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::grant"
+        ],
+        "selector_sites": []
+      },
+      "aether:pulse": {
+        "evaluations": {
+          "maximum": 21,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "aether::activate"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:recharge": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function aether:sand/entity_query/11acacf1"
+          ]
+        },
+        "owners": [
+          "aether::recharge"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:reserve": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::reserve"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:returning_effect": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::returning_effect"
+        ],
+        "selector_sites": []
+      },
+      "aether:sand/branches/05a76dcb": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "aether::reserve"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/branches/1409dbb6": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 10,
+          "unknown": []
+        },
+        "owners": [
+          "aether::early_return"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/branches/5f732fd4": {
+        "evaluations": {
+          "maximum": 14,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "aether::recharge"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/branches/86feec82": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "aether::flare"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/branches/8de84d8b": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "aether::later_failure"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/branches/d215f151": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "aether::activate"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/conditions/blocks/e71735b3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "aether::activate"
+        ],
+        "selector_sites": []
+      },
+      "aether:sand/conditions/items/be069bd3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "aether::activate",
+          "aether::early_return",
+          "aether::flare",
+          "aether::later_failure"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/conditions/numeric/02c1acef": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::recharge"
+        ],
+        "selector_sites": []
+      },
+      "aether:sand/entity_query/11acacf1": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "aether::recharge"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:sand/state_init/7e7064b7": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "aether:battery"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:state_mutation/3b407d3b": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::recharge"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:state_mutation/503ecf31": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::reserve"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:state_mutation/67c260fa": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::activate",
+          "aether::early_return",
+          "aether::later_failure"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "aether:state_mutation/f79cb4bf": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "aether::flare"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "aether::recharge"
+        ],
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "reference": "aether:__sand_score_init",
+        "required": true
+      },
+      {
+        "contributors": [
+          "aether:battery"
+        ],
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "reference": "aether:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "aether:__sand_lifecycle_init": [
+          "aether:battery"
+        ],
+        "aether:__sand_lifecycle_load": [
+          "aether:battery"
+        ],
+        "aether:__sand_lifecycle_tick": [
+          "aether::recharge",
+          "aether:battery"
+        ],
+        "aether:__sand_score_init": [
+          "aether::recharge"
+        ],
+        "aether:early_return": [
+          "aether::early_return"
+        ],
+        "aether:failure": [
+          "aether::later_failure"
+        ],
+        "aether:flare": [
+          "aether::flare"
+        ],
+        "aether:grant": [
+          "aether::grant"
+        ],
+        "aether:pulse": [
+          "aether::activate"
+        ],
+        "aether:recharge": [
+          "aether::recharge"
+        ],
+        "aether:reserve": [
+          "aether::reserve"
+        ],
+        "aether:returning_effect": [
+          "aether::returning_effect"
+        ],
+        "aether:sand/branches/05a76dcb": [
+          "aether::reserve"
+        ],
+        "aether:sand/branches/1409dbb6": [
+          "aether::early_return"
+        ],
+        "aether:sand/branches/5f732fd4": [
+          "aether::recharge"
+        ],
+        "aether:sand/branches/86feec82": [
+          "aether::flare"
+        ],
+        "aether:sand/branches/8de84d8b": [
+          "aether::later_failure"
+        ],
+        "aether:sand/branches/d215f151": [
+          "aether::activate"
+        ],
+        "aether:sand/conditions/blocks/e71735b3": [
+          "aether::activate"
+        ],
+        "aether:sand/conditions/items/be069bd3": [
+          "aether::activate",
+          "aether::early_return",
+          "aether::flare",
+          "aether::later_failure"
+        ],
+        "aether:sand/conditions/numeric/02c1acef": [
+          "aether::recharge"
+        ],
+        "aether:sand/entity_query/11acacf1": [
+          "aether::recharge"
+        ],
+        "aether:sand/state_init/7e7064b7": [
+          "aether:battery"
+        ],
+        "aether:state_mutation/3b407d3b": [
+          "aether::recharge"
+        ],
+        "aether:state_mutation/503ecf31": [
+          "aether::reserve"
+        ],
+        "aether:state_mutation/67c260fa": [
+          "aether::activate",
+          "aether::early_return",
+          "aether::later_failure"
+        ],
+        "aether:state_mutation/f79cb4bf": [
+          "aether::flare"
+        ]
+      },
+      "lifecycle_owners": {
+        "aether:__sand_lifecycle_tick": [
+          {
+            "first_line": 5,
+            "line_count": 1,
+            "owner": "aether::recharge"
+          }
+        ]
+      },
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "aether:__sand_lifecycle_load",
+          "owners": [
+            "aether:battery"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "aether:__sand_lifecycle_tick",
+          "owners": [
+            "aether::recharge",
+            "aether:battery"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "aether:__sand_score_init",
+          "owners": [
+            "aether::recharge"
+          ],
+          "tag": "minecraft:load"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "aether::recharge",
+          "aether:battery"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function aether:sand/entity_query/11acacf1",
+            "unknown selector multiplicity: execute as @a run function aether:__sand_lifecycle_init"
+          ]
+        },
+        "reference": "aether:__sand_lifecycle_tick",
+        "required": true
+      }
+    ]
+  }
+}

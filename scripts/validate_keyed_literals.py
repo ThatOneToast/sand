@@ -579,7 +579,7 @@ class KeyedLiteralHarness(PlayerHarness):
         self.expect("CLEANUP_NESTED_OWNER_RETAINED", "@e[tag=keyed_literal_b,limit=1]", "status", {"template": LITERAL})
         self.trace("cleanup_repeated", "cleanup", expected_reads=3)
         repeated = (self.output / "cleanup_repeated.trace.txt").read_text()
-        if "[C] say SAND_STATUS_CLEANUP" in repeated:
+        if re.search(r"(?:\[C\].*say SAND_STATUS_CLEANUP -> [1-9]|\[R = [1-9][0-9]*\].*say SAND_STATUS_CLEANUP)", repeated):
             raise ValidationFailure("cleanup-repeated", "cleanup hook ran twice")
         self.checks["CLEANUP_HOOK_ONCE"] = True
         self.check("CLEANUP_SCRATCH_REMOVED", "unless data storage rpg:state __sand_owner.children")
@@ -593,7 +593,9 @@ class KeyedLiteralHarness(PlayerHarness):
         self.check("CLEANUP_LAST_COMPONENT_REMOVES_OWNER", f"unless data storage rpg:state {owner}")
         for label, path, value in (("UNKNOWN_COMPONENT", "components.status.future", "{}"),
                                    ("UNKNOWN_OWNER", "future", "{}"),
-                                   ("MALFORMED_COMPONENT", "components.status", "7")):
+                                   ("MALFORMED_COMPONENT", "components.status", "7"),
+                                   ("EMPTY_LIST_COMPONENT", "components.status", "[]"),
+                                   ("EMPTY_STRING_COMPONENT", "components.status", '\"\"')):
             call("attach_zombie_components")
             self.send(f"data modify storage rpg:state {owner}.{path} set value {value}")
             call("detach_status")
@@ -614,10 +616,18 @@ class KeyedLiteralHarness(PlayerHarness):
         if self.shared_reclamation:
             call("attach_shared_status")
             call("set_entity_literals")
+            start = len(self.lines)
             call("detach_armored_status")
             self.check("CLEANUP_SHARED_ARCHETYPE_RETAINS_DATA", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": LITERAL}))
+            if any("SAND_STATUS_CLEANUP" in line for line in self.lines[start:]):
+                raise ValidationFailure("shared-cleanup", "hook ran while another archetype retained the component")
+            self.checks["CLEANUP_SHARED_ARCHETYPE_SUPPRESSES_HOOK"] = True
+            start = len(self.lines)
             call("detach_keeper_status")
             self.check("CLEANUP_FINAL_ARCHETYPE_RECLAIMS", f"unless data storage rpg:state {owner}")
+            if sum("SAND_STATUS_CLEANUP" in line for line in self.lines[start:]) != 1:
+                raise ValidationFailure("shared-cleanup", "last claim must run exactly one cleanup hook")
+            self.checks["CLEANUP_FINAL_ARCHETYPE_HOOK_ONCE"] = True
 
     def absent_owner_cases(self):
         """Legacy data-modify filters create owners; read/remove/presence do not."""

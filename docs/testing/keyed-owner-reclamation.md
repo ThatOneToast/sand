@@ -39,3 +39,13 @@ field-only removal, missing executors and repeated attach/detach cycles. Histori
 owner benchmarks retain separate seeding/migration/read/write stages and add
 cleanup traces and storage checkpoints. Results and exact revisions are recorded
 with the final evidence; no MSPT or universal entity-death guarantee is implied.
+
+## Verified results
+
+Clean revision `78ed9e13` passes full `scripts/check.sh`, 11 focused keyed tests,
+21 State lifecycle tests and 17 harness tests. Final native replay passes 200
+candidate and 62 baseline assertions, including zero-length malformed-container
+retention and explicit shared-archetype hook suppression/final-hook execution.
+[Evidence](../../benchmarks/evidence/keyed-reclamation-2026-10-28/summary.json)
+retains exact artifacts and limits. The later evidence archive changes no Rust
+or harness behavior. See `BENCHMARKS.md` for cleanup count/size interpretation.

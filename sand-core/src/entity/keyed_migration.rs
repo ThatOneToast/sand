@@ -13,7 +13,7 @@ pub(crate) fn ready(storage: &str) -> String {
 /// Register one bounded migration step, shared by all components in a storage.
 /// Returns (objective declaration, provisioning command, tick command).
 pub(crate) fn lifecycle(storage: &str) -> (String, String, String) {
-    let objective = sand_commands::ObjectiveName::logical(&format!("{storage}::keyed_migration"))
+    let objective = sand_commands::ObjectiveName::logical(format!("{storage}::keyed_migration"))
         .as_str()
         .to_owned();
     let root = format!("sand/state_data/migrate/{objective}");

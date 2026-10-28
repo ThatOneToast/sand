@@ -83,6 +83,16 @@ class TraceMetricsTests(unittest.TestCase):
             "successful_storage_get_commands": 1,
         })
 
+    def test_guarded_uuid_copies_count_only_reached_commands(self):
+        command = "execute if data storage rpg:state __sand_keyed{version:2} run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+        for trace, expected in (
+            (f"[C] {command}\n[C] say after", 0),
+            (f"[C] {command} -> 0\n[C] say after", 1),
+            (f"[C] {command}\n[R = 1] {command}\n[C] say after", 1),
+        ):
+            with self.subTest(trace=trace):
+                self.assertEqual(trace_metrics(trace)["entity_uuid_read_commands"], expected)
+
     def test_positive_results_count_commands_not_result_magnitude(self):
         metrics = trace_metrics("""
 [R = 3] data remove storage rpg:state values[]

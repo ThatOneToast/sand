@@ -77,12 +77,32 @@ def trace_metrics(content):
     lines = content.splitlines()
     successes = [match[1] for line in lines
                  if (match := re.search(r"\[R = [1-9][0-9]*\] (.*)$", line))]
+    uuid_reads = 0
+    for index, line in enumerate(lines):
+        match = re.search(r"\[C\] (.*)$", line)
+        if not match:
+            continue
+        command = match[1]
+        if ("data modify storage rpg:state __sand_owner." not in command
+                or "set from entity @s UUID" not in command):
+            continue
+        if command.startswith("data modify "):
+            uuid_reads += 1
+            continue
+        # Guarded commands are sites, not necessarily executed UUID copies.
+        # Vanilla emits an inline -> result for unchanged copies, or a matching
+        # [R] record when a guarded copy succeeds. A false guard emits neither.
+        evaluated = bool(re.search(r" -> -?[0-9]+$", command))
+        for following in lines[index + 1:]:
+            if "[C] " in following:
+                break
+            if re.search(r"\[R = -?[0-9]+\] " + re.escape(command) + r"$", following):
+                evaluated = True
+        uuid_reads += int(evaluated)
     return {
         "command_evaluations_including_wrapper": sum("[C] " in line for line in lines),
         "probe_wrapper_evaluations": 1,
-        "entity_uuid_read_commands": sum(
-            "[C] data modify storage rpg:state __sand_owner." in line
-            and "set from entity @s UUID" in line for line in lines),
+        "entity_uuid_read_commands": uuid_reads,
         "successful_storage_mutation_commands": sum(
             bool(re.search(r"(?:^| run )data (?:modify|remove) storage rpg:state ", command))
             for command in successes),

@@ -152,7 +152,9 @@ pub(crate) fn validate_private_objectives(
         if let Some(objective) = command
             .strip_prefix("scoreboard objectives add ")
             .and_then(|rest| rest.split_whitespace().next())
-            && let Some((tracker_id, source)) = transition_objectives.get(objective)
+            && let Some((tracker_id, source)) = transition_objectives
+                .get(objective)
+                .or_else(|| automatic.private_objectives.get(objective))
         {
             return Err(format!(
                 "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with a registered lifecycle declaration from `{owner}`"
@@ -505,6 +507,31 @@ mod runtime_origin_tests {
                 .collect::<Vec<_>>(),
             [(4, 1), (5, 1), (6, 1)]
         );
+    }
+
+    #[test]
+    fn keyed_migration_objective_cannot_be_claimed_by_authored_lifecycle() {
+        let automatic = AutomaticLifecycle {
+            private_objectives: [(
+                "reserved".into(),
+                ("test:state".into(), "keyed migration".into()),
+            )]
+            .into(),
+            ..AutomaticLifecycle::default()
+        };
+        let error = validate_private_objectives(
+            &automatic,
+            &[(
+                "author".into(),
+                0,
+                "scoreboard objectives add reserved dummy".into(),
+            )],
+            &BTreeMap::new(),
+        )
+        .unwrap_err();
+        assert!(error.contains("reserved"));
+        assert!(error.contains("keyed migration"));
+        assert!(error.contains("author"));
     }
 
     /// Ownership follows emitted lines after sorting, including multiline bodies.

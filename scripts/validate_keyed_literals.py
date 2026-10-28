@@ -472,11 +472,23 @@ class KeyedLiteralHarness(PlayerHarness):
                     raise ValidationFailure("missing-presence", "actual callback ran without an executor")
                 self.checks["ACTUAL_MISSING_PRESENCE"] = True
 
-        self.absent_owner_cases()
+            # Both players and three entities write in one frozen game tick.
+            self.send("execute store result score #before keyed_probe run time query gametime")
+            for player in self.players:
+                self.send(f"execute as {player} run function unified_state:set_player_literals")
+                self.expect("SAME_TICK_" + player, player, "progression", {"template": LITERAL, "preferences": PAYLOAD})
+            for label, actor in (("A", first), ("B", second)):
+                self.send(f"execute as {actor} run function unified_state:set_entity_literals")
+                self.expect("SAME_TICK_ENTITY_" + label, actor, "status", {"template": LITERAL, "details": PAYLOAD})
+            self.absent_owner_cases()
+            self.expect("THIRD_OWNER_NO_BLEED_A", first, "status", {"template": LITERAL})
+            self.expect("THIRD_OWNER_NO_BLEED_B", second, "status", {"template": LITERAL})
+            self.send("execute store result score #after keyed_probe run time query gametime")
+            self.check("TWO_PLAYERS_THREE_ENTITIES_ONE_TICK", "if score #before keyed_probe = #after keyed_probe")
         if self.indexed:
             with self.clients():
                 self.expect("PLAYER_A_RECONNECT", "SandAlpha", "progression", {"template": LITERAL, "preferences": PAYLOAD})
-                self.expect("PLAYER_B_RECONNECT", "SandBeta", "progression", {"template": "$(player)"})
+                self.expect("PLAYER_B_RECONNECT", "SandBeta", "progression", {"template": LITERAL, "preferences": PAYLOAD})
             self.migration_cases()
         if os.environ.get("SAND_KEYED_SCALE") == "1":
             self.scaling_cases()

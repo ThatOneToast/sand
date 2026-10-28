@@ -146,6 +146,9 @@ pub(crate) fn lifecycle(storage: &str) -> (String, String, String) {
         vec![
             format!("execute if data {s} {m}{{version:2}} run return 0"),
             format!("execute if data {s} {m}.error run return fail"),
+            // A malformed root cannot hold the normal error field. Return
+            // unconditionally after reporting it instead of falling through.
+            format!("execute unless data {s} {m}{{}} run return run {invalid}"),
             format!("execute unless data {s} {m}{{version:1}} run {invalid}"),
             format!("execute if data {s} {m}.error run return fail"),
             format!("execute unless data {s} {m}.cursor run {invalid}"),

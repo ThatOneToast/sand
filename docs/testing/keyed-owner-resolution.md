@@ -1,4 +1,8 @@
-# Keyed owner resolution (#442 bounded slice)
+# Keyed owner resolution (#442 baseline slice)
+
+This page records the historical #498 baseline. The subsequent
+[direct owner layout](keyed-owner-layout.md) changes persistence and migration;
+the original measurements below remain attributed to their original revisions.
 
 `KeyedData` first runs `execute unless entity @s run data remove storage …
 __sand_owner.uuid`, then copies the executor's complete UUID array once and

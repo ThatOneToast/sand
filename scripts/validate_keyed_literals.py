@@ -2,9 +2,11 @@
 """Validate literal NBT defaults and writes in the CLI-built unified-State pack."""
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import os
+import platform
 import subprocess
 from pathlib import Path
 import re
@@ -19,6 +21,16 @@ LITERAL = r'$(missing) $(u0) "quoted" \ path'
 PAYLOAD = {"text": LITERAL, "nested": {"literal": "$(u0)", "quoted": r'"quoted" \ path'}}
 PROBE = "keyed_literal_probe"
 RELOADED = "SAND_KEYED_LITERAL_LOAD_COMPLETE"
+
+
+def pack_identity(directory):
+    """Hash relative paths and bytes with unambiguous length framing."""
+    digest = hashlib.sha256()
+    for path in sorted(p for p in directory.rglob("*") if p.is_file()):
+        for field in (path.relative_to(directory).as_posix().encode(), path.read_bytes()):
+            digest.update(len(field).to_bytes(8, "big"))
+            digest.update(field)
+    return digest.hexdigest()
 
 
 def owner_resolver(directory):
@@ -40,6 +52,19 @@ def owner_resolver(directory):
             or frame[-1] != frame[0]):
         raise ValueError("unexpected keyed write frame")
     return resolver
+
+
+def owner_layout(directory):
+    """Recognize complete known layouts; unknown or mixed owner paths fail closed."""
+    lines = [line for path in sorted(directory.glob("*.mcfunction"))
+             for line in path.read_text().splitlines() if "owners" in line]
+    if not lines:
+        raise ValueError("no keyed owner paths")
+    legacy = all("owners[{uuid:" in line and "owners_v2" not in line for line in lines)
+    indexed = all('owners_v2."$(uuid)"' in line and "owners[" not in line for line in lines)
+    if not (legacy or indexed):
+        raise ValueError("mixed or unsupported keyed owner layout")
+    return "indexed" if indexed else "legacy"
 
 
 def trace_metrics(content):
@@ -74,6 +99,7 @@ class KeyedLiteralHarness(PlayerHarness):
         super().__init__(args)
         self.checks = {}
         self.traces = {}
+        self.scaling = []
 
     def prepare(self):
         """Add read-only observation helpers to the disposable server copy."""
@@ -86,18 +112,27 @@ class KeyedLiteralHarness(PlayerHarness):
             raise ValueError(f"input pack collides with reserved audit namespace {PROBE}")
         functions = probe / "function"
         functions.mkdir(parents=True)
+        indexed = owner_layout(pack / "data/unified_state/function/sand/state_data/keyed") == "indexed"
+        self.indexed = indexed
+        oracle_owner = 'owners_v2."$(uuid)"' if indexed else 'owners[{uuid:$(uuid)}]'
         (functions / "read.mcfunction").write_text(
             f'$data modify storage {PROBE}:result current set from storage rpg:state '
-            'owners[{uuid:$(uuid)}].components."$(component)"\n'
+            f'{oracle_owner}.components."$(component)"\n'
         )
         # Reuse the exact production resolver from a compiled write frame.
         # Probe macro bodies isolate get/remove/nested behavior without changing
         # the input pack. Rust regressions separately pin these emitted bodies.
         resolver = owner_resolver(pack / "data/unified_state/function/sand/state_data/write")
+        if indexed:
+            steps = list((pack / "data/unified_state/function/sand/state_data/migrate").glob("*/step.mcfunction"))
+            if len(steps) != 1:
+                raise ValueError("expected exactly one migration step for rpg:state")
+            self.migration_step = "unified_state:" + steps[0].relative_to(pack / "data/unified_state/function").with_suffix("").as_posix()
         self.resolver = resolver
         self.owner_read_count = sum("set from entity @s UUID" in line for line in resolver)
         uuid = "$(uuid)" if self.owner_read_count == 1 else "[I;$(u0),$(u1),$(u2),$(u3)]"
-        path = f'owners[{{uuid:{uuid}}}].components."status".template'
+        owner = f'owners_v2."{uuid}"' if indexed else f'owners[{{uuid:{uuid}}}]'
+        path = f'{owner}.components."status".template'
         for name, body in {
             "get": f"$data get storage rpg:state {path}",
             "remove": f"$data remove storage rpg:state {path}",
@@ -107,6 +142,15 @@ class KeyedLiteralHarness(PlayerHarness):
             (functions / f"{name}.mcfunction").write_text("\n".join([
                 *resolver, f"function {PROBE}:{name}_macro with storage rpg:state __sand_owner"
             ]) + "\n")
+        self.get_macro_call = f"function {PROBE}:get_macro with storage rpg:state __sand_owner"
+        if indexed:
+            exported_get = (pack / "data/unified_state/function/get_entity_literal.mcfunction").read_text().splitlines()
+            if (exported_get[:-1] != resolver or not exported_get[-1].startswith("function unified_state:sand/state_data/keyed/")
+                    or not exported_get[-1].endswith(" with storage rpg:state __sand_owner")):
+                raise ValueError("unexpected exported KeyedData get frame")
+            self.get_macro_call = exported_get[-1]
+            for operation in ("get", "remove"):
+                (functions / f"{operation}.mcfunction").write_text(f"function unified_state:{operation}_entity_literal\n")
         for label in ("inner", "outer"):
             (functions / f"record_{label}.mcfunction").write_text(
                 f"$data modify storage {PROBE}:result {label} set from storage rpg:state {path}\n")
@@ -125,12 +169,94 @@ class KeyedLiteralHarness(PlayerHarness):
             (functions / f"trace_{name}.mcfunction").write_text(
                 f"execute as {actor} run function unified_state:{target}\n")
         (functions / "loaded.mcfunction").write_text(f"say {RELOADED}\n")
+        get = "unified_state:get_entity_literal" if indexed else f"{PROBE}:get"
         (functions / "trace_get.mcfunction").write_text(
-            f"execute as @e[tag=keyed_literal_a,limit=1] run function {PROBE}:get\n")
+            f"execute as @e[tag=keyed_literal_a,limit=1] run function {get}\n")
+        if os.environ.get("SAND_KEYED_SCALE") == "1":
+            self.prepare_scaling(functions, indexed)
         load_path = pack / "data/minecraft/tags/function/load.json"
         load = json.loads(load_path.read_text())
         load["values"].append(f"{PROBE}:loaded")
         load_path.write_text(json.dumps(load) + "\n")
+        self.probe_pack_sha256 = pack_identity(pack)
+
+    def prepare_scaling(self, functions, indexed):
+        """Keep seeding, migration, warm reads, and warm writes separate."""
+        active = '{uuid:[I;-2147483648,2147483647,-1,0],components:{status:{template:"seed",details:{seed:1}},retained:{n:23}},unknown:{keep:1}}'
+        for count in (10, 1000, 10000):
+            rows = [active] + [f'{{uuid:[I;0,0,1,{i}],components:{{dormant:{{value:{i}}}}},unknown:{{keep:1}}}}' for i in range(1, count)]
+            body = ["data remove storage rpg:state owners_v2",
+                    "data modify storage rpg:state owners set value [" + ",".join(rows) + "]"]
+            if indexed:
+                body.append("data modify storage rpg:state __sand_keyed set value {version:1,cursor:0}")
+            (functions / f"scale_seed_{count}.mcfunction").write_text("\n".join(body) + "\n")
+        if indexed:
+            (functions / "scale_migrate.mcfunction").write_text(("function " + self.migration_step + "\n") * 100)
+        get = "unified_state:get_entity_literal" if indexed else f"{PROBE}:get"
+        for kind, function in (("read", get), ("write", "unified_state:set_entity_literals")):
+            command = f"execute as @e[tag=keyed_scale,limit=1] run function {function}\n"
+            (functions / f"scale_{kind}.mcfunction").write_text(command * 100)
+            (functions / f"scale_trace_{kind}.mcfunction").write_text(command)
+
+    def scaling_cases(self):
+        """Fixed one-active-owner workload; wall time includes console round trips."""
+        self.send("tick freeze")
+        self.send('kill @e[tag=keyed_boundary]')
+        self.send('summon minecraft:zombie 0 100 0 {UUID:[I;-2147483648,2147483647,-1,0],Tags:["keyed_scale"],NoAI:1b,NoGravity:1b,PersistenceRequired:1b}')
+        def barrier(label, commands):
+            start = len(self.lines)
+            now = time.monotonic()
+            for command in commands:
+                self.send(command)
+            marker = f"SAND_SCALE_{label}_DONE"
+            self.send("say " + marker)
+            self.wait_for(self.marker_pattern(marker), "scaling-" + label, start)
+            return time.monotonic() - now
+        def capture(label, function, wrapper=True):
+            start = len(self.lines)
+            barrier(label, ["debug function " + function])
+            names = [match[1] for line in self.lines[start:] if (match := TRACE_FILE.search(line))]
+            if len(names) != 1:
+                raise ValidationFailure("scaling-trace", f"expected one trace: {names}")
+            content = (self.server / "debug" / names[0]).read_text()
+            (self.output / f"{label}.trace.txt").write_text(content)
+            return {**trace_metrics(content), "probe_wrapper_evaluations": int(wrapper),
+                    "sha256": hashlib.sha256(content.encode()).hexdigest()}
+        def storage_snapshot(label):
+            barrier("save_" + label, ["save-all flush"])
+            saved = self.server / "world/data/rpg/command_storage.dat"
+            raw = saved.read_bytes()
+            (self.output / f"storage_{label}.dat").write_bytes(raw)
+            return {"namespace": "rpg", "gzip_bytes": len(raw),
+                    "nbt_bytes": len(gzip.decompress(raw)),
+                    "sha256": hashlib.sha256(raw).hexdigest()}
+        for count in (10, 1000, 10000):
+            entry = {"total_retained_owners": count, "active_owners": 1,
+                     "layout": "indexed" if self.indexed else "legacy",
+                     "warm_operations_per_timing": 1000,
+                     "cleanup": "not measured; retention unchanged"}
+            self.scaling.append(entry)
+            entry["seed_wall_seconds"] = barrier(f"seed_{count}", [f"function {PROBE}:scale_seed_{count}"])
+            entry["seed_storage"] = storage_snapshot(f"seed_{count}")
+            if self.indexed:
+                entry["migration_first_step"] = capture(f"migration_first_{count}", self.migration_step, wrapper=False)
+                entry["migration_checkpoint_storage"] = storage_snapshot(f"checkpoint_{count}")
+                entry["migration_step_invocations"] = 2 * count + 1
+                entry["migration_wall_seconds"] = barrier(f"migration_{count}",
+                    [f"function {PROBE}:scale_migrate"] * (2 * count // 100)
+                    + ["function " + self.migration_step] * (2 * count % 100))
+                self.check(f"SCALE_{count}_MIGRATED", "if data storage rpg:state __sand_keyed{version:2}")
+                self.check(f"SCALE_{count}_LEGACY_RETIRED", "unless data storage rpg:state owners")
+                self.check(f"SCALE_{count}_DORMANT", f'if data storage rpg:state owners_v2."[I;0,0,1,{count-1}]".components.dormant{{value:{count-1}}}')
+                entry["migrated_storage"] = storage_snapshot(f"migrated_{count}")
+            entry["changed_write"] = capture(f"changed_write_{count}", f"{PROBE}:scale_trace_write")
+            entry["warm_read"] = capture(f"warm_read_{count}", f"{PROBE}:scale_trace_read")
+            entry["warm_write"] = capture(f"warm_write_{count}", f"{PROBE}:scale_trace_write")
+            if entry["warm_read"]["successful_storage_mutation_commands"] != 0:
+                raise ValidationFailure("scaling", "warm same-owner reads mutated storage")
+            for kind in ("read", "write"):
+                entry[f"warm_{kind}_wall_seconds"] = barrier(f"{kind}_{count}", [f"function {PROBE}:scale_{kind}"] * 10)
+            entry["steady_storage"] = storage_snapshot(f"steady_{count}")
 
     def check(self, name, condition):
         """Keep failed assertions in the evidence before propagating them."""
@@ -234,6 +360,13 @@ class KeyedLiteralHarness(PlayerHarness):
             self.check("NESTED_OWNER_RESOLUTION", f"if data storage {PROBE}:result " + json.dumps({"inner": "$(u0)", "outer": LITERAL}))
             self.expect("NESTED_OUTER_RETAINED", first, "status", {"template": LITERAL})
             self.expect("NESTED_INNER_RETAINED", second, "status", {"template": "$(u0)"})
+            if self.indexed:
+                start = len(self.lines)
+                self.send(f"execute as {first} run function unified_state:present_entity_literal")
+                self.wait_for("SAND_KEYED_PRESENT", "actual-presence-callback", start)
+                self.checks["ACTUAL_PRESENCE_NESTED_CALLBACK"] = True
+                self.expect("ACTUAL_NESTED_OUTER_RETAINED", first, "status", {"template": LITERAL})
+                self.expect("ACTUAL_NESTED_INNER_RETAINED", second, "status", {"template": "$(u0)"})
             # Observe the final macro call's result/success callback contract.
             # Ordinary non-returning functions leave the observer untouched.
             for actor in (first, second):
@@ -241,7 +374,7 @@ class KeyedLiteralHarness(PlayerHarness):
                     self.send(f"execute as {actor} run {line}")
                 for key in ("result", "success"):
                     self.send(f"scoreboard players set #{key} keyed_probe -99")
-                self.send(f"execute as {actor} store result score #result keyed_probe store success score #success keyed_probe run function {PROBE}:get_macro with storage rpg:state __sand_owner")
+                self.send(f"execute as {actor} store result score #result keyed_probe store success score #success keyed_probe run {self.get_macro_call}")
                 for key in ("result", "success"):
                     self.check(f"VALID_{'A' if actor == first else 'B'}_{key.upper()}", f"if score #{key} keyed_probe matches -99")
 
@@ -290,7 +423,7 @@ class KeyedLiteralHarness(PlayerHarness):
                 self.send(line)
             for key in ("result", "success"):
                 self.send(f"scoreboard players set #{key} keyed_probe -99")
-            self.send(f"execute store result score #result keyed_probe store success score #success keyed_probe run function {PROBE}:get_macro with storage rpg:state __sand_owner")
+            self.send(f"execute store result score #result keyed_probe store success score #success keyed_probe run {self.get_macro_call}")
             for key in ("result", "success"):
                 self.check(f"MISSING_GET_{key.upper()}", f"if score #{key} keyed_probe matches 0")
             self.send(f"execute as {second} run function {PROBE}:get")
@@ -300,6 +433,152 @@ class KeyedLiteralHarness(PlayerHarness):
             self.send(f"function {PROBE}:present")
             self.check("MISSING_EXECUTOR_NO_CALLBACK", "if score #nested keyed_probe matches 1")
             self.check("MISSING_EXECUTOR_UUID_CLEARED", "unless data storage rpg:state __sand_owner.uuid")
+            if self.indexed:
+                start = len(self.lines)
+                self.send("function unified_state:present_entity_literal")
+                self.send("say ACTUAL_MISSING_PRESENCE_DONE")
+                self.wait_for(self.marker_pattern("ACTUAL_MISSING_PRESENCE_DONE"), "missing-presence", start)
+                if any("SAND_KEYED_PRESENT" in line for line in self.lines[start:]):
+                    raise ValidationFailure("missing-presence", "actual callback ran without an executor")
+                self.checks["ACTUAL_MISSING_PRESENCE"] = True
+
+        if self.indexed:
+            with self.clients():
+                self.expect("PLAYER_A_RECONNECT", "SandAlpha", "progression", {"template": LITERAL, "preferences": PAYLOAD})
+                self.expect("PLAYER_B_RECONNECT", "SandBeta", "progression", {"template": "$(player)"})
+            self.migration_cases()
+        if os.environ.get("SAND_KEYED_SCALE") == "1":
+            self.scaling_cases()
+
+    def migration_cases(self):
+        """Drive the exported migrator with independent literal UUID/value oracles."""
+        self.send("tick freeze")
+        self.send(f"data modify storage {PROBE}:backup state set from storage rpg:state")
+        uuid = "[I;-2147483648,2147483647,-1,0]"
+        key = f'owners_v2."{uuid}"'
+        row = '{uuid:' + uuid + ',components:{status:{template:"legacy $(uuid)"},other:{n:23}},unknown:{keep:1}}'
+        dormant = '{uuid:[I;0,-1,2147483647,-2147483648],components:{offline:{value:91}}}'
+        def seed(rows, metadata="{version:1,cursor:0}"):
+            self.send("data remove storage rpg:state owners_v2")
+            self.send("data modify storage rpg:state owners set value " + rows)
+            self.send("data modify storage rpg:state __sand_keyed set value " + metadata)
+        def steps(count):
+            for _ in range(count):
+                self.send("function " + self.migration_step)
+        seed(f"[{row},{dormant}]")
+        self.send('summon minecraft:zombie 0 100 0 {UUID:' + uuid + ',Tags:["keyed_boundary"],NoAI:1b,NoGravity:1b,PersistenceRequired:1b}')
+        actor = '@e[tag=keyed_boundary,limit=1]'
+        self.send(f"execute as {actor} run function unified_state:attach_zombie_components")
+        self.send(f"execute as {actor} run function unified_state:set_entity_literals")
+        self.check("MIGRATION_DEFAULTS_BLOCKED", "unless data storage rpg:state owners_v2")
+        self.check("MIGRATION_LITERAL_CLEAN", "unless data storage rpg:state __sand_owner.value")
+        steps(1)
+        self.check("MIGRATION_COPY_BEFORE_COMMIT", "if data storage rpg:state __sand_keyed{cursor:0,journal:{done:1b}}")
+        self.check("MIGRATION_SOURCE_RETAINED", "if data storage rpg:state owners[1].components.offline{value:91}")
+        self.check("MIGRATION_UNKNOWN_FIELDS", f"if data storage rpg:state {key}.unknown{{keep:1}}")
+        steps(5)
+        self.check("MIGRATION_COMPLETE", "if data storage rpg:state __sand_keyed{version:2}")
+        self.check("MIGRATION_LEGACY_RETIRED", "unless data storage rpg:state owners")
+        steps(2)
+        self.send(f"data modify storage {PROBE}:result metadata set from storage rpg:state __sand_keyed")
+        self.send(f"execute store success score #metadata keyed_probe run data modify storage {PROBE}:result metadata set value {{version:2}}")
+        self.check("STEADY_METADATA_EXACT", "if score #metadata keyed_probe matches 0")
+        self.check("MIGRATION_DORMANT_RETAINED", 'if data storage rpg:state owners_v2."[I;0,-1,2147483647,-2147483648]".components.offline{value:91}')
+        self.send(f"execute as {actor} run function unified_state:attach_zombie_components")
+        self.check("MIGRATION_LEGACY_BEATS_DEFAULT", f'if data storage rpg:state {key}.components.status{{template:"legacy $(uuid)"}}')
+        self.send(f"execute as {actor} run function unified_state:set_entity_literals")
+        self.check("SIGNED_BOUNDARY_LITERAL", f"if data storage rpg:state {key}.components.status" + json.dumps({"template": LITERAL, "details": PAYLOAD}))
+        self.send(f"execute as {actor} run function unified_state:remove_entity_literal")
+        self.check("ACTUAL_REMOVE", f"unless data storage rpg:state {key}.components.status.template")
+        self.check("REMOVE_PRESERVES_OTHER_COMPONENT", f"if data storage rpg:state {key}.components.other{{n:23}}")
+        self.send(f"execute as {actor} run function unified_state:set_entity_literals")
+        self.send("forceload add 10000 10000")
+        self.send("tick unfreeze")
+        self.eventually("UNLOAD_DESTINATION_LOADED", "if loaded 10000 100 10000")
+        self.send(f"tp {actor} 10000 100 10000")
+        self.send("forceload remove 10000 10000")
+        self.eventually("OWNER_ACTUALLY_UNLOADED", "unless entity " + actor)
+        self.check("UNLOADED_OWNER_RETAINED", f"if data storage rpg:state {key}.components.status" + json.dumps({"template": LITERAL}))
+        self.send("forceload add 10000 10000")
+        self.eventually("OWNER_RETURNED", "if entity " + actor)
+        self.check("RETURNED_OWNER_VALUE", f"if data storage rpg:state {key}.components.status" + json.dumps({"template": LITERAL}))
+        self.send(f"execute as {actor} run function unified_state:get_entity_literal")
+        self.send(f"tp {actor} 0 100 0")
+        self.send("forceload remove 10000 10000")
+        self.send("tick freeze")
+        # Every durable intermediate state is resumed twice. A journal owns a
+        # destination only after intent; an unrelated existing record conflicts.
+        for label, journal, destination, success in (
+            ("SNAPSHOT", '{row:' + row + '}', None, True),
+            ("INTENT", '{row:' + row + ',intent:1b}', None, True),
+            ("COPY", '{row:' + row + ',intent:1b}', row, True),
+            ("DONE", '{row:' + row + ',intent:1b,next:1,done:1b}', row, True),
+            ("DONE_MISSING_DEST", '{row:' + row + ',intent:1b,next:1,done:1b}', None, True),
+            ("DONE_PARTIAL_DEST", '{row:' + row + ',intent:1b,next:1,done:1b}', '{uuid:' + uuid + ',components:{}}', False),
+            ("DESTINATION", None, row, False),
+            ("PARTIAL", '{row:' + row + ',intent:1b}', '{uuid:' + uuid + ',components:{}}', False),
+            ("WRONG_TYPE", '{row:' + row + ',intent:1b}', '7', False),
+        ):
+            seed(f"[{row}]")
+            if journal:
+                self.send("data modify storage rpg:state __sand_keyed.journal set value " + journal)
+            if destination:
+                self.send(f"data modify storage rpg:state {key} set value {destination}")
+            steps(4)
+            steps(2)
+            self.check("RESUME_" + label, "if data storage rpg:state __sand_keyed" + ("{version:2}" if success else ".error"))
+            if not success:
+                self.check("PRESERVE_SOURCE_" + label, "if data storage rpg:state owners[0].unknown{keep:1}")
+                self.check("PRESERVE_DEST_" + label, 'if data storage rpg:state {owners_v2:{' + json.dumps(uuid) + ':' + destination + '}}')
+        seed(f"[{row},{dormant}]", '{version:1,cursor:1,journal:{row:' + row + ',intent:1b,next:1,done:1b}}')
+        self.send(f"data modify storage rpg:state {key} set value {row}")
+        steps(6)
+        self.check("CURSOR_COMMITTED_RETRY", 'if data storage rpg:state owners_v2."[I;0,-1,2147483647,-2147483648]".components.offline{value:91}')
+        self.check("CURSOR_COMMITTED_COMPLETE", "if data storage rpg:state __sand_keyed{version:2}")
+        for label, rows in (
+            ("DUPLICATE", f"[{row},{row}]"),
+            ("CONFLICTING_DUPLICATE", f"[{row},{{uuid:{uuid},components:{{other:{{n:999}}}}}}]"),
+            ("STRING_UUID", '[{uuid:"oops",components:{}}]'),
+            ("LIST_UUID", '[{uuid:[0,0,0,0],components:{}}]'),
+            ("SHORT_UUID", '[{uuid:[I;1,2,3],components:{}}]'),
+            ("BAD_COMPONENTS", '[{uuid:[I;1,2,3,4],components:7}]'),
+            ("BAD_CONTAINER", '{}'),
+            ("EMPTY_STRING_CONTAINER", '\"\"'),
+        ):
+            seed(rows)
+            steps(6)
+            self.check(label + "_BLOCKED", "if data storage rpg:state __sand_keyed.error")
+            self.check(label + "_SOURCE_RETAINED", "if data storage rpg:state {owners:" + rows + "}")
+            self.check(label + "_NOT_COMPLETE", "unless data storage rpg:state __sand_keyed{version:2}")
+        for label, next_value in (("SKIP", "2"), ("STRING_NEXT", '\"1\"')):
+            seed(f"[{row},{dormant}]", '{version:1,cursor:0,journal:{row:' + row + ',intent:1b,next:' + next_value + ',done:1b}}')
+            self.send(f"data modify storage rpg:state {key} set value {row}")
+            steps(3)
+            self.check(label + "_JOURNAL_BLOCKED", "if data storage rpg:state __sand_keyed.error")
+            self.check(label + "_DORMANT_SOURCE_RETAINED", "if data storage rpg:state owners[1].components.offline{value:91}")
+        seed(f"[{row}]", "{version:3,cursor:0}")
+        steps(2)
+        self.check("UNKNOWN_VERSION_BLOCKED", "if data storage rpg:state __sand_keyed.error")
+        self.check("UNKNOWN_VERSION_SOURCE", "if data storage rpg:state owners[0].unknown{keep:1}")
+        seed(f"[{row}]")
+        self.send("data modify storage rpg:state owners_v2 set value 7")
+        steps(2)
+        self.check("MALFORMED_DESTINATION_MAP_BLOCKED", "if data storage rpg:state __sand_keyed.error")
+        self.check("MALFORMED_DESTINATION_MAP_PRESERVED", "if data storage rpg:state {owners_v2:7}")
+        self.check("MALFORMED_DESTINATION_MAP_SOURCE", "if data storage rpg:state owners[0].unknown{keep:1}")
+        # Reload between copy and cursor commit. The load-tag sentinel, rather
+        # than a console echo after `reload`, proves resources actually loaded.
+        seed(f"[{row},{dormant}]")
+        steps(1)
+        self.send("tick unfreeze")
+        start = len(self.lines)
+        self.send("reload")
+        self.wait_for(self.marker_pattern(RELOADED), "migration-reload", start)
+        self.eventually("MIGRATION_RELOAD_FINISHED", "if data storage rpg:state __sand_keyed{version:2}")
+        self.check("MIGRATION_RELOAD_DORMANT", 'if data storage rpg:state owners_v2."[I;0,-1,2147483647,-2147483648]".components.offline{value:91}')
+        self.send("tick freeze")
+        for field in ("owners_v2", "__sand_keyed", "__sand_owner"):
+            self.send(f"data modify storage rpg:state {field} set from storage {PROBE}:backup state.{field}")
 
 
 def main():
@@ -311,17 +590,18 @@ def main():
         raise ValueError(f"refusing to overwrite evidence: {args.output}")
     harness = KeyedLiteralHarness(args)
     pack = Path(args.pack).resolve()
-    digest = hashlib.sha256()
-    for path in sorted(p for p in pack.rglob("*") if p.is_file()):
-        for field in (path.relative_to(pack).as_posix().encode(), path.read_bytes()):
-            digest.update(len(field).to_bytes(8, "big"))
-            digest.update(field)
     evidence = {
         "minecraft": args.version, "complete": False, "checks": harness.checks,
-        "input_pack_sha256": digest.hexdigest(),
+        "input_pack_sha256": pack_identity(pack),
         "source_revision": os.environ.get("SAND_SOURCE_REVISION") or subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True).strip(),
         "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "server_jar_sha256": hashlib.sha256(Path(args.jar).read_bytes()).hexdigest(),
+        "host": {"platform": platform.platform(), "machine": platform.machine()},
+        "harness_source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "harness_dependencies": {name: hashlib.sha256((Path(__file__).parent / name).read_bytes()).hexdigest()
+            for name in ("vanilla_reload_harness.py", "player_validation_harness.py", "validate_world_gameplay.py", "measure_archetype_idle.py", "mc_validation/minimal_join_client.py")},
+        "java_version": subprocess.run([args.java, "-version"], capture_output=True, text=True).stderr.strip(),
     }
     try:
         harness.run()
@@ -333,6 +613,8 @@ def main():
         harness.output.mkdir(parents=True, exist_ok=True)
         evidence["static_owner_entity_nbt_reads_per_resolution"] = getattr(harness, "owner_read_count", None)
         evidence["native_traces"] = harness.traces
+        evidence["historical_owner_scaling"] = harness.scaling
+        evidence["probe_pack_sha256"] = getattr(harness, "probe_pack_sha256", None)
         evidence["production_resolver"] = getattr(harness, "resolver", None)
         path = harness.output / "keyed-literal-evidence.json"
         path.write_text(json.dumps(evidence, indent=2) + "\n")

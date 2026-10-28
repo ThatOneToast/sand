@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_keyed_literals import owner_resolver, trace_metrics
+from validate_keyed_literals import owner_resolver, owner_layout, trace_metrics
 
 
 class OwnerResolverTests(unittest.TestCase):
@@ -40,6 +40,27 @@ class OwnerResolverTests(unittest.TestCase):
                 self.frame(directory, resolver)
                 with self.assertRaises(ValueError):
                     owner_resolver(directory)
+
+
+class OwnerLayoutTests(unittest.TestCase):
+    def test_known_layouts_and_unknown_mixed_layouts(self):
+        for lines, expected in (
+            (['$data get storage rpg:state owners[{uuid:$(uuid)}].value'], "legacy"),
+            (['$data get storage rpg:state owners_v2."$(uuid)".value'], "indexed"),
+            ([], None),
+            (['$data get storage rpg:state owners_v3."$(uuid)".value'], None),
+            (['$data get storage rpg:state owners_v2."$(u0)".value'], None),
+            (['$data get storage rpg:state owners[{uuid:$(uuid)}].value',
+              '$data get storage rpg:state owners_v2."$(uuid)".value'], None),
+        ):
+            with self.subTest(lines=lines), tempfile.TemporaryDirectory() as root:
+                path = Path(root)
+                (path / "read.mcfunction").write_text("\n".join(lines))
+                if expected is None:
+                    with self.assertRaises(ValueError):
+                        owner_layout(path)
+                else:
+                    self.assertEqual(owner_layout(path), expected)
 
 
 class TraceMetricsTests(unittest.TestCase):

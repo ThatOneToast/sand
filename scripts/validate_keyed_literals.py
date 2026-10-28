@@ -134,6 +134,8 @@ class KeyedLiteralHarness(PlayerHarness):
         functions.mkdir(parents=True)
         indexed = owner_layout(pack / "data/unified_state/function/sand/state_data/keyed") == "indexed"
         self.indexed = indexed
+        self.reclamation = (pack / "data/unified_state/function/attach_keepsake.mcfunction").exists()
+        self.shared_reclamation = (pack / "data/unified_state/function/attach_shared_status.mcfunction").exists()
         oracle_owner = 'owners_v2."$(uuid)"' if indexed else 'owners[{uuid:$(uuid)}]'
         (functions / "read.mcfunction").write_text(
             f'$data modify storage {PROBE}:result current set from storage rpg:state '
@@ -196,6 +198,14 @@ class KeyedLiteralHarness(PlayerHarness):
             (functions / "trace_present.mcfunction").write_text(
                 "execute as @e[tag=keyed_literal_a,limit=1] run function unified_state:present_entity_literal\n")
         (functions / "loaded.mcfunction").write_text(f"say {RELOADED}\n")
+        if self.reclamation:
+            for name, actor in (("cleanup", "@e[tag=keyed_reclaim,limit=1]"),
+                                ("scale_cleanup", "@e[tag=keyed_scale,limit=1]")):
+                (functions / f"trace_{name}.mcfunction").write_text(
+                    f"execute as {actor} run function unified_state:detach_status\n")
+            (functions / "scale_cleanup_cycles.mcfunction").write_text(
+                ("execute as @e[tag=keyed_scale,limit=1] run function unified_state:attach_zombie_components\n"
+                 "execute as @e[tag=keyed_scale,limit=1] run function unified_state:detach_status\n") * 10)
         get = "unified_state:get_entity_literal" if indexed else f"{PROBE}:get"
         (functions / "trace_get.mcfunction").write_text(
             f"execute as @e[tag=keyed_literal_a,limit=1] run function {get}\n")
@@ -219,6 +229,11 @@ class KeyedLiteralHarness(PlayerHarness):
             (functions / f"scale_seed_{count}.mcfunction").write_text("\n".join(body) + "\n")
         if indexed:
             (functions / "scale_migrate.mcfunction").write_text(("function " + self.migration_step + "\n") * 100)
+        (functions / "trace_scale_cleanup.mcfunction").write_text(
+            "execute as @e[tag=keyed_scale,limit=1] run function unified_state:detach_status\n")
+        (functions / "scale_cleanup_cycles.mcfunction").write_text(
+            ("execute as @e[tag=keyed_scale,limit=1] run function unified_state:attach_zombie_components\n"
+             "execute as @e[tag=keyed_scale,limit=1] run function unified_state:detach_status\n") * 10)
         get = "unified_state:get_entity_literal" if indexed else f"{PROBE}:get"
         for kind, function in (("read", get), ("write", "unified_state:set_entity_literals")):
             command = f"execute as @e[tag=keyed_scale,limit=1] run function {function}\n"
@@ -249,6 +264,9 @@ class KeyedLiteralHarness(PlayerHarness):
             content = (self.server / "debug" / names[0]).read_text()
             (self.output / f"{label}.trace.txt").write_text(content)
             return {**trace_metrics(content), "probe_wrapper_evaluations": int(wrapper),
+                    "executed_scratch_count_stores": sum(
+                        " store result storage rpg:state __sand_owner.children " in line
+                        for line in content.splitlines() if "[R = " in line),
                     "sha256": hashlib.sha256(content.encode()).hexdigest()}
         def storage_snapshot(label):
             barrier("save_" + label, ["save-all flush"])
@@ -291,6 +309,31 @@ class KeyedLiteralHarness(PlayerHarness):
             for kind in ("read", "write"):
                 entry[f"warm_{kind}_wall_seconds"] = barrier(f"{kind}_{count}", [f"function {PROBE}:scale_{kind}"] * 10)
             entry["steady_storage"] = storage_snapshot(f"steady_{count}")
+            actor = "@e[tag=keyed_scale,limit=1]"
+            owner = ('owners_v2."[I;-2147483648,2147483647,-1,1]"' if self.indexed
+                     else 'owners[{uuid:[I;-2147483648,2147483647,-1,1]}]')
+            barrier(f"cleanup_attach_{count}", [f"execute as {actor} run function unified_state:attach_zombie_components"])
+            entry["cleanup"] = {
+                "observer_hook": self.reclamation,
+                "retained_owner": capture(f"cleanup_retained_{count}", f"{PROBE}:trace_scale_cleanup"),
+                "limits": "Mutation metric counts successful data modify/remove, excluding execute store scratch-count writes; timing covers ten attach/detach cycles including console barrier, not MSPT.",
+            }
+            self.check(f"SCALE_{count}_CLEANUP_RETAINS_OTHER", f"if data storage rpg:state {owner}.components.retained{{n:23}}")
+            self.check(f"SCALE_{count}_CLEANUP_RETAINS_UNKNOWN", f"if data storage rpg:state {owner}.unknown{{keep:1}}")
+            entry["cleanup_retained_storage"] = storage_snapshot(f"cleanup_retained_{count}")
+            barrier(f"cleanup_empty_setup_{count}", [
+                f"data remove storage rpg:state {owner}.components.retained",
+                f"data remove storage rpg:state {owner}.unknown",
+                f"execute as {actor} run function unified_state:attach_zombie_components",
+            ])
+            entry["cleanup"]["empty_owner"] = capture(f"cleanup_empty_{count}", f"{PROBE}:trace_scale_cleanup")
+            self.check(f"SCALE_{count}_CLEANUP_RETENTION_CONTRACT",
+                       f"{'unless' if self.reclamation else 'if'} data storage rpg:state {owner}")
+            entry["cleanup"]["ten_cycles_wall_seconds"] = barrier(f"cleanup_cycles_{count}", [f"function {PROBE}:scale_cleanup_cycles"])
+            container = "owners_v2" if self.indexed else "owners"
+            self.send(f"execute store result score #owners keyed_probe run data get storage rpg:state {container}")
+            self.check(f"SCALE_{count}_CLEANUP_NO_GROWTH", f"if score #owners keyed_probe matches {count-int(self.reclamation)}")
+            entry["cleanup_empty_storage"] = storage_snapshot(f"cleanup_empty_{count}")
 
     def check(self, name, condition):
         """Keep failed assertions in the evidence before propagating them."""
@@ -330,7 +373,7 @@ class KeyedLiteralHarness(PlayerHarness):
         self.checks[name] = False
         raise ValidationFailure(name, f"literal default never initialized for {actor}")
 
-    def trace(self, label, function):
+    def trace(self, label, function, expected_reads=None):
         """Count executed entity UUID reads, separately from command evaluations."""
         start = len(self.lines)
         self.send(f"debug function {PROBE}:trace_{function}")
@@ -357,6 +400,8 @@ class KeyedLiteralHarness(PlayerHarness):
         expected = ({"fresh_attach": 12, "existing_attach": 4, "existing_attach_repeat": 4, "same_owner_get": 4}.get(label, 8)
                     if self.owner_read_count == 4 else
                     {"fresh_attach": 1, "existing_attach": 1, "existing_attach_repeat": 1, "same_owner_get": 1, "actual_nested": 3, "player_write": 4}.get(label, 2))
+        if expected_reads is not None:
+            expected = expected_reads
         if reads != expected:
             raise ValidationFailure("keyed-trace", f"{label}: expected {expected} UUID reads, got {reads}")
 
@@ -503,8 +548,86 @@ class KeyedLiteralHarness(PlayerHarness):
                 self.expect("PLAYER_A_RECONNECT", "SandAlpha", "progression", {"template": LITERAL, "preferences": PAYLOAD})
                 self.expect("PLAYER_B_RECONNECT", "SandBeta", "progression", {"template": LITERAL, "preferences": PAYLOAD})
             self.migration_cases()
+            if self.reclamation:
+                self.reclamation_cases()
         if os.environ.get("SAND_KEYED_SCALE") == "1":
             self.scaling_cases()
+
+    def reclamation_cases(self):
+        """Trace actual detach and independently inspect exact UUID records."""
+        uuid = "[I;102,103,104,105]"
+        actor = "@e[tag=keyed_reclaim,limit=1]"
+        owner = f'owners_v2."{uuid}"'
+        self.send('summon minecraft:zombie 0 100 0 {UUID:' + uuid + ',Tags:["keyed_reclaim"],NoAI:1b,NoGravity:1b,PersistenceRequired:1b}')
+        self.check("CLEANUP_UUID_ORACLE", f"if data entity {actor} {{UUID:{uuid}}}")
+        def call(name):
+            self.send(f"execute as {actor} run function unified_state:{name}")
+        call("attach_zombie_components")
+        call("prepare_status_cleanup")
+        call("set_entity_literals")
+        self.trace("cleanup_prior_values", "cleanup", expected_reads=5)
+        trace = (self.output / "cleanup_prior_values.trace.txt").read_text()
+        lengths = [int(value) for value in re.findall(
+            r"\[R = ([0-9]+)\] data get storage rpg:state .*\.template$", trace, re.MULTILINE)]
+        self.checks["CLEANUP_PRIOR_DATA_AND_NESTED_OWNER"] = lengths == [len(LITERAL), len(LITERAL)]
+        if not self.checks["CLEANUP_PRIOR_DATA_AND_NESTED_OWNER"]:
+            raise ValidationFailure("cleanup-prior-data", str(lengths))
+        if not re.search(r"\[M\] .+ has 1 \[[^\]]+\]", trace):
+            raise ValidationFailure("cleanup-prior-score", "hook did not observe the prior true flag")
+        self.checks["CLEANUP_PRIOR_SCORE"] = True
+        self.check("CLEANUP_EMPTY_OWNER_REMOVED", f"unless data storage rpg:state {owner}")
+        self.expect("CLEANUP_NESTED_OWNER_RETAINED", "@e[tag=keyed_literal_b,limit=1]", "status", {"template": LITERAL})
+        self.trace("cleanup_repeated", "cleanup", expected_reads=3)
+        repeated = (self.output / "cleanup_repeated.trace.txt").read_text()
+        if re.search(r"(?:\[C\].*say SAND_STATUS_CLEANUP -> [1-9]|\[R = [1-9][0-9]*\].*say SAND_STATUS_CLEANUP)", repeated):
+            raise ValidationFailure("cleanup-repeated", "cleanup hook ran twice")
+        self.checks["CLEANUP_HOOK_ONCE"] = True
+        self.check("CLEANUP_SCRATCH_REMOVED", "unless data storage rpg:state __sand_owner.children")
+        self.check("CLEANUP_LAYOUT_RETAINED", "if data storage rpg:state __sand_keyed{version:2}")
+
+        call("attach_zombie_components")
+        call("attach_keepsake")
+        call("detach_status")
+        self.check("CLEANUP_OTHER_COMPONENT_RETAINED", f"if data storage rpg:state {owner}.components.keepsake.memory{{value:19}}")
+        call("detach_keepsake")
+        self.check("CLEANUP_LAST_COMPONENT_REMOVES_OWNER", f"unless data storage rpg:state {owner}")
+        for label, path, value in (("UNKNOWN_COMPONENT", "components.status.future", "{}"),
+                                   ("UNKNOWN_OWNER", "future", "{}"),
+                                   ("MALFORMED_COMPONENT", "components.status", "7"),
+                                   ("EMPTY_LIST_COMPONENT", "components.status", "[]"),
+                                   ("EMPTY_STRING_COMPONENT", "components.status", '\"\"')):
+            call("attach_zombie_components")
+            self.send(f"data modify storage rpg:state {owner}.{path} set value {value}")
+            call("detach_status")
+            self.check("CLEANUP_RETAINS_" + label, f"if data storage rpg:state {owner}.{path}")
+            self.send(f"data remove storage rpg:state {owner}.{path}")
+            call("detach_status")
+            self.check("CLEANUP_RESUMES_" + label, f"unless data storage rpg:state {owner}")
+        call("attach_zombie_components")
+        call("remove_entity_literal")
+        self.check("FIELD_REMOVE_RETAINS_OWNER", f"if data storage rpg:state {owner}.components.status.details")
+        self.send("function unified_state:detach_status")
+        self.check("MISSING_EXECUTOR_DETACH_RETAINS_OWNER", f"if data storage rpg:state {owner}.components.status.details")
+        call("detach_status")
+        for _ in range(10):
+            call("attach_zombie_components")
+            call("detach_status")
+        self.check("CLEANUP_TEN_CYCLES_NO_OWNER", f"unless data storage rpg:state {owner}")
+        if self.shared_reclamation:
+            call("attach_shared_status")
+            call("set_entity_literals")
+            start = len(self.lines)
+            call("detach_armored_status")
+            self.check("CLEANUP_SHARED_ARCHETYPE_RETAINS_DATA", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": LITERAL}))
+            if any("SAND_STATUS_CLEANUP" in line for line in self.lines[start:]):
+                raise ValidationFailure("shared-cleanup", "hook ran while another archetype retained the component")
+            self.checks["CLEANUP_SHARED_ARCHETYPE_SUPPRESSES_HOOK"] = True
+            start = len(self.lines)
+            call("detach_keeper_status")
+            self.check("CLEANUP_FINAL_ARCHETYPE_RECLAIMS", f"unless data storage rpg:state {owner}")
+            if sum("SAND_STATUS_CLEANUP" in line for line in self.lines[start:]) != 1:
+                raise ValidationFailure("shared-cleanup", "last claim must run exactly one cleanup hook")
+            self.checks["CLEANUP_FINAL_ARCHETYPE_HOOK_ONCE"] = True
 
     def absent_owner_cases(self):
         """Legacy data-modify filters create owners; read/remove/presence do not."""

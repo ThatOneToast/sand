@@ -1,0 +1,76 @@
+{
+  "baseline_revision": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
+  "candidate_revision": "78ed9e138694785a5ce993a71e9840a2f65c41ae",
+  "native": {
+    "baseline": {
+      "assertions": 62,
+      "passed": true,
+      "evidence": "baseline/keyed-literal-evidence.json",
+      "pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
+      "harness_sha256": "77648f6eae827515812adcc30dacb5b38b0b764adfa117bc1de3d3e28514c744",
+      "server_log_sha256": "60c0a2f98be368bd763179b68d9f773b4e589f8b3272173a88ce96588d0b667b",
+      "input_pack_archive_sha256": "8f83353bd77822594517531d202cb6468d9afeefff7dd73e217d15aab92528e6"
+    },
+    "candidate": {
+      "assertions": 200,
+      "passed": true,
+      "evidence": "candidate/keyed-literal-evidence.json",
+      "pack_sha256": "cbbd99073c5a2ca33088e4841b9b25b1c3a3d387b23a16689a133c0f9bde7de8",
+      "harness_sha256": "77648f6eae827515812adcc30dacb5b38b0b764adfa117bc1de3d3e28514c744",
+      "server_log_sha256": "860f8b7e91e938a6b7e0a91978efc03aaa819da75b178730db7363d161bd4f61",
+      "input_pack_archive_sha256": "d9caa585a2150ff9a0bd43c95780b3ea782104abe5c50d85f2c8a787a3b2606b"
+    }
+  },
+  "full_gate": {
+    "passed": true,
+    "log": "full-validation.log.gz",
+    "uncompressed_sha256": "cffebeb299367a0aea910c63ca07b63841c1fb09c51964376dccb1bfe2a4d35d"
+  },
+  "limits": [
+    "No universal death cleanup or dormant purge. Offline/unloaded retention remains.",
+    "Cleanup fixture adds a prior-value/nested-owner observation hook on candidate only; production detach counts are reported, not an apples-to-apples optimization claim.",
+    "Successful mutation counts cover data modify/remove. Executed scratch-count stores are separately counted, not classified by whether the stored value changed.",
+    "Single wall samples include console/JIT/host noise; no MSPT, percentiles or wall-clock complexity guarantee.",
+    "Migration remains bounded in rows/commands, not arbitrary payload bytes."
+  ],
+  "checks": {
+    "keyed_core": 11,
+    "state_lifecycle": 21,
+    "python_harness": 17
+  },
+  "runtime_baseline": {
+    "before_functions": 121,
+    "after_functions": 149,
+    "added": [
+      "rpg:__sand_entity/6589a48cdeecff/acknowledge/0",
+      "rpg:__sand_entity/6589a48cdeecff/acknowledge/1",
+      "rpg:__sand_entity/6589a48cdeecff/changes/0",
+      "rpg:__sand_entity/6589a48cdeecff/changes/1",
+      "rpg:__sand_entity/6589a48cdeecff/cleanup",
+      "rpg:__sand_entity/6589a48cdeecff/initialize",
+      "rpg:__sand_entity/6589a48cdeecff/load",
+      "rpg:__sand_entity/6589a48cdeecff/provision",
+      "rpg:__sand_entity/6589a48cdeecff/reconcile",
+      "rpg:__sand_entity/6589a48cdeecff/reconcile_scan",
+      "rpg:__sand_entity/6589a48cdeecff/reset_internal_causes",
+      "unified_state:attach_keepsake",
+      "unified_state:attach_shared_status",
+      "unified_state:detach_armored_status",
+      "unified_state:detach_keeper_status",
+      "unified_state:detach_keepsake",
+      "unified_state:prepare_status_cleanup",
+      "unified_state:sand/state_data/keyed/0017a1c9",
+      "unified_state:sand/state_data/keyed/02dcf30d",
+      "unified_state:sand/state_data/keyed/384879fb",
+      "unified_state:sand/state_data/keyed/43365d2d",
+      "unified_state:sand/state_data/keyed/b09ba8db",
+      "unified_state:sand/state_data/prune/b2561c78",
+      "unified_state:sand/state_data/prune/f6755f91",
+      "unified_state:sand/state_data/remove/2f33338e",
+      "unified_state:sand/state_data/remove/4b8fb6ae",
+      "unified_state:sand/state_data/remove/e82e7add",
+      "unified_state:sand/state_data/write/365cc25f"
+    ],
+    "removed": []
+  }
+}

@@ -75,6 +75,32 @@ pub struct Status {
     pub template: Data<String>,
 }
 
+// The native lifecycle audit traces these reads to prove cleanup sees old
+// values and that a nested owner read cannot redirect subsequent reclamation.
+#[state_lifecycle]
+impl StateLifecycle for Status {
+    fn cleanup(ctx: StateCleanup) -> Vec<String> {
+        let state = Status::on(EntityContext::<ZombieKind>::default());
+        let mut commands = vec![
+            "say SAND_STATUS_CLEANUP".into(),
+            format!(
+                "scoreboard players get {} {}",
+                ctx.holder(),
+                Status::poisoned.objective()
+            ),
+        ];
+        commands.extend(state.template.get());
+        commands.extend(
+            state
+                .template
+                .get()
+                .into_iter()
+                .map(|line| format!("execute as @e[tag=keyed_literal_b,limit=1] run {line}")),
+        );
+        commands
+    }
+}
+
 #[derive(State)]
 #[state(namespace = "rpg", scope = living)]
 pub struct Dead;
@@ -210,6 +236,31 @@ pub fn detach_status() {
     Status::detach(EntityContext::<ZombieKind>::default());
 }
 
+#[function]
+pub fn prepare_status_cleanup() {
+    Status::on(EntityContext::<ZombieKind>::default())
+        .poisoned
+        .enable();
+}
+
+/// A second independently retained component used by the lifecycle audit.
+#[derive(State)]
+#[state(namespace = "rpg", scope = living)]
+pub struct Keepsake {
+    #[state(default_snbt = "{value:19}")]
+    pub memory: Data<serde_json::Value>,
+}
+
+#[function]
+pub fn attach_keepsake() {
+    Keepsake::attach(EntityContext::<ZombieKind>::default());
+}
+
+#[function]
+pub fn detach_keepsake() {
+    Keepsake::detach(EntityContext::<ZombieKind>::default());
+}
+
 #[derive(Archetype)]
 #[archetype(id = "rpg:armored_zombie", entity = ZombieKind, configure = Self::configure)]
 #[allow(dead_code)]
@@ -221,6 +272,31 @@ impl ArmoredZombie {
     fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
         archetype.adopt(Adoption::natural_and_external().every(Ticks::new(20)))
     }
+}
+
+/// A second archetype sharing Status without installing automatic adoption.
+#[derive(Archetype)]
+#[archetype(id = "rpg:status_keeper", entity = ZombieKind)]
+#[allow(dead_code)]
+pub struct StatusKeeper {
+    pub status: Status,
+}
+
+#[function]
+pub fn attach_shared_status() {
+    let entity = EntityContext::<ZombieKind>::default();
+    ArmoredZombie::attach(entity);
+    StatusKeeper::attach(entity);
+}
+
+#[function]
+pub fn detach_armored_status() {
+    ArmoredZombie::detach(EntityContext::<ZombieKind>::default());
+}
+
+#[function]
+pub fn detach_keeper_status() {
+    StatusKeeper::detach(EntityContext::<ZombieKind>::default());
 }
 
 #[function]

@@ -1,0 +1,100 @@
+keyed_literal_probe:trace_scale_cleanup
+    [F] keyed_literal_probe:trace_scale_cleanup size=1
+        [C] execute as @e[tag=keyed_scale,limit=1] run function unified_state:detach_status
+            [M] Running function unified_state:detach_status
+        [F] unified_state:detach_status size=17
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run say SAND_STATUS_CLEANUP -> 1
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run scoreboard players get @s se09bae1a255736b
+                [M] Zombie has 0 [se09bae1a255736b]
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run scoreboard players get @s se09bae1a255736b
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID -> 0
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/ce36e3c9
+            [F] unified_state:sand/state_data/keyed/ce36e3c9/3601370 size=2
+                [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                [C] data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status".template
+                    [M] Storage rpg:state has the following contents: '$(missing) $(u0) "quoted" \\ path'
+                [R = 32] data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status".template
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run execute as @e[tag=keyed_literal_b,limit=1] run execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run execute as @e[tag=keyed_literal_b,limit=1] run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [M] Modified storage rpg:state
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run execute as @e[tag=keyed_literal_b,limit=1] run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run execute if score @s s2eb987913797037 matches 1.. run execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/ce36e3c9
+            [F] unified_state:sand/state_data/keyed/ce36e3c9/3601370 size=2
+                [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                [C] data get storage rpg:state owners_v2."[I;-1673206409,1890534810,-1758445384,1619077861]".components."status".template
+                    [E] Found no elements matching owners_v2."[I;-1673206409,1890534810,-1758445384,1619077861]"                        [M] Found no elements matching owners_v2."[I;-1673206409,1890534810,-1758445384,1619077861]"
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s se09bae1a255736b
+                [M] Reset [se09bae1a255736b] for Zombie
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s se09bae1a255736b
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s s7b98a5795bc20c5
+                [M] Reset [s7b98a5795bc20c5] for Zombie
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s s7b98a5795bc20c5
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s sfe8d54b59e2dece
+                [M] Reset [sfe8d54b59e2dece] for Zombie
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s sfe8d54b59e2dece
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s sd1f3dd6c3704160
+                [M] Reset [sd1f3dd6c3704160] for Zombie
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s sd1f3dd6c3704160
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s s5bd00e734ccd771
+                [M] Reset [s5bd00e734ccd771] for Zombie
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s s5bd00e734ccd771
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run function unified_state:sand/state_data/remove/2f33338e
+                [M] Running function unified_state:sand/state_data/remove/2f33338e
+            [F] unified_state:sand/state_data/remove/2f33338e size=3
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [C] function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/26c000e1
+                [F] unified_state:sand/state_data/keyed/26c000e1/3601370 size=2
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status".details
+                        [M] Modified storage rpg:state
+                    [R = 1] data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status".details
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run function unified_state:sand/state_data/remove/4b8fb6ae
+                [M] Running function unified_state:sand/state_data/remove/4b8fb6ae
+            [F] unified_state:sand/state_data/remove/4b8fb6ae size=3
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/317fc373
+                [F] unified_state:sand/state_data/keyed/317fc373/3601370 size=2
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status".template
+                        [M] Modified storage rpg:state
+                    [R = 1] data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status".template
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run function unified_state:sand/state_data/prune/f6755f91
+                [M] Running function unified_state:sand/state_data/prune/f6755f91
+            [F] unified_state:sand/state_data/prune/f6755f91 size=3
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/0017a1c9
+                [F] unified_state:sand/state_data/keyed/0017a1c9/3601370 size=8
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"{} store result storage rpg:state __sand_owner.children int 1 run data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"
+                        [M] Storage rpg:state has the following contents: {}
+                    [R = 1] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"{} store result storage rpg:state __sand_owner.children int 1 run data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"{} if data storage rpg:state __sand_owner{children:0} run data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"
+                        [M] Modified storage rpg:state
+                    [R = 1] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"{} if data storage rpg:state __sand_owner{children:0} run data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components."status"
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components{} store result storage rpg:state __sand_owner.children int 1 run data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components
+                        [M] Storage rpg:state has the following contents: {retained: {n: 23}}
+                    [R = 1] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components{} store result storage rpg:state __sand_owner.children int 1 run data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components{} if data storage rpg:state __sand_owner{children:0} run data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]".components
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"{uuid:[I;-2147483648,2147483647,-1,1]} store result storage rpg:state __sand_owner.children int 1 run data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"
+                        [M] Storage rpg:state has the following contents: {components: {retained: {n: 23}}, uuid: [I; -2147483648, 2147483647, -1, 1], unknown: {keep: 1}}
+                    [R = 1] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"{uuid:[I;-2147483648,2147483647,-1,1]} store result storage rpg:state __sand_owner.children int 1 run data get storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"{uuid:[I;-2147483648,2147483647,-1,1]} if data storage rpg:state __sand_owner{children:1} run data remove storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"
+                    [C] data remove storage rpg:state __sand_owner.children
+                        [M] Modified storage rpg:state
+                    [R = 1] data remove storage rpg:state __sand_owner.children
+            [C] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s s2eb987913797037
+                [M] Reset [s2eb987913797037] for Zombie
+            [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run scoreboard players reset @s s2eb987913797037

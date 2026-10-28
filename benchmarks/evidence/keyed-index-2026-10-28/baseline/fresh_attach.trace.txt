@@ -1,0 +1,69 @@
+keyed_literal_probe:trace_attach
+    [F] keyed_literal_probe:trace_attach size=1
+        [C] execute as @e[tag=keyed_literal_a,limit=1] run function unified_state:attach_zombie_components
+            [M] Running function unified_state:attach_zombie_components
+        [F] unified_state:attach_zombie_components size=17
+            [C] execute unless score @s s615dcd33728ccd5 matches -2147483648.. run scoreboard players set @s s615dcd33728ccd5 2
+            [C] execute unless score @s s1e0781fcab3a98d matches -2147483648.. run scoreboard players set @s s1e0781fcab3a98d 0
+            [C] execute if score @s saccea77c2a68f21 matches 1 run say migrated attack 1 -> 2
+            [C] execute if score @s saccea77c2a68f21 matches 1 run scoreboard players set @s saccea77c2a68f21 2
+            [C] execute unless score @s saccea77c2a68f21 matches 1.. run scoreboard players set @s saccea77c2a68f21 2
+            [C] execute unless score @s s0e7e180252e8293 matches -2147483648.. run scoreboard players set @s s0e7e180252e8293 0
+            [C] execute unless score @s sf6b3b5339f91c43 matches -2147483648.. run scoreboard players set @s sf6b3b5339f91c43 0
+            [C] execute unless score @s s6df686008bc2641 matches 1.. run scoreboard players set @s s6df686008bc2641 1
+            [C] execute unless score @s se09bae1a255736b matches -2147483648.. run scoreboard players set @s se09bae1a255736b 0
+                [M] Set [se09bae1a255736b] for Zombie to 0
+            [R = 1] execute unless score @s se09bae1a255736b matches -2147483648.. run scoreboard players set @s se09bae1a255736b 0
+            [C] execute unless score @s sfe8d54b59e2dece matches -2147483648.. run scoreboard players set @s sfe8d54b59e2dece 0
+                [M] Set [sfe8d54b59e2dece] for Zombie to 0
+            [R = 1] execute unless score @s sfe8d54b59e2dece matches -2147483648.. run scoreboard players set @s sfe8d54b59e2dece 0
+            [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [E] Nothing changed. The specified properties already have these values                    [M] Nothing changed. The specified properties already have these values
+            [C] function unified_state:sand/state_data/keyed/357d0774 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/357d0774
+            [F] unified_state:sand/state_data/keyed/357d0774/3601370 size=2
+                [C] execute unless data storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}] run data modify storage rpg:state owners append value {uuid:[I;675093313,1882407560,-1369707545,521003454],components:{}}
+                [C] execute unless data storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}].components."status".details run function unified_state:sand/state_data/write/41176797
+                    [M] Running function unified_state:sand/state_data/write/41176797
+                [F] unified_state:sand/state_data/write/41176797 size=4
+                    [C] data remove storage rpg:state __sand_owner.value
+                        [E] Nothing changed. The specified properties already have these values                            [M] Nothing changed. The specified properties already have these values
+                    [C] data modify storage rpg:state __sand_owner.value set value {stacks:0,note:"clean"}
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state __sand_owner.value set value {stacks:0,note:"clean"}
+                    [C] function unified_state:sand/state_data/keyed/91c6cf1a with storage rpg:state __sand_owner
+                        [M] Running function unified_state:sand/state_data/keyed/91c6cf1a
+                    [F] unified_state:sand/state_data/keyed/91c6cf1a/3601370 size=1
+                        [C] data modify storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}].components."status".details set from storage rpg:state __sand_owner.value
+                            [M] Modified storage rpg:state
+                        [R = 1] data modify storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}].components."status".details set from storage rpg:state __sand_owner.value
+                    [C] data remove storage rpg:state __sand_owner.value
+                        [M] Modified storage rpg:state
+                    [R = 1] data remove storage rpg:state __sand_owner.value
+            [C] function unified_state:sand/state_data/keyed/0594fae3 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/0594fae3
+            [F] unified_state:sand/state_data/keyed/0594fae3/3601370 size=2
+                [C] execute unless data storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}] run data modify storage rpg:state owners append value {uuid:[I;675093313,1882407560,-1369707545,521003454],components:{}}
+                [C] execute unless data storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}].components."status".template run function unified_state:sand/state_data/write/36957b6c
+                    [M] Running function unified_state:sand/state_data/write/36957b6c
+                [F] unified_state:sand/state_data/write/36957b6c size=4
+                    [C] data remove storage rpg:state __sand_owner.value
+                        [E] Nothing changed. The specified properties already have these values                            [M] Nothing changed. The specified properties already have these values
+                    [C] data modify storage rpg:state __sand_owner.value set value "$(u0)"
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state __sand_owner.value set value "$(u0)"
+                    [C] function unified_state:sand/state_data/keyed/1c3bae1e with storage rpg:state __sand_owner
+                        [M] Running function unified_state:sand/state_data/keyed/1c3bae1e
+                    [F] unified_state:sand/state_data/keyed/1c3bae1e/3601370 size=1
+                        [C] data modify storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}].components."status".template set from storage rpg:state __sand_owner.value
+                            [M] Modified storage rpg:state
+                        [R = 1] data modify storage rpg:state owners[{uuid:[I;675093313,1882407560,-1369707545,521003454]}].components."status".template set from storage rpg:state __sand_owner.value
+                    [C] data remove storage rpg:state __sand_owner.value
+                        [M] Modified storage rpg:state
+                    [R = 1] data remove storage rpg:state __sand_owner.value
+            [C] execute unless score @s s2eb987913797037 matches 1.. run scoreboard players set @s s2eb987913797037 1
+                [M] Set [s2eb987913797037] for Zombie to 1
+            [R = 1] execute unless score @s s2eb987913797037 matches 1.. run scoreboard players set @s s2eb987913797037 1
+            [C] execute unless score @s s4f1c993b1021717 matches -2147483648.. run scoreboard players set @s s4f1c993b1021717 20
+            [C] execute unless score @s s107b0821dd576e3 matches 1.. run scoreboard players set @s s107b0821dd576e3 1

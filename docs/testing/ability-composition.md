@@ -16,7 +16,8 @@ changed by this workstream. Indexed ownership and reclamation are separate work.
   can share one cooldown/pool; different bound fields remain independent.
 - Maintenance registers once per pool with a consumer function identity. Duplicate
   identity registration fails; a second ability adds no maintenance. Canonical
-  State bounds, auto-ticking, initialization and persistence remain authoritative.
+  State bounds (zero lower bound, matching capacity upper bound), auto-ticking,
+  initialization and persistence remain authoritative.
 - A later native operation failure or callback early return does not undo payment.
   Effect-only callbacks are not safe activation entrypoints.
 - Construction/discard adds no generated resources compared with the same State

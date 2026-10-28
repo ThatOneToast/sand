@@ -7,7 +7,7 @@ with a bound Cooldown, cost, duration and eligibility Condition.
 They use the same public State, Conditions, Actions and registration APIs as
 ordinary datapack code. No gameplay constants or hidden player data are supplied.
 
-Declare defaults and bounds on your own State schema, and mark the cooldown and
+Declare defaults and bounds `0..capacity` on your own State schema, and mark the cooldown and
 regeneration Timer `auto_tick`. Bind those fields to the event's player or an
 injected `EntityContext<PlayerKind>`. The pool capacity expression must agree
 with the State upper bound: State remains the authority for saturating writes.

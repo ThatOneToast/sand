@@ -11,11 +11,12 @@ use crate::registration::{DatapackRegistration, IntoDatapack, LifecycleContribut
 
 /// A view of a consumer-owned integer State resource and its capacity expression.
 ///
-/// Declare the field's bounds on the State schema: this view does not install a
+/// Declare a zero lower bound and the capacity upper bound on the State schema.
+/// This view does not inspect or override those bounds and does not install a
 /// second storage model or clamp policy. Capacity should match the schema's upper
 /// bound. Multiple abilities may copy the same view without scheduling maintenance.
 #[derive(Clone)]
-#[sand_macros::api(path = "sand::systems::ability::ResourcePool", module = "sand::systems::ability", summary = "A view of a consumer-owned integer State resource and its capacity expression.", context = "A view of a consumer-owned integer State resource and its capacity expression.  Declare the field's bounds on the State schema: this view does not install a second storage model or clamp policy. Capacity should match the schema's upper bound. Multiple abilities may copy the same view without scheduling maintenance.", minecraft = "Uses canonical State writes and grouped Conditions in the ordinary export pipeline.", use_when = ["Composing shared resources and accepted-target abilities"], avoid_when = ["Transactional rollback or asynchronous target ownership is required"], example = "use sand::systems::ability::{Ability, ResourcePool, ResourceMaintenance};")]
+#[sand_macros::api(path = "sand::systems::ability::ResourcePool", module = "sand::systems::ability", summary = "A view of a consumer-owned integer State resource and its capacity expression.", context = "A view of a consumer-owned integer State resource and its capacity expression.  Declare a zero lower bound and the capacity upper bound on the State schema. This view does not inspect or override those bounds and does not install a second storage model or clamp policy. Capacity should match the schema's upper bound. Multiple abilities may copy the same view without scheduling maintenance.", minecraft = "Uses canonical State writes and grouped Conditions in the ordinary export pipeline.", use_when = ["Composing shared resources and accepted-target abilities"], avoid_when = ["Transactional rollback or asynchronous target ownership is required"], example = "use sand::systems::ability::{Ability, ResourcePool, ResourceMaintenance};")]
 pub struct ResourcePool {
     value: EntityScoreAccessor,
     capacity: StatCurve,
@@ -24,7 +25,7 @@ pub struct ResourcePool {
 impl ResourcePool {
     /// Bind a State score and the expression used to skip restoration at capacity.
     /// No resources or runtime work are registered by construction.
-    #[sand_macros::api(path = "sand::systems::ability::ResourcePool::new", params(value = "The bound consumer State score.", capacity = "Capacity expression matching the State upper bound."), returns = "An inert resource view.", module = "sand::systems::ability", summary = "Bind a State score and the expression used to skip restoration at capacity.", context = "Bind a State score and the expression used to skip restoration at capacity. No resources or runtime work are registered by construction.", minecraft = "Uses canonical State writes and grouped Conditions in the ordinary export pipeline.", use_when = ["Composing shared resources and accepted-target abilities"], avoid_when = ["Transactional rollback or asynchronous target ownership is required"], example = "use sand::systems::ability::{Ability, ResourcePool, ResourceMaintenance};")]
+    #[sand_macros::api(path = "sand::systems::ability::ResourcePool::new", params(value = "The bound consumer State score, declared with zero lower bound and capacity upper bound.", capacity = "Capacity expression matching the State upper bound."), returns = "An inert resource view.", module = "sand::systems::ability", summary = "Bind a State score and the expression used to skip restoration at capacity.", context = "Bind a State score and the expression used to skip restoration at capacity. No resources or runtime work are registered by construction.", minecraft = "Uses canonical State writes and grouped Conditions in the ordinary export pipeline.", use_when = ["Composing shared resources and accepted-target abilities"], avoid_when = ["Transactional rollback or asynchronous target ownership is required"], example = "use sand::systems::ability::{Ability, ResourcePool, ResourceMaintenance};")]
     pub fn new(value: EntityScoreAccessor, capacity: impl Into<StatCurve>) -> Self {
         Self {
             value,

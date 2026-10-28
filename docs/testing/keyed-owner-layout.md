@@ -67,8 +67,11 @@ write intent; a server message gives inspection instructions. Back up storage
 before repair. Repair the current source or destination deliberately, preserving
 unknown fields. Clear the error and uncommitted journal only once the ambiguity
 has been resolved; do not reset the cursor or delete previously committed map
-entries. Do not concurrently edit legacy rows behind the cursor or run an older
-pack writing the legacy layout during migration. Unknown schema versions stop.
+entries. Do not concurrently edit legacy rows or committed destinations behind
+the cursor, forge compiler-owned journal/completion receipts, or run an older
+pack writing the legacy layout during migration. Unknown schema versions and
+wrong-type or out-of-range cursors stop. Completed receipts are trusted; this is
+resumption of compiler-owned work, not recovery from arbitrary external edits.
 
 ## Reclamation extension contract
 

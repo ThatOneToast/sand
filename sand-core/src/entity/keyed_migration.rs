@@ -148,6 +148,15 @@ pub(crate) fn lifecycle(storage: &str) -> (String, String, String) {
             format!("execute if data {s} {m}.error run return fail"),
             format!("execute unless data {s} {m}{{version:1}} run {invalid}"),
             format!("execute if data {s} {m}.error run return fail"),
+            format!("execute unless data {s} {m}.cursor run {invalid}"),
+            format!("execute if data {s} {m}.error run return fail"),
+            format!("execute store result {s} {m}.cursor_number int 1 run data get {s} {m}.cursor"),
+            format!("data modify {s} {m}.cursor_check set from {s} {m}.cursor"),
+            format!(
+                "execute store success {s} {m}.bad_cursor int 1 run data modify {s} {m}.cursor_check set from {s} {m}.cursor_number"
+            ),
+            format!("execute if data {s} {m}{{bad_cursor:1}} run {invalid}"),
+            format!("execute if data {s} {m}.error run return fail"),
             format!(
                 "execute if data {s} {m}{{finishing:1b}} run return run {}",
                 call("finish")

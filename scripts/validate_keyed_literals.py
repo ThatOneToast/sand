@@ -604,6 +604,17 @@ class KeyedLiteralHarness(PlayerHarness):
             steps(3)
             self.check(label + "_JOURNAL_BLOCKED", "if data storage rpg:state __sand_keyed.error")
             self.check(label + "_DORMANT_SOURCE_RETAINED", "if data storage rpg:state owners[1].components.offline{value:91}")
+        for label, metadata in (
+            ("STRING_CURSOR", '{version:1,cursor:"0"}'),
+            ("BYTE_CURSOR", "{version:1,cursor:0b}"),
+            ("MISSING_CURSOR", "{version:1}"),
+            ("NEGATIVE_CURSOR", "{version:1,cursor:-1}"),
+            ("LARGE_CURSOR", "{version:1,cursor:99}"),
+        ):
+            seed(f"[{row},{dormant}]", metadata)
+            steps(2)
+            self.check(label + "_BLOCKED", "if data storage rpg:state __sand_keyed.error")
+            self.check(label + "_SOURCE_RETAINED", "if data storage rpg:state owners[0].unknown{keep:1}")
         seed(f"[{row}]", "{version:3,cursor:0}")
         steps(2)
         self.check("UNKNOWN_VERSION_BLOCKED", "if data storage rpg:state __sand_keyed.error")

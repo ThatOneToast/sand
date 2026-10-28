@@ -599,6 +599,17 @@ class KeyedLiteralHarness(PlayerHarness):
         steps(6)
         self.check("CURSOR_COMMITTED_RETRY", 'if data storage rpg:state owners_v2."[I;0,-1,2147483647,-2147483648]".components.offline{value:91}')
         self.check("CURSOR_COMMITTED_COMPLETE", "if data storage rpg:state __sand_keyed{version:2}")
+        # Retirement itself is durable on either side of source removal.
+        for removed in (False, True):
+            seed(f"[{row}]", "{version:1,cursor:1,finishing:1b}")
+            self.send(f"data modify storage rpg:state {key} set value {row}")
+            if removed:
+                self.send("data remove storage rpg:state owners")
+            steps(2)
+            suffix = "AFTER_REMOVE" if removed else "BEFORE_REMOVE"
+            self.check("FINISH_" + suffix, "if data storage rpg:state __sand_keyed{version:2}")
+            self.check("FINISH_RETAINS_" + suffix, f"if data storage rpg:state {key}.unknown{{keep:1}}")
+            self.check("FINISH_RETIRED_" + suffix, "unless data storage rpg:state owners")
         for label, rows in (
             ("DUPLICATE", f"[{row},{row}]"),
             ("CONFLICTING_DUPLICATE", f"[{row},{{uuid:{uuid},components:{{other:{{n:999}}}}}}]"),

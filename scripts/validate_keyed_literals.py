@@ -188,6 +188,9 @@ class KeyedLiteralHarness(PlayerHarness):
         ):
             (functions / f"trace_{name}.mcfunction").write_text(
                 f"execute as {actor} run function unified_state:{target}\n")
+        if indexed:
+            (functions / "trace_present.mcfunction").write_text(
+                "execute as @e[tag=keyed_literal_a,limit=1] run function unified_state:present_entity_literal\n")
         (functions / "loaded.mcfunction").write_text(f"say {RELOADED}\n")
         get = "unified_state:get_entity_literal" if indexed else f"{PROBE}:get"
         (functions / "trace_get.mcfunction").write_text(
@@ -340,7 +343,7 @@ class KeyedLiteralHarness(PlayerHarness):
         # commands. Measure that exported shape, not a per-field multiplication.
         expected = ({"fresh_attach": 12, "existing_attach": 4, "existing_attach_repeat": 4, "same_owner_get": 4}.get(label, 8)
                     if self.owner_read_count == 4 else
-                    {"fresh_attach": 1, "existing_attach": 1, "existing_attach_repeat": 1, "same_owner_get": 1}.get(label, 2))
+                    {"fresh_attach": 1, "existing_attach": 1, "existing_attach_repeat": 1, "same_owner_get": 1, "actual_nested": 3}.get(label, 2))
         if reads != expected:
             raise ValidationFailure("keyed-trace", f"{label}: expected {expected} UUID reads, got {reads}")
 
@@ -385,6 +388,13 @@ class KeyedLiteralHarness(PlayerHarness):
                 self.send(f"execute as {first} run function unified_state:present_entity_literal")
                 self.wait_for("SAND_KEYED_PRESENT", "actual-presence-callback", start)
                 self.checks["ACTUAL_PRESENCE_NESTED_CALLBACK"] = True
+                self.trace("actual_nested", "present")
+                nested_trace = (self.output / "actual_nested.trace.txt").read_text()
+                returned_lengths = [int(value) for value in re.findall(
+                    r"\[R = ([0-9]+)\] data get storage rpg:state .*\.template$", nested_trace, re.MULTILINE)]
+                if returned_lengths != [len("$(u0)"), len(LITERAL)]:
+                    raise ValidationFailure("actual-nested-values", f"expected B then A values, got get results {returned_lengths}")
+                self.checks["ACTUAL_NESTED_VALUE_ORACLE"] = True
                 self.expect("ACTUAL_NESTED_OUTER_RETAINED", first, "status", {"template": LITERAL})
                 self.expect("ACTUAL_NESTED_INNER_RETAINED", second, "status", {"template": "$(u0)"})
             # Observe the final macro call's result/success callback contract.
@@ -619,6 +629,7 @@ def main():
         "server_jar_sha256": hashlib.sha256(Path(args.jar).read_bytes()).hexdigest(),
         "host": {"platform": platform.platform(), "machine": platform.machine()},
         "harness_source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "harness_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--", "scripts"], text=True).strip()),
         "harness_dependencies": {name: hashlib.sha256((Path(__file__).parent / name).read_bytes()).hexdigest()
             for name in ("vanilla_reload_harness.py", "player_validation_harness.py", "validate_world_gameplay.py", "measure_archetype_idle.py", "mc_validation/minimal_join_client.py")},
         "java_version": subprocess.run([args.java, "-version"], capture_output=True, text=True).stderr.strip(),

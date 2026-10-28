@@ -266,28 +266,45 @@ pub fn set_entity_literals() {
     state.details.set(literal_payload());
 }
 
+/// A literal that resembles the actual whole-UUID macro parameter.
+#[function]
+pub fn set_entity_uuid_literal() {
+    Status::on(EntityContext::<ZombieKind>::default())
+        .template
+        .set(r#"literal $(uuid) \"quoted\" \\ path"#);
+}
+
 /// Native regression entry points for the actual keyed lowering.
 #[function]
 pub fn get_entity_literal() {
-    Status::on(EntityContext::<ZombieKind>::default()).template.get();
+    Status::on(EntityContext::<ZombieKind>::default())
+        .template
+        .get();
 }
 
 #[function]
 pub fn remove_entity_literal() {
-    Status::on(EntityContext::<ZombieKind>::default()).template.remove();
+    Status::on(EntityContext::<ZombieKind>::default())
+        .template
+        .remove();
 }
 
 #[function]
 pub fn present_entity_literal() {
-    Status::on(EntityContext::<ZombieKind>::default()).template.if_present(|| {
-        let state = Status::on(EntityContext::<ZombieKind>::default());
-        let mut commands = state.template.get().into_iter().map(|command|
-            format!("execute as @e[tag=keyed_literal_b,limit=1] run {command}")
-        ).collect::<Vec<_>>();
-        commands.extend(state.template.get());
-        commands.push("say SAND_KEYED_PRESENT".into());
-        commands
-    });
+    Status::on(EntityContext::<ZombieKind>::default())
+        .template
+        .if_present(|| {
+            let state = Status::on(EntityContext::<ZombieKind>::default());
+            let mut commands = state
+                .template
+                .get()
+                .into_iter()
+                .map(|command| format!("execute as @e[tag=keyed_literal_b,limit=1] run {command}"))
+                .collect::<Vec<_>>();
+            commands.extend(state.template.get());
+            commands.push("say SAND_KEYED_PRESENT".into());
+            commands
+        });
 }
 
 /// Store the same literal text without entity-keyed ownership.

@@ -472,6 +472,7 @@ class KeyedLiteralHarness(PlayerHarness):
                     raise ValidationFailure("missing-presence", "actual callback ran without an executor")
                 self.checks["ACTUAL_MISSING_PRESENCE"] = True
 
+        self.absent_owner_cases()
         if self.indexed:
             with self.clients():
                 self.expect("PLAYER_A_RECONNECT", "SandAlpha", "progression", {"template": LITERAL, "preferences": PAYLOAD})
@@ -479,6 +480,23 @@ class KeyedLiteralHarness(PlayerHarness):
             self.migration_cases()
         if os.environ.get("SAND_KEYED_SCALE") == "1":
             self.scaling_cases()
+
+    def absent_owner_cases(self):
+        """Legacy data-modify filters create owners; read/remove/presence do not."""
+        uuid = "[I;2147483647,-2147483648,0,-1]"
+        owner = f'owners_v2."{uuid}"' if self.indexed else f'owners[{{uuid:{uuid}}}]'
+        actor = '@e[tag=keyed_absent,limit=1]'
+        self.send('summon minecraft:zombie 0 100 0 {UUID:' + uuid + ',Tags:["keyed_absent"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}')
+        for operation in ("get", "remove", "present"):
+            self.send(f"execute as {actor} run function {PROBE}:{operation}")
+        self.check("ABSENT_READS_DO_NOT_CREATE", "unless data storage rpg:state " + owner)
+        self.send(f"execute as {actor} run function unified_state:set_entity_literals")
+        self.check("ABSENT_SET_CREATES_OWNER", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": LITERAL, "details": PAYLOAD}))
+        self.check("ABSENT_SET_RETAINS_UUID", f"if data storage rpg:state {owner}{{uuid:{uuid}}}")
+        if self.indexed:
+            self.send(f"execute as {actor} run function unified_state:set_entity_uuid_literal")
+            self.check("LITERAL_UUID_PARAMETER", f"if data storage rpg:state {owner}.components.status" + json.dumps({"template": r'literal $(uuid) \"quoted\" \\ path'}))
+            self.check("LITERAL_UUID_STAGING_CLEAN", "unless data storage rpg:state __sand_owner.value")
 
     def migration_cases(self):
         """Drive the exported migrator with independent literal UUID/value oracles."""

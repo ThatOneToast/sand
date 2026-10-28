@@ -12,7 +12,9 @@ Every access still resolves its own executor. An unchanged copy still invokes
 the macro. Missing executors clear the UUID before the failed copy; macro
 instantiation then fails without accessing a previous owner. Authored values
 remain outside macro source, staged and cleaned up in an ordinary function.
-A set does not create an absent owner; State attachment creates the record.
+A set creates an absent owner, matching the legacy filtered data-modify path.
+Get, remove and presence checks do not create owners. State attachment also
+creates a missing record before applying field defaults.
 
 ## Upgrade protocol
 

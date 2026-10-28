@@ -101,3 +101,21 @@ team ran every Cargo/Java/build/full-check workload through
 `CARGO_INCREMENTAL=0` and the shared build target. Canonical runtime baselines
 come only from `scripts/check-examples.sh --update-runtime-baselines`; full
 validation is `scripts/check.sh` followed by `git diff --check`.
+
+The unchanged baseline pack predates the new exported get/remove/presence probe
+entry points. Its read workload replays the fail-closed extracted production
+UUID resolver and equivalent legacy getter macro. The candidate invokes its
+actual exported getter; setters invoke actual exported functions on both sides.
+Independent observer functions supply value oracles rather than borrowing the
+production operation's result as truth. This producer difference is a benchmark
+limit, not a claim that the old pack contained the new probe entry points.
+
+## Final validation
+
+The complete `scripts/check.sh` and following `git diff --check` passed.
+`validation.json` records the tested source, commands, results and log identities;
+`full-validation.log.gz` retains the complete successful serialized run. All six
+normal example baseline comparisons and all 13 portable/schema tests passed,
+including generated player-initializer helper resolution. Native results are
+50 baseline assertions and 161 candidate assertions. CI and external reviews
+are separate from these local results.

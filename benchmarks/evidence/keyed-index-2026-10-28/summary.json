@@ -368,7 +368,8 @@
     "Migration checkpoint is after first copied row, not peak memory/disk.",
     "Saved storage is the entire rpg namespace; unrelated fixture fields are retained. Gzip size depends on compression and NBT ordering.",
     "No MSPT, context reuse, reclamation or full #442 completion claim.",
-    "Successful mutation counters count positive native trace results for data modify/remove commands, not NBT nodes. They exclude execute-store storage side effects used by migration; total migration storage mutations were not measured. Steady get/set traces contain no execute-store storage side effects."
+    "Successful mutation counters count positive native trace results for data modify/remove commands, not NBT nodes. They exclude execute-store storage side effects used by migration; total migration storage mutations were not measured. Steady get/set traces contain no execute-store storage side effects.",
+    "The unchanged baseline predates exported getter probe entry points: its read probe replays the extracted production UUID resolver and equivalent legacy getter macro. Candidate reads and both setters invoke actual exported functions."
   ],
   "excluded_runs": [
     "baseline-initial",

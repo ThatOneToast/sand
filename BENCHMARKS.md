@@ -980,8 +980,10 @@ The [layout and upgrade contract](docs/testing/keyed-owner-layout.md) documents
 availability, bounded resumable migration, conflict repair and the separate
 reclamation extension point.
 
-The maintained native harness uses actual exported get/set/remove/presence
-operations and independent UUID/value observations. Standalone public handles
+The maintained native harness exercises actual candidate exported
+get/set/remove/presence operations and independent UUID/value observations.
+The unchanged baseline read probe replays its extracted resolver and equivalent
+legacy getter macro; both write probes invoke actual exports. Standalone public handles
 also receive canonical lifecycle provisioning without requiring a State schema. It covers signed integer
 boundaries, unchanged UUID copies, missing executors, alternating/nested owners,
 literal staging/cleanup, five owners within one game tick, actual load-tag

@@ -1,0 +1,94 @@
+{
+  "kind": "Read-only inspection of the exact vanilla 26.2 runtime class-file method references; not timing or command-budget measurements.",
+  "reproduction": "javap -c -p -classpath ~/.sand/cache/26.2/versions/26.2/server-26.2.jar <class>; inspect the named method. Inner-class names must be shell-quoted.",
+  "interpretation": "Legacy MatchElementNode streams, filters and visits list matches. CompoundChildNode accesses one named compound child. The inspected storage accessor/get methods contain no explicit root-copy call; this is not a complete allocation profile. MatchElementNode.getOrCreateTag copies its pattern and appends a missing matching element, so indexed set must preserve lazy owner creation. These facts support command-path design, not a whole-server MSPT bound.",
+  "methods": [
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/server/commands/data/StorageDataAccessor",
+      "method": "getData()Lnet/minecraft/nbt/CompoundTag;",
+      "references": [
+        "net/minecraft/server/commands/data/StorageDataAccessor.storageLnet/minecraft/world/level/storage/CommandStorage;",
+        "net/minecraft/server/commands/data/StorageDataAccessor.idLnet/minecraft/resources/Identifier;",
+        "net/minecraft/world/level/storage/CommandStorage.get(Lnet/minecraft/resources/Identifier;)Lnet/minecraft/nbt/CompoundTag;"
+      ]
+    },
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/world/level/storage/CommandStorage",
+      "method": "get(Lnet/minecraft/resources/Identifier;)Lnet/minecraft/nbt/CompoundTag;",
+      "references": [
+        "net/minecraft/resources/Identifier.getNamespace()Ljava/lang/String;",
+        "net/minecraft/world/level/storage/CommandStorage.getContainer(Ljava/lang/String;)Lnet/minecraft/world/level/storage/CommandStorage$Container;",
+        "net/minecraft/resources/Identifier.getPath()Ljava/lang/String;",
+        "net/minecraft/world/level/storage/CommandStorage$Container.get(Ljava/lang/String;)Lnet/minecraft/nbt/CompoundTag;",
+        "net/minecraft/nbt/CompoundTag.<init>()V"
+      ]
+    },
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/world/level/storage/CommandStorage$Container",
+      "method": "get(Ljava/lang/String;)Lnet/minecraft/nbt/CompoundTag;",
+      "references": [
+        "net/minecraft/world/level/storage/CommandStorage$Container.storageLjava/util/Map;",
+        "java/util/Map.get(Ljava/lang/Object;)Ljava/lang/Object;",
+        "net/minecraft/nbt/CompoundTag.<init>()V"
+      ]
+    },
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/server/commands/data/DataCommands",
+      "method": "manipulateData(Lcom/mojang/brigadier/context/CommandContext;Lnet/minecraft/server/commands/data/DataCommands$DataProvider;Lnet/minecraft/server/commands/data/DataCommands$DataManipulator;Ljava/util/List;)I",
+      "references": [
+        "net/minecraft/server/commands/data/DataCommands$DataProvider.access(Lcom/mojang/brigadier/context/CommandContext;)Lnet/minecraft/server/commands/data/DataAccessor;",
+        "net/minecraft/commands/arguments/NbtPathArgument.getPath(Lcom/mojang/brigadier/context/CommandContext;Ljava/lang/String;)Lnet/minecraft/commands/arguments/NbtPathArgument$NbtPath;",
+        "net/minecraft/server/commands/data/DataAccessor.getData()Lnet/minecraft/nbt/CompoundTag;",
+        "net/minecraft/server/commands/data/DataCommands$DataManipulator.modify(Lcom/mojang/brigadier/context/CommandContext;Lnet/minecraft/nbt/CompoundTag;Lnet/minecraft/commands/arguments/NbtPathArgument$NbtPath;Ljava/util/List;)I",
+        "net/minecraft/server/commands/data/DataCommands.ERROR_MERGE_UNCHANGEDLcom/mojang/brigadier/exceptions/SimpleCommandExceptionType;",
+        "com/mojang/brigadier/exceptions/SimpleCommandExceptionType.create()Lcom/mojang/brigadier/exceptions/CommandSyntaxException;",
+        "net/minecraft/server/commands/data/DataAccessor.setData(Lnet/minecraft/nbt/CompoundTag;)V",
+        "com/mojang/brigadier/context/CommandContext.getSource()Ljava/lang/Object;",
+        "net/minecraft/commands/CommandSourceStack.sendSuccess(Ljava/util/function/Supplier;Z)V"
+      ]
+    },
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/commands/arguments/NbtPathArgument$CompoundChildNode",
+      "method": "getTag(Lnet/minecraft/nbt/Tag;Ljava/util/List;)V",
+      "references": [
+        "net/minecraft/commands/arguments/NbtPathArgument$CompoundChildNode.nameLjava/lang/String;",
+        "net/minecraft/nbt/CompoundTag.get(Ljava/lang/String;)Lnet/minecraft/nbt/Tag;",
+        "java/util/List.add(Ljava/lang/Object;)Z"
+      ]
+    },
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/commands/arguments/NbtPathArgument$MatchElementNode",
+      "method": "getTag(Lnet/minecraft/nbt/Tag;Ljava/util/List;)V",
+      "references": [
+        "net/minecraft/nbt/ListTag.stream()Ljava/util/stream/Stream;",
+        "net/minecraft/commands/arguments/NbtPathArgument$MatchElementNode.predicateLjava/util/function/Predicate;",
+        "java/util/stream/Stream.filter(Ljava/util/function/Predicate;)Ljava/util/stream/Stream;",
+        "java/util/Objects.requireNonNull(Ljava/lang/Object;)Ljava/lang/Object;",
+        "java/util/stream/Stream.forEach(Ljava/util/function/Consumer;)V"
+      ]
+    },
+    {
+      "server_runtime_jar_sha256": "183c0499c5f855570ee487dd38e141a53f0121f83a0b07a3bac2d8b6698823e8",
+      "class": "net/minecraft/commands/arguments/NbtPathArgument$MatchElementNode",
+      "method": "getOrCreateTag(Lnet/minecraft/nbt/Tag;Ljava/util/function/Supplier;Ljava/util/List;)V",
+      "references": [
+        "org/apache/commons/lang3/mutable/MutableBoolean.<init>()V",
+        "net/minecraft/nbt/ListTag.stream()Ljava/util/stream/Stream;",
+        "net/minecraft/commands/arguments/NbtPathArgument$MatchElementNode.predicateLjava/util/function/Predicate;",
+        "java/util/stream/Stream.filter(Ljava/util/function/Predicate;)Ljava/util/stream/Stream;",
+        "java/util/stream/Stream.forEach(Ljava/util/function/Consumer;)V",
+        "org/apache/commons/lang3/mutable/MutableBoolean.isFalse()Z",
+        "net/minecraft/commands/arguments/NbtPathArgument$MatchElementNode.patternLnet/minecraft/nbt/CompoundTag;",
+        "net/minecraft/nbt/CompoundTag.copy()Lnet/minecraft/nbt/CompoundTag;",
+        "net/minecraft/nbt/ListTag.add(Ljava/lang/Object;)Z",
+        "java/util/List.add(Ljava/lang/Object;)Z"
+      ]
+    }
+  ]
+}

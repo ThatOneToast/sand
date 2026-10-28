@@ -1,0 +1,270 @@
+{
+  "minecraft": "26.2",
+  "complete": true,
+  "checks": {
+    "NATURAL_DEFAULT_SandAlpha": true,
+    "NATURAL_DEFAULT_SandBeta": true,
+    "ENTITY_A_DEFAULT": true,
+    "ENTITY_B_DEFAULT": true,
+    "GLOBAL_DEFAULT": true,
+    "PLAYER_A_LITERALS": true,
+    "PLAYER_B_UNCHANGED": true,
+    "ENTITY_A_LITERALS": true,
+    "ENTITY_B_UNCHANGED": true,
+    "GLOBAL_LITERAL": true,
+    "STAGING_CLEAN": true,
+    "NESTED_CALLBACK": true,
+    "NESTED_OWNER_RESOLUTION": true,
+    "NESTED_OUTER_RETAINED": true,
+    "NESTED_INNER_RETAINED": true,
+    "VALID_A_RESULT": true,
+    "VALID_A_SUCCESS": true,
+    "VALID_B_RESULT": true,
+    "VALID_B_SUCCESS": true,
+    "PLAYER_A_RELOAD": true,
+    "PLAYER_B_RELOAD": true,
+    "ENTITY_A_RELOAD": true,
+    "ENTITY_B_RELOAD": true,
+    "GLOBAL_RELOAD": true,
+    "RELOAD_STAGING_CLEAN": true,
+    "DETACHED_TEMPLATE": true,
+    "DETACHED_PAYLOAD": true,
+    "OTHER_ENTITY_RETAINED": true,
+    "PLAYER_RETAINED": true,
+    "MISSING_EXECUTOR_NO_STALE_WRITE": true,
+    "MISSING_EXECUTOR_STAGING_CLEAN": true,
+    "MISSING_GET_RESULT": true,
+    "MISSING_GET_SUCCESS": true,
+    "MISSING_EXECUTOR_NO_STALE_REMOVE": true,
+    "MISSING_EXECUTOR_NO_CALLBACK": true,
+    "MISSING_EXECUTOR_UUID_CLEARED": true,
+    "SAME_TICK_SandAlpha": true,
+    "SAME_TICK_SandBeta": true,
+    "SAME_TICK_ENTITY_A": true,
+    "SAME_TICK_ENTITY_B": true,
+    "ABSENT_READS_DO_NOT_CREATE": true,
+    "ABSENT_SET_CREATES_OWNER": true,
+    "ABSENT_SET_RETAINS_UUID": true,
+    "THIRD_OWNER_NO_BLEED_A": true,
+    "THIRD_OWNER_NO_BLEED_B": true,
+    "TWO_PLAYERS_THREE_ENTITIES_ONE_TICK": true,
+    "SCALE_ACTIVE_EXECUTOR": true,
+    "SCALE_10_CHANGED_VALUE": true,
+    "SCALE_1000_CHANGED_VALUE": true,
+    "SCALE_10000_CHANGED_VALUE": true
+  },
+  "input_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
+  "source_revision": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
+  "harness_sha256": "251e88dce6bcadb3c0c13b7e2620e516e90e4859325ae0b01c6c1588d8c8bf08",
+  "server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5",
+  "host": {
+    "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64"
+  },
+  "harness_source_revision": "55e49d559a48daa44b82f9d9c93868972c450d77",
+  "harness_worktree_dirty": false,
+  "harness_dependencies": {
+    "vanilla_reload_harness.py": "7bfbc893574a1ce9ccbf52add946458c9bbc6d08b815e21d95352fb00a606bfb",
+    "player_validation_harness.py": "65af3f54894521df1fcdb1c21089149bd158e359aa1e873f570dea23c1766c9c",
+    "validate_world_gameplay.py": "a07498d1813f963b5289c8f30a25f713498701be31bcbbd63b3de66751c70353",
+    "measure_archetype_idle.py": "4e3d6051048be9a8894d6b11ef80c4bede27819113d507351b7def4a61182715",
+    "mc_validation/minimal_join_client.py": "00e4139c83fd51dca67c22003c5380bb0dd70f31da9c1807660fc352ee8bbd38"
+  },
+  "java_version": "openjdk version \"25.0.3\" 2026-04-21 LTS\nOpenJDK Runtime Environment Zulu25.34+17-CA (build 25.0.3+9-LTS)\nOpenJDK 64-Bit Server VM Zulu25.34+17-CA (build 25.0.3+9-LTS, mixed mode, sharing)",
+  "static_owner_entity_nbt_reads_per_resolution": 1,
+  "native_traces": {
+    "entity_write": {
+      "command_evaluations_including_wrapper": 17,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 2,
+      "successful_storage_mutation_commands": 6,
+      "successful_storage_get_commands": 0,
+      "sha256": "d8a31322bf41eda5b1831a1cc487051d94638f1be0bb1e1deeadddf160ac55a8"
+    },
+    "player_write": {
+      "command_evaluations_including_wrapper": 34,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 4,
+      "successful_storage_mutation_commands": 5,
+      "successful_storage_get_commands": 0,
+      "sha256": "dbcc8ab0dda27b02ef75c6a652929a9d4f76f9d81ef9c13299136f3e550064df"
+    },
+    "fresh_attach": {
+      "command_evaluations_including_wrapper": 32,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 6,
+      "successful_storage_get_commands": 0,
+      "sha256": "cec41102068afe0571406973ef23fac1847c87756213ed810b88aaba3f53883e"
+    },
+    "existing_attach": {
+      "command_evaluations_including_wrapper": 22,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 0,
+      "successful_storage_get_commands": 0,
+      "sha256": "b6859d4034493f9bed3640cfd2d42b78eed96de66f7b0911f2a05477d0d1c146"
+    },
+    "existing_attach_repeat": {
+      "command_evaluations_including_wrapper": 22,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 0,
+      "successful_storage_get_commands": 0,
+      "sha256": "b6859d4034493f9bed3640cfd2d42b78eed96de66f7b0911f2a05477d0d1c146"
+    },
+    "same_owner_get": {
+      "command_evaluations_including_wrapper": 5,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 0,
+      "successful_storage_get_commands": 1,
+      "sha256": "da5ff487482fc385bdf5517cec2f15b8845673650411ba4ef3e2ec3db3bbb9a1"
+    }
+  },
+  "historical_owner_scaling": [
+    {
+      "total_retained_owners": 10,
+      "active_owners": 1,
+      "layout": "legacy",
+      "warm_operations_per_timing": 1000,
+      "cleanup": "not measured; retention unchanged",
+      "seed_wall_seconds": 0.060076791094616055,
+      "seed_storage": {
+        "namespace": "rpg",
+        "gzip_bytes": 325,
+        "nbt_bytes": 1138,
+        "sha256": "950b5b753f100c999380a3de32295177750f380d4051ea5b9ce4ac17fee409fa"
+      },
+      "changed_write": {
+        "command_evaluations_including_wrapper": 17,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 2,
+        "successful_storage_mutation_commands": 7,
+        "successful_storage_get_commands": 0,
+        "sha256": "59baeb34791a76f2ffe041d2830e34d51247ef66b4ce21f572b73175ea301d15"
+      },
+      "warm_read": {
+        "command_evaluations_including_wrapper": 5,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 1,
+        "sha256": "b1d73b9c45c9fc10b09ed9c052693a1f18f4ac7c6695e8d12926790884f862eb"
+      },
+      "warm_write": {
+        "command_evaluations_including_wrapper": 17,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 2,
+        "successful_storage_mutation_commands": 4,
+        "successful_storage_get_commands": 0,
+        "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
+      },
+      "warm_read_wall_seconds": 0.13278012513183057,
+      "warm_write_wall_seconds": 0.16545629198662937,
+      "steady_storage": {
+        "namespace": "rpg",
+        "gzip_bytes": 345,
+        "nbt_bytes": 1249,
+        "sha256": "438ffb64c8c91bcba733fd7e241a03eb7103e74433a1c89097a91068581867a7"
+      }
+    },
+    {
+      "total_retained_owners": 1000,
+      "active_owners": 1,
+      "layout": "legacy",
+      "warm_operations_per_timing": 1000,
+      "cleanup": "not measured; retention unchanged",
+      "seed_wall_seconds": 0.047400375129655004,
+      "seed_storage": {
+        "namespace": "rpg",
+        "gzip_bytes": 5884,
+        "nbt_bytes": 87268,
+        "sha256": "0d8fc18aed8978bfd9511a7cd106b71b00dc8f20e19e2fbb614ff033a26521b6"
+      },
+      "changed_write": {
+        "command_evaluations_including_wrapper": 17,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 2,
+        "successful_storage_mutation_commands": 6,
+        "successful_storage_get_commands": 0,
+        "sha256": "b3397521526532398e16b8a304aa4fca286b4c14e144b5be4d31ecc20099b479"
+      },
+      "warm_read": {
+        "command_evaluations_including_wrapper": 5,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 1,
+        "sha256": "b1d73b9c45c9fc10b09ed9c052693a1f18f4ac7c6695e8d12926790884f862eb"
+      },
+      "warm_write": {
+        "command_evaluations_including_wrapper": 17,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 2,
+        "successful_storage_mutation_commands": 4,
+        "successful_storage_get_commands": 0,
+        "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
+      },
+      "warm_read_wall_seconds": 0.18763929116539657,
+      "warm_write_wall_seconds": 0.3422105419449508,
+      "steady_storage": {
+        "namespace": "rpg",
+        "gzip_bytes": 5936,
+        "nbt_bytes": 87379,
+        "sha256": "dc24f5127f86a018c17584ccd4756ecc5ad16de2f2664c31be995f61fc504730"
+      }
+    },
+    {
+      "total_retained_owners": 10000,
+      "active_owners": 1,
+      "layout": "legacy",
+      "warm_operations_per_timing": 1000,
+      "cleanup": "not measured; retention unchanged",
+      "seed_wall_seconds": 0.06913966592401266,
+      "seed_storage": {
+        "namespace": "rpg",
+        "gzip_bytes": 58628,
+        "nbt_bytes": 870268,
+        "sha256": "e867cfb2b8a994411ea189f5e77767bf167fa9698b959c2fc4f03a58128c6362"
+      },
+      "changed_write": {
+        "command_evaluations_including_wrapper": 17,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 2,
+        "successful_storage_mutation_commands": 6,
+        "successful_storage_get_commands": 0,
+        "sha256": "b3397521526532398e16b8a304aa4fca286b4c14e144b5be4d31ecc20099b479"
+      },
+      "warm_read": {
+        "command_evaluations_including_wrapper": 5,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 1,
+        "sha256": "b1d73b9c45c9fc10b09ed9c052693a1f18f4ac7c6695e8d12926790884f862eb"
+      },
+      "warm_write": {
+        "command_evaluations_including_wrapper": 17,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 2,
+        "successful_storage_mutation_commands": 4,
+        "successful_storage_get_commands": 0,
+        "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
+      },
+      "warm_read_wall_seconds": 1.276474584126845,
+      "warm_write_wall_seconds": 2.580934541998431,
+      "steady_storage": {
+        "namespace": "rpg",
+        "gzip_bytes": 58667,
+        "nbt_bytes": 870379,
+        "sha256": "5f07ea9a0c5b6af818642832420d84dbf023225d79330361d0f7f6429ad20422"
+      }
+    }
+  ],
+  "probe_pack_sha256": "f6330604894f64a932f22fbd054d69f1137a17e5085663d9f6c2dbc7930deb82",
+  "production_resolver": [
+    "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid",
+    "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+  ]
+}

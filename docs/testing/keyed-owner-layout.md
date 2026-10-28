@@ -90,7 +90,10 @@ and indexed layouts and rejects mixed or unknown paths. It executes exported
 get/set/remove/presence operations as well as the historical observer probes.
 Independent UUID/value readback checks signed boundaries, multi-component and
 unknown data, dormant owners, duplicate/conflicting/malformed input, persistent
-journal phases, and the actual load-tag reload sentinel.
+journal phases, both sides of legacy-container retirement, and the actual
+load-tag reload sentinel. The scale workload also requires a live executor,
+exact reached UUID-read counts, a successful value get, and independent
+changed-value readback; timing an empty selector is rejected.
 
 Portable revision-one State currently supports scoreboard fields only; it
 cannot declare keyed data. Its shared exporter now drains generated lifecycle

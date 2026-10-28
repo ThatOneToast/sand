@@ -1,0 +1,70 @@
+keyed_literal_probe:trace_player_write
+    [F] keyed_literal_probe:trace_player_write size=1
+        [C] execute as SandAlpha run function unified_state:set_player_literals
+            [M] Running function unified_state:set_player_literals
+        [F] unified_state:set_player_literals size=3
+            [C] function unified_state:__sand_lifecycle_init
+                [M] Running function unified_state:__sand_lifecycle_init
+            [F] unified_state:__sand_lifecycle_init size=12
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. unless score @s s6645414d0fbd2ad matches -2147483648.. run scoreboard players set @s s6645414d0fbd2ad 1
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. unless score @s sf040c347721ae59 matches -2147483648.. run scoreboard players set @s sf040c347721ae59 0
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. unless score @s sb69a74561ae2585 matches -2147483648.. run scoreboard players set @s sb69a74561ae2585 100
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [M] Modified storage rpg:state
+                [R = 1] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/b6d63290
+                [F] unified_state:sand/state_data/keyed/b6d63290/3601370 size=3
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] execute unless data storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]" run data modify storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]" set value {uuid:[I;-1826703253,992359571,-1779695902,-579910343],components:{}}
+                    [C] execute unless data storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]".components."progression".preferences run function unified_state:sand/state_data/write/8ce5071b
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID -> 0
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. run function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/eab92235
+                [F] unified_state:sand/state_data/keyed/eab92235/3601370 size=3
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] execute unless data storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]" run data modify storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]" set value {uuid:[I;-1826703253,992359571,-1779695902,-579910343],components:{}}
+                    [C] execute unless data storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]".components."progression".template run function unified_state:sand/state_data/write/b2199d63
+                [C] execute if data storage rpg:state __sand_keyed{version:2} run execute unless score @s s470e8657b456607 matches 1.. unless score @s s02089a9adb1b894 matches 1.. run scoreboard players set @s s02089a9adb1b894 1
+                [C] execute unless score @s s35a3a3e3dbbd5af matches 1.. unless score @s s3f7e518a2ffb194 matches -2147483648.. run scoreboard players set @s s3f7e518a2ffb194 0
+                [C] execute unless score @s s35a3a3e3dbbd5af matches 1.. unless score @s s52e928aac683b8c matches 1.. run scoreboard players set @s s52e928aac683b8c 1
+            [C] function unified_state:sand/state_data/write/fe9c6bb3
+                [M] Running function unified_state:sand/state_data/write/fe9c6bb3
+            [F] unified_state:sand/state_data/write/fe9c6bb3 size=6
+                [C] data remove storage rpg:state __sand_owner.value
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.value set value "$(missing) $(u0) \"quoted\" \\ path"
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.value set value "$(missing) $(u0) \"quoted\" \\ path"
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/49bde46f with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/49bde46f
+                [F] unified_state:sand/state_data/keyed/49bde46f/3601370 size=2
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] execute if data storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]" run data modify storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]".components."progression".template set from storage rpg:state __sand_owner.value -> 0
+                [C] data remove storage rpg:state __sand_owner.value
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state __sand_owner.value
+            [C] function unified_state:sand/state_data/write/cebf9e4c
+                [M] Running function unified_state:sand/state_data/write/cebf9e4c
+            [F] unified_state:sand/state_data/write/cebf9e4c size=6
+                [C] data remove storage rpg:state __sand_owner.value
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.value set value {text:"$(missing) $(u0) \"quoted\" \\ path",nested:{literal:"$(u0)",quoted:"\"quoted\" \\ path"}}
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.value set value {text:"$(missing) $(u0) \"quoted\" \\ path",nested:{literal:"$(u0)",quoted:"\"quoted\" \\ path"}}
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/06011081 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/06011081
+                [F] unified_state:sand/state_data/keyed/06011081/3601370 size=2
+                    [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                    [C] execute if data storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]" run data modify storage rpg:state owners_v2."[I;-1826703253,992359571,-1779695902,-579910343]".components."progression".preferences set from storage rpg:state __sand_owner.value -> 0
+                [C] data remove storage rpg:state __sand_owner.value
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state __sand_owner.value

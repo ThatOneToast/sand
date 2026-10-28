@@ -1,0 +1,14 @@
+keyed_literal_probe:trace_get
+    [F] keyed_literal_probe:trace_get size=1
+        [C] execute as @e[tag=keyed_literal_a,limit=1] run function keyed_literal_probe:get
+            [M] Running function keyed_literal_probe:get
+        [F] keyed_literal_probe:get size=3
+            [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [E] Nothing changed. The specified properties already have these values                    [M] Nothing changed. The specified properties already have these values
+            [C] function keyed_literal_probe:get_macro with storage rpg:state __sand_owner
+                [M] Running function keyed_literal_probe:get_macro
+            [F] keyed_literal_probe:get_macro/3601370 size=1
+                [C] data get storage rpg:state owners[{uuid:[I;-1233224143,-960803256,-1253250055,528793653]}].components."status".template
+                    [M] Storage rpg:state has the following contents: "$(u0)"
+                [R = 5] data get storage rpg:state owners[{uuid:[I;-1233224143,-960803256,-1253250055,528793653]}].components."status".template

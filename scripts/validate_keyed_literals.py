@@ -667,9 +667,11 @@ class KeyedLiteralHarness(PlayerHarness):
         # than a console echo after `reload`, proves resources actually loaded.
         seed(f"[{row},{dormant}]")
         steps(1)
-        self.send("tick unfreeze")
         start = len(self.lines)
         self.send("reload")
+        self.wait_for(re.compile(r"Loaded [0-9]+ advancements"), "migration-resources-reloaded", start)
+        self.check("MIGRATION_RELOAD_JOURNAL_PENDING", "if data storage rpg:state __sand_keyed{cursor:0,journal:{done:1b}}")
+        self.send("tick unfreeze")
         self.wait_for(self.marker_pattern(RELOADED), "migration-reload", start)
         self.eventually("MIGRATION_RELOAD_FINISHED", "if data storage rpg:state __sand_keyed{version:2}")
         self.check("MIGRATION_RELOAD_DORMANT", 'if data storage rpg:state owners_v2."[I;0,-1,2147483647,-2147483648]".components.offline{value:91}')

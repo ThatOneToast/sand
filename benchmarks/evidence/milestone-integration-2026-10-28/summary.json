@@ -1,0 +1,46 @@
+{
+  "source_revision": "ac4999c7ccd6d9d177c6079ba335da56be0834aa",
+  "full_gate": true,
+  "native": {
+    "trail": {
+      "assertions": 120,
+      "passed": true,
+      "evidence": "trail/evidence.json",
+      "pack_sha256": "6397a5b967881dcf80d51741a1b844a67b3bd39b53f080b76e70aa0c2255a63b",
+      "archive_sha256": "2e11c884e6930547aae69cbd88151c902a8a3f0f165f73eb697e51a50e813c79"
+    },
+    "aether": {
+      "assertions": 54,
+      "passed": true,
+      "evidence": "aether/evidence.json",
+      "pack_sha256": "82b4927543174cf09e1622d7b71d739b87c1ef087a4e8d16a54429853effeac2",
+      "archive_sha256": "4f3fba62a95ec4b3dd375570ef7afacfc238102ec8fa9503b537e261bb81d3e3"
+    },
+    "keyed": {
+      "assertions": 200,
+      "passed": true,
+      "evidence": "keyed/keyed-literal-evidence.json",
+      "pack_sha256": "cbbd99073c5a2ca33088e4841b9b25b1c3a3d387b23a16689a133c0f9bde7de8",
+      "archive_sha256": "fe683ac350238b472013935dc019926df450ad0e55d16d075f064b1c8aedba6b"
+    },
+    "unified_audit": {
+      "passed": true,
+      "checks": 17,
+      "harness_sha256": "99687e0751a5cffa12ac69685a1baff74de7e9351fc198451fb425be0b041e77"
+    }
+  },
+  "limitations": [
+    "No remote merge performed; base stack remains dependency.",
+    "Native timings are single host samples, not MSPT or constant wall-clock guarantees.",
+    "Migration blocks keyed access until ready; explicit entity attachments retry.",
+    "Per-access owner resolution remains; dormant purge and universal death cleanup remain out of scope."
+  ],
+  "full_gate_sha256": "0ea3a617365d415013fb0c271fd6c0ed7a200a81d49c5a3011df8aae83262314",
+  "pre_audit_fix_revision": "6e4eabd26b5255acf58072298d6770f09cbab901",
+  "pre_audit_fix_replays": {
+    "trail": 120,
+    "aether": 54,
+    "keyed": 200,
+    "full_gate": true
+  }
+}

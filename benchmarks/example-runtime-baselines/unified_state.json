@@ -5,6 +5,553 @@
   "profile": "dev",
   "runtime_report": {
     "functions": {
+      "rpg:__sand_entity/6589a48cdeecff/acknowledge/0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/6589a48cdeecff/acknowledge/1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/6589a48cdeecff/changes/0": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/changes/1": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 27,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 14,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 15,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 18,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 19,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/initialize": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 19,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s[scores={s954e4e6406778bc=0,sb1ed806f89e8006=0}]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/load": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 17,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": []
+      },
+      "rpg:__sand_entity/6589a48cdeecff/provision": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 7,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/reconcile": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 24,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s[scores={s954e4e6406778bc=0,sb1ed806f89e8006=0}]"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s[scores={s5c0ae00dcbcb155=0,s817c6be26b42ab1=0}]"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s[scores={sd6c86a30e59ce2b=0,s191aaedbe44070f=0}]"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "unless",
+            "selector": "@s[scores={s954e4e6406778bc=0,sb1ed806f89e8006=0}]"
+          },
+          {
+            "line": 15,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s[scores={s954e4e6406778bc=0,sb1ed806f89e8006=0}]"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/reconcile_scan": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.6589a48cdeecff] at @s run function rpg:__sand_entity/6589a48cdeecff/reconcile"
+          ]
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@e[type=minecraft:zombie,tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "rpg:__sand_entity/6589a48cdeecff/reset_internal_causes": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "rpg:status_keeper"
+        ],
+        "selector_sites": []
+      },
       "rpg:__sand_entity/91e8f68f22c49b/acknowledge/0": {
         "evaluations": {
           "maximum": 2,
@@ -212,8 +759,8 @@
       },
       "rpg:__sand_entity/91e8f68f22c49b/changes/4": {
         "evaluations": {
-          "maximum": 4,
-          "minimum": 4,
+          "maximum": 7,
+          "minimum": 7,
           "unknown": []
         },
         "owners": [
@@ -223,7 +770,7 @@
           {
             "line": 1,
             "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
           },
           {
             "line": 2,
@@ -233,10 +780,30 @@
           {
             "line": 2,
             "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
           },
           {
             "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 6,
             "operation": "if",
             "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           }
@@ -276,8 +843,8 @@
       },
       "rpg:__sand_entity/91e8f68f22c49b/changes/6": {
         "evaluations": {
-          "maximum": 4,
-          "minimum": 4,
+          "maximum": 7,
+          "minimum": 7,
           "unknown": []
         },
         "owners": [
@@ -287,7 +854,7 @@
           {
             "line": 1,
             "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
           },
           {
             "line": 2,
@@ -297,10 +864,30 @@
           {
             "line": 2,
             "operation": "if",
-            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
           },
           {
             "line": 3,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 6,
             "operation": "if",
             "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
           }
@@ -309,10 +896,13 @@
       "rpg:__sand_entity/91e8f68f22c49b/cleanup": {
         "evaluations": {
           "maximum": null,
-          "minimum": 51,
+          "minimum": 58,
           "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner",
-            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner"
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner"
           ]
         },
         "owners": [
@@ -320,9 +910,164 @@
         ],
         "selector_sites": [
           {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
             "line": 10,
             "operation": "unless",
             "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
+            "line": 12,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 14,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 15,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 17,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 18,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 19,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 20,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 21,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 38,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          },
+          {
+            "line": 40,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
           }
         ]
       },
@@ -523,8 +1268,8 @@
       },
       "rpg:__sand_entity/91e8f68f22c49b/load": {
         "evaluations": {
-          "maximum": 43,
-          "minimum": 43,
+          "maximum": 47,
+          "minimum": 47,
           "unknown": []
         },
         "owners": [
@@ -1019,28 +1764,31 @@
       },
       "unified_state:__sand_entity_load": {
         "evaluations": {
-          "maximum": 44,
-          "minimum": 44,
+          "maximum": 66,
+          "minimum": 66,
           "unknown": []
         },
         "owners": [
-          "rpg:armored_zombie"
+          "rpg:armored_zombie",
+          "rpg:status_keeper"
         ],
         "selector_sites": []
       },
       "unified_state:__sand_entity_tick": {
         "evaluations": {
           "maximum": null,
-          "minimum": 6,
+          "minimum": 8,
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.91e8f68f22c49b] at @s run function rpg:__sand_entity/91e8f68f22c49b/initialize",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.6589a48cdeecff] at @s run function rpg:__sand_entity/6589a48cdeecff/reconcile",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.91e8f68f22c49b] at @s run function rpg:__sand_entity/91e8f68f22c49b/reconcile"
           ]
         },
         "owners": [
-          "rpg:armored_zombie"
+          "rpg:armored_zombie",
+          "rpg:status_keeper"
         ],
         "selector_sites": []
       },
@@ -1291,8 +2039,8 @@
       },
       "unified_state:__sand_lifecycle_load": {
         "evaluations": {
-          "maximum": 55,
-          "minimum": 55,
+          "maximum": 57,
+          "minimum": 57,
           "unknown": []
         },
         "owners": [
@@ -1300,6 +2048,7 @@
           "rpg:dead",
           "rpg:defense",
           "rpg:health",
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status",
           "rpg:supplies",
@@ -1324,6 +2073,7 @@
         },
         "owners": [
           "rpg:attack",
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status",
           "rpg:supplies",
@@ -1465,6 +2215,65 @@
           }
         ]
       },
+      "unified_state:attach_keepsake": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/43365d2d with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::attach_keepsake"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:attach_shared_status": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::attach_shared_status"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:zombie]"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.91e8f68f22c49b]"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[type=minecraft:zombie]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[tag=__sand.a.6589a48cdeecff]"
+          }
+        ]
+      },
       "unified_state:attach_zombie_components": {
         "evaluations": {
           "maximum": null,
@@ -1565,6 +2374,29 @@
         ],
         "selector_sites": []
       },
+      "unified_state:detach_armored_status": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_armored_status"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:zombie,tag=__sand.a.91e8f68f22c49b]"
+          }
+        ]
+      },
       "unified_state:detach_attack": {
         "evaluations": {
           "maximum": 6,
@@ -1576,13 +2408,53 @@
         ],
         "selector_sites": []
       },
+      "unified_state:detach_keeper_status": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_keeper_status"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:zombie,tag=__sand.a.6589a48cdeecff]"
+          }
+        ]
+      },
+      "unified_state:detach_keepsake": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/384879fb with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b09ba8db with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_keepsake"
+        ],
+        "selector_sites": []
+      },
       "unified_state:detach_status": {
         "evaluations": {
           "maximum": null,
-          "minimum": 12,
+          "minimum": 17,
           "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner",
-            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner"
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner",
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner",
+            "unknown selector multiplicity: execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner"
           ]
         },
         "owners": [
@@ -1590,14 +2462,69 @@
         ],
         "selector_sites": [
           {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
             "line": 6,
             "operation": "unless",
             "selector": "@s"
           },
           {
-            "line": 9,
-            "operation": "unless",
+            "line": 7,
+            "operation": "if",
             "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "as",
+            "selector": "@e[tag=keyed_literal_b,limit=1]"
           }
         ]
       },
@@ -1632,6 +2559,28 @@
           "unified_state::mark_status_data"
         ],
         "selector_sites": []
+      },
+      "unified_state:prepare_status_cleanup": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "unified_state::prepare_status_cleanup"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
       },
       "unified_state:present_entity_literal": {
         "evaluations": {
@@ -1885,6 +2834,34 @@
           }
         ]
       },
+      "unified_state:sand/state_data/keyed/0017a1c9": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/keyed/0017a1c9"
+          ]
+        },
+        "owners": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/keyed/02dcf30d": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/keyed/02dcf30d"
+          ]
+        },
+        "owners": [
+          "unified_state::attach_keepsake"
+        ],
+        "selector_sites": []
+      },
       "unified_state:sand/state_data/keyed/19301e71": {
         "evaluations": {
           "maximum": null,
@@ -1895,6 +2872,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "selector_sites": []
@@ -1909,6 +2887,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::detach_status"
         ],
         "selector_sites": []
@@ -1923,8 +2902,22 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::detach_status",
           "unified_state::remove_entity_literal"
+        ],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/keyed/384879fb": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/keyed/384879fb"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_keepsake"
         ],
         "selector_sites": []
       },
@@ -1941,6 +2934,19 @@
         ],
         "selector_sites": []
       },
+      "unified_state:sand/state_data/keyed/43365d2d": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/keyed/43365d2d"
+          ]
+        },
+        "owners": [
+          "unified_state::attach_keepsake"
+        ],
+        "selector_sites": []
+      },
       "unified_state:sand/state_data/keyed/5372f5fb": {
         "evaluations": {
           "maximum": null,
@@ -1951,6 +2957,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "selector_sites": []
@@ -1991,6 +2998,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "selector_sites": []
@@ -2019,6 +3027,19 @@
         },
         "owners": [
           "unified_state::advance_world"
+        ],
+        "selector_sites": []
+      },
+      "unified_state:sand/state_data/keyed/b09ba8db": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: unified_state:sand/state_data/keyed/b09ba8db"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_keepsake"
         ],
         "selector_sites": []
       },
@@ -2057,6 +3078,9 @@
           ]
         },
         "owners": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status",
           "unified_state::get_entity_literal",
           "unified_state::present_entity_literal"
         ],
@@ -2085,6 +3109,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "selector_sites": []
@@ -2218,6 +3243,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2230,6 +3256,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2244,6 +3271,7 @@
           ]
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2256,6 +3284,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2270,6 +3299,7 @@
           ]
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2284,6 +3314,7 @@
           ]
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2298,6 +3329,7 @@
           ]
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2312,6 +3344,7 @@
           ]
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2342,6 +3375,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2363,6 +3397,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2375,6 +3410,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2387,6 +3423,7 @@
           "unknown": []
         },
         "owners": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
@@ -2400,6 +3437,107 @@
         },
         "owners": [],
         "selector_sites": []
+      },
+      "unified_state:sand/state_data/prune/b2561c78": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/384879fb with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_keepsake"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/state_data/prune/f6755f91": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/0017a1c9 with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/state_data/remove/2f33338e": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/26c000e1 with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/state_data/remove/4b8fb6ae": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/317fc373 with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "unified_state:sand/state_data/remove/e82e7add": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b09ba8db with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::detach_keepsake"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
       },
       "unified_state:sand/state_data/write/0b0095fd": {
         "evaluations": {
@@ -2430,6 +3568,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "selector_sites": []
@@ -2453,6 +3592,19 @@
           }
         ]
       },
+      "unified_state:sand/state_data/write/365cc25f": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function unified_state:sand/state_data/keyed/02dcf30d with storage rpg:state __sand_owner"
+          ]
+        },
+        "owners": [
+          "unified_state::attach_keepsake"
+        ],
+        "selector_sites": []
+      },
       "unified_state:sand/state_data/write/55c1460a": {
         "evaluations": {
           "maximum": null,
@@ -2463,6 +3615,7 @@
         },
         "owners": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "selector_sites": []
@@ -2890,11 +4043,12 @@
       },
       {
         "contributors": [
-          "rpg:armored_zombie"
+          "rpg:armored_zombie",
+          "rpg:status_keeper"
         ],
         "evaluations": {
-          "maximum": 44,
-          "minimum": 44,
+          "maximum": 66,
+          "minimum": 66,
           "unknown": []
         },
         "reference": "unified_state:__sand_entity_load",
@@ -2906,6 +4060,7 @@
           "rpg:dead",
           "rpg:defense",
           "rpg:health",
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status",
           "rpg:supplies",
@@ -2913,8 +4068,8 @@
           "unified_state::welcome_player"
         ],
         "evaluations": {
-          "maximum": 55,
-          "minimum": 55,
+          "maximum": 57,
+          "minimum": 57,
           "unknown": []
         },
         "reference": "unified_state:__sand_lifecycle_load",
@@ -2960,6 +4115,7 @@
             "s123460b5c79ff41",
             "s14a36ee284cf795",
             "s18371d7abb9349f",
+            "s191aaedbe44070f",
             "s1e0781fcab3a98d",
             "s31c5a433d4076b1",
             "s3ba0534f1dd54b3",
@@ -2970,10 +4126,12 @@
             "s4f1c993b1021717",
             "s573b960db2216bb",
             "s5bd00e734ccd771",
+            "s5c0ae00dcbcb155",
             "s615dcd33728ccd5",
             "s658f3e612e120f6",
             "s74f8a5693b27096",
             "s7b98a5795bc20c5",
+            "s817c6be26b42ab1",
             "s82a27a5964aaa2c",
             "s837f5ba71da92da",
             "s8b29157c7024c3d",
@@ -2987,6 +4145,7 @@
             "sc227ef935bce78d",
             "sd0045cb1fdd0d57",
             "sd1f3dd6c3704160",
+            "sd6c86a30e59ce2b",
             "sd97575c4054d706",
             "sda26df8c2d78ff1",
             "sdc78ab42001b010",
@@ -3000,9 +4159,83 @@
             "__sand.a.91e8f68f22c49b",
             "__sand.external.91e8f68f22c49b"
           ]
+        },
+        {
+          "adoption_selector": null,
+          "archetype": "rpg:status_keeper",
+          "functions": [
+            "__sand_entity/6589a48cdeecff/acknowledge/0",
+            "__sand_entity/6589a48cdeecff/acknowledge/1",
+            "__sand_entity/6589a48cdeecff/changes/0",
+            "__sand_entity/6589a48cdeecff/changes/1",
+            "__sand_entity/6589a48cdeecff/cleanup",
+            "__sand_entity/6589a48cdeecff/initialize",
+            "__sand_entity/6589a48cdeecff/load",
+            "__sand_entity/6589a48cdeecff/provision",
+            "__sand_entity/6589a48cdeecff/reconcile",
+            "__sand_entity/6589a48cdeecff/reconcile_scan",
+            "__sand_entity/6589a48cdeecff/reset_internal_causes"
+          ],
+          "objectives": [
+            "s02a1efa4e0a41b7",
+            "s0ba36d9beeab3fd",
+            "s191aaedbe44070f",
+            "s1edcd24c2bebf52",
+            "s31c5a433d4076b1",
+            "s3ba0534f1dd54b3",
+            "s5bd00e734ccd771",
+            "s5c0ae00dcbcb155",
+            "s7b98a5795bc20c5",
+            "s817c6be26b42ab1",
+            "s954e4e6406778bc",
+            "sb1ed806f89e8006",
+            "sb59393c51893935",
+            "sd1f3dd6c3704160",
+            "sd6c86a30e59ce2b",
+            "se09bae1a255736b",
+            "sfe8d54b59e2dece"
+          ],
+          "outer_scans_per_cycle": 1,
+          "tags": [
+            "__sand.a.6589a48cdeecff",
+            "__sand.external.6589a48cdeecff"
+          ]
         }
       ],
       "function_owners": {
+        "rpg:__sand_entity/6589a48cdeecff/acknowledge/0": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/acknowledge/1": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/changes/0": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/changes/1": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/cleanup": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/initialize": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/load": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/provision": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/reconcile": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/reconcile_scan": [
+          "rpg:status_keeper"
+        ],
+        "rpg:__sand_entity/6589a48cdeecff/reset_internal_causes": [
+          "rpg:status_keeper"
+        ],
         "rpg:__sand_entity/91e8f68f22c49b/acknowledge/0": [
           "rpg:armored_zombie"
         ],
@@ -3076,10 +4309,12 @@
           "unified_state::__sand_system_event_attack"
         ],
         "unified_state:__sand_entity_load": [
-          "rpg:armored_zombie"
+          "rpg:armored_zombie",
+          "rpg:status_keeper"
         ],
         "unified_state:__sand_entity_tick": [
-          "rpg:armored_zombie"
+          "rpg:armored_zombie",
+          "rpg:status_keeper"
         ],
         "unified_state:__sand_event_check/7d3ae18c": [
           "unified_state::__sand_system_event_attack"
@@ -3102,6 +4337,7 @@
           "rpg:dead",
           "rpg:defense",
           "rpg:health",
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status",
           "rpg:supplies",
@@ -3110,6 +4346,7 @@
         ],
         "unified_state:__sand_lifecycle_tick": [
           "rpg:attack",
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status",
           "rpg:supplies",
@@ -3138,14 +4375,29 @@
         "unified_state:advance_world": [
           "unified_state::advance_world"
         ],
+        "unified_state:attach_keepsake": [
+          "unified_state::attach_keepsake"
+        ],
+        "unified_state:attach_shared_status": [
+          "unified_state::attach_shared_status"
+        ],
         "unified_state:attach_zombie_components": [
           "unified_state::attach_zombie_components"
         ],
         "unified_state:count_diamonds": [
           "unified_state::count_diamonds"
         ],
+        "unified_state:detach_armored_status": [
+          "unified_state::detach_armored_status"
+        ],
         "unified_state:detach_attack": [
           "unified_state::detach_attack"
+        ],
+        "unified_state:detach_keeper_status": [
+          "unified_state::detach_keeper_status"
+        ],
+        "unified_state:detach_keepsake": [
+          "unified_state::detach_keepsake"
         ],
         "unified_state:detach_status": [
           "unified_state::detach_status"
@@ -3155,6 +4407,9 @@
         ],
         "unified_state:mark_status_data": [
           "unified_state::mark_status_data"
+        ],
+        "unified_state:prepare_status_cleanup": [
+          "unified_state::prepare_status_cleanup"
         ],
         "unified_state:present_entity_literal": [
           "unified_state::present_entity_literal"
@@ -3186,24 +4441,42 @@
         "unified_state:sand/state_data/body/1bee5442": [
           "unified_state::present_entity_literal"
         ],
+        "unified_state:sand/state_data/keyed/0017a1c9": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "unified_state:sand/state_data/keyed/02dcf30d": [
+          "unified_state::attach_keepsake"
+        ],
         "unified_state:sand/state_data/keyed/19301e71": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "unified_state:sand/state_data/keyed/26c000e1": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::detach_status"
         ],
         "unified_state:sand/state_data/keyed/317fc373": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::detach_status",
           "unified_state::remove_entity_literal"
+        ],
+        "unified_state:sand/state_data/keyed/384879fb": [
+          "unified_state::detach_keepsake"
         ],
         "unified_state:sand/state_data/keyed/3ae9a9f3": [
           "unified_state::present_entity_literal"
         ],
+        "unified_state:sand/state_data/keyed/43365d2d": [
+          "unified_state::attach_keepsake"
+        ],
         "unified_state:sand/state_data/keyed/5372f5fb": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "unified_state:sand/state_data/keyed/53836c79": [
@@ -3214,6 +4487,7 @@
         ],
         "unified_state:sand/state_data/keyed/677bf40e": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "unified_state:sand/state_data/keyed/871e6f62": [
@@ -3223,6 +4497,9 @@
         "unified_state:sand/state_data/keyed/ada92cdb": [
           "unified_state::advance_world"
         ],
+        "unified_state:sand/state_data/keyed/b09ba8db": [
+          "unified_state::detach_keepsake"
+        ],
         "unified_state:sand/state_data/keyed/b6d63290": [
           "rpg:progression"
         ],
@@ -3230,6 +4507,9 @@
           "unified_state::set_standalone_literal"
         ],
         "unified_state:sand/state_data/keyed/ce36e3c9": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status",
           "unified_state::get_entity_literal",
           "unified_state::present_entity_literal"
         ],
@@ -3238,6 +4518,7 @@
         ],
         "unified_state:sand/state_data/keyed/d816ea4d": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "unified_state:sand/state_data/keyed/dd755c36": [
@@ -3251,65 +4532,103 @@
           "rpg:progression"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/check_committed_cursor": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/commit": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/copy": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/finish": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/prepare": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/resume": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/step": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migrate/scf437c73a0c2d28/validate": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migration_error/6731f9b5": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migration_error/98dd41ed": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migration_error/c8183c5d": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
         ],
         "unified_state:sand/state_data/migration_provision/739eec93": [
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status"
+        ],
+        "unified_state:sand/state_data/prune/b2561c78": [
+          "unified_state::detach_keepsake"
+        ],
+        "unified_state:sand/state_data/prune/f6755f91": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "unified_state:sand/state_data/remove/2f33338e": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "unified_state:sand/state_data/remove/4b8fb6ae": [
+          "rpg:armored_zombie",
+          "rpg:status_keeper",
+          "unified_state::detach_status"
+        ],
+        "unified_state:sand/state_data/remove/e82e7add": [
+          "unified_state::detach_keepsake"
         ],
         "unified_state:sand/state_data/write/0b0095fd": [
           "unified_state::set_player_literals"
         ],
         "unified_state:sand/state_data/write/1c5e35a3": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "unified_state:sand/state_data/write/324d3ee5": [
           "unified_state::mark_status_data"
         ],
+        "unified_state:sand/state_data/write/365cc25f": [
+          "unified_state::attach_keepsake"
+        ],
         "unified_state:sand/state_data/write/55c1460a": [
           "rpg:armored_zombie",
+          "rpg:status_keeper",
           "unified_state::attach_zombie_components"
         ],
         "unified_state:sand/state_data/write/5b9bdf42": [
@@ -3398,14 +4717,16 @@
         {
           "member": "unified_state:__sand_entity_load",
           "owners": [
-            "rpg:armored_zombie"
+            "rpg:armored_zombie",
+            "rpg:status_keeper"
           ],
           "tag": "minecraft:load"
         },
         {
           "member": "unified_state:__sand_entity_tick",
           "owners": [
-            "rpg:armored_zombie"
+            "rpg:armored_zombie",
+            "rpg:status_keeper"
           ],
           "tag": "minecraft:tick"
         },
@@ -3430,6 +4751,7 @@
             "rpg:dead",
             "rpg:defense",
             "rpg:health",
+            "rpg:keepsake",
             "rpg:progression",
             "rpg:status",
             "rpg:supplies",
@@ -3442,6 +4764,7 @@
           "member": "unified_state:__sand_lifecycle_tick",
           "owners": [
             "rpg:attack",
+            "rpg:keepsake",
             "rpg:progression",
             "rpg:status",
             "rpg:supplies",
@@ -3511,15 +4834,17 @@
       },
       {
         "contributors": [
-          "rpg:armored_zombie"
+          "rpg:armored_zombie",
+          "rpg:status_keeper"
         ],
         "evaluations": {
           "maximum": null,
-          "minimum": 6,
+          "minimum": 8,
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/677bf40e with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/d816ea4d with storage rpg:state __sand_owner",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.91e8f68f22c49b] at @s run function rpg:__sand_entity/91e8f68f22c49b/initialize",
+            "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.6589a48cdeecff] at @s run function rpg:__sand_entity/6589a48cdeecff/reconcile",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.91e8f68f22c49b] at @s run function rpg:__sand_entity/91e8f68f22c49b/reconcile"
           ]
         },
@@ -3529,6 +4854,7 @@
       {
         "contributors": [
           "rpg:attack",
+          "rpg:keepsake",
           "rpg:progression",
           "rpg:status",
           "rpg:supplies",

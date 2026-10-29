@@ -330,6 +330,23 @@ gone until you attach the component again. Entity and living components never
 start a world-wide scan just because their type exists. Global state uses one
 deterministic holder and can also own typed `Data<T>` paths in command storage.
 
+Scoped component detachment runs cleanup while prior values are still readable,
+then removes only that component's declared fields. Empty compiler-owned
+component containers are pruned; an owner record is removed only when its UUID
+is the sole remaining field. Other components, unknown fields retained from
+older schemas, and authored empty compounds inside those fields prevent owner
+reclamation. Archetype cleanup still honors other archetypes' component claims.
+The empty indexed map and its layout-version marker remain provisioned.
+
+Removing one `KeyedData` field is distinct from detaching its component and does
+not reclaim its owner. Neither operation is a policy to purge retained data:
+offline players and unloaded entities keep their State. There is no automatic
+cleanup based on absence from a selector or a universal entity-death callback.
+Invoke the loaded owner's supported detach/cleanup lifecycle deliberately;
+permanent deletion of dormant retained State requires a separate opt-in policy.
+Cleanup is ordered and repeatable after completion, but not a transaction under
+native failures or command-chain interruption.
+
 When a typed field changes, Sand marks both that field's archetype work and the
 component's lifecycle reconciliation as dirty. Those jobs are independent, so
 one cannot accidentally consume the other's update. A registered `reconcile`

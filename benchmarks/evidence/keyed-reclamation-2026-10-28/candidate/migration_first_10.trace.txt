@@ -1,0 +1,95 @@
+unified_state:sand/state_data/migrate/scf437c73a0c2d28/step
+    [F] unified_state:sand/state_data/migrate/scf437c73a0c2d28/step size=23
+        [C] execute if data storage rpg:state __sand_keyed{version:2} run return 0
+        [C] execute if data storage rpg:state __sand_keyed.error run return fail
+        [C] execute unless data storage rpg:state __sand_keyed{} run return run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute unless data storage rpg:state __sand_keyed{version:1} run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute if data storage rpg:state __sand_keyed.error run return fail
+        [C] execute unless data storage rpg:state __sand_keyed.cursor run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute if data storage rpg:state __sand_keyed.error run return fail
+        [C] execute store result storage rpg:state __sand_keyed.cursor_number int 1 run data get storage rpg:state __sand_keyed.cursor
+            [M] Storage rpg:state has the following contents: 0
+        [R = 0] execute store result storage rpg:state __sand_keyed.cursor_number int 1 run data get storage rpg:state __sand_keyed.cursor
+        [C] data modify storage rpg:state __sand_keyed.cursor_check set from storage rpg:state __sand_keyed.cursor
+            [M] Modified storage rpg:state
+        [R = 1] data modify storage rpg:state __sand_keyed.cursor_check set from storage rpg:state __sand_keyed.cursor
+        [C] execute store success storage rpg:state __sand_keyed.bad_cursor int 1 run data modify storage rpg:state __sand_keyed.cursor_check set from storage rpg:state __sand_keyed.cursor_number
+            [E] Nothing changed. The specified properties already have these values                [M] Nothing changed. The specified properties already have these values
+        [C] execute if data storage rpg:state __sand_keyed{bad_cursor:1} run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute if data storage rpg:state __sand_keyed.error run return fail
+        [C] execute if data storage rpg:state __sand_keyed{finishing:1b} run return run function unified_state:sand/state_data/migrate/scf437c73a0c2d28/finish
+        [C] execute if data storage rpg:state __sand_keyed.journal{done:1b} run return run function unified_state:sand/state_data/migrate/scf437c73a0c2d28/resume
+        [C] execute store result score #length scf437c73a0c2d28 run data get storage rpg:state owners
+            [M] Storage rpg:state has the following contents: [{components: {retained: {n: 23}, status: {template: "seed", details: {seed: 1}}}, uuid: [I; -2147483648, 2147483647, -1, 1], unknown: {keep: 1}}, {components: {dormant: {value: 1}}, uuid: [I; 0, 0, 1, 1], unknown: {keep: 1}}, {components: {dormant: {value: 2}}, uuid: [I; 0, 0, 1, 2], unknown: {keep: 1}}, {components: {dormant: {value: 3}}, uuid: [I; 0, 0, 1, 3], unknown: {keep: 1}}, {components: {dormant: {value: 4}}, uuid: [I; 0, 0, 1, 4], unknown: {keep: 1}}, {components: {dormant: {value: 5}}, uuid: [I; 0, 0, 1, 5], unknown: {keep: 1}}, {components: {dormant: {value: 6}}, uuid: [I; 0, 0, 1, 6], unknown: {keep: 1}}, {components: {dormant: {value: 7}}, uuid: [I; 0, 0, 1, 7], unknown: {keep: 1}}, {components: {dormant: {value: 8}}, uuid: [I; 0, 0, 1, 8], unknown: {keep: 1}}, {components: {dormant: {value: 9}}, uuid: [I; 0, 0, 1, 9], unknown: {keep: 1}}]
+        [R = 10] execute store result score #length scf437c73a0c2d28 run data get storage rpg:state owners
+        [C] execute store result score #cursor scf437c73a0c2d28 run data get storage rpg:state __sand_keyed.cursor
+            [M] Storage rpg:state has the following contents: 0
+        [R = 0] execute store result score #cursor scf437c73a0c2d28 run data get storage rpg:state __sand_keyed.cursor
+        [C] execute unless score #cursor scf437c73a0c2d28 matches 0.. run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute if score #cursor scf437c73a0c2d28 > #length scf437c73a0c2d28 run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute if data storage rpg:state __sand_keyed.error run return fail
+        [C] execute if score #length scf437c73a0c2d28 matches 0 unless data storage rpg:state {owners:[]} run function unified_state:sand/state_data/migration_error/6731f9b5
+        [C] execute if data storage rpg:state __sand_keyed.error run return fail
+        [C] execute if score #cursor scf437c73a0c2d28 = #length scf437c73a0c2d28 run return run function unified_state:sand/state_data/migrate/scf437c73a0c2d28/finish
+        [C] function unified_state:sand/state_data/migrate/scf437c73a0c2d28/prepare with storage rpg:state __sand_keyed
+            [M] Running function unified_state:sand/state_data/migrate/scf437c73a0c2d28/prepare
+        [F] unified_state:sand/state_data/migrate/scf437c73a0c2d28/prepare/-1349119115 size=14
+            [C] execute unless data storage rpg:state __sand_keyed.journal.row run data modify storage rpg:state __sand_keyed.journal.row set from storage rpg:state owners[0]
+                [M] Modified storage rpg:state
+            [R = 1] execute unless data storage rpg:state __sand_keyed.journal.row run data modify storage rpg:state __sand_keyed.journal.row set from storage rpg:state owners[0]
+            [C] execute unless data storage rpg:state __sand_keyed.journal.row.components{} run function unified_state:sand/state_data/migration_error/98dd41ed
+            [C] execute if data storage rpg:state __sand_keyed.error run return fail
+            [C] execute store result storage rpg:state __sand_keyed.length int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid
+                [M] Storage rpg:state has the following contents: [I; -2147483648, 2147483647, -1, 1]
+            [R = 4] execute store result storage rpg:state __sand_keyed.length int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid
+            [C] execute unless data storage rpg:state __sand_keyed{length:4} run function unified_state:sand/state_data/migration_error/98dd41ed
+            [C] execute if data storage rpg:state __sand_keyed.error run return fail
+            [C] execute store result storage rpg:state __sand_keyed.args.u0 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[0]
+                [M] Storage rpg:state has the following contents: -2147483648
+            [R = -2147483648] execute store result storage rpg:state __sand_keyed.args.u0 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[0]
+            [C] execute store result storage rpg:state __sand_keyed.args.u1 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[1]
+                [M] Storage rpg:state has the following contents: 2147483647
+            [R = 2147483647] execute store result storage rpg:state __sand_keyed.args.u1 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[1]
+            [C] execute store result storage rpg:state __sand_keyed.args.u2 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[2]
+                [M] Storage rpg:state has the following contents: -1
+            [R = -1] execute store result storage rpg:state __sand_keyed.args.u2 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[2]
+            [C] execute store result storage rpg:state __sand_keyed.args.u3 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[3]
+                [M] Storage rpg:state has the following contents: 1
+            [R = 1] execute store result storage rpg:state __sand_keyed.args.u3 int 1 run data get storage rpg:state __sand_keyed.journal.row.uuid[3]
+            [C] execute store result score #cursor scf437c73a0c2d28 run data get storage rpg:state __sand_keyed.cursor
+                [M] Storage rpg:state has the following contents: 0
+            [R = 0] execute store result score #cursor scf437c73a0c2d28 run data get storage rpg:state __sand_keyed.cursor
+            [C] scoreboard players add #cursor scf437c73a0c2d28 1
+                [M] Added 1 to [scf437c73a0c2d28] for #cursor (now 1)
+            [R = 1] scoreboard players add #cursor scf437c73a0c2d28 1
+            [C] execute unless data storage rpg:state __sand_keyed.journal.next store result storage rpg:state __sand_keyed.journal.next int 1 run scoreboard players get #cursor scf437c73a0c2d28
+                [M] #cursor has 1 [scf437c73a0c2d28]
+            [R = 1] execute unless data storage rpg:state __sand_keyed.journal.next store result storage rpg:state __sand_keyed.journal.next int 1 run scoreboard players get #cursor scf437c73a0c2d28
+            [C] function unified_state:sand/state_data/migrate/scf437c73a0c2d28/validate with storage rpg:state __sand_keyed.args
+                [M] Running function unified_state:sand/state_data/migrate/scf437c73a0c2d28/validate
+            [F] unified_state:sand/state_data/migrate/scf437c73a0c2d28/validate/114055747 size=3
+                [C] execute unless data storage rpg:state __sand_keyed.journal.row{uuid:[I;-2147483648,2147483647,-1,1]} run function unified_state:sand/state_data/migration_error/98dd41ed
+                [C] execute if data storage rpg:state __sand_keyed.error run return fail
+                [C] function unified_state:sand/state_data/migrate/scf437c73a0c2d28/copy with storage rpg:state __sand_keyed.journal.row
+                    [M] Running function unified_state:sand/state_data/migrate/scf437c73a0c2d28/copy
+                [F] unified_state:sand/state_data/migrate/scf437c73a0c2d28/copy/3601370 size=11
+                    [C] execute if data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]" unless data storage rpg:state __sand_keyed.journal{intent:1b} run function unified_state:sand/state_data/migration_error/c8183c5d
+                    [C] execute if data storage rpg:state __sand_keyed.error run return fail
+                    [C] data modify storage rpg:state __sand_keyed.journal.intent set value 1b
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state __sand_keyed.journal.intent set value 1b
+                    [C] execute unless data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]" run data modify storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]" set from storage rpg:state __sand_keyed.journal.row
+                        [M] Modified storage rpg:state
+                    [R = 1] execute unless data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]" run data modify storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]" set from storage rpg:state __sand_keyed.journal.row
+                    [C] execute unless data storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]" run function unified_state:sand/state_data/migration_error/c8183c5d
+                    [C] execute if data storage rpg:state __sand_keyed.error run return fail
+                    [C] data modify storage rpg:state __sand_keyed.compare set from storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state __sand_keyed.compare set from storage rpg:state owners_v2."[I;-2147483648,2147483647,-1,1]"
+                    [C] execute store success storage rpg:state __sand_keyed.different int 1 run data modify storage rpg:state __sand_keyed.compare set from storage rpg:state __sand_keyed.journal.row
+                        [E] Nothing changed. The specified properties already have these values                            [M] Nothing changed. The specified properties already have these values
+                    [C] execute if data storage rpg:state __sand_keyed{different:1} run function unified_state:sand/state_data/migration_error/c8183c5d
+                    [C] execute if data storage rpg:state __sand_keyed.error run return fail
+                    [C] data modify storage rpg:state __sand_keyed.journal.done set value 1b
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state __sand_keyed.journal.done set value 1b

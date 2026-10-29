@@ -649,6 +649,15 @@ pub trait StateLifecycle: EntityState {
 
     /// Run before component-owned values and bookkeeping are removed.
     ///
+    /// The hook can read the component's previous values and access other owners.
+    /// Scoped typed-data detachment subsequently removes declared fields and
+    /// prunes empty compiler-owned component containers and UUID-only owner
+    /// records. Other components and unknown retained fields prevent pruning.
+    /// Field-level removal does not detach or reclaim an owner. Unloaded entities
+    /// and offline players retain data; selector absence is not a cleanup event.
+    /// Commands are ordered, not transactional: interruption does not roll back
+    /// prior effects, and arbitrary external removal has no guaranteed hook.
+    ///
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::state::StateLifecycle::cleanup", kind = "trait_method",

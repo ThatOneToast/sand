@@ -78,13 +78,17 @@ resumption of compiler-owned work, not recovery from arbitrary external edits.
 
 ## Reclamation extension contract
 
-This change does not reclaim owners, empty components, or dormant data. Direct
-field removal retains the owner. A later compiler-owned cleanup may prune empty
-structures **after cleanup hooks and owned-field deletion**. It must resolve the
-executor again after hooks, which can access another owner. Other components,
-unknown component fields, and unknown owner fields prevent whole-owner removal.
-The persistent key has no allocator state or secondary index requiring cleanup.
-Retention policy for dead entities or offline players remains separate work.
+The indexed-migration change itself preserves retention. The separate
+reclamation change prunes empty compiler-owned component containers after
+cleanup hooks and declared-field deletion. Resolver-and-mutation helper calls
+keep owner resolution intact across composition deduplication and hooks visiting
+another owner. Other components, unknown component fields, malformed containers,
+and unknown owner fields prevent whole-owner removal. Only a record containing
+its matching UUID alone can be removed. Direct field removal retains the owner.
+The empty `owners_v2` map and `__sand_keyed:{version:2}` remain; there is no
+allocator state or secondary index requiring cleanup. Offline/unloaded owners
+retain values. No selector-absence, universal death, or dormant-data purge policy
+is installed. See [reclamation validation](keyed-owner-reclamation.md).
 
 ## Validation and scope
 

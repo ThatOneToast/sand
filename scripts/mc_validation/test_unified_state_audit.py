@@ -26,6 +26,42 @@ def functions():
     }
 
 
+class IndexedOwnerOracle(unittest.TestCase):
+    def test_data_get_spacing_and_signed_boundaries(self):
+        self.assertEqual(
+            audit.indexed_status_path("[I; -2147483648, 2147483647, -1, 0]"),
+            'owners_v2."[I;-2147483648,2147483647,-1,0]".components."status".details',
+        )
+
+    def test_compact_uuid_and_every_word_remain_distinct(self):
+        paths = {audit.indexed_status_path(uuid) for uuid in (
+            "[I;0,0,0,0]", "[I;1,0,0,0]", "[I;0,1,0,0]",
+            "[I;0,0,1,0]", "[I;0,0,0,1]",
+        )}
+        self.assertEqual(len(paths), 5)
+
+    def test_invalid_words_are_not_silently_truncated(self):
+        for value in ("[I;1,2,3]", "[I;2147483648,0,0,0]", "[I;-2147483649,0,0,0]"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                audit.indexed_status_path(value)
+
+
+class ReloadCompletion(unittest.TestCase):
+    def test_acknowledgement_is_not_completion_and_stale_marker_is_cleared(self):
+        command = Mock(side_effect=["Removed", "Reloading", "Found no elements", "contents: 1b"])
+        with patch.object(audit.time, "sleep"):
+            self.assertEqual(audit.wait_for_reload(command, 5), "contents: 1b")
+        self.assertEqual(command.call_args_list[0].args, ("data remove storage sand_unified_audit:reload completed",))
+        self.assertEqual(command.call_args_list[1].args, ("reload",))
+        self.assertEqual(command.call_count, 4)
+
+    def test_missing_load_execution_times_out(self):
+        command = Mock(return_value="Found no elements")
+        with patch.object(audit.time, "monotonic", side_effect=[0, 0, 2]), patch.object(audit.time, "sleep"):
+            with self.assertRaises(TimeoutError):
+                audit.wait_for_reload(command, 1)
+
+
 class StartupReadiness(unittest.TestCase):
     def test_world_done_does_not_skip_delayed_rcon_startup(self):
         done = 'Done (4.721s)! For help, type "help"'

@@ -1255,6 +1255,21 @@ impl Selector {
         self
     }
 
+    /// Replace distance, ordering and cardinality with compiler-owned sampling
+    /// bounds, preserving all other target filters. Used by gameplay lowering.
+    #[doc(hidden)]
+    pub fn with_sampling_bounds(mut self, radius: f64, limit: i32) -> Self {
+        self.args.retain(|arg| {
+            !matches!(
+                arg,
+                SelectorArg::Distance(_) | SelectorArg::Sort(_) | SelectorArg::Limit(_)
+            )
+        });
+        self.distance_max(radius)
+            .sort(SortOrder::Nearest)
+            .limit(limit)
+    }
+
     fn exclude_self_distance(mut self) -> Self {
         for arg in &mut self.args {
             if let SelectorArg::Distance(range) = arg

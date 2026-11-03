@@ -6,8 +6,7 @@ use crate::{
     registration::{DatapackRegistration, IntoDatapack},
 };
 use sand_commands::{
-    CommandError, CommandProfile, CommandResult, Selector, SortOrder, Target, TargetArgument,
-    Validate,
+    CommandError, CommandProfile, CommandResult, Selector, Target, TargetArgument, Validate,
 };
 use sand_components::{
     BlockId, BlockPredicate, ComponentContent, DatapackComponent, LocationPredicate, Predicate,
@@ -111,13 +110,14 @@ impl<K: EntityKind> Projectile<K> {
         self
     }
     /// Select potential hit entities using Sand's canonical target filters.
-    /// Sampling supplies radius, nearest ordering and a sixteen-candidate cap.
+    /// Sampling replaces supplied distance, ordering and limit with the radius,
+    /// nearest ordering and a sixteen-candidate cap; other filters are preserved.
     #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::systems::Projectile::targets", module = "sand::systems",
     kind = "method",
     summary = "Select potential hit entities using Sand's canonical target filters.",
-    context = "Filters candidate hit entities through a canonical target selector. Motion supplies radius, nearest ordering and a sixteen-candidate limit and excludes the owner identity.",
+    context = "Filters candidate hit entities through a canonical target selector. Motion replaces supplied distance, ordering and limit with the sampling radius, nearest ordering and a sixteen-candidate limit, preserves other filters and excludes the owner identity.",
     minecraft = "Exports owner-bound marker instances with per-instance timers, stable identities, capacity admission and idempotent cleanup.",
     use_when = ["Composing reusable owner-bound gameplay"],
     avoid_when = ["Unloaded work must run or chunks must be force-loaded"],
@@ -326,12 +326,7 @@ impl<K: EntityKind> ProjectileFunction<K> {
                 McFunction::new(self.location.clone()).commands((d.hit)(TaskContext::new(id)))
             );
         }
-        let targets = d
-            .targets
-            .clone()
-            .distance_max(d.radius)
-            .sort(SortOrder::Nearest)
-            .limit(16);
+        let targets = d.targets.clone().with_sampling_bounds(d.radius, 16);
         targets.validate(&CommandProfile::unprofiled())?;
         let lines: Vec<String> = match self.part {
             "projectile_move" => {

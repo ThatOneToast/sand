@@ -163,7 +163,12 @@ fn fireball() -> Ability<AnyEntity> {
             Lifetime::new("owned:fireball".parse().unwrap(), Ticks::new(20)).capacity(1),
         )
         .speed(1.0)
-        .targets(Target::entities().tag("hit_target"))
+        .targets(
+            Target::entities()
+                .tag("hit_target")
+                .within_blocks(8.0)
+                .nearest(),
+        )
         .on_hit(|ctx| {
             let mut actions = ctx.target(|_| cmd::say("PROJECTILE_TARGET"));
             actions.extend([ctx.owner(|_| cmd::say("PROJECTILE_OWNER"))]);
@@ -245,6 +250,12 @@ fn profiles_keep_compute_isolated_and_projectiles_bound_their_work() {
     let movement = body(&new, "__sand_system/lifetime/fireball/projectile_move");
     assert_eq!(movement.matches("run tp @s").count(), 4);
     let search = body(&new, "__sand_system/lifetime/fireball/projectile_search");
+    assert!(search.contains("@e[tag=hit_target,distance=..0.5,sort=nearest,limit=16]"));
+    let narrow = body(
+        &new,
+        "__sand_system/lifetime/narrow_projectile/projectile_search",
+    );
+    assert!(narrow.contains("@a[tag=thin_hit,distance=..0.01,sort=nearest,limit=16]"));
     assert!(search.contains("limit=16"));
     assert!(search.contains("matches $(owner)"));
     assert!(body(&new, "__sand_system/lifetime/regen/status_admit").contains("/status_refresh"));
@@ -945,7 +956,12 @@ fn narrow_projectile() -> sand::systems::Projectile<AnyEntity> {
     ))
     .speed(1.0)
     .radius(0.01)
-    .targets(Target::entities().tag("thin_hit"))
+    .targets(
+        Target::players()
+            .tag("thin_hit")
+            .within_blocks(8.0)
+            .nearest(),
+    )
     .on_hit(|ctx| ctx.target(|_| cmd::say("NARROW_HIT")))
 }
 #[function("owned:narrow_projectile")]

@@ -1,0 +1,1778 @@
+{
+  "schema_version": 1,
+  "success": true,
+  "namespace": "trail",
+  "minecraft_version": "26.2",
+  "profile": "dev",
+  "component_count": 74,
+  "runtime_report": {
+    "schema_version": 1,
+    "provenance": {
+      "function_owners": {
+        "trail:__sand_death_check": [
+          "book_project::on_death"
+        ],
+        "trail:__sand_death_dispatch": [
+          "book_project::on_death"
+        ],
+        "trail:__sand_dialog_init": [
+          "book_project::trailhead_dialog"
+        ],
+        "trail:__sand_dialog_tick": [
+          "book_project::trailhead_dialog"
+        ],
+        "trail:__sand_event_check/312fb72e": [
+          "book_project::on_stamina_exhausted"
+        ],
+        "trail:__sand_event_check/4b38f085": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "trail:__sand_event_dispatch/4b38f085": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "trail:__sand_lifecycle_init": [
+          "trail:traversal"
+        ],
+        "trail:__sand_lifecycle_load": [
+          "book_project::grapple_ray",
+          "book_project::on_death",
+          "book_project::scout_ray",
+          "trail:traversal"
+        ],
+        "trail:__sand_lifecycle_tick": [
+          "book_project::on_death",
+          "book_project::stamina_maintenance",
+          "trail:traversal"
+        ],
+        "trail:__sand_score_init": [
+          "book_project::claim_striders",
+          "book_project::stamina_maintenance"
+        ],
+        "trail:__sand_system/raycast/grapple/advance": [
+          "book_project::grapple_ray"
+        ],
+        "trail:__sand_system/raycast/grapple/hit": [
+          "book_project::grapple_ray"
+        ],
+        "trail:__sand_system/raycast/grapple/load": [
+          "book_project::grapple_ray"
+        ],
+        "trail:__sand_system/raycast/grapple/miss": [
+          "book_project::grapple_ray"
+        ],
+        "trail:__sand_system/raycast/grapple/sample": [
+          "book_project::grapple_ray"
+        ],
+        "trail:__sand_system/raycast/grapple/start": [
+          "book_project::grapple_ray"
+        ],
+        "trail:__sand_system/raycast/scout/advance": [
+          "book_project::scout_ray"
+        ],
+        "trail:__sand_system/raycast/scout/hit": [
+          "book_project::scout_ray"
+        ],
+        "trail:__sand_system/raycast/scout/load": [
+          "book_project::scout_ray"
+        ],
+        "trail:__sand_system/raycast/scout/miss": [
+          "book_project::scout_ray"
+        ],
+        "trail:__sand_system/raycast/scout/sample": [
+          "book_project::scout_ray"
+        ],
+        "trail:__sand_system/raycast/scout/start": [
+          "book_project::scout_ray"
+        ],
+        "trail:claim_striders": [
+          "book_project::claim_striders"
+        ],
+        "trail:grapple": [
+          "book_project::grapple"
+        ],
+        "trail:grapple/execute": [
+          "book_project::grapple_execute"
+        ],
+        "trail:grapple/hit": [
+          "book_project::grapple_hit"
+        ],
+        "trail:load": [
+          "book_project::load"
+        ],
+        "trail:menu": [
+          "book_project::open_menu"
+        ],
+        "trail:on_death": [
+          "book_project::on_death"
+        ],
+        "trail:on_first_join": [
+          "book_project::on_first_join"
+        ],
+        "trail:on_first_join/body": [
+          "book_project::on_first_join"
+        ],
+        "trail:on_obtained_grapple_core": [
+          "book_project::on_obtained_grapple_core"
+        ],
+        "trail:on_obtained_grapple_core/body": [
+          "book_project::on_obtained_grapple_core"
+        ],
+        "trail:on_sprint_while_exhausted": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "trail:on_stamina_exhausted": [
+          "book_project::on_stamina_exhausted"
+        ],
+        "trail:recover": [
+          "book_project::recover"
+        ],
+        "trail:sand/branches/3dbf257c": [
+          "book_project::stamina_maintenance"
+        ],
+        "trail:sand/branches/413af47c": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/branches/5c49977e": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/branches/6222c9de": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/branches/691ef25e": [
+          "book_project::grapple_hit"
+        ],
+        "trail:sand/branches/80b987ab": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/branches/827a10b3": [
+          "book_project::scout_hit"
+        ],
+        "trail:sand/branches/991201e2": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/branches/b7b2ae86": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/conditions/blocks/6bcdb9d5": [
+          "book_project::scout_hit"
+        ],
+        "trail:sand/conditions/blocks/830b4509": [
+          "book_project::grapple_hit"
+        ],
+        "trail:sand/conditions/items/2d65f472": [
+          "book_project::grapple",
+          "book_project::grapple_hit",
+          "book_project::scout",
+          "book_project::scout_hit",
+          "book_project::tick"
+        ],
+        "trail:sand/conditions/numeric/0870e94c": [
+          "book_project::stamina_maintenance"
+        ],
+        "trail:sand/conditions/numeric/f1270ba9": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/conditions/numeric/f1270ba9/left/inventory_0": [
+          "book_project::claim_striders"
+        ],
+        "trail:sand/entity_query/8c5b0e07": [
+          "book_project::stamina_maintenance"
+        ],
+        "trail:sand/entity_query/afd6179e": [
+          "book_project::tick"
+        ],
+        "trail:sand/state_init/7b742cca": [
+          "trail:traversal"
+        ],
+        "trail:scout": [
+          "book_project::scout"
+        ],
+        "trail:scout/execute": [
+          "book_project::scout_execute"
+        ],
+        "trail:scout/hit": [
+          "book_project::scout_hit"
+        ],
+        "trail:stamina/maintain": [
+          "book_project::stamina_maintenance"
+        ],
+        "trail:state_mutation/2591f404": [
+          "book_project::stamina_maintenance"
+        ],
+        "trail:state_mutation/78141a69": [
+          "book_project::grapple_hit"
+        ],
+        "trail:state_mutation/cc055adf": [
+          "book_project::scout_hit"
+        ],
+        "trail:tick": [
+          "book_project::tick"
+        ]
+      },
+      "tag_contributors": [
+        {
+          "tag": "minecraft:load",
+          "member": "trail:__sand_dialog_init",
+          "owners": [
+            "book_project::trailhead_dialog"
+          ]
+        },
+        {
+          "tag": "minecraft:load",
+          "member": "trail:__sand_lifecycle_load",
+          "owners": [
+            "book_project::grapple_ray",
+            "book_project::on_death",
+            "book_project::scout_ray",
+            "trail:traversal"
+          ]
+        },
+        {
+          "tag": "minecraft:load",
+          "member": "trail:__sand_score_init",
+          "owners": [
+            "book_project::claim_striders",
+            "book_project::stamina_maintenance"
+          ]
+        },
+        {
+          "tag": "minecraft:load",
+          "member": "trail:load",
+          "owners": [
+            "book_project::load"
+          ]
+        },
+        {
+          "tag": "minecraft:tick",
+          "member": "trail:__sand_dialog_tick",
+          "owners": [
+            "book_project::trailhead_dialog"
+          ]
+        },
+        {
+          "tag": "minecraft:tick",
+          "member": "trail:__sand_event_check/312fb72e",
+          "owners": [
+            "book_project::on_stamina_exhausted"
+          ]
+        },
+        {
+          "tag": "minecraft:tick",
+          "member": "trail:__sand_event_check/4b38f085",
+          "owners": [
+            "book_project::on_sprint_while_exhausted"
+          ]
+        },
+        {
+          "tag": "minecraft:tick",
+          "member": "trail:__sand_lifecycle_tick",
+          "owners": [
+            "book_project::on_death",
+            "book_project::stamina_maintenance",
+            "trail:traversal"
+          ]
+        },
+        {
+          "tag": "minecraft:tick",
+          "member": "trail:tick",
+          "owners": [
+            "book_project::tick"
+          ]
+        }
+      ],
+      "systems": [],
+      "archetypes": [],
+      "lifecycle_owners": {
+        "trail:__sand_lifecycle_load": [
+          {
+            "owner": "book_project::grapple_ray",
+            "first_line": 10,
+            "line_count": 1
+          },
+          {
+            "owner": "book_project::scout_ray",
+            "first_line": 11,
+            "line_count": 1
+          }
+        ],
+        "trail:__sand_lifecycle_tick": [
+          {
+            "owner": "book_project::stamina_maintenance",
+            "first_line": 5,
+            "line_count": 1
+          }
+        ]
+      }
+    },
+    "tick": [
+      {
+        "reference": "trail:__sand_event_check/312fb72e",
+        "required": true,
+        "contributors": [
+          "book_project::on_stamina_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if score @s sfa49ff66aebe47c matches ..0 if score @s saafb19392893dee matches 0 run function trail:on_stamina_exhausted"
+          ]
+        }
+      },
+      {
+        "reference": "trail:__sand_event_check/4b38f085",
+        "required": true,
+        "contributors": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if predicate trail:__sand/player_sprinting run function trail:__sand_event_dispatch/4b38f085"
+          ]
+        }
+      },
+      {
+        "reference": "trail:__sand_lifecycle_tick",
+        "required": true,
+        "contributors": [
+          "book_project::on_death",
+          "book_project::stamina_maintenance",
+          "trail:traversal"
+        ],
+        "evaluations": {
+          "minimum": 6,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function trail:sand/entity_query/8c5b0e07",
+            "unknown selector multiplicity: execute as @a run function trail:__sand_death_check",
+            "unknown selector multiplicity: execute as @a run function trail:__sand_lifecycle_init",
+            "unknown selector multiplicity: execute at @s run function trail:on_death"
+          ]
+        }
+      },
+      {
+        "reference": "trail:__sand_dialog_tick",
+        "required": true,
+        "contributors": [
+          "book_project::trailhead_dialog"
+        ],
+        "evaluations": {
+          "minimum": 7,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
+            "unknown selector multiplicity: execute as @a[scores={sand.dialog=1}] at @s run function trail:grapple",
+            "unknown selector multiplicity: execute as @a[scores={sand.dialog=2}] at @s run function trail:claim_striders",
+            "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start",
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        }
+      },
+      {
+        "reference": "trail:tick",
+        "required": true,
+        "contributors": [
+          "book_project::tick"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function trail:sand/entity_query/afd6179e"
+          ]
+        }
+      }
+    ],
+    "load": [
+      {
+        "reference": "trail:__sand_score_init",
+        "required": true,
+        "contributors": [
+          "book_project::claim_striders",
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 11,
+          "maximum": 11,
+          "unknown": []
+        }
+      },
+      {
+        "reference": "trail:__sand_lifecycle_load",
+        "required": true,
+        "contributors": [
+          "book_project::grapple_ray",
+          "book_project::on_death",
+          "book_project::scout_ray",
+          "trail:traversal"
+        ],
+        "evaluations": {
+          "minimum": 13,
+          "maximum": 13,
+          "unknown": []
+        }
+      },
+      {
+        "reference": "trail:__sand_dialog_init",
+        "required": true,
+        "contributors": [
+          "book_project::trailhead_dialog"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        }
+      },
+      {
+        "reference": "trail:load",
+        "required": true,
+        "contributors": [
+          "book_project::load"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        }
+      },
+      {
+        "reference": "trail:__sand_world_init",
+        "required": true,
+        "contributors": [],
+        "evaluations": {
+          "minimum": 5,
+          "maximum": 5,
+          "unknown": []
+        }
+      }
+    ],
+    "functions": {
+      "trail:__sand_death_check": {
+        "owners": [
+          "book_project::on_death"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function trail:on_death"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_death_dispatch": {
+        "owners": [
+          "book_project::on_death"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s run function trail:on_death"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_dialog_init": {
+        "owners": [
+          "book_project::trailhead_dialog"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_dialog_tick": {
+        "owners": [
+          "book_project::trailhead_dialog"
+        ],
+        "evaluations": {
+          "minimum": 7,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
+            "unknown selector multiplicity: execute as @a[scores={sand.dialog=1}] at @s run function trail:grapple",
+            "unknown selector multiplicity: execute as @a[scores={sand.dialog=2}] at @s run function trail:claim_striders",
+            "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start",
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a[scores={sand.dialog=1}]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "as",
+            "selector": "@a[scores={sand.dialog=2}]"
+          },
+          {
+            "line": 5,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_event_check/312fb72e": {
+        "owners": [
+          "book_project::on_stamina_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if score @s sfa49ff66aebe47c matches ..0 if score @s saafb19392893dee matches 0 run function trail:on_stamina_exhausted"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_event_check/4b38f085": {
+        "owners": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s if predicate trail:__sand/player_sprinting run function trail:__sand_event_dispatch/4b38f085"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_event_dispatch/4b38f085": {
+        "owners": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_lifecycle_init": {
+        "owners": [
+          "trail:traversal"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 7,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[scores={sa9c5ae898ac8f8e=1,sfa49ff66aebe47c=-2147483648..,scf21a43c2b92f8a=-2147483648..,s9b03f7001255338=-2147483648..,saafb19392893dee=-2147483648..,s8520e22d64708b4=-2147483648..}]"
+          }
+        ]
+      },
+      "trail:__sand_lifecycle_load": {
+        "owners": [
+          "book_project::grapple_ray",
+          "book_project::on_death",
+          "book_project::scout_ray",
+          "trail:traversal"
+        ],
+        "evaluations": {
+          "minimum": 13,
+          "maximum": 13,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_lifecycle_tick": {
+        "owners": [
+          "book_project::on_death",
+          "book_project::stamina_maintenance",
+          "trail:traversal"
+        ],
+        "evaluations": {
+          "minimum": 6,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function trail:sand/entity_query/8c5b0e07",
+            "unknown selector multiplicity: execute as @a run function trail:__sand_death_check",
+            "unknown selector multiplicity: execute as @a run function trail:__sand_lifecycle_init",
+            "unknown selector multiplicity: execute at @s run function trail:on_death"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@a"
+          }
+        ]
+      },
+      "trail:__sand_score_init": {
+        "owners": [
+          "book_project::claim_striders",
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 11,
+          "maximum": 11,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_system/raycast/grapple/advance": {
+        "owners": [
+          "book_project::grapple_ray"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/grapple/hit": {
+        "owners": [
+          "book_project::grapple_ray"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 35,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/grapple/load": {
+        "owners": [
+          "book_project::grapple_ray"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 1,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_system/raycast/grapple/miss": {
+        "owners": [
+          "book_project::grapple_ray"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_system/raycast/grapple/sample": {
+        "owners": [
+          "book_project::grapple_ray"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/sample"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/grapple/start": {
+        "owners": [
+          "book_project::grapple_ray"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/scout/advance": {
+        "owners": [
+          "book_project::scout_ray"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/scout/advance"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/scout/hit": {
+        "owners": [
+          "book_project::scout_ray"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 31,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/scout/load": {
+        "owners": [
+          "book_project::scout_ray"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 1,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_system/raycast/scout/miss": {
+        "owners": [
+          "book_project::scout_ray"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:__sand_system/raycast/scout/sample": {
+        "owners": [
+          "book_project::scout_ray"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/scout/sample"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_system/raycast/scout/start": {
+        "owners": [
+          "book_project::scout_ray"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/scout/advance"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:__sand_world_init": {
+        "owners": [],
+        "evaluations": {
+          "minimum": 5,
+          "maximum": 5,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:claim_striders": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 4,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "selector_sites": []
+      },
+      "trail:grapple": {
+        "owners": [
+          "book_project::grapple"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
+            "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:grapple/execute": {
+        "owners": [
+          "book_project::grapple_execute"
+        ],
+        "evaluations": {
+          "minimum": 7,
+          "maximum": 13,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:grapple/hit": {
+        "owners": [
+          "book_project::grapple_hit"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 33,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:load": {
+        "owners": [
+          "book_project::load"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:menu": {
+        "owners": [
+          "book_project::open_menu"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 9,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:on_death": {
+        "owners": [
+          "book_project::on_death"
+        ],
+        "evaluations": {
+          "minimum": 6,
+          "maximum": 6,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:on_first_join": {
+        "owners": [
+          "book_project::on_first_join"
+        ],
+        "evaluations": {
+          "minimum": 5,
+          "maximum": 5,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:on_first_join/body": {
+        "owners": [
+          "book_project::on_first_join"
+        ],
+        "evaluations": {
+          "minimum": 4,
+          "maximum": 4,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:on_obtained_grapple_core": {
+        "owners": [
+          "book_project::on_obtained_grapple_core"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 14,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:on_obtained_grapple_core/body": {
+        "owners": [
+          "book_project::on_obtained_grapple_core"
+        ],
+        "evaluations": {
+          "minimum": 5,
+          "maximum": 11,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:on_sprint_while_exhausted": {
+        "owners": [
+          "book_project::on_sprint_while_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 1,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:on_stamina_exhausted": {
+        "owners": [
+          "book_project::on_stamina_exhausted"
+        ],
+        "evaluations": {
+          "minimum": 4,
+          "maximum": 4,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:recover": {
+        "owners": [
+          "book_project::recover"
+        ],
+        "evaluations": {
+          "minimum": 6,
+          "maximum": 12,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/branches/3dbf257c": {
+        "owners": [
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 6,
+          "maximum": 14,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/branches/413af47c": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/branches/5c49977e": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:sand/branches/6222c9de": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 4,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "selector_sites": []
+      },
+      "trail:sand/branches/691ef25e": {
+        "owners": [
+          "book_project::grapple_hit"
+        ],
+        "evaluations": {
+          "minimum": 14,
+          "maximum": 20,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/branches/80b987ab": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 7,
+          "maximum": 7,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/branches/827a10b3": {
+        "owners": [
+          "book_project::scout_hit"
+        ],
+        "evaluations": {
+          "minimum": 10,
+          "maximum": 16,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/branches/991201e2": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 5,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "selector_sites": []
+      },
+      "trail:sand/branches/b7b2ae86": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:sand/conditions/blocks/6bcdb9d5": {
+        "owners": [
+          "book_project::scout_hit"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:sand/conditions/blocks/830b4509": {
+        "owners": [
+          "book_project::grapple_hit"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:sand/conditions/items/2d65f472": {
+        "owners": [
+          "book_project::grapple",
+          "book_project::grapple_hit",
+          "book_project::scout",
+          "book_project::scout_hit",
+          "book_project::tick"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 2,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/conditions/numeric/0870e94c": {
+        "owners": [
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 8,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:sand/conditions/numeric/f1270ba9": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/conditions/numeric/f1270ba9/left/inventory_0": {
+        "owners": [
+          "book_project::claim_striders"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 3,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "trail:sand/entity_query/8c5b0e07": {
+        "owners": [
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": 15,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/entity_query/afd6179e": {
+        "owners": [
+          "book_project::tick"
+        ],
+        "evaluations": {
+          "minimum": 2,
+          "maximum": 16,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:sand/state_init/7b742cca": {
+        "owners": [
+          "trail:traversal"
+        ],
+        "evaluations": {
+          "minimum": 6,
+          "maximum": 6,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:scout": {
+        "owners": [
+          "book_project::scout"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": null,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/scout/advance",
+            "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/scout/start"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:scout/execute": {
+        "owners": [
+          "book_project::scout_execute"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 9,
+          "unknown": []
+        },
+        "selector_sites": []
+      },
+      "trail:scout/hit": {
+        "owners": [
+          "book_project::scout_hit"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 29,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:stamina/maintain": {
+        "owners": [
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function trail:sand/entity_query/8c5b0e07"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:state_mutation/2591f404": {
+        "owners": [
+          "book_project::stamina_maintenance"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 3,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:state_mutation/78141a69": {
+        "owners": [
+          "book_project::grapple_hit"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 3,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:state_mutation/cc055adf": {
+        "owners": [
+          "book_project::scout_hit"
+        ],
+        "evaluations": {
+          "minimum": 3,
+          "maximum": 3,
+          "unknown": []
+        },
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "trail:tick": {
+        "owners": [
+          "book_project::tick"
+        ],
+        "evaluations": {
+          "minimum": 1,
+          "maximum": null,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a at @s run function trail:sand/entity_query/afd6179e"
+          ]
+        },
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ]
+  },
+  "datapack_output": "dist/trail",
+  "datapack_changes": {
+    "written": 0,
+    "unchanged": 77,
+    "removed": 0
+  },
+  "diagnostics": []
+}

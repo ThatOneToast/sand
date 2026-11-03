@@ -1,0 +1,23 @@
+[package]
+name = "sand-ability-linking-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+sand = { path = "../../.." }
+
+[[bin]]
+name = "baseline"
+path = "src/baseline.rs"
+[[bin]]
+name = "discarded"
+path = "src/discarded.rs"
+[[bin]]
+name = "registered"
+path = "src/registered.rs"
+[[bin]]
+name = "active"
+path = "src/active.rs"

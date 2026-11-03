@@ -1,0 +1,15 @@
+[package]
+name = "aether"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+sand = { path = "../../sand" }
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+doc = false

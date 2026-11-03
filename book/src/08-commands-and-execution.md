@@ -16,8 +16,7 @@ already does this). `TypedExecute::as_self_at_self()` keeps that player as the
 executor and positions the effects at their location. It never selects other
 players: one menu click pays only the clicking player's stamina and cooldown.
 
-The ordinary Rust helper `attempt_anchor` checks `ability_ready` once before
-casting. It requires the unlock, the actual custom Trail Striders in the feet
+The public `Ability::attempt` checks the configured readiness before casting. It requires the unlock, the actual custom Trail Striders in the feet
 slot, sufficient stamina, a ready cooldown, and no exhaustion. Owning the
 boots in inventory or wearing plain leather boots is insufficient.
 
@@ -36,8 +35,8 @@ voxel traversal. Only ordinary air is passable in this example.
 
 `trail:scout` demonstrates reuse with a different range, accepted block, cost
 (10), and cooldown (20 ticks). It shares stamina and cooldown with grapple;
-using either prevents immediately using the other. No new ability DSL or
-private runtime wiring is needed.
+using either prevents immediately using the other. Both import the same
+`sand::systems::ability` composition used by the separate `aether_tools` example.
 
 ## `trail:grapple/execute` — accepted-hit effects
 
@@ -45,18 +44,19 @@ private runtime wiring is needed.
 {{#include ../../examples/book_project/src/lib.rs:fn_grapple_execute}}
 ```
 
-The internal hit callback checks the sampled gold block once, then invokes
-this internal apply function. It spends 30 stamina, starts an 80-tick
-cooldown, and issues Speed/Slow Falling plus feedback. These effects stand in
+The internal hit callback calls `Ability::accept`, which checks the sampled
+gold block and readiness together before any writes. One grouped branch spends
+30 stamina, starts an 80-tick cooldown, then invokes this effect-only function
+for Speed/Slow Falling plus feedback. Spending the last 30 stamina cannot
+suppress cooldown or effects. These effects stand in
 for momentum; there is no teleport or arbitrary physics velocity. Success
 means accepting the anchor and issuing the effects, not proving that every
 Minecraft effect command changed the player. There is no rollback promise.
 
 The ray preserves the caster as executor and runs the callback at the hit
 sample. Thus effects and State apply only to that player; VFX explicitly reposition at
-the player. The internal `/execute` and `/hit` functions assume
-the normal entrypoint established eligibility; invoking them directly bypasses
-that gate. Use `trail:grapple` or `trail:scout` as gameplay entrypoints.
+the player. The internal `/execute` functions contain effects only and are not safe activation
+entrypoints. Hit callbacks recheck eligibility but require the ray's target position. Use `trail:grapple` or `trail:scout` as gameplay entrypoints.
 
 ## `trail:recover` — a plain reset function
 

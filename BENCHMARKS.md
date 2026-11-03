@@ -1045,3 +1045,43 @@ normalization. These are single runs, not MSPT, internal command-budget units or
 latency percentiles. Migration checkpoints are after the first copied row, not peak memory measurements. Bounds
 are in rows and emitted command work, not arbitrary payload bytes. Cleanup and
 context reuse remain separate work; retention is unchanged.
+
+## Empty-owner reclamation (2026-10-28)
+
+[Retained evidence](benchmarks/evidence/keyed-reclamation-2026-10-28/summary.json)
+compares baseline `8bfbfde3` with clean reclamation revision `78ed9e13` using one
+active owner and 10 / 1,000 / 10,000 historical owners. Full `scripts/check.sh`
+passes on the candidate. Native replay passes 62 baseline and 200 candidate
+assertions with one identical harness revision/hash. Input packs, native traces,
+saved storage snapshots, server/harness hashes and logs are retained. Seeding,
+migration, reads/writes and cleanup remain separate stages in each JSON record.
+
+| Historical owners | Baseline / candidate detach evaluations | Baseline / candidate UUID reads | Baseline / candidate successful data mutations | Candidate scratch count stores | Baseline / candidate ten-cycle seconds |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 15 / 43 | 2 / 5 | 2 / 8 | 3 | 0.056 / 0.053 |
+| 1,000 | 15 / 43 | 2 / 5 | 2 / 8 | 3 | 0.059 / 0.052 |
+| 10,000 | 15 / 43 | 2 / 5 | 2 / 8 | 3 | 0.143 / 0.053 |
+
+These are the actual exported detach paths, including one wrapper. The candidate
+fixture additionally observes prior score/data and accesses a second owner in its
+cleanup hook; the baseline has no such hook. Consequently this is a lifecycle and
+retention comparison, not a claim that pruning reduces command counts. Successful
+mutations count positive data modify/remove results; the three executed scratch
+count stores are separately reported without claiming they each changed a value.
+Candidate cleanup with another component and an unknown owner field retained uses
+six successful data mutations, rather than the eight for removing an empty owner.
+
+After ten attach/detach cycles the baseline retains all historical owner records;
+the candidate retains exactly N−1, removing only the active empty record and
+preserving every dormant record. Candidate raw storage after cleanup is 1,160 /
+103,040 / 1,039,040 bytes; baseline is 1,057 / 87,187 / 870,187 bytes. UUID-map keys
+still cost more bytes than legacy lists; this change does not erase dormant data
+to achieve a smaller benchmark. Empty root/version metadata deliberately remain.
+
+The fixed explicit cleanup work has no historical-owner list filter or recurring
+world scan. Timings are single console-barrier samples with JIT/host noise, not
+MSPT, latency percentiles or proof of constant wall-clock cost. Arbitrary external
+death, offline-owner purge and general once-per-body owner resolution remain
+outside this slice. The canonical unified_state report grows 121→149 functions:
+resolver/deletion/pruning helpers and the cleanup/shared-archetype proof fixtures;
+its unknown upper bounds remain explicit.

@@ -1,0 +1,46 @@
+keyed_literal_probe:scale_trace_write
+    [F] keyed_literal_probe:scale_trace_write size=1
+        [C] execute as @e[tag=keyed_scale,limit=1] run function unified_state:set_entity_literals
+            [M] Running function unified_state:set_entity_literals
+        [F] unified_state:set_entity_literals size=2
+            [C] function unified_state:sand/state_data/write/d86f2a94
+                [M] Running function unified_state:sand/state_data/write/d86f2a94
+            [F] unified_state:sand/state_data/write/d86f2a94 size=6
+                [C] data remove storage rpg:state __sand_owner.value
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.value set value "$(missing) $(u0) \"quoted\" \\ path"
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.value set value "$(missing) $(u0) \"quoted\" \\ path"
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [C] function unified_state:sand/state_data/keyed/1c3bae1e with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/1c3bae1e
+                [F] unified_state:sand/state_data/keyed/1c3bae1e/3601370 size=1
+                    [C] data modify storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".template set from storage rpg:state __sand_owner.value
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".template set from storage rpg:state __sand_owner.value
+                [C] data remove storage rpg:state __sand_owner.value
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state __sand_owner.value
+            [C] function unified_state:sand/state_data/write/70bf8bdd
+                [M] Running function unified_state:sand/state_data/write/70bf8bdd
+            [F] unified_state:sand/state_data/write/70bf8bdd size=6
+                [C] data remove storage rpg:state __sand_owner.value
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.value set value {text:"$(missing) $(u0) \"quoted\" \\ path",nested:{literal:"$(u0)",quoted:"\"quoted\" \\ path"}}
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.value set value {text:"$(missing) $(u0) \"quoted\" \\ path",nested:{literal:"$(u0)",quoted:"\"quoted\" \\ path"}}
+                [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/91c6cf1a with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/91c6cf1a
+                [F] unified_state:sand/state_data/keyed/91c6cf1a/3601370 size=1
+                    [C] data modify storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".details set from storage rpg:state __sand_owner.value
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".details set from storage rpg:state __sand_owner.value
+                [C] data remove storage rpg:state __sand_owner.value
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state __sand_owner.value

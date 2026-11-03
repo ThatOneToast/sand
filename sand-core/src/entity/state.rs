@@ -895,6 +895,16 @@ pub fn state_detach_commands<S: EntityState>(
     for field in S::data_fields() {
         commands.extend(state_data_remove_commands(*field));
     }
+    // Hooks may have accessed a different owner. Pruning resolves this executor
+    // afresh and runs only after all declared fields have been removed.
+    for storage in S::data_fields()
+        .iter()
+        .filter(|field| field.keyed)
+        .map(|field| field.storage)
+        .collect::<std::collections::BTreeSet<_>>()
+    {
+        commands.extend(keyed_data_prune_commands(storage, schema.name));
+    }
     commands.push(format!("scoreboard players reset {holder} {presence}"));
     if suppress_observation {
         commands.push(format!("scoreboard players set {holder} {suppression} 1"));
@@ -2726,14 +2736,18 @@ pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) ->
 
 fn state_data_remove_commands(field: StateDataFieldDescriptor) -> Vec<String> {
     if field.keyed {
-        keyed_data_call(
+        let commands = keyed_data_call(
             field.storage,
             format!(
                 "$data remove storage {} {}",
                 field.storage,
                 keyed_path(field.path)
             ),
-        )
+        );
+        // Composition deduplicates identical command lines. Keep resolution
+        // with this mutation across cleanup hooks that can visit other owners.
+        let path = crate::function::register_dyn_fn_dedup("sand/state_data/remove", commands);
+        vec![format!("function __sand_local:{path}")]
     } else {
         vec![format!(
             "data remove storage {} {}",
@@ -2744,6 +2758,41 @@ fn state_data_remove_commands(field: StateDataFieldDescriptor) -> Vec<String> {
 
 fn keyed_uuid() -> &'static str {
     "$(uuid)"
+}
+
+// Only compiler-owned structural compounds are pruned. A compound predicate
+// proves the type before reading its child count: lists, scalars and authored
+// empty-compound field values must never be mistaken for empty structure.
+// The remaining UUID-only record can be removed; unknown owner keys prevent it.
+// No callback runs inside this helper, so its short-lived count cannot overlap
+// another owner access. The storage's layout marker and empty root map remain.
+fn keyed_data_prune_commands(storage: &str, component: &str) -> Vec<String> {
+    let owner = keyed_owner_path();
+    let component = serde_json::to_string(component).expect("component name serializes");
+    let mut body = Vec::new();
+    for path in [
+        format!("{owner}.components.{component}"),
+        format!("{owner}.components"),
+    ] {
+        body.push(format!(
+            "$execute if data storage {storage} {path}{{}} store result storage {storage} __sand_owner.children int 1 run data get storage {storage} {path}"
+        ));
+        body.push(format!(
+            "$execute if data storage {storage} {path}{{}} if data storage {storage} __sand_owner{{children:0}} run data remove storage {storage} {path}"
+        ));
+    }
+    body.push(format!(
+        "$execute if data storage {storage} {owner}{{uuid:$(uuid)}} store result storage {storage} __sand_owner.children int 1 run data get storage {storage} {owner}"
+    ));
+    body.push(format!(
+        "$execute if data storage {storage} {owner}{{uuid:$(uuid)}} if data storage {storage} __sand_owner{{children:1}} run data remove storage {storage} {owner}"
+    ));
+    body.push(format!(
+        "data remove storage {storage} __sand_owner.children"
+    ));
+    let commands = keyed_data_call(storage, body.join("\n"));
+    let path = crate::function::register_dyn_fn_dedup("sand/state_data/prune", commands);
+    vec![format!("function __sand_local:{path}")]
 }
 
 fn keyed_owner_path() -> String {
@@ -4159,13 +4208,49 @@ mod tests {
     }
 
     #[test]
+    fn keyed_reclamation_is_explicit_and_preserves_unknown_structure() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let commands = keyed_data_prune_commands("rpg:state", "odd.name");
+        assert_eq!(commands.len(), 1);
+        let helpers = crate::ir::test_support::drain_emitted();
+        let resolver = helpers
+            .iter()
+            .find(|(name, _)| name.starts_with("sand/state_data/prune/"))
+            .unwrap();
+        assert_eq!(
+            resolver.1[1],
+            "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+        );
+        let body = helpers
+            .iter()
+            .flat_map(|(_, lines)| lines)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(body.contains(".components.\"odd.name\"{}"));
+        assert!(body.contains("__sand_owner{children:0} run data remove"));
+        assert!(body.contains(
+            "{uuid:$(uuid)} if data storage rpg:state __sand_owner{children:1} run data remove"
+        ));
+        assert!(body.contains("data remove storage rpg:state __sand_owner.children"));
+        assert!(!body.contains("run data remove storage rpg:state owners_v2\n"));
+
+        let _ = KeyedData::<i32>::new("rpg:state", "components.stats.xp").remove();
+        let removal = crate::ir::test_support::drain_emitted();
+        assert!(
+            removal
+                .iter()
+                .all(|(_, body)| body.iter().all(|line| !line.contains("children")))
+        );
+    }
+
+    #[test]
     fn keyed_owner_resolution_clears_stale_uuid_for_every_access() {
         let field = KeyedData::<i32>::new("rpg:state", "components.stats.xp");
         let descriptor = StateDataFieldDescriptor::keyed("rpg:state", "components.stats.xp", "7");
         for commands in [
             field.get(),
             field.remove(),
-            state_data_remove_commands(descriptor),
             state_data_initialize_commands(descriptor),
             field.if_present(|| vec!["say present".into()]),
         ] {
@@ -4180,6 +4265,20 @@ mod tests {
             );
             assert!(commands[2].ends_with(" with storage rpg:state __sand_owner"));
         }
+        let _ = state_data_remove_commands(descriptor);
+        let helpers = crate::ir::test_support::drain_emitted();
+        let removal = helpers
+            .iter()
+            .find(|(name, _)| name.starts_with("sand/state_data/remove/"))
+            .unwrap();
+        assert_eq!(
+            removal.1[0],
+            "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid"
+        );
+        assert_eq!(
+            removal.1[1],
+            "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+        );
         let _ = crate::ir::test_support::drain_emitted();
         let _ = field.set(9);
         let helpers = crate::ir::test_support::drain_emitted();

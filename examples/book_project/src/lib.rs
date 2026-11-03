@@ -18,11 +18,13 @@
 //! ```
 
 // ANCHOR: imports
+use sand::command::Anchor;
 use sand::event::AdvancementEvent;
 use sand::event::trigger::InventoryChangedTrigger;
 use sand::event::vanilla::{FirstJoin, OnDeath};
 use sand::events::{PlayerSprintEvent, SandEvent, SandEventDispatch};
 use sand::prelude::*;
+use sand::systems::raycast::BlockRaycast;
 // ANCHOR_END: imports
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -49,6 +51,8 @@ struct Traversal {
     regen: Timer,
 }
 
+// Stateless custom dispatch markers have no event participant value. Their
+// as_players dispatcher establishes the current player used by this binding.
 fn traversal() -> TraversalBound {
     Traversal::on(EntityContext::<PlayerKind>::default())
 }
@@ -73,40 +77,23 @@ pub fn load() {
 /// Runs every tick: advance timers, regenerate stamina, drive the actionbar.
 #[datapack_component(Tick)]
 pub fn tick() {
-    let state = traversal();
-
-    // Stamina regen pulse: when the regen timer expires, restore 10 stamina
-    // to every player below the cap, then restart the timer.
-    TypedExecute::as_players()
-        .when(all![
-            state.regen.elapsed(),
-            state.stamina.matches(..100).unwrap(),
-        ])
-        .run(state.stamina.add(10));
-    TypedExecute::as_players()
-        .when(state.regen.elapsed())
-        .run(state.regen.start(Ticks::seconds(2)));
-
-    // Exhaustion clears once stamina recovers past half.
-    TypedExecute::as_players()
-        .when(all![
-            state.exhausted.is_enabled(),
-            state.stamina.matches(50..).unwrap()
-        ])
-        .run(cmd::function(recover));
-
-    // Actionbar: grapple readiness for upgraded players.
-    TypedExecute::as_players()
-        .when(all![
-            state.has_striders.is_enabled(),
-            state.grapple.ready(),
-            state.stamina.matches(30..).unwrap(),
-            state.exhausted.is_disabled(),
-        ])
-        .run(Actionbar::show(
-            Target::self_(),
-            Text::new("Grapple ready").aqua().bold(true),
-        ));
+    Target::players().each(|player| {
+        let player = *player;
+        let state = Traversal::on(player);
+        mcfunction![
+            when(state.regen.elapsed()).then_all(mcfunction![
+                when(state.stamina.matches(..100).unwrap()).then_one(state.stamina.add(10));
+                state.regen.start(Ticks::seconds(2));
+            ]);
+            when(all![
+                state.exhausted.is_enabled(),
+                state.stamina.matches(50..).unwrap(),
+            ]).then_one(cmd::function(recover));
+            when(ability_ready(player, 30)).then_one(Actionbar::show(
+                Target::from(player), Text::new("Grapple ready").aqua().bold(true),
+            ));
+        ]
+    });
 }
 // ANCHOR_END: tick
 
@@ -141,7 +128,7 @@ pub fn trail_striders() -> CustomItem {
         .component(ItemComponent::lore(vec![
             Text::new("Light as a rumor").gray(),
         ]))
-        .component(ItemComponent::custom_data_marker("trail_striders"))
+        .custom_data("trail_striders")
         .component(ItemComponent::rarity(ItemRarity::Epic))
         .component(ItemComponent::attribute_modifier(
             AttributeModifier::new(AttributeType::MovementSpeed)
@@ -203,26 +190,19 @@ pub fn capability_facade_example() -> Actions {
 // ANCHOR_END: entity_capabilities
 
 // ANCHOR: fn_grapple
-/// Grapple dash entry point: gate on upgrade, stamina, cooldown, exhaustion.
+/// Grapple entry: validate the player once, then look for a gold-block anchor.
 #[function("trail:grapple", context = player)]
-pub fn grapple() {
-    let state = traversal();
-    TypedExecute::as_self_at_self()
-        .when(all![
-            state.has_striders.is_enabled(),
-            state.grapple.ready(),
-            state.stamina.matches(30..).unwrap(),
-            state.exhausted.is_disabled(),
-        ])
-        .run(cmd::function(grapple_execute));
+pub fn grapple(player: EntityContext<PlayerKind>) {
+    attempt_anchor(player, 30, grapple_ray());
 }
 // ANCHOR_END: fn_grapple
 
 // ANCHOR: fn_grapple_execute
-/// Applies the grapple dash: pay stamina, start the cooldown, launch, sparkle.
+/// Accepted gold anchor: pay stamina, start cooldown, apply traversal effects.
+/// Internal callback; the entry and hit functions already validated eligibility.
 #[function("trail:grapple/execute", context = player)]
 pub fn grapple_execute(player: EntityContext<PlayerKind>) {
-    let state = traversal();
+    let state = Traversal::on(player);
     state.stamina.subtract(30);
     state.grapple.start(Ticks::seconds(4));
     player
@@ -241,11 +221,101 @@ pub fn grapple_execute(player: EntityContext<PlayerKind>) {
 }
 // ANCHOR_END: fn_grapple_execute
 
+// ANCHOR: anchor_workflow
+/// Shared eligibility for the actionbar and both anchor consumers.
+fn ability_ready(player: EntityContext<PlayerKind>, cost: i32) -> Condition {
+    let state = Traversal::on(player);
+    all![
+        state.has_striders.is_enabled(),
+        player
+            .equipment()
+            .boots()
+            .matches(trail_striders().item_predicate().unwrap())
+            .unwrap(),
+        state.grapple.ready(),
+        state.stamina.matches(cost..).unwrap(),
+        state.exhausted.is_disabled(),
+    ]
+}
+
+/// Ordinary Rust composition: one eligibility decision before any dependent writes.
+/// A sufficient balance permits the cast; only an accepted anchor spends the
+/// full cost and starts cooldown. Misses and invalid hits spend nothing. This
+/// accepts an interaction, not a transaction proving vanilla effect success.
+/// Restoration uses the same bounded State: +10 saturates at 100 (95 restores
+/// only five); a full pool skips the write while its regen timer still restarts.
+fn attempt_anchor(player: EntityContext<PlayerKind>, cost: i32, ray: BlockRaycast) -> Actions {
+    TypedExecute::as_self_at_self()
+        .when(ability_ready(player, cost))
+        .run(ray.cast())
+}
+
+fn anchor_ray(name: &str, distance: f64, hit: impl FunctionRef) -> BlockRaycast {
+    BlockRaycast::new(ResourceLocation::local(name).unwrap())
+        .origin(Anchor::Eyes)
+        .first_collision()
+        .pass_through(BlockPredicate::new().blocks(vec![BlockId::minecraft("air").unwrap()]))
+        .max_distance(distance)
+        .step(0.25)
+        .on_hit(hit)
+}
+
+#[datapack_component]
+fn grapple_ray() -> BlockRaycast {
+    anchor_ray("grapple", 8.0, grapple_hit)
+}
+
+/// At the first collision, retain the caster and validate the sampled block once.
+#[function("grapple/hit", context = player)]
+fn grapple_hit() {
+    when(
+        WorldContext::current()
+            .block(BlockPos::here())
+            .matches(vanilla::Block::GoldBlock),
+    )
+    .then_one(cmd::function(grapple_execute));
+}
+
+/// A cheaper, shorter iron-anchor ability reuses the same resource and cooldown.
+#[function("trail:scout", context = player)]
+pub fn scout(player: EntityContext<PlayerKind>) {
+    attempt_anchor(player, 10, scout_ray());
+}
+
+#[datapack_component]
+fn scout_ray() -> BlockRaycast {
+    anchor_ray("scout", 4.0, scout_hit)
+}
+
+#[function("scout/hit", context = player)]
+fn scout_hit() {
+    when(
+        WorldContext::current()
+            .block(BlockPos::here())
+            .matches(vanilla::Block::IronBlock),
+    )
+    .then_one(cmd::function(scout_execute));
+}
+
+/// Internal accepted-hit callback, not an independently guarded entrypoint.
+#[function("trail:scout/execute", context = player)]
+fn scout_execute(player: EntityContext<PlayerKind>) {
+    let state = Traversal::on(player);
+    state.stamina.subtract(10);
+    state.grapple.start(Ticks::seconds(1));
+    player
+        .living()
+        .give_effect(EffectId::Speed)
+        .duration(Ticks::seconds(1))
+        .particles(false);
+}
+// ANCHOR_END: anchor_workflow
+
 // ANCHOR: fn_recover
 /// Clears exhaustion once stamina has recovered (called from `tick`).
 #[function("trail:recover", context = player)]
-pub fn recover() {
-    traversal().exhausted.disable();
+pub fn recover(player: EntityContext<PlayerKind>) {
+    Traversal::on(player).exhausted.disable();
     cmd::tellraw(Target::self_(), Text::new("You feel steady again.").green());
 }
 // ANCHOR_END: fn_recover
@@ -257,15 +327,15 @@ pub fn recover() {
 /// The successful branch consumes one core and gives the boots to the current
 /// player; it does not replace occupied armor slots or equip the boots.
 #[function("trail:claim_striders", context = player)]
-pub fn claim_striders() {
-    let state = traversal();
-    let inventory = EntityContext::<PlayerKind>::default().inventory();
+pub fn claim_striders(player: EntityContext<PlayerKind>) {
+    let state = Traversal::on(player);
+    let inventory = player.inventory();
     let core = grapple_core().item_predicate().unwrap();
     if_(state.has_striders.is_enabled())
         .then_all(mcfunction![
             cmd::tellraw(
                 Target::self_(),
-                Text::new("You already wear Trail Striders.").red(),
+                Text::new("You already unlocked Trail Striders.").red(),
             );
             cmd::return_fail();
         ])
@@ -396,7 +466,7 @@ impl SandEvent for SprintingWhileExhaustedEvent {
 /// First-ever join: seed stamina and greet the player.
 #[on_event]
 pub fn on_first_join(event: FirstJoin) {
-    traversal().stamina.set(100);
+    Traversal::on(event.player()).stamina.set(100);
     Title::of(Target::from(event.player()))
         .title(Text::new("Trailforge").gold().bold(true))
         .subtitle(Text::new("Craft a Grapple Core to begin").aqua())
@@ -408,7 +478,7 @@ pub fn on_first_join(event: FirstJoin) {
 /// Death resets the traversal state so respawned players start steady.
 #[on_event]
 pub fn on_death(event: OnDeath) {
-    let state = traversal();
+    let state = Traversal::on(event.player());
     state.exhausted.disable();
     state.grapple.start(Ticks::new(0));
     state.stamina.set(100);
@@ -443,7 +513,9 @@ pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
 /// Sprinting while exhausted is punished with brief slowness.
 #[on_event]
 pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
-    cmd::effect_give(Target::self_(), EffectId::Slowness)
+    EntityContext::<PlayerKind>::default()
+        .living()
+        .give_effect(EffectId::Slowness)
         .duration(Ticks::seconds(2))
         .particles(false);
 }
@@ -517,8 +589,13 @@ mod tests {
             result.push_str(body);
             result.push('\n');
             for line in body.lines() {
-                if let Some((_, target)) = line.split_once("function trail:") {
-                    pending.push(target.split_whitespace().next().unwrap().to_owned());
+                let words = line.split_whitespace().collect::<Vec<_>>();
+                for pair in words.windows(2) {
+                    if pair[0] == "function"
+                        && let Some(target) = pair[1].strip_prefix("trail:")
+                    {
+                        pending.push(target.to_owned());
+                    }
                 }
             }
         }
@@ -559,51 +636,41 @@ mod tests {
 
     #[test]
     fn tick_drives_stamina_recovery_and_readiness() {
-        let cmds = emitted(tick());
-        assert!(
-            cmds.iter().any(|c| c.contains("Grapple ready")),
-            "readiness actionbar: {cmds:?}"
-        );
-        assert!(
-            cmds.iter().any(|command| {
-                command.starts_with("execute as @a ")
-                    && command.contains("matches 50..")
-                    && command.ends_with("run function trail:recover")
-            }),
-            "recovery at half stamina: {cmds:?}"
-        );
-        let recovery = emitted(recover());
-        assert!(
-            recovery
-                .iter()
-                .any(|command| command.starts_with("tellraw @s ")
-                    && command.contains("You feel steady again.")),
-            "recovery feedback: {recovery:?}"
-        );
         let functions = exported_functions();
-        let regen = functions["tick"]
+        let body = reachable_body(&functions, "tick");
+        assert!(body.contains("Grapple ready"));
+        assert!(
+            !body.contains("__sand_system/raycast/"),
+            "idle maintenance must not cast: {body}"
+        );
+        assert!(body.contains("matches 50.."));
+        assert!(body.contains("run function trail:recover"));
+        assert!(body.contains("armor.feet"));
+        assert!(body.contains("trail_striders"));
+        let elapsed = format!("if score @s {} matches 0", Traversal::regen.objective());
+        assert_eq!(
+            body.matches(&elapsed).count(),
+            1,
+            "one timer decision: {body}"
+        );
+        let below_cap = body
             .lines()
             .filter(|line| line.contains("matches ..99"))
             .collect::<Vec<_>>();
-        assert_eq!(
-            regen.len(),
-            1,
-            "regen must evaluate its guard once: {regen:?}"
-        );
-        let helper = regen[0].split_once(" run function trail:").unwrap().1;
-        let body = &functions[helper];
-        assert!(body.lines().any(|line| line.starts_with("scoreboard players add @s ") && line.ends_with(" 10")), "{body}");
-        assert!(
-            body.lines().any(
-                |line| line.contains("matches 101.. run scoreboard players set @s ")
-                    && line.ends_with(" 100")
-            ),
-            "{body}"
-        );
-        assert!(
-            !body.contains("matches ..99"),
-            "the clamp must not repeat the pre-write guard: {body}"
-        );
+        assert_eq!(below_cap.len(), 1, "one resource decision: {body}");
+        let helper = below_cap[0].split_once(" run function trail:").unwrap().1;
+        let restore = &functions[helper];
+        assert!(restore.contains(&format!(
+            "scoreboard players add @s {} 10",
+            Traversal::stamina.objective()
+        )));
+        assert!(restore.contains("matches 101.."));
+        assert!(!restore.contains("matches ..99"));
+        assert!(!restore.contains(&elapsed));
+        assert!(body.contains(&format!(
+            "scoreboard players set @s {} 40",
+            Traversal::regen.objective()
+        )));
     }
 
     #[test]
@@ -692,7 +759,7 @@ mod tests {
         assert!(
             functions
                 .values()
-                .any(|body| body.contains("You already wear Trail Striders"))
+                .any(|body| body.contains("You already unlocked Trail Striders"))
         );
     }
 
@@ -705,6 +772,98 @@ mod tests {
             "one menu click must only affect its player: {body}"
         );
         assert!(body.contains("run function trail:grapple/execute"));
+        assert!(body.contains("armor.feet"));
+        assert!(body.contains("trail_striders"));
         assert!(body.contains("matches 30.."));
+    }
+    #[test]
+    fn anchor_paths_gate_costs_and_keep_work_bounded() {
+        let functions = exported_functions();
+        for (name, block, cost, duration, samples) in [
+            ("grapple", "gold_block", 30, 80, 32),
+            ("scout", "iron_block", 10, 20, 16),
+        ] {
+            let entry = &functions[name];
+            assert_eq!(
+                entry.matches(&format!("matches {cost}..")).count(),
+                1,
+                "{entry}"
+            );
+            assert!(!entry.contains("scoreboard players remove"));
+            assert!(!entry.contains("effect give"));
+            for (objective, range) in [
+                (Traversal::has_striders.objective(), "1"),
+                (Traversal::grapple.objective(), "0"),
+                (Traversal::exhausted.objective(), "0"),
+            ] {
+                assert_eq!(
+                    entry
+                        .matches(&format!("if score @s {objective} matches {range}"))
+                        .count(),
+                    1,
+                    "{entry}"
+                );
+            }
+            let gate = reachable_body(&functions, name);
+            assert!(
+                gate.contains("if items entity @s armor.feet minecraft:leather_boots"),
+                "{gate}"
+            );
+            let hit = reachable_body(&functions, &format!("{name}/hit"));
+            assert_eq!(
+                hit.matches(&format!("if block ~ ~ ~ minecraft:{block}"))
+                    .count(),
+                1,
+                "{hit}"
+            );
+            assert!(hit.contains(&format!("run function trail:{name}/execute")));
+            assert!(!functions[&format!("{name}/hit")].contains("scoreboard players remove"));
+            let apply = reachable_body(&functions, &format!("{name}/execute"));
+            assert!(apply.contains(&format!(
+                "scoreboard players remove @s {} {cost}",
+                Traversal::stamina.objective()
+            )));
+            assert!(apply.contains(&format!(
+                "scoreboard players set @s {} {duration}",
+                Traversal::grapple.objective()
+            )));
+            let ray = reachable_body(&functions, &format!("__sand_system/raycast/{name}/start"));
+            assert!(ray.contains("anchored eyes"));
+            assert!(!ray.contains("@a"));
+            assert_eq!(
+                if name == "grapple" {
+                    grapple_ray()
+                } else {
+                    scout_ray()
+                }
+                .sample_count()
+                .unwrap(),
+                samples
+            );
+            let sample = &functions[&format!("__sand_system/raycast/{name}/sample")];
+            assert!(sample.contains(&format!("execute unless loaded ~ ~ ~ run return run function trail:__sand_system/raycast/{name}/miss")));
+            assert!(sample.contains(&format!("execute unless predicate trail:__sand_system/raycast/{name}/criterion run return run function trail:__sand_system/raycast/{name}/hit")));
+            assert!(!sample.contains("scoreboard players set"));
+            let miss = &functions[&format!("__sand_system/raycast/{name}/miss")];
+            assert!(!miss.contains(&Traversal::stamina.objective().to_string()));
+            assert!(!miss.contains(&Traversal::grapple.objective().to_string()));
+            assert!(!miss.contains("/execute"));
+        }
+    }
+
+    #[test]
+    fn boots_identity_and_repeated_exports_are_stable() {
+        let predicate = serde_json::to_value(trail_striders().item_predicate().unwrap()).unwrap();
+        assert_eq!(
+            predicate["items"],
+            serde_json::json!(["minecraft:leather_boots"])
+        );
+        assert!(predicate.to_string().contains("trail_striders"));
+        let before = sand::advanced::try_export_pack_json("trail", "26.2").unwrap();
+        let _other = sand::advanced::try_export_pack_json("alternate", "26.2").unwrap();
+        assert_eq!(
+            before,
+            sand::advanced::try_export_pack_json("trail", "26.2").unwrap()
+        );
     }
 }

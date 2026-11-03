@@ -11,7 +11,7 @@ const OTHER: Objective = Objective::new("ray_other");
 const PLAYER: Objective = Objective::new("ray_player");
 
 fn local(path: &str) -> ResourceLocation {
-    ResourceLocation::new("__sand_local", path).unwrap()
+    ResourceLocation::local(path).unwrap()
 }
 fn block(id: &str) -> BlockPredicate {
     BlockPredicate::new().blocks(vec![BlockId::minecraft(id).unwrap()])

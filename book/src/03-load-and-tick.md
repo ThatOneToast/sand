@@ -11,52 +11,30 @@ set up and then continuously drive its stamina/grapple system.
 {{#include ../../examples/book_project/src/lib.rs:load}}
 ```
 
-`#[datapack_component(Load)]` registers this function to be called from the
-datapack's `#minecraft:load` function tag. Its job is narrow on purpose:
-**define** every piece of persistent state Trailforge will read or write
-later (`STAMINA`, `GRAPPLE`, `HAS_STRIDERS`, `EXHAUSTED`, `REGEN`, and the
-optional `DamageTracker` system), and **seed** one storage value
-(`GRAPPLE_RANGE`). Load runs on every `/reload`, not just world creation —
-so `.define()` calls must be idempotent (defining an already-defined
-objective is a no-op in vanilla) and must never *reset* a player's existing
-progress. Trailforge doesn't zero out `STAMINA` here; a player who reloads
-the datapack mid-session keeps their current stamina.
+State owns objective creation, per-player defaults, bounds, and auto-ticking.
+Load seeds an illustrative storage value and announces the pack; it does not
+reset existing players. The ray's range is a build-time setting in
+`anchor_ray`, not a runtime read of that storage value.
 
-## Tick: react, don't poll blindly
+## Tick: per-player resource maintenance
 
 ```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:tick}}
 ```
 
-`#[datapack_component(Tick)]` registers this function to the `#minecraft:tick`
-function tag, so it runs once per tick for every online player context you
-target. Trailforge's tick body is a sequence of small, independently gated
-`TypedExecute::as_players().when(condition).run(...)` statements — each one
-reads as "for every player where *this* is true, do *this*." That shape
-matters for two reasons:
+`Target::players().each` provides the same player handle used by injected
+functions and event participants. `Traversal::on(player)` binds every read
+and write to that player. Each player starts with 100 stamina, bounded to
+0..100. Every 40 ticks an elapsed regen timer restores 10 and restarts;
+the State write clamps at 100, including regeneration from 95. Regeneration
+continues while unequipped. A full pool skips the restore write but still
+restarts its timer. The grouped timer branch evaluates elapsed once
+before either write, so restarting the timer cannot suppress the restore.
 
-1. **Multiplayer correctness.** `as_players()` iterates all online players
-   each tick; every condition is evaluated per-player, so one player's
-   stamina running low never affects another player's actionbar or regen.
-2. **Determinism over polling.** Rather than a single monolithic "game
-   state machine" function, each concern (timer expiry, exhaustion
-   recovery, dash readiness, damage feedback) is its own small `when(...)`
-   guard. Adding a new tick-driven behavior later means adding one more
-   guarded statement, not threading new state through an existing one.
-
-Two patterns worth naming:
-
-- **Timer-driven regen.** `REGEN.expired("@s")` is true for exactly the tick
-  a `Timer` crosses its interval; the tick function both *acts* on that
-  (adds stamina) and *restarts* the timer in the same tick, in two separate
-  `when` blocks, so the "read expiry" and "restart" steps stay simple and
-  independently testable rather than merged into one conditional.
-- **`all![...]` composition.** Multiple conditions — upgrade owned, cooldown
-  ready, enough stamina, not exhausted — combine with the `all!` macro
-  (re-exported through the prelude) into a single `execute if` chain. This
-  is the same gating logic `trail:grapple` uses in chapter 8 to decide
-  whether the dash is actually allowed to run; the actionbar in `tick` and
-  the dash function agree because they use the same condition expressions.
+Exhaustion clears at 50 stamina. The actionbar uses `ability_ready`, the same
+helper as activation: unlock, actual Trail Striders equipped, at least 30
+stamina, no exhaustion, and ready cooldown. It signals player readiness;
+it does not promise a valid anchor is in view. Only activation casts the ray.
 
 ## Why load/tick instead of events for this state
 

@@ -20,6 +20,7 @@
 # Native biome ambient audio replaces four ignored effects setters with three types and eight methods (+7 source items).
 # Typed living damage/effect mutations add two enforced source methods.
 # Named entity equipment accessors add six enforced entity-source methods.
+# Pack-local ResourceLocation construction adds one contracted root-source method.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -28,12 +29,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5059
+static_surface_items = 5060
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11159
+static_surface_items = 11160
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

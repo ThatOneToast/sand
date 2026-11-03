@@ -1,0 +1,4 @@
+execute unless score @s s8dfc581660963e7 matches 1.. unless score @s s8dec516490d2d08 matches -2147483648.. run scoreboard players set @s s8dec516490d2d08 0
+execute unless score @s s8dfc581660963e7 matches 1.. unless score @s s108eb94c11c6345 matches -2147483648.. run scoreboard players set @s s108eb94c11c6345 100
+execute unless score @s s8dfc581660963e7 matches 1.. unless score @s scd0adc2a8a41b14 matches -2147483648.. run scoreboard players set @s scd0adc2a8a41b14 0
+execute unless score @s s8dfc581660963e7 matches 1.. unless score @s s593376572d2b874 matches 1.. run scoreboard players set @s s593376572d2b874 1

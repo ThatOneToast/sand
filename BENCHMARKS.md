@@ -931,3 +931,24 @@ unknown upper bound because macro arguments are not analyzed. The observed
 idle 99 adds the timer's four-command fanout and two-command acknowledgement.
 This report is compiler-export analysis, not an MSPT measurement or proof of a
 whole-tick upper bound; its recorded limitations remain applicable.
+
+## Player State initialization (2026-10-27)
+
+The unchanged Trailforge fixture at `6f77dcb6`, with only the scoreboard-only
+initializer optimization applied, was compared on Minecraft 26.2 / Java 25.
+[Evidence and provenance](benchmarks/evidence/player-initialization-2026-10-27/summary.json)
+retain both packs' identities and ten complete native traces.
+
+- Static emitted work: one additional helper, no additional objectives; initializer
+  evaluation range changes from `6..6` to `1..7`. Tick order is unchanged.
+- Native initializer command evaluations, excluding the identical observation
+  wrapper: 0 players `0→0`, 1 healthy player `6→1`, 2 healthy players `12→2`;
+  one missing or suppressed field among two players `12→8`.
+- Observed State changes: missing stamina repairs to 100, the other player's 61
+  remains unchanged, and suppression prevents repair. No complete mutation-count
+  benchmark was recorded.
+- MSPT and internal command-budget cost were not measured. Score-filter conditions
+  still execute; these counts do not establish a safe player population.
+
+See the [initialization contract](docs/player-initialization-fast-path.md) for
+eligibility, excluded hooks/storage/migrations, and reproduction instructions.

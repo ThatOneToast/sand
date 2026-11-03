@@ -217,10 +217,20 @@ pub(crate) struct AutomaticLifecycle {
     pub load_commands: Vec<String>,
     pub provision_commands: Vec<String>,
     pub player_init_commands: Vec<String>,
+    /// Owned cold-path helpers; generation never registers these in ambient state.
+    pub player_init_helpers: Vec<PlayerInitHelper>,
     pub player_tick_commands: Vec<String>,
     pub entity_tick_commands: Vec<String>,
     pub global_init_commands: Vec<String>,
     pub global_tick_commands: Vec<String>,
+}
+
+/// One private player initializer, retaining its canonical State owner.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct PlayerInitHelper {
+    pub path: String,
+    pub commands: Vec<String>,
+    pub owner: String,
 }
 
 /// Rust collection binds callbacks before adapting descriptors into owned data.
@@ -459,6 +469,7 @@ fn emit_player(
     hook: Option<&BoundStateHook<'_>>,
     output: &mut AutomaticLifecycle,
 ) {
+    let init_start = output.player_init_commands.len();
     let presence = objective_name(component.presence_objective);
     let suppression = objective_name(component.suppression_objective);
     let guard = format!("unless score @s {} matches 1..", suppression);
@@ -518,6 +529,39 @@ fn emit_player(
         "execute {guard} unless score @s {presence} matches 1.. run scoreboard players set @s {presence} {}",
         component.version
     ));
+
+    // A healthy scoreboard-only schema needs no default repair. Keep the exact
+    // old body for cold/repair paths, including suppression and presence-last
+    // ordering. Do not move authored hooks: a return in one must retain its
+    // original function boundary. Storage and migration initialization also
+    // retain their existing path rather than approximating their readiness.
+    if component.fields.len() >= 2
+        && component.data_fields.is_empty()
+        && component.migrations.is_empty()
+        && hook.is_none()
+    {
+        let mut scores = vec![format!("{presence}={}", component.version)];
+        scores.extend(
+            component
+                .fields
+                .iter()
+                .map(|field| format!("{}=-2147483648..", objective_name(field.objective))),
+        );
+        let body = output.player_init_commands.split_off(init_start);
+        let path = crate::function::generated_function_path(
+            "sand/state_init",
+            &crate::IntoCommands::into_commands(body.clone()),
+        );
+        output.player_init_helpers.push(PlayerInitHelper {
+            path: path.clone(),
+            commands: body,
+            owner: component.id.to_owned(),
+        });
+        output.player_init_commands.push(format!(
+            "execute unless entity @s[scores={{{}}}] run function __sand_local:{path}",
+            scores.join(",")
+        ));
+    }
 }
 
 fn emit_entity(
@@ -706,6 +750,36 @@ mod tests {
                 .player_init_commands
                 .iter()
                 .all(|line| line.contains("unless score @s suppressed matches 1.."))
+        );
+    }
+
+    #[test]
+    fn player_initialization_with_migrations_stays_inline() {
+        const TWO_FIELDS: &[StateLifecycleDescriptor] = &[
+            StateLifecycleDescriptor::new("first", TIMER),
+            StateLifecycleDescriptor::new("second", TIMER),
+        ];
+        let output = automatic_lifecycle_from([StateDescriptor::new(
+            "demo:player",
+            2,
+            StateScope::Player,
+            "presence",
+            "suppressed",
+            TWO_FIELDS,
+            &[StateMigrationDescriptor { from: 1, to: 2 }],
+            &[],
+        )])
+        .unwrap();
+        assert_eq!(output.player_init_commands.len(), 4);
+        assert_eq!(
+            output.player_init_commands[2],
+            "execute unless score @s suppressed matches 1.. if score @s presence matches 1 run scoreboard players set @s presence 2"
+        );
+        assert!(
+            output
+                .player_init_commands
+                .iter()
+                .all(|line| !line.contains("run function"))
         );
     }
 

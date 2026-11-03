@@ -1,0 +1,7 @@
+init_audit:probe
+    [F] init_audit:probe size=2
+        [C] execute as @a at @s run function trail:__sand_lifecycle_init
+            [M] Running function trail:__sand_lifecycle_init
+        [F] trail:__sand_lifecycle_init size=1
+            [C] execute unless entity @s[scores={sa9c5ae898ac8f8e=1,sfa49ff66aebe47c=-2147483648..,scf21a43c2b92f8a=-2147483648..,s9b03f7001255338=-2147483648..,saafb19392893dee=-2147483648..,s8520e22d64708b4=-2147483648..}] run function trail:sand/state_init/7b742cca
+        [C] say __INIT_TRACE_COMPLETE__ -> 1

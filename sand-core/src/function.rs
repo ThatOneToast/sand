@@ -636,6 +636,7 @@ struct GeneratedRegistry {
     origins: std::collections::BTreeSet<GeneratedOrigin>,
     score_origins: std::collections::BTreeSet<GeneratedOrigin>,
     dialog_origins: std::collections::BTreeSet<GeneratedOrigin>,
+    keyed_storages: std::collections::BTreeSet<String>,
 }
 
 /// Scope registrations and serialization side effects to their actual callers.
@@ -700,6 +701,18 @@ pub(crate) fn record_score_origin() {
     });
 }
 
+/// Record a storage requirement from lowering, including standalone handles.
+pub(crate) fn record_keyed_storage(storage: &str) {
+    REGISTRY.with_borrow_mut(|registry| {
+        registry.keyed_storages.insert(storage.to_owned());
+    });
+}
+
+/// Snapshot requirements after generated components have finished lowering.
+pub(crate) fn keyed_storage_requirements() -> Vec<String> {
+    REGISTRY.with_borrow(|registry| registry.keyed_storages.iter().cloned().collect())
+}
+
 /// Drain origins alongside the corresponding score setup commands.
 pub(crate) fn take_score_origins() -> std::collections::BTreeSet<GeneratedOrigin> {
     REGISTRY.with_borrow_mut(|registry| std::mem::take(&mut registry.score_origins))
@@ -711,7 +724,7 @@ pub(crate) fn take_dialog_origins() -> std::collections::BTreeSet<GeneratedOrigi
 }
 
 thread_local! {
-    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { namespace: None, resources: Vec::new(), origins: std::collections::BTreeSet::new(), score_origins: std::collections::BTreeSet::new(), dialog_origins: std::collections::BTreeSet::new() }) };
+    static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { namespace: None, resources: Vec::new(), origins: std::collections::BTreeSet::new(), score_origins: std::collections::BTreeSet::new(), dialog_origins: std::collections::BTreeSet::new(), keyed_storages: std::collections::BTreeSet::new() }) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
     static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
     static GENERATED_OBJECTIVE_OWNERS: RefCell<std::collections::BTreeMap<String, GeneratedObjectiveOwner>> = const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -751,6 +764,7 @@ fn clear_function_export_state() {
         registry.origins.clear();
         registry.score_origins.clear();
         registry.dialog_origins.clear();
+        registry.keyed_storages.clear();
     });
     INTERNAL_SCORE_TEMP_REQUESTED.set(false);
     crate::state::score::clear_constant_setup();

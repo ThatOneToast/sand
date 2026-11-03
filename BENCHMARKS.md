@@ -970,3 +970,78 @@ retain all three outcomes, including the baseline stale-owner failure.
   successful storage mutations, and one executed storage get.
 - No MSPT, internal command-budget, constant-time owner lookup, or reclamation
   claim follows from these bounded measurements.
+
+## Indexed persistent owners (2026-10-28)
+
+The #442 storage slice is stacked on #498 at `8bfbfde3`. Its whole-UUID read
+reduction is inherited. This change replaces filtered legacy-owner list access
+with a quoted complete UUID-array key in `owners_v2`, with no last-owner cache.
+The [layout and upgrade contract](docs/testing/keyed-owner-layout.md) documents
+availability, bounded resumable migration, conflict repair and the separate
+reclamation extension point.
+
+The maintained native harness exercises actual candidate exported
+get/set/remove/presence operations and independent UUID/value observations.
+The unchanged baseline read probe replays its extracted resolver and equivalent
+legacy getter macro; both write probes invoke actual exports. Standalone public handles
+also receive canonical lifecycle provisioning without requiring a State schema. It covers signed integer
+boundaries, unchanged UUID copies, missing executors, alternating/nested owners,
+literal staging/cleanup, five owners within one game tick, actual load-tag
+reload, reconnect and entity unload/return. Migration cases retain unknown and
+other-component fields and exercise duplicate/conflicting/malformed records,
+persistent intent/copy/cursor states, and both legacy-retirement phases.
+
+[Raw evidence and rejected probes](benchmarks/evidence/keyed-index-2026-10-28/README.md)
+retain exact source, pack, harness/dependency, Java and server identities.
+[Vanilla method-reference evidence](benchmarks/evidence/keyed-index-2026-10-28/server-storage-access.json)
+identifies the legacy list stream/filter path and direct compound-child access.
+The inspected storage-access methods have no explicit root-copy call; this is
+not a complete allocation profile or whole-server complexity claim.
+
+Canonical regeneration changes only `unified_state`: 82 reported functions
+become 121, including migration helpers and five native regression entry points.
+[The generated delta](benchmarks/evidence/keyed-index-2026-10-28/runtime-baseline-delta.json)
+retains added/removed identities and changed functions. Existing unknown upper
+bounds and report limitations remain intact. These are static report changes,
+not measured per-tick costs.
+
+The historical-owner workload fixes one active UUID and varies retained owners
+at 10, 1,000 and 10,000. Seeding, migration, steady operations and saved storage
+size are recorded separately. The first candidate scale run is explicitly
+rejected: a duplicate-UUID summon left no active executor. The corrected harness
+requires a live executor, independently verifies changed values and rejects
+missing UUID reads or missing successful gets. The corrected replay passes 50
+baseline assertions and 161 candidate assertions with an identical harness hash.
+[Full stage-separated results](benchmarks/evidence/keyed-index-2026-10-28/summary.json)
+include seeding, the first migration step, remaining migration, changed writes,
+warm reads/writes and saved storage at each checkpoint.
+
+| Retained owners | Baseline read / write seconds | Candidate read / write seconds | Baseline / candidate raw NBT bytes | Baseline / candidate gzip bytes |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 0.102 / 0.061 | 0.084 / 0.106 | 1,249 / 1,438 | 345 / 423 |
+| 1,000 | 0.100 / 0.120 | 0.069 / 0.084 | 87,379 / 103,318 | 5,936 / 9,946 |
+| 10,000 | 0.773 / 1.182 | 0.068 / 0.046 | 870,379 / 1,039,318 | 58,667 / 107,025 |
+
+Each wall sample performs 1,000 operations on one active owner. Across all three
+populations, a warm read has baseline/candidate explicit evaluations 5/6, UUID
+reads 1/1, successful mutations 0/0 and successful gets 1/1. A warm two-field
+write has evaluations 17/21, UUID reads 2/2 and successful mutations 4/4. The
+additional guards preserve upgrade readiness; the lookup change removes the
+legacy list-filter path rather than reducing these command counts.
+
+Migration takes 21, 2,001 and 20,001 bounded invocations respectively. After the
+separately traced first step, remaining migration wall samples are 0.033, 0.434
+and 1.640 seconds. These bulk probe invocations are not normal tick scheduling.
+Migration traces report 51 explicit evaluations for the first row at each
+population. Mutation counters cover positive `data modify/remove` outcomes;
+`execute store storage` side effects during migration are not mutation-counted.
+Total migration storage mutations were not measured. Steady read/write traces
+have no such side effects. The map retains every historical record and adds key
+storage overhead; no storage-size reduction or owner reclamation is claimed.
+
+Wall timings include console barriers, JIT and host noise. Separate server
+processes have different correctness-test prefixes, without statistical warmup
+normalization. These are single runs, not MSPT, internal command-budget units or
+latency percentiles. Migration checkpoints are after the first copied row, not peak memory measurements. Bounds
+are in rows and emitted command work, not arbitrary payload bytes. Cleanup and
+context reuse remain separate work; retention is unchanged.

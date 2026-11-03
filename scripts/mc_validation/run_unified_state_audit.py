@@ -25,6 +25,32 @@ PACK_DIR = REPO_ROOT / "examples" / "unified_state"
 JOIN_CLIENT = Path(__file__).resolve().parent / "minimal_join_client.py"
 
 
+def indexed_status_path(uuid_snbt: str) -> str:
+    """Address the v2 record using entity UUID output, never Sand's owner scratch."""
+    match = re.fullmatch(r"\[I;\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\]", uuid_snbt)
+    if match is None:
+        raise ValueError(f"expected four UUID int words: {uuid_snbt}")
+    words = [int(word) for word in match.groups()]
+    if any(word < -(2**31) or word >= 2**31 for word in words):
+        raise ValueError(f"UUID word outside signed int range: {uuid_snbt}")
+    # Macro expansion uses compact SNBT, whereas /data get inserts spaces.
+    key = "[I;" + ",".join(str(word) for word in words) + "]"
+    return f'owners_v2."{key}".components."status".details'
+
+
+def wait_for_reload(command, timeout: float) -> str:
+    """Require the final load-tag sentinel to execute after this reload."""
+    command("data remove storage sand_unified_audit:reload completed")
+    command("reload")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        output = command("data get storage sand_unified_audit:reload completed")
+        if "contents: 1b" in output:
+            return output
+        time.sleep(0.1)
+    raise TimeoutError("reload did not execute the final load-tag sentinel")
+
+
 def available_port() -> int:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -198,7 +224,17 @@ def run_audit(args: argparse.Namespace, result: dict) -> int:
     result["server_dir"] = str(server_dir)
     datapacks = server_dir / "world/datapacks"
     datapacks.mkdir(parents=True)
-    shutil.copytree(dist, datapacks / "unified_state")
+    installed = datapacks / "unified_state"
+    shutil.copytree(dist, installed)
+    # Append a harness-owned sentinel after all exported load work. A /reload
+    # response and advancing world ticks alone do not establish completion.
+    load_tag_path = installed / "data/minecraft/tags/function/load.json"
+    load_tag = json.loads(load_tag_path.read_text())
+    load_tag["values"].append("sand_unified_audit:reload_complete")
+    load_tag_path.write_text(json.dumps(load_tag))
+    sentinel = installed / "data/sand_unified_audit/function/reload_complete.mcfunction"
+    sentinel.parent.mkdir(parents=True)
+    sentinel.write_text("data modify storage sand_unified_audit:reload completed set value 1b\n")
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
     server_port, rcon_port = available_port(), available_port()
     write_properties(server_dir, server_port, rcon_port, rcon_token)
@@ -337,8 +373,9 @@ def run_audit(args: argparse.Namespace, result: dict) -> int:
         command(
             f"scoreboard players set {global_holder} {global_wave} 7",
             "data modify storage rpg:state components.world.settings.difficulty set value 4",
-            "reload",
         )
+        reload_evidence = wait_for_reload(command, args.timeout)
+        check("global_reload_completed", True, reload_evidence)
         wait_ticks(15)
         global_reload = command(
             f"scoreboard players get {global_holder} {global_wave}",
@@ -371,12 +408,13 @@ def run_audit(args: argparse.Namespace, result: dict) -> int:
         )
         uuids = re.findall(r"\[I;[^]]+\]", uuid_output)
         if len(uuids) == 2:
-            first_path = f'owners[{{uuid:{uuids[0]}}}].components."status".details'
-            second_path = f'owners[{{uuid:{uuids[1]}}}].components."status".details'
+            first_path = indexed_status_path(uuids[0])
+            second_path = indexed_status_path(uuids[1])
             command(
                 "execute as @e[tag=state_audit,limit=1] run function unified_state:mark_status_data",
-                "reload",
             )
+            reload_evidence = wait_for_reload(command, args.timeout)
+            check("keyed_reload_completed", True, reload_evidence)
             wait_ticks(15)
             keyed_values = command(
                 f"data get storage rpg:state {first_path}",

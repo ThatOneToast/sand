@@ -44,6 +44,7 @@ pub mod capability;
 pub mod context;
 pub mod curve;
 pub mod diagnostic;
+pub(crate) mod keyed_migration;
 pub mod kind;
 pub mod property;
 pub mod query;

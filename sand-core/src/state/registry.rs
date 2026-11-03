@@ -210,6 +210,8 @@ pub(crate) fn migrate_hook_commands<S: crate::entity::EntityState>(
 /// Deterministic automatic lifecycle output built afresh for each export.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct AutomaticLifecycle {
+    /// Compiler-owned runtime objectives that authored lifecycle code cannot claim.
+    pub private_objectives: BTreeMap<String, (String, String)>,
     /// Canonical State identities contributing work to each runtime phase.
     pub load_origins: std::collections::BTreeSet<String>,
     pub init_origins: std::collections::BTreeSet<String>,
@@ -427,10 +429,23 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
                 .push(format!("scoreboard objectives add {reconcile_dirty} dummy"));
         }
         for field in component.data_fields.iter().filter(|field| field.keyed) {
-            output.provision_commands.push(format!(
-                "execute unless data storage {} owners run data modify storage {} owners set value []",
-                field.storage, field.storage
-            ));
+            let (definition, provision, tick) =
+                crate::entity::keyed_migration::lifecycle(field.storage);
+            claim_objective(
+                &mut objectives,
+                definition.split_whitespace().nth(3).unwrap(),
+                "dummy",
+                &format!("{}::keyed_migration", field.storage),
+            )?;
+            output.private_objectives.insert(
+                definition.split_whitespace().nth(3).unwrap().to_owned(),
+                (field.storage.to_owned(), "keyed migration".into()),
+            );
+            if !output.load_commands.contains(&definition) {
+                output.load_commands.push(definition);
+                output.provision_commands.push(provision);
+                output.global_tick_commands.push(tick);
+            }
         }
 
         match component.scope {
@@ -462,6 +477,43 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
     output.provision_commands.sort();
     output.provision_commands.dedup();
     Ok(output)
+}
+
+/// Complete canonical lifecycle provisioning for public standalone KeyedData.
+/// State-declared storages are already present and must not be registered twice.
+pub(crate) fn append_keyed_storage_requirements(
+    output: &mut AutomaticLifecycle,
+) -> Result<(), String> {
+    for storage in crate::function::keyed_storage_requirements() {
+        let objective = objective_name(&format!("{storage}::keyed_migration"));
+        if let Some((owner, kind)) = output.private_objectives.get(&objective) {
+            if owner != &storage || kind != "keyed migration" {
+                return Err(format!(
+                    "keyed storage `{storage}` migration objective `{objective}` conflicts with `{owner}`"
+                ));
+            }
+            continue;
+        }
+        if output
+            .load_commands
+            .iter()
+            .any(|line| line.split_whitespace().nth(3) == Some(objective.as_str()))
+        {
+            return Err(format!(
+                "keyed storage `{storage}` migration objective `{objective}` conflicts with an automatic State objective"
+            ));
+        }
+        let (definition, provision, tick) = crate::entity::keyed_migration::lifecycle(&storage);
+        output
+            .private_objectives
+            .insert(objective, (storage, "keyed migration".into()));
+        output.load_commands.push(definition);
+        output.provision_commands.push(provision);
+        output.global_tick_commands.push(tick);
+    }
+    output.load_commands.sort();
+    output.provision_commands.sort();
+    Ok(())
 }
 
 fn emit_player(
@@ -529,6 +581,14 @@ fn emit_player(
         "execute {guard} unless score @s {presence} matches 1.. run scoreboard players set @s {presence} {}",
         component.version
     ));
+
+    let initialization = output.player_init_commands.split_off(init_start);
+    output
+        .player_init_commands
+        .extend(crate::entity::keyed_migration::guard(
+            component.data_fields,
+            initialization,
+        ));
 
     // A healthy scoreboard-only schema needs no default repair. Keep the exact
     // old body for cold/repair paths, including suppression and presence-last

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_keyed_literals import owner_resolver, trace_metrics
+from validate_keyed_literals import owner_resolver, owner_layout, trace_metrics
 
 
 class OwnerResolverTests(unittest.TestCase):
@@ -33,6 +33,17 @@ class OwnerResolverTests(unittest.TestCase):
                 self.frame(directory, resolver)
                 self.assertEqual(owner_resolver(directory), resolver)
 
+    def test_ignores_frames_for_independent_storage(self):
+        resolver = ["execute unless entity @s run data remove storage rpg:state __sand_owner.uuid",
+                    "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"]
+        with tempfile.TemporaryDirectory() as root:
+            directory = Path(root)
+            self.frame(directory, resolver, "a_other")
+            other = directory / "a_other.mcfunction"
+            other.write_text(other.read_text().replace("rpg:state", "standalone:state"))
+            self.frame(directory, resolver, "z_main")
+            self.assertEqual(owner_resolver(directory), resolver)
+
     def test_rejects_uncleared_single_uuid_and_missing_resolvers(self):
         for resolver in ([], ["data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"]):
             with self.subTest(resolver=resolver), tempfile.TemporaryDirectory() as root:
@@ -40,6 +51,27 @@ class OwnerResolverTests(unittest.TestCase):
                 self.frame(directory, resolver)
                 with self.assertRaises(ValueError):
                     owner_resolver(directory)
+
+
+class OwnerLayoutTests(unittest.TestCase):
+    def test_known_layouts_and_unknown_mixed_layouts(self):
+        for lines, expected in (
+            (['$data get storage rpg:state owners[{uuid:$(uuid)}].value'], "legacy"),
+            (['$data get storage rpg:state owners_v2."$(uuid)".value'], "indexed"),
+            ([], None),
+            (['$data get storage rpg:state owners_v3."$(uuid)".value'], None),
+            (['$data get storage rpg:state owners_v2."$(u0)".value'], None),
+            (['$data get storage rpg:state owners[{uuid:$(uuid)}].value',
+              '$data get storage rpg:state owners_v2."$(uuid)".value'], None),
+        ):
+            with self.subTest(lines=lines), tempfile.TemporaryDirectory() as root:
+                path = Path(root)
+                (path / "read.mcfunction").write_text("\n".join(lines))
+                if expected is None:
+                    with self.assertRaises(ValueError):
+                        owner_layout(path)
+                else:
+                    self.assertEqual(owner_layout(path), expected)
 
 
 class TraceMetricsTests(unittest.TestCase):
@@ -61,6 +93,16 @@ class TraceMetricsTests(unittest.TestCase):
             "successful_storage_mutation_commands": 0,
             "successful_storage_get_commands": 1,
         })
+
+    def test_guarded_uuid_copies_count_only_reached_commands(self):
+        command = "execute if data storage rpg:state __sand_keyed{version:2} run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+        for trace, expected in (
+            (f"[C] {command}\n[C] say after", 0),
+            (f"[C] {command} -> 0\n[C] say after", 1),
+            (f"[C] {command}\n[R = 1] {command}\n[C] say after", 1),
+        ):
+            with self.subTest(trace=trace):
+                self.assertEqual(trace_metrics(trace)["entity_uuid_read_commands"], expected)
 
     def test_positive_results_count_commands_not_result_magnitude(self):
         metrics = trace_metrics("""

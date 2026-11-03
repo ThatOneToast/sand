@@ -300,7 +300,16 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     let unique: std::collections::BTreeSet<_> = objectives.iter().copied().collect();
     // PlayerState, GlobalState, and EntityRuntimeState each own one numeric
     // scratch objective in addition to their persistent lifecycle objectives.
-    assert_eq!(objectives.len(), 25);
+    // Keyed storage adds exactly one shared migration objective.
+    assert_eq!(objectives.len(), 26);
+    let migration = ObjectiveName::logical("state_test:state::keyed_migration");
+    assert_eq!(
+        objectives
+            .iter()
+            .filter(|line| **line == format!("scoreboard objectives add {migration} dummy"))
+            .count(),
+        1
+    );
     assert_eq!(unique.len(), objectives.len());
     assert!(load.contains("#sand_state_test_global_state"));
     assert!(load.contains("dummy \"Player mana\""));
@@ -315,9 +324,13 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     assert_eq!(init.lines().count(), 8);
     assert_eq!(init.matches("set from entity @s UUID").count(), 1);
     assert!(!init.contains("UUID["));
+    assert!(init.lines().all(|line| {
+        line.starts_with("execute if data storage state_test:state __sand_keyed{version:2} run ")
+    }));
     let suppression = PlayerState::detach(EntityContext::<PlayerKind>::default())
         .last()
-        .and_then(|command| command.split_whitespace().nth(4))
+        .and_then(|command| command.split_once("scoreboard players set @s "))
+        .and_then(|(_, score)| score.split_whitespace().next())
         .expect("player detach publishes its suppression score")
         .to_owned();
     for line in init

@@ -2558,6 +2558,11 @@ pub(crate) fn try_export_components_impl(
 
         let mut automatic =
             crate::state::registry::automatic_lifecycle().map_err(lifecycle_export_error)?;
+        // Lower deferred resources before sealing lifecycle requirements. A
+        // public KeyedData handle can introduce storage without a State schema.
+        drain_generated_resources_into(&mut records, namespace, ctx, &mut runtime)?;
+        crate::state::registry::append_keyed_storage_requirements(&mut automatic)
+            .map_err(lifecycle_export_error)?;
         super::lifecycle::validate_private_objectives(
             &automatic,
             &registration_load_commands,

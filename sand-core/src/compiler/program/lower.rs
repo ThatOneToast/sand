@@ -1,7 +1,7 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
 use super::{diagnostic::Diagnostic, limits, model::*};
 use crate::compiler::export::{
-    identities, lifecycle,
+    functions, identities, lifecycle,
     records::{self, ComponentRecord},
     tags,
 };
@@ -18,6 +18,8 @@ pub(super) fn lower(
     program: &Program,
     target: &crate::version::VersionProfile,
 ) -> Result<LoweredProgram, Vec<Diagnostic>> {
+    let _registry =
+        crate::function::ExportFunctionRegistryScope::enter_namespace(&program.pack.namespace);
     let error = |error: String| vec![Diagnostic::error("SAND_PROGRAM_LOWER", "", "", error)];
     let states: Vec<_> = program
         .modules
@@ -251,6 +253,16 @@ pub(super) fn lower(
         tag_map,
         memberships,
     );
+    functions::drain_generated_resources_into(
+        &mut lower.records,
+        &program.pack.namespace,
+        None,
+        &mut lower.runtime,
+    )
+    .map_err(|e| error(e.to_string()))?;
+    for record in &mut lower.records {
+        record.content = functions::resolve_local_refs(&record.content, &program.pack.namespace);
+    }
     records::validate_unique_output_identities(&lower.records).map_err(|e| error(e.to_string()))?;
     records::validate_objective_definitions(&lower.records).map_err(|e| error(e.to_string()))?;
     let mut output = BTreeMap::new();

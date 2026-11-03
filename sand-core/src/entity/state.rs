@@ -851,7 +851,7 @@ pub fn state_attach_commands<S: EntityState>(
         "execute unless score {holder} {presence} matches 1.. run scoreboard players set {holder} {presence} {}",
         schema.version
     ));
-    commands
+    super::keyed_migration::guard(S::data_fields(), commands)
 }
 
 /// Build ownership-safe component detachment commands.
@@ -899,7 +899,7 @@ pub fn state_detach_commands<S: EntityState>(
     if suppress_observation {
         commands.push(format!("scoreboard players set {holder} {suppression} 1"));
     }
-    commands
+    super::keyed_migration::guard(S::data_fields(), commands)
 }
 
 /// Test whether a component is attached at its current version.
@@ -2502,9 +2502,17 @@ impl<T> Data<T> {
 /// is still cleaned up. Valid-owner macro result/success behavior is unchanged.
 ///
 /// Nested callbacks resolve their own executor independently. Values remain
-/// stable across unload/reload without custom top-level entity NBT or a storage
-/// migration. Owner lookup still scans the shared list; resolution is repeated
-/// per access, and removing a field does not reclaim its owner record.
+/// stable across unload/reload without custom top-level entity NBT. Owners use
+/// directly addressed compound keys containing the entire signed UUID array.
+/// Resolution is repeated per access; no cross-call owner cache is assumed.
+/// Removing a field does not reclaim its owner record.
+///
+/// Registered State storage upgrades legacy owner lists in bounded tick steps.
+/// Until that storage is ready, keyed operations and component attachment or
+/// detachment fail closed. Retry explicit attachment after migration completes;
+/// player initialization retries automatically. Conflicts preserve both layouts
+/// and record an actionable diagnostic in storage. Unknown owner fields and
+/// dormant owners are retained. Migration requires no entity to be loaded.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::entity::KeyedData",
@@ -2610,9 +2618,10 @@ impl<T> KeyedData<T> {
             self.storage,
             value.into(),
             format!(
-                "$data modify storage {0} {1} set from storage {0} __sand_owner.value",
+                "{2}\n$data modify storage {0} {1} set from storage {0} __sand_owner.value",
                 self.storage,
                 keyed_path(self.path),
+                keyed_create_owner(self.storage),
             ),
         )
     }
@@ -2690,7 +2699,6 @@ pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) ->
             field.storage, field.path, field.storage, field.path, field.default_snbt
         )];
     }
-    let owner_path = keyed_owner_path();
     let value_path = keyed_path(field.path);
     // Existing defaults need only the ordinary UUID lookup and presence check.
     // Stage the authored value only when initialization will actually write it.
@@ -2708,9 +2716,9 @@ pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) ->
     keyed_data_call(
         field.storage,
         format!(
-            "$execute unless data storage {0} {owner_path} run data modify storage {0} owners append value {{uuid:{1},components:{{}}}}\n$execute unless data storage {0} {value_path} run {2}",
+            "{1}\n$execute unless data storage {0} {value_path} run {2}",
             field.storage,
-            keyed_uuid(),
+            keyed_create_owner(field.storage),
             write[0],
         ),
     )
@@ -2739,7 +2747,16 @@ fn keyed_uuid() -> &'static str {
 }
 
 fn keyed_owner_path() -> String {
-    format!("owners[{{uuid:{}}}]", keyed_uuid())
+    format!("owners_v2.\"{}\"", keyed_uuid())
+}
+
+// Legacy filtered data-modify paths create a matching owner when absent.
+// Preserve that behavior explicitly while retaining the canonical UUID record.
+fn keyed_create_owner(storage: &str) -> String {
+    let owner = keyed_owner_path();
+    format!(
+        "$execute unless data storage {storage} {owner} run data modify storage {storage} {owner} set value {{uuid:$(uuid),components:{{}}}}"
+    )
 }
 
 fn keyed_path(path: &str) -> String {
@@ -2792,9 +2809,14 @@ fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
 }
 
 fn keyed_data_macro_call(storage: &str, macro_body: String) -> String {
+    crate::function::record_keyed_storage(storage);
     let path = crate::function::register_dyn_fn_dedup(
         "sand/state_data/keyed",
-        macro_body.lines().map(str::to_owned).collect::<Vec<_>>(),
+        std::iter::once(format!(
+            "execute unless data storage {storage} __sand_keyed{{version:2}} run return fail"
+        ))
+        .chain(macro_body.lines().map(str::to_owned))
+        .collect::<Vec<_>>(),
     );
     format!("function __sand_local:{path} with storage {storage} __sand_owner")
 }
@@ -4015,6 +4037,7 @@ mod tests {
         use sand_commands::NbtValue;
         for value in [
             NbtValue::String("$(missing)".into()),
+            NbtValue::String("literal $(uuid) payload".into()),
             NbtValue::String("$(u0) \"quoted\" \\ path".into()),
             NbtValue::List(vec![NbtValue::String("$(nested)".into())]),
         ] {
@@ -4064,7 +4087,7 @@ mod tests {
         );
         assert!(
             emitted.clone().any(|line| {
-                line.starts_with("$execute unless data storage rpg:state owners[")
+                line.starts_with("$execute unless data storage rpg:state owners_v2.")
                     && line.contains(
                         "components.stats.value run function __sand_local:sand/state_data/write/",
                     )
@@ -4109,7 +4132,30 @@ mod tests {
         );
         let helpers = crate::ir::test_support::drain_emitted();
         assert_eq!(helpers.len(), 1);
-        assert!(helpers[0].1[0].contains("owners[{uuid:$(uuid)}]"));
+        assert_eq!(
+            helpers[0].1[0],
+            "execute unless data storage rpg:state __sand_keyed{version:2} run return fail"
+        );
+        assert!(helpers[0].1[1].contains("owners_v2.\"$(uuid)\""));
+    }
+
+    #[test]
+    fn keyed_set_preserves_legacy_missing_owner_creation() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let _ = KeyedData::<i32>::new("rpg:state", "components.stats.xp").set(9);
+        let helpers = crate::ir::test_support::drain_emitted();
+        let (_, body) = helpers
+            .iter()
+            .find(|(path, _)| path.starts_with("sand/state_data/keyed/"))
+            .unwrap();
+        assert_eq!(
+            body[1],
+            "$execute unless data storage rpg:state owners_v2.\"$(uuid)\" run data modify storage rpg:state owners_v2.\"$(uuid)\" set value {uuid:$(uuid),components:{}}"
+        );
+        assert_eq!(
+            body[2],
+            "$data modify storage rpg:state owners_v2.\"$(uuid)\".components.stats.xp set from storage rpg:state __sand_owner.value"
+        );
     }
 
     #[test]
@@ -4182,7 +4228,7 @@ mod tests {
             .flat_map(|(_, body)| body)
             .collect::<Vec<_>>();
         for component in ["player", "mob"] {
-            let path = format!("owners[{{uuid:$(uuid)}}].components.{component}.xp");
+            let path = format!("owners_v2.\"$(uuid)\".components.{component}.xp");
             assert!(
                 lines
                     .iter()

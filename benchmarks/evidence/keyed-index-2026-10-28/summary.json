@@ -1,0 +1,387 @@
+{
+  "baseline_source": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
+  "candidate_source": "0a7bd9e32d93dda6de816921889d19d857fd2be2",
+  "baseline_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
+  "candidate_pack_sha256": "8c229b2f89add11508dba7d55bf764e15fe533046ead095e693c12bf7b20e4a9",
+  "common_harness_sha256": "626c719d3d1aee8ce500e31a9409373a1c41537c16bc8ca7608ff5d7c29bafec",
+  "baseline_assertions": 50,
+  "candidate_assertions": 161,
+  "active_owners": 1,
+  "operations_per_wall_sample": 1000,
+  "comparison": [
+    {
+      "owners": 10,
+      "baseline": {
+        "total_retained_owners": 10,
+        "active_owners": 1,
+        "layout": "legacy",
+        "warm_operations_per_timing": 1000,
+        "cleanup": "not measured; retention unchanged",
+        "seed_wall_seconds": 0.03009666595607996,
+        "seed_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 325,
+          "nbt_bytes": 1138,
+          "sha256": "950b5b753f100c999380a3de32295177750f380d4051ea5b9ce4ac17fee409fa"
+        },
+        "changed_write": {
+          "command_evaluations_including_wrapper": 17,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 7,
+          "successful_storage_get_commands": 0,
+          "sha256": "59baeb34791a76f2ffe041d2830e34d51247ef66b4ce21f572b73175ea301d15"
+        },
+        "warm_read": {
+          "command_evaluations_including_wrapper": 5,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 1,
+          "successful_storage_mutation_commands": 0,
+          "successful_storage_get_commands": 1,
+          "sha256": "b1d73b9c45c9fc10b09ed9c052693a1f18f4ac7c6695e8d12926790884f862eb"
+        },
+        "warm_write": {
+          "command_evaluations_including_wrapper": 17,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 4,
+          "successful_storage_get_commands": 0,
+          "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
+        },
+        "warm_read_wall_seconds": 0.10153891704976559,
+        "warm_write_wall_seconds": 0.06089675007387996,
+        "steady_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 345,
+          "nbt_bytes": 1249,
+          "sha256": "438ffb64c8c91bcba733fd7e241a03eb7103e74433a1c89097a91068581867a7"
+        }
+      },
+      "candidate": {
+        "total_retained_owners": 10,
+        "active_owners": 1,
+        "layout": "indexed",
+        "warm_operations_per_timing": 1000,
+        "cleanup": "not measured; retention unchanged",
+        "seed_wall_seconds": 0.040388207882642746,
+        "seed_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 344,
+          "nbt_bytes": 1181,
+          "sha256": "7989848bf6550aa4af4f75bbdb01abb788910087194b8874e363da36ff2fef20"
+        },
+        "migration_first_step": {
+          "command_evaluations_including_wrapper": 51,
+          "probe_wrapper_evaluations": 0,
+          "entity_uuid_read_commands": 0,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "fc4a80036dbd5c40fdad344db4512aa3ab3a89eba662415b21d6d82027d4c114"
+        },
+        "migration_checkpoint_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 498,
+          "nbt_bytes": 1812,
+          "sha256": "be06a12da56bbf7bae1303553b44f8433f3ba922807dc3e4c7a2a2617f3465e3"
+        },
+        "migration_step_invocations": 21,
+        "migration_wall_seconds": 0.0334885420743376,
+        "migrated_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 408,
+          "nbt_bytes": 1327,
+          "sha256": "0377d92737c8d46a78068e1ec224d300d9f1b78bd35f598eba92053c8125794a"
+        },
+        "changed_write": {
+          "command_evaluations_including_wrapper": 21,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 7,
+          "successful_storage_get_commands": 0,
+          "sha256": "b579d45167cd91a9076aba6e06846e1e2a20d843602f17616a096ec231d95335"
+        },
+        "warm_read": {
+          "command_evaluations_including_wrapper": 6,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 1,
+          "successful_storage_mutation_commands": 0,
+          "successful_storage_get_commands": 1,
+          "sha256": "c63ddb99d2e45b7ef93369ed82e7e1cb7545ca58d4e54a27951864e7b13c2f36"
+        },
+        "warm_write": {
+          "command_evaluations_including_wrapper": 21,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 4,
+          "successful_storage_get_commands": 0,
+          "sha256": "e4f4f764a2a6181d88d00c04fd06177b26998cacf91111a659f465847aff5063"
+        },
+        "warm_read_wall_seconds": 0.08411787496879697,
+        "warm_write_wall_seconds": 0.10636900016106665,
+        "steady_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 423,
+          "nbt_bytes": 1438,
+          "sha256": "913c871d9a70f2212f7e4e8c6cdab0e9e6d8ff6a4f75f54ec3ff0c47a5a0a3b8"
+        }
+      }
+    },
+    {
+      "owners": 1000,
+      "baseline": {
+        "total_retained_owners": 1000,
+        "active_owners": 1,
+        "layout": "legacy",
+        "warm_operations_per_timing": 1000,
+        "cleanup": "not measured; retention unchanged",
+        "seed_wall_seconds": 0.05252283299341798,
+        "seed_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 5884,
+          "nbt_bytes": 87268,
+          "sha256": "0d8fc18aed8978bfd9511a7cd106b71b00dc8f20e19e2fbb614ff033a26521b6"
+        },
+        "changed_write": {
+          "command_evaluations_including_wrapper": 17,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "b3397521526532398e16b8a304aa4fca286b4c14e144b5be4d31ecc20099b479"
+        },
+        "warm_read": {
+          "command_evaluations_including_wrapper": 5,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 1,
+          "successful_storage_mutation_commands": 0,
+          "successful_storage_get_commands": 1,
+          "sha256": "b1d73b9c45c9fc10b09ed9c052693a1f18f4ac7c6695e8d12926790884f862eb"
+        },
+        "warm_write": {
+          "command_evaluations_including_wrapper": 17,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 4,
+          "successful_storage_get_commands": 0,
+          "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
+        },
+        "warm_read_wall_seconds": 0.10019454197026789,
+        "warm_write_wall_seconds": 0.12026912509463727,
+        "steady_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 5936,
+          "nbt_bytes": 87379,
+          "sha256": "dc24f5127f86a018c17584ccd4756ecc5ad16de2f2664c31be995f61fc504730"
+        }
+      },
+      "candidate": {
+        "total_retained_owners": 1000,
+        "active_owners": 1,
+        "layout": "indexed",
+        "warm_operations_per_timing": 1000,
+        "cleanup": "not measured; retention unchanged",
+        "seed_wall_seconds": 0.06167216715402901,
+        "seed_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 5926,
+          "nbt_bytes": 87311,
+          "sha256": "e88df8f109fdaadfcb3413a032ae319f2ead276611c709e39ccccdb13d671d37"
+        },
+        "migration_first_step": {
+          "command_evaluations_including_wrapper": 51,
+          "probe_wrapper_evaluations": 0,
+          "entity_uuid_read_commands": 0,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "fcd0c0b18d4c1ba040b54bb51a5a21c5de4ca1501d26bdd5e152c40abf291c27"
+        },
+        "migration_checkpoint_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 6126,
+          "nbt_bytes": 87942,
+          "sha256": "82ae19d98aa85dbf92b3ede4e02b69c03b218359f75f41a847cdaca4ac50018a"
+        },
+        "migration_step_invocations": 2001,
+        "migration_wall_seconds": 0.4340230419766158,
+        "migrated_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 9879,
+          "nbt_bytes": 103207,
+          "sha256": "107ad1eec5d5cfb3bbab441a96397643db084cadc73098b3302e71144520aba0"
+        },
+        "changed_write": {
+          "command_evaluations_including_wrapper": 21,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "07ff66543f491d2a79a2f6808d998fac2cfbc27cd6319e995df80f1ebdf518fc"
+        },
+        "warm_read": {
+          "command_evaluations_including_wrapper": 6,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 1,
+          "successful_storage_mutation_commands": 0,
+          "successful_storage_get_commands": 1,
+          "sha256": "c63ddb99d2e45b7ef93369ed82e7e1cb7545ca58d4e54a27951864e7b13c2f36"
+        },
+        "warm_write": {
+          "command_evaluations_including_wrapper": 21,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 4,
+          "successful_storage_get_commands": 0,
+          "sha256": "e4f4f764a2a6181d88d00c04fd06177b26998cacf91111a659f465847aff5063"
+        },
+        "warm_read_wall_seconds": 0.06911241705529392,
+        "warm_write_wall_seconds": 0.08360087499022484,
+        "steady_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 9946,
+          "nbt_bytes": 103318,
+          "sha256": "f949f28d3e10aa91e1d1c3cd7c70f03f1066331e9c48e5eac4e0fc31b2bde40d"
+        }
+      }
+    },
+    {
+      "owners": 10000,
+      "baseline": {
+        "total_retained_owners": 10000,
+        "active_owners": 1,
+        "layout": "legacy",
+        "warm_operations_per_timing": 1000,
+        "cleanup": "not measured; retention unchanged",
+        "seed_wall_seconds": 0.040768916020169854,
+        "seed_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 58628,
+          "nbt_bytes": 870268,
+          "sha256": "e867cfb2b8a994411ea189f5e77767bf167fa9698b959c2fc4f03a58128c6362"
+        },
+        "changed_write": {
+          "command_evaluations_including_wrapper": 17,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "b3397521526532398e16b8a304aa4fca286b4c14e144b5be4d31ecc20099b479"
+        },
+        "warm_read": {
+          "command_evaluations_including_wrapper": 5,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 1,
+          "successful_storage_mutation_commands": 0,
+          "successful_storage_get_commands": 1,
+          "sha256": "b1d73b9c45c9fc10b09ed9c052693a1f18f4ac7c6695e8d12926790884f862eb"
+        },
+        "warm_write": {
+          "command_evaluations_including_wrapper": 17,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 4,
+          "successful_storage_get_commands": 0,
+          "sha256": "97298daedfca4ee1c9786f81c4787f61c49c0ae3fbe347beba58e81826754154"
+        },
+        "warm_read_wall_seconds": 0.7725649999920279,
+        "warm_write_wall_seconds": 1.1818559591192752,
+        "steady_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 58667,
+          "nbt_bytes": 870379,
+          "sha256": "5f07ea9a0c5b6af818642832420d84dbf023225d79330361d0f7f6429ad20422"
+        }
+      },
+      "candidate": {
+        "total_retained_owners": 10000,
+        "active_owners": 1,
+        "layout": "indexed",
+        "warm_operations_per_timing": 1000,
+        "cleanup": "not measured; retention unchanged",
+        "seed_wall_seconds": 0.04476425005123019,
+        "seed_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 58676,
+          "nbt_bytes": 870311,
+          "sha256": "f232b1edeaed34f592c3e86a1f1c13b2f1892b4d0d42c10e507646b36e7d3ead"
+        },
+        "migration_first_step": {
+          "command_evaluations_including_wrapper": 51,
+          "probe_wrapper_evaluations": 0,
+          "entity_uuid_read_commands": 0,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "e89017297814f50df64ff274c996671bdb737ed8598132c014c7c0c3a381d30a"
+        },
+        "migration_checkpoint_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 58905,
+          "nbt_bytes": 870942,
+          "sha256": "ebaf826dcdb34f404d2e50f65ce42044d72dbd02e86480a6edbc980ae6befdd8"
+        },
+        "migration_step_invocations": 20001,
+        "migration_wall_seconds": 1.6404208750464022,
+        "migrated_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 106952,
+          "nbt_bytes": 1039207,
+          "sha256": "a755d3283259d6a35eca9e3b8e92f57d7514089cb028bc6ab19e807e70717cfb"
+        },
+        "changed_write": {
+          "command_evaluations_including_wrapper": 21,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 6,
+          "successful_storage_get_commands": 0,
+          "sha256": "07ff66543f491d2a79a2f6808d998fac2cfbc27cd6319e995df80f1ebdf518fc"
+        },
+        "warm_read": {
+          "command_evaluations_including_wrapper": 6,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 1,
+          "successful_storage_mutation_commands": 0,
+          "successful_storage_get_commands": 1,
+          "sha256": "c63ddb99d2e45b7ef93369ed82e7e1cb7545ca58d4e54a27951864e7b13c2f36"
+        },
+        "warm_write": {
+          "command_evaluations_including_wrapper": 21,
+          "probe_wrapper_evaluations": 1,
+          "entity_uuid_read_commands": 2,
+          "successful_storage_mutation_commands": 4,
+          "successful_storage_get_commands": 0,
+          "sha256": "e4f4f764a2a6181d88d00c04fd06177b26998cacf91111a659f465847aff5063"
+        },
+        "warm_read_wall_seconds": 0.0679474591743201,
+        "warm_write_wall_seconds": 0.0460977079346776,
+        "steady_storage": {
+          "namespace": "rpg",
+          "gzip_bytes": 107025,
+          "nbt_bytes": 1039318,
+          "sha256": "b2933e3fa4753d5899076124a83a9c712902140c70587b7ace851e1805a2906e"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Single runs in separate server processes; console barrier, JIT and host noise included; different correctness prefixes and no statistical warmup normalization.",
+    "Command counts include one identical selector wrapper. Native evaluations are not Minecraft internal command-budget units.",
+    "Migration wall time measures the remaining 2N invocations after the separately traced first step; total invocations are 2N+1.",
+    "Migration checkpoint is after first copied row, not peak memory/disk.",
+    "Saved storage is the entire rpg namespace; unrelated fixture fields are retained. Gzip size depends on compression and NBT ordering.",
+    "No MSPT, context reuse, reclamation or full #442 completion claim.",
+    "Successful mutation counters count positive native trace results for data modify/remove commands, not NBT nodes. They exclude execute-store storage side effects used by migration; total migration storage mutations were not measured. Steady get/set traces contain no execute-store storage side effects.",
+    "The unchanged baseline predates exported getter probe entry points: its read probe replays the extracted production UUID resolver and equivalent legacy getter macro. Candidate reads and both setters invoke actual exported functions."
+  ],
+  "excluded_runs": [
+    "baseline-initial",
+    "baseline-pre-scale-fix",
+    "candidate-invalid-scale",
+    "rejected-long-diagnostic",
+    "rejected-trace-counter",
+    "rejected-baseline-probe-v6",
+    "rejected-baseline-probe-v7",
+    "baseline-before-standalone",
+    "candidate-before-standalone"
+  ],
+  "canonical_regeneration_pack_sha256": "8c229b2f89add11508dba7d55bf764e15fe533046ead095e693c12bf7b20e4a9",
+  "canonical_regeneration_matches_native_pack": true
+}

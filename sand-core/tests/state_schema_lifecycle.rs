@@ -310,7 +310,11 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     ));
 
     let init = function(&records, "__sand_lifecycle_init");
-    assert_eq!(init.lines().count(), 10);
+    // Whole-owner resolution replaces four component reads with a conditional
+    // stale-owner clear and one UUID copy; lifecycle ordering stays intact.
+    assert_eq!(init.lines().count(), 8);
+    assert_eq!(init.matches("set from entity @s UUID").count(), 1);
+    assert!(!init.contains("UUID["));
     let suppression = PlayerState::detach(EntityContext::<PlayerKind>::default())
         .last()
         .and_then(|command| command.split_whitespace().nth(4))

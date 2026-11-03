@@ -1,0 +1,55 @@
+keyed_literal_probe:trace_entity_write
+    [F] keyed_literal_probe:trace_entity_write size=1
+        [C] execute as @e[tag=keyed_literal_a,limit=1] run function unified_state:set_entity_literals
+            [M] Running function unified_state:set_entity_literals
+        [F] unified_state:set_entity_literals size=2
+            [C] function unified_state:sand/state_data/write/fd1911d4
+                [M] Running function unified_state:sand/state_data/write/fd1911d4
+            [F] unified_state:sand/state_data/write/fd1911d4 size=8
+                [C] data remove storage rpg:state __sand_owner.value
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.value set value "$(missing) $(u0) \"quoted\" \\ path"
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.value set value "$(missing) $(u0) \"quoted\" \\ path"
+                [C] data modify storage rpg:state __sand_owner.u0 set from entity @s UUID[0]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.u1 set from entity @s UUID[1]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.u2 set from entity @s UUID[2]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.u3 set from entity @s UUID[3]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/37483f72 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/37483f72
+                [F] unified_state:sand/state_data/keyed/37483f72/114055747 size=1
+                    [C] data modify storage rpg:state owners[{uuid:[I;1447370057,-2019474622,-1939853602,348297993]}].components."status".template set from storage rpg:state __sand_owner.value
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state owners[{uuid:[I;1447370057,-2019474622,-1939853602,348297993]}].components."status".template set from storage rpg:state __sand_owner.value
+                [C] data remove storage rpg:state __sand_owner.value
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state __sand_owner.value
+            [C] function unified_state:sand/state_data/write/616aa4f2
+                [M] Running function unified_state:sand/state_data/write/616aa4f2
+            [F] unified_state:sand/state_data/write/616aa4f2 size=8
+                [C] data remove storage rpg:state __sand_owner.value
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.value set value {text:"$(missing) $(u0) \"quoted\" \\ path",nested:{literal:"$(u0)",quoted:"\"quoted\" \\ path"}}
+                    [M] Modified storage rpg:state
+                [R = 1] data modify storage rpg:state __sand_owner.value set value {text:"$(missing) $(u0) \"quoted\" \\ path",nested:{literal:"$(u0)",quoted:"\"quoted\" \\ path"}}
+                [C] data modify storage rpg:state __sand_owner.u0 set from entity @s UUID[0]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.u1 set from entity @s UUID[1]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.u2 set from entity @s UUID[2]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] data modify storage rpg:state __sand_owner.u3 set from entity @s UUID[3]
+                    [E] Nothing changed. The specified properties already have these values                        [M] Nothing changed. The specified properties already have these values
+                [C] function unified_state:sand/state_data/keyed/de435586 with storage rpg:state __sand_owner
+                    [M] Running function unified_state:sand/state_data/keyed/de435586
+                [F] unified_state:sand/state_data/keyed/de435586/114055747 size=1
+                    [C] data modify storage rpg:state owners[{uuid:[I;1447370057,-2019474622,-1939853602,348297993]}].components."status".details set from storage rpg:state __sand_owner.value
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state owners[{uuid:[I;1447370057,-2019474622,-1939853602,348297993]}].components."status".details set from storage rpg:state __sand_owner.value
+                [C] data remove storage rpg:state __sand_owner.value
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state __sand_owner.value

@@ -1,0 +1,23 @@
+{
+  "source_revision": "067dab3b7c0ea7cf8b5641d593156e3fbb386cfb",
+  "minecraft": "26.2",
+  "java": "Azul25.0.3",
+  "runs": {
+    "trailforge": {
+      "evidence": "trailforge/evidence.json",
+      "assertions": 120,
+      "pack_sha256": "654bc551801334ee7ad9f4565b0df7deb8eeeeeef9581a05cd590610faae39d7"
+    },
+    "keyed": {
+      "evidence": "keyed/keyed-literal-evidence.json",
+      "assertions": 36,
+      "pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769"
+    },
+    "portable": {
+      "evidence": "portable/evidence.json",
+      "assertions": 21,
+      "pack_sha256": "90ca358aa6d60263e792aa1d6a9d0714c8303d67a1ceacb5e3adb0ed2294f58d"
+    }
+  },
+  "scope": "Fresh native reruns after portable lifecycle helper integration. Later archive commit adds evidence/docs only. Not MSPT or whole-tick measurements."
+}

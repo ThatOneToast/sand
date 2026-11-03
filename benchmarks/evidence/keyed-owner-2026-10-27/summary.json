@@ -1,0 +1,79 @@
+{
+  "scope": "Native Minecraft 26.2 UUID-copy commands, [C] evaluations (including one wrapper), and positive [R] storage mutation commands; not MSPT or affected NBT node counts. Prior evidence retained unchanged.",
+  "runs": {
+    "original_baseline": {
+      "evidence_path": "before/evidence.json",
+      "source_revision": "7e98c545a7506d193524062ad101a1db5aa69cba",
+      "input_pack_sha256": "6d5651a326be33a0b80e210711799f15ada83ad5458bbd5d45e5b40819e534f6",
+      "harness_sha256": "15bdf1adf13418b67cfd9bc2981279089feb5722b595bea964e1bd6256b680fb",
+      "complete": false,
+      "passed_assertions": 29,
+      "failure": {
+        "type": "ValidationFailure",
+        "message": "runtime assertion failed: if data storage keyed_literal_probe:result current{\"template\": \"$(u0)\"}"
+      },
+      "existing_attachment_metrics": {
+        "command_evaluations_including_wrapper": 24,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 4,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 0
+      },
+      "original_evidence_path": "/tmp/sand442-before-final/keyed-literal-evidence.json"
+    },
+    "rejected_candidate": {
+      "evidence_path": "rejected/evidence.json",
+      "source_revision": "4ac33f9590ddac26acde04b990fa64e64da3d38f",
+      "input_pack_sha256": "4e937887e62c4f9d24965955cae4dd3b5551178fa6540b3bc3eb45a79ba9027a",
+      "harness_sha256": "849ed55b604295729a1697c821de42ccf4296c3a8d9ddc86f90b7696e2897bd1",
+      "complete": false,
+      "passed_assertions": 29,
+      "failure": {
+        "type": "ValidationFailure",
+        "message": "existing_attach: expected zero successful storage mutations, got 2"
+      },
+      "existing_attachment_metrics": {
+        "command_evaluations_including_wrapper": 22,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 2,
+        "successful_storage_get_commands": 0
+      },
+      "original_evidence_path": "/tmp/sand442-p2-rejected-run/keyed-literal-evidence.json"
+    },
+    "corrected": {
+      "evidence_path": "after/evidence.json",
+      "source_revision": "3b50daccd93b7db76ca07fef1fbbe6062b8a2ca9",
+      "input_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
+      "harness_sha256": "849ed55b604295729a1697c821de42ccf4296c3a8d9ddc86f90b7696e2897bd1",
+      "complete": true,
+      "passed_assertions": 36,
+      "failure": null,
+      "existing_attachment_metrics": {
+        "command_evaluations_including_wrapper": 22,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 0
+      },
+      "repeated_attachment_metrics": {
+        "command_evaluations_including_wrapper": 22,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 0,
+        "sha256": "7f99345139fda32954e6ebf7d81d3eb58f6b505b64a2ca1a70c59e1532361c60"
+      },
+      "same_owner_get_metrics": {
+        "command_evaluations_including_wrapper": 5,
+        "probe_wrapper_evaluations": 1,
+        "entity_uuid_read_commands": 1,
+        "successful_storage_mutation_commands": 0,
+        "successful_storage_get_commands": 1,
+        "sha256": "f0dfd4767ca0f9a6b71c4546cb9a4abfb6af64888480d5288393c4738a3456a4"
+      },
+      "original_evidence_path": "/tmp/sand442-p2-corrected-run/keyed-literal-evidence.json"
+    }
+  },
+  "pack_digest_algorithm": "SHA256 over pathlib.Path-component sorted regular files, each relative POSIX UTF-8 path and file bytes prefixed by its 8-byte big-endian length; includes hidden build manifest."
+}

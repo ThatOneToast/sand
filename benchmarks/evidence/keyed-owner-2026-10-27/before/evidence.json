@@ -1,0 +1,68 @@
+{
+  "minecraft": "26.2",
+  "complete": false,
+  "checks": {
+    "NATURAL_DEFAULT_SandAlpha": true,
+    "NATURAL_DEFAULT_SandBeta": true,
+    "ENTITY_A_DEFAULT": true,
+    "ENTITY_B_DEFAULT": true,
+    "GLOBAL_DEFAULT": true,
+    "PLAYER_A_LITERALS": true,
+    "PLAYER_B_UNCHANGED": true,
+    "ENTITY_A_LITERALS": true,
+    "ENTITY_B_UNCHANGED": true,
+    "GLOBAL_LITERAL": true,
+    "STAGING_CLEAN": true,
+    "NESTED_CALLBACK": true,
+    "NESTED_OWNER_RESOLUTION": true,
+    "NESTED_OUTER_RETAINED": true,
+    "NESTED_INNER_RETAINED": true,
+    "VALID_A_RESULT": true,
+    "VALID_A_SUCCESS": true,
+    "VALID_B_RESULT": true,
+    "VALID_B_SUCCESS": true,
+    "PLAYER_A_RELOAD": true,
+    "PLAYER_B_RELOAD": true,
+    "ENTITY_A_RELOAD": true,
+    "ENTITY_B_RELOAD": true,
+    "GLOBAL_RELOAD": true,
+    "RELOAD_STAGING_CLEAN": true,
+    "DETACHED_TEMPLATE": true,
+    "DETACHED_PAYLOAD": true,
+    "OTHER_ENTITY_RETAINED": true,
+    "PLAYER_RETAINED": true,
+    "MISSING_EXECUTOR_NO_STALE_WRITE": false
+  },
+  "input_pack_sha256": "6d5651a326be33a0b80e210711799f15ada83ad5458bbd5d45e5b40819e534f6",
+  "source_revision": "7e98c545a7506d193524062ad101a1db5aa69cba",
+  "harness_sha256": "15bdf1adf13418b67cfd9bc2981279089feb5722b595bea964e1bd6256b680fb",
+  "failure": {
+    "type": "ValidationFailure",
+    "message": "runtime assertion failed: if data storage keyed_literal_probe:result current{\"template\": \"$(u0)\"}"
+  },
+  "static_owner_entity_nbt_reads_per_resolution": 4,
+  "native_traces": {
+    "entity_write": {
+      "entity_uuid_read_commands": 8,
+      "sha256": "245eaf7fd0672731c285ab8966f573cd08e8626339a629537de9b7501ee77047"
+    },
+    "player_write": {
+      "entity_uuid_read_commands": 8,
+      "sha256": "72a0f47b777c0370da61e9a8ccb75dbe13e1bfe7ab153e6f3f3fdf6f8776d810"
+    },
+    "fresh_attach": {
+      "entity_uuid_read_commands": 12,
+      "sha256": "552ad824c8a88caa9c1d1540684b160b4c96ff7ed6e4516dc196a6a23cfc6ffb"
+    },
+    "existing_attach": {
+      "entity_uuid_read_commands": 4,
+      "sha256": "a1eb742dc6de61820ca1b04f511a89f017c0ec66b69ab85d93220a7807d3c352"
+    }
+  },
+  "production_resolver": [
+    "data modify storage rpg:state __sand_owner.u0 set from entity @s UUID[0]",
+    "data modify storage rpg:state __sand_owner.u1 set from entity @s UUID[1]",
+    "data modify storage rpg:state __sand_owner.u2 set from entity @s UUID[2]",
+    "data modify storage rpg:state __sand_owner.u3 set from entity @s UUID[3]"
+  ]
+}

@@ -97,3 +97,25 @@ disposable and replaced on each run; choose a new directory to retain failed
 attempts. Evidence includes partial passed checks and the failure phase/message
 when a runtime or fixture assertion fails. The script rejects an observed server
 startup version other than 26.2.
+
+## Integrated milestone rerun
+
+The [integrated evidence](../../benchmarks/evidence/gameplay-integration-2026-10-27/trailforge/evidence.json)
+passes the same 120 assertions on clean source
+`5be0fd8d219d5eeb2df7bcb3e1190bddb640a9f6`, including both the player
+initialization fast path and corrected keyed-owner lowering. Its pack SHA256 is
+`654bc551801334ee7ad9f4565b0df7deb8eeeeeef9581a05cd590610faae39d7`.
+The [server log](../../benchmarks/evidence/gameplay-integration-2026-10-27/trailforge/latest.log)
+is retained beside the evidence. This is a new Minecraft 26.2 / Java 25.0.3 run;
+it does not relabel the historical gameplay-only run above. Its evidence limits
+are unchanged. Subsequent baseline and evidence documentation commits do not
+change the gameplay source tested by this run.
+
+The [final stack rerun](../../benchmarks/evidence/gameplay-integration-2026-10-27/final/summary.json)
+records fresh native runs after the portable helper ownership correction, all
+on clean source `067dab3b7c0ea7cf8b5641d593156e3fbb386cfb`: Trailforge 120,
+keyed State 36, and portable flows 21 assertions. Trailforge and unified-State
+pack hashes remain identical to the earlier integrated runs. Their static
+runtime baselines match without further regeneration. The portable fixture's
+reload limitation remains separately documented; Trailforge still uses the
+actual load-tag observer. The archive commit changes evidence/docs only.

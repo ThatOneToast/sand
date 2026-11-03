@@ -931,3 +931,96 @@ unknown upper bound because macro arguments are not analyzed. The observed
 idle 99 adds the timer's four-command fanout and two-command acknowledgement.
 This report is compiler-export analysis, not an MSPT measurement or proof of a
 whole-tick upper bound; its recorded limitations remain applicable.
+
+## Owned-gameplay build dependency reduction
+
+The CLI's normal/build graph on this macOS checkout decreased from **241 to 211
+unique package identities** after limiting ZIP support to the Deflate format
+that `sand-cli/src/build/package.rs` actually writes and consolidating direct
+TOML dependencies onto the existing 1.x parser. The root lockfile records the
+resolved graph. This removes unused compression/encryption implementations and
+the older TOML parser family from ordinary CLI builds.
+
+Measurement command (strip Cargo's repeated `(*)` suffix before deduplication):
+
+```sh
+cargo tree -p sand-cli --edges normal,build --prefix none
+```
+
+The before/after figures use the same host target and exclude dev dependencies.
+They measure dependency count, not a wall-clock speedup. Source edits, feature
+profiles and standalone example lockfiles invalidate different cached artifacts,
+so a timing comparison across those configurations would not isolate this change.
+The existing optimized build-dependency profile remains in place. No framework
+crate boundaries were changed without evidence of a corresponding bottleneck.
+
+Native engine validation has three maintained entry points:
+
+```sh
+python3 scripts/validate_gameplay.py --jar /path/to/26.3/server.jar --output /tmp/sand-gameplay
+python3 scripts/validate_owned_players.py --jar /path/to/26.2/server.jar --output /tmp/sand-players
+python3 scripts/validate_interactions.py --jar /path/to/26.2/server.jar --output /tmp/sand-interactions
+```
+
+The first uses generated public-API fixtures for ownership, admission, cleanup,
+status refresh/stacking, transitions, projectile hits, attributed damage, checked
+numeric arithmetic and scheduled State assertions. The second uses two real
+protocol-776 clients for death, disconnect, reconnect and owner isolation.
+The third exercises player menu tokens, pagination, object-bound sessions,
+purchases, books and cleanup. These are runtime correctness proofs, not MSPT benchmarks. The standalone
+`examples/owned_combat` pack demonstrates the complete player-facing ability path.
+
+The gameplay proof also covers bounded jobs and owned display scenes: two owners
+process independent two-step batches; cancellation skips completion; stopping
+inside a step cannot recreate scores; and a one-tick lifetime completes a
+one-step job before expiry. Display assertions check native 26.3 block-state
+serialization, interpolation targets, owner following, isolated removal and
+score cleanup even when user cleanup returns early. Exact budget checks use a
+counter at the end of the tick tag so a scheduled barrier cannot race a pending
+step. `examples/animated_boss` has a checked runtime-report baseline and exports
+on 26.1, 26.2 and 26.3. Both systems extend the existing lifetime instance pass. Continuations add
+explicit identity lookups, which are included in the runtime baseline. These checks establish behavior
+and generated structure, not a measured wall-clock or MSPT improvement.
+
+Dimension-transfer regressions also move an instance between scan passes and
+move it again during cleanup. They prove at-most-once tick processing, reacquisition
+of the live entity copy, same-tick expiry, and cleanup without orphan entities
+or score holders. This adds identity lookups at callback continuation boundaries;
+the baseline records their cost rather than claiming that bounded jobs are free.
+
+The gameplay proof also exercises ordered sequence actions, exact loaded-tick
+waits, trailing waits, early-return isolation, owner-isolated cancellation, expiry
+and continuation across dimension changes. Sequences reuse the Job cursor and
+Lifetime pass; each authored action adds a dispatch condition and due actions
+resolve the live instance before invoking their callbacks. Hit-volume checks
+cover inclusive positive-radius spheres, native box hitbox intersections,
+translated candidate budgets and nested queries without scratch state. Zero
+radii are rejected because native degenerate selector bounds do not reliably
+match coincident entities. These are correctness checks, not throughput claims.
+
+The task-composition proof covers sibling parents with the same owner, attempts
+to spawn children during cleanup, cancellation through unloaded intermediate
+parents, concurrent child joins, conditional waits and timeouts. Ancestry uses
+bounded per-definition live-instance lists and at most 32 ancestor checks.
+Roots skip ancestor traversal, but every lifetime maintains a live record; child
+admission/cleanup also updates its parent's direct-child count. These costs are
+in the example runtime baselines. First-hit queries use isolated return frames
+without scratch entities. Small-radius projectiles increase sampling up to a
+hard 256-sample budget; more precision deliberately increases command work.
+
+Combat resolution uses the existing numeric expression compiler and canonical
+State lifecycle metadata. It adds bounded, synchronous scoreboard work and no
+transaction entities or tick scan. Native constant damage remains a direct
+command; dynamic native damage uses checked arithmetic and one captured macro
+argument. Combat's temporary transaction scores are cleared before callbacks;
+canonical numeric backend scratch remains governed by that backend. Player State
+commits avoid entity-only reconciliation objectives.
+
+The native gameplay proof now checks shield ordering, resistance, overlapping
+critical conditions, invulnerability, fractional State scales, capped healing,
+non-revival, nested hits, callback return isolation, and encounter cancellation.
+The real-player proof additionally checks custom combat isolation and attributed
+runtime native damage between two connected clients on 26.2. The boss example's
+baseline includes priority selection and the more substantial two-attack
+encounter. These are behavioral and generated-output checks; they do not establish
+an MSPT improvement or a measured server capacity limit.

@@ -544,8 +544,21 @@ mod tests {
         }
         let functions = exported_functions();
         let dispatcher = &functions["__sand_dialog_tick"];
-        assert!(dispatcher.contains("run function trail:grapple"));
-        assert!(dispatcher.contains("run function trail:claim_striders"));
+        assert!(dispatcher.contains("run function trail:__sand_dialog_dispatch"));
+        let dispatch = &functions["__sand_dialog_dispatch"];
+        for callback in ["grapple", "claim_striders"] {
+            let (path, body) = functions
+                .iter()
+                .find(|(path, body)| {
+                    path.starts_with("__sand_dialog_action/")
+                        && body.ends_with(&format!("return run function trail:{callback}"))
+                })
+                .expect("survival callback must have a consume-first wrapper");
+            let consume = body.lines().next().unwrap();
+            assert!(consume.starts_with("scoreboard players set @s "));
+            assert!(consume.ends_with(" 0"));
+            assert!(dispatch.contains(&format!("run return run function trail:{path}")));
+        }
     }
 
     #[test]

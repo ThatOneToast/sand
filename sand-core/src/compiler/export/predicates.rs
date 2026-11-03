@@ -51,7 +51,8 @@ pub(crate) fn collect_sand_player_state_predicates(
                 collect_sand_player_state_predicates(condition, predicates);
             }
         }
-        ConditionKind::NumericCompare(_)
+        ConditionKind::Function(_)
+        | ConditionKind::NumericCompare(_)
         | ConditionKind::ItemMatch(_)
         | ConditionKind::EffectPresence(_)
         | ConditionKind::BlockMatch(_)

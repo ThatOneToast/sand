@@ -626,6 +626,29 @@ mod tests {
     }
 
     #[test]
+    fn generated_api_health_26_3_command_families() {
+        let catalog: serde_json::Value = serde_json::from_str(GENERATED_COMMAND_API).unwrap();
+        if catalog["minecraft_version"] != "26.3" {
+            return; // Older explicit codegen targets retain their own surface.
+        }
+        for symbol in [
+            "compute_default_integer",
+            "compute_default_float",
+            "compute_entity_integer",
+            "compute_entity_float",
+            "compute_block_integer",
+            "compute_block_float",
+            "posteffect_add",
+            "posteffect_remove",
+        ] {
+            assert!(
+                GENERATED_COMMANDS.contains(&format!("pub fn {symbol}(")),
+                "missing {symbol}"
+            );
+        }
+    }
+
+    #[test]
     fn generated_provider_metadata_covers_every_public_generated_item() {
         let commands: serde_json::Value = serde_json::from_str(GENERATED_COMMAND_API).unwrap();
         let registries: serde_json::Value = serde_json::from_str(GENERATED_REGISTRY_API).unwrap();
@@ -640,9 +663,13 @@ mod tests {
             })
             .count();
         assert_eq!(command_entries.len(), command_rust_items);
-        assert_eq!(command_entries.len(), 1_233);
-
-        assert_eq!(registry_entries.len(), 4_867);
+        let (command_count, registry_count) = match commands["minecraft_version"].as_str() {
+            Some("26.2") => (1_233, 4_867),
+            Some("26.3") => (1_255, 5_104),
+            version => panic!("add verified provider counts for {version:?}"),
+        };
+        assert_eq!(command_entries.len(), command_count);
+        assert_eq!(registry_entries.len(), registry_count);
         assert!(registry_entries.iter().any(|entry| {
             entry["definition_identity"] == "sand_core::generated::Item::Diamond"
                 && entry["contract"]["canonical_path"] == "sand::vanilla::Item::Diamond"

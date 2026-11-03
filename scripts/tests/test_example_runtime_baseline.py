@@ -185,33 +185,52 @@ class ExampleBuildIntegration(unittest.TestCase):
                 project = root / "examples" / name
                 project.mkdir(parents=True)
                 (project / "Cargo.toml").touch()
+                version = "26.2" if name == "one" else "26.3"
+                (project / "sand.toml").write_text(f'[pack]\nmc_version = "{version}"\n')
                 (project / "build.json").write_text(json.dumps(build()))
             binary = root / "bin"
             binary.mkdir()
-            cargo = binary / "cargo"
-            cargo.write_text(f"#!{sys.executable}\n" +
+            cli = binary / "sand"
+            cli.write_text(f"#!{sys.executable}\n" +
                 "import json, os, pathlib, sys\n"
                 "with open(os.environ['CALL_LOG'], 'a') as log:\n"
-                "    log.write(json.dumps(sys.argv[1:]) + '\\n')\n"
-                "if 'build' in sys.argv:\n"
-                "    if os.environ.get('FAIL_BUILD'):\n"
-                "        print('BUILD_FAILURE_DIAGNOSTIC')\n"
-                "        sys.exit(1)\n"
-                "    print(pathlib.Path('build.json').read_text())\n")
+                "    log.write(json.dumps({'tool':'sand', 'args':sys.argv[1:], 'version':os.environ.get('SAND_MC_VERSION')}) + '\\n')\n"
+                "if os.environ.get('FAIL_BUILD'):\n"
+                "    print('BUILD_FAILURE_DIAGNOSTIC')\n"
+                "    sys.exit(1)\n"
+                "print(pathlib.Path('build.json').read_text())\n")
+            cli.chmod(0o755)
+            cargo = binary / "cargo"
+            cargo.write_text(f"#!{sys.executable}\n" +
+                "import json, os, pathlib, shutil, sys\n"
+                "with open(os.environ['CALL_LOG'], 'a') as log:\n"
+                "    log.write(json.dumps({'tool':'cargo', 'args':sys.argv[1:], 'version':os.environ.get('SAND_MC_VERSION')}) + '\\n')\n"
+                "if sys.argv[1] == 'build':\n"
+                "    destination = pathlib.Path(os.environ['CARGO_TARGET_DIR']) / 'debug/sand'\n"
+                "    destination.parent.mkdir(parents=True, exist_ok=True)\n"
+                "    shutil.copy2(pathlib.Path(__file__).with_name('sand'), destination)\n")
             cargo.chmod(0o755)
             log = root / "calls.jsonl"
             env = {**os.environ, "PATH": str(binary) + os.pathsep + os.environ["PATH"],
-                   "CALL_LOG": str(log)}
-            for arguments in (["--update-runtime-baselines"], []):
+                   "CALL_LOG": str(log), "CARGO_TARGET_DIR": str(root / "target")}
+            env.pop("SAND_MC_VERSION", None)
+            for arguments, override in ((["--update-runtime-baselines"], None), ([], None), ([], "26.2")):
                 log.write_text("")
+                run_env = env if override is None else {**env, "SAND_MC_VERSION": override}
                 result = subprocess.run(["bash", "scripts/check-examples.sh", *arguments],
-                                        cwd=root, env=env, capture_output=True, text=True)
+                                        cwd=root, env=run_env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 calls = [json.loads(line) for line in log.read_text().splitlines()]
-                self.assertEqual(sum(call[0] == "test" for call in calls), 2)
-                builds = [call for call in calls if "build" in call]
-                self.assertEqual(len(builds), 2)
-                self.assertTrue(all(call[-3:] == ["build", "--format", "json"] for call in builds))
+                tests = [call for call in calls if call["tool"] == "cargo" and call["args"][0] == "test"]
+                builds = [call for call in calls if call["tool"] == "cargo" and call["args"][0] == "build"]
+                exports = [call for call in calls if call["tool"] == "sand"]
+                self.assertEqual(len(builds), 1)
+                self.assertEqual(len(tests), 2)
+                self.assertEqual(len(exports), 2)
+                self.assertTrue(all(call["args"] == ["build", "--format", "json"] for call in exports))
+                versions = [override, override] if override else ["26.2", "26.3"]
+                self.assertEqual([call["version"] for call in tests], versions)
+                self.assertEqual([call["version"] for call in exports], versions)
             result = subprocess.run(["bash", "scripts/check-examples.sh"], cwd=root,
                                     env={**env, "FAIL_BUILD": "1"}, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)

@@ -1,0 +1,4 @@
+[pack]
+namespace = "owned_combat"
+description = "Owned fireball ability, refreshable regeneration, and player State"
+mc_version = "26.3"

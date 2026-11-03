@@ -25,6 +25,12 @@ on:
       - "scripts/validate_worldbuild_profiles.py"
       - "scripts/validate_world_gameplay.py"
       - "scripts/validate_runtime_report.py"
+      - "scripts/validate_compute_26_3.py"
+      - "scripts/validate_gameplay.py"
+      - "scripts/validate_owned_players.py"
+      - "scripts/validate_interactions.py"
+      - "sand-core/tests/gameplay_*.rs"
+      - "sand-core/tests/compute_26_3.rs"
       - "scripts/validate_portable_global.py"
       - "scripts/validate_state_flow.py"
       - "scripts/validate_portable_flows.py"
@@ -82,9 +88,6 @@ jobs:
         shell: bash
         run: |
           matrix=$(cargo run --quiet -p sand-version --bin vanilla-reload-matrix)
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            matrix=$(jq -c '{include: [.include[] | select(.target == "latest")]}' <<< "$matrix")
-          fi
           echo "value=$matrix" >> "$GITHUB_OUTPUT"
 
   validate:
@@ -145,7 +148,14 @@ jobs:
         env:
           SAND_MC_VERSION: ${{ matrix.version }}
           SAND_STRICT_CODEGEN: "1"
-        run: cargo run --manifest-path ../sand-cli/Cargo.toml -- build
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path("sand.toml")
+          path.write_text(path.read_text().replace('mc_version = "26.2"', 'mc_version = "' + os.environ["SAND_MC_VERSION"] + '"'))
+          PY
+          cargo run --manifest-path ../sand-cli/Cargo.toml -- build
 
       - name: Validate audit exporter report after world-resource merging
         run: cargo test --manifest-path sand-vanilla-audit/Cargo.toml --lib world_build_audit_tests
@@ -158,6 +168,24 @@ jobs:
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}"
 
+      - name: Validate 26.3 compute execution
+        if: matrix.version == '26.3'
+        run: |
+          python3 scripts/validate_compute_26_3.py \
+            --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/compute"
+
+      - name: Validate owned gameplay
+        if: matrix.version == '26.3'
+        run: |
+          python3 scripts/validate_gameplay.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/gameplay"
+
+      - name: Validate player ownership and interactions
+        if: matrix.version == '26.2'
+        run: |
+          python3 scripts/validate_owned_players.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/owned-players"
+          python3 scripts/validate_interactions.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/interactions"
+
       - name: Compare runtime reports with completed vanilla command traces
         if: matrix.version == '26.2'
         run: |
@@ -167,7 +195,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/runtime-report"
 
       - name: Validate portable State defaults and bounds with real players
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/mc_validation/run_portable_program_audit.py \
             --binary target/debug/sand \
@@ -184,7 +212,7 @@ jobs:
           done
 
       - name: Validate portable global State without players
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_portable_global.py \
             --binary target/debug/sand \
@@ -192,14 +220,14 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/portable-global"
 
       - name: Validate StateFlow gameplay with two players
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_state_flow.py \
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/state-flow"
 
       - name: Validate runtime world and block gameplay
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_world_gameplay.py \
             --version "${{ matrix.version }}" \
@@ -208,7 +236,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/world-gameplay"
 
       - name: Validate real-player observation isolation and reload
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_player_observations.py \
             --version "${{ matrix.version }}" \
@@ -217,7 +245,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/player-observations"
 
       - name: Validate typed text interaction codec round trips
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_text_interactions.py \
             --version "${{ matrix.version }}" \
@@ -226,7 +254,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/text-interactions"
 
       - name: Build participant regression pack
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         working-directory: examples/participant_audit
         env:
           SAND_MC_VERSION: ${{ matrix.version }}
@@ -234,7 +262,7 @@ jobs:
         run: cargo run --manifest-path ../../sand-cli/Cargo.toml -- build
 
       - name: Validate real-player participants and equipment snapshots
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_player_participants.py \
             --version "${{ matrix.version }}" \
@@ -243,27 +271,27 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/player-participants"
 
       - name: Validate real-player bounded item transport
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/mc_validation/run_bounded_item_event_proof.py \
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/bounded-items"
 
       - name: Validate real-player reconnect and datapack join isolation
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_player_joins.py \
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/player-joins"
 
       - name: Validate guarded bounded State writes for real players
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_bounded_state_writes.py \
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/bounded-state"
       - name: Validate atomic inventory match branches for real players
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_inventory_matches.py \
             --jar "$SAND_SERVER_JAR" \
@@ -277,7 +305,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/block-raycast"
 
       - name: Validate built-in detector ownership in both tick orders
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_detector_ownership.py \
             --jar "$SAND_SERVER_JAR" \
@@ -298,7 +326,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/xp-level"
 
       - name: Validate portable player and global gameplay flows
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_portable_flows.py \
             --binary target/debug/sand \
@@ -306,7 +334,7 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/portable-flows"
 
       - name: Validate Trailforge upgrade and ability isolation
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           (cd examples/book_project && CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target" "$GITHUB_WORKSPACE/target/debug/sand" build)
           python3 scripts/validate_trailforge.py \
@@ -315,14 +343,14 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/trailforge"
 
       - name: Validate unified State example with real players and entities
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/mc_validation/run_unified_state_audit.py --build \
             --jar "$SAND_SERVER_JAR" \
             --evidence "target/vanilla-reload/${{ matrix.version }}/unified-state/evidence.json"
 
       - name: Validate literal keyed State values with real players and entities
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_keyed_literals.py \
             --version "${{ matrix.version }}" \
@@ -331,13 +359,13 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/keyed-literals"
 
       - name: Validate dev to release world-build profile switching
-        if: matrix.target == 'latest'
+        if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_worldbuild_profiles.py \
             --output "target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles"
 
       - name: Measure real-server MSPT and chunk generation
-        if: matrix.target == 'latest' && github.event_name != 'pull_request'
+        if: matrix.version == '26.2' && github.event_name != 'pull_request'
         run: |
           python3 scripts/bench_runtime.py 1 \
             --output "target/vanilla-reload/${{ matrix.version }}/bench-runtime"
@@ -359,6 +387,10 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/latest.log
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
+            target/vanilla-reload/${{ matrix.version }}/compute
+            target/vanilla-reload/${{ matrix.version }}/gameplay
+            target/vanilla-reload/${{ matrix.version }}/owned-players
+            target/vanilla-reload/${{ matrix.version }}/interactions
             target/vanilla-reload/${{ matrix.version }}/portable-state
             target/vanilla-reload/${{ matrix.version }}/portable-global
             target/vanilla-reload/${{ matrix.version }}/portable-flows

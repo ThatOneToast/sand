@@ -56,7 +56,7 @@ pub fn discover_local_source_crates(
         let text = fs::read_to_string(&manifest_path).map_err(|error| {
             ReachabilityError::Io(format!("{}: {error}", manifest_path.display()))
         })?;
-        let manifest = text.parse::<toml::Value>().map_err(|error| {
+        let manifest = toml::from_str::<toml::Value>(&text).map_err(|error| {
             ReachabilityError::Parse(format!("{}: {error}", manifest_path.display()))
         })?;
         let crate_name = dependency_name.unwrap_or_else(|| manifest_crate_name(&manifest));

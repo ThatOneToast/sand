@@ -99,7 +99,10 @@ fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
 }
 
 fn map_arg_parser(literals: &[&str], arg: &ArgInfo) -> (&'static str, &'static str, bool) {
-    if literals == ["damage"] && arg.name == "target" && arg.parser == "minecraft:entity" {
+    if arg.parser == "minecraft:entity"
+        && ((literals == ["damage"] && arg.name == "target")
+            || (literals.starts_with(&["compute", "entity"]) && arg.name == "compute_target"))
+    {
         return ("impl SingleTargetArgument", "Selector", true);
     }
 
@@ -111,7 +114,7 @@ fn map_arg_parser(literals: &[&str], arg: &ArgInfo) -> (&'static str, &'static s
 // ---------------------------------------------------------------------------
 
 fn sanitize_field_name(name: &str) -> String {
-    let s = name.replace('-', "_");
+    let s = name.to_snake_case();
     match s.as_str() {
         "type" => "kind".to_string(),
         "in" => "in_dim".to_string(),
@@ -1054,6 +1057,8 @@ mod tests {
         assert_eq!(sanitize_field_name("in"), "in_dim");
         assert_eq!(sanitize_field_name("ban-ip"), "ban_ip");
         assert_eq!(sanitize_field_name("targets"), "targets");
+        assert_eq!(sanitize_field_name("computeTarget"), "compute_target");
+        assert_eq!(sanitize_field_name("computePos"), "compute_pos");
     }
 
     #[test]
@@ -1085,6 +1090,46 @@ mod tests {
         assert_eq!(p, "impl Into<String>");
         assert_eq!(s, "String");
         assert!(n);
+    }
+
+    #[test]
+    fn compute_entity_codegen_preserves_context_mode_and_single_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = dir.path().join("reports");
+        let out = dir.path().join("out");
+        std::fs::create_dir_all(&reports).unwrap();
+        std::fs::create_dir_all(&out).unwrap();
+        let tree = serde_json::json!({"children":{"compute":{"type":"literal","children":{
+            "entity":{"type":"literal","children":{"computeTarget":{
+                "type":"argument","parser":"minecraft:entity",
+                "properties":{"amount":"single","type":"entities"},"children":{
+                    "float":{"type":"literal","children":{"provider":{
+                        "type":"argument","parser":"minecraft:context_float_provider",
+                        "executable":true,"children":{"scale":{
+                            "type":"argument","parser":"brigadier:float","executable":true
+                        }}
+                    }}},
+                    "integer":{"type":"literal","children":{"provider":{
+                        "type":"argument","parser":"minecraft:context_int_provider","executable":true
+                    }}}
+                }
+            }}}
+        }}}});
+        std::fs::write(reports.join("commands.json"), tree.to_string()).unwrap();
+        generate(&reports, &out, "26.3").unwrap();
+        let source = std::fs::read_to_string(out.join("commands.rs")).unwrap();
+        assert!(
+            source
+                .contains("pub fn compute_entity_float(compute_target: impl SingleTargetArgument")
+        );
+        assert!(
+            source.contains(
+                "pub fn compute_entity_integer(compute_target: impl SingleTargetArgument"
+            )
+        );
+        assert!(source.contains("compute entity {} float {}"));
+        assert!(source.contains("compute entity {} integer {}"));
+        assert!(source.contains("pub fn scale(mut self, scale: f32)"));
     }
 
     #[test]

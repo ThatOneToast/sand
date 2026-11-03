@@ -7,6 +7,13 @@ requiring players to memorize `/function` commands:
 {{#include ../../examples/book_project/src/lib.rs:dialog}}
 ```
 
+For purchases, rewards, or actions tied to an open UI, prefer the managed
+[`Menu` system](23i-interactions.md). A low-level `DialogAction::callback` is a
+public trigger endpoint: players can submit its value without opening the
+dialog. Its dispatcher isolates packs and consumes input before callbacks, but
+the handler still owns authorization. Menu adds player sessions, fresh action
+values, expiry, context checks, and disconnect/reload invalidation.
+
 ## `Dialog::multi_action_local`
 
 Dialogs are a modern Minecraft Java feature (server-driven UI screens sent

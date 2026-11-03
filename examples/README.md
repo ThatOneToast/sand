@@ -7,6 +7,9 @@ subdirectories below are standalone crates that build against this checkout.
 
 | Project | Purpose |
 | --- | --- |
+| [interaction_hub](interaction_hub/) | Player menu sessions, owned interactables, purchases, books and a quest reward. |
+| [animated_boss](animated_boss/) | Combat rules, two-attack encounter behavior, owned animation and bounded jobs. |
+| [owned_combat](owned_combat/) | Owner-bound fireballs, costs, cooldowns, refreshable effects and cleanup. |
 | [book_project](book_project/) | Canonical typed gameplay example used throughout the book. |
 | [unified_state](unified_state/) | State components, bundles, queries, systems, migrations, and archetype attachment. |
 | [rpg_entity](rpg_entity/) | Typed entity archetypes and deterministic export coverage. |
@@ -52,7 +55,7 @@ runs its tests, and builds a server-ready datapack through the Sand CLI. Both
 `scripts/check.sh` and the Rust CI workflow invoke it, so a new example project
 receives the same coverage automatically.
 
-The unified-State real-server audit runs in the latest-version vanilla workflow.
+The unified-State real-server audit runs in the 26.2 lane of the vanilla workflow.
 Run it locally with Minecraft 26.2 and Java 25:
 
 ```sh

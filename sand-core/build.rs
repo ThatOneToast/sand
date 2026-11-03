@@ -7,12 +7,17 @@ use sand_version::DEFAULT_CODEGEN_VERSION;
 
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(sand_placeholder_codegen)");
+    println!("cargo:rustc-check-cfg=cfg(sand_codegen_26_3)");
     // The default codegen target. Contributors get a working
     // `cargo test -p sand-core --lib` out of the box when this version is
     // codegen-available (cached server jar or network). Override with
     // `SAND_MC_VERSION=<version>` to target a different Minecraft version.
     let version =
         std::env::var("SAND_MC_VERSION").unwrap_or_else(|_| DEFAULT_CODEGEN_VERSION.to_string());
+
+    if version == "26.3" {
+        println!("cargo:rustc-cfg=sand_codegen_26_3");
+    }
 
     let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set"));
 
@@ -68,7 +73,7 @@ fn main() {
                  (={DEFAULT_CODEGEN_VERSION}); override it with SAND_MC_VERSION=<version>.\n\
                  \n\
                  Codegen requires a Java runtime new enough for the selected Minecraft\n\
-                 server (Java 25 for the current 26.2 baseline) and either\n\
+                 server (Java 25 for the current 26.3 baseline) and either\n\
                  network access or a verified cached manifest, package metadata, and jar.\n\
                  \n\
                  To compile ordinary facade code with empty placeholder APIs (sand-core\n\

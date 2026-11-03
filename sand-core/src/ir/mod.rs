@@ -15,6 +15,10 @@
 //! 5. Update the public builder to construct the typed node internally while
 //!    retaining its existing authoring API and output.
 
+#[doc(hidden)]
+pub use crate::gameplay::combat::CombatAction;
+#[doc(hidden)]
+pub use crate::gameplay::identity::OwnedContext;
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 mod block;
 #[doc(hidden)]
@@ -26,6 +30,9 @@ mod item;
 pub(crate) use item::lower_item_predicate;
 #[doc(hidden)]
 pub use item::{ItemMatch, ItemMutation};
+mod native_damage;
+#[doc(hidden)]
+pub use native_damage::NativeDamage;
 mod numeric;
 #[doc(hidden)]
 pub use numeric::NumericWrite;
@@ -335,6 +342,14 @@ pub enum Cmd {
     /// Native damage intent, retained until validated command rendering.
     Damage(Box<sand_commands::Damage>),
 
+    /// Numeric native damage retained until export.
+    #[doc(hidden)]
+    NativeDamage(Box<NativeDamage>),
+
+    /// Transactional State combat resolution.
+    #[doc(hidden)]
+    Combat(Box<CombatAction>),
+
     /// Native effect give or removal, retained until validated command rendering.
     Effect(sand_commands::EffectCommand),
 
@@ -367,6 +382,10 @@ pub enum Cmd {
     /// Evaluate effect presence with an owned typed predicate resource.
     #[doc(hidden)]
     EffectPresence(Box<EffectPresence>),
+
+    /// Resolve an instance owner before invoking its isolated callback frame.
+    #[doc(hidden)]
+    OwnedContext(Box<OwnedContext>),
 
     /// Evaluate a numeric comparison in its compiler-owned condition helper.
     #[doc(hidden)]
@@ -428,7 +447,10 @@ impl Cmd {
                     vec![call]
                 }
             }
+            Self::OwnedContext(context) => return context.lower(owner),
             Self::NumericWrite(write) => return write.lower(owner),
+            Self::NativeDamage(damage) => return damage.lower(owner),
+            Self::Combat(combat) => return combat.lower(owner),
             Self::ItemMutation(write) => return write.lower(owner),
             Self::ItemMatch(query) => return query.lower(owner),
             Self::EffectPresence(query) => return query.lower(owner),
@@ -641,6 +663,13 @@ impl Cmd {
                     .join("\n")
             }
 
+            Self::OwnedContext(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "owned entity context",
+                    "lowering",
+                    "owned contexts require function export lowering",
+                ));
+            }
             Self::RegisteredFunction(_) => {
                 return Err(sand_commands::CommandError::new(
                     "registered function",
@@ -669,7 +698,10 @@ impl Cmd {
                     "inventory actions require function export lowering",
                 ));
             }
-            Self::NumericWrite(_) | Self::NumericComparison(_) => {
+            Self::NumericWrite(_)
+            | Self::NumericComparison(_)
+            | Self::NativeDamage(_)
+            | Self::Combat(_) => {
                 return Err(sand_commands::CommandError::new(
                     "numeric action",
                     "value",

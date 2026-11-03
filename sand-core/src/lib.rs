@@ -67,6 +67,11 @@ pub mod event;
 pub mod events;
 pub mod execute_when;
 pub mod function;
+mod gameplay;
+pub use gameplay::{
+    Ability, Combat, Encounter, GameplayTest, Interactable, Job, Lifetime, Menu, Projectile,
+    Purchase, Scene, Sequence, StatusEffect, TaskContext, Transform,
+};
 pub mod ir;
 pub mod item;
 pub mod participant;

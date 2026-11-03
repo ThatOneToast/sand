@@ -73,12 +73,14 @@ fn export(case: Case, namespace: &str, version: &str) -> Result<String, String> 
 
 #[test]
 fn furnace_profiles_and_escaped_reads_are_checked_on_every_export() {
-    for version in ["26.2", "26.2.0", "latest"] {
+    for version in ["26.2", "26.2.0"] {
         for case in [Case::Used, Case::Slots, Case::Escaped, Case::EscapedState] {
             export(case, "forge", version).unwrap();
         }
     }
-    for version in ["26.1", "26.1.1", "26.1.2", "26.2.1", "27.0"] {
+    for version in [
+        "26.1", "26.1.1", "26.1.2", "26.2.1", "26.3", "latest", "27.0",
+    ] {
         for case in [Case::Used, Case::Slots, Case::Escaped, Case::EscapedState] {
             let error = export(case, "forge", version).unwrap_err();
             assert!(
@@ -90,7 +92,14 @@ fn furnace_profiles_and_escaped_reads_are_checked_on_every_export() {
         }
     }
     CASE.with(|value| value.set(Case::Used));
-    sand_core::try_export_components_json("forge").unwrap();
+    let error = sand_core::try_export_components_json("forge")
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("requires verified Minecraft 26.2"),
+        "{error}"
+    );
+    assert!(error.contains("requested 26.3"), "{error}");
     let error = sand_core::try_export_components_for_version(
         "forge",
         &sand_version::VersionCaps::all_enabled(),

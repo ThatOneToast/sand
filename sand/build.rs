@@ -76,6 +76,7 @@ fn main() {
         "api-scopes.toml",
         "api-surface-profiles.toml",
         "api-surface-baseline.txt",
+        "api-surface-baseline-26.3.txt",
         "api-surface-baseline-placeholder.txt",
     ] {
         println!("cargo:rerun-if-changed={source}");

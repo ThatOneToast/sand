@@ -8,8 +8,8 @@ use sand_commands::{
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
 use crate::cmd::{
-    Anchor, CommandProfile, CommandResult, DamageAmount, DamageKind, EffectGive, One, Rotation,
-    Target, Validate, Vec3,
+    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
+    Vec3,
 };
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
@@ -370,7 +370,7 @@ impl<K: EntityKind> EntityTransform<K> {
             target.validate(&profile)?;
             Ok(
                 crate::cmd::rotate_facing_entity(self.selector.clone(), target)
-                    .facingAnchor(anchor)
+                    .facing_anchor(anchor)
                     .to_string(),
             )
         }
@@ -434,6 +434,9 @@ impl<K: LivingEntityKind> LivingEntity<K> {
 
     /// Applies native Minecraft damage through an authored action.
     ///
+    /// Dynamic amounts use canonical numeric lowering with thousandth-hit-point
+    /// precision in the caller context. Missing inputs, failed arithmetic, and
+    /// negative results do no damage; invalid constants fail export.
     /// Amount and selector validation occurs at fallible pack export, with the
     /// owning function in diagnostics, rather than returning an immediate error.
     /// This preserves native damage rules and does not observe exact damage
@@ -453,11 +456,52 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         avoid_when = ["Keeping an entity identity across ticks"],
         example = "use sand::prelude::*;",
         returns = "Owned native mutation actions validated when their function is exported.",
-        params(amount = "Fixed native damage in hit points, or an existing DamageAmount such as DamageAmount::hearts(1.0).", kind = "Minecraft damage kind; native armor, resistance and immunity rules remain authoritative."),
+        params(amount = "Hit points as a constant, DamageAmount, bound numeric State value, or StatCurve expression.", kind = "Minecraft damage kind; native armor, resistance and immunity rules remain authoritative."),
     )]
-    pub fn damage(&self, amount: impl Into<DamageAmount>, kind: DamageKind) -> crate::ir::Actions {
-        crate::ir::Actions(vec![crate::ir::Cmd::Damage(Box::new(
-            sand_commands::__private::damage_one(self.selector.clone(), amount.into(), kind),
+    pub fn damage(
+        &self,
+        amount: impl Into<super::StatCurve>,
+        kind: DamageKind,
+    ) -> crate::ir::Actions {
+        self.damage_action(amount.into(), kind, None)
+    }
+
+    /// Apply native damage attributed to an entity bound by `EntityScope::bind`.
+    /// Runtime amounts are evaluated in the caller's execution context. The
+    /// source must remain loaded in the current dimension. Native armor and
+    /// immunity remain authoritative; this does not intercept other damage.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::entity::LivingEntity::damage_by",
+        aliases = ["sand::prelude::LivingEntity::damage_by"], module = "sand::entity", kind = "method",
+        summary = "Applies runtime-valued native damage with a scoped source.",
+        context = "Bind the attacker with EntityScope before selecting victims. Amounts use canonical StatCurve arithmetic in the caller context, with thousandth-hit-point precision; missing inputs and negative results do no damage.",
+        minecraft = "Emits validated native damage, using a captured function macro argument for dynamic amounts and native by attribution.",
+        use_when = ["Attributing authored combat to its attacker"], avoid_when = ["Intercepting all native damage"],
+        params(amount = "Hit points as a constant or runtime numeric expression.", kind = "Native damage rules.", source = "Attacker bound for this synchronous action."),
+        returns = "Native damage actions preserving the caller frame.", example = "use sand::prelude::*;",
+    )]
+    pub fn damage_by<S: EntityKind>(
+        &self,
+        amount: impl Into<super::StatCurve>,
+        kind: DamageKind,
+        source: &super::ScopedEntityRef<S>,
+    ) -> crate::ir::Actions {
+        self.damage_action(amount.into(), kind, Some(source.selector()))
+    }
+
+    fn damage_action(
+        &self,
+        amount: super::StatCurve,
+        kind: DamageKind,
+        source: Option<Selector>,
+    ) -> crate::ir::Actions {
+        crate::ir::Actions(vec![crate::ir::Cmd::NativeDamage(Box::new(
+            crate::ir::NativeDamage {
+                target: self.selector.clone(),
+                amount,
+                kind,
+                source,
+            },
         ))])
     }
 

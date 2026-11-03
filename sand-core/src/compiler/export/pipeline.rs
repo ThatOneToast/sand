@@ -170,7 +170,7 @@ fn lower_state_system_body(
     system: &crate::function::StateSystemDescriptor,
     namespace: &str,
 ) -> ExportResult<Vec<String>> {
-    let _origin = crate::function::GeneratedOwnerScope::logical(system.id);
+    let _origin = crate::function::GeneratedOwnerScope::logical((system.id)());
     (system.make)()
         .lower(&sand_components::ResourceLocation::new(
             namespace,
@@ -186,7 +186,7 @@ fn lower_state_system_body(
                 location,
                 kind,
                 field,
-                message: format!("State system `{}`: {message}", system.id),
+                message: format!("State system `{}`: {message}", (system.id)()),
             },
             error => error,
         })
@@ -238,6 +238,9 @@ pub(crate) fn try_export_components_impl(
     // registry into the next export on this thread.
     let _function_registry_scope =
         crate::function::ExportFunctionRegistryScope::enter_namespace(namespace);
+    _function_registry_scope.enable_26_3_schema(
+        ctx.is_some_and(|ctx| !ctx.is_fallback && ctx.caps.is_at_least(26, 3, 0)),
+    );
 
     // Dialog callback IDs and registrations are process-global. Hold this for
     // the complete factory/export lifecycle so repeated or concurrent exports
@@ -2127,10 +2130,14 @@ pub(crate) fn try_export_components_impl(
     // ── State systems ────────────────────────────────────────────────────────
     // Systems are immutable declarations. Build and sort them for each export
     // so cadence and function identity never depend on inventory order.
-    let mut systems: Vec<_> = inventory::iter::<crate::function::StateSystemDescriptor>
+    let systems: Vec<_> = inventory::iter::<crate::function::StateSystemDescriptor>
         .into_iter()
         .collect();
-    systems.sort_by_key(|system| system.id);
+    let systems = super::systems::order_systems(systems).map_err(lifecycle_export_error)?;
+    let explicit_order = systems.iter().any(|system| {
+        let (before, after) = (system.order)();
+        !before.is_empty() || !after.is_empty()
+    });
     let mut system_ids = BTreeMap::<&str, (u32, Vec<String>)>::new();
     let mut unique_systems = Vec::new();
     let mut system_load = Vec::new();
@@ -2139,21 +2146,21 @@ pub(crate) fn try_export_components_impl(
         if system.every == 0 {
             return Err(lifecycle_export_error(format!(
                 "State system `{}` declares an invalid zero tick cadence",
-                system.id
+                (system.id)()
             )));
         }
         let body = lower_state_system_body(system, namespace)?;
-        if let Some((every, existing)) = system_ids.get(system.id) {
+        if let Some((every, existing)) = system_ids.get((system.id)()) {
             if *every != system.every || existing != &body {
                 return Err(lifecycle_export_error(format!(
                     "conflicting State system declarations for `{}`",
-                    system.id
+                    (system.id)()
                 )));
             }
             continue;
         }
-        system_ids.insert(system.id, (system.every, body.clone()));
-        unique_systems.push((system.id, system.every, body));
+        system_ids.insert((system.id)(), (system.every, body.clone()));
+        unique_systems.push(((system.id)(), system.every, body));
     }
 
     // A system containing exactly one derived StateQuery operation lowers to
@@ -2166,6 +2173,7 @@ pub(crate) fn try_export_components_impl(
     for (id, every, body) in unique_systems {
         let scan = state_system_scan(&body);
         if let (Some((selector, callbacks)), Some(last)) = (scan.as_ref(), planned.last_mut())
+            && !explicit_order
             && last.1 == every
             && last.2.as_ref() == Some(selector)
         {
@@ -2684,6 +2692,9 @@ pub(crate) fn try_export_components_impl(
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
 
+    if ctx.is_some_and(|ctx| ctx.caps.is_at_least(26, 3, 0)) {
+        super::schema_26_3::lower(&mut records)?;
+    }
     validate_unique_output_identities(&records)?;
     validate_objective_definitions(&records)?;
 
@@ -2838,7 +2849,8 @@ mod action_owner_tests {
     #[test]
     fn system_action_errors_keep_structured_fields_and_system_identity() {
         let system = crate::function::StateSystemDescriptor {
-            id: "game::regenerate",
+            id: || "game::regenerate",
+            order: || (Vec::new(), Vec::new()),
             every: 1,
             make: invalid_body,
         };

@@ -100,6 +100,8 @@ class ServerHarness:
                 [
                     "level-name=world",
                     "online-mode=false",
+                    "server-ip=127.0.0.1",
+                    "white-list=false",
                     "max-players=1",
                     "enable-rcon=false",
                     f"server-port={self.port}",

@@ -20,14 +20,27 @@ if [[ "$CARGO_TARGET_DIR" != /* ]]; then
     export CARGO_TARGET_DIR="$PWD/$CARGO_TARGET_DIR"
 fi
 
+# Build the CLI once before switching to each example's code-generation target.
+# Re-running Cargo for the CLI inside the loop otherwise switches the shared
+# Sand dependency graph back to the default Minecraft version on every pack.
+cargo build --manifest-path "$repo_root/sand-cli/Cargo.toml" --bin sand
+sand_binary="$CARGO_TARGET_DIR/debug/sand"
+
 for manifest in "$repo_root"/examples/*/Cargo.toml; do
     project_dir="$(dirname -- "$manifest")"
     example="$(basename -- "$project_dir")"
     echo "=== Example: $example ==="
-    cargo test --manifest-path "$manifest"
+    example_version="${SAND_MC_VERSION:-$(python3 - "$project_dir/sand.toml" <<'PYTHON'
+import sys
+import tomllib
+from pathlib import Path
+print(tomllib.loads(Path(sys.argv[1]).read_text())["pack"]["mc_version"])
+PYTHON
+)}"
+    SAND_MC_VERSION="$example_version" cargo test --manifest-path "$manifest"
     if ! (
         cd -- "$project_dir" || exit 1
-        cargo run --manifest-path "$repo_root/sand-cli/Cargo.toml" --bin sand -- build --format json > "$reports/$example.json"
+        SAND_MC_VERSION="$example_version" "$sand_binary" build --format json > "$reports/$example.json"
     ); then
         cat -- "$reports/$example.json" >&2
         exit 1

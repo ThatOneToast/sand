@@ -1,0 +1,2921 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.3",
+  "namespace": "owned_combat",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "owned_combat:__sand_death_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function owned_combat:clear_on_death"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_death"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_death_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function owned_combat:clear_on_death"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_death"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_join_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function owned_combat:clear_on_join"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_join"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_join_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function owned_combat:clear_on_join"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_join"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_lifecycle_init": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat:mage"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 25,
+          "minimum": 25,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::clear_on_death",
+          "owned_combat::clear_on_join",
+          "owned_combat::fireball",
+          "owned_combat::regeneration",
+          "owned_combat::sneak_to_cast",
+          "owned_combat:mage"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 15,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resume_tick with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/validate with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_death",
+          "owned_combat::clear_on_join",
+          "owned_combat::fireball",
+          "owned_combat::regeneration",
+          "owned_combat::sneak_to_cast",
+          "owned_combat:mage"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 5,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 5,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_score_init": {
+        "evaluations": {
+          "maximum": 14,
+          "minimum": 14,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball",
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored eyes positioned ^ ^ ^ summon minecraft:marker run function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/admit_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/admit_child"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/after_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resume_step with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/ancestor_next": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/ancestor_present with storage owned_combat:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: owned_combat:__sand_system/lifetime/fireball/ancestor_next"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/ancestor_present": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/ancestor_present"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/ancestors_valid": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/ancestor_present with storage owned_combat:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: owned_combat:__sand_system/lifetime/fireball/ancestor_next"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/cancel_descendants": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/cancel_descendants"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/cancel_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/cancel_owner"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/child_added": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/child_added"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/child_removed": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/child_removed"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/children_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/children_check"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/children_done": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/children_check with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/cleanup": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/6def8028 with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/diagnose": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/finish_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/init"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/init_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/init_child"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/load": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/owner_valid": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/projectile_callback": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/projectile_candidate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/projectile_candidate"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/projectile_hit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/projectile_move": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data",
+            "unknown selector multiplicity: execute at @s rotated as @s run function owned_combat:__sand_system/lifetime/fireball/projectile_sample"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 5,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 8,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 11,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 13,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 14,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c]"
+          },
+          {
+            "line": 17,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 17,
+            "operation": "rotated",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/projectile_sample": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/projectile_search": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/projectile_search"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/resolve_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/resolve_cleanup"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/resolve_stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/resolve_stop"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/resume_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/resume_step"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/resume_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/resume_tick"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/retire": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/retire"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored eyes positioned ^ ^ ^ summon minecraft:marker run function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/start_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/start_child"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/started": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resume_tick with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/validate with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data",
+            "unknown selector multiplicity: execute at @s rotated as @s run function owned_combat:__sand_system/lifetime/fireball/projectile_sample"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/stop_descendant": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/stop_descendant"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/stop_instance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_descendants with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_cleanup with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/retire with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c.stopping]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/stopped": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resume_tick with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/validate with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data",
+            "unknown selector multiplicity: execute at @s rotated as @s run function owned_combat:__sand_system/lifetime/fireball/projectile_sample",
+            "unknown selector multiplicity: execute in minecraft:overworld as @e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c,distance=0..] at @s run function owned_combat:__sand_system/lifetime/fireball/step"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c,distance=0..]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c,distance=0..]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a6669726562616c6c,distance=0..]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/fireball/ticked": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/9fb34ece with entity @s data",
+            "unknown selector multiplicity: execute at @s rotated as @s run function owned_combat:__sand_system/lifetime/fireball/projectile_sample"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/fireball/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/fireball/validate"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/status_admit with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/admit_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/admit_child"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/after_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resume_step with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/ancestor_next": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/ancestor_present with storage owned_combat:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: owned_combat:__sand_system/lifetime/regeneration/ancestor_next"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/ancestor_present": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/ancestor_present"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/ancestors_valid": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/ancestor_present with storage owned_combat:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: owned_combat:__sand_system/lifetime/regeneration/ancestor_next"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/cancel_descendants": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/cancel_descendants"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/cancel_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/cancel_owner"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/child_added": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/child_added"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/child_removed": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/child_removed"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/children_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/children_check"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/children_done": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/children_check with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/cleanup": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/32f5eb18 with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/diagnose": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/finish_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/status/read_refresh/4563dbb2 with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/init"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 21,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e]"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/init_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/init_child"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/load": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/owner_valid": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/resolve_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/resolve_cleanup"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/resolve_stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/resolve_stop"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/resume_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/resume_step"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/resume_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/resume_tick"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/retire": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/retire"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/status_admit with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/start_child": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/started": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/status_admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/status_admit"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/status_refresh": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/status_refresh"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/status_remove": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/status_remove"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resume_tick with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/validate with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/5ac82737 with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/status/read_refresh/4563dbb2 with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/stop_descendant": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/stop_descendant"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/stop_instance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_descendants with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resolve_cleanup with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/retire with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/status_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e.stopping]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/stopped": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/resume_tick with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/validate with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/5ac82737 with entity @s data",
+            "function arguments are not analyzed: function owned_combat:sand/status/read_refresh/4563dbb2 with entity @s data",
+            "unknown selector multiplicity: execute in minecraft:overworld as @e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e,distance=0..] at @s run function owned_combat:__sand_system/lifetime/regeneration/step",
+            "unknown selector multiplicity: execute in minecraft:the_end as @e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e,distance=0..] at @s run function owned_combat:__sand_system/lifetime/regeneration/step",
+            "unknown selector multiplicity: execute in minecraft:the_nether as @e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e,distance=0..] at @s run function owned_combat:__sand_system/lifetime/regeneration/step"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e,distance=0..]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e,distance=0..]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e,distance=0..]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/ticked": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:sand/runtime/owned_context/5ac82737 with entity @s data"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.6f776e65645f636f6d6261743a726567656e65726174696f6e]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/lifetime/regeneration/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:__sand_system/lifetime/regeneration/validate"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_system/sc0e3e300a8bc85c": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::recover_mana"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system_load": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::recover_mana"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:__sand_system_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a[scores={s6a013315193d928=1}] at @s run function owned_combat:__sand_system/sc0e3e300a8bc85c"
+          ]
+        },
+        "owners": [
+          "owned_combat::recover_mana"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a[scores={s6a013315193d928=1}]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:__sand_transition/afdc5b41ee": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored eyes positioned ^ ^ ^ summon minecraft:marker run function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "unknown selector multiplicity: execute if score @s __st_afdc5b41ees matches 1 if score @s __st_afdc5b41eec matches 1 unless score @s __st_afdc5b41eep matches 1 at @s run function owned_combat:sneak_to_cast"
+          ]
+        },
+        "owners": [
+          "owned_combat::sneak_to_cast"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 8,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "owned_combat::cancel"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:cast": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 7,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored eyes positioned ^ ^ ^ summon minecraft:marker run function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::cast"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:clear_on_death": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_death"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:clear_on_join": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "owned_combat::clear_on_join"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:diagnose": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::diagnose"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:regenerate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 7,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/status_admit with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::regenerate"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/entity_query/7ad415f8": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::recover_mana"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/owned_body/63fb2bbf": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/owned_body/9c008d70": {
+        "evaluations": {
+          "maximum": 10,
+          "minimum": 10,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:sand/runtime/owned_body/ddf7cf44": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/owned_context/32f5eb18": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:sand/runtime/owned_context/32f5eb18"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/owned_context/5ac82737": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:sand/runtime/owned_context/5ac82737"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/owned_context/6def8028": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:sand/runtime/owned_context/6def8028"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/owned_context/9fb34ece": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:sand/runtime/owned_context/9fb34ece"
+          ]
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sand/runtime/required/1830e601": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball",
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:sand/status/read_refresh/4563dbb2": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: owned_combat:sand/status/read_refresh/4563dbb2"
+          ]
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:sneak_to_cast": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored eyes positioned ^ ^ ^ summon minecraft:marker run function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "owned_combat::sneak_to_cast"
+        ],
+        "selector_sites": []
+      },
+      "owned_combat:state_mutation/0f956822": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::regeneration"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:state_mutation/453c6612": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::fireball"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:state_mutation/caa602f2": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat::recover_mana"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "owned_combat::fireball",
+          "owned_combat::regeneration"
+        ],
+        "evaluations": {
+          "maximum": 14,
+          "minimum": 14,
+          "unknown": []
+        },
+        "reference": "owned_combat:__sand_score_init",
+        "required": true
+      },
+      {
+        "contributors": [
+          "owned_combat::recover_mana"
+        ],
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "reference": "owned_combat:__sand_system_load",
+        "required": true
+      },
+      {
+        "contributors": [
+          "owned_combat::clear_on_death",
+          "owned_combat::clear_on_join",
+          "owned_combat::fireball",
+          "owned_combat::regeneration",
+          "owned_combat::sneak_to_cast",
+          "owned_combat:mage"
+        ],
+        "evaluations": {
+          "maximum": 25,
+          "minimum": 25,
+          "unknown": []
+        },
+        "reference": "owned_combat:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "owned_combat:__sand_death_check": [
+          "owned_combat::clear_on_death"
+        ],
+        "owned_combat:__sand_death_dispatch": [
+          "owned_combat::clear_on_death"
+        ],
+        "owned_combat:__sand_join_check": [
+          "owned_combat::clear_on_join"
+        ],
+        "owned_combat:__sand_join_dispatch": [
+          "owned_combat::clear_on_join"
+        ],
+        "owned_combat:__sand_lifecycle_init": [
+          "owned_combat:mage"
+        ],
+        "owned_combat:__sand_lifecycle_load": [
+          "owned_combat::clear_on_death",
+          "owned_combat::clear_on_join",
+          "owned_combat::fireball",
+          "owned_combat::regeneration",
+          "owned_combat::sneak_to_cast",
+          "owned_combat:mage"
+        ],
+        "owned_combat:__sand_lifecycle_tick": [
+          "owned_combat::clear_on_death",
+          "owned_combat::clear_on_join",
+          "owned_combat::fireball",
+          "owned_combat::regeneration",
+          "owned_combat::sneak_to_cast",
+          "owned_combat:mage"
+        ],
+        "owned_combat:__sand_score_init": [
+          "owned_combat::fireball",
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/admit": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/admit_child": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/after_tick": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/ancestor_next": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/ancestor_present": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/ancestors_valid": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/cancel": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/cancel_descendants": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/cancel_owner": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/child_added": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/child_removed": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/children_check": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/children_done": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/cleanup": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/commit": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/diagnose": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/finish_step": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/init": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/init_child": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/load": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/owner_valid": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/projectile_callback": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/projectile_candidate": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/projectile_hit": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/projectile_move": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/projectile_sample": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/projectile_search": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/resolve_cleanup": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/resolve_stop": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/resume_step": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/resume_tick": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/retire": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/start": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/start_child": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/started": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/step": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/stop": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/stop_descendant": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/stop_instance": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/stopped": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/tick": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/ticked": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/fireball/validate": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/admit": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/admit_child": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/after_tick": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/ancestor_next": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/ancestor_present": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/ancestors_valid": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/cancel": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/cancel_descendants": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/cancel_owner": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/child_added": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/child_removed": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/children_check": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/children_done": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/cleanup": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/commit": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/diagnose": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/finish_step": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/init": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/init_child": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/load": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/owner_valid": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/resolve_cleanup": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/resolve_stop": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/resume_step": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/resume_tick": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/retire": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/start": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/start_child": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/started": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/status_admit": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/status_refresh": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/status_remove": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/step": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/stop": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/stop_descendant": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/stop_instance": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/stopped": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/tick": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/ticked": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/lifetime/regeneration/validate": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:__sand_system/sc0e3e300a8bc85c": [
+          "owned_combat::recover_mana"
+        ],
+        "owned_combat:__sand_system_load": [
+          "owned_combat::recover_mana"
+        ],
+        "owned_combat:__sand_system_tick": [
+          "owned_combat::recover_mana"
+        ],
+        "owned_combat:__sand_transition/afdc5b41ee": [
+          "owned_combat::sneak_to_cast"
+        ],
+        "owned_combat:cancel": [
+          "owned_combat::cancel"
+        ],
+        "owned_combat:cast": [
+          "owned_combat::cast"
+        ],
+        "owned_combat:clear_on_death": [
+          "owned_combat::clear_on_death"
+        ],
+        "owned_combat:clear_on_join": [
+          "owned_combat::clear_on_join"
+        ],
+        "owned_combat:diagnose": [
+          "owned_combat::diagnose"
+        ],
+        "owned_combat:regenerate": [
+          "owned_combat::regenerate"
+        ],
+        "owned_combat:sand/entity_query/7ad415f8": [
+          "owned_combat::recover_mana"
+        ],
+        "owned_combat:sand/runtime/owned_body/63fb2bbf": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:sand/runtime/owned_body/9c008d70": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:sand/runtime/owned_body/ddf7cf44": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:sand/runtime/owned_context/32f5eb18": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:sand/runtime/owned_context/5ac82737": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:sand/runtime/owned_context/6def8028": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:sand/runtime/owned_context/9fb34ece": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:sand/runtime/required/1830e601": [
+          "owned_combat::fireball",
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:sand/status/read_refresh/4563dbb2": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:sneak_to_cast": [
+          "owned_combat::sneak_to_cast"
+        ],
+        "owned_combat:state_mutation/0f956822": [
+          "owned_combat::regeneration"
+        ],
+        "owned_combat:state_mutation/453c6612": [
+          "owned_combat::fireball"
+        ],
+        "owned_combat:state_mutation/caa602f2": [
+          "owned_combat::recover_mana"
+        ]
+      },
+      "lifecycle_owners": {
+        "owned_combat:__sand_lifecycle_load": [
+          {
+            "first_line": 13,
+            "line_count": 1,
+            "owner": "owned_combat::fireball"
+          },
+          {
+            "first_line": 14,
+            "line_count": 1,
+            "owner": "owned_combat::regeneration"
+          }
+        ],
+        "owned_combat:__sand_lifecycle_tick": [
+          {
+            "first_line": 6,
+            "line_count": 1,
+            "owner": "owned_combat::fireball"
+          },
+          {
+            "first_line": 7,
+            "line_count": 1,
+            "owner": "owned_combat::regeneration"
+          }
+        ]
+      },
+      "systems": [
+        {
+          "every": 20,
+          "function": "owned_combat:__sand_system/sc0e3e300a8bc85c",
+          "owners": [
+            "owned_combat::recover_mana"
+          ],
+          "selector": "@a[scores={s6a013315193d928=1}]"
+        }
+      ],
+      "tag_contributors": [
+        {
+          "member": "owned_combat:__sand_lifecycle_load",
+          "owners": [
+            "owned_combat::clear_on_death",
+            "owned_combat::clear_on_join",
+            "owned_combat::fireball",
+            "owned_combat::regeneration",
+            "owned_combat::sneak_to_cast",
+            "owned_combat:mage"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "owned_combat:__sand_lifecycle_tick",
+          "owners": [
+            "owned_combat::clear_on_death",
+            "owned_combat::clear_on_join",
+            "owned_combat::fireball",
+            "owned_combat::regeneration",
+            "owned_combat::sneak_to_cast",
+            "owned_combat:mage"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "owned_combat:__sand_score_init",
+          "owners": [
+            "owned_combat::fireball",
+            "owned_combat::regeneration"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "owned_combat:__sand_system_load",
+          "owners": [
+            "owned_combat::recover_mana"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "owned_combat:__sand_system_tick",
+          "owners": [
+            "owned_combat::recover_mana"
+          ],
+          "tag": "minecraft:tick"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "owned_combat::recover_mana"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a[scores={s6a013315193d928=1}] at @s run function owned_combat:__sand_system/sc0e3e300a8bc85c"
+          ]
+        },
+        "reference": "owned_combat:__sand_system_tick",
+        "required": true
+      },
+      {
+        "contributors": [
+          "owned_combat::clear_on_death",
+          "owned_combat::clear_on_join",
+          "owned_combat::fireball",
+          "owned_combat::regeneration",
+          "owned_combat::sneak_to_cast",
+          "owned_combat:mage"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 15,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/projectile_search with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/resume_tick with entity @s data",
+            "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/validate with entity @s data"
+          ]
+        },
+        "reference": "owned_combat:__sand_lifecycle_tick",
+        "required": true
+      }
+    ]
+  }
+}

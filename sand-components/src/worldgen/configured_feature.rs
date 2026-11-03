@@ -519,6 +519,40 @@ impl DatapackComponent for ConfiguredFeature {
         }
     }
 
+    fn try_content_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> SandResult<crate::component::ComponentContent> {
+        self.validate()?;
+        let mut value = self.to_json();
+        if caps.is_some_and(|caps| caps.is_at_least(26, 3, 0)) {
+            let map = value
+                .as_object_mut()
+                .expect("feature serialization is an object");
+            let config = map.remove("config").expect("feature config");
+            for (key, value) in config.as_object().expect("validated feature config") {
+                if key == "type" {
+                    return Err(validation::error(
+                        &self.location,
+                        KIND,
+                        "config.type",
+                        "configuration cannot override the feature type",
+                    ));
+                }
+                map.insert(key.clone(), value.clone());
+            }
+        }
+        Ok(crate::component::ComponentContent::Json(value))
+    }
+
+    fn component_dir_for(&self, caps: Option<&sand_version::VersionCaps>) -> &'static str {
+        if caps.is_some_and(|caps| caps.is_at_least(26, 3, 0)) {
+            "worldgen/feature"
+        } else {
+            self.component_dir()
+        }
+    }
+
     fn component_dir(&self) -> &'static str {
         "worldgen/configured_feature"
     }

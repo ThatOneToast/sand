@@ -1,0 +1,4 @@
+[pack]
+namespace = "interaction_hub"
+description = "Owned shop, quest journal, puzzle gate and reward chest"
+mc_version = "26.3"

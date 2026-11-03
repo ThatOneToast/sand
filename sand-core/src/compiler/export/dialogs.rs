@@ -6,6 +6,10 @@
 
 use super::records::ComponentRecord;
 
+pub(crate) fn trigger_objective(namespace: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("sand dialog trigger {namespace}")).to_string()
+}
+
 /// Drain dialog callbacks into generated trigger/load/tick infrastructure.
 pub(crate) fn drain_dialog_callbacks_into(
     records: &mut Vec<ComponentRecord>,
@@ -30,10 +34,11 @@ pub(crate) fn drain_dialog_callbacks_into(
         );
     }
 
-    let trigger = sand_components::dialog::SAND_DIALOG_TRIGGER;
+    let trigger = trigger_objective(namespace);
 
     let init_cmds = [
         format!("scoreboard objectives add {trigger} trigger"),
+        format!("scoreboard players reset * {trigger}"),
         format!("scoreboard players enable @a {trigger}"),
     ];
     records.push(ComponentRecord {
@@ -49,17 +54,41 @@ pub(crate) fn drain_dialog_callbacks_into(
         .or_default()
         .push(format!("{namespace}:__sand_dialog_init"));
 
-    let mut tick_cmds: Vec<String> = Vec::new();
-    tick_cmds.push(format!("scoreboard players enable @a {trigger}"));
+    // Dispatch only pending players. Each branch returns through a wrapper that
+    // consumes the input before user code runs. A callback can change its trigger
+    // without causing another branch to execute in this same dispatch pass.
+    let mut dispatch = Vec::new();
     for (id, path) in &callbacks {
-        tick_cmds.push(format!(
-            "execute as @a[scores={{{trigger}={id}}}] at @s run function {path}"
+        let action = format!("__sand_dialog_action/{id}");
+        dispatch.push(format!(
+            "execute if score @s {trigger} matches {id} run return run function {namespace}:{action}"
         ));
-        tick_cmds.push(format!(
-            "scoreboard players set @a[scores={{{trigger}={id}}}] {trigger} 0"
-        ));
-        tick_cmds.push(format!("scoreboard players enable @a {trigger}"));
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: action,
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: format!("scoreboard players set @s {trigger} 0\nreturn run function {path}"),
+        });
     }
+    // Invalid values are consumed too, so malformed input never becomes an
+    // indefinitely pending action or waits to match a future registration.
+    dispatch.push(format!("scoreboard players set @s {trigger} 0"));
+    records.push(ComponentRecord {
+        namespace: namespace.to_string(),
+        dir: "function".to_string(),
+        path: "__sand_dialog_dispatch".to_string(),
+        ext: "mcfunction".to_string(),
+        content_type: "text".to_string(),
+        content: dispatch.join("\n"),
+    });
+    let tick_cmds = [
+        format!(
+            "execute as @a unless score @s {trigger} matches 0 at @s run function {namespace}:__sand_dialog_dispatch"
+        ),
+        format!("scoreboard players enable @a {trigger}"),
+    ];
     records.push(ComponentRecord {
         namespace: namespace.to_string(),
         dir: "function".to_string(),
@@ -133,7 +162,7 @@ mod tests {
             .as_str()
             .expect("dialog callback button should emit a command action");
         let callback_id = command
-            .strip_prefix("/trigger sand.dialog set ")
+            .strip_prefix("/trigger __sand_dialog_trigger__ set ")
             .expect("callback action should use the Sand dialog trigger");
 
         let mut records = Vec::new();
@@ -151,9 +180,10 @@ mod tests {
             .collect();
         assert_eq!(init_recs.len(), 1, "dialog init function should be emitted");
         assert!(
-            init_recs[0]
-                .content
-                .contains("scoreboard objectives add sand.dialog trigger"),
+            init_recs[0].content.contains(&format!(
+                "scoreboard objectives add {} trigger",
+                super::trigger_objective("dialogpack")
+            )),
             "dialog init function must create the trigger objective"
         );
 
@@ -163,17 +193,22 @@ mod tests {
             .collect();
         assert_eq!(tick_recs.len(), 1, "dialog tick function should be emitted");
         let tick_content = &tick_recs[0].content;
-        assert!(
-            tick_content.contains(&format!(
-                "execute as @a[scores={{sand.dialog={callback_id}}}] at @s run function __sand_local:grant_reward"
-            )),
-            "dialog tick function must dispatch the registered callback, got: {tick_content}"
-        );
-        assert!(
-            tick_content.contains(&format!(
-                "scoreboard players set @a[scores={{sand.dialog={callback_id}}}] sand.dialog 0"
-            )),
-            "dialog tick function must reset the callback score, got: {tick_content}"
+        let trigger = super::trigger_objective("dialogpack");
+        assert!(tick_content.contains("run function dialogpack:__sand_dialog_dispatch"));
+        let dispatch = records
+            .iter()
+            .find(|r| r.path == "__sand_dialog_dispatch")
+            .unwrap();
+        assert!(dispatch.content.contains(&format!("if score @s {trigger} matches {callback_id} run return run function dialogpack:__sand_dialog_action/{callback_id}")));
+        let action = records
+            .iter()
+            .find(|r| r.path == format!("__sand_dialog_action/{callback_id}"))
+            .unwrap();
+        assert_eq!(
+            action.content,
+            format!(
+                "scoreboard players set @s {trigger} 0\nreturn run function __sand_local:grant_reward"
+            )
         );
 
         assert_eq!(

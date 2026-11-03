@@ -34,6 +34,12 @@
 
 - [Runtime World And Block Gameplay](23b-runtime-world-blocks.md)
 - [Block Raycasting](23c-block-raycasting.md)
+- [Owned Gameplay: Abilities, Projectiles, Statuses And Tests](23d-owned-gameplay.md)
+- [Scenes, Spatial Expressions And Jobs](23e-scenes-and-jobs.md)
+- [Hit volumes and action sequences](23f-hit-volumes-and-sequences.md)
+- [Child tasks, condition waits and joins](23g-task-composition.md)
+- [Combat and encounters](23h-combat-and-encounters.md)
+- [Menus, interactables, rewards and books](23i-interactions.md)
 
 # Typed World & Server Configuration
 

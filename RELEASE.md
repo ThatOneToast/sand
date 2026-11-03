@@ -2,24 +2,22 @@
 
 ## Pre-release validation
 
-Run the full validation set:
-
-```sh
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-cargo test -p sand-macros
-cargo doc --workspace --all-features --no-deps
-mdbook build
-```
-
-If `mdbook` is unavailable locally, install it with `cargo install mdbook`.
-
-Or use the combined check script:
+Run the canonical validation entry point and whitespace check:
 
 ```sh
 scripts/check.sh
+git diff --check
 ```
+
+This includes Python harness regressions, strict Clippy, workspace/trybuild tests,
+standalone example builds and runtime baselines, external consumers, portable
+frontends, Rustdoc, mdBook and local documentation links. Do not substitute a
+shorter hand-maintained command list. See [Contributing](CONTRIBUTING.md) for
+focused iteration and intentional baseline updates.
+
+For runtime changes, also run the relevant native server proof. Export tests do
+not prove in-game behavior. The vanilla workflow retains version-specific lanes;
+26.2 player proofs and 26.3 compute/load proofs have different coverage.
 
 ## What to verify
 
@@ -34,17 +32,17 @@ scripts/check.sh
 
 ## Stability levels
 
-- **Stable**: `#[function]`, `#[datapack_component]`, typed state, typed conditions,
+- **Established (still pre-1.0)**: `#[function]`, `#[datapack_component]`, typed state, typed conditions,
   typed text, typed execute, generated command builders, scaffold
-- **Alpha**: Event system and dialog components
+- **Alpha**: Events, dialogs, owned gameplay systems, combat and interactions
 - **Experimental**: `mcfunction!` macro (advanced tooling), generated registries
   for future Minecraft versions
 
 ## Supported Minecraft versions
 
-Sand targets Minecraft Java 26.x and newer. Minecraft 26.2 is the latest
-verified export/profile target (`sand_version::LATEST_KNOWN`), while 26.1 keeps
-its exact known profile. Earlier versions are rejected. Unknown future calendar
+Sand targets Minecraft Java 26.x and newer. Minecraft 26.3 is the latest
+verified export/profile target (`sand_version::LATEST_KNOWN`), while 26.1 and 26.2 keep
+their exact known profiles. Earlier versions are rejected. Unknown future calendar
 versions fall back to conservative capabilities via `VersionProfile::resolve()`.
 
 ## Publishing

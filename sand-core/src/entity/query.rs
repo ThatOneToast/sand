@@ -350,6 +350,49 @@ pub trait TargetExecution: Sized {
         predicate: crate::entity::state::StatePredicate,
     ) -> sand_commands::CommandResult<Self>;
 
+    /// Apply a reusable hit volume around the current command position, then
+    /// run the body as and at each hit. The existing Target filters, ordering
+    /// and limit select candidates BEFORE the volume test. A limit therefore
+    /// bounds candidates, not successful hits; use a broad-phase distance filter
+    /// and a deliberate candidate budget for large populations.
+    ///
+    /// Spheres test entity origins; boxes intersect native entity hitboxes.
+    /// Queries do not imply line of sight, exclude the caster, or deal damage.
+    /// The callback receives the canonical typed EntityContext. No marker,
+    /// temporary tag, persistent state or cleanup is needed; nested queries work.
+    #[sand_macros::api(registry = sand_api_contract,
+        path = "sand::entity::TargetExecution::each_in", aliases = ["sand::prelude::TargetExecution::each_in"], module = "sand::entity",
+        summary = "Iterate typed targets inside a reusable hit volume.",
+        context = "Target filters, sorting and limits select candidates first. The volume then tests each candidate around the current command position, before binding the callback position to the hit.",
+        minecraft = "Uses native distance or bounding-box selector tests without runtime entities or scoreboards. Spheres test origins; boxes intersect entity hitboxes.",
+        use_when = ["Applying area attacks and trigger volumes with explicit candidate budgets"],
+        avoid_when = ["Exact swept collision, cones or line-of-sight tests are required"],
+        params(volume = "Validated world-axis hit volume relative to the command position.", body = "Action callback as and at each hit."),
+        returns = "Retained query actions; an empty callback emits no work.",
+        example = "use sand::prelude::*; use sand::entity::HitVolume; let tag = EntityTag::new(\"hit\").unwrap(); let _ = Target::players().each_in(HitVolume::sphere(4.0).unwrap(), |hit| hit.identity().add_tag(&tag).unwrap());")]
+    fn each_in<R: IntoCommands>(
+        self,
+        volume: HitVolume,
+        body: impl FnOnce(&EntityContext<Self::Kind>) -> R,
+    ) -> Actions;
+
+    /// Run once for the first candidate inside the volume. Candidate sorting
+    /// and limits still apply before geometry; use `sort(Nearest)` without
+    /// `nearest()` to search past an outside candidate. An optional candidate
+    /// limit bounds work. The callback's return value cannot cause a second hit,
+    /// and its early return does not leave the caller's function.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::TargetExecution::first_in", aliases = ["sand::prelude::TargetExecution::first_in"], module = "sand::entity",
+summary = "Run one callback for the first successful volume hit.", context = "Searches candidates in Target order until geometry succeeds. Candidate limits bound the search; use nearest sorting rather than the nearest single-candidate shortcut.",
+minecraft = "Uses an isolated execute/return function frame, so geometry is tested before first-hit termination and nested queries need no scratch state.",
+use_when = ["Selecting the nearest successful hit in a translated volume"], avoid_when = ["Every successful hit should run; use each_in"],
+params(volume = "Validated hit volume relative to the command position.", body = "Action callback as and at the first matching candidate."), returns = "Retained first-hit query actions.",
+example = "use sand::prelude::*; use sand::entity::HitVolume; let tag = EntityTag::new(\"hit\").unwrap(); let _ = Target::players().sort(sand::command::SortOrder::Nearest).first_in(HitVolume::sphere(4.0).unwrap(), |hit| hit.identity().add_tag(&tag).unwrap());")]
+    fn first_in<R: IntoCommands>(
+        self,
+        volume: HitVolume,
+        body: impl FnOnce(&EntityContext<Self::Kind>) -> R,
+    ) -> Actions;
+
     /// Runs `body` with `@s` bound to each matching target.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::TargetExecution::each", aliases = ["sand::prelude::TargetExecution::each"], module = "sand::entity", summary = "Runs a generated command body once for each matching target.", context = "Iteration is a capability of the canonical Target representation; the callback receives EntityContext rather than another target wrapper.", minecraft = "Lowers to execute as <target> at @s run function <generated>.", use_when = ["Applying commands to every entity or player selected by a Target"], avoid_when = ["Passing the target directly to one command is sufficient"], params(body = "The command-producing callback evaluated with a bound EntityContext."), returns = "The generated execute command, or an empty list for an empty body.", example = "use sand::prelude::*; let tag = EntityTag::new(\"ready\").unwrap(); let commands = Target::players().each(|player| vec![player.identity().add_tag(&tag).unwrap()]);")]
     fn each<R: IntoCommands>(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> R) -> Actions;
@@ -371,6 +414,20 @@ impl<A> TargetExecution for Target<AnyTarget, A> {
     fn each<R: IntoCommands>(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> R) -> Actions {
         lower_each(self.into_target_selector(), body)
     }
+    fn each_in<R: IntoCommands>(
+        self,
+        volume: HitVolume,
+        body: impl FnOnce(&EntityContext<Self::Kind>) -> R,
+    ) -> Actions {
+        lower_each_in(self.into_target_selector(), volume, false, body)
+    }
+    fn first_in<R: IntoCommands>(
+        self,
+        volume: HitVolume,
+        body: impl FnOnce(&EntityContext<Self::Kind>) -> R,
+    ) -> Actions {
+        lower_each_in(self.into_target_selector(), volume, true, body)
+    }
 }
 
 impl<A> TargetExecution for Target<PlayersOnly, A> {
@@ -388,6 +445,20 @@ impl<A> TargetExecution for Target<PlayersOnly, A> {
 
     fn each<R: IntoCommands>(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> R) -> Actions {
         lower_each(self.into_target_selector(), body)
+    }
+    fn each_in<R: IntoCommands>(
+        self,
+        volume: HitVolume,
+        body: impl FnOnce(&EntityContext<Self::Kind>) -> R,
+    ) -> Actions {
+        lower_each_in(self.into_target_selector(), volume, false, body)
+    }
+    fn first_in<R: IntoCommands>(
+        self,
+        volume: HitVolume,
+        body: impl FnOnce(&EntityContext<Self::Kind>) -> R,
+    ) -> Actions {
+        lower_each_in(self.into_target_selector(), volume, true, body)
     }
 }
 
@@ -543,5 +614,188 @@ mod tests {
         assert!(commands[0].contains(&format!("{}=10..20", level.objective())));
         assert!(commands[0].contains(&format!("{}=1", sick.objective())));
         assert_eq!(commands[0].matches("scores={").count(), 1);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum VolumeShape {
+    Sphere(f64),
+    Cuboid([f64; 3]),
+}
+
+/// A reusable native hit volume centered on the current command position.
+/// Sphere boundaries include entity origins; cuboid boundaries use vanilla
+/// hitbox intersection. Cuboids are aligned to world axes, not view rotation.
+/// Sizes and offsets are finite and validated at construction.
+#[derive(Clone, Copy, Debug)]
+#[sand_macros::api(registry = sand_api_contract, path = "sand::entity::HitVolume", module = "sand::entity",
+summary = "A validated reusable sphere or axis-aligned hitbox volume.", context = "Pass to TargetExecution::each_in. Reuses canonical Target selection and EntityContext callbacks.",
+minecraft = "Lowers to native distance or dx/dy/dz selector tests at a relative position, with no persistent runtime state.",
+use_when = ["Sharing area attack and trigger geometry"], avoid_when = ["Exact swept collision or rotated boxes are needed"], example = "use sand::entity::HitVolume;")]
+pub struct HitVolume {
+    shape: VolumeShape,
+    offset: [f64; 3],
+}
+impl HitVolume {
+    /// A sphere with an inclusive, finite positive radius. Tests entity
+    /// origins (usually feet), not intersections with their bounding boxes.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::HitVolume::sphere", module = "sand::entity",
+summary = "Create a sphere testing entity origins.", context = "The center defaults to the current command position. Zero radii are rejected because native zero-volume bounds do not reliably select coincident entities.",
+minecraft = "Uses the native inclusive distance selector filter.", use_when = ["Radial attacks and proximity triggers"], avoid_when = ["Bounding-box intersection is required"],
+params(radius = "Finite positive radius in blocks."), returns = "A validated volume or an error.", example = "let volume = sand::entity::HitVolume::sphere(4.0)?;")]
+    pub fn sphere(radius: f64) -> sand_commands::CommandResult<Self> {
+        if !radius.is_finite() || radius <= 0.0 {
+            return Err(sand_commands::CommandError::new(
+                "hit volume",
+                "radius",
+                "requires a finite positive radius",
+            ));
+        }
+        Ok(Self {
+            shape: VolumeShape::Sphere(radius),
+            offset: [0.0; 3],
+        })
+    }
+    /// A centered axis-aligned box with full side lengths in blocks. Each
+    /// length must be finite and at least one block: native selector volumes
+    /// include a one-block extent before dx/dy/dz is applied. Intersects actual
+    /// entity hitboxes and does not rotate with the caster. Touching only a
+    /// boundary follows vanilla's strict bounding-box intersection rules.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::HitVolume::cuboid", module = "sand::entity",
+summary = "Create a centered axis-aligned box intersecting entity hitboxes.", context = "Full side lengths are at least one block because native selector boxes have a one-block base extent. The box is aligned to world axes.",
+minecraft = "Offsets to the minimum corner and uses dx/dy/dz equal to each full side length minus one.", use_when = ["Box-shaped attacks and trigger zones"], avoid_when = ["Sub-block or rotated boxes are needed"],
+params(size = "Finite full x/y/z side lengths, each at least one block."), returns = "A validated volume or an error.", example = "let volume = sand::entity::HitVolume::cuboid([4.0, 3.0, 4.0])?;")]
+    pub fn cuboid(size: [f64; 3]) -> sand_commands::CommandResult<Self> {
+        if size.iter().any(|v| !v.is_finite() || *v < 1.0) {
+            return Err(sand_commands::CommandError::new(
+                "hit volume",
+                "size",
+                "requires finite side lengths of at least one block",
+            ));
+        }
+        Ok(Self {
+            shape: VolumeShape::Cuboid(size),
+            offset: [0.0; 3],
+        })
+    }
+    /// Set a world-axis offset from the command position. This replaces any
+    /// previous offset; it does not change the candidate selector's origin.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::HitVolume::translated", module = "sand::entity",
+summary = "Offset the volume center relative to the command position.", context = "The offset uses world axes and replaces the previous offset. Candidate filters and sorting retain their original command origin.",
+minecraft = "Changes only the execution position used for the volume test; the hit callback still runs at the hit entity.", use_when = ["Raising a hit volume above the caster’s feet"], avoid_when = ["Local rotated offsets are needed"],
+params(offset = "Finite x/y/z offsets in blocks."), returns = "The translated volume or an error.", example = "let volume = sand::entity::HitVolume::sphere(4.0)?.translated([0.0, 1.0, 0.0])?;")]
+    pub fn translated(mut self, offset: [f64; 3]) -> sand_commands::CommandResult<Self> {
+        if offset.iter().any(|v| !v.is_finite()) {
+            return Err(sand_commands::CommandError::new(
+                "hit volume",
+                "offset",
+                "requires finite offsets",
+            ));
+        }
+        if let VolumeShape::Cuboid(size) = self.shape
+            && (0..3).any(|i| !(offset[i] - size[i] / 2.0).is_finite())
+        {
+            return Err(sand_commands::CommandError::new(
+                "hit volume",
+                "offset",
+                "box corner must remain finite",
+            ));
+        }
+        self.offset = offset;
+        Ok(self)
+    }
+}
+fn lower_each_in<K: crate::entity::EntityKind, R: IntoCommands>(
+    selector: Selector,
+    volume: HitVolume,
+    first: bool,
+    body: impl FnOnce(&EntityContext<K>) -> R,
+) -> Actions {
+    let inner = body(&EntityContext::new()).into_commands();
+    if inner.0.is_empty() {
+        return Actions::default();
+    }
+    let (offset, filter) = match volume.shape {
+        VolumeShape::Sphere(radius) => (volume.offset, Selector::self_().distance_max(radius)),
+        VolumeShape::Cuboid(size) => (
+            std::array::from_fn(|i| volume.offset[i] - size[i] / 2.0),
+            Selector::self_().volume(size[0] - 1.0, size[1] - 1.0, size[2] - 1.0),
+        ),
+    };
+    let callback = Cmd::AnonymousFunction {
+        prefix: "sand/hit_query".into(),
+        body: inner,
+    };
+    let query = Cmd::Execute {
+        operations: vec![
+            ExecuteOp::As(selector),
+            ExecuteOp::Positioned(sand_commands::Vec3::new(
+                sand_commands::Coord::rel_n(offset[0]),
+                sand_commands::Coord::rel_n(offset[1]),
+                sand_commands::Coord::rel_n(offset[2]),
+            )),
+            ExecuteOp::If(ConditionIr::Entity(filter)),
+            ExecuteOp::At(Selector::self_()),
+        ],
+        run: Box::new(if first {
+            Cmd::ReturnRun(Box::new(callback))
+        } else {
+            callback
+        }),
+    };
+    Actions(vec![if first {
+        Cmd::AnonymousFunction {
+            prefix: "sand/first_hit".into(),
+            body: Actions(vec![query]),
+        }
+    } else {
+        query
+    }])
+}
+
+#[cfg(test)]
+mod hit_volume_tests {
+    use super::*;
+    #[test]
+    fn validates_geometry_without_clamping() {
+        for radius in [f64::NAN, f64::INFINITY, -1.0] {
+            assert!(HitVolume::sphere(radius).is_err());
+        }
+        for size in [[0.5, 2.0, 2.0], [f64::INFINITY, 1.0, 1.0]] {
+            assert!(HitVolume::cuboid(size).is_err());
+        }
+        assert!(HitVolume::sphere(0.0).is_err());
+        assert!(HitVolume::cuboid([1.0; 3]).is_ok());
+        assert!(
+            HitVolume::sphere(1.0)
+                .unwrap()
+                .translated([f64::NAN, 0.0, 0.0])
+                .is_err()
+        );
+        assert!(
+            HitVolume::cuboid([f64::MAX; 3])
+                .unwrap()
+                .translated([-f64::MAX; 3])
+                .is_err()
+        );
+    }
+    #[test]
+    fn candidates_are_bounded_before_geometry_and_hits_keep_typed_context() {
+        let output = crate::ir::test_support::emitted(
+            Target::players().within_blocks(10.0).nearest().each_in(
+                HitVolume::sphere(2.0)
+                    .unwrap()
+                    .translated([1.0, 0.0, 0.0])
+                    .unwrap(),
+                |_: &EntityContext<PlayerKind>| "say hit",
+            ),
+        );
+        assert!(output[0].starts_with("execute as @a[distance=..10,sort=nearest,limit=1] positioned ~1 ~ ~ if entity @s[distance=..2] at @s run function"), "{}", output[0]);
+        assert!(
+            crate::ir::test_support::emitted(
+                Target::entities().each_in(HitVolume::sphere(2.0).unwrap(), |_| Actions::default())
+            )
+            .is_empty()
+        );
     }
 }

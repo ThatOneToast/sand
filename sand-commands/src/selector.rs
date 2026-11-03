@@ -588,6 +588,25 @@ impl<K> Target<K, Many> {
         self
     }
 
+    /// Bound the number of candidates while preserving many-target typing.
+    /// Use `limit(1)` when a command requires a static single-target proof.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::take", aliases = ["sand::cmd::Target::take", "sand::prelude::Target::take", "sand::prelude::cmd::Target::take"], module = "sand::command",
+summary = "Bound a query's candidate count without narrowing its type to one entity.", context = "Applies after native selector filters and sorting, before subsequent execute conditions such as hit-volume tests. Configure one limit per target.",
+minecraft = "Emits a positive native selector limit while retaining many-target cardinality.",
+use_when = ["Budgeting entity-query candidates"], avoid_when = ["A command requires a statically single target; use limit(1)"],
+params(count = "Positive maximum candidate count."), returns = "The bounded many-target expression or an error.", example = "let target = sand::command::Target::players().take(16)?;")]
+    pub fn take(mut self, count: i32) -> CommandResult<Self> {
+        if count <= 0 {
+            return Err(CommandError::new(
+                "Target::take",
+                "count",
+                "candidate count must be positive",
+            ));
+        }
+        self.raw = self.raw.limit(count);
+        Ok(self)
+    }
+
     /// Narrows a many-target expression to `limit=1`.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::limit", aliases = ["sand::cmd::Target::limit", "sand::prelude::Target::limit", "sand::prelude::cmd::Target::limit"], module = "sand::command", summary = "Narrows a many-target expression to one target.", context = "Changes the hidden cardinality state only when the requested limit is exactly one. On raw selectors, the limit is incorporated into the rendered selector so the type assertion matches the emitted command.", minecraft = "Emits limit=1.", use_when = ["Passing a filtered target to a command that requires one entity"], avoid_when = ["Keeping a many-target expression"], params(n = "The limit, which must be exactly one for static narrowing."), returns = "A statically single target or a validation error.", example = "let target = sand::command::Target::entities().limit(1)?;")]
     pub fn limit(mut self, n: i32) -> CommandResult<Target<K, One>> {
@@ -2550,5 +2569,19 @@ mod tests {
         for _ in 0..64 {
             assert_eq!(reordered(), reordered_first);
         }
+    }
+}
+
+#[cfg(test)]
+mod candidate_budget_tests {
+    use super::*;
+    #[test]
+    fn take_preserves_many_and_renders_the_requested_budget() {
+        let target: Target<PlayersOnly, Many> =
+            Target::players().sort(SortOrder::Nearest).take(16).unwrap();
+        assert_eq!(target.to_string(), "@a[sort=nearest,limit=16]");
+        assert!(Target::entities().take(0).is_err());
+        assert!(Target::entities().take(-1).is_err());
+        assert!(Target::entities().limit(16).is_err());
     }
 }

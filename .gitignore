@@ -10,11 +10,10 @@
 *.iml
 .claude
 book/book/
-examples/arcane_pack/dist
-examples/participant_audit/dist
 sand-vanilla-audit/dist
 scripts/vanilla-semantic-client/node_modules/
 __pycache__/
 *.py[cod]
 
-examples/portable_counter/dist/
+# Every standalone example exports generated packs here.
+/examples/*/dist/

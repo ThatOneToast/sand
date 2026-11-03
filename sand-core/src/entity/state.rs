@@ -2881,7 +2881,7 @@ impl<T: EntityEnumValue> ComponentDirtyField for EntityEnum<T> {
     minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-    example = "use sand::entity::EntityEnumAccessor;",
+    example = "use sand::prelude::*;\nuse sand::entity::{EntityEnumAccessor, EntityEnumValue};\n\nfn demonstrate<T: EntityEnumValue>(phase: EntityEnumAccessor<T>, value: T) -> Actions {\n    phase.transition(value, cmd::say(\"Leaving phase\"), cmd::say(\"Entering phase\"))\n}",
 )]
 /// An [`EntityEnum`] bound to its schema-selected score holder.
 ///
@@ -2896,6 +2896,60 @@ pub struct EntityEnumAccessor<T: EntityEnumValue> {
 }
 
 impl<T: EntityEnumValue> EntityEnumAccessor<T> {
+    /// Change this canonical enum field once, with exit and enter actions.
+    /// Repeating the current value does nothing. The new value is committed
+    /// before callbacks, so reentrant transitions cannot repeat this exit.
+    /// If exit changes the state again, the superseded enter callback is skipped.
+    /// Callbacks have their own return frames and preserve State dirty tracking.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityEnumAccessor::transition",
+        module = "sand::entity", kind = "method",
+        summary = "Transitions a canonical State enum with once-only exit and enter callbacks.",
+        context = "Commits the destination before exit actions; skips enter when exit supersedes the transition. Direct set remains available when hooks are not wanted.",
+        minecraft = "Guards one generated function frame, commits the enum score and dirty markers, then calls isolated callback frames.",
+        use_when = ["Changing gameplay phases with explicit cleanup and initialization"],
+        avoid_when = ["Writing a phase without triggering hooks"],
+        params(value = "The destination enum variant.", exit = "Actions for leaving the previous variant.", enter = "Actions for entering the destination variant."),
+        returns = "Retained transition actions evaluated once at runtime.",
+        example = "use sand::prelude::*;\nuse sand::entity::{EntityEnumAccessor, EntityEnumValue};\n\nfn demonstrate<T: EntityEnumValue>(phase: EntityEnumAccessor<T>, value: T) -> Actions {\n    phase.transition(value, cmd::say(\"Leaving phase\"), cmd::say(\"Entering phase\"))\n}",
+    )]
+    pub fn transition(
+        self,
+        value: T,
+        exit: impl crate::IntoCommands,
+        enter: impl crate::IntoCommands,
+    ) -> crate::ir::Actions {
+        use crate::{
+            IntoCommands,
+            ir::{Actions, Cmd},
+        };
+        let condition = self.is(value);
+        let mut body = self.set(value).into_commands();
+        body.extend([Cmd::AnonymousFunction {
+            prefix: "sand/state/exit".into(),
+            body: exit.into_commands(),
+        }
+        .into_commands()]);
+        body.extend([condition.guard_actions(
+            false,
+            &[],
+            Cmd::AnonymousFunction {
+                prefix: "sand/state/enter".into(),
+                body: enter.into_commands(),
+            }
+            .into_commands(),
+        )]);
+        condition.guard_actions(
+            true,
+            &[],
+            Actions(vec![Cmd::AnonymousFunction {
+                prefix: "sand/state/transition".into(),
+                body,
+            }]),
+        )
+    }
+
     /// Store a variant, marking the source dirty for archetype-bound state.
     #[sand_macros::api(
         registry = sand_api_contract,

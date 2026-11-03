@@ -70,8 +70,7 @@ fn load_manifest(path: &Path, manifests: &mut BTreeMap<PathBuf, Manifest>) -> Re
     }
     let source = fs::read_to_string(&path)
         .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    let value = source
-        .parse::<toml::Value>()
+    let value = toml::from_str::<toml::Value>(&source)
         .map_err(|error| format!("failed to parse {}: {error}", path.display()))?;
     let features = value
         .get("features")

@@ -1,0 +1,12 @@
+{
+  "source_revision": "067dab3b7c0ea7cf8b5641d593156e3fbb386cfb",
+  "worktree_dirty": false,
+  "binary_sha256": "f56673691ba5c35b59637235564005bc078ed0f7e5789f948ce12f9f64343c90",
+  "harness_sha256": "cbd54e8c867baaf4a08dcaf2640bd3bcf5b930821963010c4b54b06a269813d8",
+  "server_jar_sha256": "cdacdfb25898de5e4b4b0e5ddcc2722f77067e46605709c2d886c000ebb63ec5",
+  "minecraft": "26.2",
+  "java": "Azul 25.0.3",
+  "pack_digest_algorithm": "SHA256 pathlib.Path-component sorted relative POSIX UTF8 path + NUL + raw bytes + NUL, excluding .sand-build-manifest.json",
+  "limitations": "Existing maintained portable-flow harness; reload phase observes reload-start and invokes load explicitly, not the separate Trailforge actual-load-tag synchronization. Successful initialization, transitions, hook ordering and multiplayer isolation are asserted.",
+  "source_root": "/Users/wb/.t3/worktrees/sand/t3-99453568"
+}

@@ -7,6 +7,7 @@ subdirectories below are standalone crates that build against this checkout.
 
 | Project | Purpose |
 | --- | --- |
+| [aether_tools](aether_tools/) | Shared resource pools and synchronous accepted-target abilities. |
 | [interaction_hub](interaction_hub/) | Player menu sessions, owned interactables, purchases, books and a quest reward. |
 | [animated_boss](animated_boss/) | Combat rules, two-attack encounter behavior, owned animation and bounded jobs. |
 | [owned_combat](owned_combat/) | Owner-bound fireballs, costs, cooldowns, refreshable effects and cleanup. |

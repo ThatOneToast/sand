@@ -31,6 +31,8 @@
 # Combat and Encounter add two types and fifteen systems methods; scoped native
 # damage attribution adds one entity method (+18 enforced source items).
 # Menus, owned interactables, purchases and typed books add 25 contracted source items.
+# Pack-local resources and synchronous ability policies add 12 source items.
+# Pagination and object-bound menu registration add two systems methods.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -39,19 +41,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5194
+static_surface_items = 5206
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11294
+static_surface_items = 11306
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 11553
+static_surface_items = 11565
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

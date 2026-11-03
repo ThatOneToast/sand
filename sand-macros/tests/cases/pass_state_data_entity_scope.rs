@@ -19,11 +19,13 @@ fn main() {
         .unwrap().content.as_str();
     let call = body("write_data");
     let write = body(call.strip_prefix("function demo:").unwrap());
-    assert!(write.contains("UUID[0]"));
+    assert_eq!(write.matches("set from entity @s UUID").count(), 1);
+    assert!(!write.contains("UUID["));
+    assert!(write.contains("execute unless entity @s run data remove storage demo:state __sand_owner.uuid"));
     assert!(write.contains(" with storage demo:state __sand_owner"));
     assert!(write.contains("data modify storage demo:state __sand_owner.value set value 7"));
     assert!(write.ends_with("data remove storage demo:state __sand_owner.value"));
     let state = EntityData::on(EntityContext::<AnyEntity>::default());
     let guarded = state.payload.if_present(|| vec!["say present".into()]);
-    assert_eq!(guarded.len(), 5);
+    assert_eq!(guarded.len(), 3);
 }

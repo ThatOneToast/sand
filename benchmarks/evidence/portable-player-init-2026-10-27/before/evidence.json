@@ -1,0 +1,28 @@
+{
+  "minecraft": "26.2",
+  "passed": false,
+  "scope": "Python producer compiled without Cargo; zero-player global flow and two real passive players; automatic ticks frozen",
+  "pack_sha256": "f3eb92b19976657354e2286e2b93e7fedb8ebe4f56830ac7b2e5ec8b542a798e",
+  "checks": [
+    {
+      "name": "NO_PLAYERS",
+      "condition": "unless entity @a",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_TRANSITION_WITHOUT_PLAYERS",
+      "condition": "if score #sand_demo_world_78d17ea0 s709d2ddbe2c2931 matches 1",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_CADENCE_FIRST_TICK",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 0",
+      "passed": true
+    },
+    {
+      "name": "GLOBAL_CADENCE_SECOND_TICK",
+      "condition": "if score #sand_demo_world_78d17ea0 s6707b662875fa94 matches 1",
+      "passed": true
+    }
+  ]
+}

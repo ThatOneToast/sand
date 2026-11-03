@@ -6,7 +6,8 @@ gameplay mod. Trailforge adds a craftable **Grapple Core**, a pair of
 upgraded boots called **Trail Striders**, a stamina resource that fuels a
 grapple dash, and a small upgrade menu. The tutorial chapters add pieces of
 that pack and explain *why* it's built that way, not just *how* to call the
-API. Later framework chapters use additional maintained examples.
+API. Equipped players target gold anchors for a dash or iron anchors for a
+cheaper scouting burst. Later framework chapters use additional maintained examples.
 
 Sand is a Rust authoring framework that compiles typed Rust declarations into
 ordinary Minecraft Java datapack files — `.mcfunction` text, advancement and
@@ -47,7 +48,10 @@ behind) every system Trailforge demonstrates:
 - **Events** — vanilla events (`FirstJoin`, `OnDeath`), an
   advancement-backed custom event, a tick-backed custom event, and a chained
   event that composes off another event.
-- **Equipment and attributes** — an `AttributeModifier` on armor.
+- **Equipment and attributes** — canonical custom boots identity and a passive
+  `AttributeModifier` on armor.
+- **Bounded interactions** — first-collision block rays, accepted-hit resource
+  costs, and two abilities composed with one ordinary Rust helper.
 - **A dialog** — a multi-button upgrade menu.
 - **Particles and sounds** — a reusable `Vfx` sequence for the dash.
 - **Framework systems** — typed `#[system]` behavior over State, events, and archetypes.

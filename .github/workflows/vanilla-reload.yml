@@ -29,6 +29,8 @@ on:
       - "scripts/validate_gameplay.py"
       - "scripts/validate_owned_players.py"
       - "scripts/validate_interactions.py"
+      - "scripts/validate_ability_composition.py"
+      - "examples/aether_tools/**"
       - "sand-core/tests/gameplay_*.rs"
       - "sand-core/tests/compute_26_3.rs"
       - "scripts/validate_portable_global.py"
@@ -342,6 +344,16 @@ jobs:
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/trailforge"
 
+      - name: Validate shared resource and accepted-target abilities
+        if: matrix.version == '26.2'
+        run: |
+          (cd examples/aether_tools && CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target" "$GITHUB_WORKSPACE/target/debug/sand" build)
+          python3 scripts/validate_ability_composition.py \
+            --pack examples/aether_tools/dist/aether \
+            --source-root "$GITHUB_WORKSPACE" \
+            --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/aether-abilities"
+
       - name: Validate unified State example with real players and entities
         if: matrix.version == '26.2'
         run: |
@@ -391,6 +403,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/gameplay
             target/vanilla-reload/${{ matrix.version }}/owned-players
             target/vanilla-reload/${{ matrix.version }}/interactions
+            target/vanilla-reload/${{ matrix.version }}/aether-abilities
             target/vanilla-reload/${{ matrix.version }}/portable-state
             target/vanilla-reload/${{ matrix.version }}/portable-global
             target/vanilla-reload/${{ matrix.version }}/portable-flows

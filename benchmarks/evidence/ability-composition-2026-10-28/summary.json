@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "baseline_revision": "8bfbfde322884e42612ae43ccc9b9dbcc1aeb65a",
+  "production_revision": "a716f157fa5cfa4c3f8bfb5d3a208bca9f38ea19",
+  "minecraft": "26.2",
+  "native": {
+    "trail": {
+      "assertions": 120,
+      "passed": true,
+      "pack_sha256": "6397a5b967881dcf80d51741a1b844a67b3bd39b53f080b76e70aa0c2255a63b",
+      "evidence": "trail/evidence.json",
+      "log": "trail/latest.log"
+    },
+    "aether": {
+      "assertions": 54,
+      "passed": true,
+      "pack_sha256": "82b4927543174cf09e1622d7b71d739b87c1ef087a4e8d16a54429853effeac2",
+      "evidence": "aether/evidence.json",
+      "log": "aether/latest.log"
+    }
+  },
+  "validation": {
+    "full_gate": {
+      "passed": true,
+      "command": "CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=/tmp/sand-runtime-target python3 /tmp/sand-milestone-validated-run.py scripts/check.sh",
+      "log": "full-run2.log.gz",
+      "uncompressed_sha256": "31743f0d127729c4bc303d3d645529deb165e8857a9df69dae3d8126ac3140c5"
+    },
+    "first_full_attempt": {
+      "passed": false,
+      "immutable_source": false,
+      "log": "full-run1.log.gz",
+      "reason": "Rustdoc was edited during the API source scan; the guard detected one-line source-identity offsets. No guards or tests were weakened. The frozen-source full rerun passed.",
+      "uncompressed_sha256": "d40867418a04e6baa9669060aadee951acd02c8d149fd8df092cdefdccc79d49"
+    },
+    "focused_composition_tests": 4,
+    "independent_linkage_executables": [
+      "baseline",
+      "discarded",
+      "registered",
+      "active"
+    ],
+    "api_profiles": [
+      "26.2",
+      "placeholder-codegen"
+    ],
+    "canonical_example_builds": 7,
+    "api_discovery": "api-discovery.txt"
+  },
+  "static_runtime_report": {
+    "trailforge_functions_before": 59,
+    "trailforge_functions_after": 64,
+    "aether_functions": 27,
+    "limits": "Static reports retain population/recursive unknown upper bounds. Counts are not measured idle work, MSPT or command-budget units."
+  },
+  "review_contracts": [
+    "Consumer State owns zero lower bound, matching capacity upper bound, defaults, persistence and auto-ticking.",
+    "Bind resource, cooldown and eligibility to the same current player; synchronous search uses one terminal acceptance callback.",
+    "One maintenance registration identity per shared pool; duplicate identity fails export. Different identities schedule independent work.",
+    "Eligibility and target acceptance precede one grouped cost/cooldown/effects branch; later native failure or callback return does not roll back payment.",
+    "Construction/discard exports are byte-identical to the same State baseline; registration is distinct from runtime invocation."
+  ],
+  "limitations": [
+    "Console-driven activation with passive real clients; no client-input or death/respawn proof.",
+    "No asynchronous target reservation, native rollback, MSPT, population-capacity or command-budget guarantee.",
+    "Broader #386 families remain open. Indexed owner storage and reclamation are outside workstream A."
+  ]
+}

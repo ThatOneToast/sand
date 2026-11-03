@@ -1,0 +1,4 @@
+[pack]
+namespace = "aether"
+description = "Shared resource ability composition with independent consumer State"
+mc_version = "26.2"

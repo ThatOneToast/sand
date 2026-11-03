@@ -113,7 +113,7 @@ related issues; an unchanged baseline does not prove those acceptance criteria.
 
 ## Test organization
 
-`scripts/check-python.sh` discovers all `test_*.py` modules in `scripts/tests`
+`scripts/check-python.sh` discovers all `test_*.py` modules in `scripts`, `scripts/tests`
 and `scripts/mc_validation`; local checks and Rust CI use the same entry point.
 These tests must remain disposable and must not require a live Minecraft server.
 Native scenario scripts run separately in the version-specific vanilla workflow.

@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "implementation_source": "0a7bd9e32d93dda6de816921889d19d857fd2be2",
+  "head_during_full_gate": "b715ce9a4516c1b253e8572adcf6213621275f5d",
+  "working_tree_note": "Only benchmark-limit documentation/evidence edits were pending at full-gate completion. Final commit adds this validation record and lossless log; no production or test code changes.",
+  "serialization": "python3 /tmp/sand-milestone-validated-run.py; shared /tmp/sand-milestone-heavy.lock",
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/tmp/sand-runtime-target"
+  },
+  "commands": [
+    {
+      "command": "cargo test -p sand-core --lib",
+      "result": "935 passed; 1 ignored"
+    },
+    {
+      "command": "maintained sand build for examples/unified_state",
+      "result": "passed"
+    },
+    {
+      "command": "SAND_KEYED_SCALE=1 python3 scripts/validate_keyed_literals.py --version 26.2 (baseline)",
+      "result": "50 assertions passed; 10/1000/10000 owner workloads completed"
+    },
+    {
+      "command": "SAND_KEYED_SCALE=1 python3 scripts/validate_keyed_literals.py --version 26.2 (candidate)",
+      "result": "161 assertions passed; 10/1000/10000 owner workloads completed"
+    },
+    {
+      "command": "scripts/check-examples.sh --update-runtime-baselines",
+      "result": "passed; only unified_state baseline changed"
+    },
+    {
+      "command": "scripts/check.sh",
+      "result": "passed: formatting, 95 Python regressions, strict Clippy, workspace tests, six example tests/builds/baseline comparisons, external registration, 13 portable/schema tests, Rustdoc, mdBook, doc links"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed; final command in serialized chain; exit 0"
+    }
+  ],
+  "review_sensitive_regressions": {
+    "core": "935 passed; 1 ignored",
+    "state_schema_lifecycle": "21 passed",
+    "standalone_keyed_storage": "1 passed",
+    "portable_generated_player_initializer_helpers_are_exported_and_resolved": "passed"
+  },
+  "native_baseline_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
+  "native_candidate_pack_sha256": "8c229b2f89add11508dba7d55bf764e15fe533046ead095e693c12bf7b20e4a9",
+  "harness_sha256": "626c719d3d1aee8ce500e31a9409373a1c41537c16bc8ca7608ff5d7c29bafec",
+  "log": {
+    "file": "full-validation.log.gz",
+    "sha256": "83c0e5ef722e087c22c1b49ac2ad0607d47e4a007cd55e21b758b3f4d0b893f0",
+    "uncompressed_sha256": "a1689ce776b2fc2e6ee54e363477f8002adb617e86c68c4908a20ed63eca9496",
+    "uncompressed_bytes": 1197809
+  },
+  "limits": "Native single-run timings are not MSPT; baseline read producer differs as documented in summary.json. Migration payload bytes/total mutations and reclamation are not measured. CI/review status is reported separately."
+}

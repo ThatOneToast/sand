@@ -7,8 +7,8 @@
     "functions": {
       "interaction_hub:__sand_lifecycle_init": {
         "evaluations": {
-          "maximum": 5,
-          "minimum": 5,
+          "maximum": 6,
+          "minimum": 1,
           "unknown": []
         },
         "owners": [
@@ -18,52 +18,7 @@
           {
             "line": 1,
             "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 1,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 2,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 2,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 3,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 3,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 4,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 5,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 5,
-            "operation": "unless",
-            "selector": "@s"
+            "selector": "@s[scores={sbb09b9f6705cb36=1,sb55bf1648a286fb=-2147483648..,s08b357d587efaee=-2147483648..,s329d6982e1dbc30=-2147483648..,s5444f44fe70b1f0=-2147483648..}]"
           }
         ]
       },
@@ -3694,6 +3649,68 @@
           "interaction_hub::shop"
         ],
         "selector_sites": []
+      },
+      "interaction_hub:sand/state_init/fb307d43": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub:quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
       }
     },
     "limitations": [
@@ -4406,6 +4423,9 @@
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::shop"
+        ],
+        "interaction_hub:sand/state_init/fb307d43": [
+          "interaction_hub:quest"
         ]
       },
       "lifecycle_owners": {

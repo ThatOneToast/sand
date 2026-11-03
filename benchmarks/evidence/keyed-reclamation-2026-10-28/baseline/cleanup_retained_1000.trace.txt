@@ -1,0 +1,41 @@
+keyed_literal_probe:trace_scale_cleanup
+    [F] keyed_literal_probe:trace_scale_cleanup size=1
+        [C] execute as @e[tag=keyed_scale,limit=1] run function unified_state:detach_status
+            [M] Running function unified_state:detach_status
+        [F] unified_state:detach_status size=12
+            [C] scoreboard players reset @s se09bae1a255736b
+                [M] Reset [se09bae1a255736b] for Zombie
+            [R = 1] scoreboard players reset @s se09bae1a255736b
+            [C] scoreboard players reset @s s7b98a5795bc20c5
+                [M] Reset [s7b98a5795bc20c5] for Zombie
+            [R = 1] scoreboard players reset @s s7b98a5795bc20c5
+            [C] scoreboard players reset @s sfe8d54b59e2dece
+                [M] Reset [sfe8d54b59e2dece] for Zombie
+            [R = 1] scoreboard players reset @s sfe8d54b59e2dece
+            [C] scoreboard players reset @s sd1f3dd6c3704160
+                [M] Reset [sd1f3dd6c3704160] for Zombie
+            [R = 1] scoreboard players reset @s sd1f3dd6c3704160
+            [C] scoreboard players reset @s s5bd00e734ccd771
+                [M] Reset [s5bd00e734ccd771] for Zombie
+            [R = 1] scoreboard players reset @s s5bd00e734ccd771
+            [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [E] Nothing changed. The specified properties already have these values                    [M] Nothing changed. The specified properties already have these values
+            [C] function unified_state:sand/state_data/keyed/753e87f8 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/753e87f8
+            [F] unified_state:sand/state_data/keyed/753e87f8/3601370 size=1
+                [C] data remove storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".details
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".details
+            [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [E] Nothing changed. The specified properties already have these values                    [M] Nothing changed. The specified properties already have these values
+            [C] function unified_state:sand/state_data/keyed/c8ee2444 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/c8ee2444
+            [F] unified_state:sand/state_data/keyed/c8ee2444/3601370 size=1
+                [C] data remove storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".template
+                    [M] Modified storage rpg:state
+                [R = 1] data remove storage rpg:state owners[{uuid:[I;-2147483648,2147483647,-1,1]}].components."status".template
+            [C] scoreboard players reset @s s2eb987913797037
+                [M] Reset [s2eb987913797037] for Zombie
+            [R = 1] scoreboard players reset @s s2eb987913797037

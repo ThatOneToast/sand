@@ -210,6 +210,8 @@ pub(crate) fn migrate_hook_commands<S: crate::entity::EntityState>(
 /// Deterministic automatic lifecycle output built afresh for each export.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct AutomaticLifecycle {
+    /// Compiler-owned runtime objectives that authored lifecycle code cannot claim.
+    pub private_objectives: BTreeMap<String, (String, String)>,
     /// Canonical State identities contributing work to each runtime phase.
     pub load_origins: std::collections::BTreeSet<String>,
     pub init_origins: std::collections::BTreeSet<String>,
@@ -217,10 +219,20 @@ pub(crate) struct AutomaticLifecycle {
     pub load_commands: Vec<String>,
     pub provision_commands: Vec<String>,
     pub player_init_commands: Vec<String>,
+    /// Owned cold-path helpers; generation never registers these in ambient state.
+    pub player_init_helpers: Vec<PlayerInitHelper>,
     pub player_tick_commands: Vec<String>,
     pub entity_tick_commands: Vec<String>,
     pub global_init_commands: Vec<String>,
     pub global_tick_commands: Vec<String>,
+}
+
+/// One private player initializer, retaining its canonical State owner.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct PlayerInitHelper {
+    pub path: String,
+    pub commands: Vec<String>,
+    pub owner: String,
 }
 
 /// Rust collection binds callbacks before adapting descriptors into owned data.
@@ -417,10 +429,23 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
                 .push(format!("scoreboard objectives add {reconcile_dirty} dummy"));
         }
         for field in component.data_fields.iter().filter(|field| field.keyed) {
-            output.provision_commands.push(format!(
-                "execute unless data storage {} owners run data modify storage {} owners set value []",
-                field.storage, field.storage
-            ));
+            let (definition, provision, tick) =
+                crate::entity::keyed_migration::lifecycle(field.storage);
+            claim_objective(
+                &mut objectives,
+                definition.split_whitespace().nth(3).unwrap(),
+                "dummy",
+                &format!("{}::keyed_migration", field.storage),
+            )?;
+            output.private_objectives.insert(
+                definition.split_whitespace().nth(3).unwrap().to_owned(),
+                (field.storage.to_owned(), "keyed migration".into()),
+            );
+            if !output.load_commands.contains(&definition) {
+                output.load_commands.push(definition);
+                output.provision_commands.push(provision);
+                output.global_tick_commands.push(tick);
+            }
         }
 
         match component.scope {
@@ -454,11 +479,49 @@ pub(super) fn automatic_lifecycle_with_hooks<'a>(
     Ok(output)
 }
 
+/// Complete canonical lifecycle provisioning for public standalone KeyedData.
+/// State-declared storages are already present and must not be registered twice.
+pub(crate) fn append_keyed_storage_requirements(
+    output: &mut AutomaticLifecycle,
+) -> Result<(), String> {
+    for storage in crate::function::keyed_storage_requirements() {
+        let objective = objective_name(&format!("{storage}::keyed_migration"));
+        if let Some((owner, kind)) = output.private_objectives.get(&objective) {
+            if owner != &storage || kind != "keyed migration" {
+                return Err(format!(
+                    "keyed storage `{storage}` migration objective `{objective}` conflicts with `{owner}`"
+                ));
+            }
+            continue;
+        }
+        if output
+            .load_commands
+            .iter()
+            .any(|line| line.split_whitespace().nth(3) == Some(objective.as_str()))
+        {
+            return Err(format!(
+                "keyed storage `{storage}` migration objective `{objective}` conflicts with an automatic State objective"
+            ));
+        }
+        let (definition, provision, tick) = crate::entity::keyed_migration::lifecycle(&storage);
+        output
+            .private_objectives
+            .insert(objective, (storage, "keyed migration".into()));
+        output.load_commands.push(definition);
+        output.provision_commands.push(provision);
+        output.global_tick_commands.push(tick);
+    }
+    output.load_commands.sort();
+    output.provision_commands.sort();
+    Ok(())
+}
+
 fn emit_player(
     component: &StateDescriptor,
     hook: Option<&BoundStateHook<'_>>,
     output: &mut AutomaticLifecycle,
 ) {
+    let init_start = output.player_init_commands.len();
     let presence = objective_name(component.presence_objective);
     let suppression = objective_name(component.suppression_objective);
     let guard = format!("unless score @s {} matches 1..", suppression);
@@ -518,6 +581,47 @@ fn emit_player(
         "execute {guard} unless score @s {presence} matches 1.. run scoreboard players set @s {presence} {}",
         component.version
     ));
+
+    let initialization = output.player_init_commands.split_off(init_start);
+    output
+        .player_init_commands
+        .extend(crate::entity::keyed_migration::guard(
+            component.data_fields,
+            initialization,
+        ));
+
+    // A healthy scoreboard-only schema needs no default repair. Keep the exact
+    // old body for cold/repair paths, including suppression and presence-last
+    // ordering. Do not move authored hooks: a return in one must retain its
+    // original function boundary. Storage and migration initialization also
+    // retain their existing path rather than approximating their readiness.
+    if component.fields.len() >= 2
+        && component.data_fields.is_empty()
+        && component.migrations.is_empty()
+        && hook.is_none()
+    {
+        let mut scores = vec![format!("{presence}={}", component.version)];
+        scores.extend(
+            component
+                .fields
+                .iter()
+                .map(|field| format!("{}=-2147483648..", objective_name(field.objective))),
+        );
+        let body = output.player_init_commands.split_off(init_start);
+        let path = crate::function::generated_function_path(
+            "sand/state_init",
+            &crate::IntoCommands::into_commands(body.clone()),
+        );
+        output.player_init_helpers.push(PlayerInitHelper {
+            path: path.clone(),
+            commands: body,
+            owner: component.id.to_owned(),
+        });
+        output.player_init_commands.push(format!(
+            "execute unless entity @s[scores={{{}}}] run function __sand_local:{path}",
+            scores.join(",")
+        ));
+    }
 }
 
 fn emit_entity(
@@ -706,6 +810,36 @@ mod tests {
                 .player_init_commands
                 .iter()
                 .all(|line| line.contains("unless score @s suppressed matches 1.."))
+        );
+    }
+
+    #[test]
+    fn player_initialization_with_migrations_stays_inline() {
+        const TWO_FIELDS: &[StateLifecycleDescriptor] = &[
+            StateLifecycleDescriptor::new("first", TIMER),
+            StateLifecycleDescriptor::new("second", TIMER),
+        ];
+        let output = automatic_lifecycle_from([StateDescriptor::new(
+            "demo:player",
+            2,
+            StateScope::Player,
+            "presence",
+            "suppressed",
+            TWO_FIELDS,
+            &[StateMigrationDescriptor { from: 1, to: 2 }],
+            &[],
+        )])
+        .unwrap();
+        assert_eq!(output.player_init_commands.len(), 4);
+        assert_eq!(
+            output.player_init_commands[2],
+            "execute unless score @s suppressed matches 1.. if score @s presence matches 1 run scoreboard players set @s presence 2"
+        );
+        assert!(
+            output
+                .player_init_commands
+                .iter()
+                .all(|line| !line.contains("run function"))
         );
     }
 

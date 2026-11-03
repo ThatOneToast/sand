@@ -126,8 +126,8 @@
       },
       "owned_combat:__sand_lifecycle_init": {
         "evaluations": {
-          "maximum": 3,
-          "minimum": 3,
+          "maximum": 4,
+          "minimum": 1,
           "unknown": []
         },
         "owners": [
@@ -137,32 +137,7 @@
           {
             "line": 1,
             "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 1,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 2,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 2,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 3,
-            "operation": "unless",
-            "selector": "@s"
-          },
-          {
-            "line": 3,
-            "operation": "unless",
-            "selector": "@s"
+            "selector": "@s[scores={s6a013315193d928=1,sf1f2543d539d31e=-2147483648..,s9cbb773d5ff6ec4=-2147483648..}]"
           }
         ]
       },
@@ -2087,7 +2062,7 @@
       "owned_combat:cancel": {
         "evaluations": {
           "maximum": null,
-          "minimum": 8,
+          "minimum": 6,
           "unknown": [
             "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/cancel_owner with storage owned_combat:__sand_runtime cancel",
             "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/cancel_owner with storage owned_combat:__sand_runtime cancel"
@@ -2101,7 +2076,7 @@
       "owned_combat:cast": {
         "evaluations": {
           "maximum": null,
-          "minimum": 7,
+          "minimum": 5,
           "unknown": [
             "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn",
             "unknown selector multiplicity: execute at @s rotated as @s anchored eyes positioned ^ ^ ^ summon minecraft:marker run function owned_combat:__sand_system/lifetime/fireball/init with storage owned_combat:__sand_runtime spawn"
@@ -2142,8 +2117,8 @@
       },
       "owned_combat:diagnose": {
         "evaluations": {
-          "maximum": 15,
-          "minimum": 6,
+          "maximum": 16,
+          "minimum": 4,
           "unknown": []
         },
         "owners": [
@@ -2154,7 +2129,7 @@
       "owned_combat:regenerate": {
         "evaluations": {
           "maximum": null,
-          "minimum": 7,
+          "minimum": 5,
           "unknown": [
             "function arguments are not analyzed: function owned_combat:__sand_system/lifetime/regeneration/status_admit with storage owned_combat:__sand_runtime spawn"
           ]
@@ -2280,6 +2255,48 @@
           {
             "line": 1,
             "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "owned_combat:sand/state_init/ecd950c4": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "owned_combat:mage"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
             "selector": "@s"
           }
         ]
@@ -2773,6 +2790,9 @@
         "owned_combat:sand/runtime/required/1830e601": [
           "owned_combat::fireball",
           "owned_combat::regeneration"
+        ],
+        "owned_combat:sand/state_init/ecd950c4": [
+          "owned_combat:mage"
         ],
         "owned_combat:sand/status/read_refresh/4563dbb2": [
           "owned_combat::regeneration"

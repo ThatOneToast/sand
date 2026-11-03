@@ -1,0 +1,4 @@
+init_audit:probe
+    [F] init_audit:probe size=2
+        [C] execute as @a at @s run function trail:__sand_lifecycle_init
+        [C] say __INIT_TRACE_COMPLETE__ -> 1

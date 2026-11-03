@@ -1,0 +1,38 @@
+keyed_literal_probe:trace_present
+    [F] keyed_literal_probe:trace_present size=1
+        [C] execute as @e[tag=keyed_literal_a,limit=1] run function unified_state:present_entity_literal
+            [M] Running function unified_state:present_entity_literal
+        [F] unified_state:present_entity_literal size=3
+            [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+            [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                [E] Nothing changed. The specified properties already have these values                    [M] Nothing changed. The specified properties already have these values
+            [C] function unified_state:sand/state_data/keyed/3ae9a9f3 with storage rpg:state __sand_owner
+                [M] Running function unified_state:sand/state_data/keyed/3ae9a9f3
+            [F] unified_state:sand/state_data/keyed/3ae9a9f3/3601370 size=2
+                [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                [C] execute if data storage rpg:state owners_v2."[I;9123988,-495762247,-1584905942,-1245167944]".components."status".template run function unified_state:sand/state_data/body/1bee5442
+                    [M] Running function unified_state:sand/state_data/body/1bee5442
+                [F] unified_state:sand/state_data/body/1bee5442 size=7
+                    [C] execute as @e[tag=keyed_literal_b,limit=1] run execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                    [C] execute as @e[tag=keyed_literal_b,limit=1] run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                        [M] Modified storage rpg:state
+                    [R = 1] execute as @e[tag=keyed_literal_b,limit=1] run data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [C] execute as @e[tag=keyed_literal_b,limit=1] run function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner
+                        [M] Running function unified_state:sand/state_data/keyed/ce36e3c9
+                    [F] unified_state:sand/state_data/keyed/ce36e3c9/3601370 size=2
+                        [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                        [C] data get storage rpg:state owners_v2."[I;-1673206409,1890534810,-1758445384,1619077861]".components."status".template
+                            [M] Storage rpg:state has the following contents: "$(u0)"
+                        [R = 5] data get storage rpg:state owners_v2."[I;-1673206409,1890534810,-1758445384,1619077861]".components."status".template
+                    [C] execute unless entity @s run data remove storage rpg:state __sand_owner.uuid
+                    [C] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                        [M] Modified storage rpg:state
+                    [R = 1] data modify storage rpg:state __sand_owner.uuid set from entity @s UUID
+                    [C] function unified_state:sand/state_data/keyed/ce36e3c9 with storage rpg:state __sand_owner
+                        [M] Running function unified_state:sand/state_data/keyed/ce36e3c9
+                    [F] unified_state:sand/state_data/keyed/ce36e3c9/3601370 size=2
+                        [C] execute unless data storage rpg:state __sand_keyed{version:2} run return fail
+                        [C] data get storage rpg:state owners_v2."[I;9123988,-495762247,-1584905942,-1245167944]".components."status".template
+                            [M] Storage rpg:state has the following contents: '$(missing) $(u0) "quoted" \\ path'
+                        [R = 32] data get storage rpg:state owners_v2."[I;9123988,-495762247,-1584905942,-1245167944]".components."status".template
+                    [C] say SAND_KEYED_PRESENT -> 1

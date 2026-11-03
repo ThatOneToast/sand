@@ -1,0 +1,20 @@
+init_audit:probe
+    [F] init_audit:probe size=2
+        [C] execute as @a at @s run function trail:__sand_lifecycle_init
+            [M] Running function trail:__sand_lifecycle_init
+            [M] Running function trail:__sand_lifecycle_init
+        [F] trail:__sand_lifecycle_init size=1
+            [C] execute unless entity @s[scores={sa9c5ae898ac8f8e=1,sfa49ff66aebe47c=-2147483648..,scf21a43c2b92f8a=-2147483648..,s9b03f7001255338=-2147483648..,saafb19392893dee=-2147483648..,s8520e22d64708b4=-2147483648..}] run function trail:sand/state_init/7b742cca
+                [M] Running function trail:sand/state_init/7b742cca
+            [F] trail:sand/state_init/7b742cca size=6
+                [C] execute unless score @s s5d6868466971a59 matches 1.. unless score @s sfa49ff66aebe47c matches -2147483648.. run scoreboard players set @s sfa49ff66aebe47c 100
+                    [M] Set [sfa49ff66aebe47c] for SandAlpha to 100
+                [R = 1] execute unless score @s s5d6868466971a59 matches 1.. unless score @s sfa49ff66aebe47c matches -2147483648.. run scoreboard players set @s sfa49ff66aebe47c 100
+                [C] execute unless score @s s5d6868466971a59 matches 1.. unless score @s scf21a43c2b92f8a matches -2147483648.. run scoreboard players set @s scf21a43c2b92f8a 0
+                [C] execute unless score @s s5d6868466971a59 matches 1.. unless score @s s9b03f7001255338 matches -2147483648.. run scoreboard players set @s s9b03f7001255338 0
+                [C] execute unless score @s s5d6868466971a59 matches 1.. unless score @s saafb19392893dee matches -2147483648.. run scoreboard players set @s saafb19392893dee 0
+                [C] execute unless score @s s5d6868466971a59 matches 1.. unless score @s s8520e22d64708b4 matches -2147483648.. run scoreboard players set @s s8520e22d64708b4 0
+                [C] execute unless score @s s5d6868466971a59 matches 1.. unless score @s sa9c5ae898ac8f8e matches 1.. run scoreboard players set @s sa9c5ae898ac8f8e 1
+        [F] trail:__sand_lifecycle_init size=1
+            [C] execute unless entity @s[scores={sa9c5ae898ac8f8e=1,sfa49ff66aebe47c=-2147483648..,scf21a43c2b92f8a=-2147483648..,s9b03f7001255338=-2147483648..,saafb19392893dee=-2147483648..,s8520e22d64708b4=-2147483648..}] run function trail:sand/state_init/7b742cca
+        [C] say __INIT_TRACE_COMPLETE__ -> 1

@@ -16,29 +16,47 @@ already does this). `TypedExecute::as_self_at_self()` keeps that player as the
 executor and positions the effects at their location. It never selects other
 players: one menu click pays only the clicking player's stamina and cooldown.
 
-`.when(...)` takes the same `all![...]` condition list chapter 3's `tick` uses
-for readiness, and `.run(cmd::function(grapple_execute))` dispatches through the
-canonical function handle rather than inlining the dash logic here.
-Splitting "is the dash allowed" from "what the dash does" means the
-gating conditions stay visible and reusable (the `tick` actionbar reuses
-the identical condition list) without duplicating the effects/VFX code.
+The public `Ability::attempt` checks the configured readiness before casting. It requires the unlock, the actual custom Trail Striders in the feet
+slot, sufficient stamina, a ready cooldown, and no exhaustion. Owning the
+boots in inventory or wearing plain leather boots is insufficient.
 
-## `trail:grapple/execute` — paying costs and playing feedback
+## Bounded anchor interaction
+
+```rust,ignore
+{{#include ../../examples/book_project/src/lib.rs:anchor_workflow}}
+```
+
+The eye-origin ray samples every 0.25 blocks, up to 8 blocks for grapple or
+4 for scout. It stops at the first sampled non-air block. Grapple accepts a
+gold block; scout accepts an iron block. A wall before the anchor rejects the
+interaction. Missing, unloaded, out-of-world, and invalid hits spend nothing
+and start no cooldown. Sampling can skip thin obstacles; it is not exact
+voxel traversal. Only ordinary air is passable in this example.
+
+`trail:scout` demonstrates reuse with a different range, accepted block, cost
+(10), and cooldown (20 ticks). It shares stamina and cooldown with grapple;
+using either prevents immediately using the other. Both import the same
+`sand::systems::ability` composition used by the separate `aether_tools` example.
+
+## `trail:grapple/execute` — accepted-hit effects
 
 ```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:fn_grapple_execute}}
 ```
 
-This function assumes its caller already validated the gate — it's an
-"apply" function, not a "check" function, so it goes straight to paying the
-stamina cost, starting the cooldown, applying vanilla effects
-(`Speed`/`SlowFalling` standing in for a grapple's momentum, since Sand
-commands can't grant arbitrary physics velocity — see
-[Vanilla Limitations](reference/vanilla-limitations.md)), and playing VFX
-(chapter 13). `Target::self_()` (`@s`) is correct here because this
-function is always reached from inside the `as @a` context `trail:grapple`
-already established — `@s` means "the player the outer execute is
-currently iterating," not "whoever ran this command directly."
+The internal hit callback calls `Ability::accept`, which checks the sampled
+gold block and readiness together before any writes. One grouped branch spends
+30 stamina, starts an 80-tick cooldown, then invokes this effect-only function
+for Speed/Slow Falling plus feedback. Spending the last 30 stamina cannot
+suppress cooldown or effects. These effects stand in
+for momentum; there is no teleport or arbitrary physics velocity. Success
+means accepting the anchor and issuing the effects, not proving that every
+Minecraft effect command changed the player. There is no rollback promise.
+
+The ray preserves the caster as executor and runs the callback at the hit
+sample. Thus effects and State apply only to that player; VFX explicitly reposition at
+the player. The internal `/execute` functions contain effects only and are not safe activation
+entrypoints. Hit callbacks recheck eligibility but require the ray's target position. Use `trail:grapple` or `trail:scout` as gameplay entrypoints.
 
 ## `trail:recover` — a plain reset function
 

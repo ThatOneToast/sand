@@ -1,0 +1,100 @@
+{
+  "minecraft": "26.2",
+  "complete": true,
+  "checks": {
+    "NATURAL_DEFAULT_SandAlpha": true,
+    "NATURAL_DEFAULT_SandBeta": true,
+    "ENTITY_A_DEFAULT": true,
+    "ENTITY_B_DEFAULT": true,
+    "GLOBAL_DEFAULT": true,
+    "PLAYER_A_LITERALS": true,
+    "PLAYER_B_UNCHANGED": true,
+    "ENTITY_A_LITERALS": true,
+    "ENTITY_B_UNCHANGED": true,
+    "GLOBAL_LITERAL": true,
+    "STAGING_CLEAN": true,
+    "NESTED_CALLBACK": true,
+    "NESTED_OWNER_RESOLUTION": true,
+    "NESTED_OUTER_RETAINED": true,
+    "NESTED_INNER_RETAINED": true,
+    "VALID_A_RESULT": true,
+    "VALID_A_SUCCESS": true,
+    "VALID_B_RESULT": true,
+    "VALID_B_SUCCESS": true,
+    "PLAYER_A_RELOAD": true,
+    "PLAYER_B_RELOAD": true,
+    "ENTITY_A_RELOAD": true,
+    "ENTITY_B_RELOAD": true,
+    "GLOBAL_RELOAD": true,
+    "RELOAD_STAGING_CLEAN": true,
+    "DETACHED_TEMPLATE": true,
+    "DETACHED_PAYLOAD": true,
+    "OTHER_ENTITY_RETAINED": true,
+    "PLAYER_RETAINED": true,
+    "MISSING_EXECUTOR_NO_STALE_WRITE": true,
+    "MISSING_EXECUTOR_STAGING_CLEAN": true,
+    "MISSING_GET_RESULT": true,
+    "MISSING_GET_SUCCESS": true,
+    "MISSING_EXECUTOR_NO_STALE_REMOVE": true,
+    "MISSING_EXECUTOR_NO_CALLBACK": true,
+    "MISSING_EXECUTOR_UUID_CLEARED": true
+  },
+  "input_pack_sha256": "e42722785807fbbbf7b7f294fa99f1760305bb828eaa2db688e8e3086fbae769",
+  "source_revision": "da299c178ba76cdd25c95c582af79ae9289e0323",
+  "harness_sha256": "849ed55b604295729a1697c821de42ccf4296c3a8d9ddc86f90b7696e2897bd1",
+  "static_owner_entity_nbt_reads_per_resolution": 1,
+  "native_traces": {
+    "entity_write": {
+      "command_evaluations_including_wrapper": 17,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 2,
+      "successful_storage_mutation_commands": 6,
+      "successful_storage_get_commands": 0,
+      "sha256": "e5a6ce8405282f26da954862d3415dc9063d4d10672f9f19394cc2ba351c6996"
+    },
+    "player_write": {
+      "command_evaluations_including_wrapper": 34,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 2,
+      "successful_storage_mutation_commands": 5,
+      "successful_storage_get_commands": 0,
+      "sha256": "dbcc8ab0dda27b02ef75c6a652929a9d4f76f9d81ef9c13299136f3e550064df"
+    },
+    "fresh_attach": {
+      "command_evaluations_including_wrapper": 32,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 6,
+      "successful_storage_get_commands": 0,
+      "sha256": "b8fdcb53ca34ad445884de4517bedab3c21571976a014d53079f1f910faa1dc3"
+    },
+    "existing_attach": {
+      "command_evaluations_including_wrapper": 22,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 0,
+      "successful_storage_get_commands": 0,
+      "sha256": "8d7561dccc5ea0098ad4330adc867c1a64a91fa65346544c98d69b4fb2a9552c"
+    },
+    "existing_attach_repeat": {
+      "command_evaluations_including_wrapper": 22,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 0,
+      "successful_storage_get_commands": 0,
+      "sha256": "8d7561dccc5ea0098ad4330adc867c1a64a91fa65346544c98d69b4fb2a9552c"
+    },
+    "same_owner_get": {
+      "command_evaluations_including_wrapper": 5,
+      "probe_wrapper_evaluations": 1,
+      "entity_uuid_read_commands": 1,
+      "successful_storage_mutation_commands": 0,
+      "successful_storage_get_commands": 1,
+      "sha256": "2c66211804d7ef6e76cdc1a28008d52021504ad0ed84e6a0b6d9b54600c5bcff"
+    }
+  },
+  "production_resolver": [
+    "execute unless entity @s run data remove storage rpg:state __sand_owner.uuid",
+    "data modify storage rpg:state __sand_owner.uuid set from entity @s UUID"
+  ]
+}

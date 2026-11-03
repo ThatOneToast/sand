@@ -1024,3 +1024,156 @@ runtime native damage between two connected clients on 26.2. The boss example's
 baseline includes priority selection and the more substantial two-attack
 encounter. These are behavioral and generated-output checks; they do not establish
 an MSPT improvement or a measured server capacity limit.
+## Player State initialization (2026-10-27)
+
+The unchanged Trailforge fixture at `6f77dcb6`, with only the scoreboard-only
+initializer optimization applied, was compared on Minecraft 26.2 / Java 25.
+[Evidence and provenance](benchmarks/evidence/player-initialization-2026-10-27/summary.json)
+retain both packs' identities and ten complete native traces.
+
+- Static emitted work: one additional helper, no additional objectives; initializer
+  evaluation range changes from `6..6` to `1..7`. Tick order is unchanged.
+- Native initializer command evaluations, excluding the identical observation
+  wrapper: 0 players `0→0`, 1 healthy player `6→1`, 2 healthy players `12→2`;
+  one missing or suppressed field among two players `12→8`.
+- Observed State changes: missing stamina repairs to 100, the other player's 61
+  remains unchanged, and suppression prevents repair. No complete mutation-count
+  benchmark was recorded.
+- MSPT and internal command-budget cost were not measured. Score-filter conditions
+  still execute; these counts do not establish a safe player population.
+
+See the [initialization contract](docs/player-initialization-fast-path.md) for
+eligibility, excluded hooks/storage/migrations, and reproduction instructions.
+
+## Keyed owner resolution (2026-10-27)
+
+The unchanged unified_state fixture compares baseline owner reads, a rejected
+unconditional-clear candidate, and conditional UUID invalidation on vanilla 26.2.
+[Comparison and raw traces](benchmarks/evidence/keyed-owner-2026-10-27/summary.json)
+retain all three outcomes, including the baseline stale-owner failure.
+
+- Static emitted owner resolution: four partial UUID reads become one whole-array
+  read, with conditional stale-argument invalidation and the existing macro call.
+- Native existing-attachment evaluations: 24→22 including the identical one-command
+  observer wrapper; UUID reads 4→1. Repeated corrected attachment remains 22/1.
+- Observed successful storage-mutation commands: existing attachment remains zero.
+  The rejected candidate performed two and is retained as failed evidence.
+- Same-owner get: five evaluations including the wrapper, one UUID read, zero
+  successful storage mutations, and one executed storage get.
+- No MSPT, internal command-budget, constant-time owner lookup, or reclamation
+  claim follows from these bounded measurements.
+
+## Indexed persistent owners (2026-10-28)
+
+The #442 storage slice is stacked on #498 at `8bfbfde3`. Its whole-UUID read
+reduction is inherited. This change replaces filtered legacy-owner list access
+with a quoted complete UUID-array key in `owners_v2`, with no last-owner cache.
+The [layout and upgrade contract](docs/testing/keyed-owner-layout.md) documents
+availability, bounded resumable migration, conflict repair and the separate
+reclamation extension point.
+
+The maintained native harness exercises actual candidate exported
+get/set/remove/presence operations and independent UUID/value observations.
+The unchanged baseline read probe replays its extracted resolver and equivalent
+legacy getter macro; both write probes invoke actual exports. Standalone public handles
+also receive canonical lifecycle provisioning without requiring a State schema. It covers signed integer
+boundaries, unchanged UUID copies, missing executors, alternating/nested owners,
+literal staging/cleanup, five owners within one game tick, actual load-tag
+reload, reconnect and entity unload/return. Migration cases retain unknown and
+other-component fields and exercise duplicate/conflicting/malformed records,
+persistent intent/copy/cursor states, and both legacy-retirement phases.
+
+[Raw evidence and rejected probes](benchmarks/evidence/keyed-index-2026-10-28/README.md)
+retain exact source, pack, harness/dependency, Java and server identities.
+[Vanilla method-reference evidence](benchmarks/evidence/keyed-index-2026-10-28/server-storage-access.json)
+identifies the legacy list stream/filter path and direct compound-child access.
+The inspected storage-access methods have no explicit root-copy call; this is
+not a complete allocation profile or whole-server complexity claim.
+
+Canonical regeneration changes only `unified_state`: 82 reported functions
+become 121, including migration helpers and five native regression entry points.
+[The generated delta](benchmarks/evidence/keyed-index-2026-10-28/runtime-baseline-delta.json)
+retains added/removed identities and changed functions. Existing unknown upper
+bounds and report limitations remain intact. These are static report changes,
+not measured per-tick costs.
+
+The historical-owner workload fixes one active UUID and varies retained owners
+at 10, 1,000 and 10,000. Seeding, migration, steady operations and saved storage
+size are recorded separately. The first candidate scale run is explicitly
+rejected: a duplicate-UUID summon left no active executor. The corrected harness
+requires a live executor, independently verifies changed values and rejects
+missing UUID reads or missing successful gets. The corrected replay passes 50
+baseline assertions and 161 candidate assertions with an identical harness hash.
+[Full stage-separated results](benchmarks/evidence/keyed-index-2026-10-28/summary.json)
+include seeding, the first migration step, remaining migration, changed writes,
+warm reads/writes and saved storage at each checkpoint.
+
+| Retained owners | Baseline read / write seconds | Candidate read / write seconds | Baseline / candidate raw NBT bytes | Baseline / candidate gzip bytes |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 0.102 / 0.061 | 0.084 / 0.106 | 1,249 / 1,438 | 345 / 423 |
+| 1,000 | 0.100 / 0.120 | 0.069 / 0.084 | 87,379 / 103,318 | 5,936 / 9,946 |
+| 10,000 | 0.773 / 1.182 | 0.068 / 0.046 | 870,379 / 1,039,318 | 58,667 / 107,025 |
+
+Each wall sample performs 1,000 operations on one active owner. Across all three
+populations, a warm read has baseline/candidate explicit evaluations 5/6, UUID
+reads 1/1, successful mutations 0/0 and successful gets 1/1. A warm two-field
+write has evaluations 17/21, UUID reads 2/2 and successful mutations 4/4. The
+additional guards preserve upgrade readiness; the lookup change removes the
+legacy list-filter path rather than reducing these command counts.
+
+Migration takes 21, 2,001 and 20,001 bounded invocations respectively. After the
+separately traced first step, remaining migration wall samples are 0.033, 0.434
+and 1.640 seconds. These bulk probe invocations are not normal tick scheduling.
+Migration traces report 51 explicit evaluations for the first row at each
+population. Mutation counters cover positive `data modify/remove` outcomes;
+`execute store storage` side effects during migration are not mutation-counted.
+Total migration storage mutations were not measured. Steady read/write traces
+have no such side effects. The map retains every historical record and adds key
+storage overhead; no storage-size reduction or owner reclamation is claimed.
+
+Wall timings include console barriers, JIT and host noise. Separate server
+processes have different correctness-test prefixes, without statistical warmup
+normalization. These are single runs, not MSPT, internal command-budget units or
+latency percentiles. Migration checkpoints are after the first copied row, not peak memory measurements. Bounds
+are in rows and emitted command work, not arbitrary payload bytes. Cleanup and
+context reuse remain separate work; retention is unchanged.
+
+## Empty-owner reclamation (2026-10-28)
+
+[Retained evidence](benchmarks/evidence/keyed-reclamation-2026-10-28/summary.json)
+compares baseline `8bfbfde3` with clean reclamation revision `78ed9e13` using one
+active owner and 10 / 1,000 / 10,000 historical owners. Full `scripts/check.sh`
+passes on the candidate. Native replay passes 62 baseline and 200 candidate
+assertions with one identical harness revision/hash. Input packs, native traces,
+saved storage snapshots, server/harness hashes and logs are retained. Seeding,
+migration, reads/writes and cleanup remain separate stages in each JSON record.
+
+| Historical owners | Baseline / candidate detach evaluations | Baseline / candidate UUID reads | Baseline / candidate successful data mutations | Candidate scratch count stores | Baseline / candidate ten-cycle seconds |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 15 / 43 | 2 / 5 | 2 / 8 | 3 | 0.056 / 0.053 |
+| 1,000 | 15 / 43 | 2 / 5 | 2 / 8 | 3 | 0.059 / 0.052 |
+| 10,000 | 15 / 43 | 2 / 5 | 2 / 8 | 3 | 0.143 / 0.053 |
+
+These are the actual exported detach paths, including one wrapper. The candidate
+fixture additionally observes prior score/data and accesses a second owner in its
+cleanup hook; the baseline has no such hook. Consequently this is a lifecycle and
+retention comparison, not a claim that pruning reduces command counts. Successful
+mutations count positive data modify/remove results; the three executed scratch
+count stores are separately reported without claiming they each changed a value.
+Candidate cleanup with another component and an unknown owner field retained uses
+six successful data mutations, rather than the eight for removing an empty owner.
+
+After ten attach/detach cycles the baseline retains all historical owner records;
+the candidate retains exactly N−1, removing only the active empty record and
+preserving every dormant record. Candidate raw storage after cleanup is 1,160 /
+103,040 / 1,039,040 bytes; baseline is 1,057 / 87,187 / 870,187 bytes. UUID-map keys
+still cost more bytes than legacy lists; this change does not erase dormant data
+to achieve a smaller benchmark. Empty root/version metadata deliberately remain.
+
+The fixed explicit cleanup work has no historical-owner list filter or recurring
+world scan. Timings are single console-barrier samples with JIT/host noise, not
+MSPT, latency percentiles or proof of constant wall-clock cost. Arbitrary external
+death, offline-owner purge and general once-per-body owner resolution remain
+outside this slice. The canonical unified_state report grows 121→149 functions:
+resolver/deletion/pruning helpers and the cleanup/shared-archetype proof fixtures;
+its unknown upper bounds remain explicit.

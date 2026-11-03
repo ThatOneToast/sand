@@ -94,6 +94,31 @@ impl ResourceLocation {
         Self::new("minecraft", path)
     }
 
+    /// Name a resource in the pack namespace selected at export time.
+    ///
+    /// Use this for reusable registered resources such as a block raycast.
+    /// The path is validated immediately; the namespace is resolved by Sand's
+    /// exporter. Before export, this is a logical identifier, not a concrete
+    /// Minecraft resource name. Use [`Self::new`] for an external or fixed owner.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::ResourceLocation::local",
+        aliases = ["sand::prelude::ResourceLocation::local"],
+        module = "sand",
+        kind = "method",
+        summary = "Names a validated resource in the namespace selected during pack export.",
+        context = "Reusable resource definitions retain one canonical ResourceLocation without knowing the consuming pack's namespace.",
+        minecraft = "Sand resolves the logical namespace during export; the unexported identifier is not a concrete Minecraft resource name.",
+        use_when = ["Naming reusable registered resources owned by the consuming pack"],
+        avoid_when = ["Referring to vanilla or an explicitly named external namespace"],
+        params(path = "The namespace-relative resource path, validated with the ordinary resource grammar."),
+        returns = "A logical pack-local resource location, or a path validation error.",
+        example = "let ray = sand::ResourceLocation::local(\"abilities/anchor\")?;",
+    )]
+    pub fn local(path: impl AsRef<str>) -> Result<Self> {
+        Self::new(SAND_LOCAL_NS, path)
+    }
+
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::ResourceLocation::namespace",
@@ -264,6 +289,16 @@ mod tests {
     use sand_commands::{RenderCommand, Validate};
 
     use super::*;
+
+    #[test]
+    fn local_resources_validate_paths_and_retain_logical_ownership() {
+        let resource = ResourceLocation::local("abilities/anchor").unwrap();
+        assert_eq!(resource.namespace(), SAND_LOCAL_NS);
+        assert_eq!(resource.path(), "abilities/anchor");
+        for path in ["", "UpperCase", "other:anchor", "bad path"] {
+            assert!(ResourceLocation::local(path).is_err(), "{path}");
+        }
+    }
 
     #[test]
     fn typed_registry_ids_feed_command_media_directly() {

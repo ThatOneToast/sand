@@ -200,6 +200,41 @@ mod tests {
     }
 
     #[test]
+    fn multi_field_player_helpers_are_owned_and_do_not_pollute_pending_resources() {
+        let state = State {
+            id: "demo:pair".parse().unwrap(),
+            scope: "player".into(),
+            revision: 1,
+            fields: vec![
+                ScoreField {
+                    name: "first".into(),
+                    default: -7,
+                    bounds: None,
+                },
+                ScoreField {
+                    name: "second".into(),
+                    default: 42,
+                    bounds: None,
+                },
+            ],
+        };
+        assert!(crate::function::drain_dyn_fns().is_empty());
+        crate::function::register_dyn_fn_dedup("test/pending", vec!["say pending".to_owned()]);
+        let first = lifecycle(std::slice::from_ref(&state)).unwrap();
+        assert_eq!(first, lifecycle(&[state]).unwrap());
+        assert_eq!(first.player_init_helpers.len(), 1);
+        let helper = &first.player_init_helpers[0];
+        assert_eq!(helper.owner, "demo:pair");
+        assert_eq!(helper.commands.len(), 3);
+        assert!(helper.commands[0].ends_with(" -7"));
+        assert!(helper.commands[1].ends_with(" 42"));
+        assert!(helper.commands[2].ends_with(" 1"));
+        let pending = crate::function::drain_dyn_fns();
+        assert_eq!(pending.len(), 1);
+        assert!(pending[0].0.starts_with("test/pending/"));
+    }
+
+    #[test]
     fn owned_counter_provisions_and_initializes_canonical_objectives() {
         let output = lifecycle(&[State {
             id: "demo:counter".parse().unwrap(),

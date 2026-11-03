@@ -5,6 +5,10 @@ rotation. A cast preserves its executor and dimension; its callback runs at the
 sample that ends the cast. Register the definition once and call `cast()` from
 functions or event handlers without naming generated functions or counters.
 
+Use `ResourceLocation::local("mining")` when a reusable definition should belong
+to the consuming pack's export namespace. Use `ResourceLocation::new` when the
+resource deliberately has a fixed namespace.
+
 ```rust,no_run
 use sand::command::Anchor;
 use sand::prelude::*;

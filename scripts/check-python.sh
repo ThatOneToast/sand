@@ -7,3 +7,6 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 python3 -m compileall -q scripts
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 python3 -m unittest discover -s scripts/mc_validation -p 'test_*.py'
+
+# Root-level harness regressions also participate (for example keyed State).
+python3 -m unittest discover -s scripts -p 'test_*.py'

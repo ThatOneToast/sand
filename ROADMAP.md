@@ -18,6 +18,8 @@ features whose native contract has only been verified on a particular version.
   systems. Authors opt into work; there is no mandatory application class.
 - [x] Canonical State for scores, fixed-point values, flags, cooldowns, timers,
   enums, markers and typed storage; bundles, queries, migrations and archetypes.
+- [x] Direct UUID-keyed owner storage, bounded journaled migration from legacy
+  lists and explicit safe reclamation after component cleanup.
 - [x] Typed entity/player/world contexts, scoped participants, inventory slots,
   item matching, native values, conditions and numeric expressions.
 - [x] Typed commands/resources, generated registries and explicit escape hatches.
@@ -41,6 +43,9 @@ Evidence: [State guide](book/src/23-unified-state.md),
 - [x] `Lifetime` and `TaskContext`: owner/instance identity, capacity, admission,
   required and owned State, callbacks, expiry, cancellation and cleanup.
 - [x] `Ability`: checked costs and cooldowns before starting owned work.
+- [x] Synchronous `systems::ability` policies, shared `ResourcePool` regeneration
+  and explicit `ResourceMaintenance`; accepted targets pay before effects. These
+  policies do not create an owned task or promise rollback.
 - [x] `StatusEffect`: owner-scoped effects with refresh and cleanup behavior.
 - [x] `Job`: bounded per-instance batches and completion callbacks.
 - [x] `Sequence`: ordered actions, tick waits, bounded condition waits and joins.
@@ -149,6 +154,10 @@ native interpolation and existing models before adding per-tick command work.
 
 ### 4. Compiler optimization and authoring experience
 
+- [ ] Consolidate shared admission/resource rules between synchronous activation
+  policies and owned abilities while preserving their different execution and
+  cleanup contracts; avoid exposing two competing state models.
+
 - [ ] Expand typed `compute` providers and backend selection only where numeric
   failure, overflow and rounding semantics match the canonical model.
 - [ ] Report actionable expensive-tick patterns, unknown costs and population
@@ -173,7 +182,7 @@ See [benchmarks and limitations](BENCHMARKS.md).
 - [x] Full local gate: `scripts/check.sh` plus `git diff --check`.
 - [x] Shared Python test discovery for local checks and Rust CI.
 - [x] Example export/runtime baselines and compile/API-contract architecture guards.
-- [x] Vanilla CI wiring: 26.2 for player ownership/interactions and 26.3 for
+- [x] Vanilla CI wiring: 26.2 for player ownership/interactions/resource policies and 26.3 for
   entity gameplay/compute;
   retain failure artifacts.
 - [ ] Extend real-player protocol support and scenario proofs to 26.3. Startup

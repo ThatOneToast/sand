@@ -20,6 +20,9 @@ echo "=== External registration consumer (sand-only) ==="
 cargo fmt --manifest-path sand/tests/fixtures/registration/Cargo.toml -- --check
 CARGO_TARGET_DIR="$PWD/target" cargo test --locked --manifest-path sand/tests/fixtures/registration/Cargo.toml
 
+echo "=== External ability linkage consumers (sand-only) ==="
+scripts/check-ability-linking.sh
+
 echo "=== Portable program frontends and schema drift ==="
 scripts/check-program.sh
 

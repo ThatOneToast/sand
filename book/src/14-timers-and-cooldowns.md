@@ -28,9 +28,9 @@ let traversal = Traversal::on(EntityContext::<PlayerKind>::default());
 
 TypedExecute::as_players_at_self()
     .when(traversal.grapple.ready())
-    .run(cmd::function(grapple_execute));
+    .run(cmd::function(apply_dash));
 
-// Inside `grapple_execute`:
+// Inside your `apply_dash` function:
 traversal.grapple.start(Ticks::seconds(4));
 ```
 

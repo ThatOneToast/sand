@@ -16,11 +16,20 @@ SPEC.loader.exec_module(workflow)
 
 
 class FixtureResolution(unittest.TestCase):
+    def test_fixture_preserves_repository_toolchain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflow.fixture(root)
+            self.assertEqual((root / 'rust-toolchain.toml').read_bytes(),
+                             (workflow.ROOT / 'rust-toolchain.toml').read_bytes())
+
     def test_seeded_lock_is_resolved_before_watching(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'src').mkdir()
             (root / 'src/lib.rs').write_text('')
+            (root / 'rust-toolchain.toml').write_bytes(
+                (workflow.ROOT / 'rust-toolchain.toml').read_bytes())
             (root / 'Cargo.toml').write_text(
                 '[package]\nname="devprobe"\nversion="0.1.0"\nedition="2024"\n[workspace]\n')
             lock = root / 'Cargo.lock'

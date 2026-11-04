@@ -193,10 +193,11 @@ native interpolation and existing models before adding per-tick command work.
   that removing a datapack cannot trigger a fabricated vanilla unload callback.
 - [ ] Improve gameplay test authoring and failure evidence, including negative
   cases and performance budgets. Keep export, native and compile-fail tests distinct.
-- [ ] Measure cold, warm and no-op builds before changing crate boundaries.
-  Preserve the facade and dependency architecture; avoid merging crates merely
-  to reduce the directory count. Revisit codegen/API-contract invalidation and
-  isolated test compilation using current timings, not historical estimates.
+- [x] Measure isolated fresh-target, warm facade-edit and no-op checks on 26.3;
+  retain source fingerprints and raw logs in the [build baseline](docs/testing/build-benchmarks.md).
+- [ ] Profile sand-core edits, codegen/API-contract invalidation and isolated test
+  compilation before changing crate boundaries. Preserve the facade and dependency
+  architecture; directory count alone is not evidence for merging crates.
 
 Acceptance: deterministic output and semantic parity across targets; optimized
 paths have versioned native evidence. Static command counts are not MSPT claims.

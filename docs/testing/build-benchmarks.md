@@ -1,5 +1,32 @@
 # Isolated build measurements
 
+## 2026-11-04 baseline
+
+The isolated suite passed on clean code revision `953edfdee5362be9b73ddb657369d4e7ab7087b0`,
+using Minecraft 26.3 and `cargo check --workspace --locked` on an arm64 macOS
+host with 10 logical CPUs. The full repository gate and native proofs finished
+before measurement; no agent builds or test servers ran concurrently.
+
+| Scenario | Samples | Median | Observed range |
+| --- | ---: | ---: | ---: |
+| Fresh target, warm external caches | 2 | 60.010 s | 59.728–60.293 s |
+| Warm facade comment edit | 5 | 6.979 s | 6.906–7.064 s |
+| Restored source, no-op | 5 | 0.730 s | 0.669–0.808 s |
+
+The initial cache warmup and restored-source warmup are excluded from these
+summaries. Fresh targets retain warm Cargo/Minecraft caches; this does not measure
+first-time downloads. Warm edits touch only a comment in the copied facade.
+These small samples do not establish p95, a speedup over historical workloads,
+full test/link time, or the cost of changing sand-core. Profile those workloads
+before consolidating crates or changing API-contract invalidation.
+
+[Raw results](../../benchmarks/evidence/build-2026-11-04/results.json) retain
+commands, versions, environment, timings and original temporary artifact paths.
+The [source manifest](../../benchmarks/evidence/build-2026-11-04/tree-manifest.json.gz)
+and compressed [sample logs](../../benchmarks/evidence/build-2026-11-04/logs/)
+are bundled. The snapshot fingerprint is
+`f76b9c8d22adbbcd0d3469ec61193caf9e77255e4399a5668ab515f672e21194`.
+
 `scripts/bench_build_suite.sh` measures Cargo check performance from a copied
 snapshot of the current worktree. It never edits the live checkout, invokes
 `cargo clean`, or removes Cargo/Minecraft caches. Existing dirty tracked files,

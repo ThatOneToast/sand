@@ -8,7 +8,7 @@ compares the deterministic aggregate report with the selected baseline.
 Generated command and vanilla-registry providers embed their resolved
 Minecraft version. They must agree on an exact reviewed profile from
 `sand/api-surface-profiles.toml`; unknown or mixed generated data fails closed.
-The normal profile targets Minecraft Java 26.2. Placeholder codegen remains an
+The normal profile targets Minecraft Java 26.3; 26.2 has a separate audited baseline. Placeholder codegen remains an
 internal compile-recovery mechanism with a separate baseline and cannot claim
 real generated registry coverage.
 

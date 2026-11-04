@@ -442,9 +442,11 @@ inventory::collect!(ScheduleDescriptor);
 /// Immutable tick-system declaration emitted by `#[system]`.
 #[doc(hidden)]
 pub struct StateSystemDescriptor {
-    /// Stable Rust module/function identity.
-    pub id: &'static str,
-    /// Global tick cadence. One runs every server tick.
+    /// Canonical Rust function-item identity, also used by dependency references.
+    pub id: fn() -> &'static str,
+    /// Ordering constraints as (before, after) function-item identities.
+    pub order: fn() -> (Vec<&'static str>, Vec<&'static str>),
+    /// Global tick cadence. Dependencies order eligible systems; they do not force a tick.
     pub every: u32,
     /// Builds structured commands for the system body.
     pub make: fn() -> crate::ir::Actions,
@@ -724,6 +726,7 @@ pub(crate) fn take_dialog_origins() -> std::collections::BTreeSet<GeneratedOrigi
 }
 
 thread_local! {
+    static SCHEMA_26_3: Cell<bool> = const { Cell::new(false) };
     static REGISTRY: RefCell<GeneratedRegistry> = const { RefCell::new(GeneratedRegistry { namespace: None, resources: Vec::new(), origins: std::collections::BTreeSet::new(), score_origins: std::collections::BTreeSet::new(), dialog_origins: std::collections::BTreeSet::new(), keyed_storages: std::collections::BTreeSet::new() }) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
     static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
@@ -742,6 +745,10 @@ impl ExportFunctionRegistryScope {
         let scope = Self::enter();
         REGISTRY.with_borrow_mut(|registry| registry.namespace = Some(namespace.to_owned()));
         scope
+    }
+
+    pub(crate) fn enable_26_3_schema(&self, enabled: bool) {
+        SCHEMA_26_3.set(enabled);
     }
 
     pub(crate) fn enter() -> Self {
@@ -766,6 +773,7 @@ fn clear_function_export_state() {
         registry.dialog_origins.clear();
         registry.keyed_storages.clear();
     });
+    SCHEMA_26_3.set(false);
     INTERNAL_SCORE_TEMP_REQUESTED.set(false);
     crate::state::score::clear_constant_setup();
     INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(|objectives| objectives.clear());
@@ -1043,6 +1051,16 @@ fn stable_identity_key(identity: &str) -> String {
         h = h.wrapping_mul(16_777_619);
     }
     format!("{h:08x}")
+}
+
+/// Only the verified explicit export profile may select native arithmetic.
+pub(crate) fn compute_backend_enabled() -> bool {
+    uses_26_3_schema()
+}
+
+/// Version-dependent command NBT uses the effective export profile, never codegen defaults.
+pub(crate) fn uses_26_3_schema() -> bool {
+    SCHEMA_26_3.get()
 }
 
 #[cfg(test)]

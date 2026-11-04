@@ -3,7 +3,7 @@
 ## Requirements
 
 - Rust 1.96+ with edition 2024 support.
-- Java 25+ for Minecraft 26.2 data generation during builds.
+- Java 25+ for Minecraft 26.x data generation during builds.
 - Network access on the first build so Sand can download and cache the
   matching Minecraft server jar for codegen.
 
@@ -19,8 +19,11 @@ cargo install --path sand-cli
 
 ## Creating Trailforge
 
+The default for new projects is 26.3. This tutorial explicitly pins 26.2 to
+match `examples/book_project`; newer gameplay examples also exercise 26.3.
+
 ```sh
-sand new trailforge
+sand new trailforge --mc-version 26.2
 cd trailforge
 ```
 

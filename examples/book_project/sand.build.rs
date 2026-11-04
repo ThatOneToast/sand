@@ -11,8 +11,8 @@
 use sand::ResourceLocation;
 use sand::build::{
     BuildContext, Difficulty, Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator,
-    FlatLayer, Generator, NoiseGenerator, SandBuild, Seed, ServerConfig, Spawn,
-    TimeConfig, VanillaNoiseSettings, World, WorldResetPolicy,
+    FlatLayer, Generator, NoiseGenerator, SandBuild, Seed, ServerConfig, Spawn, TimeConfig,
+    VanillaNoiseSettings, World, WorldResetPolicy,
 };
 
 fn build(ctx: &BuildContext) -> SandBuild {

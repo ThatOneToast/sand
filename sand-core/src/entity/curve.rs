@@ -1366,6 +1366,20 @@ impl CurveInput {
     }
 }
 
+impl From<sand_commands::DamageAmount> for StatCurve {
+    fn from(value: sand_commands::DamageAmount) -> Self {
+        match value {
+            sand_commands::DamageAmount::Fixed(value) => Self::constant(value),
+            _ => Self::constant(f64::NAN),
+        }
+    }
+}
+impl From<f32> for StatCurve {
+    fn from(value: f32) -> Self {
+        Self::constant(f64::from(value))
+    }
+}
+
 impl From<i32> for StatCurve {
     fn from(value: i32) -> Self {
         Self::constant(f64::from(value))
@@ -1605,6 +1619,21 @@ impl StatCurve {
         }
     }
 
+    pub(crate) fn runtime_score(
+        holder: sand_commands::ScoreHolder,
+        objective: sand_commands::ObjectiveName,
+        storage_scale: i32,
+    ) -> Self {
+        Self {
+            kind: CurveKind::Input(CurveInput::Score {
+                objective: NumericObjective::Named(objective.to_string()),
+                holder: Some(holder),
+                storage_scale,
+                field: None,
+            }),
+        }
+    }
+
     pub(crate) fn bound_state(field: impl NumericStateField, holder: &'static str) -> Self {
         let mut input = CurveInput::typed(field);
         if let CurveInput::Score { holder: source, .. } = &mut input {
@@ -1745,6 +1774,90 @@ impl StatCurve {
                 clamp: None,
             },
         }
+    }
+
+    /// Dot product of two three-dimensional runtime vectors.
+    /// Composes checked fixed-point operations; intermediate overflow invalidates
+    /// the consuming assignment or comparison. No normalization is implicit.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::entity::StatCurve::dot", module = "sand::entity", kind = "method",
+summary = "Dot product of two three-dimensional runtime vectors.", context = "Composes existing StatCurve arithmetic without a second vector representation. Fixed-point rounding and intermediate overflow follow the consuming numeric policy.",
+minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
+use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
+params(left = "First vector in x, y, z order.", right = "Second vector in x, y, z order."),
+returns = "A checked numeric expression (or three expressions for cross).", example = "use sand::entity::StatCurve;\nfn demonstrate() { let _value = StatCurve::dot([1.0.into(),0.0.into(),0.0.into()],[0.0.into(),1.0.into(),0.0.into()]); }",
+)]
+    pub fn dot(left: [Self; 3], right: [Self; 3]) -> Self {
+        Self::add(
+            left.into_iter()
+                .zip(right)
+                .map(|(a, b)| Self::multiply([a, b])),
+        )
+    }
+    /// Right-handed cross product of two runtime vectors.
+    /// Composes checked fixed-point operations; intermediate overflow invalidates
+    /// the consuming assignment or comparison. No normalization is implicit.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::entity::StatCurve::cross", module = "sand::entity", kind = "method",
+summary = "Right-handed cross product of two runtime vectors.", context = "Composes existing StatCurve arithmetic without a second vector representation. Fixed-point rounding and intermediate overflow follow the consuming numeric policy.",
+minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
+use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
+params(left = "First vector in x, y, z order.", right = "Second vector in x, y, z order."),
+returns = "A checked numeric expression (or three expressions for cross).", example = "use sand::entity::StatCurve;\nfn demonstrate() { let _value = StatCurve::cross([1.0.into(),0.0.into(),0.0.into()],[0.0.into(),1.0.into(),0.0.into()]); }",
+)]
+    pub fn cross(left: [Self; 3], right: [Self; 3]) -> [Self; 3] {
+        std::array::from_fn(|i| {
+            let j = (i + 1) % 3;
+            let k = (i + 2) % 3;
+            Self::add([
+                Self::multiply([left[j].clone(), right[k].clone()]),
+                Self::linear(
+                    Self::multiply([left[k].clone(), right[j].clone()]),
+                    -1.0,
+                    0.0,
+                ),
+            ])
+        })
+    }
+    /// Linear interpolation with a runtime weight.
+    /// Composes checked fixed-point operations; intermediate overflow invalidates
+    /// the consuming assignment or comparison. No normalization is implicit.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::entity::StatCurve::lerp", module = "sand::entity", kind = "method",
+summary = "Linear interpolation with a runtime weight.", context = "Composes existing StatCurve arithmetic without a second vector representation. Fixed-point rounding and intermediate overflow follow the consuming numeric policy.",
+minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
+use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
+params(from = "Value at weight zero.", to = "Value at weight one.", weight = "Unclamped weight; values outside zero to one extrapolate."),
+returns = "A checked numeric expression (or three expressions for cross).", example = "use sand::entity::StatCurve;\nfn demonstrate() { let _value = StatCurve::lerp(0.0.into(),10.0.into(),0.5.into()); }",
+)]
+    pub fn lerp(from: Self, to: Self, weight: Self) -> Self {
+        Self::add([
+            from.clone(),
+            Self::multiply([Self::add([to, Self::linear(from, -1.0, 0.0)]), weight]),
+        ])
+    }
+
+    /// Squared Euclidean distance between two three-dimensional runtime points.
+    /// Compare against a squared radius to avoid requiring a square root. Each
+    /// coordinate uses the same fixed-point rounding and checked arithmetic as
+    /// other curves; overflow aborts a consuming assignment or comparison.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::entity::StatCurve::distance_squared",
+        aliases = ["sand::prelude::StatCurve::distance_squared"], module = "sand::entity", kind = "method",
+        summary = "Builds squared distance from canonical runtime numeric coordinates.",
+        context = "Accepts two arrays of three StatCurve expressions and composes the existing checked numeric model. Compare to radius squared for range checks.",
+        minecraft = "Uses fixed-point subtraction, multiplication and addition; 26.3 can lower checked additions to compute while older targets retain scoreboard arithmetic.",
+        use_when = ["Comparing positions stored in canonical numeric State"],
+        avoid_when = ["A native distance selector already expresses the query"],
+        params(left = "The first point's x, y and z expressions.", right = "The second point's x, y and z expressions."),
+        returns = "A squared-distance numeric expression.",
+        example = "use sand::entity::StatCurve;\n\nfn demonstrate() {\n    let distance = StatCurve::distance_squared([0.0.into(), 0.0.into(), 0.0.into()], [3.0.into(), 4.0.into(), 0.0.into()]);\n}",
+    )]
+    pub fn distance_squared(left: [Self; 3], right: [Self; 3]) -> Self {
+        Self::add(left.into_iter().zip(right).map(|(left, right)| {
+            let difference = Self::add([left, Self::linear(right, -1.0, 0.0)]);
+            Self::multiply([difference.clone(), difference])
+        }))
     }
 
     /// Creates an affine curve clamped to the inclusive `[minimum, maximum]`.

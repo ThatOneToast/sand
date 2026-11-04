@@ -1,0 +1,4 @@
+[pack]
+namespace = "animated_boss"
+description = "Custom combat and owned two-attack boss encounter"
+mc_version = "26.3"

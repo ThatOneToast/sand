@@ -80,19 +80,28 @@ fn repeated_exports_assign_stable_unique_dialog_callback_ids() {
 
     let records: Vec<serde_json::Value> = serde_json::from_str(&second).unwrap();
     let dialog = record_content(&records, "callback_menu");
-    assert!(dialog.contains("/trigger sand.dialog set 1"), "{dialog}");
-    assert!(dialog.contains("/trigger sand.dialog set 2"), "{dialog}");
-
-    let dispatcher = record_content(&records, "__sand_dialog_tick");
+    let objective = sand_commands::ObjectiveName::logical("sand dialog trigger dialogpack");
     assert!(
-        dispatcher.contains("sand.dialog=1}] at @s run function dialogpack:first_callback"),
-        "{dispatcher}"
+        dialog.contains(&format!("/trigger {objective} set 1")),
+        "{dialog}"
     );
     assert!(
-        dispatcher.contains("sand.dialog=2}] at @s run function example:second_callback"),
-        "{dispatcher}"
+        dialog.contains(&format!("/trigger {objective} set 2")),
+        "{dialog}"
     );
-    assert!(!dispatcher.contains("unrelated_callback"), "{dispatcher}");
+    let dispatcher = record_content(&records, "__sand_dialog_dispatch");
+    assert!(dispatcher.contains(&format!("if score @s {objective} matches 1 run return run function dialogpack:__sand_dialog_action/1")));
+    for (id, callback) in [
+        (1, "dialogpack:first_callback"),
+        (2, "example:second_callback"),
+    ] {
+        let action = record_content(&records, &format!("__sand_dialog_action/{id}"));
+        assert_eq!(
+            action,
+            format!("scoreboard players set @s {objective} 0\nreturn run function {callback}")
+        );
+    }
+    assert!(!dispatcher.contains("unrelated_callback"));
 }
 
 // Regenerate this dialog *fresh* for every call (not cached behind a
@@ -122,7 +131,7 @@ fn an_unrelated_prior_export_does_not_shift_a_later_exports_ids() {
         .as_str()
         .expect("solo dialog button should emit a run_command action");
     assert_eq!(
-        command, "/trigger sand.dialog set 1",
+        command, "/trigger __sand_dialog_trigger__ set 1",
         "a solo export-scoped registration must start at 1 regardless of prior exports"
     );
     let _ = sand_components::dialog::drain_dialog_callbacks();
@@ -149,7 +158,7 @@ fn prebuilt_dialog_callback_survives_a_reset_issued_before_it_is_serialized() {
         .as_str()
         .expect("prebuilt dialog button should emit a run_command action");
     assert_eq!(
-        command, "/trigger sand.dialog set 1",
+        command, "/trigger __sand_dialog_trigger__ set 1",
         "a prebuilt dialog constructed before reset must still register when serialized"
     );
 
@@ -159,4 +168,26 @@ fn prebuilt_dialog_callback_survives_a_reset_issued_before_it_is_serialized() {
         vec![(1, "__sand_local:prebuilt_callback".to_string())],
         "the prebuilt dialog's callback must be present at drain time"
     );
+}
+
+#[test]
+fn independently_exported_packs_have_distinct_callback_channels() {
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut channels = Vec::new();
+    for namespace in ["first_pack", "second_pack"] {
+        let records: Vec<serde_json::Value> =
+            serde_json::from_str(&export_components_json(namespace)).unwrap();
+        let dialog: serde_json::Value =
+            serde_json::from_str(record_content(&records, "callback_menu")).unwrap();
+        let command = dialog["actions"][0]["action"]["command"].as_str().unwrap();
+        let channel = command.split_whitespace().nth(1).unwrap().to_string();
+        let load = record_content(&records, "__sand_dialog_init");
+        assert!(load.contains(&format!("scoreboard objectives add {channel} trigger")));
+        assert!(load.contains(&format!("scoreboard players reset * {channel}")));
+        let tick = record_content(&records, "__sand_dialog_tick");
+        assert_eq!(tick.matches("scoreboard players enable").count(), 1);
+        assert!(tick.contains(&format!("unless score @s {channel} matches 0")));
+        channels.push(channel);
+    }
+    assert_ne!(channels[0], channels[1]);
 }

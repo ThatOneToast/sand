@@ -331,7 +331,7 @@ pub struct VersionProfile {
     minecraft = "Identifies the release whose pack formats and feature matrix Sand currently verifies as latest.",
     use_when = ["Displaying Sand's verified release anchor", "Resolving the latest token through VersionProfile"],
     avoid_when = ["Choosing Sand's build-time code generator target"],
-    example = "assert_eq!(sand::version::LATEST_KNOWN, \"26.2\");"
+    example = "assert_eq!(sand::version::LATEST_KNOWN, \"26.3\");"
 )]
 pub const LATEST_KNOWN: &str = sand_version::LATEST_KNOWN;
 
@@ -630,7 +630,7 @@ impl VersionCaps {
     /// Conservative profile for a 26.x+ version not explicitly verified.
     fn conservative() -> Self {
         Self {
-            data_fmt: 107,
+            data_fmt: 121,
             item_components: false,
             data_components: false,
             dialogs: false,
@@ -654,6 +654,7 @@ impl VersionCaps {
 /// future calendar versions remain representable but resolve conservatively.
 fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
     match (major, minor, patch) {
+        (26, 3, 0) => VersionCaps::known(121),
         (26, 2, 0) => VersionCaps::known(107),
         (26, 1, 0..=2) => VersionCaps::known(101),
         _ => VersionCaps::conservative(),
@@ -762,6 +763,7 @@ mod tests {
             ("26.1.1", 101),
             ("26.1.2", 101),
             ("26.2", 107),
+            ("26.3", 121),
         ] {
             let profile =
                 VersionProfile::resolve_strict(&MinecraftVersion::parse(version).unwrap()).unwrap();
@@ -786,11 +788,11 @@ mod tests {
             }
         }
 
-        for version in ["26.3", "26.2.1", "27.0"] {
+        for version in ["26.4", "26.2.1", "27.0"] {
             let parsed = MinecraftVersion::parse(version).unwrap();
             let profile = VersionProfile::resolve(&parsed).unwrap();
             assert!(profile.is_fallback(), "{version}");
-            assert_eq!(profile.data_pack_format(), 107, "{version}");
+            assert_eq!(profile.data_pack_format(), 121, "{version}");
             assert!(
                 VersionProfile::resolve_strict(&parsed).is_err(),
                 "{version}"
@@ -803,7 +805,7 @@ mod tests {
     fn latest_resolves_to_verified_anchor() {
         let profile =
             VersionProfile::resolve_strict(&MinecraftVersion::parse("latest").unwrap()).unwrap();
-        assert_eq!(profile.data_pack_format(), 107);
+        assert_eq!(profile.data_pack_format(), 121);
         assert!(profile.resolved_name().contains(LATEST_KNOWN));
         assert_eq!(DEFAULT_CODEGEN_VERSION, LATEST_KNOWN);
     }

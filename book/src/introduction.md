@@ -4,10 +4,10 @@ This book teaches Sand by building one datapack from an empty directory to a
 finished, running pack: **Trailforge**, a small equipment-and-traversal
 gameplay mod. Trailforge adds a craftable **Grapple Core**, a pair of
 upgraded boots called **Trail Striders**, a stamina resource that fuels a
-grapple dash, and a small upgrade menu. Equipped players can target a gold
-anchor for the dash or an iron anchor for a cheaper scouting burst. Every chapter adds the next piece of
-that pack and explains *why* it's built that way, not just *how* to call the
-API.
+grapple dash, and a small upgrade menu. The tutorial chapters add pieces of
+that pack and explain *why* it's built that way, not just *how* to call the
+API. Equipped players target gold anchors for a dash or iron anchors for a
+cheaper scouting burst. Later framework chapters use additional maintained examples.
 
 Sand is a Rust authoring framework that compiles typed Rust declarations into
 ordinary Minecraft Java datapack files — `.mcfunction` text, advancement and
@@ -24,11 +24,12 @@ per builder type, with disconnected snippets. That made it hard to see how
 the pieces fit together in a real pack — how a custom item interacts with an
 advancement trigger, how a tick-driven timer feeds an event, how execution
 context changes what a command means. This book instead follows Trailforge
-end to end. Each chapter's code is a real, compiling fragment of
+end to end. The Trailforge tutorial chapters include compiling fragments of
 [`examples/book_project`](https://github.com/ThatOneToast/sand/tree/main/examples/book_project),
 included directly from the source file via mdBook's `{{#include}}`
-directive — the snippets in this book and the code in the repository can
-never drift apart, because they're the same text.
+directive — those included snippets share the example source. Later framework chapters use
+separate examples and illustrative snippets, with their validation boundaries
+documented alongside the APIs.
 
 ## What Trailforge actually contains
 
@@ -55,9 +56,11 @@ behind) every system Trailforge demonstrates:
 - **Particles and sounds** — a reusable `Vfx` sequence for the dash.
 - **Framework systems** — typed `#[system]` behavior over State, events, and archetypes.
 
-Nothing in this book is aspirational: if a chapter shows you an API, that API
-is exercised by Trailforge's own compiling, tested source, and by
-Trailforge's own `cargo test` suite.
+The framework chapters also cover owned tasks, abilities, projectiles, scenes,
+combat, encounters and interactions. Their maintained examples are
+`owned_combat`, `animated_boss` and `interaction_hub`. Code fences marked
+`ignore` are explanatory snippets rather than standalone compile tests. See the
+[project roadmap](../../ROADMAP.md) for implemented systems and remaining work.
 
 ## How to read this book
 

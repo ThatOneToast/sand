@@ -49,9 +49,11 @@ use crate::resource_location::ResourceLocation;
 use crate::{BlockId, EnchantmentId, EntityTypeId, EquipmentModelId, SoundEventId, TagId};
 use sand_commands::TextComponent;
 
+mod book;
 pub mod definition;
 pub mod matcher;
 pub mod stack;
+pub use book::WrittenBook;
 
 // ── ItemRarity ────────────────────────────────────────────────────────────────
 
@@ -705,12 +707,14 @@ impl From<RawSnbt> for CustomData {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::ItemComponent;",
-    variants(AttributeModifiers = "Represents the value of Minecraft's attribute modifiers item component.", Consumable = "Represents the value of Minecraft's consumable item component.", CustomData = "Represents the value of Minecraft's custom data item component.", CustomModelData = "Represents the value of Minecraft's custom model data item component.", CustomName = "Represents the value of Minecraft's custom name item component.", Damage = "Represents the value of Minecraft's damage item component.", DyedColor = "Represents the value of Minecraft's dyed color item component.", EnchantmentGlintOverride = "Represents the value of Minecraft's enchantment glint override item component.", Enchantments = "Represents the value of Minecraft's enchantments item component.", Equippable = "Represents the value of Minecraft's equippable item component.", FireResistant = "Represents the value of Minecraft's fire resistant item component.", Food = "Represents the value of Minecraft's food item component.", Glider = "Represents the value of Minecraft's glider item component.", HideAdditionalTooltip = "Represents the value of Minecraft's hide additional tooltip item component.", HideTooltip = "Represents the value of Minecraft's hide tooltip item component.", ItemName = "Represents the value of Minecraft's item name item component.", Lore = "Represents the value of Minecraft's lore item component.", MaxDamage = "Represents the value of Minecraft's max damage item component.", MaxStackSize = "Represents the value of Minecraft's max stack size item component.", PotionContents = "Represents the value of Minecraft's potion contents item component.", Rarity = "Represents the value of Minecraft's rarity item component.", Raw = "Represents the value of Minecraft's raw item component.", RepairCost = "Represents the value of Minecraft's repair cost item component.", StoredEnchantments = "Represents the value of Minecraft's stored enchantments item component.", SuspiciousStewEffects = "Represents the value of Minecraft's suspicious stew effects item component.", Tool = "Represents the value of Minecraft's tool item component.", Unbreakable = "Represents the value of Minecraft's unbreakable item component.", UseCooldown = "Represents the value of Minecraft's use cooldown item component."),
-    variant_fields(AttributeModifiers = ["Represents the value of Minecraft's attribute modifiers item component."], Consumable = ["Represents the value of Minecraft's consumable item component."], CustomData = ["Represents the value of Minecraft's custom data item component."], CustomModelData = ["Represents the value of Minecraft's custom model data item component."], CustomName = ["Represents the value of Minecraft's custom name item component."], Damage = ["Represents the value of Minecraft's damage item component."], DyedColor = ["Represents the value of Minecraft's dyed color item component."], EnchantmentGlintOverride = ["Represents the value of Minecraft's enchantment glint override item component."], Enchantments = ["Represents the value of Minecraft's enchantments item component."], Equippable = ["Represents the value of Minecraft's equippable item component."], Food = ["Represents the value of Minecraft's food item component."], ItemName = ["Represents the value of Minecraft's item name item component."], Lore = ["Represents the value of Minecraft's lore item component."], MaxDamage = ["Represents the value of Minecraft's max damage item component."], MaxStackSize = ["Represents the value of Minecraft's max stack size item component."], PotionContents = ["Represents the value of Minecraft's potion contents item component."], Rarity = ["Represents the value of Minecraft's rarity item component."], Raw = ["Represents the value of Minecraft's raw item component."], RepairCost = ["Represents the value of Minecraft's repair cost item component."], StoredEnchantments = ["Represents the value of Minecraft's stored enchantments item component."], SuspiciousStewEffects = ["Represents the value of Minecraft's suspicious stew effects item component."], Tool = ["Represents the value of Minecraft's tool item component."], Unbreakable(show_in_tooltip = "`show_in_tooltip` provides the show in tooltip for the unbreakable item component."), UseCooldown = ["Represents the value of Minecraft's use cooldown item component."]),
+    variants(WrittenBook = "Rich text written-book content.", AttributeModifiers = "Represents the value of Minecraft's attribute modifiers item component.", Consumable = "Represents the value of Minecraft's consumable item component.", CustomData = "Represents the value of Minecraft's custom data item component.", CustomModelData = "Represents the value of Minecraft's custom model data item component.", CustomName = "Represents the value of Minecraft's custom name item component.", Damage = "Represents the value of Minecraft's damage item component.", DyedColor = "Represents the value of Minecraft's dyed color item component.", EnchantmentGlintOverride = "Represents the value of Minecraft's enchantment glint override item component.", Enchantments = "Represents the value of Minecraft's enchantments item component.", Equippable = "Represents the value of Minecraft's equippable item component.", FireResistant = "Represents the value of Minecraft's fire resistant item component.", Food = "Represents the value of Minecraft's food item component.", Glider = "Represents the value of Minecraft's glider item component.", HideAdditionalTooltip = "Represents the value of Minecraft's hide additional tooltip item component.", HideTooltip = "Represents the value of Minecraft's hide tooltip item component.", ItemName = "Represents the value of Minecraft's item name item component.", Lore = "Represents the value of Minecraft's lore item component.", MaxDamage = "Represents the value of Minecraft's max damage item component.", MaxStackSize = "Represents the value of Minecraft's max stack size item component.", PotionContents = "Represents the value of Minecraft's potion contents item component.", Rarity = "Represents the value of Minecraft's rarity item component.", Raw = "Represents the value of Minecraft's raw item component.", RepairCost = "Represents the value of Minecraft's repair cost item component.", StoredEnchantments = "Represents the value of Minecraft's stored enchantments item component.", SuspiciousStewEffects = "Represents the value of Minecraft's suspicious stew effects item component.", Tool = "Represents the value of Minecraft's tool item component.", Unbreakable = "Represents the value of Minecraft's unbreakable item component.", UseCooldown = "Represents the value of Minecraft's use cooldown item component."),
+    variant_fields(WrittenBook = ["Typed book title, author and pages."], AttributeModifiers = ["Represents the value of Minecraft's attribute modifiers item component."], Consumable = ["Represents the value of Minecraft's consumable item component."], CustomData = ["Represents the value of Minecraft's custom data item component."], CustomModelData = ["Represents the value of Minecraft's custom model data item component."], CustomName = ["Represents the value of Minecraft's custom name item component."], Damage = ["Represents the value of Minecraft's damage item component."], DyedColor = ["Represents the value of Minecraft's dyed color item component."], EnchantmentGlintOverride = ["Represents the value of Minecraft's enchantment glint override item component."], Enchantments = ["Represents the value of Minecraft's enchantments item component."], Equippable = ["Represents the value of Minecraft's equippable item component."], Food = ["Represents the value of Minecraft's food item component."], ItemName = ["Represents the value of Minecraft's item name item component."], Lore = ["Represents the value of Minecraft's lore item component."], MaxDamage = ["Represents the value of Minecraft's max damage item component."], MaxStackSize = ["Represents the value of Minecraft's max stack size item component."], PotionContents = ["Represents the value of Minecraft's potion contents item component."], Rarity = ["Represents the value of Minecraft's rarity item component."], Raw = ["Represents the value of Minecraft's raw item component."], RepairCost = ["Represents the value of Minecraft's repair cost item component."], StoredEnchantments = ["Represents the value of Minecraft's stored enchantments item component."], SuspiciousStewEffects = ["Represents the value of Minecraft's suspicious stew effects item component."], Tool = ["Represents the value of Minecraft's tool item component."], Unbreakable(show_in_tooltip = "`show_in_tooltip` provides the show in tooltip for the unbreakable item component."), UseCooldown = ["Represents the value of Minecraft's use cooldown item component."]),
 )]
 /// Strongly typed Minecraft item component values used by [`CustomItem`].
 #[derive(Debug, Clone)]
 pub enum ItemComponent {
+    /// Rich text written-book content, validated alongside the item.
+    WrittenBook(#[doc = "Typed title, author and pages."] WrittenBook),
     #[doc = "Represents the value of Minecraft's custom name item component."]
     CustomName(
         #[doc = "Represents the value of Minecraft's custom name item component."] TextComponent,
@@ -2494,6 +2498,7 @@ pub struct CustomItem {
 
     // ── Display ───────────────────────────────────────────────────────────────
     /// Pre-serialised JSON string for `custom_name`.
+    written_book: Option<WrittenBook>,
     custom_name: Option<String>,
     /// Pre-serialised JSON string for `item_name`.
     item_name: Option<String>,
@@ -2565,6 +2570,7 @@ impl CustomItem {
             base: base.to_string(),
             custom_data: None,
             custom_model_data: None,
+            written_book: None,
             custom_name: None,
             item_name: None,
             lore: Vec::new(),
@@ -2618,6 +2624,7 @@ impl CustomItem {
 
     fn apply_component(&mut self, component: ItemComponent) {
         match component {
+            ItemComponent::WrittenBook(book) => self.written_book = Some(book),
             ItemComponent::CustomName(name) => {
                 self.text_components
                     .push(("custom_name".to_string(), name.clone()));
@@ -3645,6 +3652,10 @@ impl CustomItem {
     )]
     pub fn validate(&self) -> SandResult<()> {
         let err = |key: &str, message: &str| item_component_error(&self.base, key, message);
+        if let Some(book) = &self.written_book {
+            book.validate()
+                .map_err(|message| err("written_book_content", &message))?;
+        }
         let finite = |key: &str, v: f32| -> SandResult<()> {
             if v.is_finite() {
                 Ok(())
@@ -3844,6 +3855,12 @@ impl CustomItem {
 
     fn collect_components(&self) -> Vec<String> {
         let mut parts: Vec<String> = Vec::new();
+        if let Some(book) = &self.written_book {
+            parts.push(format!(
+                "written_book_content={}",
+                json_val_to_snbt(&book.json())
+            ));
+        }
 
         // Identity
         if let Some(ref data) = self.custom_data {
@@ -4045,6 +4062,9 @@ impl CustomItem {
             );
         }
 
+        if let Some(book) = &self.written_book {
+            out.insert("minecraft:written_book_content", book.json());
+        }
         // Display
         if let Some(ref name) = self.custom_name {
             out.insert("minecraft:custom_name", text_json_value(&self.base, name)?);
@@ -4258,7 +4278,7 @@ fn json_val_to_snbt(v: &Value) -> String {
         Value::Object(map) => {
             let parts: Vec<String> = map
                 .iter()
-                .map(|(k, v)| format!("{}:{}", k, json_val_to_snbt(v)))
+                .map(|(k, v)| format!("{}:{}", snbt_compound_key(k), json_val_to_snbt(v)))
                 .collect();
             format!("{{{}}}", parts.join(","))
         }
@@ -4266,7 +4286,9 @@ fn json_val_to_snbt(v: &Value) -> String {
             let parts: Vec<String> = arr.iter().map(json_val_to_snbt).collect();
             format!("[{}]", parts.join(","))
         }
-        Value::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
+        Value::String(s) => {
+            serde_json::to_string(s).expect("strings serialize to JSON/SNBT literals")
+        }
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
         Value::Null => "\"\"".to_string(),

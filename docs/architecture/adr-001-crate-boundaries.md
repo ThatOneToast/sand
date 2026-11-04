@@ -23,6 +23,7 @@ internal crates directly. Compiler descriptors and registry drains are not
 part of the ordinary authoring surface.
 
 Sand has no stable public release. Obsolete APIs are replaced or deleted
-instead of retained as aliases or compatibility layers. The canonical test,
-example, documentation, and generated-data target is Minecraft Java 26.2;
-known 26.x profiles remain exact and pre-26 versions are unsupported.
+instead of retained as aliases or compatibility layers. The default export and generated-data target is Minecraft Java 26.3. Exact
+26.1 and 26.2 export profiles remain supported. Examples and native proofs may
+pin older targets to exercise compatibility or version-specific capabilities;
+pre-26 versions are unsupported.

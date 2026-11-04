@@ -169,12 +169,40 @@ pub(super) fn resolve_origins(
 /// - `... only __sand_local:path` — advancement revoke/grant from EventHandle
 pub(crate) fn resolve_local_refs(content: &str, namespace: &str) -> String {
     let sentinel = crate::function::SAND_LOCAL_NS;
-    content.replace(&format!("{sentinel}:"), &format!("{namespace}:"))
+    content
+        .replace(
+            &format!("/trigger {} ", sand_components::dialog::SAND_DIALOG_TRIGGER),
+            &format!("/trigger {} ", super::dialogs::trigger_objective(namespace)),
+        )
+        .replace(&format!("{sentinel}:"), &format!("{namespace}:"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dialog_callback_rewriting_preserves_ordinary_resource_names() {
+        assert_eq!(
+            resolve_local_refs("function __sand_local:dialog_trigger", "pack"),
+            "function pack:dialog_trigger"
+        );
+        assert_eq!(
+            resolve_local_refs("function __sand_local:dialog_triggered", "pack"),
+            "function pack:dialog_triggered"
+        );
+        let command = format!(
+            "/trigger {} set 1",
+            sand_components::dialog::SAND_DIALOG_TRIGGER
+        );
+        assert_eq!(
+            resolve_local_refs(&command, "pack"),
+            format!(
+                "/trigger {} set 1",
+                super::super::dialogs::trigger_objective("pack")
+            )
+        );
+    }
 
     fn tag(path: &str, item: &str) -> sand_components::TypedTag<sand_components::ItemId> {
         sand_components::TypedTag::new(

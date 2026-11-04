@@ -703,6 +703,97 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         version_gate: None,
         notes: "Typed builder covers the stable vanilla-like field set and DimensionTypeId references; version-specific additions use an explicit raw_field escape hatch.",
     },
+    // 26.3 registry additions; typed authoring is tracked independently of version support.
+    RegistryCoverage {
+        registry_key: "minecraft:block_transformer",
+        datapack_dir: "block_transformer",
+        tag_dir: Some("tags/block_transformer"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:context_float_provider",
+        datapack_dir: "context_float_provider",
+        tag_dir: Some("tags/context_float_provider"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:context_int_provider",
+        datapack_dir: "context_int_provider",
+        tag_dir: Some("tags/context_int_provider"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:decorated_pot_pattern",
+        datapack_dir: "decorated_pot_pattern",
+        tag_dir: Some("tags/decorated_pot_pattern"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:slot_source",
+        datapack_dir: "slot_source",
+        tag_dir: Some("tags/slot_source"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/block_state_provider",
+        datapack_dir: "worldgen/block_state_provider",
+        tag_dir: Some("tags/worldgen/block_state_provider"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/carver",
+        datapack_dir: "worldgen/carver",
+        tag_dir: Some("tags/worldgen/carver"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/feature",
+        datapack_dir: "worldgen/feature",
+        tag_dir: Some("tags/worldgen/feature"),
+        sand_module: Some("sand_components::worldgen::configured_feature"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
+        version_gate: Some("26.3"),
+        notes: "ConfiguredFeature lowers typed configurations to the flattened 26.3 feature schema.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/material_condition",
+        datapack_dir: "worldgen/material_condition",
+        tag_dir: Some("tags/worldgen/material_condition"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/material_rule",
+        datapack_dir: "worldgen/material_rule",
+        tag_dir: Some("tags/worldgen/material_rule"),
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.3"),
+        notes: "Verified 26.3 registry; use RawComponent until its typed model is implemented.",
+    },
     // ── Dialog ─────────────────────────────────────────────────────────────
     RegistryCoverage {
         registry_key: "minecraft:dialog",
@@ -783,10 +874,13 @@ pub const DATAPACK_ASSET_COVERAGE: &[DatapackAssetCoverage] = &[DatapackAssetCov
 
 /// Exclusive upper version gates for registries removed or renamed by Mojang.
 ///
-/// The table is currently empty because both checked profiles are additive.
+/// Minecraft 26.3 moves configured feature and carver resources to new registries.
 /// Keeping removals separate preserves the existing `version_gate` (introduced
 /// in) API while allowing a registry to remain valid for older fixtures.
-pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
+pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[
+    ("minecraft:worldgen/configured_feature", "26.3"),
+    ("minecraft:worldgen/configured_carver", "26.3"),
+];
 
 // ── Coverage-status consistency guard (#193) ───────────────────────────────────
 
@@ -983,7 +1077,7 @@ mod tests {
     }
 
     fn drift(fixture: &Fixture, coverage: &[RegistryCoverage]) -> Vec<String> {
-        drift_with_removals(fixture, coverage, REGISTRY_REMOVED_IN)
+        drift_with_removals(fixture, coverage, &[])
     }
 
     fn test_row(
@@ -1046,14 +1140,22 @@ mod tests {
 
     #[test]
     fn checked_in_fixtures_match_coverage() {
-        let fixture = parse_fixture(include_str!("../fixtures/registry-coverage/26.2.json"));
-        assert!(fixture.provenance.contains("datapack.json"));
-        assert_eq!(drift(&fixture, REGISTRY_COVERAGE), Vec::<String>::new());
+        for json in [
+            include_str!("../fixtures/registry-coverage/26.2.json"),
+            include_str!("../fixtures/registry-coverage/26.3.json"),
+        ] {
+            let fixture = parse_fixture(json);
+            assert!(fixture.provenance.contains("datapack.json"));
+            assert_eq!(
+                drift_with_removals(&fixture, REGISTRY_COVERAGE, REGISTRY_REMOVED_IN),
+                Vec::<String>::new()
+            );
+        }
     }
 
     #[test]
     fn latest_fixture_tracks_latest_known() {
-        let fixture = parse_fixture(include_str!("../fixtures/registry-coverage/26.2.json"));
+        let fixture = parse_fixture(include_str!("../fixtures/registry-coverage/26.3.json"));
         assert_eq!(fixture.minecraft_version, sand_version::LATEST_KNOWN);
     }
 

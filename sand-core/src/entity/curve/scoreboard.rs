@@ -945,6 +945,30 @@ fn append_checked_arithmetic(
             context.owner
         ))
     };
+    // 26.3 integer addition is checked by vanilla: overflow and missing reads
+    // fail the command. Preserve the same abort-before-commit contract as the
+    // scoreboard backend. Multiplication retains its proven rounding pipeline.
+    if !multiply
+        && crate::function::compute_backend_enabled()
+        && let Some((right_holder, right_objective)) = operand.rsplit_once(' ')
+        && let Some(left_input) = compute_score(&holder.to_string(), destination)
+        && let Some(right_input) = compute_score(right_holder, right_objective)
+    {
+        let valid = scratch("valid");
+        objectives.insert(valid.clone());
+        let expression =
+            serde_json::json!({"type":"minecraft:add","inputs":[left_input,right_input]});
+        let context = if holder.to_string() == "@s" || right_holder == "@s" {
+            "entity @s"
+        } else {
+            "default"
+        };
+        commands.push(format!("execute store success score {holder} {valid} store result score {holder} {destination} run compute {context} integer {expression}"));
+        commands.push(format!(
+            "execute unless score {holder} {valid} matches 1 run return fail"
+        ));
+        return;
+    }
     let left = scratch("left");
     let right = scratch("right");
     let result = scratch("result");
@@ -978,6 +1002,17 @@ fn append_checked_arithmetic(
     commands.push(format!(
         "scoreboard players operation {holder} {destination} = {holder} {result}"
     ));
+}
+
+fn compute_score(holder: &str, objective: &str) -> Option<serde_json::Value> {
+    let target = if holder == "@s" {
+        serde_json::json!({"type":"minecraft:context", "target":"target_entity"})
+    } else if holder.starts_with('@') || holder == "*" {
+        return None;
+    } else {
+        serde_json::json!({"type":"minecraft:fixed", "name":holder})
+    };
+    Some(serde_json::json!({"type":"minecraft:score", "target":target, "score":objective}))
 }
 
 fn append_scaled_division(

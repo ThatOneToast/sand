@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/ThatOneToast/sand/actions/workflows/rust.yml"><img alt="Rust CI status" src="https://img.shields.io/github/actions/workflow/status/ThatOneToast/sand/rust.yml?branch=main&style=flat-square&label=Rust"></a>
-  <a href="#minecraft-versions"><img alt="Minecraft Java 26.2" src="https://img.shields.io/badge/Minecraft%20Java-26.2-3C8527?style=flat-square"></a>
+  <a href="#minecraft-versions"><img alt="Minecraft Java 26.3" src="https://img.shields.io/badge/Minecraft%20Java-26.3-3C8527?style=flat-square"></a>
   <a href="#stability"><img alt="Project status: alpha" src="https://img.shields.io/badge/status-alpha-D97706?style=flat-square"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ThatOneToast/sand?style=flat-square&color=5D7C59"></a>
 </p>
@@ -22,7 +22,8 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#what-you-can-build">Features</a> ·
   <a href="book/src/introduction.md">Guide</a> ·
-  <a href="examples/README.md">Examples</a>
+  <a href="examples/README.md">Examples</a> ·
+  <a href="ROADMAP.md">Roadmap</a>
 </p>
 
 ## Why Sand?
@@ -122,6 +123,23 @@ not a runtime dependency.
 - **Version-aware output** — exact 26.x profiles describe verified schema
   differences and generated registries fail safely for unknown future targets.
 
+### Gameplay systems
+
+`sand::systems` builds on the same State, entity and lifecycle models:
+
+- **Owned work** — `Lifetime`, abilities, status effects, projectiles, child tasks,
+  condition waits and joins with bounded work and explicit cleanup.
+- **Encounters and presentation** — combat policies, priority-based encounter
+  controllers, sequences, block-display scenes and batched jobs.
+- **Interactions** — paginated player menus, exact object-bound sessions,
+  clickable hitboxes, guarded purchases and typed written books.
+
+These are alpha systems with explicit vanilla limits: collision is sampled,
+encounters do not provide pathfinding, books are snapshots, and menus do not
+intercept chest-slot clicks. Start with the [gameplay guides](book/src/23d-owned-gameplay.md)
+and [interaction example](examples/interaction_hub/). The [roadmap](ROADMAP.md)
+separates implemented behavior, remaining systems and validation gaps.
+
 ### CLI
 
 - `sand new` and `sand init` scaffold an attribute-first project.
@@ -149,7 +167,7 @@ cargo install --path sand-cli
 Then scaffold and build a pack:
 
 ```sh
-sand new oasis --mc-version 26.2
+sand new oasis --mc-version 26.3
 cd oasis
 sand build
 ```
@@ -185,8 +203,9 @@ rules, structured search controls, and the recommended validation loop.
 ## Minecraft versions
 
 - Sand targets **Minecraft Java 26.x and newer**. Versions below 26 are rejected.
-- **26.2** is the latest verified export profile and the target used by current
-  examples and generated APIs; 26.1 retains its exact known schema profile.
+- **26.3** is the default export and generated-API target. Exact 26.1 and 26.2
+  profiles remain available; version-specific capability limits are documented
+  in the version support reference.
 - Later calendar versions can be represented, but unknown schemas use
   conservative capabilities. Use `VersionProfile::resolve_strict()` when exact
   Minecraft data is required.
@@ -205,7 +224,7 @@ and resource-specific API documentation when targeting an edge case.
 
 The attribute-first authoring model, typed state and conditions, typed text and
 execute chains, command builders, and scaffolding are the firmest parts of the
-project today. Events and dialogs are alpha.
+project today. Events, dialogs and the owned gameplay systems are alpha.
 `mcfunction!` and registry coverage for unreleased Minecraft versions are
 experimental.
 

@@ -22,6 +22,8 @@ pub(crate) mod predicates;
 pub(crate) mod provenance;
 pub(crate) mod records;
 pub(crate) mod schedules;
+mod schema_26_3;
+mod systems;
 pub(crate) mod tags;
 
 pub use self::records::{ComponentRecord, ExportResult};

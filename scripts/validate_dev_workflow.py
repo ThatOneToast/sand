@@ -58,6 +58,9 @@ def snapshot(path):
 
 
 def fixture(path):
+    # A fixture outside the checkout must use the repository's pinned compiler,
+    # not whichever default toolchain happens to be configured on this machine.
+    (path / 'rust-toolchain.toml').write_bytes((ROOT / 'rust-toolchain.toml').read_bytes())
     (path / 'src/target').mkdir(parents=True)
     (path / 'src/bin').mkdir()
     (path / 'Cargo.toml').write_text(f'''[package]

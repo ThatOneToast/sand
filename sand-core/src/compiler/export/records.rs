@@ -89,7 +89,7 @@ pub(crate) fn component_to_record(
     ctx: Option<&ExportCtx>,
 ) -> ExportResult<ComponentRecord> {
     let rl = comp.resource_location().clone();
-    let kind = comp.component_dir().to_string();
+    let kind = comp.component_dir_for(ctx.map(|c| c.caps)).to_string();
 
     // Version-gate check: reject if a required feature is not supported.
     if let Some(ctx) = ctx {
@@ -1040,6 +1040,72 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("item_components"), "err: {msg}");
         assert!(msg.contains("27.0"), "err: {msg}");
+    }
+
+    #[test]
+    fn legacy_carvers_are_preserved_on_26_2_and_rejected_on_26_3() {
+        use sand_components::{RawJson, worldgen::ConfiguredCarver};
+        let carver = ConfiguredCarver::raw(
+            test_rl("test", "carver"),
+            test_rl("minecraft", "cave"),
+            RawJson::new(serde_json::json!({})),
+        );
+        for version in ["26.2", "26.3"] {
+            let caps = crate::version::VersionProfile::resolve_strict(
+                &crate::version::MinecraftVersion::parse(version).unwrap(),
+            )
+            .unwrap()
+            .caps();
+            let ctx = ExportCtx {
+                caps: &caps,
+                requested_version: version,
+                is_fallback: false,
+            };
+            let result = component_to_record(&carver, Some(&ctx));
+            if version == "26.2" {
+                assert_eq!(result.unwrap().dir, "worldgen/configured_carver");
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .to_string()
+                        .contains("removes lava_level/replaceable semantics")
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn configured_features_resolve_directory_and_schema_before_collision_checks() {
+        use sand_components::worldgen::ConfiguredFeature;
+        let feature = ConfiguredFeature::no_op(test_rl("test", "feature"));
+        let mut outputs = Vec::new();
+        for version in ["26.2", "26.3"] {
+            let caps = crate::version::VersionProfile::resolve_strict(
+                &crate::version::MinecraftVersion::parse(version).unwrap(),
+            )
+            .unwrap()
+            .caps();
+            let ctx = ExportCtx {
+                caps: &caps,
+                requested_version: version,
+                is_fallback: false,
+            };
+            outputs.push(component_to_record(&feature, Some(&ctx)).unwrap());
+        }
+        assert_eq!(outputs[0].dir, "worldgen/configured_feature");
+        assert_eq!(outputs[1].dir, "worldgen/feature");
+        let old: serde_json::Value = serde_json::from_str(&outputs[0].content).unwrap();
+        let new: serde_json::Value = serde_json::from_str(&outputs[1].content).unwrap();
+        assert_eq!(
+            old,
+            serde_json::json!({"type":"minecraft:no_op", "config":{}})
+        );
+        assert_eq!(new, serde_json::json!({"type":"minecraft:no_op"}));
+        let collision = outputs[1].clone();
+        assert!(
+            super::validate_unique_output_identities(&[outputs[1].clone(), collision]).is_err()
+        );
     }
 
     #[test]

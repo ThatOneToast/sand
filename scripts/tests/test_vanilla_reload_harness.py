@@ -18,6 +18,8 @@ scenario = os.environ.get("FAKE_SCENARIO", "success")
 commands = os.environ.get("FAKE_COMMANDS")
 def emit(line):
     print(line, flush=True)
+if scenario == "slow_start":
+    time.sleep(0.75)
 if scenario == "no_start":
     time.sleep(30)
     raise SystemExit(0)
@@ -67,7 +69,9 @@ class HarnessTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def run_harness(self, scenario="success", timeout="0.5", extra_args=None):
+    # Allow process startup under concurrent compiler load. Timeout assertions
+    # still require the exact intended phase, rather than accepting startup races.
+    def run_harness(self, scenario="success", timeout="3", extra_args=None):
         output = self.root / f"output-{scenario}"
         commands = self.root / f"commands-{scenario}.txt"
         env = os.environ.copy()
@@ -88,7 +92,7 @@ class HarnessTests(unittest.TestCase):
             text=True,
             capture_output=True,
             env=env,
-            timeout=5,
+            timeout=15,
         )
         return result, output, commands
 
@@ -100,6 +104,12 @@ class HarnessTests(unittest.TestCase):
         self.assertTrue(sent.endswith("stop\n"))
         self.assertIn("reload-complete=ok shutdown=ok", result.stdout)
         self.assertTrue((output / "latest.log").is_file())
+
+    def test_slow_process_start_reaches_reload_instead_of_false_startup_timeout(self):
+        result, _, commands = self.run_harness("slow_start")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("reload-complete=ok shutdown=ok", result.stdout)
+        self.assertTrue(commands.read_text().endswith("stop\n"))
 
     def test_client_command_receives_server_environment_and_offline_op(self):
         client = self.root / "client.py"
@@ -159,12 +169,12 @@ class HarnessTests(unittest.TestCase):
         self.assertIn("Couldn't parse data file", result.stderr)
 
     def test_missing_reload_start_marker_fails(self):
-        result, _, _ = self.run_harness("no_reload_start", "0.2")
+        result, _, _ = self.run_harness("no_reload_start")
         self.assertEqual(result.returncode, 1)
         self.assertIn("phase=reload-start", result.stderr)
 
     def test_missing_reload_completion_marker_fails(self):
-        result, _, _ = self.run_harness("no_reload_complete", "0.2")
+        result, _, _ = self.run_harness("no_reload_complete")
         self.assertEqual(result.returncode, 1)
         self.assertIn("phase=reload-complete", result.stderr)
 

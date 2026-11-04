@@ -19,7 +19,9 @@ mod tests {
     fn pack_formats_follow_the_26_plus_profile_boundary() {
         assert_eq!(pack_format_for("26.1").unwrap(), 101);
         assert_eq!(pack_format_for("26.2").unwrap(), 107);
-        assert_eq!(pack_format_for("27.0").unwrap(), 107);
+        assert_eq!(pack_format_for("26.3").unwrap(), 121);
+        assert_eq!(pack_format_for("latest").unwrap(), 121);
+        assert_eq!(pack_format_for("27.0").unwrap(), 121);
         assert!(pack_format_for("25.9").is_err());
     }
 }

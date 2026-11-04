@@ -661,16 +661,22 @@ pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct SystemTickAttr {
     every: u32,
+    before: Vec<syn::Path>,
+    after: Vec<syn::Path>,
 }
 
 fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<SystemTickAttr> {
     let tokens: proc_macro2::TokenStream = attr.into();
     if tokens.is_empty() {
         if allow_empty {
-            return Ok(SystemTickAttr { every: 1 });
+            return Ok(SystemTickAttr {
+                every: 1,
+                before: Vec::new(),
+                after: Vec::new(),
+            });
         }
         return Err(syn::Error::new(
             proc_macro2::Span::call_site(),
@@ -691,28 +697,45 @@ fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<S
                 }
             }
             let mut every = 1;
-            if !input.is_empty() {
+            let mut has_every = false;
+            let mut before = Vec::new();
+            let mut after = Vec::new();
+            while !input.is_empty() {
                 let key: syn::Ident = input.parse()?;
-                if key != "every" {
-                    return Err(syn::Error::new_spanned(
-                        key,
-                        "expected `tick` or `every = N`",
-                    ));
-                }
                 let _: syn::Token![=] = input.parse()?;
-                let value: syn::LitInt = input.parse()?;
-                every = value.base10_parse()?;
-                if every == 0 {
-                    return Err(syn::Error::new_spanned(
-                        value,
-                        "[SAND-SYSTEM-CADENCE] system tick cadence must be at least one",
-                    ));
+                match key.to_string().as_str() {
+                    "every" => {
+                        if has_every {
+                            return Err(syn::Error::new_spanned(key, "duplicate system cadence"));
+                        }
+                        has_every = true;
+                        let value: syn::LitInt = input.parse()?;
+                        every = value.base10_parse()?;
+                        if every == 0 {
+                            return Err(syn::Error::new_spanned(
+                                value,
+                                "[SAND-SYSTEM-CADENCE] system tick cadence must be at least one",
+                            ));
+                        }
+                    }
+                    "before" => before.push(input.parse()?),
+                    "after" => after.push(input.parse()?),
+                    _ => {
+                        return Err(syn::Error::new_spanned(
+                            key,
+                            "expected `every = N`, `before = system`, or `after = system`",
+                        ));
+                    }
+                }
+                if !input.is_empty() {
+                    let _: syn::Token![,] = input.parse()?;
                 }
             }
-            if !input.is_empty() {
-                return Err(input.error("unexpected system cadence arguments"));
-            }
-            Ok(Self(SystemTickAttr { every }))
+            Ok(Self(SystemTickAttr {
+                every,
+                before,
+                after,
+            }))
         }
     }
     syn::parse2::<Parsed>(tokens).map(|parsed| parsed.0)
@@ -1208,6 +1231,8 @@ fn expand_state_system_function(
     let factory = quote::format_ident!("__sand_system_{}_make", ident);
     let body = build_cmd_body(&block)?;
     let every = attr.every;
+    let before = attr.before;
+    let after = attr.after;
     let registration_attrs = conditional_attrs(&function.attrs)?;
     let factory_lint_attrs = lint_attrs(&function.attrs)?;
     Ok(quote! {
@@ -1230,7 +1255,8 @@ fn expand_state_system_function(
         #(#registration_attrs)*
         ::sand::__private::inventory::submit! {
             ::sand::__private::StateSystemDescriptor {
-                id: concat!(module_path!(), "::", stringify!(#ident)),
+                id: || ::std::any::type_name_of_val(&#ident),
+                order: || (vec![#(::std::any::type_name_of_val(&#before)),*], vec![#(::std::any::type_name_of_val(&#after)),*]),
                 every: #every,
                 make: #factory,
             }
@@ -1440,7 +1466,11 @@ fn expand_state_system_impl(
         };
         let tick_attr = method.attrs.remove(tick_index);
         let cadence = match &tick_attr.meta {
-            syn::Meta::Path(_) => SystemTickAttr { every: 1 },
+            syn::Meta::Path(_) => SystemTickAttr {
+                every: 1,
+                before: Vec::new(),
+                after: Vec::new(),
+            },
             syn::Meta::List(list) => parse_system_tick_attr(list.tokens.clone().into(), true)?,
             syn::Meta::NameValue(_) => {
                 return Err(syn::Error::new_spanned(
@@ -1463,6 +1493,28 @@ fn expand_state_system_impl(
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
         let body_trait = quote::format_ident!("__SandSystemTickBody_{}", method_ident);
         let every = cadence.every;
+        let dependency = |path: syn::Path| {
+            if path
+                .segments
+                .first()
+                .is_some_and(|segment| segment.ident == "Self")
+            {
+                let tail = path.segments.iter().skip(1).collect::<Vec<_>>();
+                quote!(<#self_ty>::#(#tail)::*)
+            } else {
+                quote!(#path)
+            }
+        };
+        let before = cadence
+            .before
+            .into_iter()
+            .map(dependency)
+            .collect::<Vec<_>>();
+        let after = cadence
+            .after
+            .into_iter()
+            .map(dependency)
+            .collect::<Vec<_>>();
         // Keep helper names local to this endpoint. Rust method names need
         // only be unique on their owning type, not across the source module.
         registrations.push(quote! {
@@ -1493,7 +1545,8 @@ fn expand_state_system_impl(
                 #(#registration_attrs)*
                 ::sand::__private::inventory::submit! {
                     ::sand::__private::StateSystemDescriptor {
-                        id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
+                        id: || ::std::any::type_name_of_val(&#self_ty::#method_ident),
+                        order: || (vec![#(::std::any::type_name_of_val(&#before)),*], vec![#(::std::any::type_name_of_val(&#after)),*]),
                         every: #every,
                         make: #factory,
                     }

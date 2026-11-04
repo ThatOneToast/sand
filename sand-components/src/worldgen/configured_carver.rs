@@ -465,6 +465,21 @@ impl DatapackComponent for ConfiguredCarver {
         }
     }
 
+    fn try_content_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> SandResult<crate::component::ComponentContent> {
+        if caps.is_some_and(|caps| caps.is_at_least(26, 3, 0)) {
+            return Err(validation::error(
+                &self.location,
+                KIND,
+                "type",
+                "26.3 replaces configured carvers and removes lava_level/replaceable semantics; target 26.2 for this builder or explicitly author worldgen/carver with RawComponent",
+            ));
+        }
+        self.try_content()
+    }
+
     fn component_dir(&self) -> &'static str {
         "worldgen/configured_carver"
     }

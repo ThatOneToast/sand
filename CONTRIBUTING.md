@@ -110,3 +110,17 @@ These gates enforce review of the existing report for examples. Performance
 lints, population/command-budget planning, complete cost-class coverage, and
 scheduled heavy-pack MSPT measurement remain separate work under #451 and its
 related issues; an unchanged baseline does not prove those acceptance criteria.
+
+## Test organization
+
+`scripts/check-python.sh` discovers all `test_*.py` modules in `scripts`, `scripts/tests`
+and `scripts/mc_validation`; local checks and Rust CI use the same entry point.
+These tests must remain disposable and must not require a live Minecraft server.
+Native scenario scripts run separately in the version-specific vanilla workflow.
+
+Keep Rust inventory-registration fixtures isolated where combining test binaries
+would merge their registered functions, State or resources. Consolidate repeated
+lookup/assertion helpers when useful, but do not merge fixtures solely to reduce
+file count. Prefer observable command/resource and runtime invariants over exact
+private helper counts. Use trybuild for compile-time contracts, not as a duplicate
+of runtime export tests. Track current gameplay work in [ROADMAP.md](ROADMAP.md).

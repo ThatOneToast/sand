@@ -308,6 +308,27 @@ pub trait DatapackComponent {
     )]
     fn component_dir(&self) -> &'static str;
 
+    /// Select the resource directory for an exact export target.
+    /// Defaults to `component_dir`; override alongside `try_content_for` when
+    /// Minecraft moves a registry. Collision checks use this resolved directory.
+    #[api(
+        registry = sand_api_contract,
+        path = "sand::registration::DatapackComponent::component_dir_for",
+        kind = "trait_method", module = "sand::registration",
+        summary = "Selects a version-aware resource directory before collision validation.",
+        context = "A resource retains its logical identity while Minecraft registry directories may change between versions. None retains the unprofiled directory.",
+        minecraft = "The returned directory is written beneath data/namespace and participates in export collision checks.",
+        use_when = ["Implementing a resource whose registry directory changes between Minecraft versions"],
+        avoid_when = ["Changing resource IDs or bypassing content validation"],
+        params(caps = "The resolved export capabilities, or None for unprofiled export."),
+        returns = "The resource directory for this target.",
+        example = "use sand::registration::DatapackComponent;",
+    )]
+    fn component_dir_for(&self, caps: Option<&VersionCaps>) -> &'static str {
+        let _ = caps;
+        self.component_dir()
+    }
+
     /// The file extension for this component (without the dot). Defaults to `"json"`.
     #[api(
         registry = sand_api_contract,

@@ -24,8 +24,9 @@ use serde_json::{Value, json};
 
 // ── Dialog callback registry ──────────────────────────────────────────────────
 
-/// The scoreboard trigger objective Sand uses for dialog callbacks.
-pub const SAND_DIALOG_TRIGGER: &str = "sand.dialog";
+/// Export-time placeholder for the pack-owned dialog callback objective.
+/// The exporter resolves it through canonical logical objective naming.
+pub const SAND_DIALOG_TRIGGER: &str = "__sand_dialog_trigger__";
 
 /// `next_id` and `callbacks` are reset together (see
 /// [`reset_dialog_callbacks_for_export`]) so a fresh export's first
@@ -625,7 +626,7 @@ impl DialogAction {
     ///
     /// **How it works:**
     /// 1. Sand assigns the callback a stable integer ID.
-    /// 2. The button action runs `/trigger sand.dialog set <id>`.
+    /// 2. The button action runs `/trigger <pack-owned-objective> set <id>`.
     /// 3. Sand generates a tick function that detects players with matching scores
     ///    and calls the target function as that player.
     /// 4. Load and tick infrastructure is generated automatically — no manual
@@ -643,8 +644,8 @@ impl DialogAction {
         module = "sand::component",
         kind = "method",
         summary = "Survival-friendly callback — runs a datapack function via a scoreboard trigger.",
-        context = "Survival-friendly callback — runs a datapack function via a scoreboard trigger. Use this instead of [`run_function`](DialogAction::run_function) for player-facing dialog buttons. `/trigger` is available to all players in survival mode without requiring operator permissions. How it works: 1. Sand assigns the callback a stable integer ID. 2. The button action runs `/trigger sand.dialog set <id>`. 3. Sand generates a tick function that detects players with matching scores and calls the target function as that player. 4. Load and tick infrastructure is generated automatically — no manual `scoreboard objectives add` or tick wiring needed.",
-        minecraft = "How it works: 1. Sand assigns the callback a stable integer ID. 2. The button action runs `/trigger sand.dialog set <id>`. 3. Sand generates a tick function that detects players with matching scores and calls the target function as that player. 4. Load and tick infrastructure is generated automatically — no manual `scoreboard objectives add` or tick wiring needed.",
+        context = "Survival-friendly callback — runs a datapack function via a scoreboard trigger. Use this instead of [`run_function`](DialogAction::run_function) for player-facing dialog buttons. `/trigger` is available to all players in survival mode without requiring operator permissions. How it works: 1. Sand assigns the callback a stable integer ID. 2. The button action runs `/trigger <pack-owned-objective> set <id>`. 3. Sand generates a tick function that detects players with matching scores and calls the target function as that player. 4. Load and tick infrastructure is generated automatically — no manual `scoreboard objectives add` or tick wiring needed.",
+        minecraft = "How it works: 1. Sand assigns the callback a stable integer ID. 2. The button action runs `/trigger <pack-owned-objective> set <id>`. 3. Sand generates a tick function that detects players with matching scores and calls the target function as that player. 4. Load and tick infrastructure is generated automatically — no manual `scoreboard objectives add` or tick wiring needed.",
         use_when = ["Use this instead of [`run_function`](DialogAction::run_function) for player-facing dialog buttons. `/trigger` is available to all players in survival mode without requiring operator permissions."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to survival-friendly callback — runs a datapack function via a scoreboard trigger."),

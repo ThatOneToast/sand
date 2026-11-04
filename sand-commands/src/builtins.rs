@@ -831,8 +831,8 @@ pub(crate) fn try_damage_selector(
     aliases = ["sand::cmd::DamageAmount", "sand::prelude::DamageAmount", "sand::prelude::cmd::DamageAmount"],
     module = "sand::command",
     summary = "A damage amount that Sand can lower to Minecraft commands.",
-    context = "A damage amount that Sand can lower to Minecraft commands. All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete hit-point value that maps directly to the vanilla `damage` command. Score-backed or per-event amounts are not yet supported; if you need them, track damage via Sand's typed damage tracker and emit the value from a scoreboard operation instead. The `Score` and `SameAsEvent` variants were removed in this release because they panicked at command-generation time and could never produce valid output. Use `DamageAmount::fixed`, `DamageAmount::hearts`, or `DamageAmount::points` instead.",
-    minecraft = "All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete hit-point value that maps directly to the vanilla `damage` command. Score-backed or per-event amounts are not yet supported; if you need them, track damage via Sand's typed damage tracker and emit the value from a scoreboard operation instead.",
+    context = "A fixed hit-point value for the low-level native damage command builder. For runtime State or numeric expressions, use LivingEntity::damage, which accepts StatCurve and these fixed amounts.",
+    minecraft = "Fixed amounts map directly to native damage commands; the entity authoring API lowers runtime expressions through checked arithmetic and function macros.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::DamageAmount;",
@@ -841,17 +841,9 @@ pub(crate) fn try_damage_selector(
 )]
 /// A damage amount that Sand can lower to Minecraft commands.
 ///
-/// All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete
-/// hit-point value that maps directly to the vanilla `damage` command. Score-backed
-/// or per-event amounts are not yet supported; if you need them, track damage via
-/// Sand's typed damage tracker and emit the value from a scoreboard
-/// operation instead.
-///
-/// # Migration note
-///
-/// The `Score` and `SameAsEvent` variants were removed in this release because they
-/// panicked at command-generation time and could never produce valid output. Use
-/// `DamageAmount::fixed`, `DamageAmount::hearts`, or `DamageAmount::points` instead.
+/// Fixed amounts map directly to the native `damage` command. Runtime values
+/// belong to the entity authoring API: `LivingEntity::damage` accepts canonical
+/// `StatCurve` expressions as well as these fixed amounts.
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum DamageAmount {

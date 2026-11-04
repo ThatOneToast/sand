@@ -149,7 +149,7 @@ pub use item::{
     AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
     ConsumableProperties, CustomData, CustomItem, DyedColor, EnchantmentEntry, EquipmentSlot,
     EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemComponent, ItemRarity,
-    ItemStackComponents, ToolProperties, ToolRule,
+    ItemStackComponents, ToolProperties, ToolRule, WrittenBook,
 };
 
 // ── Item Modifier ─────────────────────────────────────────────────────────────

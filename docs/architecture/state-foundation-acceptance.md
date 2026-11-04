@@ -40,7 +40,7 @@ project coverage (#450). `scripts/check-examples.sh` now discovers and tests eac
 example crate and builds its datapack through the CLI. The full repository check
 and Rust workflow both run it.
 
-The latest-version vanilla workflow runs
+The 26.2 lane of the vanilla workflow runs
 `scripts/mc_validation/run_unified_state_audit.py --build`. The audit reads the
 installed CLI output, follows owned numeric-write helpers, and verifies that the
 two compatible Combatants systems share one ordered scan while the Health

@@ -159,7 +159,8 @@ smoker/blast-furnace fuel scaling and does not imply productive cooking. These
 are separate live reads, not an atomic multi-field snapshot.
 
 This capability is verified against the 26.2 serialization contract. Exports
-accept 26.2, normalized 26.2.0, and `latest` only while it resolves to 26.2.
+accept 26.2 and normalized 26.2.0. The default 26.3 target (including
+`latest`) is rejected until its furnace serialization is separately verified.
 Fallback and other target versions are diagnosed, even for cached or escaped
 numeric reads. Unprofiled exports apply the same check to Sand's current baseline.
 No claim is made for unverified versions.

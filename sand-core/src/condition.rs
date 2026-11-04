@@ -170,6 +170,7 @@ pub(crate) enum ConditionKind {
     },
     /// `if predicate <namespace:path>`
     Predicate(String),
+    Function(String),
     /// `if entity <selector>`
     Entity(String),
     /// `if data <storage|entity|block> <path>` using the unified NBT model.
@@ -384,6 +385,12 @@ impl Condition {
                 objective,
                 value,
             },
+        }
+    }
+
+    pub(crate) fn function_internal(location: String) -> Self {
+        Self {
+            kind: ConditionKind::Function(location),
         }
     }
 
@@ -852,6 +859,7 @@ impl Condition {
                 range: if *value { "1" } else { "0" }.to_string(),
             }),
             ConditionKind::Predicate(loc) => clause(ConditionIr::Predicate(loc.clone())),
+            ConditionKind::Function(loc) => clause(ConditionIr::Function(loc.clone())),
             ConditionKind::Entity(sel) => clause(ConditionIr::Entity(Selector::raw(sel.clone()))),
             ConditionKind::NbtExists { target, path } => clause(ConditionIr::Data {
                 target: target.clone(),

@@ -499,7 +499,7 @@ pub struct ScopedEntityRef<K> {
 }
 
 impl<K: EntityKind> ScopedEntityRef<K> {
-    fn selector(&self) -> Selector {
+    pub(crate) fn selector(&self) -> Selector {
         Selector::all_entities().tag(&self.tag).limit(1)
     }
 

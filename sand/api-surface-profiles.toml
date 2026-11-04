@@ -20,8 +20,19 @@
 # Native biome ambient audio replaces four ignored effects setters with three types and eight methods (+7 source items).
 # Typed living damage/effect mutations add two enforced source methods.
 # Named entity equipment accessors add six enforced entity-source methods.
-# Pack-local ResourceLocation construction adds one contracted root-source method.
-# Resource/ability composition adds one module, three types and seven methods (+11).
+# Owned gameplay adds six types and 43 systems methods; canonical enum transitions
+# and squared-distance curves add two entity methods (+51 enforced source items).
+# Scenes, transforms, bounded jobs and vector expressions add 20 source items
+# (three types and seventeen methods), all covered by API contracts.
+# Owned sequences and reusable hit volumes add twelve contracted source items:
+# two types, nine methods, and one TargetExecution method.
+# Parent-owned tasks, joins, condition waits and bounded first-hit queries add
+# six contracted methods (including one TargetExecution trait method).
+# Combat and Encounter add two types and fifteen systems methods; scoped native
+# damage attribution adds one entity method (+18 enforced source items).
+# Menus, owned interactables, purchases and typed books add 25 contracted source items.
+# Pack-local resources and synchronous ability policies add 12 source items.
+# Pagination and object-bound menu registration add two systems methods.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -30,12 +41,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5071
+static_surface_items = 5206
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11171
+static_surface_items = 11306
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
+
+# Verified 26.3 command/registry report: +22 command and +237 registry items.
+[[profile]]
+minecraft_version = "26.3"
+static_surface_items = 11565
+pending_item_ceiling = 0
+baseline = "api-surface-baseline-26.3.txt"

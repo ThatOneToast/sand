@@ -79,7 +79,7 @@ pub use property::{
     RawEntityStateField, RawPropertyAccess, RawStateBackend, RefreshPolicy, TagBinding,
     TeamBinding,
 };
-pub use query::{StateQueryOperations, TargetExecution};
+pub use query::{HitVolume, StateQueryOperations, TargetExecution};
 pub use relation::{Relation, RelationTraversal};
 pub use state::{
     Cooldown, Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor,

@@ -93,7 +93,10 @@ short speed and slow-falling buffs. Query and `EntityScope::bind` handles also
 retain their targets through these operations. Mutations do not implicitly
 change the executor, position, dimension, rotation, or anchor.
 
-Damage amounts use `DamageAmount` (or a convertible fixed number), and effects
+Damage amounts accept `DamageAmount`, fixed numbers, bound numeric State values,
+and `StatCurve` expressions. Dynamic values use checked arithmetic with
+thousandth-hit-point precision; missing inputs or negative results do no damage.
+`damage_by` attributes a hit to a source bound by `EntityScope::bind`. Effects
 use canonical effect IDs and durations. Durations must be positive whole seconds;
 `Ticks` inputs must be exactly divisible by 20. Invalid amounts, durations, or
 selectors are reported by fallible pack export with the owning function. This
@@ -108,7 +111,8 @@ payloads. Minecraft damage immunity, armor and other native rules still apply.
 Native health reads remain `EntityData`; arithmetic uses `StatCurve`/`ScoreExpr`.
 Generic entities and known nonliving kinds cannot obtain living capabilities.
 
-This is partial coverage of #383/#381: fixed native damage and effect mutations
-compose with existing reads and Conditions. General health writes, dynamic
-damage/duration expressions, movement and exact damage observation are outside
-this slice; both issues remain open.
+Native damage, including runtime amounts, and effect mutations compose with
+existing reads and Conditions. General native health writes, dynamic effect
+durations, movement and exact native damage observation remain outside this
+slice. For shields, critical hits and healing over canonical custom State health,
+see [Combat and encounters](23h-combat-and-encounters.md).

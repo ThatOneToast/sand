@@ -50,7 +50,7 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    `cargo check` and `cargo build`, regardless of the build's selected facade
    features. It consumes generated command/registry artifacts, discovers
    checked-in macro families, resolves contracts from the mapped source
-   crates, partitions all 11,014 static identities in the latest profile, and byte-compares the
+   crates, partitions all static identities in the selected version profile, and byte-compares the
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 
@@ -115,12 +115,11 @@ The executable `reachable-enforced-missing` fixture exercises the same
 provider-backed comparison for migrated boundaries: an undocumented predicate
 method, public field, enum variant, execute-branch builder method, or condition
 method causes an ordinary `cargo check` to fail. The normal Sand build enforces
-the 119-item `predicate-source` scope, the four-item generated `PredicateId`
-partition, the 22-item `execute-when-source` scope, the 12-item opaque
-`condition-source` scope, the one-item `resource-ref-source` module, and the
-22-item generated resource-ID partition. It also enforces the selected
-Minecraft profile's complete vanilla-registry provider (4,867 identities for
-26.2 and 4,288 for 26.1). The generator emits each registry contract from the
+canonical predicate, condition, execute-branch, resource-reference and generated
+resource-ID scopes. It also enforces the selected Minecraft profile's complete
+vanilla-registry provider. Exact counts and supported generated profiles live in
+`sand/api-surface-profiles.toml` and its referenced baselines rather than this
+narrative documentation. The generator emits each registry contract from the
 same versioned entry that emits its enum variant, and the facade build requires
 exact identity/kind parity with the generated Rust. A dedicated normal-build
 fixture proves that an unreported generated variant stops `cargo check`.

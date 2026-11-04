@@ -1,0 +1,4561 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.3",
+  "namespace": "interaction_hub",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "interaction_hub:__sand_lifecycle_init": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub:quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[scores={sbb09b9f6705cb36=1,sb55bf1648a286fb=-2147483648..,s08b357d587efaee=-2147483648..,s329d6982e1dbc30=-2147483648..,s5444f44fe70b1f0=-2147483648..}]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 50,
+          "minimum": 50,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::journal",
+          "interaction_hub::key",
+          "interaction_hub::reward",
+          "interaction_hub::shop",
+          "interaction_hub::shop_menu",
+          "interaction_hub:quest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 23,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/validate with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/validate with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop",
+          "interaction_hub::shop_menu",
+          "interaction_hub:quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          }
+        ]
+      },
+      "interaction_hub:__sand_score_init": {
+        "evaluations": {
+          "maximum": 23,
+          "minimum": 23,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::journal",
+          "interaction_hub::key",
+          "interaction_hub::reward",
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/chest/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/admit_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/admit_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/after_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_scan with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resume_step with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/ancestor_next": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/ancestor_present with storage interaction_hub:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: interaction_hub:__sand_system/lifetime/chest/ancestor_next"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/ancestor_present": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/ancestor_present"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/ancestors_valid": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/ancestor_present with storage interaction_hub:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: interaction_hub:__sand_system/lifetime/chest/ancestor_next"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/cancel_owner with storage interaction_hub:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/cancel_descendants": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/cancel_descendants"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/cancel_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/cancel_owner"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/child_added": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/child_added"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/child_removed": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/child_removed"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/children_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/children_check"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/children_done": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/children_check with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/cleanup": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:sand/runtime/owned_context/76fc4240 with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/diagnose": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/finish_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/init"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/init_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/init_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_attack": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/interaction_attack"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_attack_body": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_configure": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/interaction_configure"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_destroy": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_spawn with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_menu": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_menu_capture": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_menu with storage interaction_hub:chest menu_event"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_observe": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_attack with entity @s attack",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_use with entity @s interaction"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_remove": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/interaction_remove"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_scan": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/interaction_scan"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_spawn": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/interaction_spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_scan with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_use": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/interaction_use"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/interaction_use_body": {
+        "evaluations": {
+          "maximum": 31,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/load": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/owner_valid": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/resolve_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/resolve_cleanup"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/resolve_stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/resolve_stop"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/resume_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/resume_step"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/resume_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/resume_tick"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/retire": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/retire"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/chest/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/start_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/start_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/started": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_spawn with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/validate with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/stop_descendant": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/stop_descendant"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/stop_instance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/cancel_descendants with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_remove with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_cleanup with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/retire with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=sand.task.696e746572616374696f6e5f6875623a6368657374.stopping]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/stopped": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/interaction_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/validate with entity @s data",
+            "unknown selector multiplicity: execute in minecraft:overworld as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/chest/step",
+            "unknown selector multiplicity: execute in minecraft:the_end as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/chest/step",
+            "unknown selector multiplicity: execute in minecraft:the_nether as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/chest/step"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374,distance=0..]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374,distance=0..]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a6368657374,distance=0..]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/chest/ticked": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/chest/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/chest/validate"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/gate/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/admit_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/admit_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/after_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_scan with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resume_step with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/ancestor_next": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/ancestor_present with storage interaction_hub:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: interaction_hub:__sand_system/lifetime/gate/ancestor_next"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/ancestor_present": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/ancestor_present"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/ancestors_valid": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/ancestor_present with storage interaction_hub:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: interaction_hub:__sand_system/lifetime/gate/ancestor_next"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/cancel_owner with storage interaction_hub:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/cancel_descendants": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/cancel_descendants"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/cancel_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/cancel_owner"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/child_added": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/child_added"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/child_removed": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/child_removed"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/children_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/children_check"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/children_done": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/children_check with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/cleanup": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:sand/runtime/owned_context/76fc4240 with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/diagnose": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/finish_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/init"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/init_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/init_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_attack": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/interaction_attack"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_attack_body": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_configure": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/interaction_configure"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_destroy": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_spawn with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_menu": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_menu_capture": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_menu with storage interaction_hub:gate menu_event"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_observe": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_attack with entity @s attack",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_use with entity @s interaction"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_remove": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/interaction_remove"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_scan": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/interaction_scan"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_spawn": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/interaction_spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_scan with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_use": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/interaction_use"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/interaction_use_body": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/load": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/owner_valid": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/resolve_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/resolve_cleanup"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/resolve_stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/resolve_stop"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/resume_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/resume_step"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/resume_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/resume_tick"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/retire": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/retire"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/gate/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/start_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/start_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/started": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_spawn with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/validate with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/stop_descendant": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/stop_descendant"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/stop_instance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/cancel_descendants with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_remove with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_cleanup with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/retire with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=sand.task.696e746572616374696f6e5f6875623a67617465.stopping]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/stopped": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/interaction_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/validate with entity @s data",
+            "unknown selector multiplicity: execute in minecraft:overworld as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/gate/step",
+            "unknown selector multiplicity: execute in minecraft:the_end as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/gate/step",
+            "unknown selector multiplicity: execute in minecraft:the_nether as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/gate/step"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465,distance=0..]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465,distance=0..]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a67617465,distance=0..]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/gate/ticked": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/gate/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/gate/validate"
+          ]
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_buy": {
+        "evaluations": {
+          "maximum": 16,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_load": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_place": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_rejected": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_success": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/key/purchase_buy": {
+        "evaluations": {
+          "maximum": 50,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 11,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/key/purchase_load": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/key/purchase_place": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/key/purchase_rejected": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/key/purchase_success": {
+        "evaluations": {
+          "maximum": 19,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_buy": {
+        "evaluations": {
+          "maximum": 29,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_load": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_place": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_rejected": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_success": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/shop/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/admit_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/admit_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/after_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_scan with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resume_step with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/ancestor_next": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/ancestor_present with storage interaction_hub:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: interaction_hub:__sand_system/lifetime/shop/ancestor_next"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/ancestor_present": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/ancestor_present"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/ancestors_valid": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/ancestor_present with storage interaction_hub:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: interaction_hub:__sand_system/lifetime/shop/ancestor_next"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/cancel_owner with storage interaction_hub:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/cancel_descendants": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/cancel_descendants"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/cancel_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/cancel_owner"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/child_added": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/child_added"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/child_removed": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/child_removed"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/children_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/children_check"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/children_done": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/children_check with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/cleanup": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:sand/runtime/owned_context/76fc4240 with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/diagnose": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/finish_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/init"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/init_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/init_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_attack": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/interaction_attack"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_attack_body": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_configure": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/interaction_configure"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_destroy": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_spawn with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_menu": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_menu_capture": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_menu with storage interaction_hub:shop menu_event"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_observe": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_attack with entity @s attack",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_use with entity @s interaction"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_remove": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/interaction_remove"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_scan": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/interaction_scan"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_spawn": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/interaction_spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_scan with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_use": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/interaction_use"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/interaction_use_body": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu",
+            "unknown selector multiplicity: execute at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run return run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/load": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/owner_valid": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/resolve_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/resolve_cleanup"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/resolve_stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/resolve_stop"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/resume_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/resume_step"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/resume_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/resume_tick"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/retire": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/retire"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/shop/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/start_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/start_child"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/started": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_spawn with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/validate with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/stop_descendant": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/stop_descendant"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/stop_instance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/cancel_descendants with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_remove with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resolve_cleanup with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/retire with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=sand.task.696e746572616374696f6e5f6875623a73686f70.stopping]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/stopped": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/interaction_remove with entity @s data"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/validate with entity @s data",
+            "unknown selector multiplicity: execute in minecraft:overworld as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/shop/step",
+            "unknown selector multiplicity: execute in minecraft:the_end as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/shop/step",
+            "unknown selector multiplicity: execute in minecraft:the_nether as @e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70,distance=0..] at @s run function interaction_hub:__sand_system/lifetime/shop/step"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70,distance=0..]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70,distance=0..]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.696e746572616374696f6e5f6875623a73686f70,distance=0..]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop/ticked": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop/validate"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_0": {
+        "evaluations": {
+          "maximum": 76,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_1": {
+        "evaluations": {
+          "maximum": 30,
+          "minimum": 15,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu",
+            "unknown selector multiplicity: execute at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run return run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 12,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_0": {
+        "evaluations": {
+          "maximum": 52,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_1": {
+        "evaluations": {
+          "maximum": 18,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_clear": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_close": {
+        "evaluations": {
+          "maximum": 11,
+          "minimum": 11,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "unknown selector multiplicity: execute at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run return run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_0": {
+        "evaluations": {
+          "maximum": 13,
+          "minimum": 13,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_1": {
+        "evaluations": {
+          "maximum": 13,
+          "minimum": 13,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_load": {
+        "evaluations": {
+          "maximum": 18,
+          "minimum": 18,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_next": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_open": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu",
+            "unknown selector multiplicity: execute at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run return run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_open_bound": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_page_0": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 8,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_previous": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "unknown selector multiplicity: execute as @a[scores={s0588e0dcea8544f=0}] run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close",
+            "unknown selector multiplicity: execute as @a[scores={s0588e0dcea8544f=1..}] at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close",
+            "unknown selector multiplicity: execute as @a[scores={s0588e0dcea8544f=1..}] at @s unless score @s sfc15f034c0d3f76 matches 0 run function interaction_hub:__sand_system/lifetime/shop_menu/menu_dispatch",
+            "unknown selector multiplicity: execute as @a[scores={s0588e0dcea8544f=1..}] unless score @s s19e3a446073e284 = @s s4b7988562575e82 run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close",
+            "unknown selector multiplicity: execute as @a[scores={s0588e0dcea8544f=1..}] unless score @s s84869d712904db9 = @s sf8b8156a7426c52 run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close",
+            "unknown selector multiplicity: execute at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run return run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a[scores={s0588e0dcea8544f=1..}]"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a[scores={s0588e0dcea8544f=1..}]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@a[scores={s0588e0dcea8544f=1..}]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@a[scores={s0588e0dcea8544f=1..}]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "as",
+            "selector": "@a[scores={s0588e0dcea8544f=0}]"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_valid": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_valid_object": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 18,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/cancel_owner with storage interaction_hub:__sand_runtime cancel",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/cancel_owner with storage interaction_hub:__sand_runtime cancel",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/cancel_owner with storage interaction_hub:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "interaction_hub::cleanup"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/026d20dd": {
+        "evaluations": {
+          "maximum": 51,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/16807ef4": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/36a19e60": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/57f4ac7e": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:function/6d539725": {
+        "evaluations": {
+          "maximum": 30,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:function/7c99d421": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key",
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/9d07d926": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu",
+            "unknown selector multiplicity: execute at @s unless function interaction_hub:__sand_system/lifetime/shop_menu/menu_valid run return run function interaction_hub:__sand_system/lifetime/shop_menu/menu_close"
+          ]
+        },
+        "owners": [
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/bb0affa0": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/c785bf9d": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:place_chest": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/chest/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::place_chest"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:place_gate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/gate/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::place_gate"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:place_shop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop/init with storage interaction_hub:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function interaction_hub:__sand_system/lifetime/shop/init with storage interaction_hub:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "interaction_hub::place_shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:sand/branches/7c971190": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::gate"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2c2fc8b0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4caaa757": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/82c4be66": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/runtime/owned_body/63fb2bbf": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:sand/runtime/owned_context/76fc4240": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: interaction_hub:sand/runtime/owned_context/76fc4240"
+          ]
+        },
+        "owners": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:sand/state_init/fb307d43": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub:quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::journal",
+          "interaction_hub::key",
+          "interaction_hub::reward",
+          "interaction_hub::shop"
+        ],
+        "evaluations": {
+          "maximum": 23,
+          "minimum": 23,
+          "unknown": []
+        },
+        "reference": "interaction_hub:__sand_score_init",
+        "required": true
+      },
+      {
+        "contributors": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::journal",
+          "interaction_hub::key",
+          "interaction_hub::reward",
+          "interaction_hub::shop",
+          "interaction_hub::shop_menu",
+          "interaction_hub:quest"
+        ],
+        "evaluations": {
+          "maximum": 50,
+          "minimum": 50,
+          "unknown": []
+        },
+        "reference": "interaction_hub:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "interaction_hub:__sand_lifecycle_init": [
+          "interaction_hub:quest"
+        ],
+        "interaction_hub:__sand_lifecycle_load": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::journal",
+          "interaction_hub::key",
+          "interaction_hub::reward",
+          "interaction_hub::shop",
+          "interaction_hub::shop_menu",
+          "interaction_hub:quest"
+        ],
+        "interaction_hub:__sand_lifecycle_tick": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop",
+          "interaction_hub::shop_menu",
+          "interaction_hub:quest"
+        ],
+        "interaction_hub:__sand_score_init": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::journal",
+          "interaction_hub::key",
+          "interaction_hub::reward",
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/admit": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/admit_child": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/after_tick": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/ancestor_next": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/ancestor_present": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/ancestors_valid": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/cancel": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/cancel_descendants": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/cancel_owner": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/child_added": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/child_removed": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/children_check": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/children_done": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/cleanup": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/commit": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/diagnose": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/finish_step": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/init": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/init_child": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_attack": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_attack_body": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_cleanup": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_configure": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_destroy": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_init": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_menu": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_menu_capture": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_observe": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_remove": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_scan": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_spawn": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_step": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_use": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/interaction_use_body": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/load": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/owner_valid": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/resolve_cleanup": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/resolve_stop": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/resume_step": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/resume_tick": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/retire": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/start": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/start_child": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/started": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/step": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/stop": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/stop_descendant": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/stop_instance": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/stopped": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/tick": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/ticked": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/chest/validate": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/admit": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/admit_child": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/after_tick": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/ancestor_next": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/ancestor_present": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/ancestors_valid": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/cancel": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/cancel_descendants": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/cancel_owner": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/child_added": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/child_removed": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/children_check": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/children_done": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/cleanup": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/commit": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/diagnose": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/finish_step": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/init": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/init_child": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_attack": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_attack_body": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_cleanup": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_configure": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_destroy": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_init": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_menu": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_menu_capture": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_observe": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_remove": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_scan": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_spawn": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_step": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_use": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/interaction_use_body": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/load": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/owner_valid": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/resolve_cleanup": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/resolve_stop": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/resume_step": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/resume_tick": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/retire": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/start": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/start_child": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/started": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/step": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/stop": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/stop_descendant": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/stop_instance": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/stopped": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/tick": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/ticked": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/gate/validate": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_buy": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_load": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_place": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_rejected": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_success": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_buy": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_load": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_place": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_rejected": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_success": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_buy": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_load": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_place": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_rejected": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_success": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/admit": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/admit_child": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/after_tick": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/ancestor_next": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/ancestor_present": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/ancestors_valid": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/cancel": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/cancel_descendants": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/cancel_owner": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/child_added": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/child_removed": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/children_check": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/children_done": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/cleanup": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/commit": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/diagnose": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/finish_step": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/init": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/init_child": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_attack": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_attack_body": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_cleanup": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_configure": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_destroy": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_init": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_menu": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_menu_capture": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_observe": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_remove": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_scan": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_spawn": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_step": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_use": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/interaction_use_body": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/load": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/owner_valid": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/resolve_cleanup": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/resolve_stop": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/resume_step": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/resume_tick": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/retire": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/start": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/start_child": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/started": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/step": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/stop": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/stop_descendant": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/stop_instance": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/stopped": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/tick": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/ticked": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop/validate": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_0": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_1": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_admit": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_0": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_1": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_clear": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_close": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_dispatch": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_0": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_1": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_load": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_next": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_open": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_open_bound": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_page_0": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_previous": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_tick": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_valid": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_valid_object": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:cleanup": [
+          "interaction_hub::cleanup"
+        ],
+        "interaction_hub:function/026d20dd": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:function/16807ef4": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:function/36a19e60": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:function/57f4ac7e": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:function/6d539725": [
+          "interaction_hub::chest"
+        ],
+        "interaction_hub:function/7c99d421": [
+          "interaction_hub::key",
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:function/9d07d926": [
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:function/bb0affa0": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:function/c785bf9d": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:place_chest": [
+          "interaction_hub::place_chest"
+        ],
+        "interaction_hub:place_gate": [
+          "interaction_hub::place_gate"
+        ],
+        "interaction_hub:place_shop": [
+          "interaction_hub::place_shop"
+        ],
+        "interaction_hub:sand/branches/7c971190": [
+          "interaction_hub::gate"
+        ],
+        "interaction_hub:sand/conditions/items/2c2fc8b0": [
+          "interaction_hub::key"
+        ],
+        "interaction_hub:sand/conditions/items/4caaa757": [
+          "interaction_hub::journal"
+        ],
+        "interaction_hub:sand/conditions/items/82c4be66": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:sand/runtime/owned_body/63fb2bbf": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:sand/runtime/owned_context/76fc4240": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop"
+        ],
+        "interaction_hub:sand/state_init/fb307d43": [
+          "interaction_hub:quest"
+        ]
+      },
+      "lifecycle_owners": {
+        "interaction_hub:__sand_lifecycle_load": [
+          {
+            "first_line": 10,
+            "line_count": 1,
+            "owner": "interaction_hub::journal"
+          },
+          {
+            "first_line": 11,
+            "line_count": 1,
+            "owner": "interaction_hub::key"
+          },
+          {
+            "first_line": 12,
+            "line_count": 1,
+            "owner": "interaction_hub::reward"
+          },
+          {
+            "first_line": 13,
+            "line_count": 1,
+            "owner": "interaction_hub::shop"
+          },
+          {
+            "first_line": 14,
+            "line_count": 1,
+            "owner": "interaction_hub::shop_menu"
+          },
+          {
+            "first_line": 8,
+            "line_count": 1,
+            "owner": "interaction_hub::chest"
+          },
+          {
+            "first_line": 9,
+            "line_count": 1,
+            "owner": "interaction_hub::gate"
+          }
+        ],
+        "interaction_hub:__sand_lifecycle_tick": [
+          {
+            "first_line": 2,
+            "line_count": 1,
+            "owner": "interaction_hub::chest"
+          },
+          {
+            "first_line": 3,
+            "line_count": 1,
+            "owner": "interaction_hub::gate"
+          },
+          {
+            "first_line": 4,
+            "line_count": 1,
+            "owner": "interaction_hub::shop"
+          },
+          {
+            "first_line": 5,
+            "line_count": 1,
+            "owner": "interaction_hub::shop_menu"
+          }
+        ]
+      },
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "interaction_hub:__sand_lifecycle_load",
+          "owners": [
+            "interaction_hub::chest",
+            "interaction_hub::gate",
+            "interaction_hub::journal",
+            "interaction_hub::key",
+            "interaction_hub::reward",
+            "interaction_hub::shop",
+            "interaction_hub::shop_menu",
+            "interaction_hub:quest"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "interaction_hub:__sand_lifecycle_tick",
+          "owners": [
+            "interaction_hub::chest",
+            "interaction_hub::gate",
+            "interaction_hub::shop",
+            "interaction_hub::shop_menu",
+            "interaction_hub:quest"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "interaction_hub:__sand_score_init",
+          "owners": [
+            "interaction_hub::chest",
+            "interaction_hub::gate",
+            "interaction_hub::journal",
+            "interaction_hub::key",
+            "interaction_hub::reward",
+            "interaction_hub::shop"
+          ],
+          "tag": "minecraft:load"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "interaction_hub::chest",
+          "interaction_hub::gate",
+          "interaction_hub::shop",
+          "interaction_hub::shop_menu",
+          "interaction_hub:quest"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 23,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/validate with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/resume_tick with entity @s data",
+            "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/validate with entity @s data"
+          ]
+        },
+        "reference": "interaction_hub:__sand_lifecycle_tick",
+        "required": true
+      }
+    ]
+  }
+}

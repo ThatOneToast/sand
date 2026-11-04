@@ -43,10 +43,57 @@
           }
         ]
       },
+      "trail:__sand_dialog_action/1": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
+            "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start"
+          ]
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "trail:__sand_dialog_action/2": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 6,
+          "unknown": [
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "owners": [],
+        "selector_sites": []
+      },
+      "trail:__sand_dialog_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
+            "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start",
+            "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
+          ]
+        },
+        "owners": [],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
       "trail:__sand_dialog_init": {
         "evaluations": {
-          "maximum": 2,
-          "minimum": 2,
+          "maximum": 3,
+          "minimum": 3,
           "unknown": []
         },
         "owners": [
@@ -57,11 +104,10 @@
       "trail:__sand_dialog_tick": {
         "evaluations": {
           "maximum": null,
-          "minimum": 7,
+          "minimum": 2,
           "unknown": [
             "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
-            "unknown selector multiplicity: execute as @a[scores={sand.dialog=1}] at @s run function trail:grapple",
-            "unknown selector multiplicity: execute as @a[scores={sand.dialog=2}] at @s run function trail:claim_striders",
+            "unknown selector multiplicity: execute as @a unless score @s s2b844bdf530a051 matches 0 at @s run function trail:__sand_dialog_dispatch",
             "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start",
             "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
           ]
@@ -71,22 +117,17 @@
         ],
         "selector_sites": [
           {
-            "line": 2,
+            "line": 1,
             "operation": "as",
-            "selector": "@a[scores={sand.dialog=1}]"
+            "selector": "@a"
           },
           {
-            "line": 2,
-            "operation": "at",
+            "line": 1,
+            "operation": "unless",
             "selector": "@s"
           },
           {
-            "line": 5,
-            "operation": "as",
-            "selector": "@a[scores={sand.dialog=2}]"
-          },
-          {
-            "line": 5,
+            "line": 1,
             "operation": "at",
             "selector": "@s"
           }
@@ -1356,8 +1397,8 @@
           "book_project::trailhead_dialog"
         ],
         "evaluations": {
-          "maximum": 2,
-          "minimum": 2,
+          "maximum": 3,
+          "minimum": 3,
           "unknown": []
         },
         "reference": "trail:__sand_dialog_init",
@@ -1738,11 +1779,10 @@
         ],
         "evaluations": {
           "maximum": null,
-          "minimum": 7,
+          "minimum": 2,
           "unknown": [
             "recursive or excessively deep call graph: trail:__sand_system/raycast/grapple/advance",
-            "unknown selector multiplicity: execute as @a[scores={sand.dialog=1}] at @s run function trail:grapple",
-            "unknown selector multiplicity: execute as @a[scores={sand.dialog=2}] at @s run function trail:claim_striders",
+            "unknown selector multiplicity: execute as @a unless score @s s2b844bdf530a051 matches 0 at @s run function trail:__sand_dialog_dispatch",
             "unknown selector multiplicity: execute as @s at @s run function trail:__sand_system/raycast/grapple/start",
             "unknown selector multiplicity: execute as @s run function trail:sand/conditions/numeric/f1270ba9/left/inventory_0"
           ]

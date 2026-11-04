@@ -45,10 +45,9 @@ python3 scripts/validate_ability_composition.py --pack examples/aether_tools/dis
   --jar "$SERVER_JAR" --java "$JAVA_25" --source-root "$PWD" --output /tmp/aether-ability
 ```
 
-Use the actual pack path from the build result if configured differently. During
-team validation, wrap each expensive build/server/check command with
-`python3 /tmp/sand-milestone-validated-run.py` and set `CARGO_INCREMENTAL=0` for Cargo.
-The wrapper is a session-local coordination aid, not a repository dependency.
+Use the actual pack path from the build result if configured differently. The
+26.2 vanilla workflow builds Aether and runs this harness with the checkout as
+`--source-root`; no session-local wrapper is required.
 
 The Aether harness reuses the maintained player connection, completed tick stepping
 and actual load-tag observation machinery. It checks exact-cost activation,

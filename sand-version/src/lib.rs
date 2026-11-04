@@ -15,7 +15,7 @@
 /// metadata (`pack.mcmeta`) and version-sensitive feature flags. It is *not*
 /// necessarily the same version used to run `sand-build` codegen for local
 /// `sand-core` builds/tests — see [`DEFAULT_CODEGEN_VERSION`].
-pub const LATEST_KNOWN: &str = "26.2";
+pub const LATEST_KNOWN: &str = "26.3";
 
 /// Java runtime required by the verified vanilla-server validation target.
 pub const CI_LATEST_JAVA_VERSION: &str = "25";
@@ -580,7 +580,7 @@ mod tests {
 
     #[test]
     fn version_anchors_are_exact() {
-        assert_eq!(LATEST_KNOWN, "26.2");
+        assert_eq!(LATEST_KNOWN, "26.3");
         assert_eq!(DEFAULT_CODEGEN_VERSION, LATEST_KNOWN);
         assert_eq!(CI_LATEST_JAVA_VERSION, "25");
     }

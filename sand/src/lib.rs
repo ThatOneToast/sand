@@ -287,7 +287,7 @@ pub mod entity {
         EntityTimerAccessor, EntityTransform, EntityTransition, EntityTransitionField,
         EnumEncoding, EquipmentBinding, EquipmentEntityKind, FixedPoint, FixedScore,
         FixedScoreAccessor, FixedScoreValue, FixedValue, Flag, GlobalStateBundleOperations,
-        HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntity,
+        HealthBinding, HealthResizePolicy, HitVolume, KeyedData, KnownEntityKind, LivingEntity,
         LivingEntityKind, MarkerKind, Migration, MountVehicleKind, MutableLivingEntityKind,
         NameBinding, NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy,
         OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty, RawEntityStateField,
@@ -364,7 +364,7 @@ pub mod component {
         NoiseSettingsRef, OreConfig, OreTarget, PlacedFeature, PlacementModifier, PotionContents,
         RawComponent, RawJson, RawSnbt, Result, RuleTest, SandError, SoundEventDefinition,
         SpawnCondition, SpawnCost, StatusEffectInstance, StructureTemplate, SuspiciousStewEffect,
-        TagEntry, TagRegistry, TemperatureModifier, TypedTag, VanillaNoiseSettings,
+        TagEntry, TagRegistry, TemperatureModifier, TypedTag, VanillaNoiseSettings, WrittenBook,
     };
     pub use sand_core::components::*;
 }
@@ -723,6 +723,10 @@ mod ability_composition;
     example = "use sand::systems::raycast::BlockRaycast;"
 )]
 pub mod systems {
+    pub use sand_core::{
+        Ability, Combat, Encounter, GameplayTest, Interactable, Job, Lifetime, Menu, Projectile,
+        Purchase, Scene, Sequence, StatusEffect, TaskContext, Transform,
+    };
     /// Consumer-owned resources, shared maintenance, and accepted-target abilities.
     #[sand_macros::api(path = "sand::systems::ability", module = "sand::systems",
         summary = "Composes resource-backed abilities using consumer State and Conditions.",

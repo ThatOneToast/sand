@@ -24,15 +24,17 @@
       },
       "interaction_hub:__sand_lifecycle_load": {
         "evaluations": {
-          "maximum": 50,
-          "minimum": 50,
+          "maximum": 61,
+          "minimum": 61,
           "unknown": []
         },
         "owners": [
+          "interaction_hub::barter",
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::journal",
           "interaction_hub::key",
+          "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
           "interaction_hub::shop",
           "interaction_hub::shop_menu",
@@ -71,17 +73,96 @@
       },
       "interaction_hub:__sand_score_init": {
         "evaluations": {
-          "maximum": 23,
-          "minimum": 23,
+          "maximum": 25,
+          "minimum": 25,
           "unknown": []
         },
         "owners": [
+          "interaction_hub::barter",
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::journal",
           "interaction_hub::key",
+          "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
           "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_buy": {
+        "evaluations": {
+          "maximum": 53,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 11,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_load": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_payment_changed": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_place": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_rejected": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_success": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
         ],
         "selector_sites": []
       },
@@ -644,7 +725,7 @@
       },
       "interaction_hub:__sand_system/lifetime/chest/interaction_use_body": {
         "evaluations": {
-          "maximum": 31,
+          "maximum": 36,
           "minimum": 2,
           "unknown": []
         },
@@ -1861,7 +1942,7 @@
       },
       "interaction_hub:__sand_system/lifetime/journal/purchase_buy": {
         "evaluations": {
-          "maximum": 16,
+          "maximum": 19,
           "minimum": 1,
           "unknown": []
         },
@@ -1878,8 +1959,19 @@
       },
       "interaction_hub:__sand_system/lifetime/journal/purchase_load": {
         "evaluations": {
-          "maximum": 1,
-          "minimum": 1,
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_payment_changed": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
           "unknown": []
         },
         "owners": [
@@ -1900,8 +1992,8 @@
       },
       "interaction_hub:__sand_system/lifetime/journal/purchase_rejected": {
         "evaluations": {
-          "maximum": 3,
-          "minimum": 3,
+          "maximum": 4,
+          "minimum": 4,
           "unknown": []
         },
         "owners": [
@@ -1911,8 +2003,8 @@
       },
       "interaction_hub:__sand_system/lifetime/journal/purchase_success": {
         "evaluations": {
-          "maximum": 1,
-          "minimum": 1,
+          "maximum": 2,
+          "minimum": 2,
           "unknown": []
         },
         "owners": [
@@ -1922,7 +2014,7 @@
       },
       "interaction_hub:__sand_system/lifetime/key/purchase_buy": {
         "evaluations": {
-          "maximum": 50,
+          "maximum": 59,
           "minimum": 1,
           "unknown": []
         },
@@ -1964,8 +2056,19 @@
       },
       "interaction_hub:__sand_system/lifetime/key/purchase_load": {
         "evaluations": {
-          "maximum": 1,
-          "minimum": 1,
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/key/purchase_payment_changed": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
           "unknown": []
         },
         "owners": [
@@ -1986,8 +2089,8 @@
       },
       "interaction_hub:__sand_system/lifetime/key/purchase_rejected": {
         "evaluations": {
-          "maximum": 3,
-          "minimum": 3,
+          "maximum": 4,
+          "minimum": 4,
           "unknown": []
         },
         "owners": [
@@ -1997,8 +2100,8 @@
       },
       "interaction_hub:__sand_system/lifetime/key/purchase_success": {
         "evaluations": {
-          "maximum": 19,
-          "minimum": 4,
+          "maximum": 23,
+          "minimum": 5,
           "unknown": []
         },
         "owners": [
@@ -2006,9 +2109,119 @@
         ],
         "selector_sites": []
       },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_compensate": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_copy": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_empty": {
+        "evaluations": {
+          "maximum": 35,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_finish": {
+        "evaluations": {
+          "maximum": 25,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_load": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_merge": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_move": {
+        "evaluations": {
+          "maximum": 121,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_rejected": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_success": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:__sand_system/lifetime/reward/purchase_buy": {
         "evaluations": {
-          "maximum": 29,
+          "maximum": 34,
           "minimum": 1,
           "unknown": []
         },
@@ -2045,8 +2258,19 @@
       },
       "interaction_hub:__sand_system/lifetime/reward/purchase_load": {
         "evaluations": {
-          "maximum": 1,
-          "minimum": 1,
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_payment_changed": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
           "unknown": []
         },
         "owners": [
@@ -2067,8 +2291,8 @@
       },
       "interaction_hub:__sand_system/lifetime/reward/purchase_rejected": {
         "evaluations": {
-          "maximum": 3,
-          "minimum": 3,
+          "maximum": 4,
+          "minimum": 4,
           "unknown": []
         },
         "owners": [
@@ -2078,8 +2302,8 @@
       },
       "interaction_hub:__sand_system/lifetime/reward/purchase_success": {
         "evaluations": {
-          "maximum": 3,
-          "minimum": 3,
+          "maximum": 4,
+          "minimum": 4,
           "unknown": []
         },
         "owners": [
@@ -2979,7 +3203,29 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_0": {
         "evaluations": {
-          "maximum": 76,
+          "maximum": 69,
+          "minimum": 17,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_1": {
+        "evaluations": {
+          "maximum": 137,
+          "minimum": 17,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_2": {
+        "evaluations": {
+          "maximum": 89,
           "minimum": 1,
           "unknown": []
         },
@@ -2994,10 +3240,10 @@
           }
         ]
       },
-      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_1": {
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_3": {
         "evaluations": {
-          "maximum": 30,
-          "minimum": 15,
+          "maximum": 35,
+          "minimum": 17,
           "unknown": []
         },
         "owners": [
@@ -3037,7 +3283,7 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_0": {
         "evaluations": {
-          "maximum": 52,
+          "maximum": 55,
           "minimum": 3,
           "unknown": []
         },
@@ -3048,7 +3294,29 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_1": {
         "evaluations": {
-          "maximum": 18,
+          "maximum": 123,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_2": {
+        "evaluations": {
+          "maximum": 61,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_3": {
+        "evaluations": {
+          "maximum": 21,
           "minimum": 3,
           "unknown": []
         },
@@ -3059,8 +3327,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_clear": {
         "evaluations": {
-          "maximum": 8,
-          "minimum": 8,
+          "maximum": 10,
+          "minimum": 10,
           "unknown": []
         },
         "owners": [
@@ -3091,8 +3359,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_close": {
         "evaluations": {
-          "maximum": 11,
-          "minimum": 11,
+          "maximum": 13,
+          "minimum": 13,
           "unknown": []
         },
         "owners": [
@@ -3161,13 +3429,33 @@
             "line": 6,
             "operation": "if",
             "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "if",
+            "selector": "@s"
           }
         ]
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_0": {
         "evaluations": {
-          "maximum": 13,
-          "minimum": 13,
+          "maximum": 15,
+          "minimum": 15,
           "unknown": []
         },
         "owners": [
@@ -3177,8 +3465,30 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_1": {
         "evaluations": {
-          "maximum": 13,
-          "minimum": 13,
+          "maximum": 15,
+          "minimum": 15,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_2": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 15,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_3": {
+        "evaluations": {
+          "maximum": 15,
+          "minimum": 15,
           "unknown": []
         },
         "owners": [
@@ -3188,8 +3498,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_load": {
         "evaluations": {
-          "maximum": 18,
-          "minimum": 18,
+          "maximum": 20,
+          "minimum": 20,
           "unknown": []
         },
         "owners": [
@@ -3242,7 +3552,7 @@
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_page_0": {
         "evaluations": {
           "maximum": null,
-          "minimum": 8,
+          "minimum": 14,
           "unknown": [
             "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu"
           ]
@@ -3380,7 +3690,7 @@
       "interaction_hub:cleanup": {
         "evaluations": {
           "maximum": null,
-          "minimum": 18,
+          "minimum": 20,
           "unknown": [
             "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/cancel_owner with storage interaction_hub:__sand_runtime cancel",
             "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/cancel_owner with storage interaction_hub:__sand_runtime cancel",
@@ -3394,12 +3704,23 @@
       },
       "interaction_hub:function/026d20dd": {
         "evaluations": {
-          "maximum": 51,
+          "maximum": 60,
           "minimum": 2,
           "unknown": []
         },
         "owners": [
           "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/0404f208": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
         ],
         "selector_sites": []
       },
@@ -3414,6 +3735,28 @@
         ],
         "selector_sites": []
       },
+      "interaction_hub:function/23d46b93": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/2f3ddf92": {
+        "evaluations": {
+          "maximum": 54,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:function/36a19e60": {
         "evaluations": {
           "maximum": 1,
@@ -3422,6 +3765,17 @@
         },
         "owners": [
           "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/4c1b1698": {
+        "evaluations": {
+          "maximum": 122,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
         ],
         "selector_sites": []
       },
@@ -3444,7 +3798,7 @@
       },
       "interaction_hub:function/6d539725": {
         "evaluations": {
-          "maximum": 30,
+          "maximum": 35,
           "minimum": 1,
           "unknown": []
         },
@@ -3461,7 +3815,7 @@
       },
       "interaction_hub:function/7c99d421": {
         "evaluations": {
-          "maximum": 17,
+          "maximum": 20,
           "minimum": 2,
           "unknown": []
         },
@@ -3482,6 +3836,17 @@
         },
         "owners": [
           "interaction_hub::shop"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/a078d82e": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
         ],
         "selector_sites": []
       },
@@ -3588,6 +3953,23 @@
           }
         ]
       },
+      "interaction_hub:sand/conditions/items/345d7bfb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
       "interaction_hub:sand/conditions/items/4caaa757": {
         "evaluations": {
           "maximum": 2,
@@ -3613,6 +3995,40 @@
         },
         "owners": [
           "interaction_hub::reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8a956bb4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9787bf01": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
         ],
         "selector_sites": [
           {
@@ -3723,16 +4139,18 @@
     "load": [
       {
         "contributors": [
+          "interaction_hub::barter",
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::journal",
           "interaction_hub::key",
+          "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
           "interaction_hub::shop"
         ],
         "evaluations": {
-          "maximum": 23,
-          "minimum": 23,
+          "maximum": 25,
+          "minimum": 25,
           "unknown": []
         },
         "reference": "interaction_hub:__sand_score_init",
@@ -3740,18 +4158,20 @@
       },
       {
         "contributors": [
+          "interaction_hub::barter",
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::journal",
           "interaction_hub::key",
+          "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
           "interaction_hub::shop",
           "interaction_hub::shop_menu",
           "interaction_hub:quest"
         ],
         "evaluations": {
-          "maximum": 50,
-          "minimum": 50,
+          "maximum": 61,
+          "minimum": 61,
           "unknown": []
         },
         "reference": "interaction_hub:__sand_lifecycle_load",
@@ -3765,10 +4185,12 @@
           "interaction_hub:quest"
         ],
         "interaction_hub:__sand_lifecycle_load": [
+          "interaction_hub::barter",
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::journal",
           "interaction_hub::key",
+          "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
           "interaction_hub::shop",
           "interaction_hub::shop_menu",
@@ -3782,12 +4204,32 @@
           "interaction_hub:quest"
         ],
         "interaction_hub:__sand_score_init": [
+          "interaction_hub::barter",
           "interaction_hub::chest",
           "interaction_hub::gate",
           "interaction_hub::journal",
           "interaction_hub::key",
+          "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
           "interaction_hub::shop"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_buy": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_load": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_payment_changed": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_place": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_rejected": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_success": [
+          "interaction_hub::barter"
         ],
         "interaction_hub:__sand_system/lifetime/chest/admit": [
           "interaction_hub::chest"
@@ -4107,6 +4549,9 @@
         "interaction_hub:__sand_system/lifetime/journal/purchase_load": [
           "interaction_hub::journal"
         ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_payment_changed": [
+          "interaction_hub::journal"
+        ],
         "interaction_hub:__sand_system/lifetime/journal/purchase_place": [
           "interaction_hub::journal"
         ],
@@ -4122,6 +4567,9 @@
         "interaction_hub:__sand_system/lifetime/key/purchase_load": [
           "interaction_hub::key"
         ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_payment_changed": [
+          "interaction_hub::key"
+        ],
         "interaction_hub:__sand_system/lifetime/key/purchase_place": [
           "interaction_hub::key"
         ],
@@ -4131,10 +4579,40 @@
         "interaction_hub:__sand_system/lifetime/key/purchase_success": [
           "interaction_hub::key"
         ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_compensate": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_copy": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_empty": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_finish": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_load": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_merge": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_move": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_rejected": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_success": [
+          "interaction_hub::move_barter_reward"
+        ],
         "interaction_hub:__sand_system/lifetime/reward/purchase_buy": [
           "interaction_hub::reward"
         ],
         "interaction_hub:__sand_system/lifetime/reward/purchase_load": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_payment_changed": [
           "interaction_hub::reward"
         ],
         "interaction_hub:__sand_system/lifetime/reward/purchase_place": [
@@ -4308,6 +4786,12 @@
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_1": [
           "interaction_hub::shop_menu"
         ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_2": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_3": [
+          "interaction_hub::shop_menu"
+        ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_admit": [
           "interaction_hub::shop_menu"
         ],
@@ -4315,6 +4799,12 @@
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_1": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_2": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_3": [
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_clear": [
@@ -4330,6 +4820,12 @@
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_1": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_2": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_3": [
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_load": [
@@ -4368,11 +4864,23 @@
         "interaction_hub:function/026d20dd": [
           "interaction_hub::shop_menu"
         ],
+        "interaction_hub:function/0404f208": [
+          "interaction_hub::barter"
+        ],
         "interaction_hub:function/16807ef4": [
           "interaction_hub::reward"
         ],
+        "interaction_hub:function/23d46b93": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:function/2f3ddf92": [
+          "interaction_hub::shop_menu"
+        ],
         "interaction_hub:function/36a19e60": [
           "interaction_hub::key"
+        ],
+        "interaction_hub:function/4c1b1698": [
+          "interaction_hub::shop_menu"
         ],
         "interaction_hub:function/57f4ac7e": [
           "interaction_hub::gate"
@@ -4386,6 +4894,9 @@
         ],
         "interaction_hub:function/9d07d926": [
           "interaction_hub::shop"
+        ],
+        "interaction_hub:function/a078d82e": [
+          "interaction_hub::barter"
         ],
         "interaction_hub:function/bb0affa0": [
           "interaction_hub::journal"
@@ -4408,11 +4919,20 @@
         "interaction_hub:sand/conditions/items/2c2fc8b0": [
           "interaction_hub::key"
         ],
+        "interaction_hub:sand/conditions/items/345d7bfb": [
+          "interaction_hub::move_barter_reward"
+        ],
         "interaction_hub:sand/conditions/items/4caaa757": [
           "interaction_hub::journal"
         ],
         "interaction_hub:sand/conditions/items/82c4be66": [
           "interaction_hub::reward"
+        ],
+        "interaction_hub:sand/conditions/items/8a956bb4": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:sand/conditions/items/9787bf01": [
+          "interaction_hub::barter"
         ],
         "interaction_hub:sand/runtime/owned_body/63fb2bbf": [
           "interaction_hub::chest",
@@ -4433,37 +4953,47 @@
           {
             "first_line": 10,
             "line_count": 1,
-            "owner": "interaction_hub::journal"
+            "owner": "interaction_hub::gate"
           },
           {
             "first_line": 11,
             "line_count": 1,
-            "owner": "interaction_hub::key"
+            "owner": "interaction_hub::journal"
           },
           {
             "first_line": 12,
             "line_count": 1,
-            "owner": "interaction_hub::reward"
+            "owner": "interaction_hub::key"
           },
           {
             "first_line": 13,
             "line_count": 1,
-            "owner": "interaction_hub::shop"
+            "owner": "interaction_hub::move_barter_reward"
           },
           {
             "first_line": 14,
+            "line_count": 1,
+            "owner": "interaction_hub::reward"
+          },
+          {
+            "first_line": 15,
+            "line_count": 1,
+            "owner": "interaction_hub::shop"
+          },
+          {
+            "first_line": 16,
             "line_count": 1,
             "owner": "interaction_hub::shop_menu"
           },
           {
             "first_line": 8,
             "line_count": 1,
-            "owner": "interaction_hub::chest"
+            "owner": "interaction_hub::barter"
           },
           {
             "first_line": 9,
             "line_count": 1,
-            "owner": "interaction_hub::gate"
+            "owner": "interaction_hub::chest"
           }
         ],
         "interaction_hub:__sand_lifecycle_tick": [
@@ -4494,10 +5024,12 @@
         {
           "member": "interaction_hub:__sand_lifecycle_load",
           "owners": [
+            "interaction_hub::barter",
             "interaction_hub::chest",
             "interaction_hub::gate",
             "interaction_hub::journal",
             "interaction_hub::key",
+            "interaction_hub::move_barter_reward",
             "interaction_hub::reward",
             "interaction_hub::shop",
             "interaction_hub::shop_menu",
@@ -4519,10 +5051,12 @@
         {
           "member": "interaction_hub:__sand_score_init",
           "owners": [
+            "interaction_hub::barter",
             "interaction_hub::chest",
             "interaction_hub::gate",
             "interaction_hub::journal",
             "interaction_hub::key",
+            "interaction_hub::move_barter_reward",
             "interaction_hub::reward",
             "interaction_hub::shop"
           ],

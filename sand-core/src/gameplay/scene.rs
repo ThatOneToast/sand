@@ -5,8 +5,10 @@ use crate::{
     ir::Actions,
     registration::{DatapackRegistration, IntoDatapack},
 };
-use sand_commands::{CommandError, CommandResult, ObjectiveName};
-use sand_components::{BlockId, effect::Ticks};
+use sand_commands::{
+    CommandError, CommandResult, NbtCompound, NbtValue, ObjectiveName, TextComponent,
+};
+use sand_components::{BlockId, ItemStack, effect::Ticks};
 
 /// Local display pose: translation, scale and rotation about the Y axis.
 /// Minecraft applies scale, then yaw, then translation. Values describe visual
@@ -14,7 +16,7 @@ use sand_components::{BlockId, effect::Ticks};
 #[derive(Clone, Copy, Debug)]
 #[sand_macros::api(
 registry = sand_api_contract, path = "sand::systems::Transform", module = "sand::systems",
-summary = "A local block-display pose.", context = "Stores translation, scale and yaw for native display interpolation. This visual pose does not change entity position or gameplay collision.",
+summary = "A local display pose.", context = "Stores translation, scale and yaw for native display interpolation. This visual pose does not change entity position or gameplay collision.",
 minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
 use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
 example = "use sand::systems::Transform;",
@@ -73,6 +75,58 @@ returns = "The configured definition or retained runtime actions.", example = "u
         self.yaw = degrees;
         self
     }
+    /// Apply this local pose, then `parent`, producing one flat scene pose.
+    ///
+    /// The parent scales and rotates this translation before adding its own.
+    /// Nonuniform scale combined with yaw can introduce shear; this yaw-only
+    /// model rejects that result. Uniform parent scale always composes.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::systems::Transform::then", module = "sand::systems", kind = "method",
+summary = "Compose a local display pose with its parent.", context = "Applies this pose first and the parent second. Finite representable poses compose; shear is rejected.",
+minecraft = "Flattens the result to one native display transformation before export.",
+use_when = ["Reusing local display poses under a shared parent"], avoid_when = ["Hierarchical animation or sheared geometry is required"],
+params(parent = "The outer pose applied after this local pose."), returns = "The composed pose, or a diagnostic for invalid values, overflow or shear.",
+example = "use sand::systems::Transform;\nfn demonstrate() { let _pose = Transform::default().translated([1.0,0.0,0.0]).then(Transform::default().scaled([2.0;3]).yaw(90.0)).unwrap(); }",
+)]
+    pub fn then(self, parent: Self) -> CommandResult<Self> {
+        self.validate()?;
+        parent.validate()?;
+        let apply = |pose: Self, point: [f64; 3]| {
+            let (sin, cos) = f64::from(pose.yaw).rem_euclid(360.0).to_radians().sin_cos();
+            let [x, y, z] = std::array::from_fn(|i| point[i] * f64::from(pose.scale[i]));
+            [cos * x + sin * z, y, -sin * x + cos * z]
+        };
+        let x = apply(parent, apply(self, [1.0, 0.0, 0.0]));
+        let z = apply(parent, apply(self, [0.0, 0.0, 1.0]));
+        let sx = x[0].hypot(x[2]);
+        let sz = z[0].hypot(z[2]);
+        if (x[0] * z[0] + x[2] * z[2]).abs() > 1e-6 * sx * sz {
+            return Err(CommandError::new(
+                "scene",
+                "transform",
+                "composition introduces shear; use a uniform parent X/Z scale",
+            ));
+        }
+        let yaw = if sx > 0.0 {
+            (-x[2]).atan2(x[0])
+        } else {
+            z[0].atan2(z[2])
+        };
+        let translation = apply(parent, self.translation.map(f64::from));
+        let result = Self {
+            translation: std::array::from_fn(|i| {
+                (translation[i] + f64::from(parent.translation[i])) as f32
+            }),
+            scale: [
+                sx as f32,
+                (f64::from(self.scale[1]) * f64::from(parent.scale[1])) as f32,
+                sz as f32,
+            ],
+            yaw: yaw.to_degrees() as f32,
+        };
+        result.validate()?;
+        Ok(result)
+    }
     fn validate(&self) -> CommandResult<()> {
         if self
             .translation
@@ -111,8 +165,95 @@ returns = "The configured definition or retained runtime actions.", example = "u
 #[derive(Clone)]
 struct Part {
     name: String,
-    block: BlockId,
+    content: PartContent,
     pose: Transform,
+}
+#[derive(Clone)]
+enum PartContent {
+    Block(BlockId),
+    Item(Box<ItemStack>),
+    Text(Box<TextComponent>),
+}
+impl PartContent {
+    fn entity(&self) -> &'static str {
+        match self {
+            Self::Block(_) => "block_display",
+            Self::Item(_) => "item_display",
+            Self::Text(_) => "text_display",
+        }
+    }
+    fn data(&self) -> CommandResult<String> {
+        Ok(match self {
+            Self::Block(block) => {
+                let key = if crate::function::uses_26_3_schema() {
+                    "id"
+                } else {
+                    "Name"
+                };
+                format!(
+                    "block_state:{{{key}:{}}}",
+                    serde_json::to_string(&block.to_string()).unwrap()
+                )
+            }
+            Self::Item(stack) => {
+                let components = stack
+                    .stack_components()
+                    .map_err(|error| CommandError::new("scene", "item", error.to_string()))?;
+                let components: NbtCompound = components
+                    .components()
+                    .iter()
+                    .try_fold(NbtCompound::new(), |compound, (key, value)| {
+                        Ok(compound.field(key, json_nbt(value)?))
+                    })?;
+                format!(
+                    "item:{}",
+                    NbtCompound::new()
+                        .field("id", stack.id().to_string())
+                        .field("count", stack.count_value() as i32)
+                        .field("components", components)
+                )
+            }
+            Self::Text(text) => format!("text:{}", json_nbt(&text.try_to_json_value()?)?),
+        })
+    }
+}
+// Native text and item components use structured NBT, not JSON embedded in a
+// string. Keep canonical text/item validation before this compiler conversion.
+fn json_nbt(value: &serde_json::Value) -> CommandResult<NbtValue> {
+    Ok(match value {
+        serde_json::Value::Null => {
+            return Err(CommandError::new(
+                "scene",
+                "data",
+                "native NBT has no null value",
+            ));
+        }
+        serde_json::Value::Bool(value) => NbtValue::Bool(*value),
+        serde_json::Value::Number(value) => match value.as_i64() {
+            Some(value) => match i32::try_from(value) {
+                Ok(value) => NbtValue::Int(value),
+                Err(_) => NbtValue::Long(value),
+            },
+            None if value.is_u64() => {
+                return Err(CommandError::new(
+                    "scene",
+                    "data",
+                    "native NBT integer exceeds i64::MAX",
+                ));
+            }
+            None => NbtValue::Double(value.as_f64().unwrap()),
+        },
+        serde_json::Value::String(value) => NbtValue::String(value.clone()),
+        serde_json::Value::Array(values) => {
+            NbtValue::List(values.iter().map(json_nbt).collect::<CommandResult<_>>()?)
+        }
+        serde_json::Value::Object(fields) => fields
+            .iter()
+            .try_fold(NbtCompound::new(), |compound, (key, value)| {
+                Ok(compound.field(key, json_nbt(value)?))
+            })?
+            .into(),
+    })
 }
 #[derive(Clone)]
 struct Frame {
@@ -121,7 +262,7 @@ struct Frame {
     duration: Ticks,
     pose: Transform,
 }
-/// Owned flat scene of named block displays using each block's default state.
+/// Owned flat scene of named block, item and text displays.
 /// Parts share the root's entity position; visual offsets live in Transform,
 /// so ordinary chunk unloads keep the root and displays together. Lifetime
 /// cleanup removes the parts. Do not mutate or remove private runtime entities.
@@ -133,7 +274,7 @@ struct Frame {
 #[derive(Clone)]
 #[sand_macros::api(
 registry = sand_api_contract, path = "sand::systems::Scene", module = "sand::systems",
-summary = "An owned scene of named animated block displays.", context = "Composes Lifetime with flat visual parts and one-shot native interpolation. Private displays share the root position and are removed on lifetime cleanup.",
+summary = "An owned scene of named animated block, item and text displays.", context = "Composes Lifetime with flat visual parts and one-shot native interpolation. Private displays share the root position and are removed on lifetime cleanup.",
 minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
 use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
 example = "use sand::systems::Scene;",
@@ -174,7 +315,45 @@ returns = "The configured definition or retained runtime actions.", example = "u
     pub fn part(mut self, name: impl Into<String>, block: BlockId, pose: Transform) -> Self {
         self.parts.push(Part {
             name: name.into(),
-            block,
+            content: PartContent::Block(block),
+            pose,
+        });
+        self
+    }
+    /// Add a uniquely named item display using the canonical component-bearing
+    /// stack. Count and components are preserved; the native display context is
+    /// `none`. The visual never drops or transfers its item.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::systems::Scene::item", module = "sand::systems", kind = "method",
+summary = "Add a component-bearing item-display part.", context = "Shares the scene's names, keyframes, instance identity and lifetime cleanup. Uses canonical ItemStack and native none display context.",
+minecraft = "Summons a native item_display with a validated component-bearing stack.",
+use_when = ["Animating item visuals"], avoid_when = ["An inventory or dropped gameplay item is required"],
+params(name = "Unique nonempty local part name.", item = "Canonical stack with count and components.", pose = "Initial local visual pose."), returns = "The scene with the added part.",
+example = "use sand::systems::{Scene,Transform};\nuse sand::component::ItemStack;\nfn demonstrate(scene: Scene, item: ItemStack) { let _scene = scene.item(\"icon\", item, Transform::default()); }",
+)]
+    pub fn item(mut self, name: impl Into<String>, item: ItemStack, pose: Transform) -> Self {
+        self.parts.push(Part {
+            name: name.into(),
+            content: PartContent::Item(Box::new(item)),
+            pose,
+        });
+        self
+    }
+    /// Add a uniquely named rich text display using native line width,
+    /// background, alignment and fixed billboard defaults. Dynamic text resolves
+    /// when created; keyframes animate its pose only.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::systems::Scene::text", module = "sand::systems", kind = "method",
+summary = "Add a rich text-display part.", context = "Shares the scene's names, keyframes, instance identity and lifetime cleanup. Uses canonical TextComponent validation and native display defaults.",
+minecraft = "Summons a native text_display with structured text NBT. Dynamic text resolves at creation.",
+use_when = ["Animating world-space labels"], avoid_when = ["A screen overlay or continuously refreshed text is required"],
+params(name = "Unique nonempty local part name.", text = "Canonical rich text.", pose = "Initial local visual pose."), returns = "The scene with the added part.",
+example = "use sand::systems::{Scene,Transform};\nuse sand::text::Text;\nfn demonstrate(scene: Scene) { let _scene = scene.text(\"label\", Text::new(\"Ready\"), Transform::default()); }",
+)]
+    pub fn text(mut self, name: impl Into<String>, text: TextComponent, pose: Transform) -> Self {
+        self.parts.push(Part {
+            name: name.into(),
+            content: PartContent::Text(Box::new(text)),
             pose,
         });
         self
@@ -290,6 +469,7 @@ impl<K: EntityKind> Scene<K> {
                 ));
             }
             part.pose.validate()?;
+            part.content.data()?;
         }
         for frame in &self.frames {
             frame.pose.validate()?;
@@ -334,7 +514,7 @@ impl<K: EntityKind> Scene<K> {
         let resource = |part: &str| identity::resource(&id, part).to_string();
         let select = |index: Option<usize>| {
             format!(
-                "@e[type=minecraft:block_display,tag={},scores={{{group}=$(instance)}}]",
+                "@e[tag={},scores={{{group}=$(instance)}}]",
                 index
                     .map(|i| format!("{visual}.{i}"))
                     .unwrap_or(visual.clone())
@@ -352,7 +532,11 @@ impl<K: EntityKind> Scene<K> {
             ]),
             "scene_spawn" => {
                 for i in 0..self.parts.len() {
-                    lines.push(format!("$execute summon minecraft:block_display run function {} {{instance:$(instance)}}",resource(&format!("scene_part_{i}"))));
+                    lines.push(format!(
+                        "$execute summon minecraft:{} run function {} {{instance:$(instance)}}",
+                        self.parts[i].content.entity(),
+                        resource(&format!("scene_part_{i}"))
+                    ));
                 }
             }
             "scene_remove" => {
@@ -406,18 +590,13 @@ impl<K: EntityKind> Scene<K> {
             _ => {
                 let i: usize = part.strip_prefix("scene_part_").unwrap().parse().unwrap();
                 let node = &self.parts[i];
-                let block_key = if crate::function::uses_26_3_schema() {
-                    "id"
-                } else {
-                    "Name"
-                };
                 lines.extend([
                     format!("tag @s add {visual}"),
                     format!("tag @s add {visual}.{i}"),
                     format!("$scoreboard players set @s {group} $(instance)"),
                     format!(
-                        "data merge entity @s {{block_state:{{{block_key}:{}}},transformation:{}}}",
-                        serde_json::to_string(&node.block.to_string()).unwrap(),
+                        "data merge entity @s {{{},transformation:{}}}",
+                        node.content.data()?,
                         node.pose.snbt()
                     ),
                 ]);
@@ -448,6 +627,43 @@ mod tests {
             BlockId::minecraft("stone").unwrap(),
             Transform::default(),
         )
+    }
+    #[test]
+    fn composed_pose_applies_parent_scale_rotation_and_translation() {
+        let pose = Transform::default()
+            .translated([1.0, 2.0, 3.0])
+            .scaled([1.0, 2.0, 3.0])
+            .yaw(30.0)
+            .then(
+                Transform::default()
+                    .scaled([2.0; 3])
+                    .yaw(90.0)
+                    .translated([10.0, 20.0, 30.0]),
+            )
+            .unwrap();
+        for (actual, expected) in pose.translation.into_iter().zip([16.0, 24.0, 28.0]) {
+            assert!((actual - expected).abs() < 1e-5);
+        }
+        assert_eq!(pose.scale, [2.0, 4.0, 6.0]);
+        assert!((pose.yaw - 120.0).abs() < 1e-5);
+    }
+    #[test]
+    fn structured_display_data_rejects_values_without_native_nbt_representation() {
+        for value in [serde_json::Value::Null, serde_json::json!(u64::MAX)] {
+            assert_eq!(json_nbt(&value).unwrap_err().field, "data");
+        }
+        let invalid_item = scene().item(
+            "icon",
+            ItemStack::new(sand_components::ItemId::minecraft("diamond").unwrap()).count(0),
+            Transform::default(),
+        );
+        assert_eq!(invalid_item.validate().unwrap_err().field, "item");
+        let duplicate = populated().text(
+            "a",
+            TextComponent::literal("Duplicate"),
+            Transform::default(),
+        );
+        assert_eq!(duplicate.validate().unwrap_err().field, "name");
     }
     #[test]
     fn invalid_scenes_are_rejected_before_runtime_allocation() {

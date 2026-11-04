@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "version": "26.2",
+  "players": 2,
+  "checks": [
+    "exact live count/components",
+    "source removal",
+    "source-replacement compensation for empty and merged slots",
+    "destination-replacement preservation",
+    "empty source",
+    "capacity and component mismatch rejection",
+    "conservative default capacity",
+    "native listener reentry",
+    "whole-slot payment quantity",
+    "full reward slot",
+    "changed-payment compensation",
+    "replay without payment",
+    "multiplayer isolation",
+    "canonical partial component payment identity"
+  ],
+  "date": "2026-11-03",
+  "server_artifact_sha1": "823e2250d24b3ddac457a60c92a6a941943fcd6a"
+}

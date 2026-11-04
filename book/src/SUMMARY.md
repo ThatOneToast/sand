@@ -24,6 +24,7 @@
 - [15. Death And Respawn](15-death-and-respawn.md)
 - [16. Debugging And Validation](16-debugging-and-validation.md)
 - [17. Packaging And Running](17-packaging-and-running.md)
+  - [Companion Resource Packs](17a-companion-resource-packs.md)
 - [18. Extending Trailforge](18-extending.md)
 - [19. Validated Command Media](19-validated-command-media.md)
 - [20. Command Arguments: Coordinates, Selectors, Scores, and Blocks](20-command-arguments.md)
@@ -41,6 +42,8 @@
 - [Child tasks, condition waits and joins](23g-task-composition.md)
 - [Combat and encounters](23h-combat-and-encounters.md)
 - [Menus, interactables, rewards and books](23i-interactions.md)
+- [Quests and session phases](23j-progression-and-sessions.md)
+- [Journals and checkpoints](23m-journals-and-checkpoints.md)
 
 # Typed World & Server Configuration
 

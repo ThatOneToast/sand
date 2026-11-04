@@ -32,10 +32,10 @@ class FakeConnection:
 
 
 class MinimalClientTests(unittest.TestCase):
-    def run_packets(self, packets, **options):
+    def run_packets(self, packets, protocol=776, **options):
         conn = FakeConnection(packets)
         with contextlib.redirect_stdout(io.StringIO()):
-            result = client.run_session(conn, "localhost", 25565, 776, "Probe", 10, **options)
+            result = client.run_session(conn, "localhost", 25565, protocol, "Probe", 10, **options)
         return result, conn.sent
 
     def test_26_2_play_keep_alive_echoes_the_exact_challenge(self):
@@ -100,6 +100,50 @@ class MinimalClientTests(unittest.TestCase):
                 # Start, three receive iterations, then the duration expires.
                 with patch.object(client.time, "monotonic", side_effect=[0, 0, 0, 1, 1, 2, 2, 10]), contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(client.run_session(conn, "localhost", 25565, 776, "Probe", 10), expected)
+
+    def test_26_3_uses_its_own_registry_for_configuration_and_play(self):
+        challenge = struct.pack(">q", 345)
+        position = client.write_varint(300) + struct.pack(">ddddddffI", 2, 200, 2, 0, 0, 0, 30, -10, 0)
+        known_packs = b"known packs list"
+        _, sent = self.run_packets([
+            (2, b""), (0x0e, b"tags, not known packs"), (0x0f, known_packs), (3, b""),
+            (0x32, b"login"), (0x2c, b"borderXX"), (0x2d, challenge),
+            (0x49, position), (0x54, b"dimension"), (0x49, position),
+            (0x45, b"death"),
+        ], protocol=777, auto_respawn=True)
+        self.assertIn((7, known_packs), sent)
+        self.assertNotIn((7, b"tags, not known packs"), sent)
+        self.assertIn((0x1c, challenge), sent)
+        self.assertNotIn((0x1c, b"borderXX"), sent)
+        self.assertEqual(sent.count((0, client.write_varint(300) + struct.pack(">dddff", 2, 200, 2, 30, -10))), 2)
+        self.assertEqual(sent.count((0x2c, b"")), 2)
+        self.assertIn((0x0c, b"\x00"), sent)
+        self.assertFalse(any(packet == 0x2d for packet, _ in sent))
+
+    def test_26_3_teleport_reply_applies_relative_flags_and_clamps_pitch(self):
+        packet = client.write_varint(42) + struct.pack(">ddddddffI", 1, 3, 5, 0, 0, 0, 10, 20, 0x1f)
+        identity, reply, position = client.teleport_reply(packet, 777, (100, 200, 300, -30, 80))
+        self.assertEqual(identity, 42)
+        self.assertEqual(position, (101, 203, 305, -20, 90))
+        self.assertEqual(reply, b"\x2a" + struct.pack(">dddff", 101, 203, 305, -20, 90))
+
+    def test_26_3_malformed_teleport_never_generates_an_ack(self):
+        valid = b"\x01" + struct.pack(">ddddddffI", 1, 2, 3, 0, 0, 0, 0, 0, 0)
+        for invalid in (b"\x01", valid[:-1], valid + b"extra", b"\x01" + struct.pack(">ddddddffI", float("nan"), 2, 3, 0, 0, 0, 0, 0, 0), valid[:-4] + struct.pack(">I", 0x200)):
+            with self.subTest(packet=invalid), self.assertRaises(ValueError):
+                client.teleport_reply(invalid, 777, (0,) * 5)
+
+    def test_26_3_old_login_packet_does_not_establish_play_join(self):
+        result, _ = self.run_packets([(2, b""), (3, b""), (0x31, b"old login id"), (0x20, b"disconnect")], protocol=777)
+        self.assertFalse(result)
+
+    def test_26_3_scripted_controls_stay_explicitly_unsupported_before_connecting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            argv = ["client", "localhost", "25565", "777", "Probe", "--control-dir", directory]
+            with patch.object(client.sys, "argv", argv), patch.object(client, "Conn") as connect:
+                with self.assertRaisesRegex(ValueError, "776"):
+                    client.main()
+                connect.assert_not_called()
 
     def test_unsupported_protocol_is_rejected_before_connecting(self):
         with patch.object(client.sys, "argv", ["client", "localhost", "25565", "775", "Probe"]), patch.object(client, "Conn") as connect:

@@ -1,14 +1,14 @@
-"""Minimal offline-mode client for Minecraft 26.2 (protocol 776) audits.
+"""Minimal offline-mode client for Minecraft 26.2/776 and 26.3/777 audits.
 
 Keeps a real ServerPlayer connected for the requested duration by handling the
 login/configuration handshake, keep-alive challenges, and teleport acknowledgments. Packet IDs were read
-from the 26.2 server's GameProtocols registry, not inferred from an older client.
+from each official server jar's protocol registries, not inferred from older IDs.
 By default this is a passive test client. Opt-in --control-dir enables bounded
 grounded movement and melee attack packets; it is not a gameplay bot or renderer.
 An early disconnect is a failure even if the player briefly joined.
 
 Usage:
-    python3 minimal_join_client.py <host> <port> 776 <username> [<run_seconds>]
+    python3 minimal_join_client.py <host> <port> <776|777> <username> [<run_seconds>]
 
 An optional final argument runs a shell command when the Play login arrives.
 Pass --auto-respawn for death/respawn lifecycle audits; other audits leave it off.
@@ -16,6 +16,7 @@ Pass --auto-respawn for death/respawn lifecycle audits; other audits leave it of
 
 from contextlib import closing
 import argparse
+import math
 import select
 
 import socket
@@ -24,6 +25,12 @@ import sys
 import time
 import uuid
 import zlib
+
+
+if __package__:
+    from .protocols import profile_for_protocol
+else:
+    from protocols import profile_for_protocol
 
 
 def write_varint(value):
@@ -112,37 +119,32 @@ class Conn:
         return pid, body[idx:]
 
 
-# Minecraft 26.2's ConfigurationProtocols and GameProtocols registries.
-# Keep the supported protocol explicit: IDs are version-specific.
-SUPPORTED_PROTOCOL = 776
-CONFIG_CLIENTBOUND = {
-    0x00: "cookie_request",
-    0x01: "custom_payload",
-    0x02: "disconnect",
-    0x03: "finish_configuration",
-    0x04: "keep_alive",
-    0x05: "ping",
-    0x06: "reset_chat",
-    0x07: "registry_data",
-    0x08: "remove_resource_pack",
-    0x09: "add_resource_pack",
-    0x0A: "store_cookie",
-    0x0B: "transfer",
-    0x0C: "feature_flags",
-    0x0D: "tags",
-    0x0E: "select_known_packs",
-    0x0F: "custom_report_details",
-    0x10: "server_links",
-}
-PLAY_CLIENTBOUND_KEEP_ALIVE = 0x2C
-PLAY_CLIENTBOUND_LOGIN = 0x31
-PLAY_CLIENTBOUND_PLAYER_POSITION = 0x48
-PLAY_CLIENTBOUND_RESPAWN = 0x52
-PLAY_CLIENTBOUND_COMBAT_KILL = 0x44
-PLAY_SERVERBOUND_CLIENT_COMMAND = 0x0C
-PLAY_SERVERBOUND_ACCEPT_TELEPORTATION = 0x00
-PLAY_SERVERBOUND_PLAYER_LOADED = 0x2C
-PLAY_SERVERBOUND_KEEP_ALIVE = 0x1C
+
+
+def teleport_reply(data, protocol, previous):
+    """Encode the versioned acknowledgment from the server's teleport codec.
+
+    Protocol 777 adds absolute xyz/yaw/pitch to the reply. Its clientbound packet
+    contains xyz, velocity xyz, yaw/pitch and a four-byte Relative bitmask. The
+    position/rotation addition and pitch clamp follow PositionMoveRotation's
+    calculateAbsolute bytecode. Passive sessions only change position here.
+    """
+    teleport_id, offset = read_varint_bytes(data, 0)
+    if protocol == 776:
+        return teleport_id, write_varint(teleport_id), previous
+    if protocol != 777:
+        profile_for_protocol(protocol)
+    if len(data) != offset + 60:
+        raise ValueError("protocol 777 teleport must contain position, velocity, rotation and relative flags")
+    x, y, z, dx, dy, dz, yaw, pitch, flags = struct.unpack(">ddddddffI", data[offset:])
+    if flags & ~0x1ff or not all(math.isfinite(value) for value in (x, y, z, dx, dy, dz, yaw, pitch)):
+        raise ValueError("invalid protocol 777 teleport coordinates or relative flags")
+    position = tuple(value + (previous[index] if flags & (1 << index) else 0)
+                     for index, value in enumerate((x, y, z, yaw, pitch)))
+    position = (*position[:4], max(-90, min(90, position[4])))
+    if not all(math.isfinite(value) for value in position):
+        raise ValueError("nonfinite absolute teleport coordinates")
+    return teleport_id, write_varint(teleport_id) + struct.pack(">dddff", *position), position
 
 
 def main():
@@ -157,8 +159,7 @@ def main():
     parser.add_argument("--control-dir", help="existing private directory for atomic JSON commands/status")
     args = parser.parse_args()
     host, port, protocol_version, username = args.host, args.port, args.protocol_version, args.username
-    if protocol_version != SUPPORTED_PROTOCOL:
-        raise ValueError("This audit client supports Minecraft 26.2 / protocol 776 only")
+    profile_for_protocol(protocol_version)
     run_seconds, on_join = args.run_seconds, args.on_join
     if run_seconds <= 0:
         raise ValueError("run_seconds must be positive")
@@ -176,19 +177,24 @@ def main():
 
 
 def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *, auto_respawn=False, controls=None):
-    if protocol_version != SUPPORTED_PROTOCOL:
-        raise ValueError("This audit client supports protocol 776 only")
+    profile = profile_for_protocol(protocol_version)
+    packets = profile["packets"]
+    login_in, login_out = packets["login"]["clientbound"], packets["login"]["serverbound"]
+    config_out = packets["configuration"]["serverbound"]
+    config_in = {packet_id: name for name, packet_id in packets["configuration"]["clientbound"].items()}
+    play_in, play_out = packets["play"]["clientbound"], packets["play"]["serverbound"]
     payload = write_varint(protocol_version) + write_string(host) + struct.pack(">H", port) + write_varint(2)
     conn.send_packet(0x00, payload)
 
     offline_uuid = uuid.uuid3(uuid.NAMESPACE_OID, f"OfflinePlayer:{username}")
     payload = write_string(username) + offline_uuid.bytes
-    conn.send_packet(0x00, payload)
+    conn.send_packet(login_out["hello"], payload)
 
     state = "login"
     deadline = time.monotonic() + run_seconds
     joined = False
     loading = False
+    position = (0.0, 0.0, 0.0, 0.0, 0.0)
     while time.monotonic() < deadline:
         try:
             if controls is not None:
@@ -220,16 +226,17 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
             return False
 
         if state == "login":
-            if pid == 0x03:
+            if pid == login_in["login_compression"]:
                 threshold, _ = read_varint_bytes(data, 0)
                 conn.compression = threshold
                 print(f"[login] compression threshold={threshold}")
-            elif pid == 0x02:
+            elif pid == login_in["login_finished"]:
                 print("[login] LOGIN SUCCESS")
-                conn.send_packet(0x03, b"")  # login_acknowledged
+                conn.send_packet(login_out["login_acknowledged"], b"")
                 state = "configuration"
                 # Proactively send Client Information (configuration
-                # serverbound 0x00) -- stable shape since 26.1, some
+                # serverbound client_information). Both verified versions have
+                # the same ClientInformation codec; some
                 # servers expect it promptly after login_acknowledged.
                 info = (
                     write_string("en_us")
@@ -242,24 +249,24 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                     + bytes([1])  # allow server listings: true
                     + write_varint(0)  # particle status: all
                 )
-                conn.send_packet(0x00, info)
+                conn.send_packet(config_out["client_information"], info)
                 print("  sent client information")
-            elif pid == 0x00:
+            elif pid == login_in["login_disconnect"]:
                 print(f"[login] DISCONNECT: {data!r}")
                 return False
         elif state == "configuration":
-            name = CONFIG_CLIENTBOUND.get(pid, f"unknown_0x{pid:02x}")
+            name = config_in.get(pid, f"unknown_0x{pid:02x}")
             print(f"[config] {name} len={len(data)}")
             if name == "keep_alive":
-                conn.send_packet(0x04, data)
+                conn.send_packet(config_out["keep_alive"], data)
             elif name == "ping":
-                conn.send_packet(0x05, data)
+                conn.send_packet(config_out["pong"], data)
             elif name == "select_known_packs":
                 # Echo the exact same known-packs list back (serverbound id 0x07).
-                conn.send_packet(0x07, data)
+                conn.send_packet(config_out["select_known_packs"], data)
                 print("  -> replied select_known_packs (echo)")
             elif name == "finish_configuration":
-                conn.send_packet(0x03, b"")  # serverbound finish_configuration ack
+                conn.send_packet(config_out["finish_configuration"], b"")
                 print("  -> acked finish_configuration, entering play")
                 state = "play"
             elif name == "disconnect":
@@ -276,33 +283,33 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                     controls.error = str(error)
                     controls.publish()
                     return False
-            if pid == PLAY_CLIENTBOUND_KEEP_ALIVE and len(data) == 8:
-                conn.send_packet(PLAY_SERVERBOUND_KEEP_ALIVE, data)
+            if pid == play_in["keep_alive"] and len(data) == 8:
+                conn.send_packet(play_out["keep_alive"], data)
                 print("[play] keep_alive echoed")
-            elif pid == PLAY_CLIENTBOUND_PLAYER_POSITION:
+            elif pid == play_in["player_position"]:
                 # ClientboundPlayerPositionPacket starts with the teleport
                 # ID. Acknowledging it clears the server's changing-dimension
                 # state; without this, a teleported player remains invulnerable.
-                teleport_id, _ = read_varint_bytes(data, 0)
-                conn.send_packet(PLAY_SERVERBOUND_ACCEPT_TELEPORTATION, write_varint(teleport_id))
+                teleport_id, acknowledgment, position = teleport_reply(data, protocol_version, position)
+                conn.send_packet(play_out["accept_teleportation"], acknowledgment)
                 print(f"[play] acknowledged teleport {teleport_id}")
                 if loading:
-                    conn.send_packet(PLAY_SERVERBOUND_PLAYER_LOADED, b"")
+                    conn.send_packet(play_out["player_loaded"], b"")
                     loading = False
                     print("[play] player loaded")
                 if controls is not None:
                     controls.teleported()
-            elif pid == PLAY_CLIENTBOUND_COMBAT_KILL and auto_respawn:
-                # Protocol 776 GameProtocols maps ClientCommand to 0x0c;
-                # ServerboundClientCommandPacket.Action.PERFORM_RESPAWN is 0.
-                conn.send_packet(PLAY_SERVERBOUND_CLIENT_COMMAND, write_varint(0))
+            elif pid == play_in["player_combat_kill"] and auto_respawn:
+                # Verified ServerboundClientCommandPacket codecs use the
+                # PERFORM_RESPAWN enum action zero on both versions.
+                conn.send_packet(play_out["client_command"], write_varint(0))
                 print("[play] requested respawn after death")
-            elif pid == PLAY_CLIENTBOUND_RESPAWN:
+            elif pid == play_in["respawn"]:
                 loading = True
                 if controls is not None:
                     controls.reset()
                 print("[play] respawn/dimension change")
-            elif pid == PLAY_CLIENTBOUND_LOGIN:
+            elif pid == play_in["login"]:
                 loading = True
                 if controls is not None:
                     controls.reset()
@@ -312,7 +319,7 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                     import subprocess
                     print(f"  firing on-join command: {on_join}")
                     subprocess.run(["bash", "-c", on_join], check=True)
-            elif pid == 0x20:
+            elif pid == play_in["disconnect"]:
                 print(f"[play] DISCONNECT payload: {data!r}")
                 return False
             else:

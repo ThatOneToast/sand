@@ -29,6 +29,11 @@ on:
       - "scripts/validate_gameplay.py"
       - "scripts/validate_owned_players.py"
       - "scripts/validate_interactions.py"
+      - "scripts/validate_inventory.py"
+      - "scripts/validate_progression.py"
+      - "scripts/validate_hud.py"
+      - "scripts/validate_journal_checkpoint.py"
+      - "examples/quest_rounds/**"
       - "scripts/validate_ability_composition.py"
       - "examples/aether_tools/**"
       - "sand-core/tests/gameplay_*.rs"
@@ -65,6 +70,10 @@ on:
       - "sand-core/tests/event_chain_bounded_item_transport.rs"
       - "scripts/mc_validation/minimal_join_client.py"
       - "scripts/mc_validation/test_minimal_join_client.py"
+      - "scripts/mc_validation/protocols.py"
+      - "scripts/mc_validation/protocol_metadata/**"
+      - "scripts/mc_validation/extract_protocol_metadata.py"
+      - "scripts/validate_player_protocol.py"
       - "scripts/validate-vanilla-reload.sh"
       - "scripts/vanilla_reload_harness.py"
   workflow_dispatch:
@@ -182,11 +191,32 @@ jobs:
         run: |
           python3 scripts/validate_gameplay.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/gameplay"
 
-      - name: Validate player ownership and interactions
+      - name: Validate player ownership
         if: matrix.version == '26.2'
         run: |
           python3 scripts/validate_owned_players.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/owned-players"
-          python3 scripts/validate_interactions.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/interactions"
+
+      - name: Validate player interactions and conversations
+        if: matrix.version == '26.2' || matrix.version == '26.3'
+        run: |
+          python3 scripts/validate_interactions.py --version "${{ matrix.version }}" --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/interactions"
+
+      - name: Validate progression and session policies
+        if: matrix.version == '26.3'
+        run: |
+          python3 scripts/validate_progression.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/progression"
+          python3 scripts/validate_journal_checkpoint.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/journal-checkpoint"
+
+      - name: Validate real-player protocol lifecycle
+        if: matrix.version == '26.2' || matrix.version == '26.3'
+        run: |
+          python3 scripts/validate_player_protocol.py --version "${{ matrix.version }}" --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/player-protocol"
+
+      - name: Validate inventory workflows and player presentation
+        if: matrix.version == '26.2'
+        run: |
+          python3 scripts/validate_inventory.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/inventory"
+          python3 scripts/validate_hud.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/hud"
 
       - name: Compare runtime reports with completed vanilla command traces
         if: matrix.version == '26.2'
@@ -403,6 +433,11 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/gameplay
             target/vanilla-reload/${{ matrix.version }}/owned-players
             target/vanilla-reload/${{ matrix.version }}/interactions
+            target/vanilla-reload/${{ matrix.version }}/inventory
+            target/vanilla-reload/${{ matrix.version }}/progression
+            target/vanilla-reload/${{ matrix.version }}/journal-checkpoint
+            target/vanilla-reload/${{ matrix.version }}/hud
+            target/vanilla-reload/${{ matrix.version }}/player-protocol
             target/vanilla-reload/${{ matrix.version }}/aether-abilities
             target/vanilla-reload/${{ matrix.version }}/portable-state
             target/vanilla-reload/${{ matrix.version }}/portable-global

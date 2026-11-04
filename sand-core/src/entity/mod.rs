@@ -50,6 +50,7 @@ pub mod property;
 pub mod query;
 pub mod relation;
 pub mod state;
+pub(crate) mod text;
 
 pub use archetype::{
     Adoption, AdoptionSource, ArchetypeOperations, DerivedScoreEncoding, EntityAction,

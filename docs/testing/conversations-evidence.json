@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "version": "26.2",
+  "players": 2,
+  "checks": [
+    "typed conversation transitions",
+    "conversation guards and replay rejection",
+    "conversation player isolation",
+    "callback navigation precedence across resource namespaces",
+    "pagination",
+    "nearby exact-object isolation",
+    "bound dimension transitions",
+    "navigation token exhaustion",
+    "object-bound session",
+    "bound range and cleanup invalidation",
+    "stale tokens",
+    "context invalidation",
+    "timeout",
+    "native trigger submission",
+    "single consumption",
+    "cross-player tokens",
+    "full inventory",
+    "payment ordering",
+    "personal claims",
+    "shared claims",
+    "typed book",
+    "interaction actor routing",
+    "owned cleanup",
+    "disconnect",
+    "reload"
+  ],
+  "strict_chat_marker_matching": true
+}

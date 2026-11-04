@@ -1,0 +1,3336 @@
+{
+  "baseline_schema_version": 1,
+  "minecraft_version": "26.3",
+  "namespace": "quest_rounds",
+  "profile": "dev",
+  "runtime_report": {
+    "functions": {
+      "quest_rounds:__sand_death_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function quest_rounds:death"
+          ]
+        },
+        "owners": [
+          "quest_rounds::death"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_death_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function quest_rounds:death"
+          ]
+        },
+        "owners": [
+          "quest_rounds::death"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_join_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function quest_rounds:reconnect"
+          ]
+        },
+        "owners": [
+          "quest_rounds::reconnect"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_join_dispatch": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "unknown selector multiplicity: execute at @s run function quest_rounds:reconnect"
+          ]
+        },
+        "owners": [
+          "quest_rounds::reconnect"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_lifecycle_init": {
+        "evaluations": {
+          "maximum": 11,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[scores={s5b414737a9918bc=1,s4abbe4c54c9bcb5=-2147483648..,sa41dd82eff81e40=-2147483648..,sce7319881e230e4=-2147483648..,s4e3890d32b0f97e=-2147483648..}]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[scores={s58697b005882c4e=1,s9a626b8fbb518fa=-2147483648..,s8d0fad2e9892426=-2147483648..,s33156088570fc6b=-2147483648..}]"
+          }
+        ]
+      },
+      "quest_rounds:__sand_lifecycle_load": {
+        "evaluations": {
+          "maximum": 38,
+          "minimum": 38,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint",
+          "quest_rounds::death",
+          "quest_rounds::journal",
+          "quest_rounds::quest",
+          "quest_rounds::reconnect",
+          "quest_rounds::round",
+          "quest_rounds::sneak",
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_lifecycle_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 9,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resume_tick with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/validate with entity @s data",
+            "unknown selector multiplicity: execute as @a run execute at @s run function quest_rounds:__sand_transition/c64e891aca",
+            "unknown selector multiplicity: execute as @a run function quest_rounds:__sand_death_check"
+          ]
+        },
+        "owners": [
+          "quest_rounds::death",
+          "quest_rounds::reconnect",
+          "quest_rounds::round",
+          "quest_rounds::sneak",
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@a"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_score_init": {
+        "evaluations": {
+          "maximum": 26,
+          "minimum": 26,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint",
+          "quest_rounds::journal",
+          "quest_rounds::quest",
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_load": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_page_0": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/journal/journal_page_0"
+          ]
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_place": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/journal/journal_place"
+          ]
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_refresh": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/journal/journal_page_0 with storage quest_rounds:__sand_system/lifetime/journal/journal_scratch __sand_text_numbers",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/journal/journal_place with storage quest_rounds:__sand_system/lifetime/journal/journal_scratch operation",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/journal/journal_verify with storage quest_rounds:__sand_system/lifetime/journal/journal_scratch operation"
+          ]
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_rejected": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_success": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journal/journal_verify": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/journal/journal_verify"
+          ]
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journey/progression_advance": {
+        "evaluations": {
+          "maximum": 24,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/journey/progression_attached": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/journey/progression_completed": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/journey/progression_load": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/journey/progression_reset": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/admit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/admit_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/admit_child"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s[nbt={Health:0.0f}]"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 18,
+            "operation": "rotated",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/after_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resume_step with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/session_advance with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/ancestor_next": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/ancestor_present with storage quest_rounds:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: quest_rounds:__sand_system/lifetime/round/ancestor_next"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/ancestor_present": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/ancestor_present"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/ancestors_valid": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/ancestor_present with storage quest_rounds:__sand_runtime ancestry[0]",
+            "recursive or excessively deep call graph: quest_rounds:__sand_system/lifetime/round/ancestor_next"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/cancel_descendants": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/cancel_descendants"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/cancel_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/cancel_owner"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/child_added": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/child_added"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/child_removed": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/child_removed"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/children_check": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/children_check"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/children_done": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/children_check with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/cleanup": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/e73b26d0 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/diagnose": {
+        "evaluations": {
+          "maximum": 8,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/finish_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 3,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/init": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/init"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 16,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/init_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/init_child"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/load": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/owner_valid": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/resolve_cleanup": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/resolve_cleanup"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/resolve_stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/resolve_stop"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/resume_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/resume_step"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/resume_tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/resume_tick"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/retire": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/retire"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_advance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/session_advance"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_after": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cc16f7a3 with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/eeb42638 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_load": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_reset": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_restart": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/session_advance with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_stopped": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cedca267 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/session_stopped_body": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cedca267 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/start": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/start_child": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/start_child"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/started": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/2c0bbd7c with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/step": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resume_tick with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/validate with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/stop": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/stop_descendant": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/stop_descendant"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/stop_instance": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_descendants with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_cleanup with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/retire with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cedca267 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=sand.task.71756573745f726f756e64733a726f756e64.stopping]"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/stopped": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cedca267 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/tick": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 4,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resume_tick with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/validate with entity @s data",
+            "unknown selector multiplicity: execute in minecraft:overworld as @e[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64,distance=0..] at @s run function quest_rounds:__sand_system/lifetime/round/step",
+            "unknown selector multiplicity: execute in minecraft:the_end as @e[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64,distance=0..] at @s run function quest_rounds:__sand_system/lifetime/round/step",
+            "unknown selector multiplicity: execute in minecraft:the_nether as @e[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64,distance=0..] at @s run function quest_rounds:__sand_system/lifetime/round/step"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64,distance=0..]"
+          },
+          {
+            "line": 2,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64,distance=0..]"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "as",
+            "selector": "@e[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64,distance=0..]"
+          },
+          {
+            "line": 4,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round/ticked": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round/validate": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round/validate"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_phases/progression_advance": {
+        "evaluations": {
+          "maximum": 18,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_phases/progression_attached": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_phases/progression_completed": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_phases/progression_load": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round_phases/progression_reset": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_save/checkpoint_clear": {
+        "evaluations": {
+          "maximum": 16,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_save/checkpoint_load": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_owner with storage quest_rounds:__sand_system/lifetime/round_save/checkpoint_scratch operation"
+          ]
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_commit": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_owner": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_owner"
+          ]
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:__sand_system/lifetime/round_save/checkpoint_save": {
+        "evaluations": {
+          "maximum": 37,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          }
+        ]
+      },
+      "quest_rounds:__sand_transition/c64e891aca": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "unknown selector multiplicity: execute if score @s __st_c64e891acas matches 1 if score @s __st_c64e891acac matches 1 unless score @s __st_c64e891acap matches 1 at @s run function quest_rounds:sneak"
+          ]
+        },
+        "owners": [
+          "quest_rounds::sneak"
+        ],
+        "selector_sites": [
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "at",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:cancel": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::cancel"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:death": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::death"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:forget_round": {
+        "evaluations": {
+          "maximum": 29,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::forget_round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/001d9368": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/325ca7ff": {
+        "evaluations": {
+          "maximum": 28,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 14,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 15,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:function/3d92c6ea": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cedca267 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:function/4f948b05": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/7a19dedd": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/9031bf63": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:function/94ac73dd": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:function/a72c2ce5": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/a7aa35c1": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/aad3f184": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/ad7fcdbb": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/da0ad991": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:function/dc5d2981": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_owner with storage quest_rounds:__sand_system/lifetime/round_save/checkpoint_scratch operation"
+          ]
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 8,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 10,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:function/f2c5630f": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:journal": {
+        "evaluations": {
+          "maximum": 17,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal_status"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:new_round": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 8,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::new_round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:reconnect": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel"
+          ]
+        },
+        "owners": [
+          "quest_rounds::reconnect"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:refresh_journal": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/journal/journal_page_0 with storage quest_rounds:__sand_system/lifetime/journal/journal_scratch __sand_text_numbers",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/journal/journal_place with storage quest_rounds:__sand_system/lifetime/journal/journal_scratch operation",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/journal/journal_verify with storage quest_rounds:__sand_system/lifetime/journal/journal_scratch operation"
+          ]
+        },
+        "owners": [
+          "quest_rounds::refresh_journal"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:replay_quest": {
+        "evaluations": {
+          "maximum": 20,
+          "minimum": 8,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::replay_quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:restore_round": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_owner with storage quest_rounds:__sand_system/lifetime/round_save/checkpoint_scratch operation"
+          ]
+        },
+        "owners": [
+          "quest_rounds::restore_round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:resume": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 5,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn",
+            "unknown selector multiplicity: execute at @s rotated as @s anchored feet positioned ^ ^ ^ summon minecraft:marker run function quest_rounds:__sand_system/lifetime/round/init with storage quest_rounds:__sand_runtime spawn"
+          ]
+        },
+        "owners": [
+          "quest_rounds::resume"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/conditions/items/04d48348": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/conditions/items/b93004ff": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::journal"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/numeric/sd8990554b07cf79/356a4121": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/numeric/sd8990554b07cf79/a349a29a": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/numeric/sd8990554b07cf79/aea33617": {
+        "evaluations": {
+          "maximum": 7,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 6,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 7,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/numeric/sd8990554b07cf79/ea139924": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::checkpoint"
+        ],
+        "selector_sites": [
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "store",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/progression/objective_0/0a8b2020": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/progression/objective_0/5dc4ea4b": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/progression/objective_1/43ce8382": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/progression/objective_1/cd63e054": {
+        "evaluations": {
+          "maximum": 9,
+          "minimum": 9,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_body/5b1c778b": {
+        "evaluations": {
+          "maximum": 19,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_body/63fb2bbf": {
+        "evaluations": {
+          "maximum": 0,
+          "minimum": 0,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_body/9db7b2ad": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_body/a715f891": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_body/aef2847e": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_body/e8fd47d3": {
+        "evaluations": {
+          "maximum": 6,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_context/2c0bbd7c": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:sand/runtime/owned_context/2c0bbd7c"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_context/3770cce0": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:sand/runtime/owned_context/3770cce0"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_context/cc16f7a3": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:sand/runtime/owned_context/cc16f7a3"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_context/cedca267": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:sand/runtime/owned_context/cedca267"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_context/e73b26d0": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:sand/runtime/owned_context/e73b26d0"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owned_context/eeb42638": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 0,
+          "unknown": [
+            "macro instantiation is not analyzed: quest_rounds:sand/runtime/owned_context/eeb42638"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/runtime/owner_matches/699e31a7": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/cc16f7a3 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/runtime/owner_matches/bda3612a": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 1,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:sand/runtime/owned_context/eeb42638 with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[type=minecraft:marker,tag=sand.task.71756573745f726f756e64733a726f756e64]"
+          },
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/runtime/required/3f2bd41b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/session/missing_state/40b313ca": {
+        "evaluations": {
+          "maximum": null,
+          "minimum": 2,
+          "unknown": [
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data"
+          ]
+        },
+        "owners": [
+          "quest_rounds::round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sand/state_init/06f556c3": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds:round_save"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:sand/state_init/0b88111a": {
+        "evaluations": {
+          "maximum": 5,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds:journey"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 2,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 3,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 4,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "quest_rounds:save_round": {
+        "evaluations": {
+          "maximum": 50,
+          "minimum": 5,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::save_round"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:sneak": {
+        "evaluations": {
+          "maximum": 29,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::sneak"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:state_mutation/1c47fe48": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:state_mutation/d1f68cda": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::sneak"
+        ],
+        "selector_sites": []
+      },
+      "quest_rounds:state_mutation/e14c8119": {
+        "evaluations": {
+          "maximum": 3,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "quest_rounds::quest"
+        ],
+        "selector_sites": []
+      }
+    },
+    "limitations": [
+      "An empty owner set means provenance is unavailable; resource paths are not inferred semantic owners.",
+      "Counts are explicit command evaluations, not selector search cost, terminal execution multiplicity, MSPT, or Minecraft command-budget units.",
+      "Each function retains at most eight unknown-cause messages of at most 256 UTF-8 bytes each; truncation and omitted causes are marked explicitly.",
+      "Estimates assume successfully loaded functions and uninterrupted execution; runtime aborts, server budget exhaustion, external pack contributions, and implicit resource-triggered callbacks are not fully analyzed.",
+      "Selector sites cover execute contexts, entity/score conditions, and stores, not selectors in terminal commands; sites are not runtime scan counts."
+    ],
+    "load": [
+      {
+        "contributors": [
+          "quest_rounds::checkpoint",
+          "quest_rounds::journal",
+          "quest_rounds::quest",
+          "quest_rounds::round"
+        ],
+        "evaluations": {
+          "maximum": 26,
+          "minimum": 26,
+          "unknown": []
+        },
+        "reference": "quest_rounds:__sand_score_init",
+        "required": true
+      },
+      {
+        "contributors": [
+          "quest_rounds::checkpoint",
+          "quest_rounds::death",
+          "quest_rounds::journal",
+          "quest_rounds::quest",
+          "quest_rounds::reconnect",
+          "quest_rounds::round",
+          "quest_rounds::sneak",
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "evaluations": {
+          "maximum": 38,
+          "minimum": 38,
+          "unknown": []
+        },
+        "reference": "quest_rounds:__sand_lifecycle_load",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "archetypes": [],
+      "function_owners": {
+        "quest_rounds:__sand_death_check": [
+          "quest_rounds::death"
+        ],
+        "quest_rounds:__sand_death_dispatch": [
+          "quest_rounds::death"
+        ],
+        "quest_rounds:__sand_join_check": [
+          "quest_rounds::reconnect"
+        ],
+        "quest_rounds:__sand_join_dispatch": [
+          "quest_rounds::reconnect"
+        ],
+        "quest_rounds:__sand_lifecycle_init": [
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "quest_rounds:__sand_lifecycle_load": [
+          "quest_rounds::checkpoint",
+          "quest_rounds::death",
+          "quest_rounds::journal",
+          "quest_rounds::quest",
+          "quest_rounds::reconnect",
+          "quest_rounds::round",
+          "quest_rounds::sneak",
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "quest_rounds:__sand_lifecycle_tick": [
+          "quest_rounds::death",
+          "quest_rounds::reconnect",
+          "quest_rounds::round",
+          "quest_rounds::sneak",
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "quest_rounds:__sand_score_init": [
+          "quest_rounds::checkpoint",
+          "quest_rounds::journal",
+          "quest_rounds::quest",
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_load": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_page_0": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_place": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_refresh": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_rejected": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_success": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journal/journal_verify": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:__sand_system/lifetime/journey/progression_advance": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:__sand_system/lifetime/journey/progression_attached": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:__sand_system/lifetime/journey/progression_completed": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:__sand_system/lifetime/journey/progression_load": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:__sand_system/lifetime/journey/progression_reset": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/admit": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/admit_child": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/after_tick": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/ancestor_next": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/ancestor_present": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/ancestors_valid": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/cancel": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/cancel_descendants": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/cancel_owner": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/child_added": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/child_removed": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/children_check": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/children_done": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/cleanup": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/commit": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/diagnose": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/finish_step": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/init": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/init_child": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/load": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/owner_valid": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/resolve_cleanup": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/resolve_stop": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/resume_step": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/resume_tick": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/retire": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_advance": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_after": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_cancel": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_load": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_reset": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_restart": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_start": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_step": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_stopped": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/session_stopped_body": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/start": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/start_child": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/started": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/step": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/stop": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/stop_descendant": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/stop_instance": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/stopped": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/tick": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/ticked": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round/validate": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_phases/progression_advance": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_phases/progression_attached": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_phases/progression_completed": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_phases/progression_load": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_phases/progression_reset": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_save/checkpoint_clear": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_save/checkpoint_load": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_commit": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_save/checkpoint_restore_owner": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:__sand_system/lifetime/round_save/checkpoint_save": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:__sand_transition/c64e891aca": [
+          "quest_rounds::sneak"
+        ],
+        "quest_rounds:cancel": [
+          "quest_rounds::cancel"
+        ],
+        "quest_rounds:death": [
+          "quest_rounds::death"
+        ],
+        "quest_rounds:forget_round": [
+          "quest_rounds::forget_round"
+        ],
+        "quest_rounds:function/001d9368": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:function/325ca7ff": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:function/3d92c6ea": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:function/4f948b05": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:function/7a19dedd": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:function/9031bf63": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:function/94ac73dd": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:function/a72c2ce5": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:function/a7aa35c1": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:function/aad3f184": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:function/ad7fcdbb": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:function/da0ad991": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:function/dc5d2981": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:function/f2c5630f": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:journal": [
+          "quest_rounds::journal_status"
+        ],
+        "quest_rounds:new_round": [
+          "quest_rounds::new_round"
+        ],
+        "quest_rounds:reconnect": [
+          "quest_rounds::reconnect"
+        ],
+        "quest_rounds:refresh_journal": [
+          "quest_rounds::refresh_journal"
+        ],
+        "quest_rounds:replay_quest": [
+          "quest_rounds::replay_quest"
+        ],
+        "quest_rounds:restore_round": [
+          "quest_rounds::restore_round"
+        ],
+        "quest_rounds:resume": [
+          "quest_rounds::resume"
+        ],
+        "quest_rounds:sand/conditions/items/04d48348": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:sand/conditions/items/b93004ff": [
+          "quest_rounds::journal"
+        ],
+        "quest_rounds:sand/numeric/sd8990554b07cf79/356a4121": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:sand/numeric/sd8990554b07cf79/a349a29a": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:sand/numeric/sd8990554b07cf79/aea33617": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:sand/numeric/sd8990554b07cf79/ea139924": [
+          "quest_rounds::checkpoint"
+        ],
+        "quest_rounds:sand/progression/objective_0/0a8b2020": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:sand/progression/objective_0/5dc4ea4b": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/progression/objective_1/43ce8382": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/progression/objective_1/cd63e054": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:sand/runtime/owned_body/5b1c778b": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_body/63fb2bbf": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_body/9db7b2ad": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_body/a715f891": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_body/aef2847e": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_body/e8fd47d3": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_context/2c0bbd7c": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_context/3770cce0": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_context/cc16f7a3": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_context/cedca267": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_context/e73b26d0": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owned_context/eeb42638": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owner_matches/699e31a7": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/owner_matches/bda3612a": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/runtime/required/3f2bd41b": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/session/missing_state/40b313ca": [
+          "quest_rounds::round"
+        ],
+        "quest_rounds:sand/state_init/06f556c3": [
+          "quest_rounds:round_save"
+        ],
+        "quest_rounds:sand/state_init/0b88111a": [
+          "quest_rounds:journey"
+        ],
+        "quest_rounds:save_round": [
+          "quest_rounds::save_round"
+        ],
+        "quest_rounds:sneak": [
+          "quest_rounds::sneak"
+        ],
+        "quest_rounds:state_mutation/1c47fe48": [
+          "quest_rounds::quest"
+        ],
+        "quest_rounds:state_mutation/d1f68cda": [
+          "quest_rounds::sneak"
+        ],
+        "quest_rounds:state_mutation/e14c8119": [
+          "quest_rounds::quest"
+        ]
+      },
+      "lifecycle_owners": {
+        "quest_rounds:__sand_lifecycle_load": [
+          {
+            "first_line": 21,
+            "line_count": 1,
+            "owner": "quest_rounds::checkpoint"
+          },
+          {
+            "first_line": 22,
+            "line_count": 1,
+            "owner": "quest_rounds::journal"
+          },
+          {
+            "first_line": 23,
+            "line_count": 1,
+            "owner": "quest_rounds::quest"
+          },
+          {
+            "first_line": 24,
+            "line_count": 1,
+            "owner": "quest_rounds::round"
+          },
+          {
+            "first_line": 25,
+            "line_count": 1,
+            "owner": "quest_rounds::round"
+          },
+          {
+            "first_line": 26,
+            "line_count": 1,
+            "owner": "quest_rounds::round"
+          }
+        ],
+        "quest_rounds:__sand_lifecycle_tick": [
+          {
+            "first_line": 5,
+            "line_count": 1,
+            "owner": "quest_rounds::round"
+          }
+        ]
+      },
+      "systems": [],
+      "tag_contributors": [
+        {
+          "member": "quest_rounds:__sand_lifecycle_load",
+          "owners": [
+            "quest_rounds::checkpoint",
+            "quest_rounds::death",
+            "quest_rounds::journal",
+            "quest_rounds::quest",
+            "quest_rounds::reconnect",
+            "quest_rounds::round",
+            "quest_rounds::sneak",
+            "quest_rounds:journey",
+            "quest_rounds:round_save"
+          ],
+          "tag": "minecraft:load"
+        },
+        {
+          "member": "quest_rounds:__sand_lifecycle_tick",
+          "owners": [
+            "quest_rounds::death",
+            "quest_rounds::reconnect",
+            "quest_rounds::round",
+            "quest_rounds::sneak",
+            "quest_rounds:journey",
+            "quest_rounds:round_save"
+          ],
+          "tag": "minecraft:tick"
+        },
+        {
+          "member": "quest_rounds:__sand_score_init",
+          "owners": [
+            "quest_rounds::checkpoint",
+            "quest_rounds::journal",
+            "quest_rounds::quest",
+            "quest_rounds::round"
+          ],
+          "tag": "minecraft:load"
+        }
+      ]
+    },
+    "schema_version": 1,
+    "tick": [
+      {
+        "contributors": [
+          "quest_rounds::death",
+          "quest_rounds::reconnect",
+          "quest_rounds::round",
+          "quest_rounds::sneak",
+          "quest_rounds:journey",
+          "quest_rounds:round_save"
+        ],
+        "evaluations": {
+          "maximum": null,
+          "minimum": 9,
+          "unknown": [
+            "additional unknown causes omitted",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/cancel_owner with storage quest_rounds:__sand_runtime cancel",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resolve_stop with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/resume_tick with entity @s data",
+            "function arguments are not analyzed: function quest_rounds:__sand_system/lifetime/round/validate with entity @s data",
+            "unknown selector multiplicity: execute as @a run execute at @s run function quest_rounds:__sand_transition/c64e891aca",
+            "unknown selector multiplicity: execute as @a run function quest_rounds:__sand_death_check"
+          ]
+        },
+        "reference": "quest_rounds:__sand_lifecycle_tick",
+        "required": true
+      }
+    ]
+  }
+}

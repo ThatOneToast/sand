@@ -199,7 +199,7 @@ struct AddArgs {
 
 #[derive(Subcommand)]
 enum AddFeature {
-    /// Reserved for Sand's future resource-pack implementation
+    /// Add optional companion client assets with separate build output
     Resourcepack,
     /// Add a typed `sand.build.rs` world/server-configuration script to an
     /// existing Sand project (issue #317)

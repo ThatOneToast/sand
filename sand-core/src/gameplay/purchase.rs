@@ -18,11 +18,11 @@ use std::sync::Arc;
 /// destination. Native item placement must succeed before charging or claiming;
 /// state commits before callbacks. A pack-owned lock rejects synchronous
 /// reentrant purchases during native placement; normal callbacks run unlocked. Rejection changes neither balance nor claim.
-/// This deliberately does not merge stacks, drop overflow, remove arbitrary
+/// This deliberately does not merge stacks, drop overflow, search for arbitrary
 /// payment items or promise rollback for user callbacks. Attach referenced State
 /// through its normal lifecycle before invoking the purchase.
 #[derive(Clone)]
-#[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase", module = "sand::systems", summary = "Validated player purchases and one-time item rewards.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+#[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase", module = "sand::systems", summary = "Validated player purchases and one-time item rewards.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 example = "use sand::systems::Purchase;")]
 pub struct Purchase {
     id: ResourceLocation,
@@ -30,12 +30,13 @@ pub struct Purchase {
     slot: InventoryIndex,
     cost: Option<(EntityScore<i32>, u32)>,
     claim: Option<EntityFlag>,
+    item_cost: Option<(InventoryIndex, sand_components::ItemPredicate, u32)>,
     success: Option<Arc<dyn Fn() -> Actions>>,
     rejected: Option<Arc<dyn Fn() -> Actions>>,
 }
 impl Purchase {
     /// Define a reward and its destination player inventory slot (0–35).
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::new", module = "sand::systems", summary = "Define a reward delivered to an empty player slot.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::new", module = "sand::systems", summary = "Define a reward delivered to an empty player slot.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 params(id = "Unique registered purchase identity.", reward = "Canonical item stack.", slot = "Player inventory slot which must be empty."),
 returns = "The configured purchase or retained player action.",
 example = "use sand::systems::Purchase;")]
@@ -46,12 +47,13 @@ example = "use sand::systems::Purchase;")]
             slot,
             cost: None,
             claim: None,
+            item_cost: None,
             success: None,
             rejected: None,
         }
     }
     /// Charge canonical integer currency only after successful delivery.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::cost", module = "sand::systems", summary = "Set the canonical score currency cost.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::cost", module = "sand::systems", summary = "Set the canonical score currency cost.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 params(balance = "Registered player/entity integer State field.", amount = "Nonnegative currency amount fitting i32."),
 returns = "The configured purchase or retained player action.",
 example = "use sand::systems::Purchase;")]
@@ -59,9 +61,31 @@ example = "use sand::systems::Purchase;")]
         self.cost = Some((balance, amount));
         self
     }
+    /// Pay with one whole matching stack in a distinct numbered player slot.
+    ///
+    /// The slot must contain exactly `amount` items and satisfy the canonical
+    /// predicate, including its component filters. An ID-only predicate accepts
+    /// any components; use an explicit predicate when payment identity requires
+    /// them. No search or partial removal occurs. The reward slot cannot also be
+    /// the payment slot. This cost composes with score currency and claims.
+    ///
+    /// Placement is checked before the payment slot is cleared. Sand snapshots
+    /// and rechecks the complete payment stack after native placement; changes
+    /// reject and clear the just-delivered reward. This is bounded compensation,
+    /// not rollback of arbitrary native listeners or other packs' mutations.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::item_cost", module = "sand::systems", summary = "Require a whole matching payment stack in a separate player slot.", context = "Combines canonical ItemPredicate identity/components with an exact stack quantity and explicit slot exclusion.", minecraft = "Checks the payment slot before placement, rechecks its snapshot afterward, then clears the whole payment slot before State commits.", use_when = ["Shops accepting an explicitly selected whole payment stack"], avoid_when = ["Searching an inventory, partial payments, or arbitrary transaction rollback"], params(slot = "Numbered payment slot, distinct from the reward slot.", item = "Canonical item identity and component predicate.", amount = "Exact whole-stack quantity, from 1 through 99."), returns = "The configured purchase.", example = "use sand::systems::Purchase;")]
+    pub fn item_cost(
+        mut self,
+        slot: InventoryIndex,
+        item: impl Into<sand_components::ItemPredicate>,
+        amount: u32,
+    ) -> Self {
+        self.item_cost = Some((slot, item.into(), amount));
+        self
+    }
     /// Require an unset claim flag and set it before success callbacks.
     /// Player/entity flags create personal claims; global flags create shared claims.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::claim_once", module = "sand::systems", summary = "Make the reward claimable once per canonical claim holder.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::claim_once", module = "sand::systems", summary = "Make the reward claimable once per canonical claim holder.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 params(claimed = "Canonical State flag; global flags produce shared claims."),
 returns = "The configured purchase or retained player action.",
 example = "use sand::systems::Purchase;")]
@@ -70,7 +94,7 @@ example = "use sand::systems::Purchase;")]
         self
     }
     /// Run as the purchasing player after item delivery and state commits.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::on_success", module = "sand::systems", summary = "Run after delivery and committed payment.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::on_success", module = "sand::systems", summary = "Run after delivery and committed payment.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 params(action = "Player-context success actions."),
 returns = "The configured purchase or retained player action.",
 example = "use sand::systems::Purchase;")]
@@ -79,7 +103,7 @@ example = "use sand::systems::Purchase;")]
         self
     }
     /// Run as the player when admission or delivery fails, with no charge.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::on_rejected", module = "sand::systems", summary = "Run after admission or placement rejection.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::on_rejected", module = "sand::systems", summary = "Run after admission or placement rejection.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 params(action = "Player-context failure actions."),
 returns = "The configured purchase or retained player action.",
 example = "use sand::systems::Purchase;")]
@@ -88,7 +112,7 @@ example = "use sand::systems::Purchase;")]
         self
     }
     /// Attempt the registered purchase for the executing player.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::buy", module = "sand::systems", summary = "Attempt a purchase for the executing player.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or arbitrary item-payment removal"],
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::buy", module = "sand::systems", summary = "Attempt a purchase for the executing player.", context = "Register the definition and attach its canonical State before use. Empty-slot and balance checks precede placement; payment and claims precede success callbacks.", minecraft = "One native player-slot write with checked result, then canonical State mutations. Full destination rejects without charge. No arbitrary-command rollback.", use_when = ["Building shops and personal reward containers"], avoid_when = ["Stack merging or inventory-wide item-payment removal"],
 returns = "The configured purchase or retained player action.",
 example = "use sand::systems::Purchase;")]
     pub fn buy(&self) -> Actions {
@@ -100,7 +124,14 @@ impl IntoDatapack for Purchase {
         let mut registration = DatapackRegistration::new().lifecycle(LifecycleContribution::load(
             format!("function {}", identity::resource(&self.id, "purchase_load")),
         ));
-        for part in ["load", "buy", "place", "success", "rejected"] {
+        for part in [
+            "load",
+            "buy",
+            "place",
+            "payment_changed",
+            "success",
+            "rejected",
+        ] {
             let definition = self.clone();
             registration = registration.component(runtime::Function::new(
                 &self.id,
@@ -115,9 +146,19 @@ impl Purchase {
     fn build(&self, part: &str) -> CommandResult<Actions> {
         let error = |field, detail: String| CommandError::new("purchase", field, detail);
         let id = crate::function::resolve_export_location(&self.id)?;
-        let lock =
-            ObjectiveName::logical(format!("sand purchase {} transaction lock", id.namespace()));
-        crate::function::request_numeric_objectives([lock.clone()])?;
+        let lock = super::inventory_transfer::inventory_lock(&id)?;
+        let scratch = identity::resource(&id, "purchase_scratch");
+        let payment_score =
+            ObjectiveName::logical(format!("sand purchase {} payment scratch", id.namespace()));
+        crate::function::request_numeric_objectives([payment_score.clone()])?;
+        if let Some((payment_slot, _, amount)) = &self.item_cost
+            && (*payment_slot == self.slot || !(1..=99).contains(amount))
+        {
+            return Err(error(
+                "item_cost",
+                "payment must use a distinct slot and a whole-stack count from 1 through 99".into(),
+            ));
+        }
         let function =
             |part: &str| identity::resource(&id, &format!("purchase_{part}")).to_string();
         self.reward
@@ -168,9 +209,20 @@ impl Purchase {
                     .map_err(|e| error("reward", e.to_string()))?;
                 Ok(Cmd::ReturnRun(Box::new(write.0.remove(0))).into_commands())
             }
-            "load" => Ok(format!("scoreboard players set #busy {lock} 0").into_commands()),
+            "load" => Ok(format!(
+                "scoreboard players set #busy {lock} 0\ndata remove storage {scratch} payment"
+            )
+            .into_commands()),
+            "payment_changed" => {
+                let mut actions = slot.clear().map_err(|e| error("slot", e.to_string()))?;
+                actions.extend([rejected()]);
+                Ok(actions)
+            }
             "success" | "rejected" => {
-                let mut body = format!("scoreboard players set #busy {lock} 0").into_commands();
+                let mut body = format!(
+                    "data remove storage {scratch} payment\nscoreboard players set #busy {lock} 0"
+                )
+                .into_commands();
                 let callback = if part == "success" {
                     &self.success
                 } else {
@@ -232,12 +284,29 @@ impl Purchase {
                     .is_empty()
                     .map_err(|e| error("slot", e.to_string()))?
                     .guard_actions(true, &[], rejected())]);
+                if let Some((payment_slot, predicate, amount)) = &self.item_cost {
+                    let payment = ItemLocation::PlayerInventory(*payment_slot);
+                    actions.extend([payment
+                        .matches(predicate.clone())
+                        .map_err(|e| error("item_cost", e.to_string()))?
+                        .guard_actions(true, &[], rejected())]);
+                    let path = payment.nbt().as_str().to_owned();
+                    actions.extend([format!("execute store result score #count {payment_score} run data get entity @s {path}.count\nexecute unless score #count {payment_score} matches {amount} run return run function {}\ndata remove storage {scratch} payment\ndata modify storage {scratch} payment.before set from entity @s {path}", function("rejected")).into_commands()]);
+                }
                 actions.extend([format!(
                     "execute unless function {} run return run function {}",
                     function("place"),
                     function("rejected")
                 )
                 .into_commands()]);
+                if let Some((payment_slot, _, _)) = &self.item_cost {
+                    let payment = ItemLocation::PlayerInventory(*payment_slot);
+                    let path = payment.nbt().as_str().to_owned();
+                    actions.extend([format!("execute unless data entity @s {path} run return run function {}\ndata modify storage {scratch} payment.after set from entity @s {path}\nexecute store success score #changed {payment_score} run data modify storage {scratch} payment.after set from storage {scratch} payment.before\nexecute if score #changed {payment_score} matches 1 run return run function {}", function("payment_changed"), function("payment_changed")).into_commands()]);
+                    actions.extend([payment
+                        .clear()
+                        .map_err(|e| error("item_cost", e.to_string()))?]);
+                }
                 if let Some((field, amount)) = self.cost {
                     actions.extend([field
                         .bind_to(
@@ -260,6 +329,35 @@ impl Purchase {
                 Ok(actions)
             }
             _ => unreachable!(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn rejects_payment_reward_aliases_and_invalid_whole_stack_quantities() {
+        let _export = crate::function::ExportFunctionRegistryScope::enter_namespace("proof");
+        let reward_slot = InventoryIndex::new(0).unwrap();
+        let payment_slot = InventoryIndex::new(1).unwrap();
+        let reward = ItemStack::new(sand_components::ItemId::minecraft("diamond").unwrap());
+        for (slot, amount) in [(reward_slot, 3), (payment_slot, 0), (payment_slot, 100)] {
+            let purchase = Purchase::new(
+                "proof:payment".parse().unwrap(),
+                reward.clone(),
+                reward_slot,
+            )
+            .item_cost(
+                slot,
+                sand_components::ItemId::minecraft("emerald").unwrap(),
+                amount,
+            );
+            let error = purchase.build("buy").unwrap_err().to_string();
+            assert!(
+                error.contains("distinct slot and a whole-stack count"),
+                "{error}"
+            );
         }
     }
 }

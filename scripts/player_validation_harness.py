@@ -1,4 +1,4 @@
-"""Shared passive-player lifecycle for disposable Minecraft 26.2 audits."""
+"""Shared passive-player lifecycle for verified Minecraft 26.2/26.3 audits."""
 from contextlib import contextmanager, ExitStack
 from pathlib import Path
 import re
@@ -8,6 +8,7 @@ import time
 
 from validate_world_gameplay import WorldGameplayHarness
 from vanilla_reload_harness import ValidationFailure
+from mc_validation.protocols import profile_for_version
 
 
 class PlayerHarness(WorldGameplayHarness):
@@ -19,6 +20,7 @@ class PlayerHarness(WorldGameplayHarness):
         return []
 
     def prepare(self):
+        profile_for_version(self.args.version)
         super().prepare()
         with (self.server / "server.properties").open("a", encoding="utf-8") as properties:
             properties.write("max-players=2\n")
@@ -35,6 +37,7 @@ class PlayerHarness(WorldGameplayHarness):
     @contextmanager
     def clients(self, *, players=None):
         """Connect selected players; nested sessions retain independent logs."""
+        protocol = profile_for_version(self.args.version)["version"]["protocol_version"]
         players = self.players if players is None else tuple(players)
         sessions = getattr(self, "_client_sessions", {})
         self._client_sessions = sessions
@@ -48,7 +51,7 @@ class PlayerHarness(WorldGameplayHarness):
                     start = len(self.lines)
                     process = subprocess.Popen([
                         sys.executable, "-u", str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
-                        "127.0.0.1", str(self.port), "776", player, str(self.args.timeout * 4 + 90),
+                        "127.0.0.1", str(self.port), str(protocol), player, str(self.args.timeout * 4 + 90),
                     ] + (["--auto-respawn"] if self.auto_respawn else []) + self.client_options(player),
                         stdout=log, stderr=subprocess.STDOUT)
                     processes.append(process)

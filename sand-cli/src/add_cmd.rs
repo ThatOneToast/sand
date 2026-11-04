@@ -113,13 +113,108 @@ pub fn run_migrate() -> Result<()> {
 
 // ── `sand add resourcepack` ───────────────────────────────────────────────────
 
-/// Reserve the resource-pack capability name until Sand ships its replacement.
-///
-/// This command intentionally performs no filesystem writes.
+/// Opt in to companion client assets without changing existing source files.
+/// Creates a project-local asset directory and appends `[resource_pack]` only
+/// when absent. Repeated calls preserve the configuration and authored assets.
 pub fn run_resourcepack() -> Result<()> {
-    bail!(
-        "Sand resource-pack support is temporarily unavailable and planned for a future implementation"
-    )
+    let project = std::env::current_dir()?;
+    scaffold_resourcepack_at(&project)?;
+    println!(
+        "{} companion resource pack configured; add client assets under the configured source/assets/ directory",
+        "Done!".green().bold()
+    );
+    println!(
+        "  Run `sand build` for separate datapack and resource-pack folders, or `sand build --release` for both zip files."
+    );
+    Ok(())
+}
+
+fn scaffold_resourcepack_at(project: &std::path::Path) -> Result<()> {
+    use crate::build::{output_manifest::reject_symlink_ancestors, resource_pack};
+    use std::io::Write;
+    let path = project.join("sand.toml");
+    reject_symlink_ancestors(&path)?;
+    let original = std::fs::read_to_string(&path)
+        .context("sand.toml not found — run this command from your project root")?;
+    let mut config: SandConfig = toml::from_str(&original).context("failed to parse sand.toml")?;
+    let append = config.resource_pack.is_none();
+    let configured = if append {
+        format!(
+            "{}\n\n[resource_pack]\nsource = \"resourcepack\"\n",
+            original.trim_end()
+        )
+    } else {
+        original.clone()
+    };
+    if append {
+        config = toml::from_str(&configured)?;
+    }
+    let resources = config
+        .resource_pack
+        .as_ref()
+        .expect("resource configuration");
+    resource_pack::format_for(&config.pack.mc_version, resources.pack_format)?;
+    let source = resource_pack::source_path(project, resources)?;
+    anyhow::ensure!(
+        !source.starts_with(project.join("dist")),
+        "resource pack source must be outside dist"
+    );
+    if source.exists() {
+        resource_pack::prepare(project, &config, &config.pack.mc_version)?;
+    }
+    let asset_root = source.join("assets").join(config.pack.namespace.as_str());
+    anyhow::ensure!(
+        !matches!(config.pack.namespace.as_str(), "." | ".."),
+        "resource pack namespace must name a directory"
+    );
+    reject_symlink_ancestors(&asset_root)?;
+    let mut created = Vec::new();
+    let result = (|| {
+        let mut current = project.to_path_buf();
+        for part in asset_root.strip_prefix(project)?.components() {
+            current.push(part);
+            if !current.exists() {
+                std::fs::create_dir(&current)?;
+                created.push(current.clone());
+            } else {
+                anyhow::ensure!(
+                    current.is_dir(),
+                    "asset source parent is not a directory: {}",
+                    current.display()
+                );
+            }
+        }
+        let readme = source.join("README.md");
+        if !readme.exists() {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&readme)?;
+            created.push(readme);
+            file.write_all(b"# Companion resource pack\n\nPlace client assets under assets/<namespace>/ using Minecraft resource paths.\nOptional pack.png belongs here. Sand generates pack.mcmeta from [resource_pack]\nin sand.toml; do not add a source pack.mcmeta. This README is not packaged.\n\nRun sand build for separate dist/<namespace>-resources output, or\nsand build --release for a companion zip. Sand packages asset bytes and checks\nJSON syntax; verify models, textures, sounds and fonts in a Minecraft client.\nClient installation and server resource-pack delivery are not performed.\n")?;
+        }
+        if append {
+            let mut temporary = tempfile::NamedTempFile::new_in(project)?;
+            temporary.write_all(configured.as_bytes())?;
+            temporary
+                .as_file()
+                .set_permissions(std::fs::metadata(&path)?.permissions())?;
+            temporary
+                .persist(&path)
+                .context("install resource pack configuration")?;
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        for path in created.into_iter().rev() {
+            if path.is_dir() {
+                let _ = std::fs::remove_dir(path);
+            } else {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+    result
 }
 
 /// Load and parse `sand.toml` from the current directory.

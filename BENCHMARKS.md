@@ -1,5 +1,12 @@
 # Sand build-performance benchmarks (issue #347)
 
+Current build measurements use the [isolated benchmark suite](docs/testing/build-benchmarks.md):
+cold targets after external-cache warmup, warm facade invalidation, and restored-source
+no-op checks. The suite snapshots current tracked and nonignored source, records a
+content fingerprint, and never edits the live checkout or deletes shared caches.
+Historical tables below retain their original dates, scenarios and limitations;
+they are not automatically comparable to the refreshed suite.
+
 > **Note (issue #317):** the typed `sand::build` API added a `BuildProfile::Bench`
 > profile and `WorldResetPolicy` server-integration primitives for
 > reproducible, fixed-seed "benchmark worlds" (see the book's "Testing And

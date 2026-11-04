@@ -130,9 +130,12 @@ not a runtime dependency.
 - **Owned work** — `Lifetime`, abilities, status effects, projectiles, child tasks,
   condition waits and joins with bounded work and explicit cleanup.
 - **Encounters and presentation** — combat policies, priority-based encounter
-  controllers, sequences, block-display scenes and batched jobs.
+  controllers, sequences, block/item/text scenes, owned HUDs and batched jobs.
+- **Progression** — canonical-State objectives and rewards, plus owned sessions
+  with explicit reset/restart, saved-phase resume and checked checkpoint projections.
 - **Interactions** — paginated player menus, exact object-bound sessions,
-  clickable hitboxes, guarded purchases and typed written books.
+  typed conversation views, clickable hitboxes, guarded item payments, whole-stack
+  transfers and refreshable State-driven journal books.
 
 These are alpha systems with explicit vanilla limits: collision is sampled,
 encounters do not provide pathfinding, books are snapshots, and menus do not
@@ -147,8 +150,9 @@ separates implemented behavior, remaining systems and validation gaps.
   creates a distributable zip.
 - `sand run` builds the pack, prepares a local Minecraft server, and presents
   classified, verbose, raw, or JSON server logs.
-- `sand add worldbuild` adds typed world/server configuration. The
-  `resourcepack` capability name is reserved while that support is unavailable.
+- `sand add worldbuild` adds typed world/server configuration.
+- `sand add resourcepack` opts in to a [companion client asset pack](book/src/17a-companion-resource-packs.md),
+  built separately under `dist/<namespace>-resources/`.
 - `sand join` integrates with Prism Launcher for local testing.
 - `sand clean` removes generated pack and optional server/build artifacts.
 

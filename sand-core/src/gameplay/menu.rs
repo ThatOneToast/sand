@@ -11,13 +11,15 @@ use sand_components::{
     ResourceLocation,
     dialog::{Dialog, DialogAction, DialogButton},
 };
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Clone)]
 struct Choice {
     label: TextComponent,
     allowed: Condition,
     action: Arc<dyn Fn() -> Actions>,
+    view: i32,
+    destination: Option<i32>,
 }
 
 /// A native dialog whose choices belong to one live player session.
@@ -40,6 +42,9 @@ example = "use sand::systems::Menu;")]
 pub struct Menu {
     pub(super) id: ResourceLocation,
     title: TextComponent,
+    views: BTreeMap<i32, TextComponent>,
+    authoring_view: i32,
+    entry_view: i32,
     timeout: u32,
     valid: Option<Condition>,
     choices: Vec<Choice>,
@@ -59,6 +64,9 @@ example = "use sand::systems::Menu;")]
         Self {
             id,
             title,
+            views: BTreeMap::new(),
+            authoring_view: 0,
+            entry_view: 0,
             timeout: timeout.get(),
             valid: None,
             choices: vec![],
@@ -86,9 +94,62 @@ example = "use sand::systems::Menu;")]
             label,
             allowed,
             action: Arc::new(move || action().into_commands()),
+            view: self.authoring_view,
+            destination: None,
         });
         self
     }
+    /// Select the typed conversation view for subsequent choices. Use one
+    /// canonical State enum for all view keys. Encoding zero is the initial
+    /// view unless `start_at` selects another. Re-selecting a view updates its
+    /// title and appends choices; gameplay state belongs in ordinary State.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Menu::view", module = "sand::systems",
+summary = "Author a typed conversation view within one menu session.", context = "Subsequent choices belong to this enum encoding. Views share session ownership and exact object binding; gameplay progression remains canonical State.", minecraft = "Exports paginated native dialogs with bounded per-player routing and fresh action tokens.", use_when = ["Branching conversations and confirmations"], avoid_when = ["Persisting gameplay progress in menu navigation"], params(view = "Canonical State enum key for this view.", title = "Title shown on this view's pages."), returns = "The configured menu.", example = "use sand::systems::Menu;")]
+    pub fn view<T: crate::entity::EntityEnumValue>(
+        mut self,
+        view: T,
+        title: TextComponent,
+    ) -> Self {
+        self.authoring_view = view.encode();
+        if self.authoring_view == 0 {
+            self.title = title;
+        } else {
+            self.views.insert(self.authoring_view, title);
+        }
+        self
+    }
+
+    /// Choose the initial typed view on every fresh opening. Reopening never
+    /// resumes an old ephemeral conversation session.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Menu::start_at", module = "sand::systems",
+summary = "Choose the entry view of a conversation.", context = "The selected view must have choices. Every new opening starts there; persistent progression is authored through State guards and callbacks.", minecraft = "Initializes the private page routing score before session admission.", use_when = ["Choosing a typed entry point"], avoid_when = ["Resuming an expired native dialog"], params(view = "Canonical State enum key of the entry view."), returns = "The configured menu.", example = "use sand::systems::Menu;")]
+    pub fn start_at<T: crate::entity::EntityEnumValue>(mut self, view: T) -> Self {
+        self.entry_view = view.encode();
+        self
+    }
+
+    /// Append a guarded transition to another view. The old session is consumed
+    /// before the callback, which runs as the player at the bound object (or
+    /// player position when unbound). The destination receives fresh tokens and
+    /// rechecks context validity. A callback that opens another menu takes
+    /// precedence. Use `choice` for terminal acceptance or cancellation.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Menu::choice_to", module = "sand::systems",
+summary = "Transition between conversation views after a guarded callback.", context = "Consumes the source session before callback execution and preserves exact object identity. A newer menu opened by the callback wins; moved or removed objects cannot authorize the destination.", minecraft = "Reuses native Menu routing and monotonic tokens; validates every destination and bounds the complete graph to 256 choices.", use_when = ["Confirmation flows, branching dialogue and bounded choice forms"], avoid_when = ["Unverified free-text submission or transactional callback rollback"], params(label = "Visible transition label.", allowed = "Player-context authorization rechecked before consumption.", destination = "Typed view to enter after the callback.", action = "Canonical gameplay State/actions performed on this transition."), returns = "The configured menu.", example = "use sand::systems::Menu;")]
+    pub fn choice_to<T: crate::entity::EntityEnumValue, R: IntoCommands>(
+        self,
+        label: TextComponent,
+        allowed: Condition,
+        destination: T,
+        action: impl Fn() -> R + 'static,
+    ) -> Self {
+        let mut menu = self.choice(label, allowed, action);
+        menu.choices
+            .last_mut()
+            .expect("appended choice")
+            .destination = Some(destination.encode());
+        menu
+    }
+
     /// Require a player-context condition at opening, on each online tick and
     /// immediately before dispatch. Failure invalidates the session and clears
     /// its screen. Use canonical predicates for world/quest eligibility; a
@@ -172,8 +233,7 @@ impl IntoDatapack for Menu {
             ]
         }));
         parts.extend(
-            (0..self.choices.len().div_ceil(self.page_size.max(1)))
-                .flat_map(|i| [format!("show_{i}"), format!("page_{i}")]),
+            (0..self.pages().len()).flat_map(|i| [format!("show_{i}"), format!("page_{i}")]),
         );
         for part in parts {
             let definition = self.clone();
@@ -186,7 +246,35 @@ impl IntoDatapack for Menu {
         registration
     }
 }
+#[derive(Clone)]
+struct Page {
+    view: i32,
+    choices: Vec<usize>,
+    previous: Option<usize>,
+    next: Option<usize>,
+}
 impl Menu {
+    fn pages(&self) -> Vec<Page> {
+        let mut views: BTreeMap<i32, Vec<usize>> = BTreeMap::new();
+        for (index, choice) in self.choices.iter().enumerate() {
+            views.entry(choice.view).or_default().push(index);
+        }
+        let mut pages = Vec::new();
+        for (view, choices) in views {
+            let first = pages.len();
+            let count = choices.len().div_ceil(self.page_size.max(1));
+            for (index, chunk) in choices.chunks(self.page_size.max(1)).enumerate() {
+                pages.push(Page {
+                    view,
+                    choices: chunk.to_vec(),
+                    previous: (index > 0).then(|| first + index - 1),
+                    next: (index + 1 < count).then_some(first + index + 1),
+                });
+            }
+        }
+        pages
+    }
+
     fn build(&self, part: &str) -> CommandResult<Actions> {
         if self.timeout == 0
             || self.timeout > i32::MAX as u32
@@ -199,6 +287,39 @@ impl Menu {
                 "definition",
                 "requires 1..=256 choices, page_size in 1..=64 and timeout in 1..=2147483647",
             ));
+        }
+        let page_definitions = self.pages();
+        let first_page = |view| page_definitions.iter().position(|page| page.view == view);
+        let entry_page = first_page(self.entry_view).ok_or_else(|| {
+            CommandError::new(
+                "menu",
+                "entry",
+                "entry view must contain at least one choice",
+            )
+        })?;
+        for choice in &self.choices {
+            if let Some(destination) = choice.destination
+                && first_page(destination).is_none()
+            {
+                return Err(CommandError::new(
+                    "menu",
+                    "destination",
+                    "every transition destination must contain at least one choice",
+                ));
+            }
+        }
+        for title in self.views.values() {
+            title.validate_at_path(
+                &sand_commands::CommandProfile::unprofiled(),
+                "menu.view.title",
+            )?;
+            if title.to_string().contains("$(") {
+                return Err(CommandError::new(
+                    "menu",
+                    "text",
+                    "literal macro delimiters are not supported in menu text",
+                ));
+            }
         }
         self.title
             .validate_at_path(&sand_commands::CommandProfile::unprofiled(), "menu.title")?;
@@ -221,8 +342,9 @@ impl Menu {
             ));
         }
         let id = crate::function::resolve_export_location(&self.id)?;
+        let pack_namespace = identity::pack_namespace()?;
         let global = |field| {
-            ObjectiveName::logical(format!("sand menu {} {field}", id.namespace())).to_string()
+            ObjectiveName::logical(format!("sand menu {pack_namespace} {field}")).to_string()
         };
         let local =
             |field: &str| ObjectiveName::logical(format!("sand menu {id} {field}")).to_string();
@@ -235,10 +357,11 @@ impl Menu {
         let trigger = local("trigger");
         let page = local("page");
         let bound = local("object");
-        let pages = self.choices.len().div_ceil(self.page_size);
+        let pages = page_definitions.len();
+        let paginated = page_definitions.iter().any(|p| p.next.is_some());
         let next = self.choices.len();
         let previous = next + 1;
-        let tokens = self.choices.len() + if pages > 1 { 2 } else { 0 };
+        let tokens = self.choices.len() + if paginated { 2 } else { 0 };
         let token = |i| local(&format!("choice_{i}"));
         let function = |part: &str| identity::resource(&id, &format!("menu_{part}")).to_string();
         let object = self.object.as_ref().map(|(scope, range)| {
@@ -306,7 +429,7 @@ impl Menu {
                     return Ok(Cmd::Return(0).into_commands());
                 }
                 lines.push(format!("function {}", function("close")));
-                lines.push(format!("scoreboard players set @s {page} 0"));
+                lines.push(format!("scoreboard players set @s {page} {entry_page}"));
                 if object.is_some() {
                     lines.push(format!("$scoreboard players set @s {bound} $(instance)"));
                 }
@@ -334,23 +457,34 @@ impl Menu {
                 }
             }
             "next" | "previous" => {
-                let (range, operation) = if part == "next" {
-                    (format!("0..{}", pages.saturating_sub(2)), "add")
-                } else {
-                    (format!("1..{}", pages - 1), "remove")
-                };
-                if pages == 1 {
+                let mut allowed_pages = Vec::new();
+                for (index, definition) in page_definitions.iter().enumerate() {
+                    let destination = if part == "next" {
+                        definition.next
+                    } else {
+                        definition.previous
+                    };
+                    if destination.is_some() {
+                        allowed_pages.push(index);
+                    }
+                }
+                if allowed_pages.is_empty() {
                     return Ok(Cmd::Return(0).into_commands());
                 }
-                lines.extend([
-                    format!(
-                        "execute unless score @s {page} matches {range} run return run function {}",
-                        function("close")
-                    ),
-                    format!("function {}", function("clear")),
-                    format!("scoreboard players {operation} @s {page} 1"),
-                    format!("function {}", function("admit")),
-                ]);
+                // Only visible, valid pagination boundaries may retain binding.
+                let guard = allowed_pages
+                    .iter()
+                    .map(|p| format!("unless score @s {page} matches {p}"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                lines.push(format!(
+                    "execute {guard} run return run function {}",
+                    function("close")
+                ));
+                lines.push(format!("function {}", function("clear")));
+                let operation = if part == "next" { "add" } else { "remove" };
+                lines.push(format!("scoreboard players {operation} @s {page} 1"));
+                lines.push(format!("function {}", function("admit")));
             }
             "clear" => {
                 lines.push(format!(
@@ -411,13 +545,12 @@ impl Menu {
             }
             _ if part.starts_with("page_") => {
                 let p: usize = part[5..].parse().expect("registered page");
-                let mut visible: Vec<_> = (p * self.page_size
-                    ..self.choices.len().min((p + 1) * self.page_size))
-                    .collect();
-                if p > 0 {
+                let definition = &page_definitions[p];
+                let mut visible = definition.choices.clone();
+                if definition.previous.is_some() {
                     visible.push(previous);
                 }
-                if p + 1 < pages {
+                if definition.next.is_some() {
                     visible.push(next);
                 }
                 for i in visible {
@@ -437,16 +570,18 @@ impl Menu {
             }
             _ if part.starts_with("show_") => {
                 let p: usize = part[5..].parse().expect("registered page");
-                let mut dialog =
-                    Dialog::multi_action_local("menu_inline").title(self.title.clone());
-                let mut buttons: Vec<_> = (p * self.page_size
-                    ..self.choices.len().min((p + 1) * self.page_size))
-                    .map(|i| (i, self.choices[i].label.clone()))
+                let definition = &page_definitions[p];
+                let title = self.views.get(&definition.view).unwrap_or(&self.title);
+                let mut dialog = Dialog::multi_action_local("menu_inline").title(title.clone());
+                let mut buttons: Vec<_> = definition
+                    .choices
+                    .iter()
+                    .map(|&i| (i, self.choices[i].label.clone()))
                     .collect();
-                if p > 0 {
+                if definition.previous.is_some() {
                     buttons.push((previous, TextComponent::literal("Previous")));
                 }
-                if p + 1 < pages {
+                if definition.next.is_some() {
                     buttons.push((next, TextComponent::literal("Next")));
                 }
                 for (i, label) in buttons {
@@ -469,6 +604,17 @@ impl Menu {
                         "$execute at {object} run function {}",
                         function(&format!("body_{i}"))
                     ));
+                    if let Some(destination) = self.choices[i].destination {
+                        lines.push(format!(
+                            "execute if score @s {active} matches 1.. run return 0"
+                        ));
+                        lines.push(format!("$scoreboard players set @s {bound} $(instance)"));
+                        lines.push(format!(
+                            "scoreboard players set @s {page} {}",
+                            first_page(destination).expect("validated destination")
+                        ));
+                        lines.push(format!("execute at @s run function {}", function("admit")));
+                    }
                 }
             }
             _ => {
@@ -489,6 +635,17 @@ impl Menu {
                         format!("function {}", function("close")).into_commands(),
                         runtime::isolated((self.choices[i].action)()),
                     ]);
+                    if let Some(destination) = self.choices[i].destination {
+                        body.extend([vec![
+                            format!("execute if score @s {active} matches 1.. run return 0"),
+                            format!(
+                                "scoreboard players set @s {page} {}",
+                                first_page(destination).expect("validated destination")
+                            ),
+                            format!("execute at @s run function {}", function("admit")),
+                        ]
+                        .into_commands()]);
+                    }
                 }
                 return Ok(body);
             }
@@ -500,6 +657,72 @@ impl Menu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn conversations_reject_empty_entry_and_missing_destinations() {
+        let menu = || {
+            Menu::new(
+                "test:conversation".parse().unwrap(),
+                TextComponent::literal("Title"),
+                crate::state::Ticks::new(20),
+            )
+            .choice(
+                TextComponent::literal("Continue"),
+                Condition::all([]),
+                Actions::default,
+            )
+        };
+        let mut missing = menu();
+        missing.choices[0].destination = Some(9);
+        assert!(
+            missing
+                .build("load")
+                .unwrap_err()
+                .to_string()
+                .contains("destination")
+        );
+        let mut empty_entry = menu();
+        empty_entry.entry_view = 9;
+        assert!(
+            empty_entry
+                .build("load")
+                .unwrap_err()
+                .to_string()
+                .contains("entry")
+        );
+    }
+
+    #[test]
+    fn pagination_does_not_cross_conversation_views() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter_namespace("test");
+        let mut menu = Menu::new(
+            "test:pages".parse().unwrap(),
+            TextComponent::literal("Title"),
+            crate::state::Ticks::new(20),
+        )
+        .page_size(1);
+        for view in [0, 0, 1, 1] {
+            menu.authoring_view = view;
+            menu = menu.choice(
+                TextComponent::literal("Choice"),
+                Condition::all([]),
+                Actions::default,
+            );
+        }
+        let pages = menu.pages();
+        assert_eq!(pages[1].next, None);
+        assert_eq!(pages[2].previous, None);
+        let output = runtime::Function::new(&menu.id, "test", {
+            let menu = menu.clone();
+            move || menu.build("next")
+        });
+        use sand_components::DatapackComponent;
+        let sand_components::ComponentContent::Text(body) = output.try_content().unwrap() else {
+            panic!("function text")
+        };
+        assert!(body.contains("matches 0 unless score"));
+        assert!(body.contains("matches 2 run return run function"));
+    }
+
     #[test]
     fn invalid_rich_text_fails_before_runtime_registration() {
         let invalid = || TextComponent::literal("Invalid").color_hex("#12FG00");

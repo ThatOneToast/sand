@@ -52,7 +52,10 @@ class GameplayHarness(ServerHarness):
         offset = len(self.lines)
         self.send(f"execute {condition} run say {token}")
         end = self.barrier(f"checked_{label}")
-        return any(token in line for line in self.lines[offset:end + 1])
+        # A parser diagnostic can echo the entire submitted command, including
+        # its marker. Only a completed chat emission proves the condition ran.
+        marker = re.compile(rf"\] {re.escape(token)}$")
+        return any(marker.search(line) for line in self.lines[offset:end + 1])
 
     def check(self, condition, label):
         if not self.matches(condition, label):
@@ -303,14 +306,21 @@ def run(h, metadata):
         h.invoke("scene_start", actor)
     h.exact(1)
     h.check('if entity @e[type=minecraft:block_display,x=2.5,y=200,z=2.5,distance=..0.1,nbt={block_state:"minecraft:gold_block",transformation:{translation:[0.0f,3.0f,0.0f]},interpolation_duration:4}]', "native_keyframe_target")
+    h.check('if entity @e[type=minecraft:item_display,x=2.5,y=200,z=2.5,distance=..0.1,nbt={item:{id:"minecraft:diamond",count:3,components:{"minecraft:custom_name":{text:"Gem",color:"gold"}}}}]', "native_scene_item_components")
+    h.check('if entity @e[type=minecraft:text_display,x=2.5,y=200,z=2.5,distance=..0.1,nbt={text:{text:"Ready",bold:1b}}]', "native_scene_rich_text")
     h.send("tp @e[tag=owner_a] 3.5 200 2.5")
     h.exact(1)
     h.check('if entity @e[type=minecraft:block_display,x=3.5,y=200,z=2.5,distance=..0.1]', "scene_follows_owner")
     h.invoke("scene_cancel", "owner_a")
     h.check('unless entity @e[type=minecraft:block_display,x=3.5,y=200,z=2.5,distance=..0.1]', "scene_cancel_isolated_a")
+    for kind in ["item_display", "text_display"]:
+        h.check(f'unless entity @e[type=minecraft:{kind},x=3.5,y=200,z=2.5,distance=..0.1]', f"scene_cancel_isolated_a_{kind}")
+        h.check(f'if entity @e[type=minecraft:{kind},x=6.5,y=200,z=2.5,distance=..0.1]', f"scene_cancel_preserves_b_{kind}")
     h.check('if entity @e[type=minecraft:block_display,x=6.5,y=200,z=2.5,distance=..0.1]', "scene_cancel_preserves_b")
     h.invoke("scene_cancel", "owner_b")
     h.check('unless entity @e[type=minecraft:block_display]', "scene_cleanup_survives_callback_return")
+    h.check('unless entity @e[type=minecraft:item_display]', "scene_item_cleanup_survives_callback_return")
+    h.check('unless entity @e[type=minecraft:text_display]', "scene_text_cleanup_survives_callback_return")
     h.send(f"execute store result score #after {mana} run scoreboard players list")
     h.check(f"if score #before {mana} = #after {mana}", "scene_cleanup_resets_scores")
     h.send("tp @e[tag=owner_a] 2.5 200 2.5")
@@ -514,7 +524,7 @@ def main():
     h.start()
     try:
         run(h, json.loads((pack / "fixture.json").read_text()))
-        (root / "evidence.json").write_text(json.dumps({"minecraft":"26.3", "passed":True, "actors":"two entity owners and native zombie target", "checks":["cost and cooldown admission", "owner isolation", "cancel and expiry", "reentrant cleanup", "checked numeric addition and overflow", "enum transition hooks", "status refresh and stacks", "State detachment", "projectile entity and block hits", "owner-attributed damage", "reload cleanup", "scheduled gameplay test", "bounded job steps and cancellation", "one-tick completion and dimension crossing", "native scene keyframes and ownership", "scene follow and cleanup", "sequence order, waits, cancellation and dimension changes", "native hit volumes and nested queries", "parent-scoped children and unloaded cancellation", "condition waits and timeout", "first successful hit", "concurrent child join and unloaded ancestry", "radius-aware projectile sampling", "State combat mitigation, shield, critical, healing and defeat", "combat reentry and owner isolation", "encounter selection, reset and inactive cleanup", "runtime native damage and scoped attribution"], "log":str(h.log_path)}, indent=2)+"\n")
+        (root / "evidence.json").write_text(json.dumps({"minecraft":"26.3", "passed":True, "actors":"two entity owners and native zombie target", "checks":["cost and cooldown admission", "owner isolation", "cancel and expiry", "reentrant cleanup", "checked numeric addition and overflow", "enum transition hooks", "status refresh and stacks", "State detachment", "projectile entity and block hits", "owner-attributed damage", "reload cleanup", "scheduled gameplay test", "bounded job steps and cancellation", "one-tick completion and dimension crossing", "native scene block/item/text parts, typed components and ownership", "scene follow and cleanup", "sequence order, waits, cancellation and dimension changes", "native hit volumes and nested queries", "parent-scoped children and unloaded cancellation", "condition waits and timeout", "first successful hit", "concurrent child join and unloaded ancestry", "radius-aware projectile sampling", "State combat mitigation, shield, critical, healing and defeat", "combat reentry and owner isolation", "encounter selection, reset and inactive cleanup", "runtime native damage and scoped attribution"], "log":str(h.log_path)}, indent=2)+"\n")
     finally:
         h.stop()
 

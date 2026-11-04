@@ -6,7 +6,7 @@ the compiler owns command generation, version differences and optimization.
 Rust does not run inside Minecraft, and Sand cannot supply server-plugin hooks
 that vanilla does not expose.
 
-This is the current implementation roadmap, reviewed on 2026-11-03. “Implemented”
+This is the current implementation roadmap, reviewed on 2026-11-04. “Implemented”
 means a bounded API exists with tests, not that the entire feature category is
 finished. Sand is pre-1.0; public APIs remain changeable. Default target: **26.3**.
 Keep **26.1 and 26.2** export compatibility, with explicit capability errors for
@@ -51,6 +51,10 @@ Evidence: [State guide](book/src/23-unified-state.md),
 - [x] `Sequence`: ordered actions, tick waits, bounded condition waits and joins.
 - [x] Parent-child composition with descendant cancellation and owner-safe
   continuation after dimension transfers.
+- [x] `Progression`: ordered objectives on canonical owner State, commit-before-reward
+  advancement, explicit reset, and terminal completion queries.
+- [x] `Session`: Lifetime-owned progression checks, descendant cleanup, reset/restart
+  and explicit resume of saved State after reload.
 - [x] `GameplayTest` assertions and native lifecycle/multiplayer proof harnesses.
 
 Limits: loaded-tick execution, explicit concurrency bounds, no automatic forced
@@ -68,16 +72,18 @@ Evidence: [owned gameplay](book/src/23d-owned-gameplay.md),
 - [x] Owned projectiles with bounded substeps and block/entity hit policies.
 - [x] `BlockRaycast` and `HitVolume` sphere/axis-aligned cuboid queries.
 - [x] Canonical vector expressions: dot, cross, squared distance and interpolation.
-- [x] `Scene` block-display parts, finite keyframes, translation, scale, yaw and
-  optional owner following, all under Lifetime cleanup.
+- [x] `Scene` block/item/text display parts, finite keyframes, translation, scale,
+  yaw, checked transform composition and owner following under Lifetime cleanup.
+- [x] `Hud`: owner-private bossbars driven by canonical numeric expressions and
+  actionbars with newest-owner leases, bounded stop/reload cleanup.
 - [x] `Combat` custom State health/shields, resistance, critical conditions,
   invulnerability, healing and isolated outcome callbacks.
 - [x] Native damage source attribution through scoped entity context.
 - [x] `Encounter` priority-based child attack selection with cancellation/reset.
 
 Limits: sampled collision rather than exact continuous collision; no general
-physics solver, rotated/cone hit volumes or pathfinding. Scenes are flat block
-parts, not skeletal animation. Combat does not intercept all native damage.
+physics solver, rotated/cone hit volumes or pathfinding. Scenes are flat display
+parts, not skeletal animation or an automatic hierarchy. Combat does not intercept all native damage.
 Encounters are priority controllers, not a complete AI behavior tree.
 
 Evidence: [hit volumes/sequences](book/src/23f-hit-volumes-and-sequences.md),
@@ -93,11 +99,15 @@ Evidence: [hit volumes/sequences](book/src/23f-hit-volumes-and-sequences.md),
   range, dimension and object availability invalidate the session.
 - [x] `Purchase`: one item stack into an empty player slot, checked State currency
   and personal/shared claims, placement before payment, reentrancy protection.
+- [x] Typed conversation views and guarded forward/back/confirmation flows in
+  Menu, preserving exact object binding and callback navigation precedence.
+- [x] Whole-stack numbered player-slot transfers, conservative stack merging,
+  exact whole-slot item payments and listener-interference compensation.
 - [x] Typed written books using canonical rich text and item components.
 
 Limits: native click records may coalesce; dialog close has no reliable callback,
-so timeout/explicit cleanup remains necessary. Books are snapshots. Purchases do
-not merge stacks or provide general transactions. Chest-slot interception,
+so timeout/explicit cleanup remains necessary. Books are snapshots. Transfers merge only when explicit native stack capacity and exact components
+agree; they and purchases are not general transactions. Chest-slot interception,
 forced book opening and unrestricted form submission are not provided.
 
 Evidence: [interaction guide](book/src/23i-interactions.md),
@@ -113,13 +123,16 @@ Evidence: [interaction guide](book/src/23i-interactions.md),
   response channel on each supported target; arbitrary text must not be exposed
   as an apparent callback without a working vanilla transport. Bound choice and
   numeric flows can precede free text. Reject unsupported capabilities explicitly.
-- [ ] Stateful conversations and confirmation flows composed from Menu and State,
-  with context-preserving transitions and cancellation.
-- [ ] Dynamic journals: generate/refresh a player's book from canonical quest
-  State, with explicit delivery/slot policy and no invented persistent book state.
-- [ ] General inventory transfer/payment operations: item identity/components,
-  counts, destination capacity, stack merging, source removal and failure semantics.
-  Reuse existing slot-copy/removal primitives; do not add a second inventory model.
+- [x] Stateful conversations and confirmation flows composed from Menu and State,
+  with context-preserving transitions and cancellation. See the
+  [conversation guide](docs/gameplay/conversations.md).
+- [x] Dynamic Journal snapshots from canonical State with explicit player-slot
+  delivery/owned replacement, safe rich text and checked native delivery.
+  See [journals and checkpoints](book/src/23m-journals-and-checkpoints.md).
+- [ ] Broaden inventory workflows beyond the implemented whole-stack numbered
+  player slots: partial quantities, canonical default stack-capacity metadata and
+  loaded block/container destinations. Preserve identity and listener-interference
+  checks; see [current bounded workflows](docs/gameplay/inventory-workflows.md).
 - [ ] Reusable block/chest-shaped interactions through managed hitboxes and world
   capabilities, clearly separated from unavailable native container GUI hooks.
 
@@ -129,12 +142,18 @@ cleanup proven in native tests. Include a maintained end-to-end authoring exampl
 
 ### 2. Game state and encounter authoring
 
-- [ ] Quest/objective progression and rewards over canonical State and events.
-- [ ] Reusable match/round/session lifecycle, teams, spectators and reset policies.
+- [x] Ordered quest/objective progression and once-per-reset rewards over canonical
+  State and events; [quest_rounds](examples/quest_rounds/) demonstrates both.
+- [ ] Broaden progression to reusable branching/prerequisite and quest-journal policies.
+- [x] Owner/host-scoped session lifecycle and explicit reset/restart policies.
+- [ ] Matchmaking, teams, spectators and reusable multi-participant round policies.
 - [ ] Target selection, threat and encounter-phase policies composed with existing
   queries, Combat and child tasks. Define movement/navigation limits separately.
-- [ ] Checkpoints and save/load policies with explicit schema migration and task
-  restoration semantics; distinguish saved gameplay state from ephemeral runtime.
+- [x] Checkpoint projections between canonical integer State fields, schema
+  migration, all-field validation and explicit cancel/restore/fresh-task policy.
+- [ ] Broaden checkpoint projections beyond integer fields where a canonical
+  type and proven restore policy exist; arbitrary world/item/task snapshots remain
+  unsupported.
 
 Acceptance: two simultaneous independent sessions, deterministic transitions,
 reconnect/reload behavior, reset without orphan entities/scores and reusable examples.
@@ -143,10 +162,14 @@ reconnect/reload behavior, reset without orphan entities/scores and reusable exa
 
 - [ ] Additional collision shapes and measured higher-fidelity projectile sweeps.
 - [ ] Explicit movement/knockback policies with native capability boundaries.
-- [ ] Item/text scene parts, hierarchical transforms, loops and animation blending.
-- [ ] Reusable HUD/bossbar/actionbar and audiovisual presentation tied to owners.
-- [ ] Optional companion resource-pack asset pipeline for models, textures, fonts
-  and sounds. The current CLI reserves this capability but does not implement it.
+- [x] Item/text scene parts and checked local transform composition.
+- [ ] Hierarchical scene parenting, loops and animation blending.
+- [x] Reusable lifetime-owned HUD/bossbar/actionbar presentation.
+- [ ] Broader audiovisual cue composition and presentation presets.
+- [x] Optional companion resource-pack asset packaging with independent version
+  metadata, deterministic output, release archives and grouped directory rollback.
+  Client asset codecs/rendering and automatic installation remain separate work.
+  See the [companion resource-pack guide](book/src/17a-companion-resource-packs.md).
 
 Acceptance: bounded candidate work, documented geometry/rounding semantics,
 callback context preservation, unload/dimension tests and cleanup proofs. Prefer
@@ -160,8 +183,10 @@ native interpolation and existing models before adding per-tick command work.
 
 - [ ] Expand typed `compute` providers and backend selection only where numeric
   failure, overflow and rounding semantics match the canonical model.
-- [ ] Report actionable expensive-tick patterns, unknown costs and population
-  bounds through the existing RuntimeReport; add before/after native workloads.
+- [x] Bounded actionable tick-cost advice through RuntimeReport and CLI JSON,
+  preserving unknown costs and explicit review thresholds.
+- [ ] Add population-aware before/after native workloads; static command counts
+  and advice thresholds are not server performance guarantees.
 - [ ] Improve diagnostics for ownership, version limits, execution context and
   unsupported vanilla signals; offer canonical API alternatives.
 - [ ] Explicit pack reset/uninstall tooling with owned-resource cleanup; document
@@ -185,15 +210,19 @@ See [benchmarks and limitations](BENCHMARKS.md).
 - [x] Vanilla CI wiring: 26.2 for player ownership/interactions/resource policies and 26.3 for
   entity gameplay/compute;
   retain failure artifacts.
-- [ ] Extend real-player protocol support and scenario proofs to 26.3. Startup
-  and reload success alone do not establish multiplayer gameplay correctness.
+- [x] Verified real-player protocol lifecycle on 26.2 and 26.3: two players,
+  keepalive, dimension changes, controlled damage and reconnect persistence. See
+  [jar-derived protocol evidence](docs/testing/player-protocols.md).
+- [ ] Broaden every remaining player scenario to 26.3; passive client support
+  does not establish scripted controls or all gameplay policies on that target.
 - [x] Native 26.2 proofs for exact-object isolation with nearby simultaneous
   instances, bound-menu dimension transitions and navigation token exhaustion.
   See [interaction boundary evidence](docs/testing/interaction-boundaries.md).
 - [ ] Audit each version-restricted capability before broadening it; furnace
   serialization currently remains verified on 26.2 only.
-- [ ] Establish a versioned capability matrix covering commands, resources,
-  events, runtime abstractions, unsupported edges and evidence quality.
+- [x] Establish a [versioned capability matrix](docs/architecture/capability-matrix.md)
+  separating typed authoring, runtime abstractions, unsupported edges and evidence.
+- [ ] Expand the matrix into exhaustive per-command/resource/signal inventories.
 
 Do not publish a single “percent of vanilla supported” yet. The denominator is
 undefined: generated commands, typed resource schemas, native signals and

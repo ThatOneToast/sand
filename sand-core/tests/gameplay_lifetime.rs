@@ -410,6 +410,14 @@ fn animated() -> sand::systems::Scene<AnyEntity> {
         BlockId::minecraft("gold_block").unwrap(),
         Transform::default().translated([0.0, 2.0, 0.0]),
     )
+    .item(
+        "icon",
+        ItemStack::new(ItemId::minecraft("diamond").unwrap())
+            .count(3)
+            .component(ItemComponent::custom_name(Text::new("Gem").gold())),
+        Transform::default(),
+    )
+    .text("label", Text::new("Ready").bold(true), Transform::default())
     .keyframe(
         "head",
         Ticks::new(1),

@@ -90,6 +90,32 @@ class PlayerHarnessTests(unittest.TestCase):
         harness.send = Mock()
         return harness
 
+    def test_supported_version_selects_exact_client_protocol(self):
+        for version, protocol in (("26.2", "776"), ("26.3", "777")):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as output:
+                harness = self.make_harness(output)
+                harness.args.version = version
+                harness.wait_for = Mock()
+                process = Mock()
+                process.poll.return_value = None
+                with patch("player_validation_harness.subprocess.Popen", return_value=process) as spawn:
+                    with harness.clients(players=("SandAlpha",)):
+                        self.assertEqual(spawn.call_args.args[0][5], protocol)
+
+    def test_unsupported_version_fails_before_client_creation_or_server_preparation(self):
+        with tempfile.TemporaryDirectory() as output:
+            harness = self.make_harness(output)
+            harness.args.version = "26.4"
+            with patch("player_validation_harness.subprocess.Popen") as spawn:
+                with self.assertRaisesRegex(ValueError, "26.3"):
+                    with harness.clients():
+                        pass
+                spawn.assert_not_called()
+            with patch("player_validation_harness.WorldGameplayHarness.prepare") as prepare:
+                with self.assertRaises(ValueError):
+                    harness.prepare()
+                prepare.assert_not_called()
+
     def test_second_join_failure_reaps_both_created_clients(self):
         with tempfile.TemporaryDirectory() as output:
             harness = self.make_harness(output)

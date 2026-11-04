@@ -5,6 +5,7 @@ pub mod output_manifest;
 pub mod package;
 pub mod publication;
 pub mod records;
+pub mod resource_pack;
 pub mod timing;
 pub mod validate;
 pub mod validate_output;
@@ -49,8 +50,11 @@ struct BuildJsonOutput<'a> {
     profile: &'a str,
     component_count: usize,
     runtime_report: sand::advanced::compiler::RuntimeReport,
+    runtime_advice: Vec<sand::advanced::compiler::RuntimeAdvice>,
     datapack_output: String,
     datapack_changes: ChangeSummary,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resource_pack: Option<resource_pack::ResourcePackBuildResult>,
     diagnostics: Vec<BuildJsonDiagnostic>,
 }
 
@@ -82,6 +86,12 @@ pub fn error_json(error: &anyhow::Error, profile: &str) -> Result<String> {
     let mut diagnostics = cargo_diagnostics(&message, profile);
     let (code, category, source) = if message.contains("cargo build") {
         ("SAND_BUILD_CARGO", "cargo", "cargo_rustc")
+    } else if message.contains("resource pack") || message.contains("resource asset") {
+        (
+            "SAND_BUILD_RESOURCE_PACK",
+            "resource_pack",
+            "sand_validation",
+        )
     } else if message.contains("export") {
         ("SAND_BUILD_EXPORTER", "exporter", "exporter")
     } else if message.contains("Minecraft") || message.contains("version") {
@@ -297,6 +307,11 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         );
     }
 
+    // Snapshot and validate optional client assets before any datapack output
+    // changes. Resource format metadata is independent of datapack formats.
+    let companion = resource_pack::prepare(&project_root, &config, &mc_version)
+        .context("prepare companion resource pack")?;
+
     // 2. Compile the datapack exporter.
     let target_dir = cargo_target_dir()?;
     let plan = ExportBuildPlan::new();
@@ -349,8 +364,30 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
 
     // Publish the fully validated output set as one staged transaction.
     // Ownership checks preserve unrelated files and reject edited outputs.
+    let mut companion_result = None;
     let published = timings.record(Phase::DatapackWriting, || {
-        publication::publish_pack(&dist, &outputs)
+        if let Some(companion) = &companion {
+            let mut published = publication::publish_packs(&[
+                (&dist, &outputs),
+                (&companion.destination, &companion.resources),
+            ])?;
+            let assets = published.pop().expect("companion publication");
+            companion_result = Some(resource_pack::ResourcePackBuildResult {
+                output: companion
+                    .destination
+                    .strip_prefix(&project_root)
+                    .unwrap_or(&companion.destination)
+                    .display()
+                    .to_string(),
+                format: companion.format.json(),
+                asset_count: companion.asset_count,
+                changes: assets.summary,
+                zip: None,
+            });
+            Ok(published.remove(0))
+        } else {
+            publication::publish_pack(&dist, &outputs)
+        }
     })?;
     let runtime_report = runtime_report.reanalyze(&published.runtime_resources);
     let change_summary = published.summary;
@@ -401,6 +438,32 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                 );
             }
         }
+        if let Some(companion) = &companion {
+            if !machine {
+                println!(
+                    "  resources: {} ({} asset(s))",
+                    companion.destination.display(),
+                    companion.asset_count
+                );
+            }
+            if release {
+                let path = zip_dir(
+                    &companion.destination,
+                    &format!("{}-resources", config.pack.namespace),
+                )?;
+                if let Some(result) = &mut companion_result {
+                    result.zip = Some(
+                        path.strip_prefix(&project_root)
+                            .unwrap_or(&path)
+                            .display()
+                            .to_string(),
+                    );
+                }
+                if !machine {
+                    println!("  resources zip: {}", path.display());
+                }
+            }
+        }
         Ok(())
     })?;
 
@@ -448,9 +511,11 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                 minecraft_version: &mc_version,
                 profile: &profile,
                 component_count: records.len(),
+                runtime_advice: runtime_report.advice(10_000),
                 runtime_report,
                 datapack_output: dist.display().to_string(),
                 datapack_changes: change_summary,
+                resource_pack: companion_result,
                 diagnostics,
             })?
         );
@@ -977,7 +1042,7 @@ mod tests {
 
     #[test]
     fn pack_metadata_and_release_zip_stay_with_the_datapack_root() {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let datapack = temp.path().join("audit");
         std::fs::create_dir_all(datapack.join("data/audit/function")).unwrap();
         write_pack_mcmeta(&datapack, "audit", "data", 71, None, &[]).unwrap();
@@ -1746,7 +1811,7 @@ mod tests {
 
     #[test]
     fn writes_and_zips_structure_template_assets() {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let project_root = temp.path().join("project");
         let dist = temp.path().join("dist").join("audit");
         let src = project_root.join("src/structures/start.nbt");

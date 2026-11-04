@@ -19,3 +19,11 @@ Run `interaction_hub:cleanup` as the owner to remove their hitboxes. Ownership
 also ends after 6000 loaded ticks or owner loss. Another player's claims and
 menu sessions remain independent. Menu close/escape expires without requiring
 a client close callback. This example does not force a book screen open.
+
+The merchant also offers a whole-slot barter: place exactly three emeralds in
+hotbar slot 4 and clear slot 5 to buy a diamond. The move choice transfers the
+whole stack from slot 5 into slot 6. An occupied slot 6 can merge only when the
+live components agree exactly and include an explicit maximum stack-size
+override; ordinary diamonds can move into an empty slot. See the
+[inventory workflow guide](../../docs/gameplay/inventory-workflows.md) for the
+bounded capacity, payment and callback behavior.

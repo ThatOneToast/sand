@@ -724,8 +724,9 @@ mod ability_composition;
 )]
 pub mod systems {
     pub use sand_core::{
-        Ability, Combat, Encounter, GameplayTest, Interactable, Job, Lifetime, Menu, Projectile,
-        Purchase, Scene, Sequence, StatusEffect, TaskContext, Transform,
+        Ability, Checkpoint, Combat, Encounter, GameplayTest, Hud, Interactable, InventoryTransfer,
+        Job, Journal, Lifetime, Menu, Progression, Projectile, Purchase, Scene, Sequence, Session,
+        StatusEffect, TaskContext, Transform,
     };
     /// Consumer-owned resources, shared maintenance, and accepted-target abilities.
     #[sand_macros::api(path = "sand::systems::ability", module = "sand::systems",

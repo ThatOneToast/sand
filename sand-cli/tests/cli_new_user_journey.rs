@@ -121,23 +121,65 @@ fn new_rejects_pre_26_without_creating_a_project() {
 }
 
 #[test]
-fn add_resourcepack_fails_without_modifying_the_project() {
+fn add_resourcepack_is_opt_in_idempotent_and_preserves_authored_assets() {
     let temporary = tempfile::tempdir().unwrap();
     write_minimal_project(temporary.path());
+    let run = || {
+        std::process::Command::new(sand_bin())
+            .args(["add", "resourcepack"])
+            .current_dir(temporary.path())
+            .env("NO_COLOR", "1")
+            .output()
+            .unwrap()
+    };
+    let output = run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        temporary
+            .path()
+            .join("resourcepack/assets/capability_test")
+            .is_dir()
+    );
+    let text = std::fs::read_to_string(temporary.path().join("sand.toml")).unwrap();
+    let config: sand_cli::config::SandConfig = toml::from_str(&text).unwrap();
+    assert_eq!(
+        config.resource_pack.unwrap().source.as_str(),
+        "resourcepack"
+    );
+    let asset = temporary
+        .path()
+        .join("resourcepack/assets/capability_test/sounds.json");
+    std::fs::write(asset, b"{}").unwrap();
     let before = directory_snapshot(temporary.path());
+    assert!(run().status.success());
+    assert_eq!(directory_snapshot(temporary.path()), before);
+}
 
+#[test]
+fn add_resourcepack_rejects_unverified_targets_before_creating_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    write_minimal_project(temporary.path());
+    let path = temporary.path().join("sand.toml");
+    std::fs::write(
+        &path,
+        std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("26.2", "27.0"),
+    )
+    .unwrap();
+    let before = directory_snapshot(temporary.path());
     let output = std::process::Command::new(sand_bin())
         .args(["add", "resourcepack"])
         .current_dir(temporary.path())
-        .env("NO_COLOR", "1")
         .output()
-        .expect("run sand add resourcepack");
-
+        .unwrap();
     assert!(!output.status.success());
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains(
-            "Sand resource-pack support is temporarily unavailable and planned for a future implementation"
-        )
+        String::from_utf8_lossy(&output.stderr).contains("resource pack format is not verified")
     );
     assert_eq!(directory_snapshot(temporary.path()), before);
 }
@@ -210,4 +252,26 @@ fn new_and_build_produce_a_valid_26_2_datapack() {
         root.join("data/my_pack/function/__sand_join_check.mcfunction")
             .is_file()
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn add_resourcepack_rejects_source_links_without_rewriting_configuration() {
+    use std::os::unix::fs::symlink;
+    let temporary = tempfile::tempdir().unwrap();
+    write_minimal_project(temporary.path());
+    let external = tempfile::tempdir().unwrap();
+    symlink(external.path(), temporary.path().join("resourcepack")).unwrap();
+    let before = std::fs::read(temporary.path().join("sand.toml")).unwrap();
+    let output = std::process::Command::new(sand_bin())
+        .args(["add", "resourcepack"])
+        .current_dir(temporary.path())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert_eq!(
+        std::fs::read(temporary.path().join("sand.toml")).unwrap(),
+        before
+    );
+    assert!(external.path().read_dir().unwrap().next().is_none());
 }

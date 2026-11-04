@@ -43,11 +43,123 @@ pub fn publish_pack(
     })
 }
 
+/// Publish several independent pack roots as one ordinary-error transaction.
+///
+/// All roots are staged and validated before the first is replaced. If a later
+/// install fails, already installed roots are restored in reverse order. Roots
+/// must be disjoint. As with `publish_pack`, crashes and concurrent writers are
+/// outside this guarantee; failed rollback leaves a named recoverable backup.
+pub fn publish_packs(packs: &[(&Path, &BTreeMap<String, Vec<u8>>)]) -> Result<Vec<PublishedPack>> {
+    publish_packs_with_install(packs, |_, stage, destination| {
+        std::fs::rename(stage, destination).context("install staged pack")
+    })
+}
+
 fn publish_with_install(
     destination: &Path,
     resources: &BTreeMap<String, Vec<u8>>,
     install: impl FnOnce(&Path, &Path) -> Result<()>,
 ) -> Result<PublishedPack> {
+    let mut install = Some(install);
+    let mut published =
+        publish_packs_with_install(&[(destination, resources)], |_, stage, destination| {
+            install.take().expect("one pack installation")(stage, destination)
+        })?;
+    Ok(published.remove(0))
+}
+
+struct PreparedPack {
+    destination: std::path::PathBuf,
+    transaction: std::path::PathBuf,
+    stage: std::path::PathBuf,
+    backup: std::path::PathBuf,
+    saved: bool,
+    installed: bool,
+    preserve: bool,
+    published: Option<PublishedPack>,
+}
+impl Drop for PreparedPack {
+    fn drop(&mut self) {
+        if !self.preserve {
+            remove_transaction(&self.transaction);
+        }
+    }
+}
+
+fn publish_packs_with_install(
+    packs: &[(&Path, &BTreeMap<String, Vec<u8>>)],
+    mut install: impl FnMut(usize, &Path, &Path) -> Result<()>,
+) -> Result<Vec<PublishedPack>> {
+    // Reject overlapping roots before staging creates any sibling transaction.
+    let cwd = std::env::current_dir()?;
+    let roots: Vec<_> = packs
+        .iter()
+        .map(|(root, _)| {
+            if root.is_absolute() {
+                root.to_path_buf()
+            } else {
+                cwd.join(root)
+            }
+        })
+        .collect();
+    for (index, root) in roots.iter().enumerate() {
+        for other in &roots[..index] {
+            ensure!(
+                !root.starts_with(other) && !other.starts_with(root),
+                "pack output roots must be disjoint"
+            );
+        }
+    }
+    let mut prepared = packs
+        .iter()
+        .map(|(destination, resources)| prepare_pack(destination, resources))
+        .collect::<Result<Vec<_>>>()?;
+    let result = (|| {
+        for (index, pack) in prepared.iter_mut().enumerate() {
+            if pack.destination.exists() {
+                std::fs::rename(&pack.destination, &pack.backup)
+                    .context("back up previous pack")?;
+                pack.saved = true;
+            }
+            install(index, &pack.stage, &pack.destination)?;
+            pack.installed = true;
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        let mut failures = Vec::new();
+        for pack in prepared.iter_mut().rev() {
+            if pack.installed {
+                remove_transaction(&pack.destination);
+            }
+            if pack.saved {
+                if let Err(rollback) = std::fs::rename(&pack.backup, &pack.destination) {
+                    pack.preserve = true;
+                    failures.push(format!(
+                        "rollback failed ({rollback}); recover previous pack from '{}'",
+                        pack.backup.display()
+                    ));
+                }
+            } else if pack.installed && pack.destination.exists() {
+                failures.push(format!(
+                    "rollback failed to remove new output '{}'",
+                    pack.destination.display()
+                ));
+            }
+        }
+        return if failures.is_empty() {
+            Err(error)
+        } else {
+            Err(error).context(failures.join("; "))
+        };
+    }
+    Ok(prepared
+        .iter_mut()
+        .map(|pack| pack.published.take().expect("staged pack result"))
+        .collect())
+}
+
+fn prepare_pack(destination: &Path, resources: &BTreeMap<String, Vec<u8>>) -> Result<PreparedPack> {
     // Resolve relative paths explicitly so that a bare directory name has a
     // usable parent, and reject lexical traversal before any filesystem work.
     ensure!(
@@ -151,7 +263,6 @@ fn publish_with_install(
     let transaction = create_transaction(parent)?;
     let stage = transaction.join("stage");
     let backup = transaction.join("previous");
-    let mut rollback_failed = false;
     let result = (|| {
         std::fs::create_dir(&stage)?;
         let directories = if destination.exists() {
@@ -200,34 +311,27 @@ fn publish_with_install(
                 runtime_resources.insert(path.to_owned(), std::fs::read(entry.path())?);
             }
         }
-        let had_previous = destination.exists();
-        if had_previous {
-            std::fs::rename(&destination, &backup).context("back up previous pack")?;
-        }
-        if let Err(error) = install(&stage, &destination) {
-            if had_previous {
-                // Installation only renames a directory and must not partially
-                // create a destination on error.
-                if let Err(rollback) = std::fs::rename(&backup, &destination) {
-                    rollback_failed = true;
-                    return Err(error).context(format!(
-                        "rollback failed ({rollback}); recover previous pack from '{}'",
-                        backup.display()
-                    ));
-                }
-            }
-            return Err(error);
-        }
         Ok(PublishedPack {
             summary,
             runtime_resources,
         })
     })();
-    // Never erase the sole surviving good pack after a rollback failure.
-    if !rollback_failed {
-        remove_transaction(&transaction);
+    match result {
+        Ok(published) => Ok(PreparedPack {
+            destination,
+            transaction,
+            stage,
+            backup,
+            saved: false,
+            installed: false,
+            preserve: false,
+            published: Some(published),
+        }),
+        Err(error) => {
+            remove_transaction(&transaction);
+            Err(error)
+        }
     }
-    result
 }
 
 fn remove_transaction(path: &Path) {
@@ -749,5 +853,60 @@ mod tests {
         symlink(temp.path().join("absent"), pack.join("dangling")).unwrap();
         assert!(publish_pack(&pack, &BTreeMap::new()).is_err());
         assert_eq!(std::fs::read(pack.join("owned")).unwrap(), b"one");
+    }
+    #[test]
+    fn grouped_publication_restores_both_packs_after_second_install_failure() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let first = temp.path().join("datapack");
+        let second = temp.path().join("resources");
+        let old = resources(&[("owned", "old")]);
+        let new = resources(&[("owned", "new")]);
+        publish_packs(&[(&first, &old), (&second, &old)]).unwrap();
+        std::fs::write(first.join("notes"), b"first notes").unwrap();
+        std::fs::write(second.join("notes"), b"second notes").unwrap();
+        let first_manifest =
+            std::fs::read(first.join(super::super::output_manifest::MANIFEST_FILE_NAME)).unwrap();
+        let second_manifest =
+            std::fs::read(second.join(super::super::output_manifest::MANIFEST_FILE_NAME)).unwrap();
+        let error = publish_packs_with_install(
+            &[(&first, &new), (&second, &new)],
+            |index, stage, destination| {
+                if index == 1 {
+                    anyhow::bail!("injected second installation failure");
+                }
+                std::fs::rename(stage, destination)?;
+                Ok(())
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("second installation"));
+        for (pack, notes, manifest) in [
+            (&first, b"first notes".as_slice(), first_manifest),
+            (&second, b"second notes".as_slice(), second_manifest),
+        ] {
+            assert_eq!(std::fs::read(pack.join("owned")).unwrap(), b"old");
+            assert_eq!(std::fs::read(pack.join("notes")).unwrap(), notes);
+            assert_eq!(
+                std::fs::read(pack.join(super::super::output_manifest::MANIFEST_FILE_NAME))
+                    .unwrap(),
+                manifest
+            );
+        }
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 2);
+    }
+    #[test]
+    fn second_pack_conflict_and_overlapping_roots_leave_first_pack_unchanged() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let first = temp.path().join("datapack");
+        let second = temp.path().join("resources");
+        let old = resources(&[("owned", "old")]);
+        let new = resources(&[("owned", "new")]);
+        publish_packs(&[(&first, &old), (&second, &old)]).unwrap();
+        std::fs::write(second.join("owned"), b"user edit").unwrap();
+        assert!(publish_packs(&[(&first, &new), (&second, &new)]).is_err());
+        assert_eq!(std::fs::read(first.join("owned")).unwrap(), b"old");
+        assert_eq!(std::fs::read(second.join("owned")).unwrap(), b"user edit");
+        assert!(publish_packs(&[(&first, &new), (&first, &new)]).is_err());
+        assert_eq!(std::fs::read(first.join("owned")).unwrap(), b"old");
     }
 }

@@ -1,0 +1,29 @@
+{
+  "minecraft": "26.3",
+  "passed": true,
+  "checks": [
+    "opt-in scaffold and release CLI build",
+    "independent resource format97.1",
+    "two separate output roots and archives",
+    "repeated builds byte-identical",
+    "malformed source preserves both roots and archives",
+    "datapack-only result omits resource_pack",
+    "native CLIENT_TYPE codec preserves exact97.1 bounds"
+  ],
+  "companion": {
+    "output": "dist/sand_resourcepack_proof-resources",
+    "format": [
+      97,
+      1
+    ],
+    "asset_count": 1,
+    "changes": {
+      "written": 0,
+      "unchanged": 2,
+      "removed": 0
+    },
+    "zip": "dist/sand_resourcepack_proof-resources.zip"
+  },
+  "metadata_probe": "/tmp/sand-resourcepack-metadata-probe.log",
+  "artifacts": "/tmp/sand_resourcepack_proof/dist"
+}

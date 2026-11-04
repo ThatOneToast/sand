@@ -292,3 +292,100 @@ fn pagination_and_object_binding_preserve_authorization_and_actor_context() {
         );
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EntityStateEnum)]
+enum ConversationView {
+    Greeting = 0,
+    Confirm = 1,
+}
+
+#[datapack_component]
+fn imported_menu() -> Menu {
+    Menu::new(
+        "imported:callback_menu".parse().unwrap(),
+        Text::new("Imported shop"),
+        Ticks::new(200),
+    )
+    .choice(Text::new("Done"), Condition::all([]), || {
+        cmd::say("IMPORTED_MENU_DONE")
+    })
+}
+
+#[datapack_component]
+fn conversation_object() -> sand::systems::Interactable {
+    let menu = Menu::new(
+        "menus:conversation".parse().unwrap(),
+        Text::new("Guide"),
+        Ticks::new(200),
+    )
+    .start_at(ConversationView::Greeting)
+    .choice_to(
+        Text::new("Continue"),
+        Condition::all([]),
+        ConversationView::Confirm,
+        || cmd::say("CONVERSATION_CONTINUE"),
+    )
+    .choice_to(
+        Text::new("Open shop"),
+        Condition::all([]),
+        ConversationView::Confirm,
+        || imported_menu().open(),
+    )
+    .view(ConversationView::Confirm, Text::new("Confirm reward?"))
+    .choice(
+        Text::new("Accept"),
+        Wallet::coins.matches(3..).unwrap().condition(),
+        || cmd::say("CONVERSATION_ACCEPTED"),
+    )
+    .choice_to(
+        Text::new("Back"),
+        Condition::all([]),
+        ConversationView::Greeting,
+        || cmd::say("CONVERSATION_BACK"),
+    );
+    sand::systems::Interactable::new(sand::systems::Lifetime::new(
+        "menus:conversation_object".parse().unwrap(),
+        Ticks::new(1200),
+    ))
+    .bounds(1.0, 2.0, 5.0)
+    .opens_menu(menu)
+}
+
+#[function("menus:conversation_start")]
+fn conversation_start() {
+    conversation_object().start();
+}
+
+#[function("menus:conversation_stop")]
+fn conversation_stop() {
+    conversation_object().cancel();
+}
+
+#[test]
+fn conversation_views_keep_exact_binding_and_fresh_authorization() {
+    for version in ["26.1", "26.2", "26.3"] {
+        let pack: serde_json::Value =
+            serde_json::from_str(&sand::advanced::try_export_pack_json("menus", version).unwrap())
+                .unwrap();
+        let entry = system_body(&pack, "conversation/menu_show_0");
+        let confirm = system_body(&pack, "conversation/menu_show_1");
+        assert!(entry.contains("Continue"));
+        assert!(!entry.contains("Accept"));
+        assert!(confirm.contains("Accept"));
+        assert!(!confirm.contains("Continue"));
+        assert!(!entry.contains("Next"));
+        let invoke = system_body(&pack, "conversation/menu_invoke_0");
+        let close = invoke.find("/menu_close").unwrap();
+        let callback = invoke.find("/menu_body_0").unwrap();
+        let reopen = invoke.find("/menu_admit").unwrap();
+        assert!(close < callback && callback < reopen);
+        assert!(invoke.contains("$(instance)"));
+        assert!(invoke.contains("matches 1.. run return 0"));
+        assert!(invoke.contains("execute at @s run function"));
+        let active = sand::command::ObjectiveName::logical("sand menu menus active");
+        assert!(invoke.contains(&format!("if score @s {active} matches 1..")));
+        let imported_admit = system_body(&pack, "callback_menu/menu_admit");
+        assert!(imported_admit.contains(&format!("@s {active}")));
+        assert!(system_body(&pack, "conversation/menu_action_2").contains("matches 3.."));
+    }
+}

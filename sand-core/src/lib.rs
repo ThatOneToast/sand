@@ -69,8 +69,9 @@ pub mod execute_when;
 pub mod function;
 mod gameplay;
 pub use gameplay::{
-    Ability, Combat, Encounter, GameplayTest, Interactable, Job, Lifetime, Menu, Projectile,
-    Purchase, Scene, Sequence, StatusEffect, TaskContext, Transform,
+    Ability, Checkpoint, Combat, Encounter, GameplayTest, Hud, Interactable, InventoryTransfer,
+    Job, Journal, Lifetime, Menu, Progression, Projectile, Purchase, Scene, Sequence, Session,
+    StatusEffect, TaskContext, Transform,
 };
 pub mod ir;
 pub mod item;

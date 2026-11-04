@@ -5,6 +5,22 @@ use crate::build::records::{PackNamespace, PackOverlay, PackSupportedFormats};
 #[derive(Debug, Deserialize)]
 pub struct SandConfig {
     pub pack: PackConfig,
+    /// Optional client asset output. Omission preserves datapack-only builds.
+    pub resource_pack: Option<ResourcePackConfig>,
+}
+
+/// Opt-in companion assets, published independently from the datapack's files.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResourcePackConfig {
+    /// Project-relative directory containing `assets/` and optional `pack.png`.
+    /// Sand generates metadata; authored `pack.mcmeta` files are rejected.
+    pub source: crate::build::records::RelativePackPath,
+    /// Defaults to the datapack description followed by " resources".
+    pub description: Option<String>,
+    /// Optional exact resource format: a major integer or `[major, minor]`.
+    /// Known targets derive this from verified Mojang version metadata.
+    pub pack_format: Option<crate::build::resource_pack::ResourcePackFormat>,
 }
 
 /// `[pack]` section in `sand.toml`.

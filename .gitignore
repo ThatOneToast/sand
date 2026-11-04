@@ -1,5 +1,7 @@
 /target
 /dist
+# Native Minecraft codec probes initialize the server logger in their cwd.
+/logs/
 *.swp
 *.swo
 *~

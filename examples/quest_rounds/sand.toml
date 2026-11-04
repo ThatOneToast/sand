@@ -1,0 +1,4 @@
+[pack]
+namespace = "quest_rounds"
+description = "State-backed quests, owned round phases, journals and checkpoints"
+mc_version = "26.3"

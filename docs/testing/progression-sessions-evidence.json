@@ -1,0 +1,39 @@
+{
+  "minecraft": "26.3",
+  "passed": true,
+  "actors": "two independent loaded marker hosts",
+  "checks": [
+    "ordered objective commits",
+    "once-per-reset rewards",
+    "reward and stop reentrancy rejection",
+    "two concurrent sessions",
+    "one phase per loaded tick",
+    "owner-safe cancellation",
+    "descendant and score-holder cleanup",
+    "State detachment cleanup",
+    "reload task invalidation with canonical progress preservation",
+    "explicit resume after reload",
+    "pack-shared progression field lock across resource namespaces"
+  ],
+  "log": "/private/tmp/sand-progression-proof-crossnamespace/runtime/latest.log",
+  "reviewed": "2026-11-04",
+  "fixture": "sand-core/tests/gameplay_progression.rs",
+  "harness": "scripts/validate_progression.py",
+  "export_targets": [
+    "26.1",
+    "26.2",
+    "26.3"
+  ],
+  "native_targets": [
+    "26.3"
+  ],
+  "jar_sha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+  "strict_native_assertion_markers": true,
+  "native_run_reused_passing_export": false,
+  "limitations": [
+    "Loaded entity hosts; player transport separately proven by journal/checkpoint fixture",
+    "No offline execution or automatic task restoration",
+    "No matchmaking or participant/team assignment",
+    "Rewards do not provide arbitrary-action rollback"
+  ]
+}

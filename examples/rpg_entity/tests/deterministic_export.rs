@@ -60,6 +60,10 @@ fn export_contains_the_vertical_runtime() {
         .join("\n");
     assert!(all_commands.contains("attribute @s minecraft:max_health base set"));
     assert!(all_commands.contains("attribute @s minecraft:attack_damage base set"));
-    assert!(all_commands.contains("data modify entity @s CustomName set value"));
+    // Dynamic names share the journal renderer: literal text is staged outside
+    // macro bodies, then the completed component is copied onto the entity.
+    assert!(all_commands.contains(
+        "data modify entity @s CustomName set from storage rpg:__sand_entity"
+    ));
     assert!(all_commands.contains("data remove storage rpg:__sand_entity"));
 }

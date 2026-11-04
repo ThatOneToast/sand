@@ -116,3 +116,10 @@ The native 26.2 proof covers two nearby objects owned by different players,
 independent session cleanup, dimension transfer and stale-button rejection after
 return, and navigation at the token allocator limit. See the
 [recorded boundary evidence](../../docs/testing/interaction-boundaries.md).
+
+## Stateful conversation views
+
+`Menu::view`, `start_at` and `choice_to` compose typed conversation and
+confirmation graphs with the same sessions, guards, pagination and object
+binding. See [conversation authoring](../../docs/gameplay/conversations.md)
+for transitions, cancellation and bounded choice forms.

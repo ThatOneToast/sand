@@ -39,6 +39,28 @@ pub struct RuntimeReport {
     limitations: BTreeSet<String>,
 }
 
+/// An actionable static-analysis hint for a tick entry, serializable for tools.
+///
+/// `code` identifies an unknown bound, a threshold crossing, or output truncation.
+/// `reference` names the lifecycle entry; `evaluations` preserves the report's
+/// exact range and unknown causes. These hints never estimate MSPT or establish
+/// a safe population. Serialize with Serde to inspect the documented fields.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[sand_macros::api(
+registry = sand_api_contract, path = "sand::advanced::compiler::RuntimeAdvice", module = "sand::advanced::compiler",
+summary = "Actionable, bounded tick-cost guidance derived from RuntimeReport.",
+context = "Serialize code, reference, evaluations and suggestion. Unknown bounds remain unknown; a configurable static threshold is not a server performance budget.",
+minecraft = "Does not alter emitted commands; identifies tick paths that need population-aware measurement or lower cadence.",
+use_when = ["Surfacing runtime-cost guidance in developer tools"], avoid_when = ["Predicting MSPT from static command counts"],
+example = "let hints = pack.runtime_report.advice(10_000); let json = serde_json::to_value(hints)?;"
+)]
+pub struct RuntimeAdvice {
+    code: String,
+    reference: Option<String>,
+    evaluations: Option<Work>,
+    suggestion: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct LifecycleEntry {
     reference: String,
@@ -122,6 +144,58 @@ fn report_version<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u
 }
 
 impl RuntimeReport {
+    /// Identify tick entries with unknown maximum work or a known maximum at
+    /// least `threshold` explicit command evaluations per invocation. Threshold
+    /// zero includes every known tick entry. This is a user-selected review
+    /// threshold, not a Minecraft command limit or a measured performance budget.
+    ///
+    /// Entries are deduplicated and sorted by resource reference. At most 64
+    /// hints are returned, including an explicit truncation marker if needed.
+    /// Unknown multiplicity is never replaced by a guessed player/entity count.
+    #[sand_macros::api(
+registry = sand_api_contract, path = "sand::advanced::compiler::RuntimeReport::advice", module = "sand::advanced::compiler",
+summary = "Derive actionable tick-work hints without changing runtime estimates.",
+context = "Unknown maximums and threshold crossings produce deterministic, deduplicated advice. Output is capped at 64 including an explicit truncation marker.",
+minecraft = "Guidance concerns explicit evaluations only, not selector search cost, terminal multiplicity, MSPT or server command-budget units.",
+use_when = ["Finding tick paths for measurement or cadence changes"], avoid_when = ["Treating a static threshold as a guaranteed safe runtime budget"],
+params(threshold = "Inclusive known-maximum review threshold in explicit evaluations; zero includes every known tick entry."),
+returns = "Serializable advice with the original evaluation ranges and unknown causes.",
+example = "let advice = pack.runtime_report.advice(10_000);"
+)]
+    pub fn advice(&self, threshold: u64) -> Vec<RuntimeAdvice> {
+        let entries: BTreeMap<_, _> = self
+            .tick
+            .iter()
+            .map(|entry| (&entry.reference, &entry.evaluations))
+            .collect();
+        let mut advice = Vec::new();
+        for (reference, work) in entries {
+            let (code, suggestion) = match work.maximum {
+                None => (
+                    "tick_bound_unknown",
+                    "Inspect the retained unknown causes and measure this tick path with representative player/entity populations. Consider event-driven work, explicit participant bounds or a lower cadence where gameplay permits; the estimator does not infer a safe population.".to_owned(),
+                ),
+                Some(maximum) if maximum >= threshold => (
+                    "tick_review_threshold",
+                    format!("The static maximum reaches the configured review threshold of {threshold} explicit evaluations. Measure the native path before changing it; consider batching jobs or reducing cadence while preserving gameplay semantics. This is not an MSPT estimate."),
+                ),
+                _ => continue,
+            };
+            advice.push(RuntimeAdvice {
+                code: code.into(),
+                reference: Some(reference.clone()),
+                evaluations: Some(work.clone()),
+                suggestion,
+            });
+            if advice.len() == 64 {
+                advice.pop();
+                advice.push(RuntimeAdvice { code: "advice_truncated".into(), reference: None, evaluations: None, suggestion: "Additional eligible tick entries were omitted; inspect RuntimeReport.tick for the complete ordered lifecycle inventory.".into() });
+                break;
+            }
+        }
+        advice
+    }
+
     /// Recompute costs and lifecycle entries from a host's final resource bytes.
     ///
     /// Use the same pack-relative path map as [`crate::advanced::compiler::CompiledPack::resources`]
@@ -302,6 +376,61 @@ impl RuntimeReport {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tick_advice_preserves_unknowns_and_uses_explicit_review_thresholds() {
+        let resources = BTreeMap::from([
+            (
+                "data/minecraft/tags/function/tick.json".into(),
+                br#"{"values":["demo:known","demo:unknown","demo:known"]}"#.to_vec(),
+            ),
+            (
+                "data/minecraft/tags/function/load.json".into(),
+                br#"{"values":["demo:load_only"]}"#.to_vec(),
+            ),
+            (
+                "data/demo/function/known.mcfunction".into(),
+                b"say one\nsay two\nsay three".to_vec(),
+            ),
+            (
+                "data/demo/function/unknown.mcfunction".into(),
+                b"function external:missing".to_vec(),
+            ),
+        ]);
+        let report = RuntimeReport::collect(&[], &RuntimePlan::default()).reanalyze(&resources);
+        let hints = serde_json::to_value(report.advice(3)).unwrap();
+        assert_eq!(hints.as_array().unwrap().len(), 2);
+        assert_eq!(hints[0]["code"], "tick_review_threshold");
+        assert_eq!(hints[0]["evaluations"]["maximum"], 3);
+        assert_eq!(hints[1]["code"], "tick_bound_unknown");
+        assert!(hints[1]["evaluations"]["maximum"].is_null());
+        assert!(
+            !hints[1]["evaluations"]["unknown"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(report.advice(4).len(), 1);
+        let serialized = serde_json::to_value(&report).unwrap();
+        assert!(serialized.get("advice").is_none());
+        let decoded: RuntimeReport = serde_json::from_value(serialized).unwrap();
+        assert_eq!(hints, serde_json::to_value(decoded.advice(3)).unwrap());
+    }
+
+    #[test]
+    fn tick_advice_bounds_payload_and_marks_every_omission() {
+        let references: Vec<_> = (0..80).map(|i| format!("demo:missing_{i:03}")).collect();
+        let resources = BTreeMap::from([(
+            "data/minecraft/tags/function/tick.json".into(),
+            serde_json::to_vec(&serde_json::json!({"values":references})).unwrap(),
+        )]);
+        let report = RuntimeReport::collect(&[], &RuntimePlan::default()).reanalyze(&resources);
+        let hints = serde_json::to_value(report.advice(1)).unwrap();
+        assert_eq!(hints.as_array().unwrap().len(), 64);
+        assert_eq!(hints[0]["reference"], "demo:missing_000");
+        assert_eq!(hints[63]["code"], "advice_truncated");
+        assert!(hints[63]["evaluations"].is_null());
+    }
 
     /// Generic-directory tags agree with typed tags and published-file analysis.
     #[test]

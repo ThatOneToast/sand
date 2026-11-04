@@ -4243,97 +4243,44 @@ fn lower_name(
         "args.n{:012x}.{index}",
         stable_hash(&definition.id.to_string()) & 0xff_ffff_ffff_ffff
     );
-    let mut setup = Vec::new();
-    let mut rendered = Vec::new();
-    let mut dynamic = false;
-    for (segment_index, segment) in binding.text_value().segments().iter().enumerate() {
-        let color = match segment {
-            EntityTextSegment::Canonical { .. } => String::new(),
-            EntityTextSegment::Literal { color, .. }
-            | EntityTextSegment::Numeric { color, .. }
-            | EntityTextSegment::Enum { color, .. }
-            | EntityTextSegment::Flag { color, .. } => color
-                .as_ref()
-                .map(|color| format!(",color:\"{color}\""))
-                .unwrap_or_default(),
-        };
-        match segment {
-            EntityTextSegment::Canonical { component } => rendered.push(component.to_string()),
-            EntityTextSegment::Literal { text, .. } => rendered.push(format!(
-                "{{text:{}{color}}}",
-                serde_json::to_string(text).expect("serializing a Rust string cannot fail")
-            )),
-            EntityTextSegment::Numeric { objective, .. } => {
-                dynamic = true;
-                setup.push(format!(
-                    "execute store result storage {storage} {args}.v{segment_index} int 1 run scoreboard players get @s {objective}"
-                ));
-                rendered.push(format!("{{text:\"$(v{segment_index})\"{color}}}"));
-            }
-            EntityTextSegment::Enum {
-                objective,
-                variants,
-                ..
-            } => {
-                dynamic = true;
-                for (score, value) in variants {
-                    setup.push(format!(
-                        "execute if score @s {objective} matches {score} run data modify storage {storage} {args}.v{segment_index} set value {}",
-                        serde_json::to_string(value)
-                            .expect("serializing a Rust string cannot fail")
-                    ));
-                }
-                rendered.push(format!("{{text:$(v{segment_index}){color}}}"));
-            }
-            EntityTextSegment::Flag {
-                objective,
-                disabled,
-                enabled,
-                ..
-            } => {
-                dynamic = true;
-                setup.push(format!(
-                    "execute if score @s {objective} matches 0 run data modify storage {storage} {args}.v{segment_index} set value {}",
-                    serde_json::to_string(disabled)
-                        .expect("serializing a Rust string cannot fail")
-                ));
-                setup.push(format!(
-                    "execute if score @s {objective} matches 1 run data modify storage {storage} {args}.v{segment_index} set value {}",
-                    serde_json::to_string(enabled)
-                        .expect("serializing a Rust string cannot fail")
-                ));
-                rendered.push(format!("{{text:$(v{segment_index}){color}}}"));
-            }
-        }
-    }
-    let value = format!("{{text:\"\",extra:[{}]}}", rendered.join(","));
+    let plan = super::text::materialize(
+        binding.text_value(),
+        &storage,
+        &format!("{args}.value"),
+        &format!("{}:{helper}", definition.id.namespace()),
+        |_| Ok("@s".into()),
+    )
+    .map_err(|error| EntityDiagnostic::InvalidRawExtension {
+        archetype: definition.id.to_string(),
+        extension: "name text".into(),
+        detail: error.to_string(),
+    })?;
     let visible = i32::from(binding.is_visible());
-    if dynamic {
-        setup.push(format!(
-            "function {}:{helper} with storage {storage} {args}",
-            definition.id.namespace()
-        ));
-        setup.push(format!("data remove storage {storage} {args}"));
-        setup.push(format!("data remove storage {storage} args"));
-        setup.push(format!(
-            "data modify entity @s CustomNameVisible set value {visible}b"
-        ));
+    if plan.dynamic {
+        let mut commands = plan.commands;
+        commands.extend([
+            format!("data modify entity @s CustomName set from storage {storage} {args}.value"),
+            format!("data remove storage {storage} {args}"),
+            format!("data remove storage {storage} args"),
+            format!("data modify entity @s CustomNameVisible set value {visible}b"),
+        ]);
+        let mut records = Vec::new();
+        let mut functions = Vec::new();
+        for (location, body) in plan.helpers {
+            let (namespace, path) = location.split_once(':').expect("compiler helper resource");
+            records.push(ComponentRecord::function(namespace, path, body));
+            functions.push(path.to_owned());
+        }
         Ok(NativeLowering {
-            commands: setup,
-            records: vec![ComponentRecord::function(
-                definition.id.namespace(),
-                &helper,
-                vec![format!(
-                    "$data modify entity @s CustomName set value {value}"
-                )],
-            )],
-            functions: vec![helper],
+            commands,
+            records,
+            functions,
             objectives: Vec::new(),
         })
     } else {
         Ok(NativeLowering {
             commands: vec![
-                format!("data modify entity @s CustomName set value {value}"),
+                format!("data modify entity @s CustomName set value {}", plan.value),
                 format!("data modify entity @s CustomNameVisible set value {visible}b"),
             ],
             records: Vec::new(),

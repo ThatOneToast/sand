@@ -1316,11 +1316,11 @@
       "rpg:__sand_entity/a9a72d381e757b/initialize": {
         "evaluations": {
           "maximum": null,
-          "minimum": 106,
+          "minimum": 110,
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers"
           ]
         },
         "owners": [
@@ -1779,9 +1779,9 @@
       "rpg:__sand_entity/a9a72d381e757b/property/2": {
         "evaluations": {
           "maximum": null,
-          "minimum": 5,
+          "minimum": 9,
           "unknown": [
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers"
           ]
         },
         "owners": [
@@ -1903,7 +1903,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers"
           ]
         },
         "owners": [
@@ -2189,7 +2189,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/reconcile"
           ]
         },
@@ -2216,7 +2216,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers"
           ]
         },
         "owners": [
@@ -2329,11 +2329,11 @@
       "rpg:__sand_entity/a9a72d381e757b/repair_refresh": {
         "evaluations": {
           "maximum": null,
-          "minimum": 66,
+          "minimum": 70,
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers"
           ]
         },
         "owners": [
@@ -2465,7 +2465,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize"
           ]
         },
@@ -2492,7 +2492,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize"
           ]
         },
@@ -2552,7 +2552,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/reconcile"
           ]
@@ -2653,7 +2653,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2"
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers"
           ]
         },
         "owners": [
@@ -3160,7 +3160,7 @@
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
-            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity args.na9a72d381e757b.2",
+            "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/2/name_macro with storage rpg:__sand_entity __sand_text_numbers",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=!__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/initialize",
             "unknown selector multiplicity: execute as @e[type=minecraft:zombie,tag=__sand.a.a9a72d381e757b] at @s run function rpg:__sand_entity/a9a72d381e757b/reconcile"
           ]

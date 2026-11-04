@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "version": "26.2",
+  "protocol": 776,
+  "server_jar_sha1": "823e2250d24b3ddac457a60c92a6a941943fcd6a",
+  "players": 2,
+  "checks": [
+    "two-player login/configuration/play and initial loaded acknowledgments",
+    "independent player score and inventory commands",
+    "native keepalive challenges echoed by both players",
+    "dimension transfer in both directions with teleport/loading acknowledgments and native damage acceptance",
+    "disconnect/reconnect preserves player identity and does not disconnect the other owner"
+  ],
+  "date": "2026-11-03",
+  "client_source_sha256": "e77bbd81f64285d33553ec2b731ece9f2fbfd738048712dafd36d08398aafd12",
+  "protocol_metadata_sha256": "cdf0e8090e67696753f228cd7345e7d8b4f70a678221c8eca042c503f9ba7117",
+  "java_version": "openjdk 25.0.3 2026-04-21 LTS\nOpenJDK Runtime Environment Zulu25.34+17-CA (build 25.0.3+9-LTS)\nOpenJDK 64-Bit Server VM Zulu25.34+17-CA (build 25.0.3+9-LTS, mixed mode, sharing)"
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove menu sessions, personal rewards and interaction cleanup with two 26.2 players."""
+"""Prove menu sessions, personal rewards and interaction cleanup with two real players."""
 import argparse
 import json
 import os
@@ -20,12 +20,13 @@ class InteractionHarness(GameplayHarness, PlayerHarness):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", choices=("26.2", "26.3"), default="26.2")
     parser.add_argument("--jar", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     root = args.output.resolve()
     pack = root / "pack"
-    env = dict(os.environ, SAND_INTERACTION_PROOF_PACK=str(pack), SAND_INTERACTION_PROOF_VERSION="26.2")
+    env = dict(os.environ, SAND_INTERACTION_PROOF_PACK=str(pack), SAND_INTERACTION_PROOF_VERSION=args.version)
     subprocess.run(["cargo", "test", "-p", "sand-core", "--test", "gameplay_menu"], cwd=ROOT, env=env, check=True)
     barrier = pack / "data/owned/function/barrier.mcfunction"
     barrier.parent.mkdir(parents=True, exist_ok=True)
@@ -36,7 +37,7 @@ def main():
     trigger = re.search(r"scoreboard players enable @s (\S+)", open_body)[1]
     token = re.search(r"storage menus:shop menu.a0 int 1 run scoreboard players get @s (\S+)", open_body)[1]
     (pack / "data/menus/function/proof_submit.mcfunction").write_text(f"$trigger {trigger} set $(value)\n")
-    settings = argparse.Namespace(version="26.2", pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
+    settings = argparse.Namespace(version=args.version, pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
     h = InteractionHarness(settings)
     h.prepare()
     h.start()
@@ -187,6 +188,64 @@ def main():
                 h.advance(1)
                 h.expect_count("ONE", 1)
                 h.invoke("__sand_system/lifetime/bound_object/cancel", "SandBeta")
+                # A typed conversation keeps one exact object binding across
+                # views while every transition revokes all prior buttons.
+                conversation_dir = functions / "conversation"
+                conversation_trigger = re.search(r"scoreboard players enable @s (\S+)", (conversation_dir / "menu_admit.mcfunction").read_text())[1]
+                def conversation_token(index, page):
+                    return re.search(rf"menu.a{index} int 1 run scoreboard players get @s (\S+)", (conversation_dir / f"menu_page_{page}.mcfunction").read_text())[1]
+                continue_token = conversation_token(0, 0)
+                shop_token = conversation_token(1, 0)
+                accept_token = conversation_token(2, 1)
+                back_token = conversation_token(3, 1)
+                conversation_tag = "sand.task." + b"menus:conversation_object".hex() + ".interaction"
+                conversation_target = f"@e[type=minecraft:interaction,tag={conversation_tag},limit=1]"
+                h.invoke("conversation_start")
+                h.advance(1)
+                def conversation_click(player="SandAlpha"):
+                    h.send("data modify storage menus:proof event set value {timestamp:1L}")
+                    h.send(f"data modify storage menus:proof event.player set from entity {player} UUID")
+                    h.send(f"data modify entity {conversation_target} interaction set from storage menus:proof event")
+                    h.advance(1)
+                def conversation_submit(value, player="SandAlpha"):
+                    h.send(f"scoreboard players operation {player} {conversation_trigger} = {player} {value}")
+                    h.advance(1)
+                conversation_click()
+                conversation_click("SandBeta")
+                h.send(f"scoreboard players operation #old_view proof = SandAlpha {continue_token}")
+                conversation_submit(continue_token)
+                h.check(f"if score SandAlpha {accept_token} matches 1.. unless score SandAlpha {continue_token} matches 1..", "conversation_transition_rotates_tokens")
+                h.check(f"if score SandBeta {continue_token} matches 1.. unless score SandBeta {accept_token} matches 1..", "conversation_players_have_independent_views")
+                h.send(f"scoreboard players operation SandAlpha {conversation_trigger} = #old_view proof")
+                h.advance(1)
+                h.expect_count("CONVERSATION_ACCEPTED", 0)
+                conversation_click()
+                conversation_submit(continue_token)
+                conversation_submit(back_token)
+                h.check(f"if score SandAlpha {continue_token} matches 1.. unless score SandAlpha {accept_token} matches 1..", "conversation_back_preserves_binding")
+                conversation_submit(continue_token)
+                h.send(f"scoreboard players set SandAlpha {metadata['coins']} 0")
+                conversation_submit(accept_token)
+                h.expect_count("CONVERSATION_ACCEPTED", 0)
+                h.send(f"scoreboard players set SandAlpha {metadata['coins']} 7")
+                conversation_click()
+                conversation_submit(continue_token)
+                h.send(f"scoreboard players operation #accepted proof = SandAlpha {accept_token}")
+                conversation_submit(accept_token)
+                h.expect_count("CONVERSATION_ACCEPTED", 1)
+                h.send(f"scoreboard players operation SandAlpha {conversation_trigger} = #accepted proof")
+                h.advance(1)
+                h.expect_count("CONVERSATION_ACCEPTED", 1)
+                conversation_click()
+                conversation_submit(shop_token)
+                imported_page = (pack / "data/imported/function/__sand_system/lifetime/callback_menu/menu_page_0.mcfunction").read_text()
+                imported_token = re.search(r"storage imported:callback_menu menu.a0 int 1 run scoreboard players get @s (\S+)", imported_page)[1]
+                h.check(f"if score SandAlpha {imported_token} matches 1.. unless score SandAlpha {accept_token} matches 1..", "conversation_cross_namespace_callback_new_menu_wins")
+                h.advance(1)
+                h.check(f"if score SandAlpha {imported_token} matches 1.. unless score SandAlpha {accept_token} matches 1..", "conversation_imported_menu_remains_authorized")
+                h.invoke("conversation_stop")
+                h.advance(1)
+                h.check(f"unless score SandBeta {continue_token} matches 1..", "conversation_object_cleanup_invalidates_all_views")
                 h.invoke("open", "SandBeta")
                 h.send(f"scoreboard players operation #disconnected proof = SandBeta {token}")
             with h.clients(players=("SandBeta",)):
@@ -223,7 +282,7 @@ def main():
         errors = h.errors(0, len(h.lines))
         if errors:
             raise ValidationFailure("runtime", "server errors", errors)
-        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": "26.2", "players": 2, "checks": ["pagination", "nearby exact-object isolation", "bound dimension transitions", "navigation token exhaustion", "object-bound session", "bound range and cleanup invalidation", "stale tokens", "context invalidation", "timeout", "native trigger submission", "single consumption", "cross-player tokens", "full inventory", "payment ordering", "personal claims", "shared claims", "typed book", "interaction actor routing", "owned cleanup", "disconnect", "reload"]}, indent=2))
+        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": args.version, "players": 2, "checks": ["typed conversation transitions", "conversation guards and replay rejection", "conversation player isolation", "callback navigation precedence across resource namespaces", "pagination", "nearby exact-object isolation", "bound dimension transitions", "navigation token exhaustion", "object-bound session", "bound range and cleanup invalidation", "stale tokens", "context invalidation", "timeout", "native trigger submission", "single consumption", "cross-player tokens", "full inventory", "payment ordering", "personal claims", "shared claims", "typed book", "interaction actor routing", "owned cleanup", "disconnect", "reload"]}, indent=2))
     finally:
         h.stop()
 

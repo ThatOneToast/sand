@@ -2,7 +2,7 @@
 use sand::component::{ItemComponent, ItemStack, WrittenBook};
 use sand::inventory::InventoryIndex;
 use sand::prelude::*;
-use sand::systems::{Interactable, Lifetime, Menu, Purchase};
+use sand::systems::{Interactable, InventoryTransfer, Lifetime, Menu, Purchase};
 use sand::world::WorldContext;
 
 #[allow(dead_code)]
@@ -65,6 +65,22 @@ fn reward() -> Purchase {
     .on_rejected(|| cmd::say("Clear hotbar slot 3; this reward can be claimed once."))
 }
 
+// A whole-stack barter: exactly three emeralds in hotbar slot 4 pay for
+// one diamond in slot 5. The reward never doubles as its own payment source.
+#[datapack_component]
+fn barter() -> Purchase {
+    Purchase::new("interaction_hub:barter".parse().unwrap(), stack("diamond"), InventoryIndex::new(4).unwrap())
+        .item_cost(InventoryIndex::new(3).unwrap(), ItemId::minecraft("emerald").unwrap(), 3)
+        .on_success(|| cmd::say("Barter complete."))
+        .on_rejected(|| cmd::say("Put exactly 3 emeralds in hotbar slot 4 and clear slot 5."))
+}
+
+#[datapack_component]
+fn move_barter_reward() -> InventoryTransfer {
+    InventoryTransfer::new("interaction_hub:move_barter_reward".parse().unwrap(), InventoryIndex::new(4).unwrap(), InventoryIndex::new(5).unwrap())
+        .on_rejected(|| cmd::say("Slot 5 must hold a reward and slot 6 must have room."))
+}
+
 #[datapack_component]
 fn shop_menu() -> Menu {
     Menu::new(
@@ -72,6 +88,8 @@ fn shop_menu() -> Menu {
         Text::new("Gatekeeper"),
         Ticks::new(600),
     )
+    .choice(Text::new("Barter 3 emeralds in slot 4"), Condition::all([]), || barter().buy())
+    .choice(Text::new("Move reward from slot 5 to slot 6"), Condition::all([]), || move_barter_reward().transfer())
     .choice(
         Text::new("Buy key — 3 coins"),
         !Quest::key.bind().is_enabled(),

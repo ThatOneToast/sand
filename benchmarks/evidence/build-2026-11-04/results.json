@@ -1,0 +1,304 @@
+{
+  "environment": {
+    "SAND_ALLOW_PLACEHOLDER_CODEGEN": "0",
+    "SAND_MC_VERSION": "26.3",
+    "SAND_STRICT_CODEGEN": "1"
+  },
+  "external_caches": {
+    "cargo_home": "/Users/wb/.cargo",
+    "sand_cache": "/Users/wb/.sand/cache"
+  },
+  "external_cargo_config": [],
+  "finished_at": "2026-11-04T16:13:16.862240+00:00",
+  "git": {
+    "head": "953edfdee5362be9b73ddb657369d4e7ab7087b0",
+    "status_porcelain_v1": ""
+  },
+  "method": "isolated cargo check --workspace --locked; external caches primed by unmeasured warmup",
+  "minecraft_version": "26.3",
+  "output": "/private/tmp/sand-build-bench-2026-11-04-final",
+  "passed": true,
+  "platform": {
+    "cpu_count": 10,
+    "description": "macOS-27.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "python": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]"
+  },
+  "scenarios": [
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/cache-warmup-1.log",
+      "measured": false,
+      "returncode": 0,
+      "sample": 1,
+      "scenario": "cache-warmup",
+      "seconds": 60.62830012499762,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/cold-target-warm-external-caches-1.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 1,
+      "scenario": "cold-target-warm-external-caches",
+      "seconds": 60.29291283299972,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/cold-1"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/cold-target-warm-external-caches-2.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 2,
+      "scenario": "cold-target-warm-external-caches",
+      "seconds": 59.72765608401096,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/cold-2"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/warm-facade-rebuild-1.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 1,
+      "scenario": "warm-facade-rebuild",
+      "seconds": 7.063561666989699,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/warm-facade-rebuild-2.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 2,
+      "scenario": "warm-facade-rebuild",
+      "seconds": 6.979038416000549,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/warm-facade-rebuild-3.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 3,
+      "scenario": "warm-facade-rebuild",
+      "seconds": 6.9627316249971045,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/warm-facade-rebuild-4.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 4,
+      "scenario": "warm-facade-rebuild",
+      "seconds": 6.905620124991401,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/warm-facade-rebuild-5.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 5,
+      "scenario": "warm-facade-rebuild",
+      "seconds": 7.024121499998728,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/restore-warmup-1.log",
+      "measured": false,
+      "returncode": 0,
+      "sample": 1,
+      "scenario": "restore-warmup",
+      "seconds": 6.95195675001014,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/no-op-1.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 1,
+      "scenario": "no-op",
+      "seconds": 0.7297784170077648,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/no-op-2.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 2,
+      "scenario": "no-op",
+      "seconds": 0.6888884170039091,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/no-op-3.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 3,
+      "scenario": "no-op",
+      "seconds": 0.808248375004041,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/no-op-4.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 4,
+      "scenario": "no-op",
+      "seconds": 0.7632850000081817,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--workspace",
+        "--locked"
+      ],
+      "cwd": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+      "log": "/private/tmp/sand-build-bench-2026-11-04-final/logs/no-op-5.log",
+      "measured": true,
+      "returncode": 0,
+      "sample": 5,
+      "scenario": "no-op",
+      "seconds": 0.6690303329960443,
+      "target": "/private/tmp/sand-build-bench-2026-11-04-final/targets/warm"
+    }
+  ],
+  "schema_version": 1,
+  "snapshot": "/private/tmp/sand-build-bench-2026-11-04-final/source",
+  "source": "/Users/wb/.t3/worktrees/sand/t3-acf0b29c",
+  "started_at": "2026-11-04T16:09:29.830574+00:00",
+  "summary": {
+    "cold-target-warm-external-caches": {
+      "max_seconds": 60.29291283299972,
+      "median_seconds": 60.01028445850534,
+      "min_seconds": 59.72765608401096,
+      "successful_samples": 2
+    },
+    "no-op": {
+      "max_seconds": 0.808248375004041,
+      "median_seconds": 0.7297784170077648,
+      "min_seconds": 0.6690303329960443,
+      "successful_samples": 5
+    },
+    "warm-facade-rebuild": {
+      "max_seconds": 7.063561666989699,
+      "median_seconds": 6.979038416000549,
+      "min_seconds": 6.905620124991401,
+      "successful_samples": 5
+    }
+  },
+  "toolchain": {
+    "cargo": {
+      "command": [
+        "cargo",
+        "--version"
+      ],
+      "output": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "returncode": 0
+    },
+    "java": {
+      "command": [
+        "java",
+        "-version"
+      ],
+      "output": "openjdk version \"25.0.3\" 2026-04-21 LTS\nOpenJDK Runtime Environment Zulu25.34+17-CA (build 25.0.3+9-LTS)\nOpenJDK 64-Bit Server VM Zulu25.34+17-CA (build 25.0.3+9-LTS, mixed mode, sharing)",
+      "returncode": 0
+    },
+    "rustc": {
+      "command": [
+        "rustc",
+        "-vV"
+      ],
+      "output": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: aarch64-apple-darwin\nrelease: 1.96.0\nLLVM version: 22.1.2",
+      "returncode": 0
+    }
+  },
+  "tree_sha256": "f76b9c8d22adbbcd0d3469ec61193caf9e77255e4399a5668ab515f672e21194"
+}

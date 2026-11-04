@@ -220,6 +220,9 @@ pub struct Lifetime<K: EntityKind = PlayerKind> {
     detach: Vec<fn(&'static str) -> Vec<String>>,
 }
 impl<K: EntityKind> Lifetime<K> {
+    pub(super) fn capacity_limit(&self) -> u32 {
+        self.capacity
+    }
     /// Create an inert definition with a required duration, feet origin and
     /// callbacks every tick. Register the same definition before calling it.
     #[sand_macros::api(

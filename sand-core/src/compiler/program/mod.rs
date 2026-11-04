@@ -6,7 +6,7 @@ mod lower;
 pub(crate) mod model;
 mod validate;
 
-pub use crate::compiler::runtime::RuntimeReport;
+pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
     Action, ExecutionContext, FieldReference, Flow, FlowHook, FlowHookPhase, FlowTransition,

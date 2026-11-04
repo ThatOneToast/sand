@@ -7,6 +7,17 @@ use crate::{
 use sand_commands::{CommandResult, ObjectiveName};
 use sand_components::ResourceLocation;
 
+/// The compilation's pack namespace, independent of a definition's resource
+/// namespace. Shared admission/transaction state must cover imported definitions
+/// too, while separate exports retain isolated runtime state.
+pub(crate) fn pack_namespace() -> CommandResult<String> {
+    let local = ResourceLocation::new(crate::function::SAND_LOCAL_NS, "runtime_scope")
+        .expect("internal resource identity");
+    Ok(crate::function::resolve_export_location(&local)?
+        .namespace()
+        .to_owned())
+}
+
 pub(crate) fn objective(scope: &ResourceLocation) -> CommandResult<ObjectiveName> {
     let scope = crate::function::resolve_export_location(scope)?;
     let objective = ObjectiveName::logical(format!("sand runtime owner {}", scope.namespace()));

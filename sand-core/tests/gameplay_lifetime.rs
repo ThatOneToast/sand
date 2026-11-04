@@ -1,4 +1,4 @@
-use sand::component::IntoCommands;
+use sand::component::{IntoCommands, WrittenBook};
 use sand::prelude::*;
 use sand::systems::{Ability, Lifetime};
 
@@ -414,10 +414,24 @@ fn animated() -> sand::systems::Scene<AnyEntity> {
         "icon",
         ItemStack::new(ItemId::minecraft("diamond").unwrap())
             .count(3)
-            .component(ItemComponent::custom_name(Text::new("Gem").gold())),
+            .component(ItemComponent::custom_name(Text::new("Gem\nShard").gold()))
+            .component(ItemComponent::custom_data(CustomData::marker("mark\nline"))),
         Transform::default(),
     )
-    .text("label", Text::new("Ready").bold(true), Transform::default())
+    .text(
+        "label",
+        Text::new("Ready\nNow").bold(true),
+        Transform::default(),
+    )
+    .item(
+        "book",
+        ItemStack::new(ItemId::minecraft("written_book").unwrap()).component(
+            ItemComponent::WrittenBook(
+                WrittenBook::new("Notes", "Sand").page(Text::new("Page one\nPage two")),
+            ),
+        ),
+        Transform::default(),
+    )
     .keyframe(
         "head",
         Ticks::new(1),

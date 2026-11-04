@@ -91,7 +91,7 @@
       },
       "interaction_hub:__sand_system/lifetime/barter/purchase_buy": {
         "evaluations": {
-          "maximum": 53,
+          "maximum": 92,
           "minimum": 1,
           "unknown": []
         },
@@ -105,7 +105,7 @@
             "selector": "@s[type=minecraft:player]"
           },
           {
-            "line": 11,
+            "line": 12,
             "operation": "unless",
             "selector": "@s"
           }
@@ -124,8 +124,8 @@
       },
       "interaction_hub:__sand_system/lifetime/barter/purchase_payment_changed": {
         "evaluations": {
-          "maximum": 6,
-          "minimum": 6,
+          "maximum": 25,
+          "minimum": 3,
           "unknown": []
         },
         "owners": [
@@ -1970,8 +1970,8 @@
       },
       "interaction_hub:__sand_system/lifetime/journal/purchase_payment_changed": {
         "evaluations": {
-          "maximum": 6,
-          "minimum": 6,
+          "maximum": 25,
+          "minimum": 3,
           "unknown": []
         },
         "owners": [
@@ -2067,8 +2067,8 @@
       },
       "interaction_hub:__sand_system/lifetime/key/purchase_payment_changed": {
         "evaluations": {
-          "maximum": 6,
-          "minimum": 6,
+          "maximum": 25,
+          "minimum": 3,
           "unknown": []
         },
         "owners": [
@@ -2269,8 +2269,8 @@
       },
       "interaction_hub:__sand_system/lifetime/reward/purchase_payment_changed": {
         "evaluations": {
-          "maximum": 6,
-          "minimum": 6,
+          "maximum": 25,
+          "minimum": 3,
           "unknown": []
         },
         "owners": [
@@ -3203,7 +3203,7 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_0": {
         "evaluations": {
-          "maximum": 69,
+          "maximum": 108,
           "minimum": 17,
           "unknown": []
         },
@@ -3283,7 +3283,7 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_0": {
         "evaluations": {
-          "maximum": 55,
+          "maximum": 94,
           "minimum": 3,
           "unknown": []
         },
@@ -3748,7 +3748,7 @@
       },
       "interaction_hub:function/2f3ddf92": {
         "evaluations": {
-          "maximum": 54,
+          "maximum": 93,
           "minimum": 2,
           "unknown": []
         },

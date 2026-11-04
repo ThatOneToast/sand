@@ -151,12 +151,34 @@ fn inventory_workflows_preserve_slots_and_check_before_committing_on_all_targets
             .unwrap();
         let changed = buy.find("payment.after set from storage").unwrap();
         let remove = buy.find("hotbar.3 with air").unwrap();
-        assert!(admission < place && place < changed && changed < remove);
+        let expected = buy.find("payment.reward_expected set value").unwrap();
+        assert!(admission < expected && expected < place && place < changed && changed < remove);
+        let staged = buy
+            .lines()
+            .find(|line| line.contains("payment.reward_expected set value "))
+            .unwrap()
+            .split_once(" set value ")
+            .unwrap()
+            .1;
+        assert_eq!(
+            staged, "{count:1,id:\"minecraft:diamond\"}",
+            "component-free canonical rewards must omit the native absent components map"
+        );
         let compensate = body(
             &pack,
             "__sand_system/lifetime/shop/purchase_payment_changed",
         );
-        assert!(compensate.contains("hotbar.2 with air"));
+        let clear_reward = compensate.find("hotbar.2 with air").unwrap();
+        assert!(compensate.find("payment.reward_actual.Slot").unwrap() < clear_reward);
+        assert!(
+            compensate
+                .find("payment.reward_actual set from storage")
+                .unwrap()
+                < clear_reward
+        );
+        assert!(compensate.find("execute if score #reward_changed").unwrap() < clear_reward);
+        assert!(compensate.contains("unless data storage"));
+        assert!(compensate.contains("payment.reward_expected run return run function"));
         for path in [
             "move/inventory_transfer_success",
             "move/inventory_transfer_rejected",

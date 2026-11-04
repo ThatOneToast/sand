@@ -60,9 +60,14 @@ Insufficient and excess quantities both reject without delivery or removal.
 Reward placement must succeed first. Sand then compares the complete payment
 stack with its pre-placement snapshot and clears that whole slot. It never runs
 an inventory-wide `clear` that could accidentally consume the new reward. If a
-native placement listener changes the payment stack, the reward slot is cleared
-and the purchase rejects without clearing the changed payment. This is bounded
-compensation, not rollback of arbitrary effects performed by that listener.
+native placement listener changes the payment stack, the purchase rejects without
+clearing the changed payment. Compensation clears the reward only when its full
+serialized identity, count and components still equal the canonical expected
+reward staged before placement. A listener replacement is preserved, including
+the same item ID with a different count or components. Missing stacks and codec
+representations whose exact equality cannot be proved are also preserved. This
+is best-effort compensation: rejection can leave the delivered reward when
+normalization prevents proof. It does not roll back arbitrary listener effects.
 Score currency and claims commit after item removal; success callbacks run last.
 
 ## Execution and remaining boundaries

@@ -1,3 +1,4 @@
+use sand::component::WrittenBook;
 use sand::prelude::*;
 use sand::systems::{Hud, Lifetime, Scene, Transform};
 
@@ -66,10 +67,24 @@ fn mixed_scene() -> Scene {
         "icon",
         ItemStack::new(ItemId::minecraft("diamond").unwrap())
             .count(3)
-            .component(ItemComponent::custom_name(Text::new("Gem").gold())),
+            .component(ItemComponent::custom_name(Text::new("Gem\nShard").gold()))
+            .component(ItemComponent::custom_data(CustomData::marker("mark\nline"))),
         Transform::default(),
     )
-    .text("label", Text::new("Ready").bold(true), Transform::default())
+    .text(
+        "label",
+        Text::new("Ready\nNow\r\nLater\t\"quote\"\\tail").bold(true),
+        Transform::default(),
+    )
+    .item(
+        "book",
+        ItemStack::new(ItemId::minecraft("written_book").unwrap()).component(
+            ItemComponent::WrittenBook(
+                WrittenBook::new("Notes", "Sand").page(Text::new("Page one\nPage two")),
+            ),
+        ),
+        Transform::default(),
+    )
     .keyframe(
         "icon",
         Ticks::new(1),
@@ -181,6 +196,44 @@ fn mixed_displays_share_keyframes_and_instance_cleanup_on_all_targets() {
             body(&pack, "mixed", "scene_remove_scores").contains("scoreboard players reset @s")
         );
         assert!(body(&pack, "mixed", "scene_remove_scores").contains("kill @s"));
+    }
+}
+#[test]
+fn multiline_scene_text_item_names_and_books_stay_on_native_command_lines() {
+    for version in ["26.1", "26.2", "26.3"] {
+        let pack = exported(version);
+        for (part, expected) in [
+            ("scene_part_1", r#"text:"Gem\nShard""#),
+            (
+                "scene_part_2",
+                r#"text:"Ready\nNow\r\nLater\t\"quote\"\\tail""#,
+            ),
+            ("scene_part_3", r#"text:"Page one\nPage two""#),
+        ] {
+            let commands = body(&pack, "mixed", part);
+            assert!(
+                commands.contains(expected),
+                "{version} {part}: {commands:?}"
+            );
+            assert!(
+                !commands.contains(['\r', '\t', '\0']),
+                "{version} {part}: {commands:?}"
+            );
+            assert_eq!(
+                commands.lines().count(),
+                4,
+                "{version} {part}: {commands:?}"
+            );
+            assert_eq!(
+                commands
+                    .lines()
+                    .filter(|line| line.starts_with("data merge entity @s "))
+                    .count(),
+                1
+            );
+        }
+        assert!(body(&pack, "mixed", "scene_part_1").contains(r#""mark\nline":1b"#));
+        assert!(body(&pack, "mixed", "scene_part_3").contains("minecraft:written_book_content"));
     }
 }
 #[test]

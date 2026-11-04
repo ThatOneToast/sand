@@ -70,9 +70,12 @@ example = "use sand::systems::Purchase;")]
     /// the payment slot. This cost composes with score currency and claims.
     ///
     /// Placement is checked before the payment slot is cleared. Sand snapshots
-    /// and rechecks the complete payment stack after native placement; changes
-    /// reject and clear the just-delivered reward. This is bounded compensation,
-    /// not rollback of arbitrary native listeners or other packs' mutations.
+    /// and rechecks the complete payment stack after native placement. Changes
+    /// reject; compensation clears the reward only when its complete serialized
+    /// stack still equals the canonical expected reward staged before placement.
+    /// Listener replacements and unprovable codec-normalized representations are
+    /// preserved. This is best-effort compensation, not rollback of arbitrary
+    /// native listeners or other packs' mutations.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::item_cost", module = "sand::systems", summary = "Require a whole matching payment stack in a separate player slot.", context = "Combines canonical ItemPredicate identity/components with an exact stack quantity and explicit slot exclusion.", minecraft = "Checks the payment slot before placement, rechecks its snapshot afterward, then clears the whole payment slot before State commits.", use_when = ["Shops accepting an explicitly selected whole payment stack"], avoid_when = ["Searching an inventory, partial payments, or arbitrary transaction rollback"], params(slot = "Numbered payment slot, distinct from the reward slot.", item = "Canonical item identity and component predicate.", amount = "Exact whole-stack quantity, from 1 through 99."), returns = "The configured purchase.", example = "use sand::systems::Purchase;")]
     pub fn item_cost(
         mut self,
@@ -143,6 +146,26 @@ impl IntoDatapack for Purchase {
     }
 }
 impl Purchase {
+    fn expected_reward_snbt(&self) -> CommandResult<String> {
+        // Canonical item components are structured values, not a reparsed item
+        // command. The shared component encoder preserves literal strings and
+        // native number types. Codecs may still normalize forms; a mismatch must retain
+        // the live stack rather than weakening full equality to a subset match.
+        let components = self
+            .reward
+            .stack_components()
+            .map_err(|error| CommandError::new("purchase", "reward", error.to_string()))?;
+        let mut expected = serde_json::json!({
+            "id": components.base_item(),
+            "count": self.reward.count_value(),
+        });
+        if !components.is_component_free() {
+            expected["components"] =
+                serde_json::Value::Object(components.components().iter().cloned().collect());
+        }
+        Ok(runtime::component_nbt(&expected)?.to_string())
+    }
+
     fn build(&self, part: &str) -> CommandResult<Actions> {
         let error = |field, detail: String| CommandError::new("purchase", field, detail);
         let id = crate::function::resolve_export_location(&self.id)?;
@@ -214,8 +237,15 @@ impl Purchase {
             )
             .into_commands()),
             "payment_changed" => {
-                let mut actions = slot.clear().map_err(|e| error("slot", e.to_string()))?;
-                actions.extend([rejected()]);
+                // The placement listener has already run. This is evidence of
+                // the current stack, never the expected reward: compare it with
+                // the canonical full stack staged before native placement.
+                let path = slot.nbt().as_str().to_owned();
+                let mut actions = format!("data remove storage {scratch} payment.reward_actual\ndata modify storage {scratch} payment.reward_actual set from entity @s {path}\nexecute unless data storage {scratch} payment.reward_actual run return run function {}\nexecute unless data storage {scratch} payment.reward_expected run return run function {}\ndata remove storage {scratch} payment.reward_actual.Slot\nexecute store success score #reward_changed {payment_score} run data modify storage {scratch} payment.reward_actual set from storage {scratch} payment.reward_expected\nexecute if score #reward_changed {payment_score} matches 1 run return run function {}", function("rejected"), function("rejected"), function("rejected")).into_commands();
+                actions.extend([
+                    slot.clear().map_err(|e| error("slot", e.to_string()))?,
+                    rejected(),
+                ]);
                 Ok(actions)
             }
             "success" | "rejected" => {
@@ -291,7 +321,7 @@ impl Purchase {
                         .map_err(|e| error("item_cost", e.to_string()))?
                         .guard_actions(true, &[], rejected())]);
                     let path = payment.nbt().as_str().to_owned();
-                    actions.extend([format!("execute store result score #count {payment_score} run data get entity @s {path}.count\nexecute unless score #count {payment_score} matches {amount} run return run function {}\ndata remove storage {scratch} payment\ndata modify storage {scratch} payment.before set from entity @s {path}", function("rejected")).into_commands()]);
+                    actions.extend([format!("execute store result score #count {payment_score} run data get entity @s {path}.count\nexecute unless score #count {payment_score} matches {amount} run return run function {}\ndata remove storage {scratch} payment\ndata modify storage {scratch} payment.before set from entity @s {path}\ndata modify storage {scratch} payment.reward_expected set value {}", function("rejected"), self.expected_reward_snbt()?).into_commands()]);
                 }
                 actions.extend([format!(
                     "execute unless function {} run return run function {}",
@@ -336,6 +366,22 @@ impl Purchase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn expected_reward_uses_complete_canonical_identity_count_and_components() {
+        let reward = ItemStack::new(sand_components::ItemId::minecraft("diamond").unwrap())
+            .count(3)
+            .component(sand_components::ItemComponent::custom_data_marker("reward"));
+        let purchase = Purchase::new(
+            "proof:reward".parse().unwrap(),
+            reward,
+            InventoryIndex::new(0).unwrap(),
+        );
+        assert_eq!(
+            purchase.expected_reward_snbt().unwrap(),
+            "{components:{\"minecraft:custom_data\":{reward:1b}},count:3,id:\"minecraft:diamond\"}"
+        );
+    }
+
     #[test]
     fn rejects_payment_reward_aliases_and_invalid_whole_stack_quantities() {
         let _export = crate::function::ExportFunctionRegistryScope::enter_namespace("proof");

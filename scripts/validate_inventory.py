@@ -37,7 +37,7 @@ def main():
     # inventory listener. The pack lock must reject it before any mutation.
     functions = pack / "data/inventory_proof/function"
     (functions / "reentry.mcfunction").write_text(f"advancement revoke @s only inventory_proof:reentry\nexecute if score #armed proof matches 1 if score #busy {lock} matches 1 run scoreboard players add #reentry proof 1\nexecute if score #armed proof matches 1 run function inventory_proof:move_stack\nexecute if score #armed proof matches 1 run function inventory_proof:foreign_attempt\nexecute if score #tamper proof matches 1 if items entity @s hotbar.2 minecraft:diamond run function inventory_proof:tamper\nexecute if score #source_tamper proof matches 1 if score #busy {lock} matches 1 if items entity @s hotbar.1 * run function inventory_proof:tamper_source\nexecute if score #destination_tamper proof matches 1 if score #busy {lock} matches 1 if items entity @s hotbar.1 * run function inventory_proof:tamper_destination\n")
-    (functions / "tamper.mcfunction").write_text("scoreboard players set #tamper proof 0\nitem replace entity @s hotbar.3 with minecraft:stone\n")
+    (functions / "tamper.mcfunction").write_text("scoreboard players set #tamper proof 0\nitem replace entity @s hotbar.3 with minecraft:stone\nexecute if score #reward_mode proof matches 1 run item replace entity @s hotbar.2 with minecraft:gold_ingot 4\nexecute if score #reward_mode proof matches 2 run item replace entity @s hotbar.2 with minecraft:diamond[custom_data={replacement:1}] 1\nexecute if score #reward_mode proof matches 3 run item replace entity @s hotbar.2 with minecraft:diamond 2\n")
     (functions / "tamper_source.mcfunction").write_text("scoreboard players set #source_tamper proof 0\nitem replace entity @s hotbar.0 with minecraft:diamond 2\n")
     (functions / "tamper_destination.mcfunction").write_text("scoreboard players set #destination_tamper proof 0\nitem replace entity @s hotbar.1 with minecraft:gold_ingot 2\n")
     advancements = pack / "data/inventory_proof/advancement"
@@ -55,6 +55,7 @@ def main():
         h.send("scoreboard players set #armed proof 0")
         h.send("scoreboard players set #reentry proof 0")
         h.send("scoreboard players set #tamper proof 0")
+        h.send("scoreboard players set #reward_mode proof 0")
         h.send("scoreboard players set #source_tamper proof 0")
         h.send("scoreboard players set #destination_tamper proof 0")
         with h.clients(players=("SandAlpha", "SandBeta")):
@@ -132,6 +133,15 @@ def main():
             h.send("scoreboard players set #tamper proof 1")
             h.invoke("buy")
             h.check("if items entity SandAlpha hotbar.3 minecraft:stone unless items entity SandAlpha hotbar.2 *", "changed_payment_compensates_reward_without_consuming_replacement")
+            for mode, replacement in ((1, "minecraft:gold_ingot[count=4]"), (2, "minecraft:diamond[count=1,custom_data~{replacement:1}]"), (3, "minecraft:diamond[count=2]")):
+                h.send("item replace entity SandAlpha hotbar.2 with air")
+                h.send("item replace entity SandAlpha hotbar.3 with minecraft:emerald 3")
+                h.send(f"scoreboard players set #reward_mode proof {mode}")
+                h.send("scoreboard players set #tamper proof 1")
+                h.invoke("buy")
+                h.check(f"if items entity SandAlpha hotbar.3 minecraft:stone if items entity SandAlpha hotbar.2 {replacement}", f"changed_payment_preserves_replaced_reward_mode_{mode}")
+            h.send("scoreboard players set #reward_mode proof 0")
+            h.send("item replace entity SandAlpha hotbar.2 with air")
             h.send("item replace entity SandAlpha hotbar.3 with minecraft:emerald 3")
             h.invoke("buy")
             h.check("if items entity SandAlpha hotbar.2 minecraft:diamond unless items entity SandAlpha hotbar.3 *", "whole_payment_consumed_after_reward")
@@ -153,7 +163,7 @@ def main():
         errors = h.errors(0, len(h.lines))
         if errors:
             raise ValidationFailure("runtime", "server errors", errors)
-        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": "26.2", "players": 2, "checks": ["exact live count/components", "source removal", "source-replacement compensation for empty and merged slots", "destination-replacement preservation", "empty source", "capacity and component mismatch rejection", "conservative default capacity", "native listener reentry", "cross-namespace transfer/purchase/journal reentry", "whole-slot payment quantity", "full reward slot", "changed-payment compensation", "replay without payment", "multiplayer isolation"]}, indent=2) + "\n")
+        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": "26.2", "players": 2, "checks": ["exact live count/components", "source removal", "source-replacement compensation for empty and merged slots", "destination-replacement preservation", "empty source", "capacity and component mismatch rejection", "conservative default capacity", "native listener reentry", "cross-namespace transfer/purchase/journal reentry", "whole-slot payment quantity", "full reward slot", "changed-payment compensation", "changed payment and reward preserve different ID/components/count", "replay without payment", "multiplayer isolation"]}, indent=2) + "\n")
     finally:
         h.stop()
 

@@ -5,9 +5,7 @@ use crate::{
     ir::Actions,
     registration::{DatapackRegistration, IntoDatapack},
 };
-use sand_commands::{
-    CommandError, CommandResult, NbtCompound, NbtValue, ObjectiveName, TextComponent,
-};
+use sand_commands::{CommandError, CommandResult, NbtCompound, ObjectiveName, TextComponent};
 use sand_components::{BlockId, ItemStack, effect::Ticks};
 
 /// Local display pose: translation, scale and rotation about the Y axis.
@@ -203,7 +201,7 @@ impl PartContent {
                     .components()
                     .iter()
                     .try_fold(NbtCompound::new(), |compound, (key, value)| {
-                        Ok(compound.field(key, json_nbt(value)?))
+                        Ok(compound.field(key, runtime::component_nbt(value)?))
                     })?;
                 format!(
                     "item:{}",
@@ -213,47 +211,12 @@ impl PartContent {
                         .field("components", components)
                 )
             }
-            Self::Text(text) => format!("text:{}", json_nbt(&text.try_to_json_value()?)?),
+            Self::Text(text) => format!(
+                "text:{}",
+                runtime::component_nbt(&text.try_to_json_value()?)?
+            ),
         })
     }
-}
-// Native text and item components use structured NBT, not JSON embedded in a
-// string. Keep canonical text/item validation before this compiler conversion.
-fn json_nbt(value: &serde_json::Value) -> CommandResult<NbtValue> {
-    Ok(match value {
-        serde_json::Value::Null => {
-            return Err(CommandError::new(
-                "scene",
-                "data",
-                "native NBT has no null value",
-            ));
-        }
-        serde_json::Value::Bool(value) => NbtValue::Bool(*value),
-        serde_json::Value::Number(value) => match value.as_i64() {
-            Some(value) => match i32::try_from(value) {
-                Ok(value) => NbtValue::Int(value),
-                Err(_) => NbtValue::Long(value),
-            },
-            None if value.is_u64() => {
-                return Err(CommandError::new(
-                    "scene",
-                    "data",
-                    "native NBT integer exceeds i64::MAX",
-                ));
-            }
-            None => NbtValue::Double(value.as_f64().unwrap()),
-        },
-        serde_json::Value::String(value) => NbtValue::String(value.clone()),
-        serde_json::Value::Array(values) => {
-            NbtValue::List(values.iter().map(json_nbt).collect::<CommandResult<_>>()?)
-        }
-        serde_json::Value::Object(fields) => fields
-            .iter()
-            .try_fold(NbtCompound::new(), |compound, (key, value)| {
-                Ok(compound.field(key, json_nbt(value)?))
-            })?
-            .into(),
-    })
 }
 #[derive(Clone)]
 struct Frame {
@@ -650,7 +613,7 @@ mod tests {
     #[test]
     fn structured_display_data_rejects_values_without_native_nbt_representation() {
         for value in [serde_json::Value::Null, serde_json::json!(u64::MAX)] {
-            assert_eq!(json_nbt(&value).unwrap_err().field, "data");
+            assert_eq!(runtime::component_nbt(&value).unwrap_err().field, "data");
         }
         let invalid_item = scene().item(
             "icon",

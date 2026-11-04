@@ -18,6 +18,7 @@
     "bounded job steps and cancellation",
     "one-tick completion and dimension crossing",
     "native scene block/item/text parts, typed components and ownership",
+    "multiline scene text, item names, written-book pages and custom-data keys",
     "scene follow and cleanup",
     "sequence order, waits, cancellation and dimension changes",
     "native hit volumes and nested queries",
@@ -31,5 +32,5 @@
     "encounter selection, reset and inactive cleanup",
     "runtime native damage and scoped attribution"
   ],
-  "log": "/private/tmp/sand-gameplay-strict-final/runtime/latest.log"
+  "log": "/private/tmp/sand-scene-controls-final/runtime/latest.log"
 }

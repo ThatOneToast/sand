@@ -17,6 +17,12 @@ stacks, unrepresentable NBT values and transforms before runtime allocation.
 Transform composition tests cover parent scale, yaw and translation and reject
 shear instead of changing the authored geometry.
 
+Scene and Journal share one internal component JSON-to-NBT conversion. Export
+regressions retain multiline display text, item names and written-book pages
+within one native merge command. Values and control-bearing object keys escape
+line breaks instead of creating additional physical command lines; null and
+integers outside signed NBT bounds remain rejected.
+
 ## Native Minecraft 26.3 scenes
 
 ```sh
@@ -26,10 +32,16 @@ python3 scripts/validate_gameplay.py \
 
 The existing entity-owner gameplay proof passes with additional mixed-scene
 assertions: native diamond item displays retain count three and the gold rich
-name `Gem`; native text displays retain `Ready` and bold styling. Two nearby
+name `Gem\nShard`, including the line break. Their custom-data marker retains
+the control-bearing key `mark\nline`. Native text displays retain `Ready\nNow`
+and bold styling, and a written-book display retains the exact multiline page
+`Page one\nPage two`. Two nearby
 owners follow independently, cancellation removes only that owner's block,
 item and text parts, and cleanup survives a user callback that returns early.
-The proof retains `evidence.json`, exported resources and server logs.
+The full strict-marker gameplay proof passed after the PR505 regressions on
+2026-11-04. Evidence, exported resources and server logs are retained under
+`/tmp/sand-scene-controls-final`; the committed summary is
+[gameplay-framework-evidence.json](gameplay-framework-evidence.json).
 
 ## Native Minecraft 26.2 player HUD
 

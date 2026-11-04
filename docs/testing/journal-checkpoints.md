@@ -3,7 +3,8 @@
 Reviewed 2026-11-04. This increment provides explicit literal journal refresh and
 integer-only canonical State checkpoint projections. It also consolidates dynamic
 EntityText materialization for journals and native entity names, removing author
-text from macro bodies.
+text from macro bodies. Scene and Journal also share the internal
+`runtime::component_nbt` serializer for canonical component payloads.
 
 ## Portable export and validation
 
@@ -64,11 +65,13 @@ StringTag values using data-copy success semantics. The component codec may
 normalize plain literal text to StringTags, so the proof reads both canonical
 native forms rather than assuming JSON-shaped inventory NBT. A check requires an
 actual emitted server marker line; diagnostic echoes cannot count as passes.
-The final 26.3 iteration reused its already-passing exported Rust fixture after
-proof-query corrections and a changed snapshot to ensure the native inventory
-listener actually ran. The 26.2 run freshly reran the complete export fixture and
-then the complete native scenario. The normal command always reruns Rust export
-tests before starting a disposable server.
+After the PR #505 serializer review fixes, both native targets were revalidated
+with freshly exported fixtures; neither final run used `--reuse-export`. Each
+invocation first passed all three focused integration tests, including export
+checks on 26.1, 26.2 and 26.3, then passed the complete native scenario. These
+runs confirm that sharing the control-safe component serializer preserves journal
+quoting, literal controls, native listener behavior and checkpoint semantics.
+The evidence records the serializer and fixture source digests for this rerun.
 
 ## Boundaries
 

@@ -57,3 +57,27 @@ and [native log](../../benchmarks/evidence/inventory-lock-2026-11-04/native-run.
 retain the run. Export regressions separately assert one shared lock across all
 three systems/resource namespaces and distinct locks for independent pack
 exports on 26.1, 26.2 and 26.3.
+
+## Conditional purchase compensation regression
+
+The 2026-11-04 native 26.2 followup exercised a placement listener that changes
+both payment and reward slots. Compensation compares the current full reward
+stack with the canonical expected identity, count and components staged before
+placement; it never treats the post-listener destination as its expectation.
+The unchanged component-free Diamond baseline still cleared its delivered
+reward after payment changed. Three replacement cases remained intact:
+
+- A different item ID and count (`gold_ingot`, four items).
+- The same item ID and count with different custom data.
+- The same item ID with a different count.
+
+All three preserved the listener's replacement payment as well and rejected
+before normal payment/state commits. Full native-NBT equality is conservative;
+codec-normalized representations that cannot be proved identical are preserved,
+so this remains best-effort compensation rather than general rollback.
+
+The [result](../../benchmarks/evidence/purchase-compensation-2026-11-04/evidence.json)
+and [native log](../../benchmarks/evidence/purchase-compensation-2026-11-04/native-run.log.gz)
+record the strict-marker run. Export regressions cover pre-placement staging,
+empty-component omission, missing-value guards and comparison before clearing on
+26.1, 26.2 and 26.3; a unit regression covers canonical component/count staging.

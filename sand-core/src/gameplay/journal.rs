@@ -8,9 +8,7 @@ use crate::{
     registration::{DatapackRegistration, IntoDatapack, LifecycleContribution},
     state::{StateDescriptor, StateScope},
 };
-use sand_commands::{
-    CommandError, CommandResult, NbtCompound, NbtValue, ObjectiveName, TextComponent,
-};
+use sand_commands::{CommandError, CommandResult, NbtCompound, ObjectiveName, TextComponent};
 use sand_components::{
     CustomItem, ItemComponent, ItemId, ItemPredicate, ResourceLocation, WrittenBook,
 };
@@ -331,7 +329,7 @@ impl Journal {
                 actions.extend([admissible.guard_actions(true,&[],reject())]);
                 let components=book.stack_components().map_err(|e|CommandError::new("journal","book",e.to_string()))?;
                 let content=components.components().iter().find(|(key,_)|key=="minecraft:written_book_content").expect("canonical written book content").1.clone();
-                actions.extend([format!("data modify storage {scratch} operation.content set value {}",json_nbt(&content)?) ]);
+                actions.extend([format!("data modify storage {scratch} operation.content set value {}",runtime::component_nbt(&content)?) ]);
                 for (index,page) in self.pages.iter().enumerate() {
                     let helper=identity::resource(&id,&format!("journal_page_{index}"));
                     let plan=crate::entity::text::materialize(page,&scratch.to_string(),&format!("operation.content.pages[{index}]"),&helper.to_string(),|field|Ok(Self::holder(schemas[&field.component]).into()))?;
@@ -347,49 +345,6 @@ impl Journal {
             _=>unreachable!(),
         }
     }
-}
-fn json_nbt(value: &serde_json::Value) -> CommandResult<NbtValue> {
-    Ok(match value {
-        serde_json::Value::Null => {
-            return Err(CommandError::new(
-                "journal",
-                "content",
-                "null is not an NBT text component value",
-            ));
-        }
-        serde_json::Value::Bool(value) => NbtValue::Bool(*value),
-        // Canonical component strings may include book newlines. The generic
-        // NbtValue::String intentionally rejects controls for data authoring;
-        // quote this already-validated component payload exactly as the item
-        // component serializer does, keeping the emitted command on one line.
-        serde_json::Value::String(value) => {
-            NbtValue::raw(serde_json::to_string(value).expect("Rust string JSON"))
-        }
-        serde_json::Value::Number(value) => {
-            if let Some(value) = value.as_i64() {
-                if let Ok(value) = i32::try_from(value) {
-                    NbtValue::Int(value)
-                } else {
-                    NbtValue::Long(value)
-                }
-            } else {
-                NbtValue::Double(value.as_f64().expect("JSON finite number"))
-            }
-        }
-        serde_json::Value::Array(values) => NbtValue::List(
-            values
-                .iter()
-                .map(json_nbt)
-                .collect::<CommandResult<Vec<_>>>()?,
-        ),
-        serde_json::Value::Object(values) => {
-            let mut compound = NbtCompound::new();
-            for (key, value) in values {
-                compound.insert(key, json_nbt(value)?);
-            }
-            NbtValue::Compound(compound)
-        }
-    })
 }
 impl IntoDatapack for Journal {
     fn into_datapack(self) -> DatapackRegistration {
@@ -458,7 +413,7 @@ mod tests {
     #[test]
     fn canonical_component_strings_stay_on_one_command_line() {
         let text = "quote \" slash \\ newline\n $(missing)";
-        let encoded = json_nbt(&serde_json::json!({"text":text}))
+        let encoded = runtime::component_nbt(&serde_json::json!({"text":text}))
             .unwrap()
             .to_string();
         assert!(!encoded.contains('\n'));

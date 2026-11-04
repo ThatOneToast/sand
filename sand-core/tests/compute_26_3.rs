@@ -30,6 +30,9 @@ fn generated_compute_commands_and_runtime_fixture() {
         r#"compute block ~ ~ ~ integer {type:"minecraft:constant",value:3}"#
     );
     let lines = vec![
+        // Forceload requests are asynchronous; elapsed ticks do not prove that
+        // the target chunk is available on a cold CI server.
+        "execute unless loaded 0 64 0 run return run schedule function compute_probe:run 1t".into(),
         "scoreboard objectives add compute_probe dummy".into(),
         "kill @e[type=minecraft:marker,tag=compute_probe]".into(),
         "summon minecraft:marker 0 64 0 {Tags:[\"compute_probe\",\"probe_a\"]}".into(),

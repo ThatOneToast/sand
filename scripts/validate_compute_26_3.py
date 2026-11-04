@@ -38,7 +38,7 @@ def main():
                 harness.wait_for("__SAND_COMPUTE_LOADED__", "reload load tag", reload_start)
             offset = len(harness.lines)
             harness.send("forceload add 0 0")
-            harness.send("schedule function compute_probe:run 20t")
+            harness.send("schedule function compute_probe:run 1t")
             end = harness.wait_for("__SAND_COMPUTE_END__", phase, offset)
             if not any("__SAND_COMPUTE_PASS__" in line for line in harness.lines[offset:end + 1]):
                 raise ValidationFailure(phase, "compute result, rounding, failure, or entity isolation assertion failed")

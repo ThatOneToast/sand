@@ -187,8 +187,9 @@ See [benchmarks and limitations](BENCHMARKS.md).
   retain failure artifacts.
 - [ ] Extend real-player protocol support and scenario proofs to 26.3. Startup
   and reload success alone do not establish multiplayer gameplay correctness.
-- [ ] Explicitly test exact-object isolation with nearby simultaneous instances,
-  bound-menu dimension transitions and navigation exhaustion in native scenarios.
+- [x] Native 26.2 proofs for exact-object isolation with nearby simultaneous
+  instances, bound-menu dimension transitions and navigation token exhaustion.
+  See [interaction boundary evidence](docs/testing/interaction-boundaries.md).
 - [ ] Audit each version-restricted capability before broadening it; furnace
   serialization currently remains verified on 26.2 only.
 - [ ] Establish a versioned capability matrix covering commands, resources,

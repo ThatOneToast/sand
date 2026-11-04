@@ -129,10 +129,20 @@ def main():
                 bound_target = f"@e[type=minecraft:interaction,tag={bound_tag},limit=1]"
                 h.invoke("__sand_system/lifetime/bound_object/start")
                 h.advance(1)
-                def click_bound():
+                # Keep two independently owned, nearby instances alive. A missing
+                # binding must never fall back to the other matching hitbox.
+                h.send(f"tag {bound_target} add proof_alpha_object")
+                h.invoke("__sand_system/lifetime/bound_object/start", "SandBeta")
+                h.advance(1)
+                other_target = f"@e[type=minecraft:interaction,tag={bound_tag},tag=!proof_alpha_object,limit=1]"
+                h.send(f"tag {other_target} add proof_beta_object")
+                bound_target = f"@e[type=minecraft:interaction,tag={bound_tag},tag=proof_alpha_object,limit=1]"
+                other_target = f"@e[type=minecraft:interaction,tag={bound_tag},tag=proof_beta_object,limit=1]"
+                h.check(f"if entity {bound_target} if entity {other_target}", "nearby_independent_objects")
+                def click_bound(player="SandAlpha", target=None):
                     h.send("data modify storage menus:proof event set value {timestamp:1L}")
-                    h.send("data modify storage menus:proof event.player set from entity SandAlpha UUID")
-                    h.send(f"data modify entity {bound_target} interaction set from storage menus:proof event")
+                    h.send(f"data modify storage menus:proof event.player set from entity {player} UUID")
+                    h.send(f"data modify entity {target or bound_target} interaction set from storage menus:proof event")
                     h.advance(1)
                 click_bound()
                 h.check(f"if score SandAlpha {first} matches 1..", "bound_menu_opened")
@@ -157,9 +167,26 @@ def main():
                 h.check(f"unless score SandAlpha {first} matches 1..", "bound_menu_closes_out_of_range")
                 h.send("tp SandAlpha 2 200 2")
                 click_bound()
+                h.send(f"scoreboard players operation #dimension_stale proof = SandAlpha {first}")
+                h.send("execute in minecraft:the_nether run tp SandAlpha 2 200 2")
+                h.advance(1)
+                h.check(f"unless score SandAlpha {first} matches 1..", "bound_menu_closes_after_dimension_change")
+                h.send("execute in minecraft:overworld run tp SandAlpha 2 200 2")
+                h.send(f"scoreboard players operation SandAlpha {bound_trigger} = #dimension_stale proof")
+                h.advance(1)
+                h.expect_count("ONE", 0)
+                click_bound()
+                click_bound("SandBeta", other_target)
+                h.check(f"if score SandBeta {first} matches 1..", "second_object_has_independent_session")
                 h.invoke("__sand_system/lifetime/bound_object/cancel")
                 h.advance(1)
+                h.check(f"unless entity {bound_target} if entity {other_target}", "only_bound_object_owner_cleaned_up")
                 h.check(f"unless score SandAlpha {first} matches 1..", "bound_menu_closes_after_object_cleanup")
+                h.check(f"if score SandBeta {first} matches 1..", "nearby_object_session_survives_other_cleanup")
+                h.send(f"scoreboard players operation SandBeta {bound_trigger} = SandBeta {first}")
+                h.advance(1)
+                h.expect_count("ONE", 1)
+                h.invoke("__sand_system/lifetime/bound_object/cancel", "SandBeta")
                 h.invoke("open", "SandBeta")
                 h.send(f"scoreboard players operation #disconnected proof = SandBeta {token}")
             with h.clients(players=("SandBeta",)):
@@ -175,10 +202,28 @@ def main():
             h.send(f"scoreboard players operation SandAlpha {trigger} = #reload proof")
             h.advance(1)
             h.expect_count("PURCHASE", 1)
+            # Exhaustion is terminal for the pack's token allocator. Do this
+            # last, and never reset it to make old values reusable.
+            h.invoke("__sand_system/lifetime/bound_object/start")
+            h.advance(1)
+            bound_target = f"@e[type=minecraft:interaction,tag={bound_tag},limit=1]"
+            click_bound()
+            h.send(f"scoreboard players operation #exhausted_stale proof = SandAlpha {first}")
+            sequence = re.search(r"scoreboard players add #next (\S+) 1", (bound_dir / "menu_admit.mcfunction").read_text())[1]
+            h.send(f"scoreboard players set #next {sequence} 2147483647")
+            h.send(f"scoreboard players operation SandAlpha {bound_trigger} = SandAlpha {next_token}")
+            h.advance(1)
+            h.check(f"unless score SandAlpha {first} matches 1.. unless score SandAlpha {third} matches 1..", "navigation_exhaustion_clears_tokens")
+            h.check(f"if score #next {sequence} matches 2147483647", "navigation_exhaustion_does_not_wrap")
+            h.send(f"scoreboard players operation SandAlpha {bound_trigger} = #exhausted_stale proof")
+            h.advance(1)
+            h.expect_count("ONE", 1)
+            click_bound()
+            h.check(f"unless score SandAlpha {first} matches 1..", "exhausted_allocator_rejects_reopening")
         errors = h.errors(0, len(h.lines))
         if errors:
             raise ValidationFailure("runtime", "server errors", errors)
-        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": "26.2", "players": 2, "checks": ["pagination", "object-bound session", "bound range and cleanup invalidation", "stale tokens", "context invalidation", "timeout", "native trigger submission", "single consumption", "cross-player tokens", "full inventory", "payment ordering", "personal claims", "shared claims", "typed book", "interaction actor routing", "owned cleanup", "disconnect", "reload"]}, indent=2))
+        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": "26.2", "players": 2, "checks": ["pagination", "nearby exact-object isolation", "bound dimension transitions", "navigation token exhaustion", "object-bound session", "bound range and cleanup invalidation", "stale tokens", "context invalidation", "timeout", "native trigger submission", "single consumption", "cross-player tokens", "full inventory", "payment ordering", "personal claims", "shared claims", "typed book", "interaction actor routing", "owned cleanup", "disconnect", "reload"]}, indent=2))
     finally:
         h.stop()
 

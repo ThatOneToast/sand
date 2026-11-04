@@ -253,7 +253,7 @@ fn profiles_keep_compute_isolated_and_projectiles_bound_their_work() {
     assert!(search.contains("@e[tag=hit_target,distance=..0.5,sort=nearest,limit=16]"));
     let narrow = body(
         &new,
-        "__sand_system/lifetime/narrow_projectile/projectile_search",
+        "__sand_system/lifetime/player_projectile/projectile_search",
     );
     assert!(narrow.contains("@a[tag=thin_hit,distance=..0.01,sort=nearest,limit=16]"));
     assert!(search.contains("limit=16"));
@@ -957,13 +957,28 @@ fn narrow_projectile() -> sand::systems::Projectile<AnyEntity> {
     .speed(1.0)
     .radius(0.01)
     .targets(
-        Target::players()
+        Target::entities()
             .tag("thin_hit")
             .within_blocks(8.0)
             .nearest(),
     )
     .on_hit(|ctx| ctx.target(|_| cmd::say("NARROW_HIT")))
 }
+#[datapack_component]
+fn player_projectile() -> sand::systems::Projectile<AnyEntity> {
+    sand::systems::Projectile::new(Lifetime::new(
+        "owned:player_projectile".parse().unwrap(),
+        Ticks::new(4),
+    ))
+    .radius(0.01)
+    .targets(
+        Target::players()
+            .tag("thin_hit")
+            .within_blocks(8.0)
+            .nearest(),
+    )
+}
+
 #[function("owned:narrow_projectile")]
 fn launch_narrow_projectile() {
     narrow_projectile().launch();

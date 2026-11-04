@@ -47,6 +47,9 @@ def main():
                 h.send("tag SandAlpha add owner_a")
                 h.send("tag SandBeta add owner_b")
                 h.send("tick freeze")
+                # Player teleport and forceload request chunk loading asynchronously.
+                # Task markers must be selectable before testing immediate cancel.
+                h.wait_loaded("2 200 2")
                 h.advance(1)
                 for actor in ("owner_a", "owner_b"):
                     h.invoke("combat_attach", actor)

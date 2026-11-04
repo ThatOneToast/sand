@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "version": "26.2",
+  "players": 2,
+  "checks": [
+    "pagination",
+    "nearby exact-object isolation",
+    "bound dimension transitions",
+    "navigation token exhaustion",
+    "object-bound session",
+    "bound range and cleanup invalidation",
+    "stale tokens",
+    "context invalidation",
+    "timeout",
+    "native trigger submission",
+    "single consumption",
+    "cross-player tokens",
+    "full inventory",
+    "payment ordering",
+    "personal claims",
+    "shared claims",
+    "typed book",
+    "interaction actor routing",
+    "owned cleanup",
+    "disconnect",
+    "reload"
+  ]
+}

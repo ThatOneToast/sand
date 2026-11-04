@@ -111,3 +111,8 @@ changing dimension, or leaving the interactable's configured range closes it.
 Choice guards run at the player; successful callbacks retain the player executor
 but run at the bound object's position. Calling `open()` on a bound definition
 cannot bypass the interaction by selecting a nearby object.
+
+The native 26.2 proof covers two nearby objects owned by different players,
+independent session cleanup, dimension transfer and stale-button rejection after
+return, and navigation at the token allocator limit. See the
+[recorded boundary evidence](../../docs/testing/interaction-boundaries.md).

@@ -379,7 +379,7 @@
         ],
         "selector_sites": []
       },
-      "aether:sand/conditions/items/be069bd3": {
+      "aether:sand/conditions/items/ac2b1632": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -694,7 +694,7 @@
         "aether:sand/conditions/blocks/e71735b3": [
           "aether::activate"
         ],
-        "aether:sand/conditions/items/be069bd3": [
+        "aether:sand/conditions/items/ac2b1632": [
           "aether::activate",
           "aether::early_return",
           "aether::flare",

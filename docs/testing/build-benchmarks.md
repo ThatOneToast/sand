@@ -70,7 +70,7 @@ directory is never used.
 5. **No-op:** repeat the identical command with the restored source and warm
    target, without intervening source edits.
 
-Only the snapshot facade changes, and its original bytes are restored even if a
+Only the selected snapshot source changes (the facade by default), and its original bytes are restored even if a
 sample fails. Other worktree edits made after snapshot creation cannot affect
 its files. This is source/build-output isolation, not an operating-system sandbox
 for arbitrary build scripts. External caches and configured compiler wrappers
@@ -117,3 +117,19 @@ commands, without compiling Sand:
 ```sh
 python3 -m unittest discover -s scripts/tests -p test_bench_build.py
 ```
+
+## Additional invalidation workloads
+
+The suite accepts `--edit-scope core`, `contracts` or `codegen` to measure a
+comment-only edit in sand-core/src/lib.rs, sand/src/api_contracts.rs or
+sand-build/src/codegen/mod.rs respectively. The default remains `facade`. Each
+scope gets a distinct scenario name and recorded edited path; source restoration,
+cold-target isolation and failure artifacts follow the same contract. This measures
+source invalidation, not the semantic cost of adding new declarations.
+
+Use `--test-compile` to measure `cargo test --workspace --locked --all-features
+--no-run` instead of Cargo check. This includes test compilation/linking without
+executing tests. The command and relevant debug/optimization profile environment
+overrides are retained in results, so these measurements cannot be confused with
+the historical Cargo-check baseline. Run workloads serially after other builds
+and native proofs stop; no new speedup or server-performance claim is implied.

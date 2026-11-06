@@ -98,6 +98,10 @@ fn scaffold_is_a_parseable_current_datapack_project() {
     assert!(manifest.contains("sand = { path") && manifest.contains("sand-build"));
     assert!(library.contains("#[function]") && library.contains("#[on_event]"));
     assert!(library.contains("cmd::tellraw(") && !library.contains("mcfunction!"));
+    assert!(
+        !library.contains("StorageVar"),
+        "the starter must not suggest global storage is per-player State"
+    );
     assert!(exporter.contains("__sand_export") && exporter.contains("SAND_EXPORT_MC_VERSION"));
     assert!(build_script.contains("sand_build::generate(") && build_script.contains("26.2"));
 }

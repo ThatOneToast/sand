@@ -240,7 +240,8 @@ fn multiline_scene_text_item_names_and_books_stay_on_native_command_lines() {
 fn hud_exports_private_bars_bounded_reload_cleanup_and_cross_definition_leases() {
     for version in ["26.1", "26.2", "26.3"] {
         let pack = exported(version);
-        if version == "26.2"
+        if version
+            == std::env::var("SAND_PRESENTATION_PROOF_VERSION").unwrap_or_else(|_| "26.3".into())
             && let Some(root) = std::env::var_os("SAND_PRESENTATION_PROOF_PACK")
         {
             let root = std::path::PathBuf::from(root);
@@ -253,7 +254,8 @@ fn hud_exports_private_bars_bounded_reload_cleanup_and_cross_definition_leases()
                 .unwrap(),
             )
             .unwrap();
-            std::fs::write(root.join("pack.mcmeta"), r#"{"pack":{"description":"Sand presentation proof","min_format":107,"max_format":107}}"#).unwrap();
+            let format = if version == "26.3" { 121 } else { 107 };
+            std::fs::write(root.join("pack.mcmeta"), serde_json::json!({"pack":{"description":"Sand presentation proof","min_format":format,"max_format":format}}).to_string()).unwrap();
             for component in pack["components"].as_array().unwrap() {
                 let directory = component["dir"].as_str().unwrap();
                 let extension = if directory == "function" {

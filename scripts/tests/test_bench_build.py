@@ -125,12 +125,37 @@ print("fixture cargo check output")
         path.chmod(0o755)
         return path
 
-    def run_suite(self, cargo):
+    def run_suite(self, cargo, **options):
         args = argparse.Namespace(source=str(self.root), output=str(self.directory / "result"),
                                   version="26.3", cold_samples=1, warm_samples=2, cargo=str(cargo))
+        vars(args).update(options)
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             status = bench.suite(args)
         return status, json.loads((self.directory / "result/results.json").read_text())
+
+    def test_core_test_compilation_uses_snapshot_and_restores_changed_source(self):
+        core = self.root / "sand-core/src/lib.rs"
+        core.parent.mkdir(parents=True)
+        core.write_text("// core fixture\n")
+        cargo = self.fake_cargo()
+        cargo.write_text(cargo.read_text().replace("sand/src/lib.rs", "sand-core/src/lib.rs"))
+        before = bench.tree_entries(self.root)
+        status, result = self.run_suite(cargo, edit_scope="core", test_compile=True)
+        self.assertEqual(status, 0)
+        self.assertEqual(result["edited_path"], "sand-core/src/lib.rs")
+        self.assertEqual(result["command"][1:], ["test", "--workspace", "--locked", "--all-features", "--no-run"])
+        self.assertIn("warm-core-rebuild", result["summary"])
+        calls = (self.directory / "result/targets/warm/calls").read_text().splitlines()
+        self.assertEqual(len(set(calls[:3])), 3)
+        self.assertEqual(calls[3:], [calls[0]] * 3)
+        self.assertEqual(bench.tree_entries(self.root), before)
+        self.assertEqual((self.directory / "result/source/sand-core/src/lib.rs").read_text(), core.read_text())
+
+    def test_missing_edit_source_records_failure_without_running_cargo(self):
+        status, result = self.run_suite(self.fake_cargo(), edit_scope="codegen")
+        self.assertEqual(status, 1)
+        self.assertEqual(result["scenarios"], [])
+        self.assertIn("FileNotFoundError", result["error"])
 
     def test_suite_uses_empty_cold_targets_and_warm_rebuilds_without_live_edits(self):
         before = bench.tree_entries(self.root)

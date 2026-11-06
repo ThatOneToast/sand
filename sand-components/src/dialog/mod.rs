@@ -725,27 +725,30 @@ impl DialogAction {
     pub fn open_dialog_raw(dialog: impl Into<String>) -> Self {
         Self::OpenDialog(dialog.into())
     }
-    /// Sets the Minecraft close property on this typed dialog action definition and returns the updated builder.
+    /// Dismiss the dialog without executing an action.
+    ///
+    /// Vanilla represents this as an absent button action, not a `minecraft:close`
+    /// action type. Sand dialogs use vanilla's default close-after-action policy.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::DialogAction::close",
         aliases = ["sand::prelude::DialogAction::close"],
         module = "sand::component",
         kind = "method",
-        summary = "Sets the Minecraft close property on this typed dialog action definition and returns the updated builder.",
-        context = "Sets the Minecraft close property on this typed dialog action definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        summary = "Dismiss a dialog without executing an action.",
+        context = "Omits the button action using vanilla’s default close-after-action behavior. There is no minecraft:close dialog action registry entry.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "Sets the Minecraft close property on this typed dialog action definition and returns the updated builder.",
+        returns = "A dismissal action; the button emits no action payload.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let dialog_action = sand::component::DialogAction::close();\n}",
     )]
     pub fn close() -> Self {
         Self::Close
     }
 
-    pub(crate) fn to_json(&self) -> Value {
-        match self {
+    pub(crate) fn to_json(&self) -> Option<Value> {
+        Some(match self {
             Self::RunCommand(c) => json!({"type": "minecraft:run_command", "command": c}),
             Self::RunFunction(path) => {
                 json!({"type": "minecraft:run_command", "command": format!("/function {path}")})
@@ -753,7 +756,7 @@ impl DialogAction {
             Self::SuggestCommand(c) => json!({"type": "minecraft:suggest_command", "command": c}),
             Self::OpenUrl(u) => json!({"type": "minecraft:open_url", "url": u}),
             Self::OpenDialog(d) => json!({"type": "minecraft:open_dialog", "dialog": d}),
-            Self::Close => json!({"type": "minecraft:close"}),
+            Self::Close => return None,
             Self::Callback(path) => {
                 let trigger_id = register_dialog_callback(path.clone());
                 json!({
@@ -761,7 +764,7 @@ impl DialogAction {
                     "command": format!("/trigger {SAND_DIALOG_TRIGGER} set {trigger_id}"),
                 })
             }
-        }
+        })
     }
 
     /// Validate this action's raw resource references.
@@ -907,8 +910,8 @@ impl DialogButton {
 
     pub(crate) fn to_json(&self) -> Value {
         let mut v = json!({"label": self.label.to_json()});
-        if let Some(a) = &self.action {
-            v["action"] = a.to_json();
+        if let Some(action) = self.action.as_ref().and_then(DialogAction::to_json) {
+            v["action"] = action;
         }
         if let Some(t) = &self.tooltip {
             v["tooltip"] = t.to_json();
@@ -1693,7 +1696,9 @@ mod tests {
     fn dialog_close_action() {
         let btn = DialogButton::new("Close").action(DialogAction::close());
         let json = btn.to_json();
-        assert_eq!(json["action"]["type"].as_str().unwrap(), "minecraft:close");
+        assert_eq!(json, json!({"label": {"text": "Close"}}));
+        assert_eq!(json, DialogButton::new("Close").to_json());
+        assert!(!json.to_string().contains("minecraft:close"));
     }
 
     #[test]

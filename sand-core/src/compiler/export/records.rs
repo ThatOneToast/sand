@@ -237,6 +237,79 @@ pub(crate) fn validate_unique_output_identities(records: &[ComponentRecord]) -> 
     Ok(())
 }
 
+/// Owned gameplay helpers are private to this export. A typed start/condition
+/// must not silently become a dangling call when its definition was not registered.
+/// External author function references remain valid interoperability boundaries.
+pub(crate) fn validate_gameplay_references(records: &[ComponentRecord]) -> ExportResult<()> {
+    use sand_commands::render::{collected_execute, collected_return_command, collected_tokens};
+    let functions: std::collections::BTreeSet<_> = records
+        .iter()
+        .filter(|r| r.dir == "function" && r.ext == "mcfunction")
+        .map(|r| format!("{}:{}", r.namespace, r.path))
+        .collect();
+    for record in records
+        .iter()
+        .filter(|r| r.dir == "function" && r.ext == "mcfunction" && r.content_type == "text")
+    {
+        for (index, line) in record.content.lines().enumerate() {
+            let check = |target: &str| -> ExportResult<()> {
+                if target
+                    .split_once(':')
+                    .is_some_and(|(_, path)| path.starts_with("__sand_system/lifetime/"))
+                    && !target.contains("$(")
+                    && !functions.contains(target)
+                {
+                    return Err(ComponentExportError::ComponentValidation {
+                        location: sand_components::ResourceLocation::new(
+                            &record.namespace,
+                            &record.path,
+                        )?,
+                        kind: "function".into(),
+                        field: format!("line {}", index + 1),
+                        message: format!(
+                            "unregistered gameplay function `{target}`; register the matching Scene, Lifetime, Roster or other gameplay definition with #[datapack_component] before using its actions or conditions"
+                        ),
+                    });
+                }
+                Ok(())
+            };
+            let mut command = line.trim();
+            loop {
+                if let Some(body) = command.strip_prefix('$') {
+                    command = body;
+                    continue;
+                }
+                if let Some(body) = collected_return_command(command) {
+                    command = body;
+                    continue;
+                }
+                if let Some(execute) = collected_execute(command) {
+                    for operation in execute.operations {
+                        if matches!(operation.keyword, "if" | "unless")
+                            && operation.arguments.first() == Some(&"function")
+                            && let Some(target) = operation.arguments.get(1)
+                        {
+                            check(target)?;
+                        }
+                    }
+                    command = execute.command;
+                    continue;
+                }
+                if let Some(tokens) = collected_tokens(command) {
+                    match tokens.as_slice() {
+                        ["function", target, ..] | ["schedule", "function", target, ..] => {
+                            check(target)?
+                        }
+                        _ => {}
+                    }
+                }
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
     loop {
         let mut parts = command.split_whitespace();
@@ -1709,5 +1782,57 @@ mod tests {
             super::expand_with_nested(forward, None).unwrap(),
             super::expand_with_nested(reverse, None).unwrap()
         );
+    }
+}
+
+#[cfg(test)]
+mod gameplay_reference_tests {
+    use super::*;
+
+    fn function(path: &str, content: &str) -> ComponentRecord {
+        ComponentRecord {
+            namespace: "proof".into(),
+            dir: "function".into(),
+            path: path.into(),
+            ext: "mcfunction".into(),
+            content_type: "text".into(),
+            content: content.into(),
+        }
+    }
+
+    #[test]
+    fn private_calls_are_checked_in_executable_positions_only() {
+        let helper = "proof:__sand_system/lifetime/scene/start";
+        for command in [
+            format!("function {helper}"),
+            format!("$function {helper} {{value:$(value)}}"),
+            format!("execute as @a run return run function {helper}"),
+            format!("execute if function {helper} run say ready"),
+            format!("schedule function {helper} 1t"),
+        ] {
+            let caller = function("caller", &command);
+            assert!(
+                validate_gameplay_references(std::slice::from_ref(&caller)).is_err(),
+                "{command}"
+            );
+            assert!(
+                validate_gameplay_references(&[
+                    caller,
+                    function("__sand_system/lifetime/scene/start", "say ready")
+                ])
+                .is_ok()
+            );
+        }
+        for command in [
+            format!("say function {helper}"),
+            format!("tellraw @a {{\"text\":\"function {helper}\"}}"),
+            format!("# function {helper}"),
+            "function external:public_entry".into(),
+        ] {
+            assert!(
+                validate_gameplay_references(&[function("caller", &command)]).is_ok(),
+                "{command}"
+            );
+        }
     }
 }

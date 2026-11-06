@@ -234,13 +234,18 @@ struct Frame {
 /// the final pose persists until cleanup. This is native client interpolation,
 /// not a server-side collision or physics simulation. Lifetime callbacks and
 /// cadence are preserved. Following uses the owner's position, not rotation.
+///
+/// Register the full scene definition with `#[datapack_component]` before calling
+/// `start()` or `cancel()`. Constructing a Scene inside a function does not export
+/// its lifecycle helpers. Reuse the same definition factory for registration and
+/// runtime calls.
 #[derive(Clone)]
 #[sand_macros::api(
 registry = sand_api_contract, path = "sand::systems::Scene", module = "sand::systems",
-summary = "An owned scene of named animated block, item and text displays.", context = "Composes Lifetime with flat visual parts and one-shot native interpolation. Private displays share the root position and are removed on lifetime cleanup.",
+summary = "An owned scene of named animated block, item and text displays.", context = "Composes Lifetime with flat visual parts and one-shot native interpolation. Private displays share the root position and are removed on lifetime cleanup. Register the full definition using #[datapack_component]; constructing it inside a function does not register its helpers.",
 minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
 use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
-example = "use sand::systems::Scene;",
+example = "use sand::prelude::*;\nuse sand::systems::{Scene, Lifetime, Transform};\n\n#[datapack_component]\nfn celebration() -> Scene {\n    Scene::new(Lifetime::new(\"demo:celebration\".parse().unwrap(), Ticks::seconds(3)))\n        .text(\"label\", Text::new(\"Victory!\"), Transform::default())\n}\n\n#[function]\nfn celebrate() { celebration().start(); }",
 )]
 pub struct Scene<K: EntityKind = PlayerKind> {
     lifetime: Lifetime<K>,
@@ -361,7 +366,7 @@ returns = "The configured definition or retained runtime actions.", example = "u
     /// Start an independent scene for the current owner.
     #[sand_macros::api(
 registry = sand_api_contract, path = "sand::systems::Scene::start", module = "sand::systems", kind = "method",
-summary = "Start an independent scene for the current owner.", context = "Uses Lifetime ownership and loaded-tick cleanup. Part names must be unique and keyframes on the same part may not overlap. Export validates the complete definition.",
+summary = "Start an independent scene for the current owner.", context = "Requires the full Scene definition registered with #[datapack_component]. Reuse its factory here; constructing a scene does not register it. Uses Lifetime ownership and loaded-tick cleanup. Part names must be unique and keyframes on the same part may not overlap. Export validates the complete definition.",
 minecraft = "Uses canonical checked numeric expressions and owned lifecycle functions on all supported targets.",
 use_when = ["Authoring reusable bounded gameplay"], avoid_when = ["Work must continue in unloaded chunks"],
 returns = "The configured definition or retained runtime actions.", example = "use sand::systems::{Scene,Lifetime,Transform};\nuse sand::prelude::Ticks;\nfn demonstrate(scene: Scene) { let _actions = scene.start(); }",

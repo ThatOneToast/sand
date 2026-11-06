@@ -68,9 +68,9 @@ enum ApiCommand {
         #[arg(long, value_enum, default_value_t)]
         format: OutputFormat,
     },
-    /// List the direct API contents and nested modules of a module
+    /// List a module or the constructors, methods and fields of a type
     Module {
-        /// Canonical module path, for example `sand::predicate`
+        /// Module or type path, for example `sand::predicate` or `sand::systems::Roster`
         module_path: String,
         /// Output format (human or schema-versioned JSON)
         #[arg(long, value_enum, default_value_t)]
@@ -2327,6 +2327,13 @@ fn render_entry(catalog: &ApiCatalog, entry: &ApiEntry) -> String {
     if !entry.aliases.is_empty() {
         list_section(&mut output, "Aliases", &entry.aliases);
     }
+    if is_type(entry.kind) {
+        section(
+            &mut output,
+            "Browse members",
+            &format!("sand api module {}", entry.canonical_path),
+        );
+    }
     let related = related_apis(catalog, entry);
     if !related.is_empty() {
         list_section(&mut output, "Related APIs", &related);
@@ -2339,17 +2346,21 @@ fn render_entry(catalog: &ApiCatalog, entry: &ApiEntry) -> String {
     output
 }
 
-/// Deterministically derived "See also" list: other members of the same
-/// owning type, then other entries in the same canonical module, in
-/// canonical-path order. Kept short (5 entries) and computed only from
+/// Deterministically derived "See also" list: members of a queried type or
+/// siblings of a queried member, then other entries in the same module, in
+/// canonical-path order, with `new` first. Kept short (5 entries) and computed only from
 /// already-loaded catalog data -- no extra ranking pass, no heuristics
 /// beyond exact structural relationships.
 fn related_apis(catalog: &ApiCatalog, entry: &ApiEntry) -> Vec<String> {
     const LIMIT: usize = 5;
-    let owner = entry
-        .canonical_path
-        .rsplit_once("::")
-        .map(|(owner, _)| owner);
+    let owner = if is_type(entry.kind) {
+        Some(entry.canonical_path.as_str())
+    } else {
+        entry
+            .canonical_path
+            .rsplit_once("::")
+            .map(|(owner, _)| owner)
+    };
     let mut same_owner = catalog
         .entries
         .iter()
@@ -2364,7 +2375,7 @@ fn related_apis(catalog: &ApiCatalog, entry: &ApiEntry) -> Vec<String> {
         })
         .map(|candidate| candidate.canonical_path.clone())
         .collect::<Vec<_>>();
-    same_owner.sort();
+    same_owner.sort_by_key(|path| (!path.ends_with("::new"), path.clone()));
     same_owner.truncate(LIMIT);
     if same_owner.len() >= LIMIT {
         return same_owner;
@@ -2472,6 +2483,19 @@ fn selected(field: SearchField, fields: &[SearchField]) -> bool {
     fields.is_empty() || fields.contains(&field)
 }
 
+/// Match at identifier/word starts, including CamelCase and snake_case.
+/// A query like `quest` must not match the interior of `requested_version`.
+fn term_matches(text: &str, word: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    lower.match_indices(word).any(|(start, _)| {
+        let previous = text[..start].chars().next_back();
+        let current = text[start..].chars().next();
+        previous.is_none_or(|c| !c.is_alphanumeric())
+            || (previous.is_some_and(|c| c.is_lowercase())
+                && current.is_some_and(|c| c.is_uppercase()))
+    })
+}
+
 fn score_entry(
     entry: &ApiEntry,
     query: &str,
@@ -2548,14 +2572,14 @@ fn score_entry(
             && path.split("::").any(|segment| segment == word)
         {
             Some((350, "path", entry.canonical_path.clone()))
-        } else if selected(SearchField::Path, fields) && path.contains(word) {
+        } else if selected(SearchField::Path, fields) && term_matches(&entry.canonical_path, word) {
             Some((300, "path", entry.canonical_path.clone()))
         } else if selected(SearchField::Path, fields)
             && let Some(alias) = entry
                 .aliases
                 .iter()
                 .zip(&aliases)
-                .find_map(|(original, lower)| lower.contains(word).then_some(original))
+                .find_map(|(original, _)| term_matches(original, word).then_some(original))
         {
             Some((250, "alias", alias.clone()))
         } else {
@@ -2564,8 +2588,7 @@ fn score_entry(
                     return None;
                 }
                 let lower = text.to_ascii_lowercase();
-                lower
-                    .contains(word)
+                term_matches(text, word)
                     .then(|| (*weight, *label, snippet_around(text, &lower, word)))
             })
         };
@@ -2860,16 +2883,51 @@ fn parse_kind(value: &str) -> Result<ApiKind> {
     Ok(kind)
 }
 
+fn is_type(kind: ApiKind) -> bool {
+    matches!(
+        kind,
+        ApiKind::Struct | ApiKind::Enum | ApiKind::Trait | ApiKind::TypeAlias
+    )
+}
+
+fn browse_path<'a>(catalog: &'a ApiCatalog, requested: &'a str) -> &'a str {
+    let requested = requested.trim().trim_end_matches("::");
+    catalog
+        .find(requested)
+        .filter(|entry| is_type(entry.kind) || entry.kind == ApiKind::Module)
+        .map_or(requested, |entry| entry.canonical_path.as_str())
+}
+
+fn browse_entries<'a>(catalog: &'a ApiCatalog, path: &str) -> Vec<&'a ApiEntry> {
+    let type_members = catalog.find(path).is_some_and(|entry| is_type(entry.kind));
+    catalog
+        .entries
+        .iter()
+        .filter(|entry| {
+            if type_members {
+                entry
+                    .canonical_path
+                    .rsplit_once("::")
+                    .is_some_and(|(owner, _)| owner == path)
+            } else {
+                entry.canonical_module == path
+            }
+        })
+        .collect()
+}
+
 fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
-    let requested_module = requested_module.trim().trim_end_matches("::");
+    let requested_module = browse_path(catalog, requested_module);
     if requested_module.is_empty() {
         bail!("module path cannot be empty");
     }
 
-    let direct_by_kind = catalog.module(requested_module);
     let mut direct: BTreeMap<&str, Vec<&ApiEntry>> = BTreeMap::new();
-    for (kind, entries) in direct_by_kind {
-        direct.insert(kind_heading(kind), entries);
+    for entry in browse_entries(catalog, requested_module) {
+        direct
+            .entry(kind_heading(entry.kind))
+            .or_default()
+            .push(entry);
     }
     let mut nested: BTreeMap<String, usize> = BTreeMap::new();
     let nested_prefix = format!("{requested_module}::");
@@ -2887,7 +2945,7 @@ fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
 
     let contracted_module = catalog
         .find(requested_module)
-        .is_some_and(|entry| entry.kind == ApiKind::Module);
+        .is_some_and(|entry| entry.kind == ApiKind::Module || is_type(entry.kind));
     if direct.is_empty() && nested.is_empty() && !contracted_module {
         let modules: BTreeSet<_> = catalog
             .entries
@@ -2952,15 +3010,11 @@ fn module_json<'a>(
     context: &'a ProjectContext,
     requested_module: &'a str,
 ) -> Result<String> {
-    let requested_module = requested_module.trim().trim_end_matches("::");
+    let requested_module = browse_path(catalog, requested_module);
     if requested_module.is_empty() {
         bail!("module path cannot be empty");
     }
-    let mut results = catalog
-        .entries
-        .iter()
-        .filter(|entry| entry.canonical_module == requested_module)
-        .collect::<Vec<_>>();
+    let mut results = browse_entries(catalog, requested_module);
     results.sort_by(|left, right| left.canonical_path.cmp(&right.canonical_path));
     let prefix = format!("{requested_module}::");
     let mut nested = BTreeMap::<String, usize>::new();
@@ -2976,7 +3030,7 @@ fn module_json<'a>(
     }
     let contracted = catalog
         .find(requested_module)
-        .is_some_and(|entry| entry.kind == ApiKind::Module);
+        .is_some_and(|entry| entry.kind == ApiKind::Module || is_type(entry.kind));
     if results.is_empty() && nested.is_empty() && !contracted {
         let modules = catalog
             .entries
@@ -3018,13 +3072,17 @@ fn is_advanced_escape_hatch(entry: &ApiEntry) -> bool {
         entry.summary,
         entry.context,
         entry.use_when.join(" "),
-        entry.avoid_when.join(" ")
+        entry.minecraft
     )
     .to_ascii_lowercase();
-    path.contains("::raw")
-        || path.contains("raw_command")
-        || prose.contains("escape hatch")
-        || prose.contains("raw minecraft command")
+    // Registry variants like RawCopper are item names, not authoring escapes.
+    let raw_name = !matches!(
+        entry.kind,
+        ApiKind::Variant | ApiKind::Constant | ApiKind::AssociatedConst
+    ) && path
+        .split("::")
+        .any(|part| part == "raw" || part.starts_with("raw_") || part.ends_with("_raw"));
+    raw_name || prose.contains("escape hatch") || prose.contains("raw minecraft command")
 }
 
 fn is_typed_authoring_api(entry: &ApiEntry) -> bool {
@@ -3534,6 +3592,60 @@ mod tests {
     }
 
     #[test]
+    fn type_discovery_lists_its_members_even_when_contracts_use_the_parent_module() {
+        let mut ty = entry(
+            "sand::systems::Roster",
+            ApiKind::Struct,
+            "Online membership",
+            "sand::systems",
+        );
+        ty.aliases = vec!["sand::prelude::Roster".into()];
+        let catalog = catalog(vec![
+            ty,
+            entry(
+                "sand::systems::Ability",
+                ApiKind::Struct,
+                "Unrelated",
+                "sand::systems",
+            ),
+            entry(
+                "sand::systems::Roster::new",
+                ApiKind::Method,
+                "Create a roster",
+                "sand::systems",
+            ),
+            entry(
+                "sand::systems::Roster::each",
+                ApiKind::Method,
+                "Visit members",
+                "sand::systems",
+            ),
+        ]);
+        let rendered = module(&catalog, " sand::prelude::Roster:: ").unwrap();
+        assert!(rendered.contains("Roster::new"));
+        assert!(rendered.contains("Roster::each"));
+        assert!(!rendered.contains("Ability"));
+        let shown = show(&catalog, "sand::prelude::Roster").unwrap();
+        assert!(shown.contains("sand api module sand::systems::Roster"));
+        let related = related_apis(&catalog, catalog.find("sand::systems::Roster").unwrap());
+        assert_eq!(related[0], "sand::systems::Roster::new");
+        assert_eq!(related[1], "sand::systems::Roster::each");
+        let context = ProjectContext::discover(&catalog, "dev").unwrap();
+        let json: serde_json::Value = serde_json::from_str(
+            &module_json(&catalog, &context, "sand::prelude::Roster").unwrap(),
+        )
+        .unwrap();
+        assert_eq!(json["module"], "sand::systems::Roster");
+        assert_eq!(json["result_count"], 2);
+        assert!(json["results"].as_array().unwrap().iter().all(|v| {
+            v["canonical_path"]
+                .as_str()
+                .unwrap()
+                .starts_with("sand::systems::Roster::")
+        }));
+    }
+
+    #[test]
     fn unknown_path_suggestions_are_stable_and_use_aliases() {
         let mut predicate = entry(
             "sand::predicate::Predicate",
@@ -3558,6 +3670,84 @@ mod tests {
                 .to_string()
                 .contains("nearby APIs: sand::prelude::Predicate")
         );
+    }
+
+    #[test]
+    fn alternatives_do_not_mistake_raw_materials_or_avoidance_advice_for_escapes() {
+        let raw_copper = entry(
+            "sand::registry::Item::RawCopper",
+            ApiKind::Variant,
+            "Raw copper item",
+            "sand::registry",
+        );
+        assert!(!is_advanced_escape_hatch(&raw_copper));
+        let mut typed = entry(
+            "sand::component::Recipe",
+            ApiKind::Struct,
+            "Typed recipe",
+            "sand::component",
+        );
+        typed.avoid_when = vec!["Use the raw escape hatch for unsupported formats".into()];
+        assert!(!is_advanced_escape_hatch(&typed));
+        assert!(is_advanced_escape_hatch(&entry(
+            "sand::command::raw",
+            ApiKind::Function,
+            "Emit a command",
+            "sand::command"
+        )));
+        assert!(is_advanced_escape_hatch(&entry(
+            "sand::component::Recipe::with_raw",
+            ApiKind::Method,
+            "Custom payload",
+            "sand::component"
+        )));
+        assert!(is_advanced_escape_hatch(&entry(
+            "sand::RawJson",
+            ApiKind::Struct,
+            "Explicit raw JSON escape hatch",
+            "sand"
+        )));
+    }
+
+    #[test]
+    fn search_distinguishes_gameplay_words_from_identifier_interiors() {
+        let catalog = catalog(vec![
+            entry(
+                "sand::systems::Progression",
+                ApiKind::Struct,
+                "An ordered quest track.",
+                "sand::systems",
+            ),
+            entry(
+                "sand::build::requested_version",
+                ApiKind::Field,
+                "The requested version.",
+                "sand::build",
+            ),
+            entry(
+                "sand::game::QuestJournal",
+                ApiKind::Struct,
+                "Saved progress.",
+                "sand::game",
+            ),
+        ]);
+        let hits = search_matches(&catalog, "quest", None, None, None, false, &[]).unwrap();
+        assert_eq!(hits.total, 2);
+        assert!(
+            hits.hits
+                .iter()
+                .any(|hit| hit.entry.canonical_path.ends_with("Progression"))
+        );
+        assert!(
+            !hits
+                .hits
+                .iter()
+                .any(|hit| hit.entry.canonical_path.contains("requested"))
+        );
+        assert!(term_matches("QuestJournal", "journal"));
+        assert!(term_matches("quest_rewards", "reward"));
+        assert!(!term_matches("requested", "quest"));
+        assert!(term_matches("日本語 quest", "quest"));
     }
 
     #[test]
@@ -4119,14 +4309,20 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::predicate::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 123);
+        assert_eq!(entries.len(), 124);
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.canonical_path
+                    == "sand::predicate::ItemPredicate::max_stack_size")
+        );
         assert_eq!(
             entries
                 .iter()
                 .map(|entry| entry.canonical_path.as_str())
                 .collect::<BTreeSet<_>>()
                 .len(),
-            123
+            124
         );
     }
 
@@ -4499,6 +4695,27 @@ mod tests {
                 entry.example
             ));
         }
+
+        source.push_str("fn named_score_view(score: sand::entity::EntityScoreAccessor) -> sand::entity::EntityScoreValue { score.get() }\n");
+        for path in [
+            "sand::entity::EntityScoreValue",
+            "sand::entity::EntityScoreValue::command",
+            "sand::entity::EntityScoreValue::objective",
+        ] {
+            assert!(
+                catalog.find(path).is_some(),
+                "missing score-read contract: {path}"
+            );
+        }
+        let state_example = &catalog.find("sand::State").unwrap().example;
+        source.push_str(&format!(
+            "#[allow(dead_code)]\nmod state_example {{\n{state_example}\n}}\n"
+        ));
+
+        let scene_example = &catalog.find("sand::systems::Scene").unwrap().example;
+        source.push_str(&format!(
+            "#[allow(dead_code)]\nmod scene_example {{\n{scene_example}\n}}\n"
+        ));
 
         let event_examples = catalog
             .entries

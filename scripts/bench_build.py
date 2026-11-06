@@ -184,17 +184,24 @@ def suite(args):
     # directory into the snapshot, so a caller's relative setting stays stable.
     env["CARGO_HOME"] = str(Path(env.get("CARGO_HOME", "~/.cargo")).expanduser().resolve())
     cargo_executable = str(Path(args.cargo).expanduser().resolve()) if os.sep in args.cargo else args.cargo
+    edit_scope = getattr(args, "edit_scope", "facade")
+    edit_paths = {"facade": "sand/src/lib.rs", "core": "sand-core/src/lib.rs",
+                  "contracts": "sand/src/api_contracts.rs", "codegen": "sand-build/src/codegen/mod.rs"}
+    test_compile = getattr(args, "test_compile", False)
+    command = [cargo_executable, "test", "--workspace", "--locked", "--all-features", "--no-run"] if test_compile else [cargo_executable, "check", "--workspace", "--locked"]
     result = {"schema_version": 1, "started_at": utc_now(), "passed": False, "scenarios": [],
               "source": str(root), "output": str(output), "minecraft_version": args.version,
-              "method": "isolated cargo check --workspace --locked; external caches primed by unmeasured warmup",
+              "method": "isolated compilation; external caches primed by unmeasured warmup",
+              "command": command, "edit_scope": edit_scope, "edited_path": edit_paths[edit_scope],
               "external_caches": {"cargo_home": str(Path(env.get("CARGO_HOME", "~/.cargo")).expanduser().resolve()),
                                   "sand_cache": str(Path.home() / ".sand/cache")},
               "environment": {key: env[key] for key in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "RUSTC_WRAPPER",
                   "RUSTC_WORKSPACE_WRAPPER", "RUSTC", "CARGO_BUILD_RUSTC", "CARGO_BUILD_TARGET", "CARGO_BUILD_JOBS", "CARGO_INCREMENTAL", "RUSTUP_TOOLCHAIN",
+                  "CARGO_PROFILE_DEV_DEBUG", "CARGO_PROFILE_TEST_DEBUG", "CARGO_PROFILE_DEV_OPT_LEVEL", "CARGO_PROFILE_TEST_OPT_LEVEL",
                   "SAND_MC_VERSION", "SAND_STRICT_CODEGEN", "SAND_ALLOW_PLACEHOLDER_CODEGEN") if key in env},
               "platform": {"description": platform.platform(), "machine": platform.machine(), "cpu_count": os.cpu_count(), "python": sys.version}}
-    original_facade = None
-    facade = output / "source/sand/src/lib.rs"
+    original_source = None
+    edited_source = output / "source" / edit_paths[edit_scope]
     try:
         if Path(result["external_caches"]["cargo_home"]).is_relative_to(root):
             raise ValueError("CARGO_HOME must be an external cache outside the source checkout")
@@ -213,8 +220,7 @@ def suite(args):
             {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
             for path in (cargo_home / "config", cargo_home / "config.toml") if path.is_file()
         ]
-        original_facade = facade.read_bytes()
-        command = [cargo_executable, "check", "--workspace", "--locked"]
+        original_source = edited_source.read_bytes()
         warm_target = output / "targets/warm"
 
         def run(name, sample, target, measured=True):
@@ -235,9 +241,9 @@ def suite(args):
         for sample in range(1, args.cold_samples + 1):
             run("cold-target-warm-external-caches", sample, output / f"targets/cold-{sample}")
         for sample in range(1, args.warm_samples + 1):
-            facade.write_bytes(original_facade + f"\n// Sand isolated facade benchmark sample {sample}.\n".encode())
-            run("warm-facade-rebuild", sample, warm_target)
-        facade.write_bytes(original_facade)
+            edited_source.write_bytes(original_source + f"\n// Sand isolated {edit_scope} benchmark sample {sample}.\n".encode())
+            run(f"warm-{edit_scope}-rebuild", sample, warm_target)
+        edited_source.write_bytes(original_source)
         run("restore-warmup", 1, warm_target, measured=False)
         for sample in range(1, args.warm_samples + 1):
             run("no-op", sample, warm_target)
@@ -246,10 +252,10 @@ def suite(args):
         result["error"] = f"{type(error).__name__}: {error}"
         print(result["error"], file=sys.stderr)
     finally:
-        if original_facade is not None:
+        if original_source is not None:
             try:
-                if not facade.exists() or facade.read_bytes() != original_facade:
-                    facade.write_bytes(original_facade)
+                if not edited_source.exists() or edited_source.read_bytes() != original_source:
+                    edited_source.write_bytes(original_source)
             except OSError as error:
                 result["passed"] = False
                 result["restoration_error"] = str(error)
@@ -307,6 +313,8 @@ def main(argv=None):
     command.add_argument("--cold-samples", type=positive, default=2)
     command.add_argument("--warm-samples", type=positive, default=5)
     command.add_argument("--cargo", default="cargo", help="Cargo executable (recorded in results)")
+    command.add_argument("--edit-scope", choices=("facade", "core", "contracts", "codegen"), default="facade", help="snapshot source invalidation workload")
+    command.add_argument("--test-compile", action="store_true", help="measure isolated all-feature test compilation/linking instead of Cargo check; tests are not executed")
     command.set_defaults(handler=suite)
     command = commands.add_parser("single", help="time an arbitrary command; compatible with bench_build.sh")
     command.add_argument("--output")

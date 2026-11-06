@@ -1,0 +1,44 @@
+{
+  "version": "26.3",
+  "passed": true,
+  "complete": true,
+  "scenarios": [
+    {
+      "scenario": "roster",
+      "passed": true,
+      "exit_code": 0,
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/wb/.t3/worktrees/sand/t3-381231e4/scripts/validate_roster.py",
+        "--jar",
+        "/Users/wb/.sand/cache/26.3/artifacts/33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c/server.jar",
+        "--output",
+        "/private/tmp/sand-alpha-review-proof/roster"
+      ],
+      "log": "roster.log",
+      "evidence": "roster/evidence.json",
+      "error": null
+    },
+    {
+      "scenario": "arena",
+      "passed": true,
+      "exit_code": 0,
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/wb/.t3/worktrees/sand/t3-381231e4/scripts/validate_cooperative_arena.py",
+        "--jar",
+        "/Users/wb/.sand/cache/26.3/artifacts/33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c/server.jar",
+        "--output",
+        "/private/tmp/sand-alpha-review-proof/arena"
+      ],
+      "log": "arena.log",
+      "evidence": "arena/evidence.json",
+      "error": null
+    }
+  ],
+  "limits": [
+    "Passive clients and test-only shared gameplay actions",
+    "No GUI/input/rendering proof",
+    "No performance envelope or pack uninstall proof"
+  ]
+}

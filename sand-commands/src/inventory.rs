@@ -137,7 +137,10 @@ pub enum ItemReplaceSource {
         count: Option<u32>,
     },
     Clear,
-    Location(ItemCommandLocation),
+    Location {
+        source: ItemCommandLocation,
+        modifier: Option<String>,
+    },
 }
 
 /// Shared typed command used by inventory command builders and gameplay IR.
@@ -160,7 +163,13 @@ impl Validate for ItemReplaceCommand {
                 Ok(())
             }
             ItemReplaceSource::Clear => Ok(()),
-            ItemReplaceSource::Location(source) => source.validate(profile, true),
+            ItemReplaceSource::Location { source, modifier } => {
+                source.validate(profile, true)?;
+                if let Some(modifier) = modifier {
+                    validate_modifier_str(modifier, "inventory slot copy", "modifier")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -179,8 +188,13 @@ impl crate::RenderCommand for ItemReplaceCommand {
             } => format!("{prefix} with {item} {count}"),
             ItemReplaceSource::Stack { item, count: None } => format!("{prefix} with {item}"),
             ItemReplaceSource::Clear => format!("{prefix} with air"),
-            ItemReplaceSource::Location(source) => {
-                format!("{prefix} from {} {}", source.target_text(), source.slot())
+            ItemReplaceSource::Location { source, modifier } => {
+                let mut line = format!("{prefix} from {} {}", source.target_text(), source.slot());
+                if let Some(modifier) = modifier {
+                    line.push(' ');
+                    line.push_str(modifier);
+                }
+                line
             }
         };
         register_inventory_line(&line, InventoryCommandNode::Replace(self.clone()));
@@ -850,10 +864,13 @@ impl Inventory {
     ) -> String {
         self.replace_command(
             slot.into(),
-            ItemReplaceSource::Location(ItemCommandLocation::Entity {
-                target: source.into_target_selector(),
-                slot: source_slot.into(),
-            }),
+            ItemReplaceSource::Location {
+                source: ItemCommandLocation::Entity {
+                    target: source.into_target_selector(),
+                    slot: source_slot.into(),
+                },
+                modifier: None,
+            },
         )
         .render_unchecked(&CommandProfile::unprofiled())
     }
@@ -884,10 +901,13 @@ impl Inventory {
     ) -> CommandResult<String> {
         self.replace_command(
             slot.into(),
-            ItemReplaceSource::Location(ItemCommandLocation::Entity {
-                target: source.into_target_selector(),
-                slot: source_slot.into(),
-            }),
+            ItemReplaceSource::Location {
+                source: ItemCommandLocation::Entity {
+                    target: source.into_target_selector(),
+                    slot: source_slot.into(),
+                },
+                modifier: None,
+            },
         )
         .render(&CommandProfile::unprofiled())
     }

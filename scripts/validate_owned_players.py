@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Real two-player ownership, death, disconnect and reconnect proof on 26.2.
+"""Real two-player ownership, death, disconnect and reconnect proof on 26.2 and 26.3.
 
-Uses the repository's verified protocol-776 client rather than pretending that
-marker actors prove player connection behavior. The same fixture exports 26.3.
+Uses the repository's version-specific verified passive client; marker actors
+do not prove player connection behavior.
 """
 import argparse
 import json
@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 
 from player_validation_harness import PlayerHarness
+from mc_validation.protocols import profile_for_version
 from validate_gameplay import GameplayHarness, ROOT
 from vanilla_reload_harness import STARTUP, ValidationFailure
 
@@ -23,14 +24,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--version", choices=("26.2", "26.3"), default="26.3")
     args = parser.parse_args()
     root = args.output.resolve()
     pack = root / "pack"
     pack.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, SAND_GAMEPLAY_PROOF_PACK=str(pack), SAND_GAMEPLAY_PROOF_VERSION="26.2")
+    env = dict(os.environ, SAND_GAMEPLAY_PROOF_PACK=str(pack), SAND_GAMEPLAY_PROOF_VERSION=args.version)
     subprocess.run(["cargo", "test", "-p", "sand-core", "--test", "gameplay_lifetime"], cwd=ROOT, env=env, check=True)
     (pack / "data/owned/function/barrier.mcfunction").write_text("say __TICK_BARRIER__\n")
-    settings = argparse.Namespace(version="26.2", pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
+    settings = argparse.Namespace(version=args.version, pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
     metadata = json.loads((pack / "fixture.json").read_text())
     h = OwnedPlayers(settings)
     h.prepare()
@@ -115,7 +117,7 @@ def main():
                 h.check(f"unless entity @e[tag={tag}]", "reconnected_owner_can_cancel")
         if h.errors(0, len(h.lines)):
             raise ValidationFailure("runtime", "server reported errors", h.errors(0, len(h.lines)))
-        (root / "evidence.json").write_text(json.dumps({"minecraft":"26.2", "protocol":776, "passed":True, "checks":["two real players", "capacity rejection", "owner-isolated cancellation", "player death", "unloaded cancellation", "disconnect cleanup without callback", "reconnect and cancellation", "custom combat shield, critical, immunity and healing isolation", "runtime native damage between real players"], "log":str(h.log_path)}, indent=2)+"\n")
+        (root / "evidence.json").write_text(json.dumps({"minecraft":args.version, "protocol":profile_for_version(args.version)["version"]["protocol_version"], "passed":True, "checks":["two real players", "capacity rejection", "owner-isolated cancellation", "player death", "unloaded cancellation", "disconnect cleanup without callback", "reconnect and cancellation", "custom combat shield, critical, immunity and healing isolation", "runtime native damage between real players"], "log":str(h.log_path)}, indent=2)+"\n")
     finally:
         h.stop()
 

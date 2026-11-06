@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove owned HUD isolation, State progress and cleanup with two 26.2 players.
+"""Prove owned HUD isolation, State progress and cleanup with two players on 26.2 or 26.3.
 
 Observes native bossbar values/player counts and framework actionbar leases.
 This is server-state evidence, not a screenshot or client text-rendering test.
@@ -12,6 +12,7 @@ import re
 import subprocess
 
 from player_validation_harness import PlayerHarness
+from mc_validation.protocols import profile_for_version
 from validate_gameplay import GameplayHarness, ROOT
 from vanilla_reload_harness import STARTUP, RELOAD_COMPLETE, ValidationFailure
 
@@ -34,10 +35,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--version", choices=("26.2", "26.3"), default="26.3")
     args = parser.parse_args()
     root = args.output.resolve()
     pack = root / "pack"
-    env = dict(os.environ, SAND_PRESENTATION_PROOF_PACK=str(pack))
+    env = dict(os.environ, SAND_PRESENTATION_PROOF_PACK=str(pack), SAND_PRESENTATION_PROOF_VERSION=args.version)
     subprocess.run(["cargo", "test", "-p", "sand-core", "--test", "gameplay_presentation"], cwd=ROOT, env=env, check=True)
     functions = pack / "data/presentation/function"
     barrier = pack / "data/owned/function/barrier.mcfunction"
@@ -60,7 +62,7 @@ def main():
         actionbar.write_text(actionbar.read_text() + f"\nscoreboard players add #{definition} hud_proof 1\n")
     tag = "sand.task." + b"presentation:status".hex()
     ledger = f"{prefix}/hud_ledger"
-    settings = argparse.Namespace(version="26.2", pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
+    settings = argparse.Namespace(version=args.version, pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
     h = PresentationHarness(settings)
     h.prepare()
     h.start()
@@ -174,7 +176,7 @@ def main():
                 h.invoke("cancel_hud", "SandBeta")
         if h.errors(0, len(h.lines)):
             raise ValidationFailure("runtime", "server reported errors", h.errors(0, len(h.lines)))
-        (root / "evidence.json").write_text(json.dumps({"minecraft":"26.2", "protocol":776, "passed":True, "checks":["two real player bossbar values and single viewers", "capacity rejection before presentation", "owner State progress and clamping", "literal macro text retention", "cross-definition actionbar lease safety", "cross-namespace supersession despite equal lifetime instance IDs", "stale foreign refresh and cleanup suppression", "pack lease exhaustion rejects starts", "owner-isolated cancellation", "expiry removes presentation", "offline bossbar removal", "compact live ledger reclamation", "reload removes unloaded root bossbars", "reload preserves claim sequence and delayed old cleanup cannot clear new claim"], "limits":["server state and emitted actionbar-body entry evidence; no client rendering or actionbar packet content assertion"], "log":str(h.log_path)}, indent=2)+"\n")
+        (root / "evidence.json").write_text(json.dumps({"minecraft":args.version, "protocol":profile_for_version(args.version)["version"]["protocol_version"], "passed":True, "checks":["two real player bossbar values and single viewers", "capacity rejection before presentation", "owner State progress and clamping", "literal macro text retention", "cross-definition actionbar lease safety", "cross-namespace supersession despite equal lifetime instance IDs", "stale foreign refresh and cleanup suppression", "pack lease exhaustion rejects starts", "owner-isolated cancellation", "expiry removes presentation", "offline bossbar removal", "compact live ledger reclamation", "reload removes unloaded root bossbars", "reload preserves claim sequence and delayed old cleanup cannot clear new claim"], "limits":["server state and emitted actionbar-body entry evidence; no client rendering or actionbar packet content assertion"], "log":str(h.log_path)}, indent=2)+"\n")
     finally:
         h.stop()
 

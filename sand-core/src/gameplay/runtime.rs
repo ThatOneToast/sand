@@ -9,6 +9,27 @@ use sand_commands::{CommandError, CommandResult, NbtCompound, NbtValue};
 use sand_components::{ComponentContent, DatapackComponent, ResourceLocation};
 use std::sync::Arc;
 
+/// Register the canonical native count operation used by guarded inventory workflows.
+pub(super) fn count_modifier(
+    id: ResourceLocation,
+    score: &sand_commands::ObjectiveName,
+    holder: &str,
+) -> ResourceLocation {
+    crate::function::register_generated_component(
+        sand_components::ItemModifier::new(id.clone()).function(
+            sand_components::LootFunction::SetCount {
+                count: sand_components::NumberProvider::Score {
+                    target: serde_json::json!({"type":"minecraft:fixed", "name":holder}),
+                    score: score.to_string(),
+                    scale: None,
+                },
+                add: false,
+            },
+        ),
+    );
+    id
+}
+
 /// Lower already-validated canonical component JSON into native structured NBT.
 /// Component text permits controls such as book/display newlines, so string
 /// values and control-bearing keys need JSON/SNBT escapes rather than the

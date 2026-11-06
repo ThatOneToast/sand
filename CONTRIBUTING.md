@@ -117,6 +117,8 @@ related issues; an unchanged baseline does not prove those acceptance criteria.
 and `scripts/mc_validation`; local checks and Rust CI use the same entry point.
 These tests must remain disposable and must not require a live Minecraft server.
 Native scenario scripts run separately in the version-specific vanilla workflow.
+Use the [alpha scenario runner](docs/testing/alpha-workflow.md) to reproduce the
+26.3 roster and reference-game scenarios with aggregate failure artifacts.
 
 Keep Rust inventory-registration fixtures isolated where combining test binaries
 would merge their registered functions, State or resources. Consolidate repeated

@@ -61,22 +61,22 @@ example = "use sand::systems::Purchase;")]
         self.cost = Some((balance, amount));
         self
     }
-    /// Pay with one whole matching stack in a distinct numbered player slot.
+    /// Pay an exact quantity from one matching stack in a distinct player slot.
     ///
-    /// The slot must contain exactly `amount` items and satisfy the canonical
+    /// The slot must contain at least `amount` items and satisfy the canonical
     /// predicate, including its component filters. An ID-only predicate accepts
     /// any components; use an explicit predicate when payment identity requires
-    /// them. No search or partial removal occurs. The reward slot cannot also be
+    /// them. The remainder retains its complete live components; no slot search occurs. The reward slot cannot also be
     /// the payment slot. This cost composes with score currency and claims.
     ///
-    /// Placement is checked before the payment slot is cleared. Sand snapshots
+    /// Placement is checked before the payment quantity is removed. Sand snapshots
     /// and rechecks the complete payment stack after native placement. Changes
     /// reject; compensation clears the reward only when its complete serialized
     /// stack still equals the canonical expected reward staged before placement.
     /// Listener replacements and unprovable codec-normalized representations are
     /// preserved. This is best-effort compensation, not rollback of arbitrary
     /// native listeners or other packs' mutations.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::item_cost", module = "sand::systems", summary = "Require a whole matching payment stack in a separate player slot.", context = "Combines canonical ItemPredicate identity/components with an exact stack quantity and explicit slot exclusion.", minecraft = "Checks the payment slot before placement, rechecks its snapshot afterward, then clears the whole payment slot before State commits.", use_when = ["Shops accepting an explicitly selected whole payment stack"], avoid_when = ["Searching an inventory, partial payments, or arbitrary transaction rollback"], params(slot = "Numbered payment slot, distinct from the reward slot.", item = "Canonical item identity and component predicate.", amount = "Exact whole-stack quantity, from 1 through 99."), returns = "The configured purchase.", example = "use sand::systems::Purchase;")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Purchase::item_cost", module = "sand::systems", summary = "Require an exact payment quantity from a separate player slot.", context = "Combines canonical ItemPredicate identity/components with a minimum available quantity and explicit slot exclusion.", minecraft = "Checks the payment slot before placement, rechecks its snapshot afterward, then removes only the requested quantity before State commits.", use_when = ["Shops accepting a quantity from an explicitly selected payment stack"], avoid_when = ["Searching an inventory or arbitrary transaction rollback"], params(slot = "Numbered payment slot, distinct from the reward slot.", item = "Canonical item identity and component predicate.", amount = "Exact quantity to consume, from 1 through 99."), returns = "The configured purchase.", example = "use sand::systems::Purchase;")]
     pub fn item_cost(
         mut self,
         slot: InventoryIndex,
@@ -132,6 +132,7 @@ impl IntoDatapack for Purchase {
             "buy",
             "place",
             "payment_changed",
+            "debit",
             "success",
             "rejected",
         ] {
@@ -179,7 +180,7 @@ impl Purchase {
         {
             return Err(error(
                 "item_cost",
-                "payment must use a distinct slot and a whole-stack count from 1 through 99".into(),
+                "payment must use a distinct slot and a quantity from 1 through 99".into(),
             ));
         }
         let function =
@@ -236,6 +237,33 @@ impl Purchase {
                 "scoreboard players set #busy {lock} 0\ndata remove storage {scratch} payment"
             )
             .into_commands()),
+            "debit" => {
+                let Some((payment_slot, _, _)) = &self.item_cost else {
+                    return Ok(Cmd::Return(0).into_commands());
+                };
+                let payment = ItemLocation::PlayerInventory(*payment_slot);
+                let modifier = runtime::count_modifier(
+                    identity::resource(&id, "purchase_payment_count"),
+                    &payment_score,
+                    "#count",
+                );
+                let sand_commands::inventory::ItemCommandLocation::Entity { slot, .. } =
+                    payment.item_target_slot().expect("numbered player slot")
+                else {
+                    unreachable!()
+                };
+                let modify = sand_commands::Inventory::of(sand_commands::Target::current_player())
+                    .try_modify(slot, modifier.to_string())?;
+                let mut clear = payment
+                    .clear()
+                    .map_err(|e| error("item_cost", e.to_string()))?;
+                let mut actions = format!(
+                    "execute unless score #count {payment_score} matches 0 run return run {modify}"
+                )
+                .into_commands();
+                actions.extend([Cmd::ReturnRun(Box::new(clear.0.remove(0)))]);
+                Ok(actions)
+            }
             "payment_changed" => {
                 // The placement listener has already run. This is evidence of
                 // the current stack, never the expected reward: compare it with
@@ -321,7 +349,7 @@ impl Purchase {
                         .map_err(|e| error("item_cost", e.to_string()))?
                         .guard_actions(true, &[], rejected())]);
                     let path = payment.nbt().as_str().to_owned();
-                    actions.extend([format!("execute store result score #count {payment_score} run data get entity @s {path}.count\nexecute unless score #count {payment_score} matches {amount} run return run function {}\ndata remove storage {scratch} payment\ndata modify storage {scratch} payment.before set from entity @s {path}\ndata modify storage {scratch} payment.reward_expected set value {}", function("rejected"), self.expected_reward_snbt()?).into_commands()]);
+                    actions.extend([format!("execute store result score #count {payment_score} run data get entity @s {path}.count\nexecute unless score #count {payment_score} matches {amount}..99 run return run function {}\nscoreboard players remove #count {payment_score} {amount}\ndata remove storage {scratch} payment\ndata modify storage {scratch} payment.before set from entity @s {path}\ndata modify storage {scratch} payment.reward_expected set value {}", function("rejected"), self.expected_reward_snbt()?).into_commands()]);
                 }
                 actions.extend([format!(
                     "execute unless function {} run return run function {}",
@@ -333,9 +361,12 @@ impl Purchase {
                     let payment = ItemLocation::PlayerInventory(*payment_slot);
                     let path = payment.nbt().as_str().to_owned();
                     actions.extend([format!("execute unless data entity @s {path} run return run function {}\ndata modify storage {scratch} payment.after set from entity @s {path}\nexecute store success score #changed {payment_score} run data modify storage {scratch} payment.after set from storage {scratch} payment.before\nexecute if score #changed {payment_score} matches 1 run return run function {}", function("payment_changed"), function("payment_changed")).into_commands()]);
-                    actions.extend([payment
-                        .clear()
-                        .map_err(|e| error("item_cost", e.to_string()))?]);
+                    actions.extend([format!(
+                        "execute unless function {} run return run function {}",
+                        function("debit"),
+                        function("payment_changed")
+                    )
+                    .into_commands()]);
                 }
                 if let Some((field, amount)) = self.cost {
                     actions.extend([field
@@ -400,10 +431,7 @@ mod tests {
                 amount,
             );
             let error = purchase.build("buy").unwrap_err().to_string();
-            assert!(
-                error.contains("distinct slot and a whole-stack count"),
-                "{error}"
-            );
+            assert!(error.contains("distinct slot and a quantity"), "{error}");
         }
     }
 }

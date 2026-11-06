@@ -5,11 +5,6 @@
 use sand::events::OnJoinEvent;
 use sand::prelude::*;
 
-// -- State ------------------------------------------------------------------
-
-static PLAYER_DATA: sand::data::StorageVar<i32> =
-    sand::data::StorageVar::new("{{namespace}}:data", "player.mana");
-
 // -- Functions -------------------------------------------------------------
 
 /// Sends a welcome message to the joining player.

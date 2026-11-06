@@ -1,0 +1,20 @@
+[package]
+name = "vanilla_expedition"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "vanilla_expedition"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+
+[dependencies]
+sand = { path = "../../../../sand" }
+
+[build-dependencies]
+sand-build = { path = "../../../../sand-build" }
+
+[workspace]

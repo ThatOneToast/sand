@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-05",
+  "runs": [
+    {
+      "name": "roster",
+      "result": {
+        "passed": true,
+        "version": "26.3",
+        "players": 2,
+        "checks": [
+          "SandAlpha_a_False_0",
+          "SandAlpha_a_True_1",
+          "SandBeta_b_True_2",
+          "SandBeta_b_True_3",
+          "SandBeta_a_False_4",
+          "visit_only_matching_arena",
+          "other_arena_unchanged",
+          "full_roster_allows_existing_member_role_change",
+          "spectators_excluded_from_fighter_iteration",
+          "iteration_callback_runs_once",
+          "SandAlpha_a_True_10",
+          "SandAlpha_a_True_11",
+          "SandAlpha_a_False_12",
+          "SandBeta_a_True_13",
+          "SandBeta_b_False_14",
+          "SandBeta_a_False_15",
+          "SandBeta_a_False_16",
+          "SandAlpha_a_True_17",
+          "SandBeta_a_False_18",
+          "SandBeta_a_False_19",
+          "SandAlpha_a_True_20",
+          "SandAlpha_a_False_21",
+          "SandAlpha_a_True_22",
+          "SandAlpha_a_False_23",
+          "SandAlpha_a_False_24"
+        ]
+      },
+      "log": "roster.log.gz",
+      "pack_files": "roster-pack.json.gz"
+    },
+    {
+      "name": "cooperative-arena",
+      "result": {
+        "passed": true,
+        "version": "26.3",
+        "players": 4,
+        "input": "test-only calls to shared typed gameplay actions; passive clients",
+        "checks": [
+          "two_distinct_arena_rosters",
+          "arena_a_fighter_reward",
+          "arena_a_cooperative_reward",
+          "arena_b_no_cross_reward",
+          "arena_b_second_player_no_cross_reward",
+          "arena_a_strikes_do_not_damage_b",
+          "new_round_does_not_replay_reward",
+          "new_round_restores_boss_health",
+          "defeat_transitions_to_spectator_outside_iteration",
+          "all_defeated_round_has_no_rewards",
+          "reset_removes_owned_runtime_entities",
+          "reset_preserves_saved_wins",
+          "reload_preserves_saved_wins",
+          "reload_does_not_resume_tasks"
+        ]
+      },
+      "log": "cooperative-arena.log.gz",
+      "pack_files": "cooperative-arena-pack.json.gz"
+    }
+  ],
+  "source_sha256": {
+    "sand-core/src/gameplay/roster.rs": "d61e2d6acdf39ddb47713c2ad31962a5f16eb1c82f118baade25f5af5bca76fb",
+    "sand-core/tests/gameplay_roster.rs": "996932ac636c01624b56040c289dfd98c968e06fe675e7456b8da325c0cdac69",
+    "examples/cooperative_arena/src/lib.rs": "bd29d2a84c40af48fb0386797309b34b06a4f3f4d13dcddf76b0761cfc5ed8c0",
+    "scripts/validate_roster.py": "2d3ae4a422f2c8a2f06fdcff619f45b36b19db0213ad91d8518d611b226e74dc",
+    "scripts/validate_cooperative_arena.py": "ea008588e94e6c07dee623feba231f440b63ffc75282cfb0b97cb332a317a955",
+    "scripts/player_validation_harness.py": "f12d28b2d1f128fd2c868f0b9a57cf333e4ce0b81dd9eec2cfeebc76510bf9d5"
+  },
+  "limits": [
+    "Passive clients and server-invoked shared gameplay actions; no actual UI or rendering proof.",
+    "No population timing or server performance guarantee.",
+    "Pack reset/uninstall and dynamic matchmaking are not supplied by this increment."
+  ]
+}

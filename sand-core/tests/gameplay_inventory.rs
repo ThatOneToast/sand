@@ -13,6 +13,17 @@ fn transfer() -> InventoryTransfer {
         .on_rejected(|| cmd::say("MOVE_REJECTED"))
 }
 #[datapack_component]
+fn partial_transfer() -> InventoryTransfer {
+    InventoryTransfer::new("inventory_proof:partial".parse().unwrap(), slot(0), slot(1))
+        .amount(3)
+        .on_success(|| cmd::say("PARTIAL_OK"))
+        .on_rejected(|| cmd::say("PARTIAL_REJECTED"))
+}
+#[function]
+fn move_three() {
+    partial_transfer().transfer();
+}
+#[datapack_component]
 fn foreign_transfer() -> InventoryTransfer {
     InventoryTransfer::new(
         "foreign_transfer:cross_namespace_move".parse().unwrap(),
@@ -116,7 +127,21 @@ fn inventory_workflows_preserve_slots_and_check_before_committing_on_all_targets
             move_body.find("matches 1 run return 0").unwrap()
                 < move_body.find("data get entity @s Inventory").unwrap()
         );
-        assert!(move_body.contains("transfer.source.components.\"minecraft:max_stack_size\""));
+        assert!(move_body.contains("inventory_transfer_capacity"));
+        let capacity = body(
+            &pack,
+            "__sand_system/lifetime/move/inventory_transfer_capacity",
+        );
+        let queries = capacity
+            .lines()
+            .filter_map(|line| line.strip_prefix("execute if function inventory_proof:"))
+            .map(|line| body(&pack, line.split_whitespace().next().unwrap()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(queries.contains("minecraft:max_stack_size=64"));
+        assert!(queries.contains("minecraft:max_stack_size=16"));
+        assert!(queries.contains("minecraft:max_stack_size=1]"));
+        assert_eq!(queries.matches("minecraft:max_stack_size=").count(), 99);
         assert!(move_body.contains("transfer.source.Slot"));
         assert!(move_body.contains("transfer.destination.count"));
         assert!(
@@ -136,21 +161,54 @@ fn inventory_workflows_preserve_slots_and_check_before_committing_on_all_targets
             "__sand_system/lifetime/move/inventory_transfer_finish",
         );
         assert!(
-            finish.find("#source_changed").unwrap() < finish.find("hotbar.0 with air").unwrap()
+            finish.find("#source_changed").unwrap()
+                < finish.find("inventory_transfer_debit").unwrap()
         );
         assert!(
             finish.find("#destination_changed").unwrap()
-                < finish.find("hotbar.0 with air").unwrap()
+                < finish.find("inventory_transfer_debit").unwrap()
+        );
+        assert!(
+            body(
+                &pack,
+                "__sand_system/lifetime/move/inventory_transfer_debit"
+            )
+            .contains("hotbar.0 with air")
+        );
+        let partial = body(
+            &pack,
+            "__sand_system/lifetime/partial/inventory_transfer_copy",
+        );
+        assert!(partial.contains("from entity @s hotbar.0 inventory_proof:"));
+        let compensation = body(
+            &pack,
+            "__sand_system/lifetime/partial/inventory_transfer_compensate",
+        );
+        assert!(
+            compensation
+                .find("transfer.compensation_actual set from storage")
+                .unwrap()
+                < compensation.find("hotbar.1 with air").unwrap()
+        );
+        assert!(
+            body(
+                &pack,
+                "__sand_system/lifetime/partial/inventory_transfer_move"
+            )
+            .contains("matches 3..")
         );
         let copy = body(&pack, "__sand_system/lifetime/move/inventory_transfer_copy");
         assert!(copy.contains("item replace entity @s hotbar.1 from entity @s hotbar.0"));
         let buy = body(&pack, "__sand_system/lifetime/shop/purchase_buy");
-        let admission = buy.find("matches 3 run return").unwrap();
+        let admission = buy.find("matches 3..99 run return").unwrap();
         let place = buy
             .find("unless function inventory_proof:__sand_system/lifetime/shop/purchase_place")
             .unwrap();
         let changed = buy.find("payment.after set from storage").unwrap();
-        let remove = buy.find("hotbar.3 with air").unwrap();
+        let remove = buy.find("purchase_debit").unwrap();
+        let debit = body(&pack, "__sand_system/lifetime/shop/purchase_debit");
+        assert!(debit.contains("item modify entity @s hotbar.3"));
+        assert!(debit.contains("hotbar.3 with air"));
         let expected = buy.find("payment.reward_expected set value").unwrap();
         assert!(admission < expected && expected < place && place < changed && changed < remove);
         let staged = buy

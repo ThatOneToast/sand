@@ -54,6 +54,25 @@ def run(h, fields):
     def no_tasks(label):
         h.check("unless entity @e[tag=sand.owned]", label)
 
+    h.invoke("branch_advance", "host_a")
+    score("host_a", "branching", 0, "branch_requires_objective_eligibility")
+    points("host_a", 2)
+    points("host_b", 1)
+    for actor in actors:
+        h.invoke("branch_advance", actor)
+    score("host_a", "branching", 2, "first_matching_branch_wins")
+    score("host_b", "branching", 1, "unmatched_branch_uses_sequential_successor")
+    score("host_a", "branch_rewards", 1, "branch_reward_reentry_cannot_advance_or_reset")
+    for _ in range(3):
+        for actor in actors:
+            h.invoke("branch_advance", actor)
+    score("host_a", "branch_rewards", 101, "skipped_objective_never_rewards_and_completion_is_once")
+    score("host_b", "branch_rewards", 111, "unbranched_owner_receives_all_rewards")
+    h.invoke("branch_reset", "host_a")
+    h.invoke("branch_advance", "host_a")
+    score("host_a", "branch_rewards", 102, "branch_reset_explicitly_allows_replay")
+    points("host_b", 0)
+
     points("host_a", 2)
     h.invoke("quest_advance", "host_a")
     score("host_a", "quest", 1, "one_objective_per_dispatch")
@@ -178,7 +197,7 @@ def main():
     harness.start()
     try:
         run(harness, json.loads((pack / "fixture.json").read_text()))
-        (root / "evidence.json").write_text(json.dumps({"minecraft": "26.3", "passed": True, "actors": "two independent loaded marker hosts", "checks": ["ordered objective commits", "once-per-reset rewards", "reward and stop reentrancy rejection", "two concurrent sessions", "one phase per loaded tick", "owner-safe cancellation", "descendant and score-holder cleanup", "State detachment cleanup", "reload task invalidation with canonical progress preservation", "explicit resume after reload"], "log": str(harness.log_path)}, indent=2) + "\n")
+        (root / "evidence.json").write_text(json.dumps({"minecraft": "26.3", "passed": True, "actors": "two independent loaded marker hosts", "checks": ["forward branch priority and skipped rewards", "branch eligibility and owner isolation", "ordered objective commits", "once-per-reset rewards", "reward and stop reentrancy rejection", "two concurrent sessions", "one phase per loaded tick", "owner-safe cancellation", "descendant and score-holder cleanup", "State detachment cleanup", "reload task invalidation with canonical progress preservation", "explicit resume after reload"], "log": str(harness.log_path)}, indent=2) + "\n")
     finally:
         harness.stop()
 

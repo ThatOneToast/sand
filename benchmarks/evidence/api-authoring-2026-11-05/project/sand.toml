@@ -1,0 +1,6 @@
+[pack]
+namespace   = "vanilla_expedition"
+description = "A Minecraft datapack built with Sand"
+mc_version  = "26.3"
+# pack_format is derived automatically from mc_version; uncomment to override:
+# pack_format = 121

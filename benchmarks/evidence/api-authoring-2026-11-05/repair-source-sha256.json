@@ -1,0 +1,10 @@
+{
+  "sand-cli/src/api_cmd.rs": "4b7c6ca38f35486702beb6114790de1a7413d7596152d59c25b693af617ed569",
+  "sand/src/api_contracts.rs": "60d0c968847139647e606c12e886798725cd421a42ed2596b58263807af334ca",
+  "sand-core/src/compiler/export/records.rs": "99c0162c7109b1af8ff2bfc4fedd9ce522c4a0968837aaa5f2f8558789798fc8",
+  "sand-core/src/compiler/export/pipeline.rs": "ca99c5339db271e597b2b46000a31cc3f54048d8b2f06f75c53d957352a25064",
+  "sand-core/src/entity/state.rs": "89d907d607fbe31384652681e94177851d61350d218cf9758d9ad80aec093f42",
+  "sand-core/src/gameplay/scene.rs": "a5606ce985cc20fbf76245a900e8bb23026a1961a58436bb63141c1fe188d651",
+  "sand-components/src/dialog/mod.rs": "eb28d52b3af336a15edb4985920a2e9949b4563e5d935a67eeb0e9f16378cfaa",
+  "sand-components/src/advancement/mod.rs": "4247a8847adae7a445f52002abe7c25c49dd71a043d2a4ab9fb4626b5188151e"
+}

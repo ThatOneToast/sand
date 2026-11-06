@@ -12,6 +12,9 @@ struct Round {
     points: Score,
     rewards: Score,
     stops: Score,
+    #[state(min = 0, max = 3)]
+    branching: Score,
+    branch_rewards: Score,
 }
 #[allow(dead_code)]
 #[derive(State)]
@@ -65,6 +68,64 @@ fn quest() -> Progression<AnyEntity> {
 #[datapack_component]
 fn registered_quest() -> Progression<AnyEntity> {
     quest()
+}
+#[datapack_component]
+fn branching_quest() -> Progression<AnyEntity> {
+    Progression::new("progression:branching".parse().unwrap(), Round::branching)
+        .objective(
+            |owner| owner.state(Round::points).matches(1..).unwrap(),
+            |owner| {
+                let mut reward = owner.state(Round::branch_rewards).add(1);
+                reward.extend([branching_quest().advance(), branching_quest().reset()]);
+                reward
+            },
+        )
+        .objective(
+            |_| Condition::all([]),
+            |owner| owner.state(Round::branch_rewards).add(10),
+        )
+        .objective(
+            |_| Condition::all([]),
+            |owner| owner.state(Round::branch_rewards).add(100),
+        )
+        .branch(0, 2, |owner| {
+            owner.state(Round::points).matches(2..).unwrap()
+        })
+        .branch(0, 3, |owner| {
+            owner.state(Round::points).matches(2..).unwrap()
+        })
+}
+#[function("progression:branch_advance")]
+fn branch_advance() {
+    branching_quest().advance();
+}
+#[function("progression:branch_reset")]
+fn branch_reset() {
+    branching_quest().reset();
+}
+
+#[test]
+fn branches_export_deterministically_with_checked_forward_destinations() {
+    for version in ["26.1", "26.2", "26.3"] {
+        let pack = export(version);
+        assert_eq!(pack, export(version));
+        let full = all_functions(&pack);
+        assert!(full.contains(&format!(
+            "scoreboard players set @s {} 2",
+            Round::branching.objective()
+        )));
+        assert!(full.contains(&format!(
+            "scoreboard players set @s {} 3",
+            Round::branching.objective()
+        )));
+        assert!(
+            body(
+                &pack,
+                "__sand_system/lifetime/branching/progression_completed"
+            )
+            .contains("matches 3 run return 1")
+        );
+    }
 }
 fn phases() -> Progression<AnyEntity> {
     Progression::new("progression:phases".parse().unwrap(), Round::phase)
@@ -255,7 +316,7 @@ fn optional_native_fixture() {
     let pack = export("26.3");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("pack.mcmeta"), serde_json::to_vec(&serde_json::json!({"pack":{"description":"Sand progression native proof","min_format":121,"max_format":121}})).unwrap()).unwrap();
-    std::fs::write(root.join("fixture.json"), serde_json::to_vec_pretty(&serde_json::json!({"phase":Round::phase.objective(), "quest":Round::quest.objective(), "points":Round::points.objective(), "rewards":Round::rewards.objective(), "stops":Round::stops.objective()})).unwrap()).unwrap();
+    std::fs::write(root.join("fixture.json"), serde_json::to_vec_pretty(&serde_json::json!({"phase":Round::phase.objective(), "quest":Round::quest.objective(), "points":Round::points.objective(), "rewards":Round::rewards.objective(), "stops":Round::stops.objective(), "branching":Round::branching.objective(), "branch_rewards":Round::branch_rewards.objective()})).unwrap()).unwrap();
     for component in pack["components"].as_array().unwrap() {
         let directory = component["dir"].as_str().unwrap();
         let extension = if directory == "function" {

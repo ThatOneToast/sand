@@ -1,3 +1,5 @@
+# Expose the existing EntityScoreValue return type and its two methods (+3 source items).
+# Forward progression branches and effective stack-capacity predicates add three contracted methods (including partial transfers).
 # Exact aggregate ratchets for the generated-provider versions verified by CI.
 # Selection uses the resolved `minecraft_version` embedded in both provider
 # catalogs, never an environment-variable guess. Adding a version requires a
@@ -37,6 +39,7 @@
 # scene/HUD presentation add 30 contracted source items.
 # Checkpoint/Journal policies add 15 systems items; RuntimeAdvice and report
 # guidance add two advanced items (+47 source items in this increment).
+# Bounded Roster adds one type and nine contracted systems methods (+10).
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -45,19 +48,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5253
+static_surface_items = 5269
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11353
+static_surface_items = 11369
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 11612
+static_surface_items = 11628
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

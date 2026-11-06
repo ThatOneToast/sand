@@ -17,6 +17,7 @@ type Objective<K> = (
     Arc<dyn Fn(EntityContext<K>) -> Condition>,
     Arc<dyn Fn(EntityContext<K>) -> Actions>,
 );
+type Branch<K> = (usize, usize, Arc<dyn Fn(EntityContext<K>) -> Condition>);
 
 /// An ordered quest or phase track over an attached canonical integer State field.
 ///
@@ -34,6 +35,7 @@ type Objective<K> = (
 /// Do not write the progress field from reward callbacks or competing systems.
 /// Player reconnect/reload follows the State schema, with no automatic reset.
 /// Reordering objectives requires an explicit State migration for saved indices.
+/// Conditional forward branches can skip objectives; skipped rewards do not run.
 #[derive(Clone)]
 #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Progression", module = "sand::systems",
  summary = "Ordered objectives and committed rewards over canonical State.", context = "Ordered objectives use one attached canonical integer State field. Each advance checks only the current objective and commits its successor before isolated reward actions. Explicit reset permits replay.",
@@ -45,6 +47,7 @@ pub struct Progression<K: EntityKind = PlayerKind> {
     pub(super) id: ResourceLocation,
     progress: EntityScore<i32>,
     objectives: Vec<Objective<K>>,
+    branches: Vec<Branch<K>>,
 }
 impl<K: EntityKind> Progression<K> {
     /// Define an ordered track. The field must be a registered, non-ticking Score
@@ -60,6 +63,7 @@ impl<K: EntityKind> Progression<K> {
             id,
             progress,
             objectives: vec![],
+            branches: vec![],
         }
     }
     /// Append an owner-context condition and its once-per-reset reward actions.
@@ -79,6 +83,30 @@ impl<K: EntityKind> Progression<K> {
             Arc::new(condition),
             Arc::new(move |owner| reward(owner).into_commands()),
         ));
+        self
+    }
+    /// Choose a forward successor after the current objective becomes eligible.
+    ///
+    /// Indices are zero-based; `to == objective_count` completes the track.
+    /// The first matching branch from this objective wins, otherwise progression
+    /// advances to the next index. Conditions are sampled before progress writes
+    /// and rewards. Only the current objective's reward runs; skipped objectives
+    /// never receive rewards. Forward-only edges preserve once-per-reset rewards.
+    /// Reordering objectives or changing branch meanings requires a State migration.
+    /// At most 256 branches are supported; invalid indices fail export.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Progression::branch", module = "sand::systems",
+    summary = "Choose a guarded forward successor in a canonical State quest.", context = "Branches are checked in declaration order only after the current objective is eligible. Forward edges cannot replay earlier rewards; unmatched branches retain sequential progression.",
+    minecraft = "Samples conditions before the State index commits, then runs only the current objective reward under the shared progression lock.",
+    use_when = ["Optional quest objectives and mutually exclusive forward quest paths"], avoid_when = ["Loops, arbitrary task persistence, or rewriting saved phase meanings without migration"],
+    params(from = "Zero-based current objective index.", to = "Strictly later objective index, or objective count for completion.", condition = "Owner-context branch guard sampled before State writes and rewards."),
+    returns = "The configured progression.", example = "use sand::systems::Progression;")]
+    pub fn branch(
+        mut self,
+        from: usize,
+        to: usize,
+        condition: impl Fn(EntityContext<K>) -> Condition + 'static,
+    ) -> Self {
+        self.branches.push((from, to, Arc::new(condition)));
         self
     }
     /// Check and consume the current objective for the executing owner. Missing
@@ -145,6 +173,16 @@ impl<K: EntityKind> Progression<K> {
         let error = |field, detail| CommandError::new("progression", field, detail);
         if self.objectives.is_empty() || self.objectives.len() > 256 {
             return Err(error("objectives", "requires 1..=256 objectives"));
+        }
+        if self.branches.len() > 256
+            || self.branches.iter().any(|(from, to, _)| {
+                from >= to || *from >= self.objectives.len() || *to > self.objectives.len()
+            })
+        {
+            return Err(error(
+                "branches",
+                "requires at most 256 forward branches with from < to <= objective count",
+            ));
         }
         let reference = self.progress.field_reference();
         let field = schema
@@ -265,13 +303,33 @@ impl<K: EntityKind> Progression<K> {
             return Ok(body);
         }
         for (index, (condition, reward)) in self.objectives.iter().enumerate() {
+            let commit_to = |next: usize| {
+                let mut commit = progress.set(next as i32);
+                commit.extend([
+                    runtime::isolated(reward(EntityContext::default())),
+                    format!("scoreboard players set #busy {lock} 0").into_commands(),
+                    Cmd::Return(1).into_commands(),
+                ]);
+                commit
+            };
             let mut commit = format!("scoreboard players set #busy {lock} 1").into_commands();
-            commit.extend([
-                progress.set(index as i32 + 1),
-                runtime::isolated(reward(EntityContext::default())),
-                format!("scoreboard players set #busy {lock} 0").into_commands(),
-                Cmd::Return(1).into_commands(),
-            ]);
+            for (branch, (_, to, guard)) in self
+                .branches
+                .iter()
+                .enumerate()
+                .filter(|(_, (from, _, _))| *from == index)
+            {
+                commit.extend([guard(EntityContext::default()).guard_actions(
+                    false,
+                    &[],
+                    Cmd::ReturnRun(Box::new(Cmd::AnonymousFunction {
+                        prefix: format!("sand/progression/branch_{branch}"),
+                        body: commit_to(*to),
+                    }))
+                    .into_commands(),
+                )]);
+            }
+            commit.extend([commit_to(index + 1)]);
             let eligible = progress
                 .matches(index as i32..=index as i32)
                 .map_err(|e| CommandError::new("progression", "progress", e.to_string()))?
@@ -372,6 +430,31 @@ mod tests {
         Progression::new("progression_test:track".parse().unwrap(), field)
             .objective(|_| Condition::all([]), |_| Actions::default())
             .objective(|_| Condition::all([]), |_| Actions::default())
+    }
+    #[test]
+    fn branches_reject_cycles_missing_objectives_and_unbounded_work() {
+        let field = EntityScore::new("progression_test", "entity", "phase", 0, Some((0, 2)));
+        for (from, to) in [(0, 0), (1, 0), (2, 3), (0, 3)] {
+            assert_eq!(
+                track(field)
+                    .branch(from, to, |_| Condition::all([]))
+                    .validate_schema(&ENTITY)
+                    .unwrap_err()
+                    .field,
+                "branches"
+            );
+        }
+        assert!(
+            track(field)
+                .branch(0, 2, |_| Condition::all([]))
+                .validate_schema(&ENTITY)
+                .is_ok()
+        );
+        let mut many = track(field);
+        for _ in 0..257 {
+            many = many.branch(0, 2, |_| Condition::all([]));
+        }
+        assert_eq!(many.validate_schema(&ENTITY).unwrap_err().field, "branches");
     }
     #[test]
     fn validates_canonical_membership_bounds_and_owner_scope() {

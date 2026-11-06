@@ -70,8 +70,8 @@ pub mod function;
 mod gameplay;
 pub use gameplay::{
     Ability, Checkpoint, Combat, Encounter, GameplayTest, Hud, Interactable, InventoryTransfer,
-    Job, Journal, Lifetime, Menu, Progression, Projectile, Purchase, Scene, Sequence, Session,
-    StatusEffect, TaskContext, Transform,
+    Job, Journal, Lifetime, Menu, Progression, Projectile, Purchase, Roster, Scene, Sequence,
+    Session, StatusEffect, TaskContext, Transform,
 };
 pub mod ir;
 pub mod item;

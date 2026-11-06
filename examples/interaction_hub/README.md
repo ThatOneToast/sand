@@ -20,10 +20,12 @@ also ends after 6000 loaded ticks or owner loss. Another player's claims and
 menu sessions remain independent. Menu close/escape expires without requiring
 a client close callback. This example does not force a book screen open.
 
-The merchant also offers a whole-slot barter: place exactly three emeralds in
+The merchant also offers a quantity-aware barter: place at least three emeralds in
 hotbar slot 4 and clear slot 5 to buy a diamond. The move choice transfers the
 whole stack from slot 5 into slot 6. An occupied slot 6 can merge only when the
-live components agree exactly and include an explicit maximum stack-size
-override; ordinary diamonds can move into an empty slot. See the
+live components agree exactly and the effective native capacity permits it.
+Ordinary diamond stacks merge without an explicit component override. A second
+move choice splits exactly three items from slot 4 into slot 7, retaining the
+source remainder and components. Payment also leaves any excess emeralds in slot 4. See the
 [inventory workflow guide](../../docs/gameplay/inventory-workflows.md) for the
 bounded capacity, payment and callback behavior.

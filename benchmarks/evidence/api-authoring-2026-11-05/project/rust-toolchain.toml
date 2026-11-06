@@ -1,0 +1,4 @@
+[toolchain]
+channel = "1.96.0"
+# Compile-fail snapshots include standard-library diagnostic source excerpts.
+components = ["rustfmt", "clippy", "rust-src"]

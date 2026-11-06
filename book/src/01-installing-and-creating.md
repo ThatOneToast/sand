@@ -14,8 +14,13 @@ builds datapacks, and can run/join a local test server. Install it from the
 workspace while it's being prepared for crates.io:
 
 ```sh
-cargo install --path sand-cli
+cargo install --locked --path sand-cli
 ```
+
+Pin `sand` and `sand-build` to the same Git revision and install the CLI from
+that checkout when reproducibility matters. `sand context --format json` checks
+the installed catalog against the resolved project. The generated scaffold
+otherwise follows Git `main`.
 
 ## Creating Trailforge
 
@@ -27,11 +32,12 @@ sand new trailforge --mc-version 26.2
 cd trailforge
 ```
 
-`sand new <name>` creates a directory containing:
+`sand new <name>` creates a directory and runs its initial Cargo build. Run it
+outside the Sand workspace for a standalone project. It creates:
 
 ```text
 trailforge/
-├── Cargo.toml       # one dependency: sand
+├── Cargo.toml       # sand + sand-build build dependency
 ├── build.rs         # runs Minecraft data codegen for your pinned version
 ├── sand.toml         # pack metadata: namespace, description, mc_version
 └── src/

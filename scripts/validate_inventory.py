@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove bounded player-slot moves, exact-component merges and whole-slot payments on 26.2."""
+"""Prove bounded player-slot moves, exact-component merges and payments on 26.2 and 26.3."""
 import argparse
 import json
 import os
@@ -8,6 +8,7 @@ import re
 import subprocess
 
 from player_validation_harness import PlayerHarness
+from mc_validation.protocols import profile_for_version
 from validate_gameplay import GameplayHarness, ROOT
 from vanilla_reload_harness import STARTUP, ValidationFailure
 
@@ -22,10 +23,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--version", choices=("26.2", "26.3"), default="26.3")
     args = parser.parse_args()
     root = args.output.resolve()
     pack = root / "pack"
-    env = dict(os.environ, SAND_INVENTORY_PROOF_PACK=str(pack), SAND_INVENTORY_PROOF_VERSION="26.2")
+    env = dict(os.environ, SAND_INVENTORY_PROOF_PACK=str(pack), SAND_INVENTORY_PROOF_VERSION=args.version)
     subprocess.run(["cargo", "test", "-p", "sand-core", "--test", "gameplay_inventory"], cwd=ROOT, env=env, check=True)
     barrier = pack / "data/owned/function/barrier.mcfunction"
     barrier.parent.mkdir(parents=True, exist_ok=True)
@@ -43,7 +45,7 @@ def main():
     advancements = pack / "data/inventory_proof/advancement"
     advancements.mkdir(parents=True, exist_ok=True)
     (advancements / "reentry.json").write_text(json.dumps({"criteria": {"changed": {"trigger": "minecraft:inventory_changed"}}, "rewards": {"function": "inventory_proof:reentry"}}))
-    settings = argparse.Namespace(version="26.2", pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
+    settings = argparse.Namespace(version=args.version, pack=str(pack), jar=str(args.jar.resolve()), output=str(root / "runtime"), timeout=120, java="java", op_player=None, client_command=None)
     h = InventoryHarness(settings)
     h.prepare()
     h.start()
@@ -65,6 +67,23 @@ def main():
             h.send("tick freeze")
             h.advance(1)
             h.send("clear @a")
+            h.send('item replace entity SandAlpha hotbar.0 with minecraft:stone[custom_data={partial:1}] 7')
+            h.invoke("move_three")
+            h.check('if items entity SandAlpha hotbar.0 minecraft:stone[count=4,custom_data~{partial:1}] if items entity SandAlpha hotbar.1 minecraft:stone[count=3,custom_data~{partial:1}]', "partial_copy_preserves_remainder_and_components")
+            h.invoke("move_three")
+            h.check('if items entity SandAlpha hotbar.0 minecraft:stone[count=1] if items entity SandAlpha hotbar.1 minecraft:stone[count=6]', "partial_merge_moves_only_requested_quantity")
+            h.invoke("move_three")
+            h.check('if items entity SandAlpha hotbar.0 minecraft:stone[count=1] if items entity SandAlpha hotbar.1 minecraft:stone[count=6]', "insufficient_partial_source_is_unchanged")
+            h.send("clear SandAlpha")
+            h.send("item replace entity SandAlpha hotbar.0 with minecraft:stone 7")
+            h.send("scoreboard players set #source_tamper proof 1")
+            h.invoke("move_three")
+            h.check("if items entity SandAlpha hotbar.0 minecraft:diamond[count=2] unless items entity SandAlpha hotbar.1 *", "partial_copy_compensates_listener_replaced_source")
+            h.send("item replace entity SandAlpha hotbar.0 with minecraft:stone 7")
+            h.send("item replace entity SandAlpha hotbar.1 with minecraft:stone 63")
+            h.invoke("move_three")
+            h.check("if items entity SandAlpha hotbar.0 minecraft:stone[count=7] if items entity SandAlpha hotbar.1 minecraft:stone[count=63]", "partial_overflow_preserves_both")
+            h.send("clear SandAlpha")
             h.invoke("move_stack")
             h.expect_count("MOVE_REJECTED", 1)
             h.send('item replace entity SandAlpha hotbar.0 with minecraft:stone[custom_data={proof:"kept"}] 7')
@@ -100,7 +119,16 @@ def main():
             h.send("item replace entity SandAlpha hotbar.0 with minecraft:stone 2")
             h.send("item replace entity SandAlpha hotbar.1 with minecraft:stone 2")
             h.invoke("move_stack")
-            h.check("if items entity SandAlpha hotbar.0 minecraft:stone[count=2] if items entity SandAlpha hotbar.1 minecraft:stone[count=2]", "unknown_default_capacity_rejects_merge")
+            h.check("unless items entity SandAlpha hotbar.0 * if items entity SandAlpha hotbar.1 minecraft:stone[count=4]", "native_default_capacity_allows_merge")
+            for item, capacity in (("snowball", 16), ("diamond_sword", 1)):
+                h.send(f"item replace entity SandAlpha hotbar.0 with minecraft:{item} 1")
+                h.send(f"item replace entity SandAlpha hotbar.1 with minecraft:{item} {capacity}")
+                h.invoke("move_stack")
+                h.check(f"if items entity SandAlpha hotbar.0 minecraft:{item}[count=1] if items entity SandAlpha hotbar.1 minecraft:{item}[count={capacity}]", f"native_{capacity}_capacity_prevents_overflow")
+            h.send("item replace entity SandAlpha hotbar.0 with minecraft:stone[max_stack_size=99] 40")
+            h.send("item replace entity SandAlpha hotbar.1 with minecraft:stone[max_stack_size=99] 50")
+            h.invoke("move_stack")
+            h.check("unless items entity SandAlpha hotbar.0 * if items entity SandAlpha hotbar.1 minecraft:stone[count=90,max_stack_size=99]", "custom_capacity_99_is_respected")
             h.invoke("move_stack", "SandBeta")
             h.check("if items entity SandBeta hotbar.1 minecraft:dirt[count=4] unless items entity SandBeta hotbar.0 *", "second_player_independent_move")
             h.send("clear SandAlpha")
@@ -124,7 +152,8 @@ def main():
             h.check("if items entity SandAlpha hotbar.3 minecraft:emerald[count=2] unless items entity SandAlpha hotbar.2 *", "insufficient_payment_preserved")
             h.send("item replace entity SandAlpha hotbar.3 with minecraft:emerald 4")
             h.invoke("buy")
-            h.check("if items entity SandAlpha hotbar.3 minecraft:emerald[count=4] unless items entity SandAlpha hotbar.2 *", "whole_slot_payment_rejects_excess")
+            h.check("if items entity SandAlpha hotbar.3 minecraft:emerald[count=1] if items entity SandAlpha hotbar.2 minecraft:diamond", "partial_payment_preserves_remainder")
+            h.send("item replace entity SandAlpha hotbar.2 with air")
             h.send("item replace entity SandAlpha hotbar.3 with minecraft:emerald 3")
             h.send("item replace entity SandAlpha hotbar.2 with minecraft:stone")
             h.invoke("buy")
@@ -146,12 +175,12 @@ def main():
             h.invoke("buy")
             h.check("if items entity SandAlpha hotbar.2 minecraft:diamond unless items entity SandAlpha hotbar.3 *", "whole_payment_consumed_after_reward")
             h.invoke("buy")
-            h.expect_count("PAYMENT_OK", 1)
+            h.expect_count("PAYMENT_OK", 2)
             h.send("clear SandBeta")
             h.send("item replace entity SandBeta hotbar.3 with minecraft:emerald 3")
             h.invoke("buy", "SandBeta")
             h.check("if items entity SandBeta hotbar.2 minecraft:diamond unless items entity SandBeta hotbar.3 *", "payment_owner_isolation")
-            h.expect_count("PAYMENT_OK", 2)
+            h.expect_count("PAYMENT_OK", 3)
             h.send("clear SandBeta")
             h.send("item replace entity SandBeta hotbar.3 with minecraft:emerald 3")
             h.invoke("buy_marked", "SandBeta")
@@ -163,7 +192,7 @@ def main():
         errors = h.errors(0, len(h.lines))
         if errors:
             raise ValidationFailure("runtime", "server errors", errors)
-        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": "26.2", "players": 2, "checks": ["exact live count/components", "source removal", "source-replacement compensation for empty and merged slots", "destination-replacement preservation", "empty source", "capacity and component mismatch rejection", "conservative default capacity", "native listener reentry", "cross-namespace transfer/purchase/journal reentry", "whole-slot payment quantity", "full reward slot", "changed-payment compensation", "changed payment and reward preserve different ID/components/count", "replay without payment", "multiplayer isolation"]}, indent=2) + "\n")
+        (root / "evidence.json").write_text(json.dumps({"passed": True, "version": args.version, "players": 2, "checks": ["exact live count/components", "source removal", "source-replacement compensation for empty and merged slots", "destination-replacement preservation", "empty source", "capacity and component mismatch rejection", "effective native default and override capacities", "partial transfers and payments with component-preserving remainders", "native listener reentry", "cross-namespace transfer/purchase/journal reentry", "exact payment quantity", "full reward slot", "changed-payment compensation", "changed payment and reward preserve different ID/components/count", "replay without payment", "multiplayer isolation"]}, indent=2) + "\n")
     finally:
         h.stop()
 

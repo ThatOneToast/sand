@@ -1849,7 +1849,7 @@
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner",
-            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0",
             "unknown selector multiplicity: execute at @s run function unified_state:welcome_player"
           ]
         },
@@ -1896,7 +1896,7 @@
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner",
-            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0",
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0",
             "unknown selector multiplicity: execute at @s run function unified_state:welcome_player"
           ]
         },
@@ -2366,7 +2366,7 @@
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner",
-            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0"
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0"
           ]
         },
         "owners": [
@@ -2747,12 +2747,12 @@
           }
         ]
       },
-      "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999": {
+      "unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2": {
         "evaluations": {
           "maximum": null,
           "minimum": 3,
           "unknown": [
-            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0"
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0"
           ]
         },
         "owners": [
@@ -2766,7 +2766,7 @@
           }
         ]
       },
-      "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0": {
+      "unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0": {
         "evaluations": {
           "maximum": 3,
           "minimum": 1,
@@ -3980,7 +3980,7 @@
           "unknown": [
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/b6d63290 with storage rpg:state __sand_owner",
             "function arguments are not analyzed: function unified_state:sand/state_data/keyed/eab92235 with storage rpg:state __sand_owner",
-            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0"
+            "unknown selector multiplicity: execute as @s run function unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0"
           ]
         },
         "owners": [
@@ -4429,10 +4429,10 @@
         "unified_state:sand/entity_query/bf8dae6b": [
           "unified_state::CombatSystems::train_attack"
         ],
-        "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999": [
+        "unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2": [
           "unified_state::count_diamonds"
         ],
-        "unified_state:sand/numeric/sac3bbb58dc225b9/3e16a999/inventory_0": [
+        "unified_state:sand/numeric/sac3bbb58dc225b9/88f8d6d2/inventory_0": [
           "unified_state::count_diamonds"
         ],
         "unified_state:sand/state_data/body/03c58b5c": [

@@ -46,7 +46,7 @@ pub struct ScaffoldOptions {
     /// pointing into the Sand workspace (useful for Sand contributors).
     ///
     /// When `false` (the default), git dependencies are emitted instead:
-    /// `sand-core = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`.
+    /// `sand = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`.
     /// Sand has no crates.io release yet, so this is the only dependency form
     /// that resolves without a local Sand workspace checkout.
     pub use_path_deps: bool,

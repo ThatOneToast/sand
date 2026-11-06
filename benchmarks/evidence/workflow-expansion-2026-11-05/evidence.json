@@ -1,0 +1,197 @@
+{
+  "date": "2026-11-05",
+  "base_revision": "6d309e27",
+  "scope": "Native workflow proofs for the working implementation; pack manifests identify the exact emitted files. Some recorded scenario lists predate the newly added assertion labels; logs retain all completed markers.",
+  "runs": [
+    {
+      "scenario": "inventory",
+      "version": "26.3",
+      "recorded_result": {
+        "passed": true,
+        "version": "26.3",
+        "players": 2,
+        "checks": [
+          "exact live count/components",
+          "source removal",
+          "source-replacement compensation for empty and merged slots",
+          "destination-replacement preservation",
+          "empty source",
+          "capacity and component mismatch rejection",
+          "effective native default and override capacities",
+          "partial transfers and payments with component-preserving remainders",
+          "native listener reentry",
+          "cross-namespace transfer/purchase/journal reentry",
+          "exact payment quantity",
+          "full reward slot",
+          "changed-payment compensation",
+          "changed payment and reward preserve different ID/components/count",
+          "replay without payment",
+          "multiplayer isolation"
+        ]
+      },
+      "log": "inventory-26.3.log.gz",
+      "export_manifest": "inventory-26.3-pack.json.gz"
+    },
+    {
+      "scenario": "owned_players",
+      "version": "26.3",
+      "recorded_result": {
+        "minecraft": "26.3",
+        "protocol": 777,
+        "passed": true,
+        "checks": [
+          "two real players",
+          "capacity rejection",
+          "owner-isolated cancellation",
+          "player death",
+          "unloaded cancellation",
+          "disconnect cleanup without callback",
+          "reconnect and cancellation",
+          "custom combat shield, critical, immunity and healing isolation",
+          "runtime native damage between real players"
+        ],
+        "log": "/private/tmp/sand-owned-players-26.3-final/runtime/latest.log"
+      },
+      "log": "owned_players-26.3.log.gz",
+      "export_manifest": "owned_players-26.3-pack.json.gz"
+    },
+    {
+      "scenario": "hud",
+      "version": "26.3",
+      "recorded_result": {
+        "minecraft": "26.3",
+        "protocol": 777,
+        "passed": true,
+        "checks": [
+          "two real player bossbar values and single viewers",
+          "capacity rejection before presentation",
+          "owner State progress and clamping",
+          "literal macro text retention",
+          "cross-definition actionbar lease safety",
+          "cross-namespace supersession despite equal lifetime instance IDs",
+          "stale foreign refresh and cleanup suppression",
+          "pack lease exhaustion rejects starts",
+          "owner-isolated cancellation",
+          "expiry removes presentation",
+          "offline bossbar removal",
+          "compact live ledger reclamation",
+          "reload removes unloaded root bossbars",
+          "reload preserves claim sequence and delayed old cleanup cannot clear new claim"
+        ],
+        "limits": [
+          "server state and emitted actionbar-body entry evidence; no client rendering or actionbar packet content assertion"
+        ],
+        "log": "/private/tmp/sand-hud-26.3-final/runtime/latest.log"
+      },
+      "log": "hud-26.3.log.gz",
+      "export_manifest": "hud-26.3-pack.json.gz"
+    },
+    {
+      "scenario": "progression",
+      "version": "26.3",
+      "recorded_result": {
+        "minecraft": "26.3",
+        "passed": true,
+        "actors": "two independent loaded marker hosts",
+        "checks": [
+          "ordered objective commits",
+          "once-per-reset rewards",
+          "reward and stop reentrancy rejection",
+          "two concurrent sessions",
+          "one phase per loaded tick",
+          "owner-safe cancellation",
+          "descendant and score-holder cleanup",
+          "State detachment cleanup",
+          "reload task invalidation with canonical progress preservation",
+          "explicit resume after reload"
+        ],
+        "log": "/private/tmp/sand-progression-branches-26.3/runtime/latest.log"
+      },
+      "log": "progression-26.3.log.gz",
+      "export_manifest": "progression-26.3-pack.json.gz"
+    },
+    {
+      "scenario": "inventory",
+      "version": "26.2",
+      "recorded_result": {
+        "passed": true,
+        "version": "26.2",
+        "players": 2,
+        "checks": [
+          "exact live count/components",
+          "source removal",
+          "source-replacement compensation for empty and merged slots",
+          "destination-replacement preservation",
+          "empty source",
+          "capacity and component mismatch rejection",
+          "effective native default and override capacities",
+          "partial transfers and payments with component-preserving remainders",
+          "native listener reentry",
+          "cross-namespace transfer/purchase/journal reentry",
+          "exact payment quantity",
+          "full reward slot",
+          "changed-payment compensation",
+          "changed payment and reward preserve different ID/components/count",
+          "replay without payment",
+          "multiplayer isolation"
+        ]
+      },
+      "log": "inventory-26.2.log.gz",
+      "export_manifest": "inventory-26.2-pack.json.gz"
+    },
+    {
+      "scenario": "owned_players",
+      "version": "26.2",
+      "recorded_result": {
+        "minecraft": "26.2",
+        "protocol": 776,
+        "passed": true,
+        "checks": [
+          "two real players",
+          "capacity rejection",
+          "owner-isolated cancellation",
+          "player death",
+          "unloaded cancellation",
+          "disconnect cleanup without callback",
+          "reconnect and cancellation",
+          "custom combat shield, critical, immunity and healing isolation",
+          "runtime native damage between real players"
+        ],
+        "log": "/private/tmp/sand-owned_players-26.2-final/runtime/latest.log"
+      },
+      "log": "owned_players-26.2.log.gz",
+      "export_manifest": "owned_players-26.2-pack.json.gz"
+    },
+    {
+      "scenario": "hud",
+      "version": "26.2",
+      "recorded_result": {
+        "minecraft": "26.2",
+        "protocol": 776,
+        "passed": true,
+        "checks": [
+          "two real player bossbar values and single viewers",
+          "capacity rejection before presentation",
+          "owner State progress and clamping",
+          "literal macro text retention",
+          "cross-definition actionbar lease safety",
+          "cross-namespace supersession despite equal lifetime instance IDs",
+          "stale foreign refresh and cleanup suppression",
+          "pack lease exhaustion rejects starts",
+          "owner-isolated cancellation",
+          "expiry removes presentation",
+          "offline bossbar removal",
+          "compact live ledger reclamation",
+          "reload removes unloaded root bossbars",
+          "reload preserves claim sequence and delayed old cleanup cannot clear new claim"
+        ],
+        "limits": [
+          "server state and emitted actionbar-body entry evidence; no client rendering or actionbar packet content assertion"
+        ],
+        "log": "/private/tmp/sand-hud-26.2-final/runtime/latest.log"
+      },
+      "log": "hud-26.2.log.gz",
+      "export_manifest": "hud-26.2-pack.json.gz"
+    }
+  ]
+}

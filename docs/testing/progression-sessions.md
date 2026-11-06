@@ -61,3 +61,8 @@ or a save/checkpoint file format. Exports on older targets are not native proofs
 for those targets. Objective indices persist only through ordinary State schema
 semantics; changes to saved index meaning require explicit author migrations.
 Rewards retain ordinary action failure behavior and do not promise rollback.
+
+The later [roster increment](../gameplay/arena-rosters.md) adds canonical online
+membership and author-defined roles for registered arenas. The original evidence
+above remains a session/progression proof, not an integrated roster or client-input
+claim. See the [alpha workflow](alpha-workflow.md) for integrated headless runs.

@@ -39,6 +39,17 @@ loot-entry, typed loot-number-provider, and biome-spawning schemas for 26.3. Typ
 `worldgen/feature` and inline configuration. Older targets keep their previous
 resource shapes and directories. Exact API-surface profiles remain enforced.
 
+The 26.3 advancement codec requires a background on any root with display
+metadata (even a hidden root), and forbids backgrounds on children. Export
+reports `display.background` with a remedy: set
+`AdvancementDisplay::background(...)` on a root or use a parent without a child
+background. A root with no display metadata needs no background.
+
+Dialog dismissal uses an absent button action, not a `minecraft:close` action
+registry entry. `DialogAction::close()` and an actionless button serialize that
+native shape. The [CLI-only authoring audit](../../../benchmarks/evidence/api-authoring-2026-11-05/README.md)
+retains the 26.3 native failures and repaired load/reload evidence.
+
 The legacy configured-carver builder fails explicitly on 26.3: removed
 replacement/lava settings cannot be silently preserved by renaming its directory.
 Use 26.2 for that builder, or explicitly author the new `worldgen/carver` schema

@@ -159,13 +159,13 @@ register! {
     kind: Macro,
     signature: "#[derive(State)]",
     summary: "Derives a typed, versioned Sand state schema from a Rust struct.",
-    context: "The derive converts field-level state metadata into concrete typed accessors and lifecycle information so application state does not need hand-written score or storage plumbing.",
+    context: "Declares canonical State with #[state(namespace = \"demo\", scope = player|entity|living|global)]. Scoped schemas generate Schema::on(EntityContext<Kind>) -> SchemaBound; globals generate Schema::global(). The bound view has named accessor fields, while Schema::field constants describe fields for systems such as Progression. Binding selects the current executor; it does not attach State or retain a runtime entity. Player/global State initializes through lifecycle hooks; entity/living State requires explicit attach or archetype adoption. Schema::attach/detach return commands to emit, not immediate world mutation. A scoped schema can be a #[system] query parameter: query.each visits attached owners and query.current checks the current executor. Generated names depend on your struct and are not separate installed catalog entries.",
     minecraft: "Allocates and maintains the scoreboard or storage-backed data locations declared by the schema.",
     use_when: ["Modeling persistent gameplay state as a Rust struct", "Sharing one validated state schema across functions and events"],
     avoid_when: ["A single transient command-local value needs no schema"],
     params: [],
     returns: None,
-    example: "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"demo\", scope = player)]\nstruct PlayerState {\n    #[state(default = 0)]\n    score: EntityScore<i32>,\n}"
+    example: "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"demo\", scope = player)]\nstruct PlayerState {\n    #[state(default = 0, min = 0, max = 100)]\n    score: Score,\n}\n\n#[function]\nfn award() {\n    let player = PlayerState::on(EntityContext::<PlayerKind>::default());\n    player.score.add(1);\n}\n\n#[system(tick, every = 20)]\nfn recover(players: PlayerState) {\n    players.each(|player| player.score.add(1));\n}"
 }
 
 register! {

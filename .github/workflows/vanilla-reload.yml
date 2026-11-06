@@ -192,9 +192,9 @@ jobs:
           python3 scripts/validate_gameplay.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/gameplay"
 
       - name: Validate player ownership
-        if: matrix.version == '26.2'
+        if: matrix.version == '26.2' || matrix.version == '26.3'
         run: |
-          python3 scripts/validate_owned_players.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/owned-players"
+          python3 scripts/validate_owned_players.py --version "${{ matrix.version }}" --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/owned-players"
 
       - name: Validate player interactions and conversations
         if: matrix.version == '26.2' || matrix.version == '26.3'
@@ -204,6 +204,8 @@ jobs:
       - name: Validate progression and session policies
         if: matrix.version == '26.3'
         run: |
+          python3 scripts/validate_roster.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/roster"
+          python3 scripts/validate_cooperative_arena.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/cooperative-arena"
           python3 scripts/validate_progression.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/progression"
           python3 scripts/validate_journal_checkpoint.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/journal-checkpoint"
 
@@ -213,10 +215,10 @@ jobs:
           python3 scripts/validate_player_protocol.py --version "${{ matrix.version }}" --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/player-protocol"
 
       - name: Validate inventory workflows and player presentation
-        if: matrix.version == '26.2'
+        if: matrix.version == '26.2' || matrix.version == '26.3'
         run: |
-          python3 scripts/validate_inventory.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/inventory"
-          python3 scripts/validate_hud.py --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/hud"
+          python3 scripts/validate_inventory.py --version "${{ matrix.version }}" --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/inventory"
+          python3 scripts/validate_hud.py --version "${{ matrix.version }}" --jar "$SAND_SERVER_JAR" --output "target/vanilla-reload/${{ matrix.version }}/hud"
 
       - name: Compare runtime reports with completed vanilla command traces
         if: matrix.version == '26.2'
@@ -434,6 +436,8 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/owned-players
             target/vanilla-reload/${{ matrix.version }}/interactions
             target/vanilla-reload/${{ matrix.version }}/inventory
+            target/vanilla-reload/${{ matrix.version }}/roster
+            target/vanilla-reload/${{ matrix.version }}/cooperative-arena
             target/vanilla-reload/${{ matrix.version }}/progression
             target/vanilla-reload/${{ matrix.version }}/journal-checkpoint
             target/vanilla-reload/${{ matrix.version }}/hud

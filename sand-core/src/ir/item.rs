@@ -123,11 +123,12 @@ impl ItemMutation {
                 }
             }
             ItemMutationSource::Clear => ItemReplaceSource::Clear,
-            ItemMutationSource::Location(source) => ItemReplaceSource::Location(
-                source
+            ItemMutationSource::Location(source) => ItemReplaceSource::Location {
+                source: source
                     .item_target_slot()
                     .map_err(|e| error("source", e.to_string()))?,
-            ),
+                modifier: None,
+            },
         };
         let line = ItemReplaceCommand {
             destination,

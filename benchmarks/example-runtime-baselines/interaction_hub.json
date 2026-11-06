@@ -24,8 +24,8 @@
       },
       "interaction_hub:__sand_lifecycle_load": {
         "evaluations": {
-          "maximum": 61,
-          "minimum": 61,
+          "maximum": 65,
+          "minimum": 65,
           "unknown": []
         },
         "owners": [
@@ -38,6 +38,7 @@
           "interaction_hub::reward",
           "interaction_hub::shop",
           "interaction_hub::shop_menu",
+          "interaction_hub::split_payment_stack",
           "interaction_hub:quest"
         ],
         "selector_sites": []
@@ -85,13 +86,14 @@
           "interaction_hub::key",
           "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
-          "interaction_hub::shop"
+          "interaction_hub::shop",
+          "interaction_hub::split_payment_stack"
         ],
         "selector_sites": []
       },
       "interaction_hub:__sand_system/lifetime/barter/purchase_buy": {
         "evaluations": {
-          "maximum": 92,
+          "maximum": 120,
           "minimum": 1,
           "unknown": []
         },
@@ -105,11 +107,22 @@
             "selector": "@s[type=minecraft:player]"
           },
           {
-            "line": 12,
+            "line": 13,
             "operation": "unless",
             "selector": "@s"
           }
         ]
+      },
+      "interaction_hub:__sand_system/lifetime/barter/purchase_debit": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
+        ],
+        "selector_sites": []
       },
       "interaction_hub:__sand_system/lifetime/barter/purchase_load": {
         "evaluations": {
@@ -1957,6 +1970,17 @@
           }
         ]
       },
+      "interaction_hub:__sand_system/lifetime/journal/purchase_debit": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::journal"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:__sand_system/lifetime/journal/purchase_load": {
         "evaluations": {
           "maximum": 2,
@@ -2054,6 +2078,17 @@
           }
         ]
       },
+      "interaction_hub:__sand_system/lifetime/key/purchase_debit": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::key"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:__sand_system/lifetime/key/purchase_load": {
         "evaluations": {
           "maximum": 2,
@@ -2109,10 +2144,21 @@
         ],
         "selector_sites": []
       },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_capacity": {
+        "evaluations": {
+          "maximum": 298,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_compensate": {
         "evaluations": {
-          "maximum": 9,
-          "minimum": 8,
+          "maximum": 22,
+          "minimum": 3,
           "unknown": []
         },
         "owners": [
@@ -2131,10 +2177,21 @@
         ],
         "selector_sites": []
       },
+      "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_debit": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_empty": {
         "evaluations": {
-          "maximum": 35,
-          "minimum": 5,
+          "maximum": 73,
+          "minimum": 6,
           "unknown": []
         },
         "owners": [
@@ -2144,7 +2201,7 @@
       },
       "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_finish": {
         "evaluations": {
-          "maximum": 25,
+          "maximum": 62,
           "minimum": 7,
           "unknown": []
         },
@@ -2177,7 +2234,7 @@
       },
       "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_move": {
         "evaluations": {
-          "maximum": 121,
+          "maximum": 497,
           "minimum": 1,
           "unknown": []
         },
@@ -2255,6 +2312,17 @@
             "selector": "@s"
           }
         ]
+      },
+      "interaction_hub:__sand_system/lifetime/reward/purchase_debit": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::reward"
+        ],
+        "selector_sites": []
       },
       "interaction_hub:__sand_system/lifetime/reward/purchase_load": {
         "evaluations": {
@@ -3203,8 +3271,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_0": {
         "evaluations": {
-          "maximum": 108,
-          "minimum": 17,
+          "maximum": 137,
+          "minimum": 18,
           "unknown": []
         },
         "owners": [
@@ -3214,8 +3282,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_1": {
         "evaluations": {
-          "maximum": 137,
-          "minimum": 17,
+          "maximum": 514,
+          "minimum": 18,
           "unknown": []
         },
         "owners": [
@@ -3225,7 +3293,18 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_2": {
         "evaluations": {
-          "maximum": 89,
+          "maximum": 519,
+          "minimum": 18,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_3": {
+        "evaluations": {
+          "maximum": 91,
           "minimum": 1,
           "unknown": []
         },
@@ -3240,10 +3319,10 @@
           }
         ]
       },
-      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_3": {
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_4": {
         "evaluations": {
-          "maximum": 35,
-          "minimum": 17,
+          "maximum": 36,
+          "minimum": 18,
           "unknown": []
         },
         "owners": [
@@ -3283,7 +3362,7 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_0": {
         "evaluations": {
-          "maximum": 94,
+          "maximum": 122,
           "minimum": 3,
           "unknown": []
         },
@@ -3294,7 +3373,7 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_1": {
         "evaluations": {
-          "maximum": 123,
+          "maximum": 499,
           "minimum": 3,
           "unknown": []
         },
@@ -3305,7 +3384,7 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_2": {
         "evaluations": {
-          "maximum": 61,
+          "maximum": 504,
           "minimum": 3,
           "unknown": []
         },
@@ -3315,6 +3394,17 @@
         "selector_sites": []
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_3": {
+        "evaluations": {
+          "maximum": 61,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_4": {
         "evaluations": {
           "maximum": 21,
           "minimum": 3,
@@ -3327,8 +3417,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_clear": {
         "evaluations": {
-          "maximum": 10,
-          "minimum": 10,
+          "maximum": 11,
+          "minimum": 11,
           "unknown": []
         },
         "owners": [
@@ -3359,8 +3449,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_close": {
         "evaluations": {
-          "maximum": 13,
-          "minimum": 13,
+          "maximum": 14,
+          "minimum": 14,
           "unknown": []
         },
         "owners": [
@@ -3449,13 +3539,23 @@
             "line": 8,
             "operation": "if",
             "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 9,
+            "operation": "if",
+            "selector": "@s"
           }
         ]
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_0": {
         "evaluations": {
-          "maximum": 15,
-          "minimum": 15,
+          "maximum": 16,
+          "minimum": 16,
           "unknown": []
         },
         "owners": [
@@ -3465,8 +3565,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_1": {
         "evaluations": {
-          "maximum": 15,
-          "minimum": 15,
+          "maximum": 16,
+          "minimum": 16,
           "unknown": []
         },
         "owners": [
@@ -3476,8 +3576,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_2": {
         "evaluations": {
-          "maximum": 15,
-          "minimum": 15,
+          "maximum": 16,
+          "minimum": 16,
           "unknown": []
         },
         "owners": [
@@ -3487,8 +3587,19 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_3": {
         "evaluations": {
-          "maximum": 15,
-          "minimum": 15,
+          "maximum": 16,
+          "minimum": 16,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_4": {
+        "evaluations": {
+          "maximum": 16,
+          "minimum": 16,
           "unknown": []
         },
         "owners": [
@@ -3498,8 +3609,8 @@
       },
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_load": {
         "evaluations": {
-          "maximum": 20,
-          "minimum": 20,
+          "maximum": 21,
+          "minimum": 21,
           "unknown": []
         },
         "owners": [
@@ -3552,7 +3663,7 @@
       "interaction_hub:__sand_system/lifetime/shop_menu/menu_page_0": {
         "evaluations": {
           "maximum": null,
-          "minimum": 14,
+          "minimum": 17,
           "unknown": [
             "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/shop_menu/menu_show_0 with storage interaction_hub:shop_menu menu"
           ]
@@ -3687,10 +3798,142 @@
         ],
         "selector_sites": []
       },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_capacity": {
+        "evaluations": {
+          "maximum": 298,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_compensate": {
+        "evaluations": {
+          "maximum": 22,
+          "minimum": 3,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_copy": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_debit": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_empty": {
+        "evaluations": {
+          "maximum": 73,
+          "minimum": 6,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_finish": {
+        "evaluations": {
+          "maximum": 62,
+          "minimum": 7,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_load": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_merge": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_move": {
+        "evaluations": {
+          "maximum": 502,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "unless",
+            "selector": "@s[type=minecraft:player]"
+          },
+          {
+            "line": 5,
+            "operation": "unless",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_rejected": {
+        "evaluations": {
+          "maximum": 4,
+          "minimum": 4,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_success": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:cleanup": {
         "evaluations": {
           "maximum": null,
-          "minimum": 20,
+          "minimum": 21,
           "unknown": [
             "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/chest/cancel_owner with storage interaction_hub:__sand_runtime cancel",
             "function arguments are not analyzed: function interaction_hub:__sand_system/lifetime/gate/cancel_owner with storage interaction_hub:__sand_runtime cancel",
@@ -3748,7 +3991,7 @@
       },
       "interaction_hub:function/2f3ddf92": {
         "evaluations": {
-          "maximum": 93,
+          "maximum": 121,
           "minimum": 2,
           "unknown": []
         },
@@ -3770,7 +4013,18 @@
       },
       "interaction_hub:function/4c1b1698": {
         "evaluations": {
-          "maximum": 122,
+          "maximum": 498,
+          "minimum": 2,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::shop_menu"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/56f76237": {
+        "evaluations": {
+          "maximum": 503,
           "minimum": 2,
           "unknown": []
         },
@@ -3839,17 +4093,6 @@
         ],
         "selector_sites": []
       },
-      "interaction_hub:function/a078d82e": {
-        "evaluations": {
-          "maximum": 1,
-          "minimum": 1,
-          "unknown": []
-        },
-        "owners": [
-          "interaction_hub::barter"
-        ],
-        "selector_sites": []
-      },
       "interaction_hub:function/bb0affa0": {
         "evaluations": {
           "maximum": 1,
@@ -3861,6 +4104,17 @@
         ],
         "selector_sites": []
       },
+      "interaction_hub:function/c2d8d7c6": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": []
+      },
       "interaction_hub:function/c785bf9d": {
         "evaluations": {
           "maximum": 1,
@@ -3869,6 +4123,17 @@
         },
         "owners": [
           "interaction_hub::reward"
+        ],
+        "selector_sites": []
+      },
+      "interaction_hub:function/caaa4f6a": {
+        "evaluations": {
+          "maximum": 1,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::barter"
         ],
         "selector_sites": []
       },
@@ -3936,7 +4201,7 @@
           }
         ]
       },
-      "interaction_hub:sand/conditions/items/2c2fc8b0": {
+      "interaction_hub:sand/conditions/items/00233a2d": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -3953,7 +4218,41 @@
           }
         ]
       },
-      "interaction_hub:sand/conditions/items/345d7bfb": {
+      "interaction_hub:sand/conditions/items/0040791b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/00db4e08": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/01ecc17e": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -3970,7 +4269,296 @@
           }
         ]
       },
-      "interaction_hub:sand/conditions/items/4caaa757": {
+      "interaction_hub:sand/conditions/items/04026af4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/05f9b91d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/0606628c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/0badd2b0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/0f5f4bac": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/0f6b952e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1083623d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/10fcb1dd": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1133e8b2": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/12d43769": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/13742a89": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1600e1bf": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/16f5823c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/17073825": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1b6a9094": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1c60e88d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1cf9c96c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/1d19b2e6": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -3987,7 +4575,262 @@
           }
         ]
       },
-      "interaction_hub:sand/conditions/items/82c4be66": {
+      "interaction_hub:sand/conditions/items/1e62d675": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/21755c61": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/242be6f1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/25372e4b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2566a4bb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/262bb707": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/27fc019e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/28dc9dc4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/29674508": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2a7950c0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2a7e3e02": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2a8c1885": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2abfd9df": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2c3261d6": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/2edd0db5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/305d1107": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -4004,7 +4847,551 @@
           }
         ]
       },
-      "interaction_hub:sand/conditions/items/8a956bb4": {
+      "interaction_hub:sand/conditions/items/30c821d7": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/318ab8b3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/32504316": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/33257f7a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/340806f3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/38791d47": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/3988a8dd": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/39bcd35a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/3b602e69": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/3c4073a3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/3f0e0cef": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/3f38901f": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/431f1517": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4382ebe5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/44ecdf8d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/467080e4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/47048343": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4743ac5e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4944af8b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/49b7a0d9": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4b8e7810": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4be6d032": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4cb7ddf1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4eb7ae07": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4ecc74b8": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/4f2a752b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/50adcfd1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/516894c4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5220c893": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/534bd0df": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/54243dcc": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5adc3a16": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5b6d4134": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -4021,7 +5408,415 @@
           }
         ]
       },
-      "interaction_hub:sand/conditions/items/9787bf01": {
+      "interaction_hub:sand/conditions/items/5bb1767a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5c5d3952": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5c7617fd": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5d467636": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5dfb8c6a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/5e0080db": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/629ceb86": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/64b999da": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/64cdd7eb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/6674cf9b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/67b50c79": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/67ce2372": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/6a207946": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/6bacc89d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/6c0ee2e5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/6fcfa35e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/70ca016d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/71d0a68b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/73bbabe6": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/74539acd": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7582e0f7": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/762ee7ca": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/77586bb8": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7888aae2": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/796c8cb1": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -4029,6 +5824,1859 @@
         },
         "owners": [
           "interaction_hub::barter"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/79e0a729": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7aacbf93": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7bef8f8a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7d29d8bc": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7e115297": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/7e929997": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/837fd94f": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8496d239": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/84f7acc1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/85abe0fb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/86415f90": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/89a76412": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/89dd5cab": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8a603d71": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8b0bcdd6": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8b6b84cb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8b9afb3b": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8daa79d8": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8f10f444": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8f167b4c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8f6557be": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8f968ea0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/8f9b9b88": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9064a684": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/920f9911": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/92ac7046": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/955cbe1c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9577f8d3": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/96f15170": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/97864beb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9959d5fa": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9a1e777d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9aeed5b6": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9b18e389": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9ebadeca": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9ed966ff": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/9f8901c8": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/a207d457": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/a2708b22": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/a5797c30": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/a5fac330": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/a66d2ad0": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/a9373eae": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ab94ff98": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ac0d8981": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/acc09d1a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ad33c9c9": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ad83a3c1": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ae0c1631": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/b0d2e1a5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/b11879ee": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/b5363a14": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/b6e22651": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/b763140a": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ba459495": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/bd08ed27": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/becbc7e4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/bf122e8e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/bf7d4870": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c12838cf": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c1c7ab1e": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c2918fd2": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c4adb928": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c67f5256": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c739d9fe": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c74fc392": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/c8a8b735": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ca86349d": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ca93cb57": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/cb566233": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/cbd82b04": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/cc8d5cdc": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/cd3eee20": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/cea93c43": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/cfd9b0f8": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d3887cda": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d38b8932": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d4c9c6af": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d52bd7e9": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d52d0cd4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d60c1d23": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d8883134": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d8c14309": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d8ffe580": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d904399f": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d985809f": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/d98c4e7f": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/da7b3f48": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/dafc8648": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/db573f7c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/db7673f4": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/dd4e9565": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/dd7a6b8c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/e014fda9": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/e031e663": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/e10f55de": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/e7810e01": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ea44f0cb": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ea8654c5": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/ea894476": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/efd93105": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/efdbba92": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/f1708dad": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/f40551e7": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/f54ad1cc": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/fa95fca6": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/fb91149c": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/fc36d3ba": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
+      },
+      "interaction_hub:sand/conditions/items/fe981423": {
+        "evaluations": {
+          "maximum": 2,
+          "minimum": 1,
+          "unknown": []
+        },
+        "owners": [
+          "interaction_hub::split_payment_stack"
         ],
         "selector_sites": [
           {
@@ -4146,7 +7794,8 @@
           "interaction_hub::key",
           "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
-          "interaction_hub::shop"
+          "interaction_hub::shop",
+          "interaction_hub::split_payment_stack"
         ],
         "evaluations": {
           "maximum": 25,
@@ -4167,11 +7816,12 @@
           "interaction_hub::reward",
           "interaction_hub::shop",
           "interaction_hub::shop_menu",
+          "interaction_hub::split_payment_stack",
           "interaction_hub:quest"
         ],
         "evaluations": {
-          "maximum": 61,
-          "minimum": 61,
+          "maximum": 65,
+          "minimum": 65,
           "unknown": []
         },
         "reference": "interaction_hub:__sand_lifecycle_load",
@@ -4194,6 +7844,7 @@
           "interaction_hub::reward",
           "interaction_hub::shop",
           "interaction_hub::shop_menu",
+          "interaction_hub::split_payment_stack",
           "interaction_hub:quest"
         ],
         "interaction_hub:__sand_lifecycle_tick": [
@@ -4211,9 +7862,13 @@
           "interaction_hub::key",
           "interaction_hub::move_barter_reward",
           "interaction_hub::reward",
-          "interaction_hub::shop"
+          "interaction_hub::shop",
+          "interaction_hub::split_payment_stack"
         ],
         "interaction_hub:__sand_system/lifetime/barter/purchase_buy": [
+          "interaction_hub::barter"
+        ],
+        "interaction_hub:__sand_system/lifetime/barter/purchase_debit": [
           "interaction_hub::barter"
         ],
         "interaction_hub:__sand_system/lifetime/barter/purchase_load": [
@@ -4546,6 +8201,9 @@
         "interaction_hub:__sand_system/lifetime/journal/purchase_buy": [
           "interaction_hub::journal"
         ],
+        "interaction_hub:__sand_system/lifetime/journal/purchase_debit": [
+          "interaction_hub::journal"
+        ],
         "interaction_hub:__sand_system/lifetime/journal/purchase_load": [
           "interaction_hub::journal"
         ],
@@ -4564,6 +8222,9 @@
         "interaction_hub:__sand_system/lifetime/key/purchase_buy": [
           "interaction_hub::key"
         ],
+        "interaction_hub:__sand_system/lifetime/key/purchase_debit": [
+          "interaction_hub::key"
+        ],
         "interaction_hub:__sand_system/lifetime/key/purchase_load": [
           "interaction_hub::key"
         ],
@@ -4579,10 +8240,16 @@
         "interaction_hub:__sand_system/lifetime/key/purchase_success": [
           "interaction_hub::key"
         ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_capacity": [
+          "interaction_hub::move_barter_reward"
+        ],
         "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_compensate": [
           "interaction_hub::move_barter_reward"
         ],
         "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_copy": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_debit": [
           "interaction_hub::move_barter_reward"
         ],
         "interaction_hub:__sand_system/lifetime/move_barter_reward/inventory_transfer_empty": [
@@ -4607,6 +8274,9 @@
           "interaction_hub::move_barter_reward"
         ],
         "interaction_hub:__sand_system/lifetime/reward/purchase_buy": [
+          "interaction_hub::reward"
+        ],
+        "interaction_hub:__sand_system/lifetime/reward/purchase_debit": [
           "interaction_hub::reward"
         ],
         "interaction_hub:__sand_system/lifetime/reward/purchase_load": [
@@ -4792,6 +8462,9 @@
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_3": [
           "interaction_hub::shop_menu"
         ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_action_4": [
+          "interaction_hub::shop_menu"
+        ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_admit": [
           "interaction_hub::shop_menu"
         ],
@@ -4805,6 +8478,9 @@
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_3": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_body_4": [
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_clear": [
@@ -4826,6 +8502,9 @@
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_3": [
+          "interaction_hub::shop_menu"
+        ],
+        "interaction_hub:__sand_system/lifetime/shop_menu/menu_invoke_4": [
           "interaction_hub::shop_menu"
         ],
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_load": [
@@ -4858,6 +8537,39 @@
         "interaction_hub:__sand_system/lifetime/shop_menu/menu_valid_object": [
           "interaction_hub::shop_menu"
         ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_capacity": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_compensate": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_copy": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_debit": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_empty": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_finish": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_load": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_merge": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_move": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_rejected": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:__sand_system/lifetime/split_payment/inventory_transfer_success": [
+          "interaction_hub::split_payment_stack"
+        ],
         "interaction_hub:cleanup": [
           "interaction_hub::cleanup"
         ],
@@ -4882,6 +8594,9 @@
         "interaction_hub:function/4c1b1698": [
           "interaction_hub::shop_menu"
         ],
+        "interaction_hub:function/56f76237": [
+          "interaction_hub::shop_menu"
+        ],
         "interaction_hub:function/57f4ac7e": [
           "interaction_hub::gate"
         ],
@@ -4895,14 +8610,17 @@
         "interaction_hub:function/9d07d926": [
           "interaction_hub::shop"
         ],
-        "interaction_hub:function/a078d82e": [
-          "interaction_hub::barter"
-        ],
         "interaction_hub:function/bb0affa0": [
           "interaction_hub::journal"
         ],
+        "interaction_hub:function/c2d8d7c6": [
+          "interaction_hub::split_payment_stack"
+        ],
         "interaction_hub:function/c785bf9d": [
           "interaction_hub::reward"
+        ],
+        "interaction_hub:function/caaa4f6a": [
+          "interaction_hub::barter"
         ],
         "interaction_hub:place_chest": [
           "interaction_hub::place_chest"
@@ -4916,23 +8634,620 @@
         "interaction_hub:sand/branches/7c971190": [
           "interaction_hub::gate"
         ],
-        "interaction_hub:sand/conditions/items/2c2fc8b0": [
+        "interaction_hub:sand/conditions/items/00233a2d": [
           "interaction_hub::key"
         ],
-        "interaction_hub:sand/conditions/items/345d7bfb": [
+        "interaction_hub:sand/conditions/items/0040791b": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/00db4e08": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/01ecc17e": [
           "interaction_hub::move_barter_reward"
         ],
-        "interaction_hub:sand/conditions/items/4caaa757": [
+        "interaction_hub:sand/conditions/items/04026af4": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/05f9b91d": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/0606628c": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/0badd2b0": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/0f5f4bac": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/0f6b952e": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/1083623d": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/10fcb1dd": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/1133e8b2": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/12d43769": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/13742a89": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/1600e1bf": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/16f5823c": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/17073825": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/1b6a9094": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/1c60e88d": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/1cf9c96c": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/1d19b2e6": [
           "interaction_hub::journal"
         ],
-        "interaction_hub:sand/conditions/items/82c4be66": [
+        "interaction_hub:sand/conditions/items/1e62d675": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/21755c61": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/242be6f1": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/25372e4b": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/2566a4bb": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/262bb707": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/27fc019e": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/28dc9dc4": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/29674508": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/2a7950c0": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/2a7e3e02": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/2a8c1885": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/2abfd9df": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/2c3261d6": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/2edd0db5": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/305d1107": [
           "interaction_hub::reward"
         ],
-        "interaction_hub:sand/conditions/items/8a956bb4": [
+        "interaction_hub:sand/conditions/items/30c821d7": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/318ab8b3": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/32504316": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/33257f7a": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/340806f3": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/38791d47": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/3988a8dd": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/39bcd35a": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/3b602e69": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/3c4073a3": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/3f0e0cef": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/3f38901f": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/431f1517": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/4382ebe5": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/44ecdf8d": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/467080e4": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/47048343": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/4743ac5e": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/4944af8b": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/49b7a0d9": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/4b8e7810": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/4be6d032": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/4cb7ddf1": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/4eb7ae07": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/4ecc74b8": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/4f2a752b": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/50adcfd1": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/516894c4": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5220c893": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/534bd0df": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/54243dcc": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5adc3a16": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5b6d4134": [
           "interaction_hub::barter"
         ],
-        "interaction_hub:sand/conditions/items/9787bf01": [
+        "interaction_hub:sand/conditions/items/5bb1767a": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5c5d3952": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5c7617fd": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5d467636": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5dfb8c6a": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/5e0080db": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/629ceb86": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/64b999da": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/64cdd7eb": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/6674cf9b": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/67b50c79": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/67ce2372": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/6a207946": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/6bacc89d": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/6c0ee2e5": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/6fcfa35e": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/70ca016d": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/71d0a68b": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/73bbabe6": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/74539acd": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/7582e0f7": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/762ee7ca": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/77586bb8": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/7888aae2": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/796c8cb1": [
           "interaction_hub::barter"
+        ],
+        "interaction_hub:sand/conditions/items/79e0a729": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/7aacbf93": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/7bef8f8a": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/7d29d8bc": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/7e115297": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/7e929997": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/837fd94f": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/8496d239": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/84f7acc1": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/85abe0fb": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/86415f90": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/89a76412": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/89dd5cab": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/8a603d71": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/8b0bcdd6": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/8b6b84cb": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/8b9afb3b": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/8daa79d8": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/8f10f444": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/8f167b4c": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/8f6557be": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/8f968ea0": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/8f9b9b88": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/9064a684": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/920f9911": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/92ac7046": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/955cbe1c": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/9577f8d3": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/96f15170": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/97864beb": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/9959d5fa": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/9a1e777d": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/9aeed5b6": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/9b18e389": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/9ebadeca": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/9ed966ff": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/9f8901c8": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/a207d457": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/a2708b22": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/a5797c30": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/a5fac330": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/a66d2ad0": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/a9373eae": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ab94ff98": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ac0d8981": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/acc09d1a": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ad33c9c9": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ad83a3c1": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ae0c1631": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/b0d2e1a5": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/b11879ee": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/b5363a14": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/b6e22651": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/b763140a": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/ba459495": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/bd08ed27": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/becbc7e4": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/bf122e8e": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/bf7d4870": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/c12838cf": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/c1c7ab1e": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/c2918fd2": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/c4adb928": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/c67f5256": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/c739d9fe": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/c74fc392": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/c8a8b735": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ca86349d": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ca93cb57": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/cb566233": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/cbd82b04": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/cc8d5cdc": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/cd3eee20": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/cea93c43": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/cfd9b0f8": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/d3887cda": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/d38b8932": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/d4c9c6af": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/d52bd7e9": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/d52d0cd4": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/d60c1d23": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/d8883134": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/d8c14309": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/d8ffe580": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/d904399f": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/d985809f": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/d98c4e7f": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/da7b3f48": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/dafc8648": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/db573f7c": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/db7673f4": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/dd4e9565": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/dd7a6b8c": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/e014fda9": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/e031e663": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/e10f55de": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/e7810e01": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/ea44f0cb": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ea8654c5": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/ea894476": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/efd93105": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/efdbba92": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/f1708dad": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/f40551e7": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/f54ad1cc": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/fa95fca6": [
+          "interaction_hub::split_payment_stack"
+        ],
+        "interaction_hub:sand/conditions/items/fb91149c": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/fc36d3ba": [
+          "interaction_hub::move_barter_reward"
+        ],
+        "interaction_hub:sand/conditions/items/fe981423": [
+          "interaction_hub::split_payment_stack"
         ],
         "interaction_hub:sand/runtime/owned_body/63fb2bbf": [
           "interaction_hub::chest",
@@ -4986,6 +9301,11 @@
             "owner": "interaction_hub::shop_menu"
           },
           {
+            "first_line": 17,
+            "line_count": 1,
+            "owner": "interaction_hub::split_payment_stack"
+          },
+          {
             "first_line": 8,
             "line_count": 1,
             "owner": "interaction_hub::barter"
@@ -5033,6 +9353,7 @@
             "interaction_hub::reward",
             "interaction_hub::shop",
             "interaction_hub::shop_menu",
+            "interaction_hub::split_payment_stack",
             "interaction_hub:quest"
           ],
           "tag": "minecraft:load"
@@ -5058,7 +9379,8 @@
             "interaction_hub::key",
             "interaction_hub::move_barter_reward",
             "interaction_hub::reward",
-            "interaction_hub::shop"
+            "interaction_hub::shop",
+            "interaction_hub::split_payment_stack"
           ],
           "tag": "minecraft:load"
         }

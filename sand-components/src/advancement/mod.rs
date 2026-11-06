@@ -323,6 +323,7 @@ impl AdvancementDisplay {
     }
 
     /// Sets the typed background texture for the advancement tab.
+    /// Required on displayed roots and forbidden on children when exporting to 26.3.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::AdvancementDisplay::background",
@@ -330,7 +331,7 @@ impl AdvancementDisplay {
         module = "sand::component",
         kind = "method",
         summary = "Sets the typed background texture for the advancement tab.",
-        context = "Sets the typed background texture for the advancement tab. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        context = "Minecraft 26.3 requires a background for every root with display metadata, including hidden roots, and forbids backgrounds on child advancements. Set a texture such as minecraft:textures/block/stone.png.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
@@ -3777,6 +3778,18 @@ impl Advancement {
         &self,
         caps: Option<&sand_version::VersionCaps>,
     ) -> crate::error::Result<Value> {
+        // The 26.3 native advancement codec validates root/background shape.
+        // Keep this target-specific: unversioned serialization is not native proof.
+        if caps.is_some_and(|caps| caps.is_at_least(26, 3, 0))
+            && let Some(display) = &self.display
+        {
+            if self.parent.is_none() && display.background.is_none() {
+                return Err(self.validation_error("display.background", "Minecraft 26.3 requires a background for a displayed root advancement; use AdvancementDisplay::background or assign a parent"));
+            }
+            if self.parent.is_some() && display.background.is_some() {
+                return Err(self.validation_error("display.background", "Minecraft 26.3 only permits backgrounds on root advancements; remove the child background"));
+            }
+        }
         let mut map = serde_json::Map::new();
 
         if let Some(ref p) = self.parent {
@@ -4827,6 +4840,50 @@ mod tests {
 
     fn elevator_wool_item_predicate() -> ItemPredicate {
         ItemPredicate::id(item_id("minecraft:white_wool")).custom_data_key("elevator")
+    }
+
+    #[test]
+    fn target_26_3_rejects_missing_root_and_present_child_backgrounds() {
+        let caps = sand_version::VersionCaps::from_profile_flags(
+            "26.3", false, true, true, true, true, true, true, true,
+        );
+        let display = || {
+            AdvancementDisplay::new(
+                AdvancementIcon::new(item_id("minecraft:compass")),
+                sand_commands::Text::new("Root"),
+                sand_commands::Text::new("Explore"),
+            )
+        };
+        let root = tick_advancement("visible_root").display(display());
+        let error = root.try_content_for(Some(&caps)).unwrap_err().to_string();
+        assert!(
+            error.contains("display.background")
+                && error.contains("AdvancementDisplay::background"),
+            "{error}"
+        );
+        assert!(
+            tick_advancement("invisible_root")
+                .try_content_for(Some(&caps))
+                .is_ok()
+        );
+        let with_background =
+            || display().background("minecraft:textures/block/stone.png".parse().unwrap());
+        assert!(
+            tick_advancement("valid_root")
+                .display(with_background())
+                .try_content_for(Some(&caps))
+                .is_ok()
+        );
+        let child = tick_advancement("child")
+            .parent(AdvancementId::custom("test:parent".parse().unwrap()))
+            .display(with_background());
+        assert!(
+            child
+                .try_content_for(Some(&caps))
+                .unwrap_err()
+                .to_string()
+                .contains("only permits backgrounds on root")
+        );
     }
 
     fn caps_26_1() -> sand_version::VersionCaps {

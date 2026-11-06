@@ -37,6 +37,10 @@ function as the player who pressed the button. `run_function` emits a direct
 `/function` command and requires command permissions, so it is unsuitable for
 these survival-facing buttons.
 
+A dismiss button can use `DialogButton::new("Close")` or explicitly apply
+`DialogAction::close()`. Both omit the action payload and use vanilla’s default
+close behavior. There is no `minecraft:close` action registry entry.
+
 ## Opening the dialog
 
 `trail:menu` (chapter 8) is the only place that opens this dialog:

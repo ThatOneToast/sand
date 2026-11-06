@@ -282,20 +282,21 @@ pub mod entity {
         EntityDataRoot, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumAccessor,
         EntityEnumValue, EntityEquipmentHandle, EntityEventId, EntityFlag, EntityFlagAccessor,
         EntityIdentity, EntityKind, EntityMounts, EntityName, EntityNbtBinding, EntityNbtProperty,
-        EntityNbtType, EntityNbtValue, EntityScope, EntityScore, EntityScoreAccessor, EntityState,
-        EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
-        EntityTimerAccessor, EntityTransform, EntityTransition, EntityTransitionField,
-        EnumEncoding, EquipmentBinding, EquipmentEntityKind, FixedPoint, FixedScore,
-        FixedScoreAccessor, FixedScoreValue, FixedValue, Flag, GlobalStateBundleOperations,
-        HealthBinding, HealthResizePolicy, HitVolume, KeyedData, KnownEntityKind, LivingEntity,
-        LivingEntityKind, MarkerKind, Migration, MountVehicleKind, MutableLivingEntityKind,
-        NameBinding, NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy,
-        OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty, RawEntityStateField,
-        RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation,
-        RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
-        SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
-        StatePredicate, StateQueryOperations, StateSchema, SummonableEntityKind, TagBinding,
-        TargetExecution, TeamBinding, ThresholdDirection, Timer, ZombieKind,
+        EntityNbtType, EntityNbtValue, EntityScope, EntityScore, EntityScoreAccessor,
+        EntityScoreValue, EntityState, EntityStateField, EntityTag, EntityTeam, EntityText,
+        EntityTextSegment, EntityTimer, EntityTimerAccessor, EntityTransform, EntityTransition,
+        EntityTransitionField, EnumEncoding, EquipmentBinding, EquipmentEntityKind, FixedPoint,
+        FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, Flag,
+        GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, HitVolume, KeyedData,
+        KnownEntityKind, LivingEntity, LivingEntityKind, MarkerKind, Migration, MountVehicleKind,
+        MutableLivingEntityKind, NameBinding, NumericPropertySource, NumericStateField,
+        NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind, PropertyNameError,
+        RawEntityProperty, RawEntityStateField, RawPropertyAccess, RawStateBackend,
+        ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal, RoundingPolicy,
+        SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy, StatCurve,
+        StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
+        StateQueryOperations, StateSchema, SummonableEntityKind, TagBinding, TargetExecution,
+        TeamBinding, ThresholdDirection, Timer, ZombieKind,
     };
 }
 
@@ -725,8 +726,8 @@ mod ability_composition;
 pub mod systems {
     pub use sand_core::{
         Ability, Checkpoint, Combat, Encounter, GameplayTest, Hud, Interactable, InventoryTransfer,
-        Job, Journal, Lifetime, Menu, Progression, Projectile, Purchase, Scene, Sequence, Session,
-        StatusEffect, TaskContext, Transform,
+        Job, Journal, Lifetime, Menu, Progression, Projectile, Purchase, Roster, Scene, Sequence,
+        Session, StatusEffect, TaskContext, Transform,
     };
     /// Consumer-owned resources, shared maintenance, and accepted-target abilities.
     #[sand_macros::api(path = "sand::systems::ability", module = "sand::systems",

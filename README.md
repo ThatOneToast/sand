@@ -2,63 +2,81 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/sand-header-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="assets/readme/sand-header-light.svg">
-    <img alt="Sand — typed Rust in, vanilla datapacks out" src="assets/readme/sand-header-light.svg" width="100%">
+    <img alt="Sand — Rust gameplay, vanilla datapacks" src="assets/readme/sand-header-light.svg" width="100%">
   </picture>
+  <p><strong>Build Minecraft gameplay in Rust. Ship a vanilla datapack.</strong></p>
+  <p>
+    <a href="https://github.com/ThatOneToast/sand/actions/workflows/rust.yml">CI</a> ·
+    <a href="book/src/introduction.md">Guide</a> ·
+    <a href="examples/README.md">Examples</a> ·
+    <a href="ROADMAP.md">Roadmap</a> ·
+    <a href="LICENSE">MIT</a>
+  </p>
 </div>
 
-<p align="center">
-  <strong>A strongly typed Rust framework for building vanilla Minecraft Java datapacks.</strong>
-</p>
+Sand is a Rust framework for Minecraft Java datapacks. Describe player state,
+quests, encounters, interactions and owned tasks using typed, composable APIs.
+Sand compiles them into ordinary Minecraft functions and resources. Players and
+servers need no Sand mod or Rust runtime.
 
-<p align="center">
-  <a href="https://github.com/ThatOneToast/sand/actions/workflows/rust.yml"><img alt="Rust CI status" src="https://img.shields.io/github/actions/workflow/status/ThatOneToast/sand/rust.yml?branch=main&style=flat-square&label=Rust"></a>
-  <a href="#minecraft-versions"><img alt="Minecraft Java 26.3" src="https://img.shields.io/badge/Minecraft%20Java-26.3-3C8527?style=flat-square"></a>
-  <a href="#stability"><img alt="Project status: alpha" src="https://img.shields.io/badge/status-alpha-D97706?style=flat-square"></a>
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ThatOneToast/sand?style=flat-square&color=5D7C59"></a>
-</p>
+**Pre-1.0, under active development.** APIs can change between commits. The
+bounded multiplayer game alpha is still being validated; see the
+[alpha contract](docs/architecture/alpha-game-contract.md) for its release gates.
+Pin your project and CLI to the same revision.
 
-<p align="center">
-  <a href="#why-sand">Why Sand</a> ·
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#what-you-can-build">Features</a> ·
-  <a href="book/src/introduction.md">Guide</a> ·
-  <a href="examples/README.md">Examples</a> ·
-  <a href="ROADMAP.md">Roadmap</a>
-</p>
+## Start here
 
-## Why Sand?
+You need Rust (the repository pins **1.96.0**), **Java 25+** for Minecraft data
+generation and local servers, and network access for the first dependency and
+Minecraft artifact downloads. Sand is not yet published to crates.io.
 
-Datapacks are a great **distribution format**: portable, server-native, and
-made from ordinary files that Minecraft already understands. At scale, they
-become a cumbersome **authoring format**: command strings, JSON resources,
-scoreboard conventions, version differences, and cross-file wiring all have to
-stay in sync by hand.
+```sh
+git clone https://github.com/ThatOneToast/sand.git
+cd sand
+cargo install --locked --path sand-cli
 
-Sand moves that work into Rust. You author against typed commands, state,
-conditions, resource identifiers, and version profiles; Sand exports a normal
-datapack under `data/<namespace>/...`.
+# Create your project outside the Sand checkout.
+cd ..
+sand new oasis --mc-version 26.3
+cd oasis
+sand build
+```
 
-**Typed Rust in. Vanilla datapacks out. No mod required.**
+`sand new` creates a project and performs its initial Cargo build. Edit
+`src/lib.rs`; `sand build` exports to `dist/oasis/`. To make a distributable zip:
+
+```sh
+sand build --release
+```
+
+The scaffold depends on the `sand` façade and the `sand-build` build dependency
+from Git `main`. For reproducible work, set both to the same `rev`, keep
+`Cargo.lock`, and install the CLI from that revision. Run
+`sand context --format json` inside the project to check the resolved dependency,
+Minecraft target and installed API catalog match.
+
+See [installation](book/src/01-installing-and-creating.md) for the project layout
+and [packaging](book/src/17-packaging-and-running.md) for output and deployment.
+
+## Write gameplay, keep the vanilla output
+
+State belongs to the player, entity or global resource that owns it. Sand handles
+its objective identities, initialization and bounded writes:
 
 ```rust
 use sand::prelude::*;
 
 #[derive(State)]
 #[state(namespace = "oasis", scope = player)]
-struct PlayerState {
-    #[state(
-        default = 0,
-        min = 0,
-        max = 100,
-        display_name = "Discoveries"
-    )]
+struct Explorer {
+    #[state(default = 0, min = 0, max = 100)]
     discoveries: Score,
 }
 
 #[function]
 pub fn discover_oasis() {
-    let state = PlayerState::on(EntityContext::<PlayerKind>::default());
-    state.discoveries.add(1);
+    let player = Explorer::on(EntityContext::<PlayerKind>::default());
+    player.discoveries.add(1);
     cmd::tellraw(
         Target::self_(),
         Text::new("Oasis discovered!").gold().bold(true),
@@ -66,189 +84,129 @@ pub fn discover_oasis() {
 }
 ```
 
-`#[derive(State)]` provisions and initializes the objective automatically.
-The generated `PlayerStateBound` exposes `discoveries` as an ordinary typed
-field, and `#[function]` exports `discover_oasis` as a callable function. The
-result is still the vanilla format you would ship without Sand:
+Place this alongside the scaffold's export hook. Invoke
+`/function oasis:discover_oasis` as a player in a world with the pack installed.
+The same State fields compose with events, conditions, systems, progression and
+HUDs; no separate gameplay database is required.
 
-Automatic provisioning, custom score criteria/display names, and `auto_tick`
-apply to every supported scope. Entity and living components are initialized
-through explicit attachment or an archetype adoption policy and tick only
-while eligible owners are loaded. `StateBundle` composes independently
-versioned components, `StateQuery` filters their runtime presence, and
-`#[system]` connects typed tick or event behavior to the existing scheduler and
-event dispatcher. See the [unified State tutorial](examples/unified_state/README.md).
+Generated `.mcfunction` and JSON files remain inspectable and distributable.
+Minecraft commands are the compilation target. Typed command/resource builders
+and explicitly named raw escape hatches remain available for advanced edges.
 
-```text
-dist/oasis/
-├── pack.mcmeta
-└── data/
-    ├── minecraft/tags/function/load.json
-    └── oasis/function/
-        ├── __sand_lifecycle_load.mcfunction
-        └── discover_oasis.mcfunction
-```
+## What you can build today
 
-```mcfunction
-# data/oasis/function/discover_oasis.mcfunction
-scoreboard players add @s <deterministic-objective> 1
-tellraw @s {"bold":true,"color":"gold","text":"Oasis discovered!"}
-```
+| Area | Authoring model | Start with |
+| --- | --- | --- |
+| Player and entity state | Scores, flags, timers, cooldowns, finite enums, typed storage, migrations, bundles and archetypes | [Unified State](examples/unified_state/) |
+| Multiplayer rounds | Registered bounded rosters, typed roles, exclusive membership, owned sessions and saved rewards | [Cooperative arena](examples/cooperative_arena/) |
+| Quests and abilities | State-backed objectives, guarded forward branches, resource costs, cooldowns and checkpoints | [Quest rounds](examples/quest_rounds/), [Aether tools](examples/aether_tools/) |
+| Combat and encounters | Custom health/shields, attributed damage, owned projectiles, effects and child attacks | [Owned combat](examples/owned_combat/), [Animated boss](examples/animated_boss/) |
+| Interactions and inventory | Player menus, object-bound conversations, journals, quantity-aware payments and guarded transfers | [Interaction hub](examples/interaction_hub/) |
+| Presentation | Block/item/text scenes, transforms, lifetime-owned HUDs, particles and sounds | [Gameplay guide](book/src/23d-owned-gameplay.md) |
+| Datapack resources | Typed recipes, advancements, loot, predicates, item modifiers, tags, dialogs, enchantments and worldgen builders | [Trailforge](examples/book_project/), [Examples index](examples/README.md) |
+| Companion resource packs | Separate client-asset packaging, version metadata and deterministic archives | [Resource-pack guide](book/src/17a-companion-resource-packs.md) |
 
-Keep the generated files, inspect them, zip them, or copy them directly into a
-world's `datapacks/` directory. Sand is an authoring tool and build pipeline,
-not a runtime dependency.
+The [capability matrix](docs/architecture/capability-matrix.md) records the
+boundary between typed authoring, export tests and native evidence. Resource and
+signal coverage varies; the API catalog's item count is not a percentage of
+vanilla support.
 
-## What you can build
+## Discover the API locally
 
-### Framework
-
-- **Attribute-first packs** — export functions and lifecycle hooks with
-  `#[function]`, `#[datapack_component(Load)]`, and `#[datapack_component(Tick)]`.
-- **Typed commands and control flow** — selectors, text, execute chains,
-  conditions, particles, sounds, scoreboards, NBT operations, and generated
-  command builders.
-- **Typed state** — `#[derive(State)]` generates scoped, autocomplete-friendly
-  bound views for scores, flags, timers, cooldowns, finite enums, marker
-  components, and global typed-data resources; bundles and queries retain named
-  fields throughout composition.
-- **Data-driven resources** — builders for recipes, advancements, predicates,
-  loot tables, item modifiers, tags, dialogs, enchantments, and more.
-  Coverage varies by resource; explicit raw JSON, SNBT, component, and command
-  escape hatches remain available for unsupported edges.
-- **Structure-template assets** — validate and copy existing `.nbt` files into
-  `data/<namespace>/structure/`. Sand does not parse, generate, or semantically
-  validate their binary NBT payloads. The component audit tracks these
-  non-registry assets separately from registries and tags.
-- **Version-aware output** — exact 26.x profiles describe verified schema
-  differences and generated registries fail safely for unknown future targets.
-
-### Gameplay systems
-
-`sand::systems` builds on the same State, entity and lifecycle models:
-
-- **Owned work** — `Lifetime`, abilities, status effects, projectiles, child tasks,
-  condition waits and joins with bounded work and explicit cleanup.
-- **Encounters and presentation** — combat policies, priority-based encounter
-  controllers, sequences, block/item/text scenes, owned HUDs and batched jobs.
-- **Progression** — canonical-State objectives and rewards, plus owned sessions
-  with explicit reset/restart, saved-phase resume and checked checkpoint projections.
-- **Interactions** — paginated player menus, exact object-bound sessions,
-  typed conversation views, clickable hitboxes, guarded item payments, whole-stack
-  transfers and refreshable State-driven journal books.
-
-These are alpha systems with explicit vanilla limits: collision is sampled,
-encounters do not provide pathfinding, books are snapshots, and menus do not
-intercept chest-slot clicks. Start with the [gameplay guides](book/src/23d-owned-gameplay.md)
-and [interaction example](examples/interaction_hub/). The [roadmap](ROADMAP.md)
-separates implemented behavior, remaining systems and validation gaps.
-
-### CLI
-
-- `sand new` and `sand init` scaffold an attribute-first project.
-- `sand build` compiles deterministic output into `dist/`; `--release` also
-  creates a distributable zip.
-- `sand run` builds the pack, prepares a local Minecraft server, and presents
-  classified, verbose, raw, or JSON server logs.
-- `sand add worldbuild` adds typed world/server configuration.
-- `sand add resourcepack` opts in to a [companion client asset pack](book/src/17a-companion-resource-packs.md),
-  built separately under `dist/<namespace>-resources/`.
-- `sand join` integrates with Prism Launcher for local testing.
-- `sand clean` removes generated pack and optional server/build artifacts.
-
-Run `sand --help` for the complete command reference.
-
-## Quick start
-
-Sand is not published to crates.io yet. Install the CLI from a clone:
+The CLI describes the public API compiled into your installation. It does not
+scrape online documentation or infer methods that do not exist.
 
 ```sh
-git clone https://github.com/ThatOneToast/sand.git
-cd sand
-cargo install --path sand-cli
+sand api search "player damage" --all-terms
+sand api show sand::systems::Progression
+sand api module sand::systems::Progression
+sand api alternatives "damage entity"
 ```
 
-Then scaffold and build a pack:
+`search` finds entry points; `show` explains signatures, behavior and examples;
+`module` lists a module or a type's members. `alternatives` searches for typed
+ways to express Minecraft behavior. Add `--format json` for structured results,
+matching evidence, compatibility information and truncation indicators. Use
+`--all`, `--limit`, `--module`, `--kind` and `--field` to narrow searches.
 
-```sh
-sand new oasis --mc-version 26.3
-cd oasis
-sand build
-```
-
-The scaffold uses the `sand` façade crate for authoring and `sand-build` for
-export:
-
-```toml
-[dependencies]
-sand = { git = "https://github.com/ThatOneToast/sand.git", branch = "main" }
-
-[build-dependencies]
-sand-build = { git = "https://github.com/ThatOneToast/sand.git", branch = "main" }
-```
-
-Because `main` moves quickly, pin both dependencies to the same Git revision
-when you need a reproducible project.
-
-Coding agents can discover that resolved project identity and query the exact
-installed API contract surface without scraping terminal prose:
+For coding agents and automation:
 
 ```sh
 sand context --format json
-sand api search "player damage" --format json
-sand api alternatives "damage entity" --format json
+sand api search "quest" --format json
 sand build --format json
 sand check --agent --format json
 ```
 
-See [CLI For Coding Agents](book/src/reference/agent-cli.md) for compatibility
-rules, structured search controls, and the recommended validation loop.
+A complete catalog means the configured public surface is inventoried. It does
+not mean every example is a complete game or that every vanilla capability has
+a typed equivalent. Compiler errors, exported resources and native behavior
+remain separate checks. See [CLI for coding agents](book/src/reference/agent-cli.md).
 
-## Minecraft versions
+## Build, play and iterate
 
-- Sand targets **Minecraft Java 26.x and newer**. Versions below 26 are rejected.
-- **26.3** is the default export and generated-API target. Exact 26.1 and 26.2
-  profiles remain available; version-specific capability limits are documented
-  in the version support reference.
-- Later calendar versions can be represented, but unknown schemas use
-  conservative capabilities. Use `VersionProfile::resolve_strict()` when exact
-  Minecraft data is required.
+```sh
+sand run                  # build and start a local vanilla server
+sand dev                  # watch, rebuild and reload during development
+sand join --instance INSTANCE_ID --local
+```
 
-Minecraft Java version support is profile-aware rather than a promise that
-every resource field or advancement trigger has identical typed coverage.
-Consult the [version support reference](book/src/reference/version-support.md)
-and resource-specific API documentation when targeting an edge case.
+Run the join command in another terminal. It requires an existing **Prism
+Launcher instance folder ID**, not its display name. The launcher and instance
+must already be installed; use `--launcher /path/to/prismlauncher` if needed.
+Join launches a client; it is not a gameplay validation command.
 
-## Stability
+The [dev workflow](docs/dev-workflow.md) documents reload behavior, failure
+preservation and server ownership. `sand add worldbuild` adds typed world/server
+configuration; `sand add resourcepack` opts into companion client assets.
+`sand clean` removes generated pack output, with explicit options for Cargo and
+server artifacts. Use `sand --help` for the complete command list.
 
-> [!IMPORTANT]
-> **Sand is alpha software.** The public API can change between commits, and
-> removed APIs do not receive compatibility shims. Pin a known-good Git
-> revision for projects that need stability.
+## Versions and current limits
 
-The attribute-first authoring model, typed state and conditions, typed text and
-execute chains, command builders, and scaffolding are the firmest parts of the
-project today. Events, dialogs and the owned gameplay systems are alpha.
-`mcfunction!` and registry coverage for unreleased Minecraft versions are
-experimental.
+**26.3 is the default target.** Exact 26.1 and 26.2 profiles also exist; versions
+below 26 are rejected. Export support does not imply equal native proof across
+versions. Unknown future schemas are handled conservatively, and generated
+registries require a known profile. See [version support](book/src/reference/version-support.md).
 
-Sand produces vanilla files, but successful Rust compilation alone does not
-prove that every gameplay path behaves as intended. Inspect generated output
-and test serious packs with a vanilla server before release.
+Keep these boundaries in mind when choosing a game:
 
-## Learn and contribute
+- Owned tasks run for eligible loaded owners; there is no durable coroutine
+  restoration or implicit force-loading.
+- Rosters model explicitly registered arenas. Dynamic matchmaking and offline
+  seat reservations are not implemented.
+- Menus and conversations do not intercept arbitrary container-slot clicks.
+  Free-text and arbitrary numeric form transport remain unverified.
+- Collision is sampled; encounters do not provide general pathfinding or native
+  damage interception. Scenes do not provide skeletal animation blending.
+- Resource-pack packaging does not install client packs or prove asset rendering.
+  Structure assets are copied and checked as files, not semantically parsed NBT.
+- Round reset is not pack uninstall. Offline/unloaded cleanup and upgrade policy
+  need explicit design; removing a datapack cannot invoke an unload callback.
 
-- [Sand Guide](book/src/introduction.md) — installation, authoring, debugging,
-  packaging, and reference material.
-- [Trailforge example](examples/book_project/src/lib.rs) — a complete pack with
-  state, items, recipes, events, dialogs, conditions, and effects.
-- [Examples index](examples/README.md) — focused examples and standalone pack
-  projects.
-- [Architecture](docs/architecture/adr-001-crate-boundaries.md) — public
-  façade, implementation crates, and dependency boundaries.
-- [Contributing](CONTRIBUTING.md) — toolchain policy and validation commands.
+The cooperative arena has retained 26.3 headless multiplayer evidence. Actual
+player-input/rendering acceptance and a measured operating envelope are still
+release work. Static runtime estimates are not MSPT or safe population limits.
 
-Sand is available under the [MIT License](LICENSE).
+## Quality and contributing
 
-<sub>Sand is an independent project and is not affiliated with or endorsed by
-Mojang Studios or Microsoft.</sub>
+Sand checks deterministic exports, versioned API contracts, architecture
+boundaries, downstream examples, compile-fail diagnostics and documentation.
+Native server scenarios separately test gameplay and multiplayer isolation.
+The [alpha scenario workflow](docs/testing/alpha-workflow.md) runs the roster and
+reference-game proofs with one command and retains failure artifacts.
+
+```sh
+scripts/check.sh
+git diff --check
+```
+
+See [Contributing](CONTRIBUTING.md), the
+[architecture](docs/architecture/adr-001-crate-boundaries.md),
+[benchmarks and limitations](BENCHMARKS.md), and [roadmap](ROADMAP.md).
+For a bug report, include your Sand revision, Minecraft version, a minimal
+project and the failing command/output. Distinguish compile/export failures
+from observed server behavior.
+
+Sand is available under the [MIT License](LICENSE). It is an independent project
+and is not affiliated with or endorsed by Mojang Studios or Microsoft.

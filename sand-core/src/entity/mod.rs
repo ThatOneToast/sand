@@ -84,9 +84,9 @@ pub use query::{HitVolume, StateQueryOperations, TargetExecution};
 pub use relation::{Relation, RelationTraversal};
 pub use state::{
     Cooldown, Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor,
-    EntityEnumValue, EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,
-    EntityStateField, EntityTimer, EntityTimerAccessor, EnumEncoding, FixedScore,
-    FixedScoreAccessor, FixedScoreValue, Flag, GlobalStateBundleOperations, KeyedData,
-    NumericStateField, NumericStateSource, Score, StateComposition, StateFieldDescriptor,
-    StateFieldKind, StatePredicate, StateSchema, Timer,
+    EntityEnumValue, EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor,
+    EntityScoreValue, EntityState, EntityStateField, EntityTimer, EntityTimerAccessor,
+    EnumEncoding, FixedScore, FixedScoreAccessor, FixedScoreValue, Flag,
+    GlobalStateBundleOperations, KeyedData, NumericStateField, NumericStateSource, Score,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, Timer,
 };

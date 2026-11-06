@@ -2,7 +2,11 @@
 
 This document records the repository-wide audit performed for the first API
 consolidation slice. It is an inventory, not a compatibility plan: removed
-surfaces are not retained as aliases.
+surfaces are not retained as aliases. Known follow-up status was reconciled on
+2026-11-05. The original slice descriptions are historical; use the
+[roadmap](../ROADMAP.md), [capability matrix](architecture/capability-matrix.md)
+and enforced API catalog for current release scope. An old issue reference alone
+is not evidence that its original gap remains open.
 
 | Surface | Previous API | Canonical replacement | This slice |
 |---|---|---|---|
@@ -30,8 +34,8 @@ surfaces are not retained as aliases.
 | configured-feature reference and payload | raw `String` feature reference on `PlacedFeature`, no builder for `worldgen/configured_feature/*.json` | `ConfiguredFeatureId`, `ConfiguredFeature` typed constructors for `no_op`/`simple_block`/`fill_layer`/`ore`, shared `BlockState`/`BlockStateProvider` value providers, explicit `ConfiguredFeature::raw`/`PlacedFeature::new_raw_feature` escape hatches | completed typed reference path + small common builder slice; other vanilla feature shapes remain raw pending broader worldgen parity; #189 |
 | recipe result identity for component-bearing custom items | `RecipeResult { id: String, count: u32 }` only — no way to carry a `CustomItem`'s data components into a recipe result | `RecipeResult::custom_item`/`from_custom_item` (+ `TryFrom<CustomItem>`/`TryFrom<&CustomItem>`, `CustomItem::recipe_result`) build a `result.components` object by reusing `CustomItem::stack_components`'s typed component serialization; gated on `ComponentFeature::ItemComponents` so unsupported targets fail clearly instead of stripping components; component-free `RecipeResult::item`/`raw`/`new` output is byte-identical to before | completed for results; component-aware recipe *ingredients* are intentionally unsupported — `Ingredient::custom_item` always returns a capability error because no targeted Minecraft version matches recipe ingredients by data component (silently degrading to base-item matching was identified as the primary risk to avoid); #226 |
 | jukebox_song/instrument descriptions | unvalidated `Option<serde_json::Value>` through an unnamed setter | required `TextComponent`-backed `description()` and explicit `raw_description(RawJson)`, sharing canonical recursive text and known-field validation with advancement display text | completed; vanilla duration key and comparator range corrected, export regressions and real-server codec coverage added; #321 / #459 |
-| jukebox_song/instrument sound events | string references only | pending: one shared typed reference/inline sound-event model and explicit raw fallback | descriptions are complete, but both registry rows remain partial until inline sound events are modelled; #463 |
-| trim_material override_armor_assets | the current `override_armor_assets` shape is not fully modeled | pending: typed `override_armor_assets` builder matching the current vanilla field | found during #193's audit; `minecraft:trim_material` remains `PartiallyImplemented`; #322 |
+| jukebox_song/instrument sound events | string references only | shared `SoundEventDefinition` with registered references, inline sound ID/range and explicit raw extensions | completed in #486; both registry rows are now `FullyImplemented` for the modeled schema, with retained 26.2 codec evidence; #463 closed |
+| trim_material override_armor_assets | incomplete `override_armor_assets` shape | typed `ResourceLocation` armor-material keys and validated `TrimAssetName` values | completed; registry coverage now marks the modeled schema `FullyImplemented`; #322 closed |
 | configured-carver reference and payload | raw `serde_json::Value` carvers field on `Biome`, no builder for `worldgen/configured_carver/*.json` (`Missing` in `registry_coverage.rs`) | `ConfiguredCarverId`, `ConfiguredCarver` typed constructors for `cave`/`nether_cave` sharing `CaveCarverConfig` (reusing `HeightProvider`/`VerticalAnchor`, plus a new `CarverFloatRange` uniform-float provider), `Biome::carver_step` (typed, step-grouped via `CarvingStep`), explicit `ConfiguredCarver::raw`/`Biome::raw_carvers` escape hatches | completed typed reference path + small common builder slice; other vanilla carver shapes remain raw pending broader worldgen parity; #191 |
 | `worldgen/biome` ambient sound, temperature modifier, and per-step feature references | raw `String` ambient sound, raw `String` temperature modifier (validated but untyped), raw `Value` features list-of-lists | `Biome::ambient_sounds(BiomeAmbientSounds)` with shared `SoundEventDefinition` holders and typed mood/additions settings in the 26.2 environment attribute, `TemperatureModifier` enum (`None`/`Frozen`) for `Biome::temperature_modifier`, and `Biome::feature(GenerationStep, ConfiguredFeatureId)` building the per-generation-step list-of-lists, with `Biome::raw_ambient_sounds`/`Biome::raw_temperature_modifier`/`Biome::raw_features` escape hatches | completed this slice of #182 plus `Biome::carvers` typing (#191); spawn-table and placement-modifier typing is also implemented; noise settings and other environment attributes remain open under #182; legacy music/particle effects fields are ignored by 26.2 and are not typed environment attributes |
 
@@ -76,8 +80,15 @@ JSON structs model distinct vanilla schemas; only the duplicate command-local
 predicate identifier was removed in favor of the generated canonical
 `PredicateId`.
 
-## Ordered remaining slices
+## Follow-up reconciliation
 
-1. Consolidate function-reference resolution beyond the validation completed by #175 (#373).
-2. Canonicalize storage/NBT roots (#371) and registry/resource conversion traits (#372).
-3. Move retained low-level state primitives out of the beginner/default surface (#374).
+The originally ordered follow-ups—function references (#373), canonical NBT roots
+(#371), resource conversions (#372), and advanced-only low-level State (#374)—
+have landed. They are not outstanding alpha prerequisites. Current work concerns
+complete author workflows, explicit lifecycle policy, measured runtime bounds
+and remaining resource-specific shapes; see the roadmap rather than reopening
+these completed consolidation tasks.
+
+The 2026-11-05 CLI review also exposed `EntityScoreValue`, an existing getter
+return type missing from the public façade. It now has a canonical public path
+and contracts; this adds no second numeric state representation.

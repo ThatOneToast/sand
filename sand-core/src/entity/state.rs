@@ -2078,7 +2078,16 @@ impl<T: 'static> EntityScoreAccessor<T> {
     }
 }
 
-/// Read-only view of the current entity's score.
+/// Read-only command view of a bound State score, including global holders.
+/// This is a Minecraft read operation, not a Rust integer. Use the bound field
+/// directly in numeric assignment/StatCurve and matches for gameplay conditions.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::entity::EntityScoreValue", module = "sand::entity",
+    summary = "Read-only command view returned by EntityScoreAccessor::get.",
+    context = "Retains the schema-selected holder and objective. Rust cannot read a live Minecraft score during pack compilation.",
+    minecraft = "Describes a scoreboard read; does not execute it or cache its result.",
+    use_when = ["Explicit command interoperability with a canonical State score"],
+    avoid_when = ["Copying or comparing State: use the bound numeric field or matches directly"],
+    example = "fn read_view(score: sand::entity::EntityScoreAccessor) -> sand::entity::EntityScoreValue { score.get() }")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntityScoreValue {
     objective: String,
@@ -2087,12 +2096,24 @@ pub struct EntityScoreValue {
 
 impl EntityScoreValue {
     /// Emit `scoreboard players get <holder> <objective>`.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::EntityScoreValue::command", module = "sand::entity",
+        summary = "Render the scoreboard read command for this bound value.",
+        context = "Explicit command interoperability; returned text must be emitted or consumed by a command builder.",
+        minecraft = "Emits scoreboard players get for the schema-selected holder and objective.",
+        use_when = ["Capturing a vanilla scoreboard command result"], avoid_when = ["Reading a live score into Rust"],
+        returns = "The scoreboard read command text.", example = "fn command(value: &sand::entity::EntityScoreValue) -> String { value.command() }")]
     #[must_use]
     pub fn command(&self) -> String {
         format!("scoreboard players get {} {}", self.holder, self.objective)
     }
 
     /// Resolved objective name.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::EntityScoreValue::objective", module = "sand::entity",
+        summary = "Borrow the resolved objective name of a bound score.",
+        context = "An interoperability view of the existing canonical State objective, not another objective allocation.",
+        minecraft = "No command or runtime mutation.", use_when = ["Explicit integration with objective-based APIs"],
+        avoid_when = ["Inventing a separate State identity"], returns = "The resolved objective name.",
+        example = "fn objective(value: &sand::entity::EntityScoreValue) -> &str { value.objective() }")]
     #[must_use]
     pub fn objective(&self) -> &str {
         &self.objective

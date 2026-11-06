@@ -38,7 +38,8 @@ use super::predicates::{
 };
 use super::records::{
     ComponentRecord, ExportResult, RegisteredComponent, component_to_record,
-    validate_objective_definitions, validate_unique_output_identities,
+    validate_gameplay_references, validate_objective_definitions,
+    validate_unique_output_identities,
 };
 use super::schedules::emit_schedule_records;
 use std::sync::{Arc, Mutex};
@@ -2701,6 +2702,7 @@ pub(crate) fn try_export_components_impl(
         super::schema_26_3::lower(&mut records)?;
     }
     validate_unique_output_identities(&records)?;
+    validate_gameplay_references(&records)?;
     validate_objective_definitions(&records)?;
 
     for path in [

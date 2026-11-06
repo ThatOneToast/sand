@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-05",
+  "baseline_cli_sha256": "a98ec0afe6a80fdcfbc27f6436d5109c3bd669195956890b4782e2f7e5794f61",
+  "baseline_catalog_items": 11625,
+  "restrictions": "Fresh agent with no inherited conversation; Sand discovery through frozen sand api only; own project/compiler/export inspection allowed; no browsing or framework source reads instructed. Instruction isolation, not an OS access sandbox.",
+  "source_changes_on_copy": "Only Cargo dependency paths and standalone workspace declaration adapted; gameplay source unchanged.",
+  "baseline_results": {
+    "components": 96,
+    "artifact_checks": "passed",
+    "agent_check": "passed",
+    "native_startup": "failed: nonexistent minecraft:close dialog action"
+  },
+  "author_scores": {
+    "discoverability": 5,
+    "composability": 7,
+    "diagnostics": 7,
+    "representative_export_coverage": 8
+  },
+  "score_limit": "One agent and one broad but non-exhaustive datapack; baseline subjective ratings, not post-fix scores.",
+  "parent_repairs": [
+    "word-start search",
+    "type-member navigation",
+    "existing EntityScoreValue public export",
+    "raw-material classification",
+    "State/Scene workflow examples",
+    "private gameplay helper validation",
+    "dialog dismissal serialization",
+    "26.3 advancement background validation"
+  ],
+  "final_native": {
+    "version": "26.3",
+    "startup": "passed",
+    "reload": "passed",
+    "shutdown": "passed",
+    "players": 0,
+    "gameplay": "unverified",
+    "gui": "not launched",
+    "source_patch": "Explicit stone background on the displayed root advancement"
+  },
+  "retained_project": {
+    "build": "passed",
+    "artifact_verifier": "passed",
+    "byte_identical_to_native_tested_pack": true
+  },
+  "repository_validation": {
+    "scripts/check.sh": "passed",
+    "git diff --check": "passed",
+    "log": "repository-check.log.gz"
+  }
+}

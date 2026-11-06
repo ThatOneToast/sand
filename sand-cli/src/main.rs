@@ -115,12 +115,20 @@ enum Commands {
         #[arg(long, default_value = "dev")]
         profile: String,
     },
-    /// **Requires Prism Launcher**
-    /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack
+    /// Launch an existing Prism instance into a local server or saved world
     Join {
         /// Join the local dev server started by `sand run`
         #[arg(long)]
         local: bool,
+        /// Existing Prism instance ID (folder name, not its display name)
+        #[arg(long)]
+        instance: String,
+        /// Existing world folder inside the Prism instance
+        #[arg(long, conflicts_with = "local")]
+        world: Option<String>,
+        /// Prism executable name or path
+        #[arg(long, default_value = "prismlauncher")]
+        launcher: PathBuf,
     },
     /// Remove build artifacts (dist/ and optionally Cargo target/)
     Clean {
@@ -162,7 +170,7 @@ struct NewArgs {
     /// Use local path dependencies pointing into a Sand workspace checkout
     ///
     /// By default, git dependencies against this repo's `main` branch are
-    /// emitted (e.g. `sand-core = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`),
+    /// emitted (e.g. `sand = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`),
     /// since Sand is not yet published to crates.io. Pass this flag if you
     /// are developing Sand itself and want Cargo to pick up your in-tree
     /// changes without pushing to `main`.
@@ -183,7 +191,7 @@ struct InitArgs {
     /// Use local path dependencies pointing into a Sand workspace checkout
     ///
     /// By default, git dependencies against this repo's `main` branch are
-    /// emitted (e.g. `sand-core = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`),
+    /// emitted (e.g. `sand = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`),
     /// since Sand is not yet published to crates.io. Pass this flag if you
     /// are developing Sand itself and want Cargo to pick up your in-tree
     /// changes without pushing to `main`.
@@ -325,7 +333,17 @@ fn run() -> Result<()> {
             no_build: false,
             server_log: sand_cli::console::OutputMode::Classified,
         }),
-        Commands::Join { local } => join_cmd::run(join_cmd::JoinArgs { local }),
+        Commands::Join {
+            local,
+            instance,
+            world,
+            launcher,
+        } => join_cmd::run(join_cmd::JoinArgs {
+            local,
+            instance,
+            world,
+            launcher,
+        }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {
             AddFeature::Resourcepack => add_cmd::run_resourcepack(),

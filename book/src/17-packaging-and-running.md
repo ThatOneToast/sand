@@ -126,14 +126,20 @@ sand run --server-log json
 ## `sand join`
 
 ```sh
-sand join --local
+sand join --local --instance my-instance
 ```
 
 **Requires Prism Launcher.** Joins the local dev server started by `sand
-run` (with `--local`), or joins a preconfigured `sand-dev` world with the
-datapack already attached — useful for
-testing without manually managing a Minecraft installation's world/mods
-folder.
+run` or `sand dev` (with `--local`), using the port in
+`dist/server/server.properties`. Otherwise it opens an existing `sand-dev`
+world; use `--world folder-name` to choose another. `--instance` is the Prism
+instance folder ID. Use `--launcher /path/to/prismlauncher` when Prism is not
+on PATH. Arguments are passed directly to Prism without shell interpretation.
+
+Configure the matching Minecraft version and account in Prism first. This command
+does not install the game, start the server, or copy datapacks into singleplayer
+worlds. Launcher failures return a nonzero exit status; successful launcher exit
+does not itself prove that Minecraft connected. See [Prism CLI documentation](https://www.prismlauncher.org/wiki/getting-started/command-line-interface/).
 
 ## `/reload` during a play session
 

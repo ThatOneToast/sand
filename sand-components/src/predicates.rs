@@ -1678,6 +1678,7 @@ impl Serialize for BlockPredicate {
 pub struct ItemPredicate {
     items: Option<Vec<ItemId>>,
     count: Option<IntRange>,
+    max_stack_size: Option<u32>,
     /// Named custom_data keys that must be truthy (emits as component check).
     custom_data_keys: Vec<String>,
     /// Raw component JSON for unsupported predicates.
@@ -1793,6 +1794,24 @@ impl ItemPredicate {
         if let Some(count) = &self.count {
             count.validate_at(&format!("{path}.count"))?;
         }
+        if self
+            .max_stack_size
+            .is_some_and(|size| !(1..=99).contains(&size))
+        {
+            return Err(format!("{path}.max_stack_size: requires 1..=99"));
+        }
+        if self.max_stack_size.is_some()
+            && self.raw_components.as_ref().is_some_and(|raw| {
+                raw.as_value().as_object().is_some_and(|map| {
+                    map.contains_key("minecraft:max_stack_size")
+                        || map.contains_key("max_stack_size")
+                })
+            })
+        {
+            return Err(format!(
+                "{path}.max_stack_size: raw component collides with typed stack capacity"
+            ));
+        }
         if let Some(raw) = &self.raw_components
             && !raw.as_value().is_object()
         {
@@ -1836,6 +1855,20 @@ impl ItemPredicate {
     )]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Match the effective native stack capacity, including vanilla defaults.
+    /// This compares the component value, not the current item count. Values
+    /// outside 1..=99 or a duplicate raw component constraint fail validation.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::predicate::ItemPredicate::max_stack_size",
+    aliases = ["sand::component::ItemPredicate::max_stack_size", "sand::prelude::ItemPredicate::max_stack_size"],
+    summary = "Match an item's effective native stack capacity.", context = "Composes exact component matching with canonical identity, count and custom-data constraints. Defaults and explicit component overrides use the same native comparison.",
+    minecraft = "Serializes minecraft:max_stack_size in exact component predicates and lowers to execute-if-items component equality.",
+    use_when = ["Checking whether live stacks have a particular capacity"], avoid_when = ["Testing current item count; use count instead"],
+    params(size = "Exact capacity in 1 through 99."), returns = "The configured predicate.", example = "ItemPredicate::new().max_stack_size(64)")]
+    pub fn max_stack_size(mut self, size: u32) -> Self {
+        self.max_stack_size = Some(size);
+        self
     }
 
     /// Raw escape hatch — serialize arbitrary JSON verbatim as this predicate.
@@ -2077,7 +2110,8 @@ impl ItemPredicate {
     }
 
     pub(crate) fn has_component_constraints(&self) -> bool {
-        !self.custom_data_keys.is_empty()
+        self.max_stack_size.is_some()
+            || !self.custom_data_keys.is_empty()
             || self.raw_components.is_some()
             || self.raw_predicates.is_some()
     }
@@ -2128,7 +2162,16 @@ impl Serialize for ItemPredicate {
         if let Some(ref v) = self.count {
             map.serialize_entry("count", v)?;
         }
-        if let Some(ref raw_c) = self.raw_components {
+        if let Some(size) = self.max_stack_size {
+            let mut components = self
+                .raw_components
+                .as_ref()
+                .and_then(|raw| raw.as_value().as_object())
+                .cloned()
+                .unwrap_or_default();
+            components.insert("minecraft:max_stack_size".into(), Value::from(size));
+            map.serialize_entry("components", &components)?;
+        } else if let Some(ref raw_c) = self.raw_components {
             map.serialize_entry("components", raw_c)?;
         }
         // Build the partial-match `predicates` bag from typed custom-data keys + raw fallback.
@@ -3029,6 +3072,33 @@ impl From<WeatherPredicate> for Value {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn stack_capacity_matches_canonical_components_and_rejects_invalid_constraints() {
+        let predicate = ItemPredicate::new().max_stack_size(16);
+        assert_eq!(
+            serde_json::to_value(&predicate).unwrap(),
+            json!({"components":{"minecraft:max_stack_size":16}})
+        );
+        assert_eq!(
+            lower_item_predicate_for_command(&predicate)
+                .unwrap()
+                .constraints,
+            ["minecraft:max_stack_size=16"]
+        );
+        for size in [0, 100, u32::MAX] {
+            assert!(
+                lower_item_predicate_for_command(&ItemPredicate::new().max_stack_size(size))
+                    .is_err()
+            );
+        }
+        for key in ["max_stack_size", "minecraft:max_stack_size"] {
+            let predicate = ItemPredicate::new()
+                .max_stack_size(16)
+                .raw_components(RawJson::new(json!({key:64})));
+            assert!(lower_item_predicate_for_command(&predicate).is_err());
+        }
+    }
 
     fn item(path: &str) -> ItemId {
         ItemId::minecraft(path).unwrap()

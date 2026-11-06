@@ -1,0 +1,4 @@
+[pack]
+namespace = "cooperative_arena"
+description = "Two bounded cooperative arena rounds with typed membership"
+mc_version = "26.3"

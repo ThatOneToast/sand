@@ -24,10 +24,17 @@ sand api search damage player --all-terms --format json
 sand api search score --field path --field summary --kind method --format json
 sand api show sand::command::Target::nearby --format json
 sand api module sand::entity --format json
+sand api module sand::systems::Progression --format json
 sand api alternatives "damage entity" --format json
 ```
 
-Search remains deterministic keyword matching. JSON results contain stable
+Use `module` with a type path to list its constructors, methods, variants and
+fields; registered aliases resolve to the canonical type. `show` points to this
+member query and prioritizes the queried type’s own members in related APIs.
+
+Search remains deterministic keyword matching at word/identifier starts,
+including snake_case and CamelCase boundaries. For example, `quest` matches
+quest descriptions but not the interior of `requested_version`. JSON results contain stable
 rank and score values, the field/snippet that matched, canonical paths,
 availability, result counts, and truncation state. `alternatives` separates
 typed authoring APIs from advanced/raw escape hatches and refuses to claim an
@@ -52,3 +59,19 @@ Minecraft-specific checks.
 The same command sequence works in Zed tasks, Claude Code hooks, Codex scripts,
 and local-agent tool definitions. Consume JSON fields, not colored terminal
 prose, and treat a nonzero exit status as a failed authoring step.
+
+## Discovery limits and a reproducible authoring audit
+
+Generated names from your own State struct cannot be finite installed catalog
+entries. `sand api show sand::State` teaches declaration, bound accessors,
+associated field constants, initialization and typed queries. For owned systems,
+register the complete definition with `#[datapack_component]` before calling
+its actions. `sand api show sand::systems::Scene` includes that full workflow.
+Export rejects missing static private gameplay helpers, while external author
+function references remain an interoperability boundary.
+
+The [fresh-agent experiment](../../../benchmarks/evidence/api-authoring-2026-11-05/README.md)
+records a CLI-only authoring attempt, its original independent ratings and
+subsequent repairs. A passing `sand check` is not a substitute for native parsing:
+the original broad pack exposed both an invalid dialog action and a missing
+26.3 root-advancement background during the parent's server smoke test.

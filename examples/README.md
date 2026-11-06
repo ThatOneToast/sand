@@ -7,6 +7,7 @@ subdirectories below are standalone crates that build against this checkout.
 
 | Project | Purpose |
 | --- | --- |
+| [cooperative_arena](cooperative_arena/) | Two bounded multiplayer arenas, typed roles, custom-health combat, owned HUDs, replay and saved wins. |
 | [aether_tools](aether_tools/) | Shared resource pools and synchronous accepted-target abilities. |
 | [quest_rounds](quest_rounds/) | Saved personal quests and independently resettable owned rounds. |
 | [interaction_hub](interaction_hub/) | Player menu sessions, owned interactables, purchases, books and a quest reward. |
@@ -19,7 +20,9 @@ subdirectories below are standalone crates that build against this checkout.
 | [portable_counter](portable_counter/) | Rust frontend for the portable-program acceptance counter. |
 | [arcane_pack](arcane_pack/) | Advanced integration fixture with primitive scoreboard/storage controls and golden tests. |
 
-Start with `book_project` for new gameplay. `arcane_pack` deliberately retains
+Start with `book_project` for the guided tutorial and `cooperative_arena` for a
+bounded multiplayer game. The arena has native headless evidence; ordinary
+client input/rendering and measured capacity remain alpha acceptance work. `arcane_pack` deliberately retains
 lower-level interop coverage; it is not the canonical State authoring model.
 
 ## Typed Beginner Path

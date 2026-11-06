@@ -2151,7 +2151,7 @@
         ],
         "selector_sites": []
       },
-      "quest_rounds:sand/conditions/items/04d48348": {
+      "quest_rounds:sand/conditions/items/42304e25": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -2168,7 +2168,7 @@
           }
         ]
       },
-      "quest_rounds:sand/conditions/items/b93004ff": {
+      "quest_rounds:sand/conditions/items/96a4817c": {
         "evaluations": {
           "maximum": 2,
           "minimum": 1,
@@ -3122,10 +3122,10 @@
         "quest_rounds:resume": [
           "quest_rounds::resume"
         ],
-        "quest_rounds:sand/conditions/items/04d48348": [
+        "quest_rounds:sand/conditions/items/42304e25": [
           "quest_rounds::journal"
         ],
-        "quest_rounds:sand/conditions/items/b93004ff": [
+        "quest_rounds:sand/conditions/items/96a4817c": [
           "quest_rounds::journal"
         ],
         "quest_rounds:sand/numeric/sd8990554b07cf79/356a4121": [

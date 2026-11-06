@@ -6,7 +6,7 @@ the compiler owns command generation, version differences and optimization.
 Rust does not run inside Minecraft, and Sand cannot supply server-plugin hooks
 that vanilla does not expose.
 
-This is the current implementation roadmap, reviewed on 2026-11-04. “Implemented”
+This is the current implementation roadmap, reviewed on 2026-11-05. “Implemented”
 means a bounded API exists with tests, not that the entire feature category is
 finished. Sand is pre-1.0; public APIs remain changeable. Default target: **26.3**.
 Keep **26.1 and 26.2** export compatibility, with explicit capability errors for
@@ -101,12 +101,12 @@ Evidence: [hit volumes/sequences](book/src/23f-hit-volumes-and-sequences.md),
   and personal/shared claims, placement before payment, reentrancy protection.
 - [x] Typed conversation views and guarded forward/back/confirmation flows in
   Menu, preserving exact object binding and callback navigation precedence.
-- [x] Whole-stack numbered player-slot transfers, conservative stack merging,
-  exact whole-slot item payments and listener-interference compensation.
+- [x] Whole-stack and exact-quantity numbered player-slot transfers, native-capacity stack merging,
+  exact-quantity item payments and listener-interference compensation.
 - [x] Typed written books using canonical rich text and item components.
 
 Limits: native click records may coalesce; dialog close has no reliable callback,
-so timeout/explicit cleanup remains necessary. Books are snapshots. Transfers merge only when explicit native stack capacity and exact components
+so timeout/explicit cleanup remains necessary. Books are snapshots. Transfers merge only when effective native stack capacity and exact components
 agree; they and purchases are not general transactions. Chest-slot interception,
 forced book opening and unrestricted form submission are not provided.
 
@@ -129,9 +129,9 @@ Evidence: [interaction guide](book/src/23i-interactions.md),
 - [x] Dynamic Journal snapshots from canonical State with explicit player-slot
   delivery/owned replacement, safe rich text and checked native delivery.
   See [journals and checkpoints](book/src/23m-journals-and-checkpoints.md).
-- [ ] Broaden inventory workflows beyond the implemented whole-stack numbered
-  player slots: partial quantities, canonical default stack-capacity metadata and
-  loaded block/container destinations. Preserve identity and listener-interference
+- [x] Partial quantities and effective native default stack-capacity queries for
+  numbered player slots, preserving remainders and exact components.
+- [ ] Extend inventory workflows to loaded block/container destinations. Preserve identity and listener-interference
   checks; see [current bounded workflows](docs/gameplay/inventory-workflows.md).
 - [ ] Reusable block/chest-shaped interactions through managed hitboxes and world
   capabilities, clearly separated from unavailable native container GUI hooks.
@@ -144,9 +144,14 @@ cleanup proven in native tests. Include a maintained end-to-end authoring exampl
 
 - [x] Ordered quest/objective progression and once-per-reset rewards over canonical
   State and events; [quest_rounds](examples/quest_rounds/) demonstrates both.
-- [ ] Broaden progression to reusable branching/prerequisite and quest-journal policies.
+- [x] Forward-only conditional progression branches with declaration-order priority,
+  canonical objective prerequisites and once-per-reset rewards.
+- [ ] Broaden reusable quest-journal policies.
 - [x] Owner/host-scoped session lifecycle and explicit reset/restart policies.
-- [ ] Matchmaking, teams, spectators and reusable multi-participant round policies.
+- [x] Explicit bounded online arena rosters over canonical player State and typed
+  roles, exclusive transfers, disconnect/reload invalidation, and a two-arena
+  cooperative reference game. See [arena rosters](docs/gameplay/arena-rosters.md).
+- [ ] Dynamic matchmaking, offline reservations and broader reusable round policies.
 - [ ] Target selection, threat and encounter-phase policies composed with existing
   queries, Combat and child tasks. Define movement/navigation limits separately.
 - [x] Checkpoint projections between canonical integer State fields, schema
@@ -187,11 +192,17 @@ native interpolation and existing models before adding per-tick command work.
   preserving unknown costs and explicit review thresholds.
 - [ ] Add population-aware before/after native workloads; static command counts
   and advice thresholds are not server performance guarantees.
+- [x] Fresh-agent CLI-only authoring audit, word-boundary search, type/member
+  navigation, State/Scene workflow examples and missing gameplay-registration
+  diagnostics. [Evidence and limits](benchmarks/evidence/api-authoring-2026-11-05/README.md).
 - [ ] Improve diagnostics for ownership, version limits, execution context and
   unsupported vanilla signals; offer canonical API alternatives.
 - [ ] Explicit pack reset/uninstall tooling with owned-resource cleanup; document
   that removing a datapack cannot trigger a fabricated vanilla unload callback.
-- [ ] Improve gameplay test authoring and failure evidence, including negative
+- [x] One [alpha scenario command](docs/testing/alpha-workflow.md) with retained
+  per-scenario logs, aggregate results and failure propagation; passive clients
+  remain explicitly separate from actual player-input/rendering proof.
+- [ ] Improve general gameplay test authoring and failure evidence, including negative
   cases and performance budgets. Keep export, native and compile-fail tests distinct.
 - [x] Measure isolated fresh-target, warm facade-edit and no-op checks on 26.3;
   retain source fingerprints and raw logs in the [build baseline](docs/testing/build-benchmarks.md).
@@ -208,12 +219,13 @@ See [benchmarks and limitations](BENCHMARKS.md).
 - [x] Full local gate: `scripts/check.sh` plus `git diff --check`.
 - [x] Shared Python test discovery for local checks and Rust CI.
 - [x] Example export/runtime baselines and compile/API-contract architecture guards.
-- [x] Vanilla CI wiring: 26.2 for player ownership/interactions/resource policies and 26.3 for
-  entity gameplay/compute;
+- [x] Vanilla CI wiring: both 26.2 and 26.3 for player ownership, interactions,
+  inventory and HUD; 26.3 for entity gameplay/compute;
   retain failure artifacts.
 - [x] Verified real-player protocol lifecycle on 26.2 and 26.3: two players,
   keepalive, dimension changes, controlled damage and reconnect persistence. See
   [jar-derived protocol evidence](docs/testing/player-protocols.md).
+- [x] Run player ownership, inventory and HUD proofs on both 26.2 and 26.3.
 - [ ] Broaden every remaining player scenario to 26.3; passive client support
   does not establish scripted controls or all gameplay policies on that target.
 - [x] Native 26.2 proofs for exact-object isolation with nearby simultaneous

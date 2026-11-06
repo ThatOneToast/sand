@@ -23,7 +23,7 @@ class PlayerHarness(WorldGameplayHarness):
         profile_for_version(self.args.version)
         super().prepare()
         with (self.server / "server.properties").open("a", encoding="utf-8") as properties:
-            properties.write("max-players=2\n")
+            properties.write(f"max-players={len(self.players)}\n")
 
     def eventually(self, name, condition):
         deadline = time.monotonic() + self.args.timeout

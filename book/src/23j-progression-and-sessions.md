@@ -111,3 +111,21 @@ and checks one-stage dispatch, once-per-reset rewards, callback reentry,
 cancellation/reset, descendants and score cleanup, State detachment and reload
 preservation followed by explicit resume. It does not establish real-player
 reconnect transport or offline ticking.
+
+## Forward quest branches
+
+`Progression::branch(from, to, condition)` selects a conditional forward successor
+after the current objective becomes eligible. The first matching branch wins;
+otherwise the next sequential objective is used. Only the current objective's
+reward runs. Skipped objectives receive no reward. `to == objective_count` means
+completion. Forward-only indices keep rewards once per explicit reset; changing
+branch meanings or objective ordering requires a saved State migration.
+
+For example, `.branch(0, 2, |owner| owner.state(Quest::reputation).matches(10..).unwrap())`
+skips objective 1 when objective 0 completes with sufficient reputation. Use the
+ordinary objective condition for prerequisites. At most 256 branches are accepted;
+cycles, invalid indices and out-of-range terminal indices fail export.
+
+For explicit multiplayer arenas, compose Session with `Roster<Role>` over ordinary
+player State. See [bounded arena rosters](../../docs/gameplay/arena-rosters.md) and
+the [cooperative arena example](../../examples/cooperative_arena/README.md).

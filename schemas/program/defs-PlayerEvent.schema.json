@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A player occurrence that runs handler functions as that player.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Every join, including the first; observed on the next tick.",
+      "properties": {
+        "kind": {
+          "const": "join",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Only the first time a player ever joins.",
+      "properties": {
+        "kind": {
+          "const": "first_join",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player died (any cause).",
+      "properties": {
+        "kind": {
+          "const": "death",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player killed any entity.",
+      "properties": {
+        "kind": {
+          "const": "kill_entity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player killed another player.",
+      "properties": {
+        "kind": {
+          "const": "kill_player",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player used (right-clicked or consumed) an item.",
+      "properties": {
+        "item": {
+          "description": "Used item identity, such as `minecraft:carrot_on_a_stick`.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "use_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player jumped.",
+      "properties": {
+        "kind": {
+          "const": "jump",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player dropped an item.",
+      "properties": {
+        "kind": {
+          "const": "drop_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player slept in a bed.",
+      "properties": {
+        "kind": {
+          "const": "sleep",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player took damage.",
+      "properties": {
+        "kind": {
+          "const": "take_damage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player dealt damage.",
+      "properties": {
+        "kind": {
+          "const": "deal_damage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player crafted an item.",
+      "properties": {
+        "item": {
+          "description": "Crafted item identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "craft_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player picked up an item.",
+      "properties": {
+        "item": {
+          "description": "Picked-up item identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "pick_up_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player mined a block.",
+      "properties": {
+        "block": {
+          "description": "Mined block identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "mine_block",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The player killed an entity of one type.",
+      "properties": {
+        "entity": {
+          "description": "Killed entity type identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "kill_entity_type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "An entity of one type killed the player.",
+      "properties": {
+        "entity": {
+          "description": "Killer entity type identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "killed_by",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "type": "object"
+    }
+  ]
+}

@@ -4,6 +4,8 @@ members = [
     "sand",
     "sand-api-enforce",
     "sand-cli",
+    "sand-lang",
+    "sand-lsp",
     "sand-core",
     "sand-macros",
     "sand-api-contract",

@@ -664,8 +664,8 @@ mod tests {
             .count();
         assert_eq!(command_entries.len(), command_rust_items);
         let (command_count, registry_count) = match commands["minecraft_version"].as_str() {
-            Some("26.2") => (1_233, 4_867),
-            Some("26.3") => (1_255, 5_104),
+            Some("26.2") => (1_233, 5_036),
+            Some("26.3") => (1_255, 5_276),
             version => panic!("add verified provider counts for {version:?}"),
         };
         assert_eq!(command_entries.len(), command_count);

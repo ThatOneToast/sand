@@ -40,6 +40,13 @@
 # Checkpoint/Journal policies add 15 systems items; RuntimeAdvice and report
 # guidance add two advanced items (+47 source items in this increment).
 # Bounded Roster adds one type and nine contracted systems methods (+10).
+# Portable gameplay vocabulary (score operations, relations, messages, sounds,
+# particles, effects, items, schedules and player events) adds 117 advanced items.
+# Portable control flow (Return, While) and attribute get/set with scaled
+# amounts add 19 advanced items.
+# Generated ParticleType and Attribute registries add two enums, two
+# resource_location methods and one variant per vanilla entry (+169 on 26.2,
+# +172 on 26.3).
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -48,19 +55,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5269
+static_surface_items = 5527
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11369
+static_surface_items = 11796
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 11628
+static_surface_items = 12058
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

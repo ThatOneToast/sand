@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla scoreboard arithmetic operator applied to a State field.",
+  "oneOf": [
+    {
+      "const": "set",
+      "description": "Copy the operand into the field.",
+      "type": "string"
+    },
+    {
+      "const": "add",
+      "description": "Add the operand.",
+      "type": "string"
+    },
+    {
+      "const": "sub",
+      "description": "Subtract the operand.",
+      "type": "string"
+    },
+    {
+      "const": "mul",
+      "description": "Multiply by the operand.",
+      "type": "string"
+    },
+    {
+      "const": "div",
+      "description": "Floor-divide by the operand; dividing by zero leaves the field unchanged.",
+      "type": "string"
+    },
+    {
+      "const": "mod",
+      "description": "Floor modulo by the operand; modulo zero leaves the field unchanged.",
+      "type": "string"
+    },
+    {
+      "const": "min",
+      "description": "Keep the smaller of the field and the operand.",
+      "type": "string"
+    },
+    {
+      "const": "max",
+      "description": "Keep the larger of the field and the operand.",
+      "type": "string"
+    }
+  ]
+}

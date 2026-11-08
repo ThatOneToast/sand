@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A test that the executor has an entity State attached.",
+  "properties": {
+    "attached": {
+      "description": "The entity State.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "attached"
+  ],
+  "type": "object"
+}

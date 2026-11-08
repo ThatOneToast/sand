@@ -17,6 +17,8 @@ sand-api-contract = { path = "../sand-api-contract" }
 sand-build = { path = "../sand-build" }
 sand-components = { path = "../sand-components" }
 sand-core = { path = "../sand-core" }
+sand-lang = { path = "../sand-lang" }
+sand-lsp = { path = "../sand-lsp" }
 clap = { version = "4", features = ["derive"] }
 # default-features off: handlebars 6.4.3+ enables `preserve_json_order` by
 # default, which flips serde_json to insertion-ordered maps workspace-wide and

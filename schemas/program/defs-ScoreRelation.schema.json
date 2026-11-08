@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A comparison between two State fields.",
+  "properties": {
+    "left": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "The left-hand State field."
+    },
+    "relation": {
+      "$ref": "defs-Relation.schema.json",
+      "description": "How the fields must relate."
+    },
+    "right": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "The right-hand State field."
+    }
+  },
+  "required": [
+    "left",
+    "relation",
+    "right"
+  ],
+  "type": "object"
+}

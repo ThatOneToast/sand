@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A crafting, cooking, or stonecutting recipe.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "A crafting-table pattern.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "kind": {
+          "const": "shaped",
+          "type": "string"
+        },
+        "pattern": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "result": {
+          "$ref": "defs-RecipeOutput.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "pattern",
+        "key",
+        "result"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Crafting ingredients in any arrangement.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ingredients": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "shapeless",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "defs-RecipeOutput.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "ingredients",
+        "result"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A furnace-like recipe.",
+      "properties": {
+        "experience": {
+          "default": 0.0,
+          "format": "float",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ingredient": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "cooking",
+          "type": "string"
+        },
+        "method": {
+          "$ref": "defs-CookingMethod.schema.json"
+        },
+        "result": {
+          "$ref": "defs-RecipeOutput.schema.json"
+        },
+        "time": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "method",
+        "ingredient",
+        "result"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A stonecutter recipe.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ingredient": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "stonecutting",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "defs-RecipeOutput.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "ingredient",
+        "result"
+      ],
+      "type": "object"
+    }
+  ]
+}

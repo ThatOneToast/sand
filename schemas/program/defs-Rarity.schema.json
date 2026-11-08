@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How rare an item looks; colours its name.",
+  "oneOf": [
+    {
+      "const": "common",
+      "description": "White name.",
+      "type": "string"
+    },
+    {
+      "const": "uncommon",
+      "description": "Yellow name.",
+      "type": "string"
+    },
+    {
+      "const": "rare",
+      "description": "Aqua name.",
+      "type": "string"
+    },
+    {
+      "const": "epic",
+      "description": "Light purple name.",
+      "type": "string"
+    }
+  ]
+}

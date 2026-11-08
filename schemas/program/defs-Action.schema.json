@@ -53,7 +53,7 @@
       "description": "Evaluate the comparison once and execute exactly one ordered body.",
       "properties": {
         "condition": {
-          "$ref": "defs-ScoreComparison.schema.json"
+          "$ref": "defs-Condition.schema.json"
         },
         "op": {
           "const": "branch",
@@ -134,6 +134,552 @@
       "required": [
         "op",
         "command"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Combine a field with another field or a constant using scoreboard\narithmetic, then apply the field's declared bounds.",
+      "properties": {
+        "op": {
+          "const": "score_operation",
+          "type": "string"
+        },
+        "operand": {
+          "$ref": "defs-ScoreOperand.schema.json"
+        },
+        "operator": {
+          "$ref": "defs-ScoreOperator.schema.json"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "operator",
+        "operand"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Store a uniformly random integer from the inclusive range.",
+      "properties": {
+        "max": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "min": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "op": {
+          "const": "score_random",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "min",
+        "max"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Show styled text; a `player` audience needs a player executor.",
+      "properties": {
+        "audience": {
+          "$ref": "defs-Audience.schema.json"
+        },
+        "channel": {
+          "$ref": "defs-MessageChannel.schema.json"
+        },
+        "op": {
+          "const": "message",
+          "type": "string"
+        },
+        "text": {
+          "items": {
+            "$ref": "defs-TextPart.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "op",
+        "audience",
+        "channel",
+        "text"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Play a sound to the executing player at their position.",
+      "properties": {
+        "op": {
+          "const": "sound",
+          "type": "string"
+        },
+        "pitch": {
+          "default": 1.0,
+          "format": "float",
+          "type": "number"
+        },
+        "sound": {
+          "type": "string"
+        },
+        "volume": {
+          "default": 1.0,
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "op",
+        "sound"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Spawn particles at the executor's position.",
+      "properties": {
+        "count": {
+          "default": 1,
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "op": {
+          "const": "particle",
+          "type": "string"
+        },
+        "particle": {
+          "type": "string"
+        },
+        "speed": {
+          "default": 0.0,
+          "format": "float",
+          "type": "number"
+        },
+        "spread": {
+          "default": 0.0,
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "op",
+        "particle"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Apply a status effect to the executing player.",
+      "properties": {
+        "amplifier": {
+          "default": 0,
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "effect": {
+          "type": "string"
+        },
+        "hide_particles": {
+          "default": false,
+          "type": "boolean"
+        },
+        "op": {
+          "const": "effect",
+          "type": "string"
+        },
+        "seconds": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "effect"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Remove one status effect, or all of them, from the executing player.",
+      "properties": {
+        "effect": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "op": {
+          "const": "clear_effect",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Give items to the executing player.",
+      "properties": {
+        "count": {
+          "default": 1,
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "item": {
+          "type": "string"
+        },
+        "op": {
+          "const": "give_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Remove matching items, or every item, from the executing player.",
+      "properties": {
+        "count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "item": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "op": {
+          "const": "clear_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Run a server-context function after a delay, replacing any pending\nschedule of the same function.",
+      "properties": {
+        "function": {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        "op": {
+          "const": "schedule",
+          "type": "string"
+        },
+        "ticks": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "op",
+        "function",
+        "ticks"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "End the current function. Inside a `Players` body it ends only the\ncurrent player's turn, like `continue`.",
+      "properties": {
+        "op": {
+          "const": "return",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Check the condition before each pass and repeat the body while it holds.\nMinecraft's command-chain limit bounds runaway loops.",
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "defs-Operation.schema.json"
+          },
+          "type": "array"
+        },
+        "condition": {
+          "$ref": "defs-Condition.schema.json"
+        },
+        "op": {
+          "const": "while",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "condition",
+        "body"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Store the executing player's attribute base value, multiplied by\n`scale` and truncated, in a State field.",
+      "properties": {
+        "attribute": {
+          "type": "string"
+        },
+        "op": {
+          "const": "attribute_get",
+          "type": "string"
+        },
+        "scale": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "attribute"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Set the executing player's attribute base value to a constant or a\nState-derived amount.",
+      "properties": {
+        "attribute": {
+          "type": "string"
+        },
+        "op": {
+          "const": "attribute_set",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-Amount.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "attribute",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Run the body as each matching entity, positioned at it. A `Return`\ninside ends only the current entity's turn.",
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "defs-Operation.schema.json"
+          },
+          "type": "array"
+        },
+        "op": {
+          "const": "entities",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "defs-EntityQuery.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "query",
+        "body"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Kill the executing entity.",
+      "properties": {
+        "op": {
+          "const": "kill",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Add or remove a tag on the executing entity.",
+      "properties": {
+        "add": {
+          "type": "boolean"
+        },
+        "op": {
+          "const": "entity_tag",
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "tag",
+        "add"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Summon an entity at the executor's position.",
+      "properties": {
+        "entity_type": {
+          "type": "string"
+        },
+        "op": {
+          "const": "summon",
+          "type": "string"
+        },
+        "tag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "entity_type"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Damage the executing entity, in half-hearts.",
+      "properties": {
+        "amount": {
+          "format": "float",
+          "type": "number"
+        },
+        "op": {
+          "const": "damage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "amount"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Store how many entities match the query.",
+      "properties": {
+        "op": {
+          "const": "count_entities",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "defs-EntityQuery.schema.json"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "query"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Move the executing entity.",
+      "properties": {
+        "destination": {
+          "$ref": "defs-TeleportDestination.schema.json"
+        },
+        "op": {
+          "const": "teleport",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "destination"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Attach an entity State to the executor: fields without a value take\ntheir defaults, then the State is marked present.",
+      "properties": {
+        "op": {
+          "const": "attach_state",
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "state"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Detach an entity State from the executor, clearing its fields.",
+      "properties": {
+        "op": {
+          "const": "detach_state",
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "state"
       ],
       "type": "object"
     }

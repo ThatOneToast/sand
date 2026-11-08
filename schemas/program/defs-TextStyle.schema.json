@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Visual styling shared by every text part.",
+  "properties": {
+    "bold": {
+      "description": "Bold text.",
+      "type": "boolean"
+    },
+    "color": {
+      "anyOf": [
+        {
+          "$ref": "defs-TextColor.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Named text colour."
+    },
+    "italic": {
+      "description": "Italic text.",
+      "type": "boolean"
+    },
+    "underlined": {
+      "description": "Underlined text.",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

@@ -129,12 +129,14 @@ pub(super) fn validate(
                     "invalid or duplicate State identity",
                 ));
             }
-            if !matches!(state.scope.as_str(), "player" | "global") || state.revision != 1 {
+            if !matches!(state.scope.as_str(), "player" | "entity" | "global")
+                || state.revision != 1
+            {
                 errors.push(Diagnostic::error(
                     "SAND_PROGRAM_STATE",
                     &owner,
                     &ptr,
-                    "v1 requires player or global State revision 1",
+                    "v1 requires player, entity, or global State revision 1",
                 ));
             }
             let mut fields = BTreeSet::new();
@@ -231,6 +233,19 @@ pub(super) fn validate(
                     "invalid or duplicate flow identity",
                 ));
             }
+            if validator
+                .states
+                .get(&flow.state.state.to_string())
+                .is_some_and(|(scope, _)| *scope == "entity")
+            {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_FLOW",
+                    &owner,
+                    &format!("{ptr}/state"),
+                    "flows run over player or global State, not entity State",
+                ));
+                continue;
+            }
             let context = if validator
                 .states
                 .get(&flow.state.state.to_string())
@@ -317,6 +332,226 @@ pub(super) fn validate(
                 ExecutionContext::Player
             };
             validator.call(&tag.function, context, &owner, &format!("{ptr}/function"));
+        }
+        for (index, hook) in module.events.iter().enumerate() {
+            let ptr = format!("/events/{index}");
+            if let Some((id, kind)) = hook.event.filter() {
+                validator.resource(id, &owner, &format!("{ptr}/event"), kind);
+            }
+            // Handlers run as the observed player.
+            validator.call(
+                &hook.function,
+                ExecutionContext::Player,
+                &owner,
+                &format!("{ptr}/function"),
+            );
+        }
+    }
+    let custom_items: BTreeSet<String> = program
+        .modules
+        .iter()
+        .flat_map(|m| m.items.iter().map(|i| i.id.to_string()))
+        .collect();
+    let mut resource_ids = BTreeSet::new();
+    for module in &program.modules {
+        let owner = module.id.to_string();
+        let mut push = |ptr: String, message: String| {
+            errors.push(Diagnostic::error(
+                "SAND_PROGRAM_RESOURCE",
+                &owner,
+                &ptr,
+                message,
+            ));
+        };
+        let item_id = |id: &str| {
+            id.strip_prefix('#').is_none()
+                && id.parse::<ResourceLocation>().is_ok()
+                && id.contains(':')
+        };
+        let ingredient = |id: &str| {
+            id.strip_prefix('#')
+                .unwrap_or(id)
+                .parse::<ResourceLocation>()
+                .is_ok()
+                && id.contains(':')
+        };
+        for (index, item) in module.items.iter().enumerate() {
+            let ptr = format!("/items/{index}");
+            if !resource_ids.insert(format!("item {}", item.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate custom item `{}`", item.id),
+                );
+            }
+            if item.id.namespace() == "minecraft" {
+                push(
+                    format!("{ptr}/id"),
+                    "custom items must not use the `minecraft` namespace".into(),
+                );
+            }
+            if !item_id(&item.base) || custom_items.contains(&item.base) {
+                push(
+                    format!("{ptr}/base"),
+                    format!("`{}` is not a vanilla base item", item.base),
+                );
+            }
+            if item
+                .name
+                .iter()
+                .chain(item.lore.iter().flatten())
+                .any(|part| !matches!(part, TextPart::Text { .. }))
+            {
+                push(
+                    ptr.clone(),
+                    "item names and lore are static text; scores and player names are not allowed"
+                        .into(),
+                );
+            }
+            if item.max_stack.is_some_and(|n| !(1..=99).contains(&n)) {
+                push(
+                    format!("{ptr}/max_stack"),
+                    "max stack must be 1..=99".into(),
+                );
+            }
+            for (enchantment, level) in &item.enchantments {
+                if !item_id(enchantment) || !(1..=255).contains(level) {
+                    push(
+                        format!("{ptr}/enchantments"),
+                        format!("enchantment `{enchantment}` needs an id and a level of 1..=255"),
+                    );
+                }
+            }
+        }
+        for (index, recipe) in module.recipes.iter().enumerate() {
+            let ptr = format!("/recipes/{index}");
+            if !resource_ids.insert(format!("recipe {}", recipe.id())) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate recipe `{}`", recipe.id()),
+                );
+            }
+            let mut inputs: Vec<(String, &String)> = Vec::new();
+            let result = match recipe {
+                Recipe::Shaped {
+                    pattern,
+                    key,
+                    result,
+                    ..
+                } => {
+                    let width = pattern.first().map(|r| r.chars().count()).unwrap_or(0);
+                    if pattern.is_empty()
+                        || pattern.len() > 3
+                        || width == 0
+                        || width > 3
+                        || pattern.iter().any(|r| r.chars().count() != width)
+                    {
+                        push(format!("{ptr}/pattern"), "a shaped pattern has one to three rows of equal width, at most three wide".into());
+                    }
+                    let used: BTreeSet<char> = pattern
+                        .iter()
+                        .flat_map(|r| r.chars())
+                        .filter(|c| *c != ' ')
+                        .collect();
+                    for c in &used {
+                        if !key.contains_key(&c.to_string()) {
+                            push(
+                                format!("{ptr}/key"),
+                                format!("pattern character `{c}` has no key"),
+                            );
+                        }
+                    }
+                    for (symbol, item) in key {
+                        let mut chars = symbol.chars();
+                        let single = chars.next().filter(|c| *c != ' ' && chars.next().is_none());
+                        match single {
+                            None => push(
+                                format!("{ptr}/key"),
+                                format!("key `{symbol}` must be one character other than space"),
+                            ),
+                            Some(c) if !used.contains(&c) => push(
+                                format!("{ptr}/key"),
+                                format!("key `{symbol}` is not used in the pattern"),
+                            ),
+                            Some(_) => {}
+                        }
+                        inputs.push((format!("{ptr}/key/{symbol}"), item));
+                    }
+                    result
+                }
+                Recipe::Shapeless {
+                    ingredients,
+                    result,
+                    ..
+                } => {
+                    if ingredients.is_empty() || ingredients.len() > 9 {
+                        push(
+                            format!("{ptr}/ingredients"),
+                            "a shapeless recipe has one to nine ingredients".into(),
+                        );
+                    }
+                    inputs.extend(
+                        ingredients
+                            .iter()
+                            .enumerate()
+                            .map(|(i, item)| (format!("{ptr}/ingredients/{i}"), item)),
+                    );
+                    result
+                }
+                Recipe::Cooking {
+                    ingredient,
+                    result,
+                    experience,
+                    time,
+                    ..
+                } => {
+                    if !(experience.is_finite() && *experience >= 0.0) || *time == Some(0) {
+                        push(
+                            ptr.clone(),
+                            "cooking experience must be non-negative and time positive".into(),
+                        );
+                    }
+                    inputs.push((format!("{ptr}/ingredient"), ingredient));
+                    result
+                }
+                Recipe::Stonecutting {
+                    ingredient, result, ..
+                } => {
+                    inputs.push((format!("{ptr}/ingredient"), ingredient));
+                    result
+                }
+            };
+            for (input_ptr, item) in inputs {
+                if custom_items.contains(item.as_str()) {
+                    push(
+                        input_ptr,
+                        format!(
+                            "custom item `{item}` cannot be a recipe ingredient: vanilla recipes match only by item id or tag"
+                        ),
+                    );
+                } else if !ingredient(item) {
+                    push(input_ptr, format!("`{item}` is not an item id or `#tag`"));
+                }
+            }
+            if !(item_id(&result.item)) || !(1..=99).contains(&result.count) {
+                push(
+                    format!("{ptr}/result"),
+                    "a recipe result is an item id with a count of 1..=99".into(),
+                );
+            }
+        }
+        for (index, tag) in module.resource_tags.iter().enumerate() {
+            let ptr = format!("/resource_tags/{index}");
+            if !resource_ids.insert(format!("tag {:?} {}", tag.kind, tag.id)) {
+                push(format!("{ptr}/id"), format!("duplicate tag `{}`", tag.id));
+            }
+            for (i, value) in tag.values.iter().enumerate() {
+                if !ingredient(value) || custom_items.contains(value.as_str()) {
+                    push(
+                        format!("{ptr}/values/{i}"),
+                        format!("`{value}` is not a vanilla id or `#tag`"),
+                    );
+                }
+            }
         }
     }
     if errors.is_empty() {
@@ -450,7 +685,153 @@ impl Validator<'_, '_> {
         }
     }
 
+    fn player(&mut self, context: ExecutionContext, owner: &str, ptr: &str, what: &str) {
+        if context != ExecutionContext::Player {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_CONTEXT",
+                owner,
+                ptr,
+                format!("{what} requires player execution context"),
+            ));
+        }
+    }
+
+    fn condition(
+        &mut self,
+        condition: &Condition,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+    ) {
+        match condition {
+            Condition::Range(range) => self.comparison(range, context, owner, ptr),
+            Condition::Relation(relation) => {
+                self.score(&relation.left, context, owner, &format!("{ptr}/left"));
+                self.score(&relation.right, context, owner, &format!("{ptr}/right"));
+            }
+            Condition::Attached(test) => {
+                self.attachable_state(&test.attached, context, owner, &format!("{ptr}/attached"))
+            }
+        }
+    }
+
+    /// An entity State reference, used where `@s` must be some entity.
+    fn attachable_state(
+        &mut self,
+        state: &ResourceLocation,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+    ) {
+        if !self.is_attachable_state(state) {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_REFERENCE",
+                owner,
+                ptr,
+                format!("`{state}` is not a declared entity State"),
+            ));
+        }
+        self.executor(context, owner, ptr, "an entity State");
+    }
+
+    fn is_attachable_state(&self, state: &ResourceLocation) -> bool {
+        self.states
+            .get(&state.to_string())
+            .is_some_and(|(scope, _)| *scope == "entity")
+    }
+
+    fn executor(&mut self, context: ExecutionContext, owner: &str, ptr: &str, what: &str) {
+        if context == ExecutionContext::Server {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_CONTEXT",
+                owner,
+                ptr,
+                format!("{what} requires a player or entity executor"),
+            ));
+        }
+    }
+
+    fn tag_name(&mut self, tag: &str, owner: &str, ptr: &str) {
+        if tag.is_empty()
+            || !tag
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"_.+-".contains(&b))
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_ID",
+                owner,
+                ptr,
+                format!("`{tag}` is not a valid entity tag (letters, digits, `_ . + -`)"),
+            ));
+        }
+    }
+
+    fn query(&mut self, query: &EntityQuery, owner: &str, ptr: &str) {
+        if let Some(state) = &query.with_state
+            && !self.is_attachable_state(state)
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_REFERENCE",
+                owner,
+                &format!("{ptr}/with_state"),
+                format!("`{state}` is not a declared entity State"),
+            ));
+        }
+        if let Some(entity_type) = &query.entity_type {
+            self.resource(
+                entity_type,
+                owner,
+                &format!("{ptr}/entity_type"),
+                "entity type",
+            );
+        }
+        if let Some(tag) = &query.tag {
+            self.tag_name(tag, owner, &format!("{ptr}/tag"));
+        }
+        let distance = |d: Option<f64>| d.is_none_or(|d| d.is_finite() && d >= 0.0);
+        if !distance(query.min_distance)
+            || !distance(query.max_distance)
+            || query
+                .min_distance
+                .zip(query.max_distance)
+                .is_some_and(|(min, max)| min > max)
+            || query.limit == Some(0)
+            || query.limit.is_some_and(|l| l > i32::MAX as u32)
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_RANGE",
+                owner,
+                ptr,
+                "entity query distances must be non-negative and ordered, and limits positive",
+            ));
+        }
+    }
+
+    fn resource(&mut self, id: &str, owner: &str, ptr: &str, kind: &str) {
+        if id.parse::<ResourceLocation>().is_err() || !id.contains(':') {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_ID",
+                owner,
+                ptr,
+                format!("`{id}` is not a namespaced {kind} identity such as `minecraft:example`"),
+            ));
+        }
+    }
+
     fn score(&mut self, score: &FieldReference, context: ExecutionContext, owner: &str, ptr: &str) {
+        if context == ExecutionContext::Server
+            && self
+                .states
+                .get(&score.state.to_string())
+                .is_some_and(|(scope, _)| *scope == "entity")
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_CONTEXT",
+                owner,
+                ptr,
+                "entity State requires a player or entity executor",
+            ));
+        }
         if context != ExecutionContext::Player
             && self
                 .states
@@ -523,6 +904,14 @@ impl Validator<'_, '_> {
                     "callee requires a player executor",
                 ))
             }
+            Some(ExecutionContext::Entity) if context == ExecutionContext::Server => {
+                self.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_CONTEXT",
+                    owner,
+                    ptr,
+                    "callee requires an entity executor",
+                ))
+            }
             _ => {}
         }
     }
@@ -593,12 +982,8 @@ impl Validator<'_, '_> {
                     then,
                     otherwise,
                 } => {
-                    self.comparison(
-                        condition,
-                        context,
-                        owner,
-                        &format!("{ptr}/action/condition"),
-                    );
+                    let condition_ptr = format!("{ptr}/action/condition");
+                    self.condition(condition, context, owner, &condition_ptr);
                     self.body(
                         then,
                         context,
@@ -613,6 +998,320 @@ impl Validator<'_, '_> {
                         &format!("{ptr}/action/otherwise"),
                         depth + 1,
                     );
+                }
+                Action::ScoreOperation {
+                    score,
+                    operator,
+                    operand,
+                } => {
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    match operand {
+                        ScoreOperand::Field(field) => {
+                            self.score(field, context, owner, &format!("{ptr}/action/operand"))
+                        }
+                        ScoreOperand::Value(0)
+                            if matches!(operator, ScoreOperator::Div | ScoreOperator::Mod) =>
+                        {
+                            self.errors.push(Diagnostic::error(
+                                "SAND_PROGRAM_RANGE",
+                                owner,
+                                &format!("{ptr}/action/operand"),
+                                "division or modulo by the constant zero has no effect",
+                            ));
+                        }
+                        ScoreOperand::Value(_) => {}
+                    }
+                }
+                Action::ScoreRandom { score, min, max } => {
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    if min > max {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action"),
+                            "random minimum exceeds maximum",
+                        ));
+                    }
+                }
+                Action::Message {
+                    audience,
+                    channel: _,
+                    text,
+                } => {
+                    if *audience == Audience::Player {
+                        self.player(context, owner, &ptr, "a message to the executing player");
+                    }
+                    if text.is_empty() {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_TEXT",
+                            owner,
+                            &format!("{ptr}/action/text"),
+                            "message text must contain at least one part",
+                        ));
+                    }
+                    for (index, part) in text.iter().enumerate() {
+                        let part_ptr = format!("{ptr}/action/text/{index}");
+                        match part {
+                            TextPart::Score { score, .. } => {
+                                self.score(score, context, owner, &format!("{part_ptr}/score"))
+                            }
+                            TextPart::PlayerName { .. } => self.player(
+                                context,
+                                owner,
+                                &part_ptr,
+                                "the executing player's name",
+                            ),
+                            TextPart::Text { .. } => {}
+                        }
+                    }
+                }
+                Action::Sound {
+                    sound,
+                    volume,
+                    pitch,
+                } => {
+                    self.player(context, owner, &ptr, "a sound for the executing player");
+                    self.resource(sound, owner, &format!("{ptr}/action/sound"), "sound");
+                    let valid_volume = volume.is_finite() && *volume >= 0.0;
+                    let valid_pitch = pitch.is_finite() && (0.0..=2.0).contains(pitch);
+                    if !(valid_volume && valid_pitch) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action"),
+                            "sound volume must be at least 0 and pitch must be 0.0..=2.0",
+                        ));
+                    }
+                }
+                Action::Particle {
+                    particle,
+                    spread,
+                    speed,
+                    ..
+                } => {
+                    self.resource(
+                        particle,
+                        owner,
+                        &format!("{ptr}/action/particle"),
+                        "particle",
+                    );
+                    if !(spread.is_finite() && *spread >= 0.0 && speed.is_finite() && *speed >= 0.0)
+                    {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action"),
+                            "particle spread and speed must be finite and non-negative",
+                        ));
+                    }
+                }
+                Action::Effect {
+                    effect, seconds, ..
+                } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "a status effect on the executing player",
+                    );
+                    self.resource(effect, owner, &format!("{ptr}/action/effect"), "effect");
+                    if seconds.is_some_and(|s| s == 0 || s > 1_000_000) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/seconds"),
+                            "effect duration must be 1..=1000000 seconds; omit it for infinite",
+                        ));
+                    }
+                }
+                Action::ClearEffect { effect } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "clearing the executing player's effects",
+                    );
+                    if let Some(effect) = effect {
+                        self.resource(effect, owner, &format!("{ptr}/action/effect"), "effect");
+                    }
+                }
+                Action::GiveItem { item, count } => {
+                    self.player(context, owner, &ptr, "giving items to the executing player");
+                    self.resource(item, owner, &format!("{ptr}/action/item"), "item");
+                    if *count == 0 || *count > 6400 {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/count"),
+                            "item count must be 1..=6400",
+                        ));
+                    }
+                }
+                Action::ClearItem { item, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "clearing the executing player's items",
+                    );
+                    if let Some(item) = item {
+                        self.resource(item, owner, &format!("{ptr}/action/item"), "item");
+                    }
+                }
+                Action::Schedule { function, ticks } => {
+                    // Scheduled functions run later on the server, without an executor.
+                    self.call(
+                        function,
+                        ExecutionContext::Server,
+                        owner,
+                        &format!("{ptr}/action/function"),
+                    );
+                    if *ticks == 0 {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/ticks"),
+                            "schedule delay must be at least one tick",
+                        ));
+                    }
+                }
+                Action::Return => {}
+                Action::While { condition, body } => {
+                    let condition_ptr = format!("{ptr}/action/condition");
+                    self.condition(condition, context, owner, &condition_ptr);
+                    self.body(
+                        body,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/body"),
+                        depth + 1,
+                    );
+                }
+                Action::AttributeGet {
+                    score,
+                    attribute,
+                    scale,
+                } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "reading the executing player's attribute",
+                    );
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    self.resource(
+                        attribute,
+                        owner,
+                        &format!("{ptr}/action/attribute"),
+                        "attribute",
+                    );
+                    if !(scale.is_finite() && *scale > 0.0) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/scale"),
+                            "attribute scale must be finite and positive",
+                        ));
+                    }
+                }
+                Action::AttributeSet { attribute, value } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "setting the executing player's attribute",
+                    );
+                    self.resource(
+                        attribute,
+                        owner,
+                        &format!("{ptr}/action/attribute"),
+                        "attribute",
+                    );
+                    let valid = match value {
+                        Amount::Value(value) => value.is_finite(),
+                        Amount::Field(field) => {
+                            self.score(
+                                &field.score,
+                                context,
+                                owner,
+                                &format!("{ptr}/action/value/score"),
+                            );
+                            field.scale.is_finite() && field.scale > 0.0
+                        }
+                    };
+                    if !valid {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/value"),
+                            "attribute values must be finite and scales positive",
+                        ));
+                    }
+                }
+                Action::Entities { query, body } => {
+                    self.query(query, owner, &format!("{ptr}/action/query"));
+                    self.body(
+                        body,
+                        ExecutionContext::Entity,
+                        owner,
+                        &format!("{ptr}/action/body"),
+                        depth + 1,
+                    );
+                }
+                Action::Kill => self.executor(context, owner, &ptr, "killing the executor"),
+                Action::Damage { amount } => {
+                    self.executor(context, owner, &ptr, "damaging the executor");
+                    if !(amount.is_finite() && *amount > 0.0) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/amount"),
+                            "damage must be finite and positive",
+                        ));
+                    }
+                }
+                Action::EntityTag { tag, .. } => {
+                    self.executor(context, owner, &ptr, "tagging the executor");
+                    self.tag_name(tag, owner, &format!("{ptr}/action/tag"));
+                }
+                Action::Summon { entity_type, tag } => {
+                    self.resource(
+                        entity_type,
+                        owner,
+                        &format!("{ptr}/action/entity_type"),
+                        "entity type",
+                    );
+                    if let Some(tag) = tag {
+                        self.tag_name(tag, owner, &format!("{ptr}/action/tag"));
+                    }
+                }
+                Action::CountEntities { score, query } => {
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    self.query(query, owner, &format!("{ptr}/action/query"));
+                }
+                Action::Teleport { destination } => {
+                    self.executor(context, owner, &ptr, "teleporting the executor");
+                    let finite = match destination {
+                        TeleportDestination::Position { x, y, z }
+                        | TeleportDestination::Offset { x, y, z } => {
+                            x.is_finite() && y.is_finite() && z.is_finite()
+                        }
+                        TeleportDestination::Entity { query } => {
+                            self.query(query, owner, &format!("{ptr}/action/destination/query"));
+                            true
+                        }
+                    };
+                    if !finite {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/destination"),
+                            "teleport coordinates must be finite",
+                        ));
+                    }
+                }
+                Action::AttachState { state } | Action::DetachState { state } => {
+                    self.attachable_state(state, context, owner, &format!("{ptr}/action/state"))
                 }
                 Action::Raw { command } => {
                     if !self.raw {

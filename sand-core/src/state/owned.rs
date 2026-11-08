@@ -18,6 +18,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
     fn try_from(descriptor: StateDescriptor<'_>) -> Result<Self, Self::Error> {
         let scope = match descriptor.scope {
             StateScope::Player => "player",
+            StateScope::Entity => "entity",
             StateScope::Global(holder)
                 if holder == GlobalStateHolder::new(descriptor.id).as_str() =>
             {
@@ -35,7 +36,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
             || !descriptor.migrations.is_empty()
         {
             return Err(format!(
-                "State `{}` is outside the player/global score v1 slice",
+                "State `{}` is outside the player/entity/global score v1 slice",
                 descriptor.id
             ));
         }
@@ -47,7 +48,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
                 || field.objective != format!("{}.{}", descriptor.id, field.field.name)
             {
                 return Err(format!(
-                    "State field `{}.{}` is outside the player/global score v1 slice",
+                    "State field `{}.{}` is outside the player/entity/global score v1 slice",
                     descriptor.id, field.field.name
                 ));
             }
@@ -83,7 +84,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
 /// Resolve the scoreboard owner from the same identity used by lifecycle lowering.
 pub(crate) fn holder(state: &State) -> sand_commands::ScoreHolder {
     match state.scope.as_str() {
-        "player" => sand_commands::ScoreHolder::self_(),
+        "player" | "entity" => sand_commands::ScoreHolder::self_(),
         "global" => {
             sand_commands::ScoreHolder::fake(GlobalStateHolder::new(&state.id.to_string()).as_str())
         }
@@ -150,6 +151,7 @@ pub(crate) fn with_descriptors<R>(
                 1,
                 match state.scope.as_str() {
                     "player" => StateScope::Player,
+                    "entity" => StateScope::Entity,
                     "global" => StateScope::Global(holder.as_str()),
                     _ => unreachable!("owned State scopes are validated before lowering"),
                 },

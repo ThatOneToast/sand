@@ -112,7 +112,29 @@ pub(super) fn lower(
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
+        constants: std::collections::BTreeSet::new(),
+        custom_items: BTreeMap::new(),
+        entity_states: states
+            .iter()
+            .filter(|state| state.scope == "entity")
+            .map(|state| {
+                (
+                    state.id.to_string(),
+                    state
+                        .fields
+                        .iter()
+                        .map(|field| (field.name.clone(), field.default))
+                        .collect(),
+                )
+            })
+            .collect(),
     };
+    for module in &program.modules {
+        for item in &module.items {
+            let custom = custom_item(item, &lower.holders);
+            lower.custom_items.insert(item.id.to_string(), custom);
+        }
+    }
     let mut entries = BTreeMap::new();
     let mut load = Vec::new();
     let mut tick = Vec::new();
@@ -166,6 +188,34 @@ pub(super) fn lower(
             memberships.push((tag_id, function));
         }
     }
+    let event_owner = format!("{}:__sand_program/events", program.pack.namespace);
+    let mut event_load = Vec::new();
+    for (index, line) in lower.events(program)?.into_iter().enumerate() {
+        match line {
+            EventLine::Load(command) => event_load.push((event_owner.clone(), index, command)),
+            EventLine::Tick(command) => tick.push((event_owner.clone(), index, command)),
+        }
+    }
+    if !lower.constants.is_empty() {
+        let objective = constants_objective(&program.pack.namespace);
+        event_load.push((
+            event_owner.clone(),
+            event_load.len(),
+            format!("scoreboard objectives add {objective} dummy"),
+        ));
+        for value in lower.constants.clone() {
+            event_load.push((
+                event_owner.clone(),
+                event_load.len(),
+                format!(
+                    "scoreboard players set {} {objective} {value}",
+                    constant_holder(value)
+                ),
+            ));
+        }
+    }
+    // Objectives must exist before any module load body reads them.
+    load.splice(0..0, event_load);
     let field_defaults: BTreeMap<_, _> = states
         .iter()
         .flat_map(|state| {
@@ -262,6 +312,43 @@ pub(super) fn lower(
     .map_err(|e| error(e.to_string()))?;
     for record in &mut lower.records {
         record.content = functions::resolve_local_refs(&record.content, &program.pack.namespace);
+    }
+    let caps = target.caps();
+    let ctx = crate::compiler::export::ExportCtx {
+        caps: &caps,
+        requested_version: target.resolved_name(),
+        is_fallback: target.is_fallback(),
+    };
+    for module in &program.modules {
+        let owner = module.id.to_string();
+        for (index, recipe) in module.recipes.iter().enumerate() {
+            let fail = |message: String| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/recipes/{index}"),
+                    message,
+                )]
+            };
+            let component = recipe_component(recipe, &lower.custom_items).map_err(fail)?;
+            let record = records::component_to_record(component.as_ref(), Some(&ctx))
+                .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
+        for (index, tag) in module.resource_tags.iter().enumerate() {
+            let fail = |message: String| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/resource_tags/{index}"),
+                    message,
+                )]
+            };
+            let component = tag_component(tag).map_err(fail)?;
+            let record = records::component_to_record(component.as_ref(), Some(&ctx))
+                .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
     }
     records::validate_unique_output_identities(&lower.records).map_err(|e| error(e.to_string()))?;
     records::validate_objective_definitions(&lower.records).map_err(|e| error(e.to_string()))?;
@@ -438,6 +525,317 @@ fn helper(namespace: &str, key: &str, path: &str, role: &str) -> String {
     // hash collisions independently of declaration order.
     format!("{namespace}:__sand_program/{key}/{path}/{role}")
 }
+/// The canonical Rust custom item for a portable declaration.
+fn custom_item(
+    item: &CustomItem,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_components::CustomItem {
+    let mut custom = sand_components::CustomItem::new(&item.base).custom_data(item.id.to_string());
+    if !item.name.is_empty() {
+        custom = custom.custom_name(text_component(&item.name, holders));
+    }
+    if !item.lore.is_empty() {
+        custom = custom.lore(
+            item.lore
+                .iter()
+                .map(|line| text_component(line, holders))
+                .collect(),
+        );
+    }
+    if let Some(rarity) = item.rarity {
+        custom = custom.rarity(match rarity {
+            Rarity::Common => sand_components::ItemRarity::Common,
+            Rarity::Uncommon => sand_components::ItemRarity::Uncommon,
+            Rarity::Rare => sand_components::ItemRarity::Rare,
+            Rarity::Epic => sand_components::ItemRarity::Epic,
+        });
+    }
+    if let Some(glint) = item.glint {
+        custom = custom.enchantment_glint_override(glint);
+    }
+    if let Some(size) = item.max_stack {
+        custom = custom.max_stack_size(size);
+    }
+    if item.unbreakable {
+        custom = custom.unbreakable(true);
+    }
+    for (enchantment, level) in &item.enchantments {
+        custom = custom.enchantment(enchantment.clone(), *level);
+    }
+    if let Some(data) = item.custom_model_data {
+        custom = custom.custom_model_data(data);
+    }
+    custom
+}
+
+fn ingredient(id: &str) -> sand_components::recipe::Ingredient {
+    match id.strip_prefix('#') {
+        Some(tag) => sand_components::recipe::Ingredient::tag(tag),
+        None => sand_components::recipe::Ingredient::item(id),
+    }
+}
+
+fn recipe_output(
+    output: &RecipeOutput,
+    custom_items: &BTreeMap<String, sand_components::CustomItem>,
+) -> Result<sand_components::recipe::RecipeResult, String> {
+    match custom_items.get(&output.item) {
+        Some(custom) => {
+            sand_components::recipe::RecipeResult::from_custom_item(custom, output.count)
+                .map_err(|e| e.to_string())
+        }
+        None => Ok(sand_components::recipe::RecipeResult::new(
+            &output.item,
+            output.count,
+        )),
+    }
+}
+
+/// Build the typed recipe component that Rust authors would write.
+fn recipe_component(
+    recipe: &Recipe,
+    custom_items: &BTreeMap<String, sand_components::CustomItem>,
+) -> Result<Box<dyn sand_components::DatapackComponent>, String> {
+    use sand_components::recipe::*;
+    Ok(match recipe {
+        Recipe::Shaped {
+            id,
+            pattern,
+            key,
+            result,
+        } => {
+            let mut built = ShapedRecipe::new(id.clone()).pattern(pattern.iter().cloned());
+            for (symbol, item) in key {
+                let symbol = symbol.chars().next().expect("validated single character");
+                built = built.key(symbol, ingredient(item));
+            }
+            Box::new(built.result(recipe_output(result, custom_items)?))
+        }
+        Recipe::Shapeless {
+            id,
+            ingredients,
+            result,
+        } => {
+            let mut built = ShapelessRecipe::new(id.clone());
+            for item in ingredients {
+                built = built.ingredient(ingredient(item));
+            }
+            Box::new(built.result(recipe_output(result, custom_items)?))
+        }
+        Recipe::Cooking {
+            id,
+            method,
+            ingredient: input,
+            result,
+            experience,
+            time,
+        } => {
+            let kind = match method {
+                CookingMethod::Smelting => CookingType::Smelting,
+                CookingMethod::Blasting => CookingType::Blasting,
+                CookingMethod::Smoking => CookingType::Smoking,
+                CookingMethod::Campfire => CookingType::CampfireCooking,
+            };
+            let mut built = CookingRecipe::new(id.clone(), kind)
+                .ingredient(ingredient(input))
+                .result(recipe_output(result, custom_items)?)
+                .experience(*experience);
+            if let Some(time) = time {
+                built = built.cooking_time(*time);
+            }
+            Box::new(built)
+        }
+        Recipe::Stonecutting {
+            id,
+            ingredient: input,
+            result,
+        } => Box::new(
+            StonecuttingRecipe::new(id.clone())
+                .ingredient(ingredient(input))
+                .result(recipe_output(result, custom_items)?)
+                .count(result.count),
+        ),
+    })
+}
+
+/// Build the typed registry tag that Rust authors would write.
+fn tag_component(tag: &ResourceTag) -> Result<Box<dyn sand_components::DatapackComponent>, String> {
+    use sand_components::{BlockId, EntityTypeId, ItemId, TagId, TypedTag};
+    fn build<T>(tag: &ResourceTag) -> Result<TypedTag<T>, String>
+    where
+        T: sand_components::TagRegistry + std::str::FromStr,
+        <T as std::str::FromStr>::Err: std::fmt::Display,
+    {
+        let location: TagId<T> = tag.id.to_string().parse().map_err(|e| format!("{e}"))?;
+        let mut built = TypedTag::new(location).replace(tag.replace);
+        for value in &tag.values {
+            built = match value.strip_prefix('#') {
+                Some(reference) => {
+                    let reference: TagId<T> = reference.parse().map_err(|e| format!("{e}"))?;
+                    built.tag_ref(reference)
+                }
+                None => built.entry(value.parse::<T>().map_err(|e| e.to_string())?),
+            };
+        }
+        Ok(built)
+    }
+    Ok(match tag.kind {
+        TagKind::Item => Box::new(build::<ItemId>(tag)?),
+        TagKind::Block => Box::new(build::<BlockId>(tag)?),
+        TagKind::EntityType => Box::new(build::<EntityTypeId>(tag)?),
+    })
+}
+
+fn constants_objective(namespace: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{namespace}.__sand_program.constants"))
+        .as_str()
+        .to_owned()
+}
+
+fn constant_holder(value: i32) -> sand_commands::ScoreHolder {
+    sand_commands::ScoreHolder::fake(format!("#c{value}"))
+}
+
+/// One generated lifecycle line for portable player events.
+enum EventLine {
+    Load(String),
+    Tick(String),
+}
+
+fn text_component(
+    parts: &[TextPart],
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_commands::TextComponent {
+    use sand_commands::{ChatColor, TextComponent};
+    let styled = |mut component: TextComponent, style: &TextStyle| {
+        if let Some(color) = style.color {
+            component = component.color(match color {
+                TextColor::Black => ChatColor::Black,
+                TextColor::DarkBlue => ChatColor::DarkBlue,
+                TextColor::DarkGreen => ChatColor::DarkGreen,
+                TextColor::DarkAqua => ChatColor::DarkAqua,
+                TextColor::DarkRed => ChatColor::DarkRed,
+                TextColor::DarkPurple => ChatColor::DarkPurple,
+                TextColor::Gold => ChatColor::Gold,
+                TextColor::Gray => ChatColor::Gray,
+                TextColor::DarkGray => ChatColor::DarkGray,
+                TextColor::Blue => ChatColor::Blue,
+                TextColor::Green => ChatColor::Green,
+                TextColor::Aqua => ChatColor::Aqua,
+                TextColor::Red => ChatColor::Red,
+                TextColor::LightPurple => ChatColor::LightPurple,
+                TextColor::Yellow => ChatColor::Yellow,
+                TextColor::White => ChatColor::White,
+            });
+        }
+        // Parts are children of an unstyled root, so unset properties stay
+        // unset instead of being restated as `false`.
+        if style.bold {
+            component = component.bold(true);
+        }
+        if style.italic {
+            component = component.italic(true);
+        }
+        if style.underlined {
+            component = component.underlined(true);
+        }
+        component
+    };
+    let mut root = TextComponent::literal("");
+    for part in parts {
+        let component = match part {
+            TextPart::Text { text, style } => styled(TextComponent::literal(text.clone()), style),
+            TextPart::Score { score, style } => styled(
+                TextComponent::score(
+                    holders[&score.state.to_string()].to_string(),
+                    objective(score),
+                ),
+                style,
+            ),
+            TextPart::PlayerName { style } => styled(TextComponent::selector("@s"), style),
+        };
+        root = root.then(component);
+    }
+    root
+}
+
+/// Whether a body can end its enclosing function frame with `Return`.
+///
+/// `Players` bodies are their own frame: a return there ends one player's
+/// turn, so it does not propagate.
+fn returns(body: &[Operation]) -> bool {
+    body.iter().any(|operation| match &operation.action {
+        Action::Return => true,
+        Action::Branch {
+            then, otherwise, ..
+        } => returns(then) || returns(otherwise),
+        Action::While { body, .. } => returns(body),
+        _ => false,
+    })
+}
+
+/// Call a helper; when it can return early, propagate that return.
+///
+/// Helpers signal an early return by returning 1. `execute if function`
+/// succeeds only for a nonzero result, so a helper that finishes normally
+/// (with no result) lets the caller continue.
+fn call_helper(id: String, propagate: bool) -> Cmd {
+    if propagate {
+        Cmd::Execute {
+            operations: vec![sand_commands::ExecuteOp::If(
+                sand_commands::ConditionIr::Function(id),
+            )],
+            run: Box::new(Cmd::Return(1)),
+        }
+    } else {
+        Cmd::Function(id)
+    }
+}
+
+/// A canonical State objective, matching Rust's `state::objective_name`.
+fn state_objective(state: &str, suffix: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{state}.{suffix}"))
+        .as_str()
+        .to_owned()
+}
+
+fn query_selector(query: &EntityQuery) -> sand_commands::Selector {
+    let mut selector = sand_commands::Selector::all_entities();
+    if let Some(entity_type) = &query.entity_type {
+        selector = selector.entity_type_raw(entity_type.clone());
+    }
+    if let Some(tag) = &query.tag {
+        selector = selector.tag(tag.clone());
+    }
+    if let Some(state) = &query.with_state {
+        // Attached at revision 1, as `has_state` tests.
+        selector = selector
+            .score_typed(
+                sand_commands::ObjectiveName::logical(format!("{state}.presence")),
+                sand_commands::ScoreRange::exact(1),
+            )
+            .expect("canonical presence objective with a single score filter");
+    }
+    selector = match (query.min_distance, query.max_distance) {
+        (Some(min), Some(max)) => selector.distance_range(min, max),
+        (Some(min), None) => selector.distance_min(min),
+        (None, Some(max)) => selector.distance_max(max),
+        (None, None) => selector,
+    };
+    if let Some(sort) = query.sort {
+        selector = selector.sort(match sort {
+            EntitySort::Nearest => sand_commands::SortOrder::Nearest,
+            EntitySort::Furthest => sand_commands::SortOrder::Furthest,
+            EntitySort::Random => sand_commands::SortOrder::Random,
+            EntitySort::Arbitrary => sand_commands::SortOrder::Arbitrary,
+        });
+    }
+    if let Some(limit) = query.limit {
+        selector = selector.limit(limit as i32);
+    }
+    selector
+}
+
 struct Lower {
     runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
@@ -448,6 +846,12 @@ struct Lower {
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
+    /// Constant operands materialised on the compiler-owned constant holder.
+    constants: std::collections::BTreeSet<i32>,
+    /// Declared custom items by id.
+    custom_items: BTreeMap<String, sand_components::CustomItem>,
+    /// Entity States by id, with their field defaults.
+    entity_states: BTreeMap<String, Vec<(String, i32)>>,
 }
 impl Lower {
     fn function(
@@ -482,6 +886,102 @@ impl Lower {
         });
         Ok(())
     }
+    /// Lower player event observation: one namespace-owned objective or tag per
+    /// distinct event, a tick probe that runs a dispatcher as each observed
+    /// player, and a dispatcher that consumes the observation before handlers.
+    fn events(&mut self, program: &Program) -> Result<Vec<EventLine>, Vec<Diagnostic>> {
+        let mut groups: BTreeMap<String, (PlayerEvent, Vec<(String, String)>)> = BTreeMap::new();
+        let mut modules: Vec<_> = program.modules.iter().collect();
+        modules.sort_by_key(|module| module.id.to_string());
+        for module in modules {
+            for (index, hook) in module.events.iter().enumerate() {
+                groups
+                    .entry(hook.event.key())
+                    .or_insert_with(|| (hook.event.clone(), Vec::new()))
+                    .1
+                    .push((
+                        reference_id(&hook.function),
+                        format!("{}#{index}", module.id),
+                    ));
+            }
+        }
+        let mut lines = Vec::new();
+        for (key, (event, handlers)) in groups {
+            let base = format!("{}.__sand_event.{key}", self.namespace);
+            let dispatch = format!("{}:__sand_program/event/{key}", self.namespace);
+            let objective = sand_commands::ObjectiveName::logical(base.clone())
+                .as_str()
+                .to_owned();
+            let tag = format!(
+                "sand.{}",
+                sand_commands::scoreboard::hash_objective_name(&base)
+            );
+            let mut body = Vec::new();
+            if let Some(init) = &self.init {
+                body.push(Cmd::Function(init.clone()).render());
+            }
+            let criteria = event.criterion();
+            if let Some(criteria) = &criteria {
+                lines.push(EventLine::Load(format!(
+                    "scoreboard objectives add {objective} {criteria}"
+                )));
+                lines.push(EventLine::Tick(format!(
+                    "execute as @a[scores={{{objective}=1..}}] run function {dispatch}"
+                )));
+                body.push(format!("scoreboard players reset @s {objective}"));
+            }
+            if matches!(event, PlayerEvent::Join | PlayerEvent::FirstJoin) {
+                // A persistent tag marks players already observed once; joins
+                // after that are seen through the leave_game statistic.
+                lines.push(EventLine::Tick(format!(
+                    "execute as @a[tag=!{tag}] run function {dispatch}"
+                )));
+                body.push(format!("tag @s add {tag}"));
+            }
+            for (function, _) in &handlers {
+                body.push(Cmd::Function(function.clone()).render());
+            }
+            let owner = handlers
+                .first()
+                .map(|(_, owner)| owner.clone())
+                .unwrap_or_default();
+            self.function(&dispatch, body, &owner, "/events")?;
+        }
+        Ok(lines)
+    }
+
+    fn condition_test(&self, condition: &Condition) -> sand_commands::ConditionIr {
+        match condition {
+            Condition::Attached(test) => sand_commands::ConditionIr::ScoreMatches {
+                holder: sand_commands::ScoreHolder::self_(),
+                objective: state_objective(&test.attached.to_string(), "presence"),
+                range: "1..1".into(),
+            },
+            Condition::Range(range) => sand_commands::ConditionIr::ScoreMatches {
+                holder: self.holders[&range.score.state.to_string()].clone(),
+                objective: objective(&range.score),
+                range: format!(
+                    "{}..{}",
+                    range.min.unwrap_or(i32::MIN),
+                    range.max.unwrap_or(i32::MAX)
+                ),
+            },
+            Condition::Relation(relation) => sand_commands::ConditionIr::ScoreCompare {
+                left: self.holders[&relation.left.state.to_string()].clone(),
+                left_objective: objective(&relation.left),
+                op: match relation.relation {
+                    Relation::Lt => sand_commands::ScoreCmp::Lt,
+                    Relation::Le => sand_commands::ScoreCmp::Le,
+                    Relation::Eq => sand_commands::ScoreCmp::Eq,
+                    Relation::Ge => sand_commands::ScoreCmp::Ge,
+                    Relation::Gt => sand_commands::ScoreCmp::Gt,
+                },
+                right: self.holders[&relation.right.state.to_string()].clone(),
+                right_objective: objective(&relation.right),
+            },
+        }
+    }
+
     fn body(
         &mut self,
         body: &[Operation],
@@ -572,6 +1072,194 @@ impl Lower {
                         run: Box::new(Cmd::Function(target)),
                     }]
                 }
+                Action::ScoreOperation {
+                    score,
+                    operator,
+                    operand,
+                } => {
+                    let holder = self.holders[&score.state.to_string()].clone();
+                    let target_objective = objective(score);
+                    let mut commands = Vec::new();
+                    let (source, source_objective) = match operand {
+                        ScoreOperand::Field(field) => (
+                            self.holders[&field.state.to_string()].clone(),
+                            objective(field),
+                        ),
+                        ScoreOperand::Value(value) => {
+                            self.constants.insert(*value);
+                            (
+                                constant_holder(*value),
+                                constants_objective(&self.namespace),
+                            )
+                        }
+                    };
+                    commands.push(Cmd::ScorePlayers(crate::ir::ScorePlayersOp::Operation {
+                        target: holder.to_string(),
+                        target_obj: target_objective.clone(),
+                        op: match operator {
+                            ScoreOperator::Set => crate::ir::ScoreOpKind::Assign,
+                            ScoreOperator::Add => crate::ir::ScoreOpKind::Add,
+                            ScoreOperator::Sub => crate::ir::ScoreOpKind::Sub,
+                            ScoreOperator::Mul => crate::ir::ScoreOpKind::Mul,
+                            ScoreOperator::Div => crate::ir::ScoreOpKind::Div,
+                            ScoreOperator::Mod => crate::ir::ScoreOpKind::Mod,
+                            ScoreOperator::Min => crate::ir::ScoreOpKind::Min,
+                            ScoreOperator::Max => crate::ir::ScoreOpKind::Max,
+                        },
+                        source: source.to_string(),
+                        source_obj: source_objective,
+                    }));
+                    if let Some(bounds) = self
+                        .bounds
+                        .get(&format!("{}.{}", score.state, score.field))
+                        .copied()
+                    {
+                        commands.extend(crate::ir::score_bounds(
+                            &holder,
+                            &target_objective,
+                            bounds,
+                        ));
+                    }
+                    commands
+                }
+                Action::ScoreRandom { score, min, max } => {
+                    let holder = self.holders[&score.state.to_string()].clone();
+                    let target_objective = objective(score);
+                    let mut commands = vec![Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::StoreResult(
+                            sand_commands::ExecuteStoreTarget::Score {
+                                holder: holder.clone(),
+                                objective: target_objective.clone(),
+                            },
+                        )],
+                        run: Box::new(Cmd::Raw(format!("random value {min}..{max}"))),
+                    }];
+                    if let Some(bounds) = self
+                        .bounds
+                        .get(&format!("{}.{}", score.state, score.field))
+                        .copied()
+                    {
+                        commands.extend(crate::ir::score_bounds(
+                            &holder,
+                            &target_objective,
+                            bounds,
+                        ));
+                    }
+                    commands
+                }
+                Action::Message {
+                    audience,
+                    channel,
+                    text,
+                } => {
+                    let target = match audience {
+                        Audience::Player => sand_commands::Selector::self_(),
+                        Audience::Everyone => sand_commands::Selector::all_players(),
+                    };
+                    let component = text_component(text, &self.holders);
+                    let lines = match channel {
+                        MessageChannel::Chat => vec![crate::cmd::tellraw(target, component)],
+                        MessageChannel::Actionbar => {
+                            vec![sand_commands::Actionbar::show(target, component)]
+                        }
+                        MessageChannel::Title => sand_commands::Title::of(target)
+                            .title(component)
+                            .try_build()
+                            .map_err(|e| fail(e.to_string()))?,
+                        MessageChannel::Subtitle => sand_commands::Title::of(target)
+                            .subtitle(component)
+                            .try_build()
+                            .map_err(|e| fail(e.to_string()))?,
+                    };
+                    lines.into_iter().map(Cmd::Raw).collect()
+                }
+                Action::Sound {
+                    sound,
+                    volume,
+                    pitch,
+                } => vec![Cmd::Raw(
+                    sand_commands::Sound::play_raw(sound.clone())
+                        .to(sand_commands::Selector::self_())
+                        .volume(f64::from(*volume))
+                        .pitch(f64::from(*pitch))
+                        .to_string(),
+                )],
+                Action::Particle {
+                    particle,
+                    count,
+                    spread,
+                    speed,
+                } => vec![Cmd::Raw(format!(
+                    "particle {particle} ~ ~1 ~ {spread} {spread} {spread} {speed} {count}"
+                ))],
+                Action::Effect {
+                    effect,
+                    seconds,
+                    amplifier,
+                    hide_particles,
+                } => vec![Cmd::Effect(
+                    sand_commands::EffectCommand::give_raw(
+                        sand_commands::Selector::self_(),
+                        effect.clone(),
+                    )
+                    .duration(match seconds {
+                        Some(seconds) => sand_commands::EffectDuration::Seconds(*seconds),
+                        None => sand_commands::EffectDuration::Infinite,
+                    })
+                    .amplifier(*amplifier)
+                    .particles(!hide_particles),
+                )],
+                Action::ClearEffect { effect } => vec![Cmd::Raw(match effect {
+                    Some(effect) => format!("effect clear @s {effect}"),
+                    None => "effect clear @s".to_owned(),
+                })],
+                Action::GiveItem { item, count } => {
+                    let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());
+                    let line = match self.custom_items.get(item) {
+                        Some(custom) => {
+                            let stack =
+                                sand_components::IntoItemStack::try_into_item_stack(custom.clone())
+                                    .map_err(|e| fail(e.to_string()))?;
+                            inventory.give_count(stack, *count)
+                        }
+                        None => inventory.give_count(item, *count),
+                    };
+                    vec![Cmd::Raw(line)]
+                }
+                Action::ClearItem { item, count } => {
+                    let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());
+                    // Custom items clear by their custom_data identity.
+                    let item = match item.as_ref().and_then(|id| self.custom_items.get(id)) {
+                        Some(custom) => {
+                            let predicate =
+                                custom.item_predicate().map_err(|e| fail(e.to_string()))?;
+                            let lowered =
+                                sand_components::predicates::lower_item_predicate_for_command(
+                                    &predicate,
+                                )
+                                .map_err(fail)?;
+                            let base = lowered
+                                .items
+                                .as_ref()
+                                .and_then(|items| items.first())
+                                .map(|id| id.to_string())
+                                .unwrap_or_default();
+                            Some(format!("{base}[{}]", lowered.constraints.join(",")))
+                        }
+                        None => item.clone(),
+                    };
+                    vec![Cmd::Raw(match (item, count) {
+                        (Some(item), Some(count)) => inventory.clear_item_count(item, *count),
+                        (Some(item), None) => inventory.clear_item(item),
+                        (None, _) => inventory.clear_all(),
+                    })]
+                }
+                Action::Schedule { function, ticks } => {
+                    vec![Cmd::Raw(sand_commands::builtins::schedule_replace_raw(
+                        reference_id(function),
+                        format!("{ticks}t"),
+                    ))]
+                }
                 Action::Branch {
                     condition,
                     then,
@@ -602,29 +1290,203 @@ impl Lower {
                     )?;
                     self.function(&yes, yes_body, module, &ptr)?;
                     self.function(&no, no_body, module, &ptr)?;
-                    let range = format!(
-                        "{}..{}",
-                        condition.min.unwrap_or(i32::MIN),
-                        condition.max.unwrap_or(i32::MAX)
-                    );
+                    let test = self.condition_test(condition);
+                    let propagate = returns(then) || returns(otherwise);
                     let guard = Cmd::Execute {
-                        operations: vec![sand_commands::ExecuteOp::If(
-                            sand_commands::ConditionIr::ScoreMatches {
-                                holder: self.holders[&condition.score.state.to_string()].clone(),
-                                objective: objective(&condition.score),
-                                range,
-                            },
-                        )],
+                        operations: vec![sand_commands::ExecuteOp::If(test)],
                         run: Box::new(Cmd::ReturnRun(Box::new(Cmd::Function(yes)))),
+                    };
+                    // Without early returns the decision keeps its original
+                    // shape; with them, both outcomes forward the helper result.
+                    let otherwise_call = if propagate {
+                        Cmd::ReturnRun(Box::new(Cmd::Function(no)))
+                    } else {
+                        Cmd::Function(no)
                     };
                     self.function(
                         &decision,
-                        vec![guard.render(), Cmd::Function(no).render()],
+                        vec![guard.render(), otherwise_call.render()],
                         module,
                         &ptr,
                     )?;
-                    vec![Cmd::Function(decision)]
+                    vec![call_helper(decision, propagate)]
                 }
+                Action::Return => vec![Cmd::Return(1)],
+                Action::Entities { query, body } => {
+                    let id = helper(&self.namespace, &self.helper_keys[owner], &path, "entities");
+                    let lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/entities"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    self.function(&id, lines, module, &ptr)?;
+                    vec![Cmd::Execute {
+                        operations: vec![
+                            sand_commands::ExecuteOp::As(query_selector(query)),
+                            sand_commands::ExecuteOp::At(sand_commands::Selector::self_()),
+                        ],
+                        run: Box::new(Cmd::Function(id)),
+                    }]
+                }
+                Action::Kill => vec![Cmd::Raw("kill @s".into())],
+                Action::Teleport { destination } => vec![Cmd::Raw(match destination {
+                    TeleportDestination::Position { x, y, z } => format!("tp @s {x} {y} {z}"),
+                    TeleportDestination::Offset { x, y, z } => format!("tp @s ~{x} ~{y} ~{z}"),
+                    TeleportDestination::Entity { query } => {
+                        // Exactly one destination, nearest unless sorted.
+                        let mut query = query.clone();
+                        query.limit = Some(1);
+                        query.sort = query.sort.or(Some(EntitySort::Nearest));
+                        format!("tp @s {}", query_selector(&query))
+                    }
+                })],
+                // Mirrors Rust's `state_attach_commands` for entity State:
+                // keep existing values, default the rest, then mark present.
+                Action::AttachState { state } => {
+                    let id = state.to_string();
+                    let mut commands: Vec<Cmd> = self.entity_states[&id]
+                        .iter()
+                        .map(|(field, default)| {
+                            let objective = state_objective(&id, field);
+                            Cmd::Raw(format!(
+                                "execute unless score @s {objective} matches -2147483648.. run scoreboard players set @s {objective} {default}"
+                            ))
+                        })
+                        .collect();
+                    let presence = state_objective(&id, "presence");
+                    commands.push(Cmd::Raw(format!(
+                        "execute unless score @s {presence} matches 1.. run scoreboard players set @s {presence} 1"
+                    )));
+                    commands
+                }
+                // Mirrors Rust's `state_detach_commands` with dirty tracking.
+                Action::DetachState { state } => {
+                    let id = state.to_string();
+                    let mut commands = Vec::new();
+                    for (field, _) in &self.entity_states[&id] {
+                        commands.push(Cmd::Raw(format!(
+                            "scoreboard players reset @s {}",
+                            state_objective(&id, field)
+                        )));
+                        commands.push(Cmd::Raw(format!(
+                            "scoreboard players reset @s {}",
+                            state_objective(&id, &format!("{field}.dirty"))
+                        )));
+                    }
+                    commands.push(Cmd::Raw(format!(
+                        "scoreboard players reset @s {}",
+                        state_objective(&id, "reconcile_dirty")
+                    )));
+                    commands.push(Cmd::Raw(format!(
+                        "scoreboard players reset @s {}",
+                        state_objective(&id, "presence")
+                    )));
+                    commands
+                }
+                Action::EntityTag { tag, add } => vec![Cmd::Raw(format!(
+                    "tag @s {} {tag}",
+                    if *add { "add" } else { "remove" }
+                ))],
+                Action::Summon { entity_type, tag } => vec![Cmd::Raw(match tag {
+                    Some(tag) => format!("summon {entity_type} ~ ~ ~ {{Tags:[\"{tag}\"]}}"),
+                    None => format!("summon {entity_type} ~ ~ ~"),
+                })],
+                Action::Damage { amount } => vec![Cmd::Raw(format!("damage @s {amount}"))],
+                Action::CountEntities { score, query } => vec![Cmd::Raw(format!(
+                    "execute store result score {} {} if entity {}",
+                    self.holders[&score.state.to_string()],
+                    objective(score),
+                    query_selector(query)
+                ))],
+                Action::While { condition, body } => {
+                    let looped = helper(&self.namespace, &self.helper_keys[owner], &path, "loop");
+                    let mut lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/loop"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    let test = self.condition_test(condition);
+                    // Tail call: re-check the condition after each pass and
+                    // forward an early return from deeper passes.
+                    lines.push(
+                        Cmd::Execute {
+                            operations: vec![sand_commands::ExecuteOp::If(test.clone())],
+                            run: Box::new(Cmd::ReturnRun(Box::new(Cmd::Function(looped.clone())))),
+                        }
+                        .render(),
+                    );
+                    self.function(&looped, lines, module, &ptr)?;
+                    let mut operations = vec![sand_commands::ExecuteOp::If(test)];
+                    let run = if returns(body) {
+                        operations.push(sand_commands::ExecuteOp::If(
+                            sand_commands::ConditionIr::Function(looped),
+                        ));
+                        Cmd::Return(1)
+                    } else {
+                        Cmd::Function(looped)
+                    };
+                    vec![Cmd::Execute {
+                        operations,
+                        run: Box::new(run),
+                    }]
+                }
+                Action::AttributeGet {
+                    score,
+                    attribute,
+                    scale,
+                } => vec![Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Score {
+                            holder: self.holders[&score.state.to_string()].clone(),
+                            objective: objective(score),
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "attribute @s {attribute} base get {scale}"
+                    ))),
+                }],
+                Action::AttributeSet { attribute, value } => match value {
+                    Amount::Value(value) => {
+                        vec![Cmd::Raw(format!(
+                            "attribute @s {attribute} base set {value}"
+                        ))]
+                    }
+                    Amount::Field(field) => {
+                        // Minecraft cannot read a score as a command argument;
+                        // copy it into storage and apply it through a macro.
+                        let storage = format!("{}:sand.args", self.namespace);
+                        let id = helper(
+                            &self.namespace,
+                            &self.helper_keys[owner],
+                            &path,
+                            "attribute",
+                        );
+                        self.function(
+                            &id,
+                            vec![format!("$attribute @s {attribute} base set $(value)")],
+                            module,
+                            &ptr,
+                        )?;
+                        vec![
+                            Cmd::Execute {
+                                operations: vec![sand_commands::ExecuteOp::Raw(format!(
+                                    "store result storage {storage} value double {}",
+                                    1.0 / field.scale
+                                ))],
+                                run: Box::new(Cmd::Raw(format!(
+                                    "scoreboard players get {} {}",
+                                    self.holders[&field.score.state.to_string()],
+                                    objective(&field.score)
+                                ))),
+                            },
+                            Cmd::Raw(format!("function {id} with storage {storage}")),
+                        ]
+                    }
+                },
             };
             for cmd in cmds {
                 let rendered = cmd.try_render().map_err(|e| fail(e.to_string()))?;

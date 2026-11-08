@@ -26,6 +26,10 @@ struct Cli {
 enum Commands {
     /// Compile or inspect portable gameplay programs
     Program(sand_cli::program::ProgramArgs),
+    /// Check, build, or inspect packs written in the Sand language (.sand)
+    Lang(sand_cli::lang_cmd::LangArgs),
+    /// Run the Sand language server over stdio (for editors)
+    Lsp,
     /// Inspect Sand's supported public API contracts
     Api(api_cmd::ApiArgs),
     /// Report the current project and installed API identity for tools and agents
@@ -231,6 +235,8 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Program(args) => sand_cli::program::run(args),
+        Commands::Lang(args) => sand_cli::lang_cmd::run(args),
+        Commands::Lsp => sand_cli::lang_cmd::run_lsp(),
         Commands::Api(args) => api_cmd::run(args),
         Commands::Context { profile, format } => {
             let catalog = api_cmd::installed_catalog()?;

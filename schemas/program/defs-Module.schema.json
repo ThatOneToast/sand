@@ -3,6 +3,13 @@
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "events": {
+      "description": "Player event handlers, dispatched in declaration order.",
+      "items": {
+        "$ref": "defs-EventHook.schema.json"
+      },
+      "type": "array"
+    },
     "flows": {
       "description": "Gameplay state machines owned by this module.",
       "items": {
@@ -21,10 +28,31 @@
       "description": "Explicit semantic identity, independent of source filename.",
       "type": "string"
     },
+    "items": {
+      "description": "Custom items that operations and recipes refer to by id.",
+      "items": {
+        "$ref": "defs-CustomItem.schema.json"
+      },
+      "type": "array"
+    },
     "load": {
       "description": "Server-context bodies run at load in authored order.",
       "items": {
         "$ref": "defs-Operation.schema.json"
+      },
+      "type": "array"
+    },
+    "recipes": {
+      "description": "Crafting, cooking, and stonecutting recipes.",
+      "items": {
+        "$ref": "defs-Recipe.schema.json"
+      },
+      "type": "array"
+    },
+    "resource_tags": {
+      "description": "Item, block, and entity-type tags.",
+      "items": {
+        "$ref": "defs-ResourceTag.schema.json"
       },
       "type": "array"
     },

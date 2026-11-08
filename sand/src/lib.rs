@@ -662,7 +662,7 @@ pub mod data {
 )]
 pub mod vanilla {
     #[cfg(not(sand_placeholder_codegen))]
-    pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
+    pub use sand_core::generated::{Attribute, Block, EntityType, Item, ParticleType, SoundEvent};
 }
 
 /// Supported low-level hook for framework integrators that need to drive the

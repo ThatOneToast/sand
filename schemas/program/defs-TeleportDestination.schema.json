@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Where a teleport moves the executor.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Absolute coordinates.",
+      "properties": {
+        "kind": {
+          "const": "position",
+          "type": "string"
+        },
+        "x": {
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "format": "double",
+          "type": "number"
+        },
+        "z": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Coordinates relative to the executor.",
+      "properties": {
+        "kind": {
+          "const": "offset",
+          "type": "string"
+        },
+        "x": {
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "format": "double",
+          "type": "number"
+        },
+        "z": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The first entity matching a query.",
+      "properties": {
+        "kind": {
+          "const": "entity",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "defs-EntityQuery.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "type": "object"
+    }
+  ]
+}

@@ -101,7 +101,7 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 vec![format!("State `{id}`"), ownership.into()],
             )
         }
-        DefInfo::Field { bounds, .. } => {
+        DefInfo::Field { bounds, timer, .. } => {
             let owner = def.parent.map(|p| analysis.def(p));
             let mut facts = Vec::new();
             if let Some(owner) = owner
@@ -119,6 +119,11 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
             }
             if let Some((min, max)) = bounds {
                 facts.push(format!("Writes are clamped to `{min}..={max}`."));
+            }
+            if *timer {
+                facts.push(
+                    "Counts down by one every tick until zero; reads as the ticks left.".into(),
+                );
             }
             (field_line(analysis, id).trim().to_string(), facts)
         }
@@ -144,7 +149,15 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
             if !entry.is_empty() {
                 facts.push(format!("Entry point: {}", entry.join(", ")));
             }
-            (format!("{vis}fn {}{signature}", def.name), facts)
+            if def.kind == DefKind::Event {
+                let mut event_facts = vec![
+                    "Custom event. `#[on(...)]` functions handle it; `emit(...)` runs them.".into(),
+                ];
+                event_facts.extend(facts.into_iter().skip(1));
+                (format!("{vis}event {}{signature}", def.name), event_facts)
+            } else {
+                (format!("{vis}fn {}{signature}", def.name), facts)
+            }
         }
         DefInfo::ExternFunction { id, context } => (
             format!("{vis}extern \"{id}\" fn {}()", def.name),
@@ -172,6 +185,16 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 (crate::ast::DataKind::Recipe, _) => (
                     format!("{vis}recipe {}", def.name),
                     format!("Recipe `{id}`."),
+                ),
+                (crate::ast::DataKind::BossBar, _) => (
+                    format!("{vis}bossbar {}", def.name),
+                    format!(
+                        "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
+                    ),
+                ),
+                (crate::ast::DataKind::Loot, _) => (
+                    format!("{vis}loot {}", def.name),
+                    format!("Loot table `{id}`. Use it with `give_loot` or `drop_loot`."),
                 ),
                 (crate::ast::DataKind::Tag, ty) => {
                     let ty = ty.unwrap_or("?");
@@ -238,6 +261,7 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
         ty,
         default,
         bounds,
+        timer,
     } = &def.info
     else {
         return String::new();
@@ -257,7 +281,11 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
     format!(
         "{clamp}    {}: {} = {default_text},",
         def.name,
-        ty_name(analysis, *ty)
+        if *timer {
+            "timer".to_string()
+        } else {
+            ty_name(analysis, *ty)
+        }
     )
 }
 
@@ -403,7 +431,7 @@ fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<
         })
         .or_else(|| {
             // On the declaration keyword itself.
-            ["item", "recipe", "tag"]
+            ["item", "recipe", "tag", "bossbar", "loot"]
                 .into_iter()
                 .find(|k| *k == word && before.trim().is_empty())
         });
@@ -693,10 +721,12 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         DefKind::Variant => CompletionKind::Variant,
         DefKind::State => CompletionKind::State,
         DefKind::Field => CompletionKind::Field,
-        DefKind::Function | DefKind::ExternFunction => CompletionKind::Function,
+        DefKind::Function | DefKind::ExternFunction | DefKind::Event => CompletionKind::Function,
         DefKind::Flow => CompletionKind::Flow,
         DefKind::Local => CompletionKind::Variable,
-        DefKind::CustomItem | DefKind::Recipe | DefKind::Tag => CompletionKind::Constant,
+        DefKind::CustomItem | DefKind::Recipe | DefKind::Tag | DefKind::BossBar | DefKind::Loot => {
+            CompletionKind::Constant
+        }
     }
 }
 
@@ -793,7 +823,16 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
         Position::Nothing => return Vec::new(),
         Position::Attribute { inner, target } => return attribute_completions(*inner, *target),
         Position::AttributeArg { attr, key } => {
-            return attribute_arg_completions(attr, key.as_deref());
+            let mut out = attribute_arg_completions(attr, key.as_deref());
+            if attr == "on" && key.is_none() {
+                out.extend(
+                    scope_names(analysis, module)
+                        .into_iter()
+                        .filter(|(_, def)| analysis.def(*def).kind == DefKind::Event)
+                        .map(|(name, def)| def_completion(analysis, &name, def)),
+                );
+            }
+            return out;
         }
         Position::Interpolation => {
             return interpolation_completions(analysis, file, offset, module);
@@ -839,7 +878,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
         {
             return registry_completions(registry, false);
         }
-        let types_only = matches!(position, Position::ScoreType);
+        let types_only = matches!(position, Position::ScoreType | Position::FieldType);
         return match resolve_names(analysis, module, &base) {
             Some(Target::Module(m)) => scope_names(analysis, m)
                 .into_iter()
@@ -878,7 +917,8 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             out.extend(paths());
             out
         }
-        Position::ScoreType => {
+        Position::ScoreType | Position::FieldType => {
+            let field_type = matches!(position, Position::FieldType);
             let mut out = vec![Completion {
                 documentation: Some("A whole number.".into()),
                 ..Completion::plain("number", CompletionKind::Keyword)
@@ -891,6 +931,12 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 documentation: Some("`true` or `false`.".into()),
                 ..Completion::plain("bool", CompletionKind::Keyword)
             });
+            if field_type {
+                out.push(Completion {
+                    documentation: Some("Counts down by one every tick until zero.".into()),
+                    ..Completion::plain("timer", CompletionKind::Keyword)
+                });
+            }
             out.extend(defs(&|d| matches!(d.kind, DefKind::Enum | DefKind::Module)));
             out
         }
@@ -999,6 +1045,26 @@ fn scope_defs(
         .collect()
 }
 
+/// `State.field` for every timer field visible here.
+fn timer_field_completions(analysis: &Analysis, in_scope: &[(String, DefId)]) -> Vec<Completion> {
+    let mut out = Vec::new();
+    for (name, def) in in_scope {
+        let DefInfo::State { fields, .. } = &analysis.def(*def).info else {
+            continue;
+        };
+        for field in fields {
+            let field = analysis.def(*field);
+            if matches!(field.info, DefInfo::Field { timer: true, .. }) {
+                out.push(Completion::plain(
+                    &format!("{name}.{}", field.name),
+                    CompletionKind::Field,
+                ));
+            }
+        }
+    }
+    out
+}
+
 fn statement_completions(
     analysis: &Analysis,
     file: FileId,
@@ -1100,6 +1166,30 @@ fn expression_completions(
                     }
                 )
             });
+        }
+        let active_type = help
+            .params
+            .get(help.active)
+            .and_then(|(start, end, _)| help.label[*start..*end].split_once(": "))
+            .map(|(_, ty)| ty);
+        match active_type {
+            Some("BossBar") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
+            }
+            Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
+            Some("Event") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Event),
+            Some("timer") => return timer_field_completions(analysis, in_scope),
+            Some("Position") => {
+                return vec![
+                    Completion::snippet(
+                        "offset",
+                        "relative to the executor",
+                        "offset(${1:0}, ${2:0}, ${3:0})",
+                    ),
+                    Completion::snippet("pos", "world coordinates", "pos(${1:0}, ${2:64}, ${3:0})"),
+                ];
+            }
+            _ => {}
         }
         if let Some(registry) = help
             .params
@@ -1438,6 +1528,7 @@ fn data_completions(
                         recipe_type.is_none()
                     }
                     ("recipe", "key") => recipe_type == Some("shaped"),
+                    ("recipe", "base" | "addition") => recipe_type == Some("smithing"),
                     ("recipe", "experience" | "time") => cooking,
                     _ => true,
                 }
@@ -1459,6 +1550,7 @@ fn data_completions(
             }
             out
         }
+        FieldKind::LootItems => registry("Item"),
         FieldKind::Ingredient | FieldKind::Ingredients | FieldKind::Key => {
             let mut out = registry("Item");
             out.extend(
@@ -1543,6 +1635,17 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "flow ${1:Name} on ${2:State}.${3:field} {\n    ${4:From} -> ${5:To};\n}",
         ),
         Completion::snippet("const", "constant", "const ${1:NAME}: number = ${2:0};"),
+        Completion::snippet("event", "custom event", "event ${1:Name};"),
+        Completion::snippet(
+            "bossbar",
+            "bar at the top of the screen",
+            "bossbar ${1:Name} {\n    title: \"${2:Title}\",\n    color: BossBarColor::${3:Red},\n}",
+        ),
+        Completion::snippet(
+            "loot",
+            "loot table",
+            "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
         Completion::snippet(
             "item",
             "custom item",
@@ -1701,6 +1804,11 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Function => "fn",
                 ParamKind::Range => "range",
                 ParamKind::EntityState => "EntityState",
+                ParamKind::Timer => "timer",
+                ParamKind::Position => "Position",
+                ParamKind::BossBar => "BossBar",
+                ParamKind::Loot => "Loot",
+                ParamKind::Event => "Event",
             };
             let rendered = if param.required {
                 format!("{}: {kind}", param.name)

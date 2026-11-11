@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "A crafting, cooking, or stonecutting recipe.",
+  "description": "A crafting, cooking, stonecutting, or smithing recipe.",
   "oneOf": [
     {
       "additionalProperties": false,
@@ -132,6 +132,40 @@
         "kind",
         "id",
         "ingredient",
+        "result"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A smithing-table upgrade.",
+      "properties": {
+        "addition": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "smithing",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "defs-RecipeOutput.schema.json"
+        },
+        "template": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "template",
+        "base",
+        "addition",
         "result"
       ],
       "type": "object"

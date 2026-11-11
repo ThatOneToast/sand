@@ -61,6 +61,7 @@ fn is_keyword(rule: Rule) -> bool {
             | Rule::kw_enum
             | Rule::kw_state
             | Rule::kw_flow
+            | Rule::kw_event
             | Rule::kw_extern
             | Rule::kw_if
             | Rule::kw_else
@@ -81,6 +82,21 @@ fn is_keyword(rule: Rule) -> bool {
 /// Significant children: keyword tokens carry no information beyond the rule.
 fn children<'i>(pair: P<'i>) -> impl Iterator<Item = P<'i>> {
     pair.into_inner().filter(|p| !is_keyword(p.as_rule()))
+}
+
+fn parameter(pair: P<'_>) -> Param {
+    let s = span(&pair);
+    let mut pieces = pair.into_inner();
+    let name = ident(pieces.next().expect("param name"));
+    let ty = path(
+        pieces
+            .next()
+            .expect("param type")
+            .into_inner()
+            .next()
+            .expect("type path"),
+    );
+    Param { name, ty, span: s }
 }
 
 fn ident(pair: P<'_>) -> Ident {
@@ -343,6 +359,8 @@ impl Builder<'_> {
                 let kind = match inner.next().expect("data kind").as_str() {
                     "item" => DataKind::Item,
                     "recipe" => DataKind::Recipe,
+                    "bossbar" => DataKind::BossBar,
+                    "loot" => DataKind::Loot,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));
@@ -363,6 +381,16 @@ impl Builder<'_> {
                     body,
                 })
             }
+            Rule::event_item => {
+                let name = ident(inner.next().expect("event name"));
+                let mut params = Vec::new();
+                for part in inner {
+                    if part.as_rule() == Rule::params {
+                        params = part.into_inner().map(parameter).collect();
+                    }
+                }
+                ItemKind::Event(EventItem { name, params })
+            }
             Rule::extern_fn => {
                 let id_pair = inner.next().expect("extern id");
                 let id_span = span(&id_pair);
@@ -378,20 +406,7 @@ impl Builder<'_> {
                 for part in inner {
                     match part.as_rule() {
                         Rule::params => {
-                            for param in part.into_inner() {
-                                let s = span(&param);
-                                let mut pieces = param.into_inner();
-                                let name = ident(pieces.next().expect("param name"));
-                                let ty = path(
-                                    pieces
-                                        .next()
-                                        .expect("param type")
-                                        .into_inner()
-                                        .next()
-                                        .expect("type path"),
-                                );
-                                params.push(Param { name, ty, span: s });
-                            }
+                            params.extend(part.into_inner().map(parameter));
                         }
                         Rule::ret_ty => {
                             ret = part

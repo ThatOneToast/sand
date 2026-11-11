@@ -130,7 +130,7 @@ impl Cx {
                     [] => {
                         self.diagnostics.push(
                             Diagnostic::error("recipe", file, data.name.span, "a recipe needs a type")
-                                .with_help("add one of `shaped`, `shapeless`, `smelting`, `blasting`, `smoking`, `campfire`, or `stonecutting`"),
+                                .with_help("add one of `shaped`, `shapeless`, `smelting`, `blasting`, `smoking`, `campfire`, `stonecutting`, or `smithing`"),
                         );
                         return;
                     }
@@ -142,6 +142,8 @@ impl Cx {
                 };
                 for (field, allowed) in [
                     ("key", kind == "shaped"),
+                    ("base", kind == "smithing"),
+                    ("addition", kind == "smithing"),
                     (
                         "experience",
                         matches!(kind, "smelting" | "blasting" | "smoking" | "campfire"),
@@ -282,6 +284,32 @@ impl Cx {
                             result,
                         }
                     }
+                    "smithing" => {
+                        let (Some(base), Some(addition)) = (get("base"), get("addition")) else {
+                            self.error(
+                                "recipe",
+                                file,
+                                type_field.key.span,
+                                "a smithing recipe needs `base` and `addition`",
+                            );
+                            return;
+                        };
+                        let template = self.data_ingredient(module, file, &type_field.value);
+                        let base = self.data_ingredient(module, file, &base.value);
+                        let addition = self.data_ingredient(module, file, &addition.value);
+                        let (Some(template), Some(base), Some(addition)) =
+                            (template, base, addition)
+                        else {
+                            return;
+                        };
+                        pc::Recipe::Smithing {
+                            id: location,
+                            template,
+                            base,
+                            addition,
+                            result,
+                        }
+                    }
                     "stonecutting" => {
                         let Some(ingredient) =
                             self.data_ingredient(module, file, &type_field.value)
@@ -335,6 +363,110 @@ impl Cx {
                 ));
                 out.recipes.push(recipe);
             }
+            DataKind::BossBar => {
+                let Some(title) = get("title").and_then(|f| self.data_text(module, file, &f.value))
+                else {
+                    return;
+                };
+                let color = match get("color") {
+                    Some(f) => {
+                        let Some(expr) = self.data_expr(file, &f.value, "a `BossBarColor`") else {
+                            return;
+                        };
+                        let Some(value) = self.vanilla_value(module, file, expr, "BossBarColor")
+                        else {
+                            return;
+                        };
+                        match value.as_str() {
+                            "blue" => pc::BossBarColor::Blue,
+                            "green" => pc::BossBarColor::Green,
+                            "pink" => pc::BossBarColor::Pink,
+                            "purple" => pc::BossBarColor::Purple,
+                            "red" => pc::BossBarColor::Red,
+                            "yellow" => pc::BossBarColor::Yellow,
+                            _ => pc::BossBarColor::White,
+                        }
+                    }
+                    None => pc::BossBarColor::White,
+                };
+                let style = match get("style") {
+                    Some(f) => {
+                        let Some(expr) = self.data_expr(file, &f.value, "a `BossBarStyle`") else {
+                            return;
+                        };
+                        let Some(value) = self.vanilla_value(module, file, expr, "BossBarStyle")
+                        else {
+                            return;
+                        };
+                        match value.as_str() {
+                            "notched_6" => pc::BossBarStyle::Notched6,
+                            "notched_10" => pc::BossBarStyle::Notched10,
+                            "notched_12" => pc::BossBarStyle::Notched12,
+                            "notched_20" => pc::BossBarStyle::Notched20,
+                            _ => pc::BossBarStyle::Progress,
+                        }
+                    }
+                    None => pc::BossBarStyle::Progress,
+                };
+                let max = get("max")
+                    .map(|f| self.data_int(module, file, &f.value, 1, i32::MAX as i64))
+                    .unwrap_or(Some(100));
+                let Some(max) = max else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/boss_bars/{}", out.boss_bars.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.boss_bars.push(pc::BossBar {
+                    id: location,
+                    title,
+                    color,
+                    style,
+                    max: max as u32,
+                });
+            }
+            DataKind::Loot => {
+                let Some(items_field) = get("items") else {
+                    return;
+                };
+                let DataValue::Array(values, span) = &items_field.value else {
+                    self.error(
+                        "type",
+                        file,
+                        items_field.value.span(),
+                        "expected a list of items",
+                    );
+                    return;
+                };
+                if values.is_empty() {
+                    self.error("loot", file, *span, "a loot table needs at least one item");
+                    return;
+                }
+                let items: Option<Vec<pc::LootItem>> = values
+                    .iter()
+                    .map(|value| self.data_loot_item(module, file, value))
+                    .collect();
+                let rolls = get("rolls")
+                    .map(|f| self.data_int(module, file, &f.value, 1, 1_000))
+                    .unwrap_or(Some(1));
+                let (Some(items), Some(rolls)) = (items, rolls) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/loot_tables/{}", out.loot_tables.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.loot_tables.push(pc::LootTable {
+                    id: location,
+                    rolls: rolls as u32,
+                    items,
+                });
+            }
             DataKind::Tag => {
                 // A missing or unknown type was reported at the declaration.
                 let Some(registry) = tag_type else {
@@ -381,6 +513,60 @@ impl Cx {
                 });
             }
         }
+    }
+
+    /// A vanilla item, or `{ item: ..., weight: ..., count: ... }`.
+    fn data_loot_item(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::LootItem> {
+        let (item, mut weight, mut count) = match value {
+            DataValue::Object(entries, span) => {
+                let mut item = None;
+                let mut weight = Some(1);
+                let mut count = Some(1);
+                for entry in entries {
+                    match entry.key.name.as_str() {
+                        "item" => {
+                            item = Some(self.data_item_ref(module, file, &entry.value, false)?);
+                        }
+                        "weight" => {
+                            weight = self.data_int(module, file, &entry.value, 1, i32::MAX as i64)
+                        }
+                        "count" => count = self.data_int(module, file, &entry.value, 1, 99),
+                        other => {
+                            self.diagnostics.push(
+                                Diagnostic::error(
+                                    "field",
+                                    file,
+                                    entry.key.span,
+                                    format!("a loot item has no field `{other}`"),
+                                )
+                                .with_help("fields: item, weight, count"),
+                            );
+                            return None;
+                        }
+                    }
+                }
+                if item.is_none() {
+                    self.error("field", file, *span, "a loot item needs `item`");
+                    return None;
+                }
+                (item?, weight, count)
+            }
+            other => (
+                self.data_item_ref(module, file, other, false)?,
+                Some(1),
+                Some(1),
+            ),
+        };
+        Some(pc::LootItem {
+            item,
+            weight: weight.take()? as u32,
+            count: count.take()? as u32,
+        })
     }
 
     /// Index fields by name, reporting unknown, duplicate, and missing ones.

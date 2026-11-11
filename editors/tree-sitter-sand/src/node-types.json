@@ -913,6 +913,40 @@
     }
   },
   {
+    "type": "event_item",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "attribute",
+          "named": true
+        },
+        {
+          "type": "parameters",
+          "named": true
+        },
+        {
+          "type": "visibility",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "extern_function",
     "named": true,
     "fields": {
@@ -1695,6 +1729,10 @@
           "named": true
         },
         {
+          "type": "event_item",
+          "named": true
+        },
+        {
           "type": "extern_function",
           "named": true
         },
@@ -2113,6 +2151,10 @@
         },
         {
           "type": "enum_item",
+          "named": true
+        },
+        {
+          "type": "event_item",
           "named": true
         },
         {
@@ -2878,6 +2920,10 @@
   {
     "type": "escape_sequence",
     "named": true
+  },
+  {
+    "type": "event",
+    "named": false
   },
   {
     "type": "every",

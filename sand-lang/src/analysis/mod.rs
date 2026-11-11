@@ -86,6 +86,12 @@ pub enum DefKind {
     Recipe,
     /// `tag Name: Type { ... }`.
     Tag,
+    /// `event Name(...)`.
+    Event,
+    /// `bossbar Name { ... }`.
+    BossBar,
+    /// `loot Name { ... }`.
+    Loot,
 }
 
 impl DefKind {
@@ -105,6 +111,9 @@ impl DefKind {
             DefKind::CustomItem => "custom item",
             DefKind::Recipe => "recipe",
             DefKind::Tag => "tag",
+            DefKind::Event => "event",
+            DefKind::BossBar => "boss bar",
+            DefKind::Loot => "loot table",
         }
     }
 }
@@ -151,6 +160,8 @@ pub enum DefInfo {
         default: Option<i64>,
         /// Inclusive clamp bounds.
         bounds: Option<(i32, i32)>,
+        /// Whether the field counts down by itself.
+        timer: bool,
     },
     /// A function.
     Function {
@@ -403,6 +414,8 @@ pub fn analyze(package: Package) -> Analysis {
         vanilla_uses: Vec::new(),
         local_fields: Vec::new(),
         fn_slots: BTreeMap::new(),
+        event_handlers: BTreeMap::new(),
+        handler_attrs: HashSet::new(),
     };
     cx.collect();
     cx.resolve_imports();
@@ -480,6 +493,10 @@ struct Cx {
     local_fields: Vec<String>,
     /// Parameter and return slots per function.
     fn_slots: BTreeMap<DefId, FnSlots>,
+    /// Handlers of each custom event, in declaration order.
+    event_handlers: BTreeMap<DefId, Vec<(DefId, Span)>>,
+    /// `#[on(Event)]` attributes that name a custom event.
+    handler_attrs: HashSet<(FileId, Span)>,
 }
 
 /// How many score units represent `1.0` in a `float`, matching Rust's
@@ -572,7 +589,10 @@ impl Cx {
                 | DefKind::Flow
                 | DefKind::CustomItem
                 | DefKind::Recipe
-                | DefKind::Tag => ("PascalCase", pascal_case(name)),
+                | DefKind::Tag
+                | DefKind::Event
+                | DefKind::BossBar
+                | DefKind::Loot => ("PascalCase", pascal_case(name)),
             };
             if fixed == name || fixed.is_empty() {
                 continue;
@@ -760,6 +780,7 @@ impl Cx {
                             ty: Ty::Unknown,
                             default: None,
                             bounds: None,
+                            timer: false,
                         },
                     });
                     if members.insert(field.name.name.clone(), fid).is_some() {
@@ -795,6 +816,20 @@ impl Cx {
                     },
                 ))
             }
+            ItemKind::Event(_) => {
+                // An event compiles to a dispatcher function, so it takes part
+                // in context inference and recursion checks like one.
+                self.push_def(base(
+                    DefKind::Event,
+                    DefInfo::Function {
+                        id: event_id(&self.item_id(module, &name.name)),
+                        context: Context::Server,
+                        player_reason: None,
+                        entry: Vec::new(),
+                        signature: "()".into(),
+                    },
+                ))
+            }
             ItemKind::ExternFn(e) => {
                 let context = if item.attr("player").is_some() {
                     Context::Player
@@ -814,6 +849,8 @@ impl Cx {
                     crate::ast::DataKind::Item => DefKind::CustomItem,
                     crate::ast::DataKind::Recipe => DefKind::Recipe,
                     crate::ast::DataKind::Tag => DefKind::Tag,
+                    crate::ast::DataKind::BossBar => DefKind::BossBar,
+                    crate::ast::DataKind::Loot => DefKind::Loot,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -1266,7 +1303,10 @@ impl Cx {
         // Identities depend on the namespace; refresh them now that it is known.
         for index in 0..self.defs.len() {
             let def = &self.defs[index];
-            let fresh = self.item_id(def.module, &def.name);
+            let mut fresh = self.item_id(def.module, &def.name);
+            if def.kind == DefKind::Event {
+                fresh = event_id(&fresh);
+            }
             match &mut self.defs[index].info {
                 DefInfo::State { id, .. }
                 | DefInfo::Flow { id }
@@ -1295,6 +1335,19 @@ impl Cx {
                             "`i32` is written `number` in Sand",
                         )
                         .with_help("use `number` for whole numbers or `float` for decimals"),
+                    );
+                    return Ty::Unknown;
+                }
+                "timer" => {
+                    let file = self.package.module(module).file;
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            "type",
+                            file,
+                            segment.span,
+                            "`timer` is only for `state` fields",
+                        )
+                        .with_help("use `number` to hold a duration here"),
                     );
                     return Ty::Unknown;
                 }
@@ -1410,7 +1463,12 @@ impl Cx {
     }
 
     fn field(&mut self, module: ModuleId, file: FileId, field: &Field, def: DefId) {
-        let ty = self.resolve_type(module, &field.ty);
+        let timer = matches!(field.ty.segments.as_slice(), [s] if s.name == "timer");
+        let ty = if timer {
+            Ty::Number
+        } else {
+            self.resolve_type(module, &field.ty)
+        };
         let default = match (&field.default, ty) {
             (Some(expr), _) => self.eval_i32(module, file, expr, Some(ty), None),
             (None, Ty::Enum(e)) => match &self.defs[e.0].info {
@@ -1438,7 +1496,7 @@ impl Cx {
                 );
                 continue;
             }
-            if !matches!(ty, Ty::Number | Ty::Float) {
+            if !matches!(ty, Ty::Number | Ty::Float) || timer {
                 self.error(
                     "attribute",
                     file,
@@ -1499,6 +1557,7 @@ impl Cx {
             ty,
             default,
             bounds,
+            timer,
         };
     }
 
@@ -1802,6 +1861,7 @@ impl Cx {
                         name: name.clone(),
                         default: 0,
                         bounds: None,
+                        timer: false,
                     })
                     .collect(),
             });
@@ -1869,59 +1929,222 @@ impl Cx {
             let module = ModuleId(index);
             let file = self.package.module(module).file;
             for item in self.package.module(module).items.clone() {
+                match &item.kind {
+                    ItemKind::Fn(function) => {
+                        if let Some(def) = self.def_by_span(module, function.name.span) {
+                            self.declare_slots(
+                                module,
+                                file,
+                                def,
+                                &function.params,
+                                function.ret.as_ref(),
+                            );
+                        }
+                    }
+                    ItemKind::Event(event) => {
+                        if let Some(def) = self.def_by_span(module, event.name.span) {
+                            self.declare_slots(module, file, def, &event.params, None);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.collect_event_handlers();
+    }
+
+    /// Parameters and return slot of one declared function or event.
+    fn declare_slots(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        owner: DefId,
+        declared: &[Param],
+        ret: Option<&Path>,
+    ) {
+        let mut params = Vec::new();
+        let mut seen = HashSet::new();
+        let mut rendered = Vec::new();
+        for param in declared {
+            if !seen.insert(param.name.name.clone()) {
+                self.error(
+                    "duplicate",
+                    file,
+                    param.name.span,
+                    format!("parameter `{}` is declared more than once", param.name.name),
+                );
+            }
+            let ty = self.resolve_type(module, &param.ty);
+            rendered.push(format!("{}: {}", param.name.name, self.ty_name(ty)));
+            let local = self.push_def(Def {
+                kind: DefKind::Local,
+                name: param.name.name.clone(),
+                module,
+                file,
+                name_span: param.name.span,
+                span: param.span,
+                docs: Vec::new(),
+                is_pub: false,
+                parent: None,
+                info: DefInfo::Local {
+                    ty,
+                    mutable: false,
+                    param: true,
+                    owner: Some(owner),
+                },
+            });
+            params.push((format!("v{}_{}", local.0, param.name.name), local, ty));
+        }
+        let ret = ret.map(|ret| {
+            let ty = self.resolve_type(module, ret);
+            (format!("f{}_ret", owner.0), ty)
+        });
+        let mut signature = format!("({})", rendered.join(", "));
+        if let Some((_, ty)) = &ret {
+            signature.push_str(&format!(" -> {}", self.ty_name(*ty)));
+        }
+        if let DefInfo::Function { signature: s, .. } = &mut self.defs[owner.0].info {
+            *s = signature;
+        }
+        self.fn_slots.insert(owner, FnSlots { params, ret });
+    }
+
+    /// Bind `#[on(Event)]` functions to their custom events.
+    fn collect_event_handlers(&mut self) {
+        for index in 0..self.package.modules.len() {
+            let module = ModuleId(index);
+            let file = self.package.module(module).file;
+            for item in self.package.module(module).items.clone() {
                 let ItemKind::Fn(function) = &item.kind else {
                     continue;
                 };
                 let Some(def) = self.def_by_span(module, function.name.span) else {
                     continue;
                 };
-                let mut params = Vec::new();
-                let mut seen = HashSet::new();
-                let mut rendered = Vec::new();
-                for param in &function.params {
-                    if !seen.insert(param.name.name.clone()) {
-                        self.error(
-                            "duplicate",
-                            file,
-                            param.name.span,
-                            format!("parameter `{}` is declared more than once", param.name.name),
-                        );
-                    }
-                    let ty = self.resolve_type(module, &param.ty);
-                    rendered.push(format!("{}: {}", param.name.name, self.ty_name(ty)));
-                    let local = self.push_def(Def {
-                        kind: DefKind::Local,
-                        name: param.name.name.clone(),
-                        module,
-                        file,
-                        name_span: param.name.span,
-                        span: param.span,
-                        docs: Vec::new(),
-                        is_pub: false,
-                        parent: None,
-                        info: DefInfo::Local {
-                            ty,
-                            mutable: false,
-                            param: true,
-                            owner: Some(def),
+                for attr in item.attrs.iter().filter(|a| a.name() == "on") {
+                    let [
+                        AttrArg {
+                            key: None,
+                            value: AttrValue::Expr(Expr::Path(path)),
+                            ..
                         },
-                    });
-                    params.push((format!("v{}_{}", local.0, param.name.name), local, ty));
+                    ] = attr.args.as_slice()
+                    else {
+                        continue;
+                    };
+                    if path.segments.len() == 1
+                        && crate::builtins::EVENTS
+                            .iter()
+                            .any(|(name, _, _)| *name == path.segments[0].name)
+                    {
+                        continue;
+                    }
+                    let Ok((event, refs)) = self.resolve_path(module, path) else {
+                        continue;
+                    };
+                    if self.defs[event.0].kind != DefKind::Event {
+                        continue;
+                    }
+                    self.references.extend(refs);
+                    self.handler_attrs.insert((file, attr.span));
+                    let expected: Vec<Ty> =
+                        self.fn_slots[&event].params.iter().map(|p| p.2).collect();
+                    let found: Vec<Ty> = self.fn_slots[&def].params.iter().map(|p| p.2).collect();
+                    if expected != found {
+                        let name = self.defs[event.0].name.clone();
+                        let signature = match &self.defs[event.0].info {
+                            DefInfo::Function { signature, .. } => signature.clone(),
+                            _ => String::new(),
+                        };
+                        let (event_file, event_span) =
+                            (self.defs[event.0].file, self.defs[event.0].name_span);
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                "params",
+                                file,
+                                function.name.span,
+                                format!(
+                                    "`{}` handles `{name}`, so it must take {signature}",
+                                    function.name.name
+                                ),
+                            )
+                            .with_note(
+                                event_file,
+                                event_span,
+                                "event declared here",
+                            ),
+                        );
+                        continue;
+                    }
+                    self.event_handlers
+                        .entry(event)
+                        .or_default()
+                        .push((def, function.name.span));
                 }
-                let ret = function.ret.as_ref().map(|ret| {
-                    let ty = self.resolve_type(module, ret);
-                    (format!("f{}_ret", def.0), ty)
-                });
-                let mut signature = format!("({})", rendered.join(", "));
-                if let Some((_, ty)) = &ret {
-                    signature.push_str(&format!(" -> {}", self.ty_name(*ty)));
-                }
-                if let DefInfo::Function { signature: s, .. } = &mut self.defs[def.0].info {
-                    *s = signature;
-                }
-                self.fn_slots.insert(def, FnSlots { params, ret });
             }
         }
+    }
+
+    /// The dispatcher of a custom event: copy the payload into each handler's
+    /// parameters, then call it, in declaration order.
+    fn lower_event(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        event: &crate::ast::EventItem,
+        def: DefId,
+        lowerer: &mut Lowering,
+    ) {
+        let DefInfo::Function { id, .. } = self.defs[def.0].info.clone() else {
+            return;
+        };
+        let slots = self.fn_slots[&def].clone();
+        let mut body = Vec::new();
+        let mut calls = Vec::new();
+        for (handler, span) in self.event_handlers.get(&def).cloned().unwrap_or_default() {
+            let handler_slots = self.fn_slots[&handler].clone();
+            for ((from, _, _), (to, _, _)) in slots.params.iter().zip(&handler_slots.params) {
+                let from = self.slot(from.clone());
+                let to = self.slot(to.clone());
+                body.push(op_at(
+                    pc::Action::ScoreOperation {
+                        score: to,
+                        operator: pc::ScoreOperator::Set,
+                        operand: pc::ScoreOperand::Field(from),
+                    },
+                    file,
+                    span,
+                ));
+            }
+            if let Some(function) = self.function_reference(handler) {
+                body.push(op_at(pc::Action::Call { function }, file, span));
+            }
+            calls.push((handler, span));
+        }
+        lowerer.facts.insert(
+            def,
+            Facts {
+                entity_direct: None,
+                entity_loop_calls: Vec::new(),
+                all_calls: calls.clone(),
+                has_slots: !slots.params.is_empty(),
+                schedules: Vec::new(),
+                forced: None,
+                direct: None,
+                calls,
+                entry: Vec::new(),
+                file,
+            },
+        );
+        lowerer.functions.push(PendingFn {
+            module,
+            file,
+            def: Some(def),
+            fixed: None,
+            id,
+            name_span: event.name.span,
+            body,
+        });
     }
 
     /// Locals live in shared slots, so a function must not re-enter itself.
@@ -1989,6 +2212,8 @@ impl Cx {
             items: Vec::new(),
             recipes: Vec::new(),
             resource_tags: Vec::new(),
+            loot_tables: Vec::new(),
+            boss_bars: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));
@@ -2018,7 +2243,10 @@ impl Cx {
                             d.name_span,
                         ));
                         let DefInfo::Field {
-                            default, bounds, ..
+                            default,
+                            bounds,
+                            timer,
+                            ..
                         } = d.info
                         else {
                             continue;
@@ -2027,6 +2255,7 @@ impl Cx {
                             name: d.name.clone(),
                             default: default.unwrap_or(0) as i32,
                             bounds,
+                            timer,
                         });
                     }
                     let Ok(state_id) = id.parse() else {
@@ -2051,6 +2280,10 @@ impl Cx {
                 }
                 ItemKind::Fn(function) => {
                     self.lower_fn(module, file, &item, function, def, &mut out, lowerer);
+                }
+                ItemKind::Event(event) => {
+                    self.reject_attrs(file, &item);
+                    self.lower_event(module, file, event, def, lowerer);
                 }
                 ItemKind::ExternFn(_) => {
                     for attr in &item.attrs {
@@ -2497,6 +2730,7 @@ impl Cx {
                     });
                     entry.push((format!("#[tag(\"{tag}\")]"), attr.span));
                 }
+                "on" if self.handler_attrs.contains(&(file, attr.span)) => {}
                 "on" => {
                     let Some((event, label)) = self.event_attr(module, file, attr) else {
                         continue;
@@ -3595,6 +3829,11 @@ impl Cx {
             }
         }
     }
+}
+
+/// The dispatcher function of an event, given the event's item identity.
+fn event_id(item: &str) -> String {
+    item.replacen(':', ":sand_event/", 1)
 }
 
 /// "a" or "an" before a name.

@@ -24,6 +24,7 @@
 ; Declarations
 (function_item name: (identifier) @function)
 (extern_function name: (identifier) @function)
+(event_item name: (identifier) @type)
 (state_item name: (identifier) @type)
 (enum_item name: (identifier) @type)
 (flow_item name: (identifier) @type)
@@ -68,6 +69,7 @@
   "enum"
   "state"
   "flow"
+  "event"
   "extern"
   "as"
   "on"

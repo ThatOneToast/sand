@@ -141,6 +141,14 @@ pub(super) fn validate(
             }
             let mut fields = BTreeSet::new();
             for (index, field) in state.fields.iter().enumerate() {
+                if field.timer && field.bounds.is_some() {
+                    errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_STATE",
+                        &module.id.to_string(),
+                        &format!("{ptr}/fields/{index}/bounds"),
+                        "timer fields count down on their own and cannot have bounds",
+                    ));
+                }
                 if field.bounds.is_some_and(|(min, max)| min > max) {
                     errors.push(Diagnostic::error(
                         "SAND_PROGRAM_STATE",
@@ -196,6 +204,21 @@ pub(super) fn validate(
         })
         .collect();
     let mut validator = Validator {
+        boss_bars: program
+            .modules
+            .iter()
+            .flat_map(|m| m.boss_bars.iter().map(|b| b.id.to_string()))
+            .collect(),
+        loot_tables: program
+            .modules
+            .iter()
+            .flat_map(|m| m.loot_tables.iter().map(|t| t.id.to_string()))
+            .collect(),
+        custom_items: program
+            .modules
+            .iter()
+            .flat_map(|m| m.items.iter().map(|i| i.id.to_string()))
+            .collect(),
         states: states
             .into_iter()
             .map(|(id, state)| {
@@ -519,6 +542,18 @@ pub(super) fn validate(
                     inputs.push((format!("{ptr}/ingredient"), ingredient));
                     result
                 }
+                Recipe::Smithing {
+                    template,
+                    base,
+                    addition,
+                    result,
+                    ..
+                } => {
+                    inputs.push((format!("{ptr}/template"), template));
+                    inputs.push((format!("{ptr}/base"), base));
+                    inputs.push((format!("{ptr}/addition"), addition));
+                    result
+                }
             };
             for (input_ptr, item) in inputs {
                 if custom_items.contains(item.as_str()) {
@@ -536,6 +571,58 @@ pub(super) fn validate(
                 push(
                     format!("{ptr}/result"),
                     "a recipe result is an item id with a count of 1..=99".into(),
+                );
+            }
+        }
+        for (index, table) in module.loot_tables.iter().enumerate() {
+            let ptr = format!("/loot_tables/{index}");
+            if !resource_ids.insert(format!("loot {}", table.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate loot table `{}`", table.id),
+                );
+            }
+            if table.rolls == 0 || table.items.is_empty() {
+                push(
+                    ptr.clone(),
+                    "a loot table needs at least one roll and one item".into(),
+                );
+            }
+            for (i, item) in table.items.iter().enumerate() {
+                if !item_id(&item.item) || custom_items.contains(&item.item) {
+                    push(
+                        format!("{ptr}/items/{i}/item"),
+                        format!("`{}` is not a vanilla item id", item.item),
+                    );
+                }
+                if item.weight == 0 || !(1..=99).contains(&item.count) {
+                    push(
+                        format!("{ptr}/items/{i}"),
+                        "loot weight must be positive and count 1..=99".into(),
+                    );
+                }
+            }
+        }
+        for (index, bar) in module.boss_bars.iter().enumerate() {
+            let ptr = format!("/boss_bars/{index}");
+            if !resource_ids.insert(format!("bossbar {}", bar.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate boss bar `{}`", bar.id),
+                );
+            }
+            if bar.max == 0 || bar.max > i32::MAX as u32 {
+                push(format!("{ptr}/max"), "boss bar max must be positive".into());
+            }
+            if bar
+                .title
+                .iter()
+                .any(|part| !matches!(part, TextPart::Text { .. }))
+            {
+                push(
+                    format!("{ptr}/title"),
+                    "boss bar titles are static text; scores and player names are not allowed"
+                        .into(),
                 );
             }
         }
@@ -602,6 +689,9 @@ fn valid_id(id: &ResourceLocation) -> bool {
 }
 
 struct Validator<'a, 'e> {
+    boss_bars: BTreeSet<String>,
+    loot_tables: BTreeSet<String>,
+    custom_items: BTreeSet<String>,
     states: BTreeMap<String, (&'a str, BTreeSet<&'a str>)>,
     functions: BTreeMap<String, ExecutionContext>,
     operations: usize,
@@ -712,6 +802,18 @@ impl Validator<'_, '_> {
             Condition::Attached(test) => {
                 self.attachable_state(&test.attached, context, owner, &format!("{ptr}/attached"))
             }
+            Condition::Exists(test) => self.query(&test.exists, owner, &format!("{ptr}/exists")),
+            Condition::Block(test) => {
+                let id = test.block.strip_prefix('#').unwrap_or(&test.block);
+                self.resource(id, owner, &format!("{ptr}/block"), "block");
+            }
+            Condition::Holding(test) => {
+                self.executor(context, owner, ptr, "testing a held item");
+                if !self.custom_items.contains(&test.holding) {
+                    self.resource(&test.holding, owner, &format!("{ptr}/holding"), "item");
+                }
+            }
+            Condition::Flag(_) => self.executor(context, owner, ptr, "testing an entity flag"),
         }
     }
 
@@ -747,6 +849,17 @@ impl Validator<'_, '_> {
                 owner,
                 ptr,
                 format!("{what} requires a player or entity executor"),
+            ));
+        }
+    }
+
+    fn boss_bar(&mut self, bar: &ResourceLocation, owner: &str, ptr: &str) {
+        if !self.boss_bars.contains(&bar.to_string()) {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_REFERENCE",
+                owner,
+                ptr,
+                format!("`{bar}` is not a declared boss bar"),
             ));
         }
     }
@@ -1312,6 +1425,51 @@ impl Validator<'_, '_> {
                 }
                 Action::AttachState { state } | Action::DetachState { state } => {
                     self.attachable_state(state, context, owner, &format!("{ptr}/action/state"))
+                }
+                Action::SetBlock { block, .. } | Action::FillBlocks { block, .. } => {
+                    self.resource(block, owner, &format!("{ptr}/action/block"), "block");
+                }
+                Action::AddExperience { .. } => {
+                    self.player(context, owner, &ptr, "giving experience");
+                }
+                Action::SetGameMode { .. } => {
+                    self.player(context, owner, &ptr, "changing game mode");
+                }
+                Action::SetTime { .. } => {}
+                Action::SetWeather { seconds, .. } => {
+                    if *seconds == Some(0) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/seconds"),
+                            "weather duration must be positive",
+                        ));
+                    }
+                }
+                Action::BossBarAudience { bar, audience, .. } => {
+                    self.boss_bar(bar, owner, &format!("{ptr}/action/bar"));
+                    if *audience == Audience::Player {
+                        self.player(context, owner, &ptr, "showing a boss bar to one player");
+                    }
+                }
+                Action::SetBossBar { bar, value, .. } => {
+                    self.boss_bar(bar, owner, &format!("{ptr}/action/bar"));
+                    if let ScoreOperand::Field(field) = value {
+                        self.score(field, context, owner, &format!("{ptr}/action/value"));
+                    }
+                }
+                Action::GiveLoot { table } | Action::DropLoot { table } => {
+                    if !self.loot_tables.contains(&table.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/table"),
+                            format!("`{table}` is not a declared loot table"),
+                        ));
+                    }
+                    if matches!(operation.action, Action::GiveLoot { .. }) {
+                        self.player(context, owner, &ptr, "giving loot");
+                    }
                 }
                 Action::Raw { command } => {
                     if !self.raw {

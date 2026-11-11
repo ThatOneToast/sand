@@ -123,19 +123,19 @@ pub enum CookingMethod {
     Campfire,
 }
 
-/// A crafting, cooking, or stonecutting recipe.
+/// A crafting, cooking, stonecutting, or smithing recipe.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::Recipe", module = "sand::advanced::compiler",
- summary = "A crafting, cooking, or stonecutting recipe.",
+ summary = "A crafting, cooking, stonecutting, or smithing recipe.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Lowers through Sand's typed recipe builders to `data/<ns>/recipe/<path>.json`. Ingredients are item ids or `#tag` ids.",
  use_when = ["Adding a recipe to a portable program"],
- avoid_when = ["Smithing or special recipes, which need the Rust API"],
+ avoid_when = ["Trim or special recipes, which need the Rust API"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Shaped = "A crafting-table pattern.", Shapeless = "Crafting ingredients in any arrangement.", Cooking = "A furnace-like recipe.", Stonecutting = "A stonecutter recipe."),
- variant_fields(Shaped(id = "Identity.", pattern = "One to three equal-width rows.", key = "Pattern character to ingredient.", result = "Produced item."), Shapeless(id = "Identity.", ingredients = "One to nine ingredients.", result = "Produced item."), Cooking(id = "Identity.", method = "Cooking block.", ingredient = "Cooked ingredient.", result = "Produced item.", experience = "Experience awarded.", time = "Cooking time in ticks."), Stonecutting(id = "Identity.", ingredient = "Cut ingredient.", result = "Produced item.")),
+ variants(Shaped = "A crafting-table pattern.", Shapeless = "Crafting ingredients in any arrangement.", Cooking = "A furnace-like recipe.", Stonecutting = "A stonecutter recipe.", Smithing = "A smithing-table upgrade."),
+ variant_fields(Shaped(id = "Identity.", pattern = "One to three equal-width rows.", key = "Pattern character to ingredient.", result = "Produced item."), Shapeless(id = "Identity.", ingredients = "One to nine ingredients.", result = "Produced item."), Cooking(id = "Identity.", method = "Cooking block.", ingredient = "Cooked ingredient.", result = "Produced item.", experience = "Experience awarded.", time = "Cooking time in ticks."), Stonecutting(id = "Identity.", ingredient = "Cut ingredient.", result = "Produced item."), Smithing(id = "Identity.", template = "Smithing template.", base = "Upgraded item.", addition = "Upgrade material.", result = "Produced item.")),
 )]
 pub enum Recipe {
     /// A crafting-table pattern.
@@ -172,6 +172,15 @@ pub enum Recipe {
         ingredient: String,
         result: RecipeOutput,
     },
+    /// A smithing-table upgrade.
+    Smithing {
+        #[schemars(with = "String")]
+        id: ResourceLocation,
+        template: String,
+        base: String,
+        addition: String,
+        result: RecipeOutput,
+    },
 }
 
 impl Recipe {
@@ -181,7 +190,8 @@ impl Recipe {
             Recipe::Shaped { id, .. }
             | Recipe::Shapeless { id, .. }
             | Recipe::Cooking { id, .. }
-            | Recipe::Stonecutting { id, .. } => id,
+            | Recipe::Stonecutting { id, .. }
+            | Recipe::Smithing { id, .. } => id,
         }
     }
 }
@@ -232,4 +242,140 @@ pub struct ResourceTag {
     /// Replace lower-priority definitions instead of merging.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub replace: bool,
+}
+
+/// One choice in a loot table.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::LootItem", module = "sand::advanced::compiler",
+ summary = "One choice in a loot table.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Serialized as a `minecraft:item` loot entry, with `set_count` when more than one.",
+ use_when = ["Listing what a loot table can produce"],
+ avoid_when = ["Custom items, whose components need the Rust API"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(item = "Vanilla item identity.", weight = "Relative chance.", count = "Stack size produced."),
+)]
+pub struct LootItem {
+    /// Vanilla item identity.
+    pub item: String,
+    /// Relative chance.
+    #[serde(default = "one")]
+    pub weight: u32,
+    /// Stack size produced.
+    #[serde(default = "one")]
+    pub count: u32,
+}
+
+/// A loot table: rolls drawn from weighted item choices.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::LootTable", module = "sand::advanced::compiler",
+ summary = "A loot table: rolls drawn from weighted item choices.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Lowers through Sand's typed loot builder to `data/<ns>/loot_table/<path>.json`.",
+ use_when = ["Handing out or dropping randomized rewards"],
+ avoid_when = ["Conditional pools and loot functions, which need the Rust API"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(id = "Identity.", rolls = "Choices drawn each time.", items = "Weighted item choices."),
+)]
+pub struct LootTable {
+    /// Identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Choices drawn each time.
+    #[serde(default = "one")]
+    pub rolls: u32,
+    /// Weighted item choices.
+    pub items: Vec<LootItem>,
+}
+
+/// The colour of a boss bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BossBarColor", module = "sand::advanced::compiler",
+ summary = "The colour of a boss bar.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Serialized as the `bossbar set color` argument.",
+ use_when = ["Declaring a boss bar"],
+ avoid_when = ["Text colours; use TextColor"],
+ example = "let color = sand::advanced::compiler::BossBarColor::Red;",
+ variants(Blue = "Blue.", Green = "Green.", Pink = "Pink.", Purple = "Purple.", Red = "Red.", White = "White.", Yellow = "Yellow."),
+)]
+pub enum BossBarColor {
+    /// Blue.
+    Blue,
+    /// Green.
+    Green,
+    /// Pink.
+    Pink,
+    /// Purple.
+    Purple,
+    /// Red.
+    Red,
+    /// White.
+    White,
+    /// Yellow.
+    Yellow,
+}
+
+/// How a boss bar is divided.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BossBarStyle", module = "sand::advanced::compiler",
+ summary = "How a boss bar is divided.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Serialized as the `bossbar set style` argument.",
+ use_when = ["Declaring a boss bar"],
+ avoid_when = ["Text styling; use TextStyle"],
+ example = "let style = sand::advanced::compiler::BossBarStyle::Progress;",
+ variants(Progress = "One solid bar.", Notched6 = "Six notches.", Notched10 = "Ten notches.", Notched12 = "Twelve notches.", Notched20 = "Twenty notches."),
+)]
+pub enum BossBarStyle {
+    /// One solid bar.
+    Progress,
+    /// Six notches.
+    Notched6,
+    /// Ten notches.
+    Notched10,
+    /// Twelve notches.
+    Notched12,
+    /// Twenty notches.
+    Notched20,
+}
+
+/// A named bar shown at the top of the screen.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BossBar", module = "sand::advanced::compiler",
+ summary = "A named bar shown at the top of the screen.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Created and refreshed at load with `bossbar add` and `bossbar set`.",
+ use_when = ["Showing progress or boss health"],
+ avoid_when = ["Text that needs no bar; use Message"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(id = "Identity.", title = "Title parts; text only.", color = "Bar colour.", style = "Bar division.", max = "Largest value."),
+)]
+pub struct BossBar {
+    /// Identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Title parts; text only.
+    pub title: Vec<TextPart>,
+    /// Bar colour.
+    pub color: BossBarColor,
+    /// Bar division.
+    pub style: BossBarStyle,
+    /// Largest value.
+    #[serde(default = "hundred")]
+    pub max: u32,
+}
+
+fn hundred() -> u32 {
+    100
 }

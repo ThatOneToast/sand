@@ -508,7 +508,7 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 5_249);
+    assert_eq!(declarations.len(), 5_356);
     assert!(
         declarations
             .iter()

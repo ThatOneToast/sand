@@ -71,8 +71,10 @@ pub(crate) enum Position {
     FlowField,
     /// A `use` path.
     UsePath,
-    /// A score type: `i32` or an enum.
+    /// A score type: `number`, `float`, `bool`, or an enum.
     ScoreType,
+    /// The type of a State field: a score type or `timer`.
+    FieldType,
     /// The grouped type of a tag: `Item`, `Block`, or `Entity`.
     TagType,
     /// A constant expression: const initializers, defaults, discriminants.
@@ -283,7 +285,9 @@ fn tag_type(header: &str) -> Option<&'static str> {
 }
 
 fn data_keyword(word: &str) -> Option<&'static str> {
-    ["item", "recipe", "tag"].into_iter().find(|k| *k == word)
+    ["item", "recipe", "tag", "bossbar", "loot"]
+        .into_iter()
+        .find(|k| *k == word)
 }
 
 /// Classify one enclosing delimiter from the text before it.
@@ -522,7 +526,7 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
             if context.ends_with('=') {
                 Position::ConstValue
             } else if context.ends_with(':') {
-                Position::ScoreType
+                Position::FieldType
             } else if context.is_empty() {
                 Position::StateField
             } else {

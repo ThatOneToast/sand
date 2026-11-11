@@ -628,10 +628,17 @@ impl Cx {
                 DefInfo::Function { signature, .. } => signature.clone(),
                 _ => String::new(),
             };
-            self.diagnostics.push(
-                Diagnostic::error("call", file, span, message)
-                    .with_help(format!("signature: fn {name}{signature}")),
-            );
+            self.diagnostics
+                .push(
+                    Diagnostic::error("call", file, span, message).with_help(format!(
+                        "signature: {} {name}{signature}",
+                        if self.defs[def.0].kind == DefKind::Event {
+                            "event"
+                        } else {
+                            "fn"
+                        }
+                    )),
+                );
             return None;
         }
         for ((field, _, param_ty), arg) in slots.params.iter().zip(args) {
@@ -1132,6 +1139,13 @@ impl Cx {
             self.error("type", body.file, arg.value.span(), "expected an integer");
             return None;
         };
+        if !Self::is_const_in(body, expr) {
+            self.diagnostics.push(
+                Diagnostic::error("type", body.file, expr.span(), "expected a constant number")
+                    .with_help("this argument is written into the command when the pack is built"),
+            );
+            return None;
+        }
         let value = self.eval_i32(body.module, body.file, expr, Some(Ty::Number), None)?;
         if value < min || value > max {
             self.error(
@@ -1195,6 +1209,10 @@ impl Cx {
         let name = &path.last().name;
         let is_builtin_name = path.segments.len() == 1 && !self.scopes[module.0].contains_key(name);
         if is_builtin_name && let Some(builtin) = builtins::find(name, BuiltinKind::Statement) {
+            if builtin.name == "emit" {
+                self.lower_emit(body, builtin, path, args, span, ops);
+                return;
+            }
             self.lower_builtin(body, builtin, path, args, span, ops);
             return;
         }
@@ -1237,6 +1255,51 @@ impl Cx {
         }
     }
 
+    /// `emit(Event, args...)`: pass the payload to the event's dispatcher.
+    fn lower_emit(
+        &mut self,
+        body: &mut BodyCx,
+        builtin: &'static Builtin,
+        path: &Path,
+        args: &[Arg],
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let (module, file) = (body.module, body.file);
+        self.references_builtin(file, path.span, builtin);
+        let Some(Arg {
+            name: None,
+            value: ArgValue::Expr(Expr::Path(event)),
+            ..
+        }) = args.first()
+        else {
+            self.diagnostics.push(
+                Diagnostic::error("call", file, span, "`emit` needs an event first")
+                    .with_help("declare `event Name;` and write `emit(Name);`"),
+            );
+            return;
+        };
+        let Some(def) = self.expect_path(module, event, &[DefKind::Event], "an event") else {
+            return;
+        };
+        if !self.event_handlers.contains_key(&def) {
+            let name = self.defs[def.0].name.clone();
+            self.diagnostics.push(
+                Diagnostic::warning(
+                    "event",
+                    file,
+                    event.span,
+                    format!("`{name}` has no handlers, so this does nothing"),
+                )
+                .with_help(format!("mark a function with `#[on({name})]`")),
+            );
+        }
+        let Some(slots) = self.fn_slots.get(&def).cloned() else {
+            return;
+        };
+        let _ = self.call_user(body, def, &slots, event, &args[1..], span, ops);
+    }
+
     fn lower_builtin(
         &mut self,
         body: &mut BodyCx,
@@ -1268,6 +1331,10 @@ impl Cx {
         }
         if builtin.name == "set_attribute" {
             self.lower_set_attribute(body, &bound, span, ops);
+            return;
+        }
+        if matches!(builtin.name, "set_bossbar" | "set_bossbar_max") {
+            self.lower_set_bossbar(body, builtin, &bound, span, ops);
             return;
         }
         if let Some(action) = self.builtin_action(body, builtin, &bound, span) {
@@ -1332,6 +1399,183 @@ impl Cx {
         Some((def, id.clone()))
     }
 
+    /// A `State.field` argument naming a `timer` field.
+    fn arg_timer(
+        &mut self,
+        body: &mut BodyCx,
+        arg: &Arg,
+        verb: &str,
+    ) -> Option<pc::FieldReference> {
+        let (module, file) = (body.module, body.file);
+        let ArgValue::Expr(Expr::Place(place)) = &arg.value else {
+            self.diagnostics.push(
+                Diagnostic::error("type", file, arg.value.span(), "expected a `timer` field")
+                    .with_help("write it as `State.field`"),
+            );
+            return None;
+        };
+        let (state, field, _) = self.resolve_place(module, file, place)?;
+        if !matches!(self.defs[field.0].info, DefInfo::Field { timer: true, .. }) {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    "type",
+                    file,
+                    place.field.span,
+                    format!("`{}` is not a `timer` field", place.field.name),
+                )
+                .with_help("declare it as `name: timer`"),
+            );
+            return None;
+        }
+        body.note_state(self, state, place, verb);
+        self.field_reference(state, field)
+    }
+
+    /// `pos(x, y, z)` or `offset(dx, dy, dz)`.
+    fn arg_position(&mut self, body: &mut BodyCx, arg: &Arg) -> Option<pc::BlockPosition> {
+        let file = body.file;
+        let call = match &arg.value {
+            ArgValue::Expr(Expr::Call { path, args, .. }) if path.segments.len() == 1 => {
+                Some((path, args))
+            }
+            _ => None,
+        };
+        let Some((path, args)) = call.filter(|(path, args)| {
+            matches!(path.segments[0].name.as_str(), "pos" | "offset") && args.len() == 3
+        }) else {
+            self.diagnostics.push(
+                Diagnostic::error("type", file, arg.value.span(), "expected a block position")
+                    .with_help("write `pos(x, y, z)` or `offset(dx, dy, dz)`"),
+            );
+            return None;
+        };
+        let min = i32::MIN as i64;
+        let max = i32::MAX as i64;
+        if let Some(arg) = args.iter().find(
+            |arg| !matches!(&arg.value, ArgValue::Expr(expr) if Self::is_const_in(body, expr)),
+        ) {
+            self.diagnostics.push(
+                Diagnostic::error("type", file, arg.span, "block positions must be constants")
+                    .with_help("positions are written into the command when the pack is built"),
+            );
+            return None;
+        }
+        let x = self.arg_int(body, &args[0], min, max);
+        let y = self.arg_int(body, &args[1], min, max);
+        let z = self.arg_int(body, &args[2], min, max);
+        let (x, y, z) = (x? as i32, y? as i32, z? as i32);
+        Some(if path.segments[0].name == "offset" {
+            body.note_executor(
+                path.span,
+                "uses `offset`, which is relative to the executing entity".into(),
+            );
+            pc::BlockPosition::Relative { x, y, z }
+        } else {
+            pc::BlockPosition::Absolute { x, y, z }
+        })
+    }
+
+    /// An argument naming a declared boss bar or loot table.
+    fn arg_declared(
+        &mut self,
+        body: &BodyCx,
+        arg: &Arg,
+        kind: DefKind,
+        what: &str,
+    ) -> Option<sand::ResourceLocation> {
+        let ArgValue::Expr(Expr::Path(path)) = &arg.value else {
+            self.error(
+                "type",
+                body.file,
+                arg.value.span(),
+                format!("expected {what}"),
+            );
+            return None;
+        };
+        let def = self.expect_path(body.module, path, &[kind], what)?;
+        let DefInfo::Data { id, .. } = &self.defs[def.0].info else {
+            return None;
+        };
+        id.parse().ok()
+    }
+
+    /// A vanilla block, or `#tag` for a declared `Block` tag.
+    fn arg_block_test(&mut self, body: &BodyCx, arg: &Arg) -> Option<String> {
+        if let ArgValue::Expr(expr) = &arg.value
+            && let Some((def, id)) = self.declared(body.module, body.file, expr, DefKind::Tag)
+        {
+            if matches!(
+                self.defs[def.0].info,
+                DefInfo::Data {
+                    tag_type: Some("Block"),
+                    ..
+                }
+            ) {
+                return Some(format!("#{id}"));
+            }
+            self.error(
+                "type",
+                body.file,
+                expr.span(),
+                format!("`{}` is not a `Block` tag", self.defs[def.0].name),
+            );
+            return None;
+        }
+        self.arg_id(body, arg, "Block")
+    }
+
+    fn lower_set_bossbar(
+        &mut self,
+        body: &mut BodyCx,
+        builtin: &'static Builtin,
+        bound: &BTreeMap<&'static str, &Arg>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let file = body.file;
+        let Some(bar) = self.arg_declared(body, bound["bar"], DefKind::BossBar, "a boss bar")
+        else {
+            return;
+        };
+        let max = builtin.name == "set_bossbar_max";
+        let value_arg = bound[if max { "max" } else { "value" }];
+        let ArgValue::Expr(expr) = &value_arg.value else {
+            self.error("type", file, value_arg.span, "expected a value");
+            return;
+        };
+        let ty = self.type_of(body, expr);
+        if !self.types_agree(file, expr.span(), Ty::Number, ty) {
+            return;
+        }
+        let value = if Self::is_const_in(body, expr) {
+            let Some(value) =
+                self.arg_int(body, value_arg, if max { 1 } else { 0 }, i32::MAX as i64)
+            else {
+                return;
+            };
+            pc::ScoreOperand::Value(value as i32)
+        } else {
+            match self.simple(body, expr, ty) {
+                Ok(Some(Value::Read(reference))) => pc::ScoreOperand::Field(reference),
+                Ok(_) => {
+                    let depth = body.temp_depth;
+                    let temp = self.temp(body);
+                    if self.emit(body, &temp, ty, expr, ops).is_none() {
+                        return;
+                    }
+                    body.temp_depth = depth;
+                    pc::ScoreOperand::Field(temp)
+                }
+                Err(()) => return,
+            }
+        };
+        ops.push(op_at(
+            pc::Action::SetBossBar { bar, value, max },
+            file,
+            span,
+        ));
+    }
+
     /// A predicate call in a condition, such as `has_state(Mana)`.
     pub(super) fn predicate(
         &mut self,
@@ -1354,14 +1598,63 @@ impl Cx {
         };
         self.references_builtin(file, path.span, builtin);
         let bound = self.bind_args(body, builtin, args, span)?;
-        body.note_executor(
-            path.span,
-            format!("uses `{name}`, which tests the executing entity"),
-        );
-        let (_, id) = self.arg_attachable_state(body, bound["state"])?;
-        Some(pc::Condition::Attached(pc::StateAttached {
-            attached: id.parse().ok()?,
-        }))
+        if matches!(builtin.name, "has_state")
+            || builtins::EXECUTOR_BUILTINS.contains(&builtin.name)
+        {
+            body.note_executor(
+                path.span,
+                format!("uses `{name}`, which tests the executing entity"),
+            );
+        }
+        let flag = |flag| Some(pc::Condition::Flag(pc::FlagSet { flag }));
+        match builtin.name {
+            "has_state" => {
+                let (_, id) = self.arg_attachable_state(body, bound["state"])?;
+                Some(pc::Condition::Attached(pc::StateAttached {
+                    attached: id.parse().ok()?,
+                }))
+            }
+            "any_entities" => Some(pc::Condition::Exists(pc::EntitiesExist {
+                exists: self.query_from(body, &bound)?,
+            })),
+            "block_is" => {
+                let block = self.arg_block_test(body, bound["block"]);
+                let at = self.arg_position(body, bound["at"]);
+                Some(pc::Condition::Block(pc::BlockMatches {
+                    block: block?,
+                    at: at?,
+                }))
+            }
+            "holding" => {
+                let holding = self.arg_id(body, bound["item"], "Item");
+                let offhand = match bound.get("offhand") {
+                    Some(arg) => self.arg_bool(file, arg),
+                    None => Some(false),
+                };
+                Some(pc::Condition::Holding(pc::ItemHeld {
+                    holding: holding?,
+                    offhand: offhand?,
+                }))
+            }
+            "is_sneaking" => flag(pc::EntityFlag::Sneaking),
+            "is_sprinting" => flag(pc::EntityFlag::Sprinting),
+            "is_swimming" => flag(pc::EntityFlag::Swimming),
+            "is_on_fire" => flag(pc::EntityFlag::OnFire),
+            "timer_running" | "timer_done" => {
+                let score = self.arg_timer(body, bound["timer"], "tests")?;
+                let (min, max) = if builtin.name == "timer_running" {
+                    (Some(1), None)
+                } else {
+                    (Some(0), Some(0))
+                };
+                Some(pc::Condition::Range(pc::ScoreComparison {
+                    score,
+                    min,
+                    max,
+                }))
+            }
+            other => unreachable!("condition builtin `{other}` is not lowered"),
+        }
     }
 
     /// Parse the filters of `entities(..)` in a `for` loop.
@@ -1765,6 +2058,121 @@ impl Cx {
                 pc::Action::Summon {
                     entity_type: entity_type?,
                     tag,
+                }
+            }
+            "start_timer" => {
+                let score = self.arg_timer(body, bound["timer"], "starts");
+                let ticks = match (bound.get("ticks"), bound.get("seconds")) {
+                    (Some(arg), None) => self.arg_int(body, arg, 1, i32::MAX as i64),
+                    (None, Some(arg)) => self
+                        .arg_int(body, arg, 1, i32::MAX as i64 / 20)
+                        .map(|s| s * 20),
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                "call",
+                                file,
+                                span,
+                                "`start_timer` needs exactly one of `ticks` or `seconds`",
+                            )
+                            .with_help("for example `start_timer(Ability.dash, seconds = 5);`"),
+                        );
+                        None
+                    }
+                };
+                pc::Action::ScoreSet {
+                    score: score?,
+                    value: ticks? as i32,
+                }
+            }
+            "stop_timer" => pc::Action::ScoreSet {
+                score: self.arg_timer(body, bound["timer"], "stops")?,
+                value: 0,
+            },
+            "set_block" => {
+                let block = self.arg_id(body, bound["block"], "Block");
+                let at = self.arg_position(body, bound["at"]);
+                pc::Action::SetBlock {
+                    block: block?,
+                    at: at?,
+                }
+            }
+            "fill_blocks" => {
+                let block = self.arg_id(body, bound["block"], "Block");
+                let from = self.arg_position(body, bound["from"]);
+                let to = self.arg_position(body, bound["to"]);
+                pc::Action::FillBlocks {
+                    block: block?,
+                    from: from?,
+                    to: to?,
+                }
+            }
+            "add_experience" => {
+                let (amount, levels) = match (bound.get("points"), bound.get("levels")) {
+                    (Some(arg), None) => (arg, false),
+                    (None, Some(arg)) => (arg, true),
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                "call",
+                                file,
+                                span,
+                                "`add_experience` needs exactly one of `points` or `levels`",
+                            )
+                            .with_help("for example `add_experience(points = 10);`"),
+                        );
+                        return None;
+                    }
+                };
+                pc::Action::AddExperience {
+                    amount: self.arg_int(body, amount, i32::MIN as i64, i32::MAX as i64)? as i32,
+                    levels,
+                }
+            }
+            "set_gamemode" => pc::Action::SetGameMode {
+                mode: match self.arg_id(body, bound["mode"], "GameMode")?.as_str() {
+                    "survival" => pc::PlayerGameMode::Survival,
+                    "creative" => pc::PlayerGameMode::Creative,
+                    "adventure" => pc::PlayerGameMode::Adventure,
+                    _ => pc::PlayerGameMode::Spectator,
+                },
+            },
+            "set_time" => pc::Action::SetTime {
+                ticks: self.arg_int(body, bound["ticks"], 0, i32::MAX as i64)? as u32,
+            },
+            "set_weather" => {
+                let weather = self.arg_id(body, bound["weather"], "Weather");
+                let seconds = match bound.get("seconds") {
+                    Some(arg) => self.arg_int(body, arg, 1, 1_000_000).map(Some),
+                    None => Some(None),
+                };
+                pc::Action::SetWeather {
+                    weather: match weather?.as_str() {
+                        "clear" => pc::Weather::Clear,
+                        "rain" => pc::Weather::Rain,
+                        _ => pc::Weather::Thunder,
+                    },
+                    seconds: seconds?.map(|s| s as u32),
+                }
+            }
+            "show_bossbar" | "hide_bossbar" | "show_bossbar_all" | "hide_bossbar_all" => {
+                pc::Action::BossBarAudience {
+                    bar: self.arg_declared(body, bound["bar"], DefKind::BossBar, "a boss bar")?,
+                    audience: if builtin.name.ends_with("_all") {
+                        pc::Audience::Everyone
+                    } else {
+                        pc::Audience::Player
+                    },
+                    visible: builtin.name.starts_with("show"),
+                }
+            }
+            "give_loot" | "drop_loot" => {
+                let table =
+                    self.arg_declared(body, bound["table"], DefKind::Loot, "a loot table")?;
+                if builtin.name == "give_loot" {
+                    pc::Action::GiveLoot { table }
+                } else {
+                    pc::Action::DropLoot { table }
                 }
             }
             other => unreachable!("statement builtin `{other}` is not lowered"),

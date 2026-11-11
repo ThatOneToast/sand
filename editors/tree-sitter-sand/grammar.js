@@ -59,14 +59,25 @@ module.exports = grammar({
         $.flow_item,
         $.extern_function,
         $.function_item,
+        $.event_item,
         $.data_item,
+      ),
+
+    event_item: ($) =>
+      seq(
+        repeat($.attribute),
+        optional($.visibility),
+        'event',
+        field('name', $.identifier),
+        optional($.parameters),
+        ';',
       ),
 
     data_item: ($) =>
       seq(
         repeat($.attribute),
         optional($.visibility),
-        field('kind', alias(choice('item', 'recipe', 'tag'), $.data_kind)),
+        field('kind', alias(choice('item', 'recipe', 'tag', 'bossbar', 'loot'), $.data_kind)),
         field('name', $.identifier),
         optional(seq(':', field('type', $.type))),
         $.data_object,

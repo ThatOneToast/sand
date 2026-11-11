@@ -568,9 +568,9 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         D::State => lsp::SymbolKind::STRUCT,
         D::Field => lsp::SymbolKind::FIELD,
         D::Function | D::ExternFunction => lsp::SymbolKind::FUNCTION,
-        D::Flow => lsp::SymbolKind::EVENT,
+        D::Flow | D::Event => lsp::SymbolKind::EVENT,
         D::Local => lsp::SymbolKind::VARIABLE,
-        D::CustomItem | D::Recipe | D::Tag => lsp::SymbolKind::CONSTANT,
+        D::CustomItem | D::Recipe | D::Tag | D::BossBar | D::Loot => lsp::SymbolKind::CONSTANT,
     };
     lsp::DocumentSymbol {
         name: symbol.name,

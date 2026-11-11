@@ -25,6 +25,8 @@ fn counter() -> Program {
             items: vec![],
             recipes: vec![],
             resource_tags: vec![],
+            loot_tables: vec![],
+            boss_bars: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {
@@ -35,6 +37,7 @@ fn counter() -> Program {
                     name: "value".into(),
                     default: 0,
                     bounds: None,
+                    timer: false,
                 }],
             }],
             functions: vec![

@@ -1,6 +1,7 @@
 //! Player encounters and a shared world phase, written in the Sand language.
 #![pack(namespace = "demo", minecraft = "26.2", description = "Encounters")]
 
+pub mod raid;
 mod rewards;
 
 use rewards::grant;

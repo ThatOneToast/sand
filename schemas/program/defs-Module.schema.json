@@ -3,6 +3,13 @@
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "boss_bars": {
+      "description": "Boss bars, created at load.",
+      "items": {
+        "$ref": "defs-BossBar.schema.json"
+      },
+      "type": "array"
+    },
     "events": {
       "description": "Player event handlers, dispatched in declaration order.",
       "items": {
@@ -39,6 +46,13 @@
       "description": "Server-context bodies run at load in authored order.",
       "items": {
         "$ref": "defs-Operation.schema.json"
+      },
+      "type": "array"
+    },
+    "loot_tables": {
+      "description": "Loot tables.",
+      "items": {
+        "$ref": "defs-LootTable.schema.json"
       },
       "type": "array"
     },

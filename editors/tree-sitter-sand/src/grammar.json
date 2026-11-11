@@ -311,7 +311,63 @@
         },
         {
           "type": "SYMBOL",
+          "name": "event_item"
+        },
+        {
+          "type": "SYMBOL",
           "name": "data_item"
+        }
+      ]
+    },
+    "event_item": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "attribute"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "visibility"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "event"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "parameters"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": ";"
         }
       ]
     },
@@ -356,6 +412,14 @@
                 {
                   "type": "STRING",
                   "value": "tag"
+                },
+                {
+                  "type": "STRING",
+                  "value": "bossbar"
+                },
+                {
+                  "type": "STRING",
+                  "value": "loot"
                 }
               ]
             },

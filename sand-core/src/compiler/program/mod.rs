@@ -9,12 +9,14 @@ mod validate;
 pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
-    Action, Amount, Audience, Condition, CookingMethod, CustomItem, EntityQuery, EntitySort,
-    EventHook, ExecutionContext, FieldReference, Flow, FlowHook, FlowHookPhase, FlowTransition,
-    Function, FunctionReference, MessageChannel, Module, ModuleSource, Operation, Pack,
-    PlayerEvent, Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag,
-    ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State,
-    StateAttached, TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle,
+    Action, Amount, Audience, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle,
+    Condition, CookingMethod, CustomItem, EntitiesExist, EntityFlag, EntityQuery, EntitySort,
+    EventHook, ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase,
+    FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel,
+    Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
+    Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
+    ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    TeleportDestination, TextColor, TextPart, TextStyle, Weather,
 };
 use std::collections::BTreeMap;
 
@@ -51,6 +53,14 @@ const CAPABILITIES: &[&str] = &[
     "resource_tags",
     "entity_state",
     "teleport",
+    "timers",
+    "blocks",
+    "world_conditions",
+    "experience",
+    "world_state",
+    "boss_bars",
+    "loot_tables",
+    "smithing_recipes",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

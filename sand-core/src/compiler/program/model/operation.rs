@@ -1,7 +1,8 @@
 //! Owned portable operation definitions.
 use super::{
-    Amount, Audience, Condition, EntityQuery, FieldReference, FunctionReference, MessageChannel,
-    ScoreOperand, ScoreOperator, TeleportDestination, TextPart,
+    Amount, Audience, BlockPosition, Condition, EntityQuery, FieldReference, FunctionReference,
+    MessageChannel, PlayerGameMode, ScoreOperand, ScoreOperator, TeleportDestination, TextPart,
+    Weather,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -38,8 +39,8 @@ pub struct Operation {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(ScoreSet = "ScoreSet semantic alternative; see Rustdoc for its execution behavior.", ScoreAdd = "ScoreAdd semantic alternative; see Rustdoc for its execution behavior.", Branch = "Branch semantic alternative; see Rustdoc for its execution behavior.", Players = "Players semantic alternative; see Rustdoc for its execution behavior.", Call = "Call semantic alternative; see Rustdoc for its execution behavior.", Raw = "Raw semantic alternative; see Rustdoc for its execution behavior.", ScoreOperation = "Combine a field with another field or a constant.", ScoreRandom = "Store a uniformly random integer.", Message = "Show styled text.", Sound = "Play a sound to the executing player.", Particle = "Spawn particles at the executor.", Effect = "Apply a status effect to the executing player.", ClearEffect = "Remove status effects from the executing player.", GiveItem = "Give items to the executing player.", ClearItem = "Remove items from the executing player.", Schedule = "Run a server function after a delay.", Return = "End the current function, or the current player's turn inside Players.", While = "Repeat a body while a condition holds.", AttributeGet = "Store an attribute base value in a State field.", AttributeSet = "Set the executing player's attribute base value.", Entities = "Run a body as each matching entity, at its position.", Kill = "Kill the executing entity.", EntityTag = "Add or remove a tag on the executing entity.", Summon = "Summon an entity at the executor's position.", Damage = "Damage the executing entity.", CountEntities = "Store how many entities match.", Teleport = "Move the executing entity.", AttachState = "Attach an entity State to the executor.", DetachState = "Detach an entity State from the executor."),
- variant_fields(ScoreSet(score = "Score operand for this operation.", value = "Value operand for this operation."), ScoreAdd(score = "Score operand for this operation.", value = "Value operand for this operation."), Branch(condition = "Condition operand for this operation.", then = "Then operand for this operation.", otherwise = "Otherwise operand for this operation."), Players(body = "Body operand for this operation."), Call(function = "Function operand for this operation."), Raw(command = "Command operand for this operation."), ScoreOperation(score = "Written State field.", operator = "Arithmetic operator.", operand = "Field or constant operand."), ScoreRandom(score = "Written State field.", min = "Inclusive minimum.", max = "Inclusive maximum."), Message(audience = "Recipients.", channel = "Display channel.", text = "Styled text parts."), Sound(sound = "Sound event identity.", volume = "Volume; 1.0 is normal.", pitch = "Pitch from 0.5 to 2.0."), Particle(particle = "Particle type identity.", count = "Particle count.", spread = "Random offset in blocks on each axis.", speed = "Particle speed."), Effect(effect = "Status effect identity.", seconds = "Duration in seconds; omitted means infinite.", amplifier = "Level minus one.", hide_particles = "Hide effect particles."), ClearEffect(effect = "Effect to remove; omitted removes all."), GiveItem(item = "Item identity.", count = "Item count."), ClearItem(item = "Item to remove; omitted removes all.", count = "Maximum count; omitted removes every match."), Schedule(function = "Server-context function to run.", ticks = "Delay in game ticks; at least one."), While(condition = "Checked before every pass.", body = "Repeated body."), AttributeGet(score = "Written State field.", attribute = "Attribute identity.", scale = "Multiplier applied before truncation."), AttributeSet(attribute = "Attribute identity.", value = "Constant or State-derived value."), Entities(query = "Selected entities.", body = "Run as each entity."), EntityTag(tag = "Tag name.", add = "Add when true, remove when false."), Summon(entity_type = "Entity type identity.", tag = "Tag given to the new entity."), Damage(amount = "Damage in half-hearts."), CountEntities(score = "Written State field.", query = "Counted entities."), Teleport(destination = "Where the executor moves."), AttachState(state = "Entity State to attach."), DetachState(state = "Entity State to detach.")),
+ variants(ScoreSet = "ScoreSet semantic alternative; see Rustdoc for its execution behavior.", ScoreAdd = "ScoreAdd semantic alternative; see Rustdoc for its execution behavior.", Branch = "Branch semantic alternative; see Rustdoc for its execution behavior.", Players = "Players semantic alternative; see Rustdoc for its execution behavior.", Call = "Call semantic alternative; see Rustdoc for its execution behavior.", Raw = "Raw semantic alternative; see Rustdoc for its execution behavior.", ScoreOperation = "Combine a field with another field or a constant.", ScoreRandom = "Store a uniformly random integer.", Message = "Show styled text.", Sound = "Play a sound to the executing player.", Particle = "Spawn particles at the executor.", Effect = "Apply a status effect to the executing player.", ClearEffect = "Remove status effects from the executing player.", GiveItem = "Give items to the executing player.", ClearItem = "Remove items from the executing player.", Schedule = "Run a server function after a delay.", Return = "End the current function, or the current player's turn inside Players.", While = "Repeat a body while a condition holds.", AttributeGet = "Store an attribute base value in a State field.", AttributeSet = "Set the executing player's attribute base value.", Entities = "Run a body as each matching entity, at its position.", Kill = "Kill the executing entity.", EntityTag = "Add or remove a tag on the executing entity.", Summon = "Summon an entity at the executor's position.", Damage = "Damage the executing entity.", CountEntities = "Store how many entities match.", Teleport = "Move the executing entity.", AttachState = "Attach an entity State to the executor.", DetachState = "Detach an entity State from the executor.", SetBlock = "Place a block.", FillBlocks = "Fill a region with a block.", AddExperience = "Give the executing player experience.", SetGameMode = "Change the executing player's game mode.", SetTime = "Set the time of day.", SetWeather = "Set the weather.", BossBarAudience = "Show or hide a boss bar.", SetBossBar = "Set a boss bar value or maximum.", GiveLoot = "Give the executing player a loot roll.", DropLoot = "Drop a loot roll at the executor."),
+ variant_fields(ScoreSet(score = "Score operand for this operation.", value = "Value operand for this operation."), ScoreAdd(score = "Score operand for this operation.", value = "Value operand for this operation."), Branch(condition = "Condition operand for this operation.", then = "Then operand for this operation.", otherwise = "Otherwise operand for this operation."), Players(body = "Body operand for this operation."), Call(function = "Function operand for this operation."), Raw(command = "Command operand for this operation."), ScoreOperation(score = "Written State field.", operator = "Arithmetic operator.", operand = "Field or constant operand."), ScoreRandom(score = "Written State field.", min = "Inclusive minimum.", max = "Inclusive maximum."), Message(audience = "Recipients.", channel = "Display channel.", text = "Styled text parts."), Sound(sound = "Sound event identity.", volume = "Volume; 1.0 is normal.", pitch = "Pitch from 0.5 to 2.0."), Particle(particle = "Particle type identity.", count = "Particle count.", spread = "Random offset in blocks on each axis.", speed = "Particle speed."), Effect(effect = "Status effect identity.", seconds = "Duration in seconds; omitted means infinite.", amplifier = "Level minus one.", hide_particles = "Hide effect particles."), ClearEffect(effect = "Effect to remove; omitted removes all."), GiveItem(item = "Item identity.", count = "Item count."), ClearItem(item = "Item to remove; omitted removes all.", count = "Maximum count; omitted removes every match."), Schedule(function = "Server-context function to run.", ticks = "Delay in game ticks; at least one."), While(condition = "Checked before every pass.", body = "Repeated body."), AttributeGet(score = "Written State field.", attribute = "Attribute identity.", scale = "Multiplier applied before truncation."), AttributeSet(attribute = "Attribute identity.", value = "Constant or State-derived value."), Entities(query = "Selected entities.", body = "Run as each entity."), EntityTag(tag = "Tag name.", add = "Add when true, remove when false."), Summon(entity_type = "Entity type identity.", tag = "Tag given to the new entity."), Damage(amount = "Damage in half-hearts."), CountEntities(score = "Written State field.", query = "Counted entities."), Teleport(destination = "Where the executor moves."), AttachState(state = "Entity State to attach."), DetachState(state = "Entity State to detach."), SetBlock(block = "Block identity.", at = "Position."), FillBlocks(block = "Block identity.", from = "One corner.", to = "Opposite corner."), AddExperience(amount = "Experience, which may be negative.", levels = "Levels instead of points."), SetGameMode(mode = "New game mode."), SetTime(ticks = "Time of day in ticks."), SetWeather(weather = "New weather.", seconds = "Duration; omitted lets Minecraft choose."), BossBarAudience(bar = "Boss bar.", audience = "Who changes.", visible = "Show when true, hide when false."), SetBossBar(bar = "Boss bar.", value = "Constant or State field shown as the bar progress.", max = "Set the maximum instead of the value."), GiveLoot(table = "Loot table."), DropLoot(table = "Loot table.")),
 )]
 pub enum Action {
     /// Assign an integer State field using its declared ownership.
@@ -53,7 +54,7 @@ pub enum Action {
         #[serde(default)]
         otherwise: Vec<Operation>,
     },
-    /// Execute the body as each player without changing positional context.
+    /// Execute the body as each player, positioned at that player.
     Players { body: Vec<Operation> },
     /// Invoke a named function with a checked execution-context requirement.
     Call { function: FunctionReference },
@@ -185,6 +186,55 @@ pub enum Action {
     DetachState {
         #[schemars(with = "String")]
         state: sand_components::ResourceLocation,
+    },
+    /// Place a block.
+    SetBlock { block: String, at: BlockPosition },
+    /// Fill a region, corners inclusive, with a block.
+    FillBlocks {
+        block: String,
+        from: BlockPosition,
+        to: BlockPosition,
+    },
+    /// Give the executing player experience points or levels.
+    AddExperience {
+        amount: i32,
+        #[serde(default)]
+        levels: bool,
+    },
+    /// Change the executing player's game mode.
+    SetGameMode { mode: PlayerGameMode },
+    /// Set the time of day, in ticks.
+    SetTime { ticks: u32 },
+    /// Set the weather, for a duration or until Minecraft changes it.
+    SetWeather {
+        weather: Weather,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seconds: Option<u32>,
+    },
+    /// Show or hide a boss bar for the executing player or everyone.
+    BossBarAudience {
+        #[schemars(with = "String")]
+        bar: sand_components::ResourceLocation,
+        audience: Audience,
+        visible: bool,
+    },
+    /// Set a boss bar's value, or its maximum.
+    SetBossBar {
+        #[schemars(with = "String")]
+        bar: sand_components::ResourceLocation,
+        value: ScoreOperand,
+        #[serde(default)]
+        max: bool,
+    },
+    /// Give the executing player one roll of a loot table.
+    GiveLoot {
+        #[schemars(with = "String")]
+        table: sand_components::ResourceLocation,
+    },
+    /// Drop one roll of a loot table at the executor's position.
+    DropLoot {
+        #[schemars(with = "String")]
+        table: sand_components::ResourceLocation,
     },
 }
 

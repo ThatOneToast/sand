@@ -83,7 +83,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Execute the body as each player without changing positional context.",
+          "description": "Execute the body as each player, positioned at that player.",
           "properties": {
             "body": {
               "items": {
@@ -683,6 +683,229 @@
             "state"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Place a block.",
+          "properties": {
+            "at": {
+              "$ref": "#/$defs/BlockPosition"
+            },
+            "block": {
+              "type": "string"
+            },
+            "op": {
+              "const": "set_block",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "block",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fill a region, corners inclusive, with a block.",
+          "properties": {
+            "block": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/$defs/BlockPosition"
+            },
+            "op": {
+              "const": "fill_blocks",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/BlockPosition"
+            }
+          },
+          "required": [
+            "op",
+            "block",
+            "from",
+            "to"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Give the executing player experience points or levels.",
+          "properties": {
+            "amount": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "levels": {
+              "default": false,
+              "type": "boolean"
+            },
+            "op": {
+              "const": "add_experience",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Change the executing player's game mode.",
+          "properties": {
+            "mode": {
+              "$ref": "#/$defs/PlayerGameMode"
+            },
+            "op": {
+              "const": "set_game_mode",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set the time of day, in ticks.",
+          "properties": {
+            "op": {
+              "const": "set_time",
+              "type": "string"
+            },
+            "ticks": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "op",
+            "ticks"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set the weather, for a duration or until Minecraft changes it.",
+          "properties": {
+            "op": {
+              "const": "set_weather",
+              "type": "string"
+            },
+            "seconds": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "weather": {
+              "$ref": "#/$defs/Weather"
+            }
+          },
+          "required": [
+            "op",
+            "weather"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Show or hide a boss bar for the executing player or everyone.",
+          "properties": {
+            "audience": {
+              "$ref": "#/$defs/Audience"
+            },
+            "bar": {
+              "type": "string"
+            },
+            "op": {
+              "const": "boss_bar_audience",
+              "type": "string"
+            },
+            "visible": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "bar",
+            "audience",
+            "visible"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set a boss bar's value, or its maximum.",
+          "properties": {
+            "bar": {
+              "type": "string"
+            },
+            "max": {
+              "default": false,
+              "type": "boolean"
+            },
+            "op": {
+              "const": "set_boss_bar",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/ScoreOperand"
+            }
+          },
+          "required": [
+            "op",
+            "bar",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Give the executing player one roll of a loot table.",
+          "properties": {
+            "op": {
+              "const": "give_loot",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "table"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Drop one roll of a loot table at the executor's position.",
+          "properties": {
+            "op": {
+              "const": "drop_loot",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "table"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -715,6 +938,197 @@
         }
       ]
     },
+    "BlockMatches": {
+      "additionalProperties": false,
+      "description": "A test that a block matches at a position.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/BlockPosition",
+          "description": "Tested position."
+        },
+        "block": {
+          "description": "Block identity, or `#tag`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "block",
+        "at"
+      ],
+      "type": "object"
+    },
+    "BlockPosition": {
+      "description": "A block position: absolute, or relative to the executor.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "World coordinates.",
+          "properties": {
+            "kind": {
+              "const": "absolute",
+              "type": "string"
+            },
+            "x": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "y": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "z": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Offset from the executor.",
+          "properties": {
+            "kind": {
+              "const": "relative",
+              "type": "string"
+            },
+            "x": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "y": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "z": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BossBar": {
+      "additionalProperties": false,
+      "description": "A named bar shown at the top of the screen.",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/BossBarColor",
+          "description": "Bar colour."
+        },
+        "id": {
+          "description": "Identity.",
+          "type": "string"
+        },
+        "max": {
+          "default": 100,
+          "description": "Largest value.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "style": {
+          "$ref": "#/$defs/BossBarStyle",
+          "description": "Bar division."
+        },
+        "title": {
+          "description": "Title parts; text only.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "color",
+        "style"
+      ],
+      "type": "object"
+    },
+    "BossBarColor": {
+      "description": "The colour of a boss bar.",
+      "oneOf": [
+        {
+          "const": "blue",
+          "description": "Blue.",
+          "type": "string"
+        },
+        {
+          "const": "green",
+          "description": "Green.",
+          "type": "string"
+        },
+        {
+          "const": "pink",
+          "description": "Pink.",
+          "type": "string"
+        },
+        {
+          "const": "purple",
+          "description": "Purple.",
+          "type": "string"
+        },
+        {
+          "const": "red",
+          "description": "Red.",
+          "type": "string"
+        },
+        {
+          "const": "white",
+          "description": "White.",
+          "type": "string"
+        },
+        {
+          "const": "yellow",
+          "description": "Yellow.",
+          "type": "string"
+        }
+      ]
+    },
+    "BossBarStyle": {
+      "description": "How a boss bar is divided.",
+      "oneOf": [
+        {
+          "const": "progress",
+          "description": "One solid bar.",
+          "type": "string"
+        },
+        {
+          "const": "notched6",
+          "description": "Six notches.",
+          "type": "string"
+        },
+        {
+          "const": "notched10",
+          "description": "Ten notches.",
+          "type": "string"
+        },
+        {
+          "const": "notched12",
+          "description": "Twelve notches.",
+          "type": "string"
+        },
+        {
+          "const": "notched20",
+          "description": "Twenty notches.",
+          "type": "string"
+        }
+      ]
+    },
     "Condition": {
       "anyOf": [
         {
@@ -728,6 +1142,22 @@
         {
           "$ref": "#/$defs/StateAttached",
           "description": "The executor has an entity State attached."
+        },
+        {
+          "$ref": "#/$defs/EntitiesExist",
+          "description": "At least one entity matches."
+        },
+        {
+          "$ref": "#/$defs/BlockMatches",
+          "description": "A block matches at a position."
+        },
+        {
+          "$ref": "#/$defs/ItemHeld",
+          "description": "The executor holds an item."
+        },
+        {
+          "$ref": "#/$defs/FlagSet",
+          "description": "The executor has an entity flag."
         }
       ],
       "description": "A branch condition: a constant range test or a field-to-field relation."
@@ -840,6 +1270,45 @@
         "base"
       ],
       "type": "object"
+    },
+    "EntitiesExist": {
+      "additionalProperties": false,
+      "description": "A test that at least one entity matches a query.",
+      "properties": {
+        "exists": {
+          "$ref": "#/$defs/EntityQuery",
+          "description": "The tested query."
+        }
+      },
+      "required": [
+        "exists"
+      ],
+      "type": "object"
+    },
+    "EntityFlag": {
+      "description": "A movement or status flag of an entity.",
+      "oneOf": [
+        {
+          "const": "sneaking",
+          "description": "Crouching.",
+          "type": "string"
+        },
+        {
+          "const": "sprinting",
+          "description": "Sprinting.",
+          "type": "string"
+        },
+        {
+          "const": "swimming",
+          "description": "Swimming.",
+          "type": "string"
+        },
+        {
+          "const": "on_fire",
+          "description": "Burning.",
+          "type": "string"
+        }
+      ]
     },
     "EntityQuery": {
       "additionalProperties": false,
@@ -985,6 +1454,20 @@
       "required": [
         "state",
         "field"
+      ],
+      "type": "object"
+    },
+    "FlagSet": {
+      "additionalProperties": false,
+      "description": "A test that the executor has an entity flag.",
+      "properties": {
+        "flag": {
+          "$ref": "#/$defs/EntityFlag",
+          "description": "The tested flag."
+        }
+      },
+      "required": [
+        "flag"
       ],
       "type": "object"
     },
@@ -1187,6 +1670,81 @@
           "type": "object"
         }
       ]
+    },
+    "ItemHeld": {
+      "additionalProperties": false,
+      "description": "A test that the executor holds an item.",
+      "properties": {
+        "holding": {
+          "description": "Vanilla or custom item identity.",
+          "type": "string"
+        },
+        "offhand": {
+          "description": "Test the off hand instead of the main hand.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "holding"
+      ],
+      "type": "object"
+    },
+    "LootItem": {
+      "additionalProperties": false,
+      "description": "One choice in a loot table.",
+      "properties": {
+        "count": {
+          "default": 1,
+          "description": "Stack size produced.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "item": {
+          "description": "Vanilla item identity.",
+          "type": "string"
+        },
+        "weight": {
+          "default": 1,
+          "description": "Relative chance.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "item"
+      ],
+      "type": "object"
+    },
+    "LootTable": {
+      "additionalProperties": false,
+      "description": "A loot table: rolls drawn from weighted item choices.",
+      "properties": {
+        "id": {
+          "description": "Identity.",
+          "type": "string"
+        },
+        "items": {
+          "description": "Weighted item choices.",
+          "items": {
+            "$ref": "#/$defs/LootItem"
+          },
+          "type": "array"
+        },
+        "rolls": {
+          "default": 1,
+          "description": "Choices drawn each time.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "items"
+      ],
+      "type": "object"
     },
     "MessageChannel": {
       "description": "Where a message appears.",
@@ -1489,6 +2047,31 @@
         }
       ]
     },
+    "PlayerGameMode": {
+      "description": "A player game mode.",
+      "oneOf": [
+        {
+          "const": "survival",
+          "description": "Survival.",
+          "type": "string"
+        },
+        {
+          "const": "creative",
+          "description": "Creative.",
+          "type": "string"
+        },
+        {
+          "const": "adventure",
+          "description": "Adventure.",
+          "type": "string"
+        },
+        {
+          "const": "spectator",
+          "description": "Spectator.",
+          "type": "string"
+        }
+      ]
+    },
     "Rarity": {
       "description": "How rare an item looks; colours its name.",
       "oneOf": [
@@ -1515,7 +2098,7 @@
       ]
     },
     "Recipe": {
-      "description": "A crafting, cooking, or stonecutting recipe.",
+      "description": "A crafting, cooking, stonecutting, or smithing recipe.",
       "oneOf": [
         {
           "additionalProperties": false,
@@ -1647,6 +2230,40 @@
             "kind",
             "id",
             "ingredient",
+            "result"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A smithing-table upgrade.",
+          "properties": {
+            "addition": {
+              "type": "string"
+            },
+            "base": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "smithing",
+              "type": "string"
+            },
+            "result": {
+              "$ref": "#/$defs/RecipeOutput"
+            },
+            "template": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "template",
+            "base",
+            "addition",
             "result"
           ],
           "type": "object"
@@ -1817,6 +2434,10 @@
         "name": {
           "description": "Field identity within its owning State.",
           "type": "string"
+        },
+        "timer": {
+          "description": "Count down by one each tick until zero, through the same State lifecycle\nthat drives Rust `Timer` and `Cooldown` fields. Timers cannot have bounds.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -2193,12 +2814,39 @@
         }
       },
       "type": "object"
+    },
+    "Weather": {
+      "description": "World weather.",
+      "oneOf": [
+        {
+          "const": "clear",
+          "description": "Clear skies.",
+          "type": "string"
+        },
+        {
+          "const": "rain",
+          "description": "Rain.",
+          "type": "string"
+        },
+        {
+          "const": "thunder",
+          "description": "Thunderstorm.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "boss_bars": {
+      "description": "Boss bars, created at load.",
+      "items": {
+        "$ref": "#/$defs/BossBar"
+      },
+      "type": "array"
+    },
     "events": {
       "description": "Player event handlers, dispatched in declaration order.",
       "items": {
@@ -2235,6 +2883,13 @@
       "description": "Server-context bodies run at load in authored order.",
       "items": {
         "$ref": "#/$defs/Operation"
+      },
+      "type": "array"
+    },
+    "loot_tables": {
+      "description": "Loot tables.",
+      "items": {
+        "$ref": "#/$defs/LootTable"
       },
       "type": "array"
     },

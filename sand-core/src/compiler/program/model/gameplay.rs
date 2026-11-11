@@ -115,8 +115,8 @@ pub struct ScoreRelation {
  use_when = ["Choosing between two ordered bodies at runtime"],
  avoid_when = ["Flow transition guards, which accept only ranges"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached."),
- variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."]),
+ variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag."),
+ variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Holding = ["The held-item test."], Flag = ["The flag test."]),
 )]
 pub enum Condition {
     /// The field lies within inclusive constant bounds.
@@ -125,6 +125,184 @@ pub enum Condition {
     Relation(ScoreRelation),
     /// The executor has an entity State attached.
     Attached(StateAttached),
+    /// At least one entity matches.
+    Exists(EntitiesExist),
+    /// A block matches at a position.
+    Block(BlockMatches),
+    /// The executor holds an item.
+    Holding(ItemHeld),
+    /// The executor has an entity flag.
+    Flag(FlagSet),
+}
+
+/// A test that at least one entity matches a query.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::EntitiesExist", module = "sand::advanced::compiler",
+ summary = "A test that at least one entity matches a query.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Lowers to `execute if entity @e[...]`.",
+ use_when = ["Branching on whether matching entities are present"],
+ avoid_when = ["Counting them; use CountEntities"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(exists = "The tested query."),
+)]
+pub struct EntitiesExist {
+    /// The tested query.
+    pub exists: EntityQuery,
+}
+
+/// A block position: absolute, or relative to the executor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BlockPosition", module = "sand::advanced::compiler",
+ summary = "A block position: absolute, or relative to the executor.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Lowers to block coordinates, with `~` for relative positions.",
+ use_when = ["Naming where a block operation or test applies"],
+ avoid_when = ["Entity destinations; use TeleportDestination"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ variants(Absolute = "World coordinates.", Relative = "Offset from the executor."),
+ variant_fields(Absolute(x = "X.", y = "Y.", z = "Z."), Relative(x = "X offset.", y = "Y offset.", z = "Z offset.")),
+)]
+pub enum BlockPosition {
+    /// World coordinates.
+    Absolute { x: i32, y: i32, z: i32 },
+    /// Offset from the executor.
+    Relative { x: i32, y: i32, z: i32 },
+}
+
+/// A test that a block matches at a position.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BlockMatches", module = "sand::advanced::compiler",
+ summary = "A test that a block matches at a position.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Lowers to `execute if block <position> <block>`.",
+ use_when = ["Branching on the world around the executor"],
+ avoid_when = ["Replacing blocks; use SetBlock"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(block = "Block identity or `#tag`.", at = "Tested position."),
+)]
+pub struct BlockMatches {
+    /// Block identity, or `#tag`.
+    pub block: String,
+    /// Tested position.
+    pub at: BlockPosition,
+}
+
+/// A test that the executor holds an item.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::ItemHeld", module = "sand::advanced::compiler",
+ summary = "A test that the executor holds an item.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Lowers to `execute if items entity @s weapon.mainhand <item>`, or `weapon.offhand`; custom items match by identity.",
+ use_when = ["Branching on the held item"],
+ avoid_when = ["Inventory-wide searches"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(holding = "Vanilla or custom item identity.", offhand = "Test the off hand instead of the main hand."),
+)]
+pub struct ItemHeld {
+    /// Vanilla or custom item identity.
+    pub holding: String,
+    /// Test the off hand instead of the main hand.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub offhand: bool,
+}
+
+/// A movement or status flag of an entity.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::EntityFlag", module = "sand::advanced::compiler",
+ summary = "A movement or status flag of an entity.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Tested through a generated `minecraft:entity_properties` predicate.",
+ use_when = ["Branching on what an entity is doing"],
+ avoid_when = ["Fields of State"],
+ example = "let flag = sand::advanced::compiler::EntityFlag::Sneaking;",
+ variants(Sneaking = "Crouching.", Sprinting = "Sprinting.", Swimming = "Swimming.", OnFire = "Burning."),
+)]
+pub enum EntityFlag {
+    /// Crouching.
+    Sneaking,
+    /// Sprinting.
+    Sprinting,
+    /// Swimming.
+    Swimming,
+    /// Burning.
+    OnFire,
+}
+
+/// A test that the executor has an entity flag.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::FlagSet", module = "sand::advanced::compiler",
+ summary = "A test that the executor has an entity flag.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Lowers to `execute if predicate` against a generated entity-properties predicate.",
+ use_when = ["Branching on sneaking, sprinting, swimming, or burning"],
+ avoid_when = ["Movement statistics, which PlayerEvent observes"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(flag = "The tested flag."),
+)]
+pub struct FlagSet {
+    /// The tested flag.
+    pub flag: EntityFlag,
+}
+
+/// A player game mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::PlayerGameMode", module = "sand::advanced::compiler",
+ summary = "A player game mode.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Serialized as the `gamemode` command argument.",
+ use_when = ["Changing how a player interacts with the world"],
+ avoid_when = ["Testing the current mode"],
+ example = "let mode = sand::advanced::compiler::PlayerGameMode::Creative;",
+ variants(Survival = "Survival.", Creative = "Creative.", Adventure = "Adventure.", Spectator = "Spectator."),
+)]
+pub enum PlayerGameMode {
+    /// Survival.
+    Survival,
+    /// Creative.
+    Creative,
+    /// Adventure.
+    Adventure,
+    /// Spectator.
+    Spectator,
+}
+
+/// World weather.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::Weather", module = "sand::advanced::compiler",
+ summary = "World weather.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Serialized as the `weather` command argument.",
+ use_when = ["Changing the weather"],
+ avoid_when = ["Testing the weather"],
+ example = "let weather = sand::advanced::compiler::Weather::Rain;",
+ variants(Clear = "Clear skies.", Rain = "Rain.", Thunder = "Thunderstorm."),
+)]
+pub enum Weather {
+    /// Clear skies.
+    Clear,
+    /// Rain.
+    Rain,
+    /// Thunderstorm.
+    Thunder,
 }
 
 /// A test that the executor has an entity State attached.

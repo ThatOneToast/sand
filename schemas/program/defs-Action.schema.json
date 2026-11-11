@@ -82,7 +82,7 @@
     },
     {
       "additionalProperties": false,
-      "description": "Execute the body as each player without changing positional context.",
+      "description": "Execute the body as each player, positioned at that player.",
       "properties": {
         "body": {
           "items": {
@@ -680,6 +680,229 @@
       "required": [
         "op",
         "state"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Place a block.",
+      "properties": {
+        "at": {
+          "$ref": "defs-BlockPosition.schema.json"
+        },
+        "block": {
+          "type": "string"
+        },
+        "op": {
+          "const": "set_block",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "block",
+        "at"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fill a region, corners inclusive, with a block.",
+      "properties": {
+        "block": {
+          "type": "string"
+        },
+        "from": {
+          "$ref": "defs-BlockPosition.schema.json"
+        },
+        "op": {
+          "const": "fill_blocks",
+          "type": "string"
+        },
+        "to": {
+          "$ref": "defs-BlockPosition.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "block",
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Give the executing player experience points or levels.",
+      "properties": {
+        "amount": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "levels": {
+          "default": false,
+          "type": "boolean"
+        },
+        "op": {
+          "const": "add_experience",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "amount"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Change the executing player's game mode.",
+      "properties": {
+        "mode": {
+          "$ref": "defs-PlayerGameMode.schema.json"
+        },
+        "op": {
+          "const": "set_game_mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "mode"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Set the time of day, in ticks.",
+      "properties": {
+        "op": {
+          "const": "set_time",
+          "type": "string"
+        },
+        "ticks": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "op",
+        "ticks"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Set the weather, for a duration or until Minecraft changes it.",
+      "properties": {
+        "op": {
+          "const": "set_weather",
+          "type": "string"
+        },
+        "seconds": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "weather": {
+          "$ref": "defs-Weather.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "weather"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Show or hide a boss bar for the executing player or everyone.",
+      "properties": {
+        "audience": {
+          "$ref": "defs-Audience.schema.json"
+        },
+        "bar": {
+          "type": "string"
+        },
+        "op": {
+          "const": "boss_bar_audience",
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "bar",
+        "audience",
+        "visible"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Set a boss bar's value, or its maximum.",
+      "properties": {
+        "bar": {
+          "type": "string"
+        },
+        "max": {
+          "default": false,
+          "type": "boolean"
+        },
+        "op": {
+          "const": "set_boss_bar",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-ScoreOperand.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "bar",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Give the executing player one roll of a loot table.",
+      "properties": {
+        "op": {
+          "const": "give_loot",
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "table"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Drop one roll of a loot table at the executor's position.",
+      "properties": {
+        "op": {
+          "const": "drop_loot",
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "table"
       ],
       "type": "object"
     }

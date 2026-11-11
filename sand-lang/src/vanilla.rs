@@ -97,6 +97,49 @@ const OPTIONS: &[OptionSet] = &[
             ("Arbitrary", "arbitrary"),
         ],
     },
+    OptionSet {
+        name: "GameMode",
+        rust_path: "sand::advanced::compiler::PlayerGameMode",
+        noun: "game mode",
+        values: &[
+            ("Survival", "survival"),
+            ("Creative", "creative"),
+            ("Adventure", "adventure"),
+            ("Spectator", "spectator"),
+        ],
+    },
+    OptionSet {
+        name: "Weather",
+        rust_path: "sand::advanced::compiler::Weather",
+        noun: "weather",
+        values: &[("Clear", "clear"), ("Rain", "rain"), ("Thunder", "thunder")],
+    },
+    OptionSet {
+        name: "BossBarColor",
+        rust_path: "sand::advanced::compiler::BossBarColor",
+        noun: "boss bar colour",
+        values: &[
+            ("Blue", "blue"),
+            ("Green", "green"),
+            ("Pink", "pink"),
+            ("Purple", "purple"),
+            ("Red", "red"),
+            ("White", "white"),
+            ("Yellow", "yellow"),
+        ],
+    },
+    OptionSet {
+        name: "BossBarStyle",
+        rust_path: "sand::advanced::compiler::BossBarStyle",
+        noun: "boss bar style",
+        values: &[
+            ("Progress", "progress"),
+            ("Notched6", "notched_6"),
+            ("Notched10", "notched_10"),
+            ("Notched12", "notched_12"),
+            ("Notched20", "notched_20"),
+        ],
+    },
 ];
 
 /// Every typed registry the language knows.

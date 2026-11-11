@@ -45,6 +45,7 @@ kw_const = @{ "const" ~ !ident_char }
 kw_enum = @{ "enum" ~ !ident_char }
 kw_state = @{ "state" ~ !ident_char }
 kw_flow = @{ "flow" ~ !ident_char }
+kw_event = @{ "event" ~ !ident_char }
 kw_extern = @{ "extern" ~ !ident_char }
 kw_if = @{ "if" ~ !ident_char }
 kw_else = @{ "else" ~ !ident_char }
@@ -76,14 +77,17 @@ vis = @{ "pub" ~ !ident_char }
 item = { (outer_doc | attr)* ~ vis? ~ item_kind }
 item_kind = _{
     mod_item | use_item | const_item | enum_item | state_item
-  | flow_item | extern_fn | fn_item | data_item
+  | flow_item | extern_fn | fn_item | event_item | data_item
 }
+
+// Custom events: `event Payday(amount: number);`.
+event_item = { kw_event ~ ident ~ ("(" ~ params? ~ ")")? ~ ";" }
 
 // Data resources: `item Name { field: value, ... }` and
 // `tag Name: Item { ... }`. The kind words are contextual, so they remain
 // usable as ordinary names elsewhere.
 data_item   = { data_kind ~ ident ~ (":" ~ ident)? ~ data_object }
-data_kind   = @{ ("item" | "recipe" | "tag") ~ !ident_char }
+data_kind   = @{ ("item" | "recipe" | "tag" | "bossbar" | "loot") ~ !ident_char }
 data_object = { "{" ~ (data_field ~ ("," ~ data_field)* ~ ","?)? ~ "}" }
 data_field  = { (ident | string) ~ ":" ~ data_value }
 data_value  = { data_array | data_object | expr }
@@ -94,7 +98,7 @@ bad_item  = @{ (!("\n" ~ item_head) ~ ANY)+ }
 item_head = _{
     "#" | "///"
   | (( "pub" | "fn" | "mod" | "use" | "const" | "enum" | "player" | "global" | "entity"
-     | "flow" | "extern" | "item" | "recipe" | "tag" ) ~ !ident_char)
+     | "flow" | "extern" | "item" | "recipe" | "tag" | "event" | "bossbar" | "loot" ) ~ !ident_char)
 }
 
 mod_item   = { kw_mod ~ ident ~ (";" | mod_body) }

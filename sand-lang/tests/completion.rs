@@ -69,6 +69,9 @@ fn item_level() {
             "const",
             "item",
             "recipe shaped",
+            "bossbar",
+            "event",
+            "loot",
             "recipe shapeless",
             "recipe smelting",
             "tag",
@@ -143,7 +146,7 @@ fn attributes_fit_what_they_are_attached_to() {
 fn types_and_state_bodies() {
     exactly(
         "player state S { v: | }",
-        &["number", "float", "bool", "Phase", "tools"],
+        &["number", "float", "bool", "timer", "Phase", "tools"],
     );
     exactly(
         "player state S { v: number = | }",
@@ -295,6 +298,7 @@ fn data_declarations_offer_only_remaining_valid_fields() {
             "smoking",
             "campfire",
             "stonecutting",
+            "smithing",
             "result",
             "count",
         ],

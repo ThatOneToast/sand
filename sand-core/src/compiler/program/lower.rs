@@ -114,6 +114,7 @@ pub(super) fn lower(
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
         constants: std::collections::BTreeSet::new(),
         custom_items: BTreeMap::new(),
+        flags: std::collections::BTreeSet::new(),
         entity_states: states
             .iter()
             .filter(|state| state.scope == "entity")
@@ -212,6 +213,13 @@ pub(super) fn lower(
                     constant_holder(value)
                 ),
             ));
+        }
+    }
+    for module in &program.modules {
+        for bar in &module.boss_bars {
+            for line in lower.boss_bar_setup(bar) {
+                event_load.push((event_owner.clone(), event_load.len(), line));
+            }
         }
     }
     // Objectives must exist before any module load body reads them.
@@ -335,6 +343,20 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, table) in module.loot_tables.iter().enumerate() {
+            let fail = |message: String| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/loot_tables/{index}"),
+                    message,
+                )]
+            };
+            let component = loot_table_component(table);
+            let record = records::component_to_record(&component, Some(&ctx))
+                .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
         for (index, tag) in module.resource_tags.iter().enumerate() {
             let fail = |message: String| {
                 vec![Diagnostic::error(
@@ -350,6 +372,14 @@ pub(super) fn lower(
             lower.records.push(record);
         }
     }
+    for flag in lower.flags.clone() {
+        let component = flag_predicate(&program.pack.namespace, flag).map_err(error)?;
+        let record = records::component_to_record(&component, Some(&ctx))
+            .map_err(|e| error(e.to_string()))?;
+        lower.records.push(record);
+    }
+    crate::compiler::export::lower_for_target(&mut lower.records, &ctx)
+        .map_err(|e| error(e.to_string()))?;
     records::validate_unique_output_identities(&lower.records).map_err(|e| error(e.to_string()))?;
     records::validate_objective_definitions(&lower.records).map_err(|e| error(e.to_string()))?;
     let mut output = BTreeMap::new();
@@ -622,6 +652,19 @@ fn recipe_component(
             }
             Box::new(built.result(recipe_output(result, custom_items)?))
         }
+        Recipe::Smithing {
+            id,
+            template,
+            base,
+            addition,
+            result,
+        } => Box::new(
+            SmithingTransformRecipe::new(id.clone())
+                .template(ingredient(template))
+                .base(ingredient(base))
+                .addition(ingredient(addition))
+                .result(recipe_output(result, custom_items)?),
+        ),
         Recipe::Cooking {
             id,
             method,
@@ -684,6 +727,96 @@ fn tag_component(tag: &ResourceTag) -> Result<Box<dyn sand_components::DatapackC
         TagKind::Block => Box::new(build::<BlockId>(tag)?),
         TagKind::EntityType => Box::new(build::<EntityTypeId>(tag)?),
     })
+}
+
+/// Build the typed loot table that Rust authors would write.
+fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
+    use sand_components::{LootEntry, LootFunction, LootPool};
+    let mut pool = LootPool::new().rolls(table.rolls as i32);
+    for item in &table.items {
+        let LootEntry::Item {
+            name,
+            quality,
+            conditions,
+            ..
+        } = LootEntry::item_raw(&item.item)
+        else {
+            unreachable!("item_raw builds an item entry");
+        };
+        pool = pool.entry(LootEntry::Item {
+            name,
+            weight: Some(item.weight as i32),
+            quality,
+            functions: if item.count > 1 {
+                vec![LootFunction::SetCount {
+                    count: (item.count as i32).into(),
+                    add: false,
+                }]
+            } else {
+                Vec::new()
+            },
+            conditions,
+        });
+    }
+    sand_components::LootTable::new(table.id.clone()).pool(pool)
+}
+
+/// The generated predicate that tests one entity flag.
+fn flag_predicate(namespace: &str, flag: EntityFlag) -> Result<sand_components::Predicate, String> {
+    use sand_components::{
+        EntityFlags, EntityPredicate, EntityPredicateTarget, Predicate, PredicateRoot,
+    };
+    let flags = EntityFlags::new();
+    let flags = match flag {
+        EntityFlag::Sneaking => flags.sneaking(true),
+        EntityFlag::Sprinting => flags.sprinting(true),
+        EntityFlag::Swimming => flags.swimming(true),
+        EntityFlag::OnFire => flags.on_fire(true),
+    };
+    let location = flag_predicate_id(namespace, flag)
+        .parse()
+        .map_err(|e| format!("{e}"))?;
+    Ok(Predicate::new(
+        location,
+        PredicateRoot::entity_properties(
+            EntityPredicateTarget::This,
+            EntityPredicate::new().flags(flags),
+        ),
+    ))
+}
+
+fn flag_predicate_id(namespace: &str, flag: EntityFlag) -> String {
+    let name = match flag {
+        EntityFlag::Sneaking => "sneaking",
+        EntityFlag::Sprinting => "sprinting",
+        EntityFlag::Swimming => "swimming",
+        EntityFlag::OnFire => "on_fire",
+    };
+    format!("{namespace}:__sand_program/flag/{name}")
+}
+
+fn block_position(position: BlockPosition) -> sand_commands::BlockPos {
+    use sand_commands::{BlockPos, Coord};
+    match position {
+        BlockPosition::Absolute { x, y, z } => BlockPos::new(
+            Coord::Absolute(f64::from(x)),
+            Coord::Absolute(f64::from(y)),
+            Coord::Absolute(f64::from(z)),
+        ),
+        BlockPosition::Relative { x, y, z } => BlockPos::new(
+            Coord::Relative(f64::from(x)),
+            Coord::Relative(f64::from(y)),
+            Coord::Relative(f64::from(z)),
+        ),
+    }
+}
+
+/// The tag marking players who see a boss bar.
+fn boss_bar_tag(bar: &sand_components::ResourceLocation) -> String {
+    format!(
+        "sand.{}",
+        sand_commands::scoreboard::hash_objective_name(&format!("{bar}#viewer"))
+    )
 }
 
 fn constants_objective(namespace: &str) -> String {
@@ -850,6 +983,8 @@ struct Lower {
     constants: std::collections::BTreeSet<i32>,
     /// Declared custom items by id.
     custom_items: BTreeMap<String, sand_components::CustomItem>,
+    /// Entity flags tested anywhere; each gets one generated predicate.
+    flags: std::collections::BTreeSet<EntityFlag>,
     /// Entity States by id, with their field defaults.
     entity_states: BTreeMap<String, Vec<(String, i32)>>,
 }
@@ -926,7 +1061,7 @@ impl Lower {
                     "scoreboard objectives add {objective} {criteria}"
                 )));
                 lines.push(EventLine::Tick(format!(
-                    "execute as @a[scores={{{objective}=1..}}] run function {dispatch}"
+                    "execute as @a[scores={{{objective}=1..}}] at @s run function {dispatch}"
                 )));
                 body.push(format!("scoreboard players reset @s {objective}"));
             }
@@ -934,7 +1069,7 @@ impl Lower {
                 // A persistent tag marks players already observed once; joins
                 // after that are seen through the leave_game statistic.
                 lines.push(EventLine::Tick(format!(
-                    "execute as @a[tag=!{tag}] run function {dispatch}"
+                    "execute as @a[tag=!{tag}] at @s run function {dispatch}"
                 )));
                 body.push(format!("tag @s add {tag}"));
             }
@@ -950,8 +1085,77 @@ impl Lower {
         Ok(lines)
     }
 
-    fn condition_test(&self, condition: &Condition) -> sand_commands::ConditionIr {
-        match condition {
+    /// Commands that create a boss bar and refresh its display at load.
+    fn boss_bar_setup(&self, bar: &BossBar) -> Vec<String> {
+        let id = &bar.id;
+        let title = text_component(&bar.title, &self.holders);
+        let color = match bar.color {
+            BossBarColor::Blue => "blue",
+            BossBarColor::Green => "green",
+            BossBarColor::Pink => "pink",
+            BossBarColor::Purple => "purple",
+            BossBarColor::Red => "red",
+            BossBarColor::White => "white",
+            BossBarColor::Yellow => "yellow",
+        };
+        let style = match bar.style {
+            BossBarStyle::Progress => "progress",
+            BossBarStyle::Notched6 => "notched_6",
+            BossBarStyle::Notched10 => "notched_10",
+            BossBarStyle::Notched12 => "notched_12",
+            BossBarStyle::Notched20 => "notched_20",
+        };
+        let name = title.to_string();
+        vec![
+            format!("bossbar add {id} {name}"),
+            format!("bossbar set {id} name {name}"),
+            format!("bossbar set {id} color {color}"),
+            format!("bossbar set {id} style {style}"),
+            format!("bossbar set {id} max {}", bar.max),
+        ]
+    }
+
+    /// A custom item as a command item argument with its identity components.
+    fn item_argument(&self, item: &str) -> Result<String, String> {
+        let Some(custom) = self.custom_items.get(item) else {
+            return Ok(item.to_owned());
+        };
+        let predicate = custom.item_predicate().map_err(|e| e.to_string())?;
+        let lowered = sand_components::predicates::lower_item_predicate_for_command(&predicate)?;
+        let base = lowered
+            .items
+            .as_ref()
+            .and_then(|items| items.first())
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        Ok(format!("{base}[{}]", lowered.constraints.join(",")))
+    }
+
+    fn condition_test(
+        &mut self,
+        condition: &Condition,
+    ) -> Result<sand_commands::ConditionIr, String> {
+        Ok(match condition {
+            Condition::Exists(test) => {
+                sand_commands::ConditionIr::Entity(query_selector(&test.exists))
+            }
+            Condition::Block(test) => sand_commands::ConditionIr::Block {
+                position: block_position(test.at),
+                block: test.block.clone(),
+            },
+            Condition::Holding(test) => sand_commands::ConditionIr::ItemsEntity {
+                target: sand_commands::Selector::self_(),
+                slot: if test.offhand {
+                    sand_commands::ItemSlot::OffHand
+                } else {
+                    sand_commands::ItemSlot::MainHand
+                },
+                item: self.item_argument(&test.holding)?,
+            },
+            Condition::Flag(test) => {
+                self.flags.insert(test.flag);
+                sand_commands::ConditionIr::Predicate(flag_predicate_id(&self.namespace, test.flag))
+            }
             Condition::Attached(test) => sand_commands::ConditionIr::ScoreMatches {
                 holder: sand_commands::ScoreHolder::self_(),
                 objective: state_objective(&test.attached.to_string(), "presence"),
@@ -979,7 +1183,7 @@ impl Lower {
                 right: self.holders[&relation.right.state.to_string()].clone(),
                 right_objective: objective(&relation.right),
             },
-        }
+        })
     }
 
     fn body(
@@ -1229,24 +1433,9 @@ impl Lower {
                 Action::ClearItem { item, count } => {
                     let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());
                     // Custom items clear by their custom_data identity.
-                    let item = match item.as_ref().and_then(|id| self.custom_items.get(id)) {
-                        Some(custom) => {
-                            let predicate =
-                                custom.item_predicate().map_err(|e| fail(e.to_string()))?;
-                            let lowered =
-                                sand_components::predicates::lower_item_predicate_for_command(
-                                    &predicate,
-                                )
-                                .map_err(fail)?;
-                            let base = lowered
-                                .items
-                                .as_ref()
-                                .and_then(|items| items.first())
-                                .map(|id| id.to_string())
-                                .unwrap_or_default();
-                            Some(format!("{base}[{}]", lowered.constraints.join(",")))
-                        }
-                        None => item.clone(),
+                    let item = match item {
+                        Some(item) => Some(self.item_argument(item).map_err(fail)?),
+                        None => None,
                     };
                     vec![Cmd::Raw(match (item, count) {
                         (Some(item), Some(count)) => inventory.clear_item_count(item, *count),
@@ -1290,7 +1479,7 @@ impl Lower {
                     )?;
                     self.function(&yes, yes_body, module, &ptr)?;
                     self.function(&no, no_body, module, &ptr)?;
-                    let test = self.condition_test(condition);
+                    let test = self.condition_test(condition).map_err(fail)?;
                     let propagate = returns(then) || returns(otherwise);
                     let guard = Cmd::Execute {
                         operations: vec![sand_commands::ExecuteOp::If(test)],
@@ -1385,6 +1574,79 @@ impl Lower {
                     )));
                     commands
                 }
+                Action::SetBlock { block, at } => {
+                    vec![Cmd::Raw(format!(
+                        "setblock {} {block}",
+                        block_position(*at)
+                    ))]
+                }
+                Action::FillBlocks { block, from, to } => vec![Cmd::Raw(format!(
+                    "fill {} {} {block}",
+                    block_position(*from),
+                    block_position(*to)
+                ))],
+                Action::AddExperience { amount, levels } => vec![Cmd::Raw(format!(
+                    "xp add @s {amount} {}",
+                    if *levels { "levels" } else { "points" }
+                ))],
+                Action::SetGameMode { mode } => vec![Cmd::Raw(format!(
+                    "gamemode {} @s",
+                    match mode {
+                        PlayerGameMode::Survival => "survival",
+                        PlayerGameMode::Creative => "creative",
+                        PlayerGameMode::Adventure => "adventure",
+                        PlayerGameMode::Spectator => "spectator",
+                    }
+                ))],
+                Action::SetTime { ticks } => vec![Cmd::Raw(format!("time set {ticks}"))],
+                Action::SetWeather { weather, seconds } => {
+                    let weather = match weather {
+                        Weather::Clear => "clear",
+                        Weather::Rain => "rain",
+                        Weather::Thunder => "thunder",
+                    };
+                    vec![Cmd::Raw(match seconds {
+                        Some(seconds) => format!("weather {weather} {seconds}s"),
+                        None => format!("weather {weather}"),
+                    })]
+                }
+                Action::BossBarAudience {
+                    bar,
+                    audience,
+                    visible,
+                } => {
+                    // `bossbar set players` replaces the viewer list, so a tag
+                    // remembers who sees the bar across individual changes.
+                    let tag = boss_bar_tag(bar);
+                    let targets = match audience {
+                        Audience::Player => "@s",
+                        Audience::Everyone => "@a",
+                    };
+                    let verb = if *visible { "add" } else { "remove" };
+                    vec![
+                        Cmd::Raw(format!("tag {targets} {verb} {tag}")),
+                        Cmd::Raw(format!("bossbar set {bar} players @a[tag={tag}]")),
+                    ]
+                }
+                Action::SetBossBar { bar, value, max } => {
+                    let property = if *max { "max" } else { "value" };
+                    vec![Cmd::Raw(match value {
+                        ScoreOperand::Value(value) => {
+                            format!("bossbar set {bar} {property} {value}")
+                        }
+                        ScoreOperand::Field(field) => format!(
+                            "execute store result bossbar {bar} {property} run scoreboard players get {} {}",
+                            self.holders[&field.state.to_string()],
+                            objective(field)
+                        ),
+                    })]
+                }
+                Action::GiveLoot { table } => {
+                    vec![Cmd::Raw(format!("loot give @s loot {table}"))]
+                }
+                Action::DropLoot { table } => {
+                    vec![Cmd::Raw(format!("loot spawn ~ ~ ~ loot {table}"))]
+                }
                 Action::EntityTag { tag, add } => vec![Cmd::Raw(format!(
                     "tag @s {} {tag}",
                     if *add { "add" } else { "remove" }
@@ -1409,7 +1671,7 @@ impl Lower {
                         module,
                         &format!("{ptr}/action/body"),
                     )?;
-                    let test = self.condition_test(condition);
+                    let test = self.condition_test(condition).map_err(fail)?;
                     // Tail call: re-check the condition after each pass and
                     // forward an early return from deeper passes.
                     lines.push(

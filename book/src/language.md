@@ -253,7 +253,22 @@ range (`a..b`, `a..=b`, `a..`, `..=b`). Combine them with `&&`, `||`, `!`, and
 parentheses. Every comparison is evaluated at most once, and exactly one branch
 runs. `while` takes a single comparison of fields, variables, or constants.
 
-Inside `for player in players()`, `continue;` skips to the next player.
+Inside `for player in players()`, `continue;` skips to the next player. As in
+Rust, the loop changes who runs the body but not where: `offset(..)`, sounds,
+particles, and summons stay at the caller's position (the world spawn in
+`#[tick]`). `#[on(...)]` handlers and `for name in entities(..)` bodies do run
+positioned at their player or entity.
+
+Conditions can also ask about the world and the executor:
+
+| Condition | True when |
+| --- | --- |
+| `has_state(Mana)` | the executor has this `entity state` attached |
+| `any_entities(type = .., tag = .., distance = ..)` | at least one entity matches |
+| `block_is(Block::Water, offset(0, -1, 0))` | the position holds this block or `Block` tag |
+| `holding(Item::Diamond)`, `holding(Wand, offhand = true)` | the executor holds the item |
+| `is_sneaking()`, `is_sprinting()`, `is_swimming()`, `is_on_fire()` | the executor is doing it |
+| `timer_running(Ability.dash)`, `timer_done(Ability.dash)` | a `timer` field has time left, or none |
 
 ## Attributes
 
@@ -394,6 +409,84 @@ outside a loop runs as an entity. Flows only run over player or global State.
 `teleport_by(dx, dy, dz)` moves it relatively, and `teleport_to(type = ...)`
 moves it to the nearest entity matching the same filters as `entities(..)`.
 
+## Custom events
+
+An event is a name your own functions can react to. Declare it, optionally with
+a typed payload; mark handlers with `#[on(...)]`; run them all with `emit`:
+
+```rust,ignore
+event Payday(amount: number);
+
+#[on(Payday)]
+fn deposit(amount: number) { Wallet.coins += amount; }
+
+#[on(Payday)]
+fn celebrate(amount: number) { chat!("{gold}Paid!"); }
+
+fn wages() { emit(Payday, 25); }
+```
+
+Handlers run in declaration order, as whoever emitted the event, and must take
+exactly the event's parameters. Arguments are evaluated once. If a handler needs
+a player, emitting the event needs one too, and the editor says so. Any module
+can handle a `pub event`.
+
+## Timers and cooldowns
+
+A `timer` field counts down by one every tick until it reaches zero, using the
+same State lifecycle as Rust's `Timer` and `Cooldown` fields:
+
+```rust,ignore
+player state Ability { dash: timer }
+
+fn dash() {
+    if timer_running(Ability.dash) {
+        actionbar!("{red}{Ability.dash} ticks left");
+        return;
+    }
+    start_timer(Ability.dash, seconds = 3);
+    teleport_by(0.0, 0.5, 0.0);
+}
+```
+
+`start_timer` takes `ticks` or `seconds`, and `stop_timer` ends one early. A
+timer reads as the number of ticks left, so comparisons and `{Ability.dash}`
+text work too.
+
+## The world
+
+Block positions are `pos(x, y, z)` in world coordinates or `offset(dx, dy, dz)`
+relative to the executor. Both take constants.
+
+```rust,ignore
+set_block(Block::Stone, offset(0, -1, 0));
+fill_blocks(Block::Air, offset(-2, 0, -2), offset(2, 3, 2));
+set_time(6000);
+set_weather(Weather::Rain, seconds = 60);
+set_gamemode(GameMode::Adventure);
+add_experience(points = 10);   // or levels = 2
+```
+
+## Boss bars
+
+```rust,ignore
+bossbar Raid {
+    title: "{red}Raid Boss",
+    color: BossBarColor::Purple,
+    style: BossBarStyle::Notched10,
+    max: 200,
+}
+
+fn begin() {
+    show_bossbar_all(Raid);
+    set_bossbar(Raid, Fight.boss_hp);
+}
+```
+
+`show_bossbar`/`hide_bossbar` change one player and leave the others alone;
+`show_bossbar_all`/`hide_bossbar_all` change everyone online. `set_bossbar` and
+`set_bossbar_max` take any `number` expression.
+
 ## Items, recipes, and tags
 
 Data resources are declarations with typed fields:
@@ -437,6 +530,28 @@ recipe RedDye { shapeless: [Item::Poppy, Item::Poppy], result: Item::RedDye, cou
 These lower through the same typed builders as Rust (`ShapedRecipe`,
 `CustomItem`, `TypedTag`, ...). The editor completes field names and
 offers the right typed values for each field.
+
+Smithing upgrades name their template, `base`, and `addition`:
+
+```rust,ignore
+recipe Upgrade {
+    smithing: Item::NetheriteUpgradeSmithingTemplate,
+    base: Item::DiamondAxe,
+    addition: Item::NetheriteIngot,
+    result: Item::NetheriteAxe,
+}
+```
+
+### Loot tables
+
+```rust,ignore
+loot Crate {
+    rolls: 2,
+    items: [Item::Diamond, { item: Item::Emerald, weight: 4, count: 3 }],
+}
+
+fn open_crate() { give_loot(Crate); }   // or drop_loot(Crate) at the executor
+```
 
 ## Flows
 
@@ -540,12 +655,14 @@ express produces identical output. Today the language covers:
 
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
-| State | player, global, and entity State; `number`, `float`, `bool`, and enum fields; clamps; flows | timers and cooldowns, NBT-backed values |
-| Logic | functions with parameters and returns, `let`, `if`, `while`, early return | closures, generics, compile-time Rust code |
-| Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes, effects, items | selectors by NBT/scores, motion, vehicles |
-| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt | advancement triggers, equipment changes, sneaking, custom tracked events |
-| Text and feedback | chat, broadcast, actionbar, titles, sounds, particles | books, dialogs, boss bars, clickable text |
-| Data | custom items, recipes (crafting, cooking, stonecutting), item/block/entity tags | loot tables, advancements, predicates, smithing, worldgen, damage types |
+| State | player, global, and entity State; `number`, `float`, `bool`, enum, and `timer` fields; clamps; flows | NBT-backed values, relations, derived values, migrations |
+| Logic | functions with parameters and returns, `let`, `if`, `while`, early return, custom events | closures, generics, compile-time Rust code |
+| Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes, effects, items, experience, game mode, sneaking and other flags, held items | selection by NBT or scores, motion, vehicles, equipment edits, archetypes |
+| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
+| World | blocks and regions, block tests, time, weather | structures, biomes, dimensions, clone, data on blocks |
+| Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
+| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, single-pool loot tables | conditional loot, advancements, predicates, trim recipes, worldgen, damage types |
+| Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

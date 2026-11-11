@@ -181,7 +181,7 @@ fn declarations_complete_fields_and_typed_values_and_explain_them() {
     assert!(
         keyword
             .markdown
-            .contains("adds a crafting, cooking, or stonecutting recipe")
+            .contains("adds a crafting, cooking, stonecutting, or smithing recipe")
     );
 }
 

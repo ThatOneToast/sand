@@ -1,0 +1,69 @@
+//! A raid: custom events, timers, a boss bar, loot, and world edits.
+
+/// Shared raid health.
+global state Fight {
+    #[clamp(0..=200)]
+    boss_hp: number = 200,
+}
+
+/// How long until a player can strike again.
+player state Striker {
+    cooldown: timer,
+}
+
+/// Shown to everyone while the raid runs.
+bossbar Raid {
+    title: "{red}{bold}Raid Boss",
+    color: BossBarColor::Purple,
+    style: BossBarStyle::Notched10,
+    max: 200,
+}
+
+/// What a landed strike can drop.
+loot Spoils {
+    rolls: 2,
+    items: [Item::GoldIngot, { item: Item::Diamond, weight: 1, count: 2 }],
+}
+
+/// Raised whenever a player lands a strike.
+pub event Struck(damage: number);
+
+#[on(Struck)]
+fn wound_boss(damage: number) {
+    Fight.boss_hp -= damage;
+    set_bossbar(Raid, Fight.boss_hp);
+}
+
+#[on(Struck)]
+fn reward_striker(_damage: number) {
+    add_experience(points = 5);
+    give_loot(Spoils);
+}
+
+/// Open the arena and show the bar.
+pub fn begin() {
+    Fight.boss_hp = 200;
+    set_bossbar(Raid, Fight.boss_hp);
+    set_time(18000);
+    set_weather(Weather::Thunder, seconds = 120);
+    show_bossbar_all(Raid);
+}
+
+/// Strike while sneaking with a diamond sword, on a shared cooldown.
+#[on(use_item = Item::DiamondSword)]
+fn strike() {
+    if !is_sneaking() || !holding(Item::DiamondSword) {
+        return;
+    }
+    if timer_running(Striker.cooldown) {
+        actionbar!("{red}Ready in {Striker.cooldown} ticks");
+        return;
+    }
+    start_timer(Striker.cooldown, seconds = 2);
+    if block_is(Block::Air, offset(0, -1, 0)) {
+        set_block(Block::Glass, offset(0, -1, 0));
+    }
+    if any_entities(type = Entity::Zombie, distance = ..=16) {
+        emit(Struck, 10);
+    }
+}

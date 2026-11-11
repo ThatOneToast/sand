@@ -3,6 +3,10 @@
   "fn" @context
   name: (identifier) @name) @item
 
+(event_item
+  "event" @context
+  name: (identifier) @name) @item
+
 (extern_function
   "extern" @context
   name: (identifier) @name) @item

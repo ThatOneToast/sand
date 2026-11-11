@@ -144,6 +144,7 @@ impl Item {
             ItemKind::Fn(item) => Some(&item.name),
             ItemKind::ExternFn(item) => Some(&item.name),
             ItemKind::Data(item) => Some(&item.name),
+            ItemKind::Event(item) => Some(&item.name),
             ItemKind::Use(_) | ItemKind::Error(_) => None,
         }
     }
@@ -173,8 +174,10 @@ pub enum ItemKind {
     Fn(FnItem),
     /// `extern "ns:id" fn name();`.
     ExternFn(ExternFnItem),
-    /// `item`, `recipe`, or a tag declaration.
+    /// `item`, `recipe`, a tag, boss bar, or loot table declaration.
     Data(DataItem),
+    /// `event Name(params);`.
+    Event(EventItem),
     /// Unparseable source, with the strict parser's explanation.
     Error(SyntaxError),
 }
@@ -352,6 +355,15 @@ pub enum HookTarget {
     Block(Block),
 }
 
+/// `event Name(params);`: a custom event.
+#[derive(Debug, Clone)]
+pub struct EventItem {
+    /// Event name.
+    pub name: Ident,
+    /// Payload passed to every handler.
+    pub params: Vec<Param>,
+}
+
 /// The kind of a data resource declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataKind {
@@ -361,6 +373,10 @@ pub enum DataKind {
     Recipe,
     /// `tag Name: Item { values: [...] }`.
     Tag,
+    /// `bossbar Name { title: "..." }`.
+    BossBar,
+    /// `loot Name { items: [...] }`.
+    Loot,
 }
 
 impl DataKind {
@@ -370,6 +386,8 @@ impl DataKind {
             DataKind::Item => "item",
             DataKind::Recipe => "recipe",
             DataKind::Tag => "tag",
+            DataKind::BossBar => "bossbar",
+            DataKind::Loot => "loot",
         }
     }
 }

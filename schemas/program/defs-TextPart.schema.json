@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One styled piece of a message.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Literal text.",
+      "properties": {
+        "kind": {
+          "const": "text",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The live value of a State field.",
+      "properties": {
+        "kind": {
+          "const": "score",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        }
+      },
+      "required": [
+        "kind",
+        "score"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The executing player's name; needs a player executor.",
+      "properties": {
+        "kind": {
+          "const": "player_name",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    }
+  ]
+}

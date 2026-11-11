@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Read another State field."
+    },
+    {
+      "description": "Use an integer constant.",
+      "format": "int32",
+      "type": "integer"
+    }
+  ],
+  "description": "The right-hand side of a score operation: another field or a constant."
+}

@@ -40,7 +40,7 @@ pub struct State {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(name = "Name for this portable definition.", default = "Default for this portable definition.", bounds = "Optional inclusive bounds applied after score writes."),
+ fields(name = "Name for this portable definition.", default = "Default for this portable definition.", bounds = "Optional inclusive bounds applied after score writes.", timer = "Whether the score counts down by one each tick until zero."),
 )]
 pub struct ScoreField {
     /// Field identity within its owning State.
@@ -55,6 +55,10 @@ pub struct ScoreField {
     /// arithmetic before clamping; these bounds do not prevent overflow.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounds: Option<(i32, i32)>,
+    /// Count down by one each tick until zero, through the same State lifecycle
+    /// that drives Rust `Timer` and `Cooldown` fields. Timers cannot have bounds.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub timer: bool,
 }
 
 /// A field reference binds a field identity to its declaring State.

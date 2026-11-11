@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Which registry a tag groups.",
+  "oneOf": [
+    {
+      "const": "item",
+      "description": "Items.",
+      "type": "string"
+    },
+    {
+      "const": "block",
+      "description": "Blocks.",
+      "type": "string"
+    },
+    {
+      "const": "entity_type",
+      "description": "Entity types.",
+      "type": "string"
+    }
+  ]
+}

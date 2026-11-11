@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The colour of a boss bar.",
+  "oneOf": [
+    {
+      "const": "blue",
+      "description": "Blue.",
+      "type": "string"
+    },
+    {
+      "const": "green",
+      "description": "Green.",
+      "type": "string"
+    },
+    {
+      "const": "pink",
+      "description": "Pink.",
+      "type": "string"
+    },
+    {
+      "const": "purple",
+      "description": "Purple.",
+      "type": "string"
+    },
+    {
+      "const": "red",
+      "description": "Red.",
+      "type": "string"
+    },
+    {
+      "const": "white",
+      "description": "White.",
+      "type": "string"
+    },
+    {
+      "const": "yellow",
+      "description": "Yellow.",
+      "type": "string"
+    }
+  ]
+}

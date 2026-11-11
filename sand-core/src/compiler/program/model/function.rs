@@ -15,13 +15,16 @@ use serde::{Deserialize, Serialize};
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Server = "Server semantic alternative; see Rustdoc for its execution behavior.", Player = "Player semantic alternative; see Rustdoc for its execution behavior."),
+ variants(Server = "Server semantic alternative; see Rustdoc for its execution behavior.", Player = "Player semantic alternative; see Rustdoc for its execution behavior.", Entity = "Runs as any entity, including players, without player State."),
 )]
 pub enum ExecutionContext {
     /// Does not access player self; callable in either context.
     Server,
     /// Requires a player executor; entry initializes player State.
     Player,
+    /// Requires an entity executor (any entity, including players); cannot
+    /// read player State or use player-only operations.
+    Entity,
 }
 
 /// An explicitly named function with an ordered typed body.

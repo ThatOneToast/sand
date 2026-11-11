@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "World weather.",
+  "oneOf": [
+    {
+      "const": "clear",
+      "description": "Clear skies.",
+      "type": "string"
+    },
+    {
+      "const": "rain",
+      "description": "Rain.",
+      "type": "string"
+    },
+    {
+      "const": "thunder",
+      "description": "Thunderstorm.",
+      "type": "string"
+    }
+  ]
+}

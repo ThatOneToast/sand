@@ -1,0 +1,18 @@
+{
+  "grammars": [
+    {
+      "name": "sand",
+      "camelcase": "Sand",
+      "scope": "source.sand",
+      "path": ".",
+      "file-types": ["sand"],
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for the Sand datapack language",
+    "links": { "repository": "https://github.com/ThatOneToast/sand" }
+  }
+}

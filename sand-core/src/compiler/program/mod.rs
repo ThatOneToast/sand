@@ -9,9 +9,14 @@ mod validate;
 pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
-    Action, ExecutionContext, FieldReference, Flow, FlowHook, FlowHookPhase, FlowTransition,
-    Function, FunctionReference, Module, ModuleSource, Operation, Pack, Program, ProgramTarget,
-    ScoreComparison, ScoreField, State, TagMembership,
+    Action, Amount, Audience, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle,
+    Condition, CookingMethod, CustomItem, EntitiesExist, EntityFlag, EntityQuery, EntitySort,
+    EventHook, ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase,
+    FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel,
+    Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
+    Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
+    ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    TeleportDestination, TextColor, TextPart, TextStyle, Weather,
 };
 use std::collections::BTreeMap;
 
@@ -30,6 +35,32 @@ const CAPABILITIES: &[&str] = &[
     "lifecycle",
     "function_tags",
     "raw_commands",
+    "score_operations",
+    "random",
+    "field_relations",
+    "messages",
+    "sounds",
+    "particles",
+    "effects",
+    "items",
+    "schedule",
+    "player_events",
+    "control_flow",
+    "attributes",
+    "entities",
+    "custom_items",
+    "recipes",
+    "resource_tags",
+    "entity_state",
+    "teleport",
+    "timers",
+    "blocks",
+    "world_conditions",
+    "experience",
+    "world_state",
+    "boss_bars",
+    "loot_tables",
+    "smithing_recipes",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.
@@ -213,7 +244,9 @@ impl Compiler {
             "format": "sand.program", "format_version": 1,
             "compiler": { "name": "sand", "version": env!("CARGO_PKG_VERSION") },
             "targets": ["26.1", "26.1.1", "26.1.2", "26.2"],
-            "operations": ["score_set", "score_add", "branch", "players", "call", "raw"],
+            "operations": ["score_set", "score_add", "score_operation", "score_random", "branch", "players", "call",
+                "message", "sound", "particle", "effect", "clear_effect", "give_item", "clear_item", "schedule", "return", "while", "attribute_get", "attribute_set", "entities", "kill", "entity_tag", "summon", "damage", "count_entities", "attach_state", "detach_state", "teleport", "raw"],
+            "events": ["join", "first_join", "death", "kill_entity", "kill_player", "use_item"],
             "capabilities": CAPABILITIES,
             "raw_validation": "explicit opt-in; command-line safety and supported syntax only",
             "limits": { "document_bytes": limits::DOCUMENT_BYTES, "input_bytes": limits::INPUT_BYTES,

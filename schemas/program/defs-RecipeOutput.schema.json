@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The item a recipe produces.",
+  "properties": {
+    "count": {
+      "default": 1,
+      "description": "Stack size produced.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "item": {
+      "description": "Vanilla item or declared custom item id.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "item"
+  ],
+  "type": "object"
+}

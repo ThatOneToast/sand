@@ -2698,8 +2698,8 @@ pub(crate) fn try_export_components_impl(
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
 
-    if ctx.is_some_and(|ctx| ctx.caps.is_at_least(26, 3, 0)) {
-        super::schema_26_3::lower(&mut records)?;
+    if let Some(ctx) = ctx {
+        super::lower_for_target(&mut records, ctx)?;
     }
     validate_unique_output_identities(&records)?;
     validate_gameplay_references(&records)?;

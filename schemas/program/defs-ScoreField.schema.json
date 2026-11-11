@@ -31,6 +31,10 @@
     "name": {
       "description": "Field identity within its owning State.",
       "type": "string"
+    },
+    "timer": {
+      "description": "Count down by one each tick until zero, through the same State lifecycle\nthat drives Rust `Timer` and `Cooldown` fields. Timers cannot have bounds.",
+      "type": "boolean"
     }
   },
   "required": [

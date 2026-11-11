@@ -619,6 +619,21 @@ impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEv
     }
 }
 
+impl sand_commands::resource::sealed::Sealed<sand_commands::resource::ParticleType>
+    for generated::ParticleType
+{
+}
+impl sand_commands::resource::RegistryReference<sand_commands::resource::ParticleType>
+    for generated::ParticleType
+{
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::ParticleType> {
+        sand_commands::resource::RegistryId::new(self.resource_location())
+            .expect("generated vanilla particle IDs are valid resource locations")
+    }
+}
+
 /// Compiler and facade wiring that is deliberately outside Sand's supported
 /// author-facing API surface.
 #[doc(hidden)]

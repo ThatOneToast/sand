@@ -18,6 +18,7 @@ subdirectories below are standalone crates that build against this checkout.
 | [rpg_entity](rpg_entity/) | Typed entity archetypes and deterministic export coverage. |
 | [participant_audit](participant_audit/) | Live event participants, equipment snapshots, and multiplayer regressions. |
 | [portable_counter](portable_counter/) | Rust frontend for the portable-program acceptance counter. |
+| [lang_encounters](lang_encounters/) | The same kind of gameplay written in the Sand language (`.sand`), built with `sand lang build`. |
 | [arcane_pack](arcane_pack/) | Advanced integration fixture with primitive scoreboard/storage controls and golden tests. |
 
 Start with `book_project` for the guided tutorial and `cooperative_arena` for a

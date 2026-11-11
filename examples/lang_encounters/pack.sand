@@ -1,0 +1,83 @@
+//! Player encounters and a shared world phase, written in the Sand language.
+#![pack(namespace = "demo", minecraft = "26.2", description = "Encounters")]
+
+pub mod raid;
+mod rewards;
+
+use rewards::grant;
+
+/// Energy every player starts with and can never exceed.
+const MAX_ENERGY: number = 100;
+
+/// Where a player is in their encounter.
+enum Phase {
+    /// Waiting for enough energy.
+    Idle,
+    /// Fighting.
+    Active,
+    /// Recovering after a fight.
+    Resting = 5,
+}
+
+/// Per-player encounter progress.
+player state Hero {
+    phase: Phase = Phase::Idle,
+    /// Spent by encounters, clamped to the valid range.
+    #[clamp(0..=MAX_ENERGY)]
+    energy: number = MAX_ENERGY,
+    events: number,
+}
+
+/// One shared clock for the whole server.
+global state World {
+    ticks: number,
+}
+
+flow Encounter on Hero.phase {
+    Idle -> Active if Hero.energy >= 30 priority 100;
+    Idle -> Resting;
+    Active -> Resting if Hero.energy <= 10;
+
+    enter Active => start;
+    tick Active {
+        Hero.events += 1;
+    }
+    tick Active every 2 {
+        Hero.energy -= 5;
+    }
+}
+
+fn start() {
+    Hero.energy -= 30;
+    Hero.events += 10;
+}
+
+/// Greet newcomers and explain the encounter loop.
+#[on(first_join)]
+fn welcome() {
+    title!("{gold}{bold}Encounters");
+    chat!("Welcome, {player}! Spend {aqua}energy{reset} to start encounters.");
+}
+
+/// Dying costs energy and resets the encounter.
+#[on(death)]
+fn died() {
+    Hero.energy -= 20;
+    Hero.phase = Phase::Idle;
+    actionbar!("{red}You lost 20 energy ({Hero.energy} left).");
+}
+
+/// Advance the world clock and reward everyone every ten seconds.
+#[tick]
+fn world_tick() {
+    World.ticks += 1;
+    if World.ticks >= 200 && World.ticks != 999 {
+        World.ticks = 0;
+        broadcast!("{green}Energy restored for everyone!");
+        for player in players() {
+            grant();
+        }
+    } else if World.ticks == 100 {
+        broadcast!("{gray}Halfway to the next restore.");
+    }
+}

@@ -1,0 +1,21 @@
+[package]
+name = "sand-lang"
+description = "The Sand language: a Rust-flavoured source language that compiles to Minecraft datapacks through Sand's portable compiler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["minecraft", "datapack", "language", "compiler", "gamedev"]
+categories = ["compilers", "game-development"]
+
+[dependencies]
+sand = { path = "../sand" }
+sand-api-contract = { path = "../sand-api-contract" }
+pest = "2.8"
+pest_derive = "2.8"
+serde_json = "1"
+
+[dev-dependencies]

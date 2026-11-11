@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A movement or status flag of an entity.",
+  "oneOf": [
+    {
+      "const": "sneaking",
+      "description": "Crouching.",
+      "type": "string"
+    },
+    {
+      "const": "sprinting",
+      "description": "Sprinting.",
+      "type": "string"
+    },
+    {
+      "const": "swimming",
+      "description": "Swimming.",
+      "type": "string"
+    },
+    {
+      "const": "on_fire",
+      "description": "Burning.",
+      "type": "string"
+    }
+  ]
+}

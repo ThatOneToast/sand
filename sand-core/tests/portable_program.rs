@@ -21,6 +21,12 @@ fn counter() -> Program {
         },
         requires: vec![],
         modules: vec![Module {
+            events: vec![],
+            items: vec![],
+            recipes: vec![],
+            resource_tags: vec![],
+            loot_tables: vec![],
+            boss_bars: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {
@@ -31,6 +37,7 @@ fn counter() -> Program {
                     name: "value".into(),
                     default: 0,
                     bounds: None,
+                    timer: false,
                 }],
             }],
             functions: vec![
@@ -262,7 +269,8 @@ fn branch_uses_one_guard_and_returns_before_otherwise() {
             score: score.clone(),
             min: Some(0),
             max: Some(0),
-        },
+        }
+        .into(),
         then: vec![operation(Action::ScoreSet {
             score: score.clone(),
             value: 1,
@@ -743,7 +751,8 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
             score: score.clone(),
             min: Some(0),
             max: Some(0),
-        },
+        }
+        .into(),
         then: vec![operation(Action::ScoreSet {
             score: score.clone(),
             value: 1,

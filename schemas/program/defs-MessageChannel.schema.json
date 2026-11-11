@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Where a message appears.",
+  "oneOf": [
+    {
+      "const": "chat",
+      "description": "A chat line.",
+      "type": "string"
+    },
+    {
+      "const": "actionbar",
+      "description": "Text above the hotbar.",
+      "type": "string"
+    },
+    {
+      "const": "title",
+      "description": "Large centred title text.",
+      "type": "string"
+    },
+    {
+      "const": "subtitle",
+      "description": "Text under the title; shown with the next title.",
+      "type": "string"
+    }
+  ]
+}

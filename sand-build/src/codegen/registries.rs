@@ -41,6 +41,16 @@ const REGISTRIES: &[(&str, &str, &str)] = &[
         "SoundEvent",
         "Minecraft sound event registry.",
     ),
+    (
+        "minecraft:particle_type",
+        "ParticleType",
+        "Minecraft particle type registry.",
+    ),
+    (
+        "minecraft:attribute",
+        "Attribute",
+        "Minecraft entity attribute registry.",
+    ),
 ];
 
 #[derive(Deserialize)]

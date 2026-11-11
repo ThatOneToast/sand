@@ -18,6 +18,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
     fn try_from(descriptor: StateDescriptor<'_>) -> Result<Self, Self::Error> {
         let scope = match descriptor.scope {
             StateScope::Player => "player",
+            StateScope::Entity => "entity",
             StateScope::Global(holder)
                 if holder == GlobalStateHolder::new(descriptor.id).as_str() =>
             {
@@ -35,7 +36,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
             || !descriptor.migrations.is_empty()
         {
             return Err(format!(
-                "State `{}` is outside the player/global score v1 slice",
+                "State `{}` is outside the player/entity/global score v1 slice",
                 descriptor.id
             ));
         }
@@ -43,11 +44,10 @@ impl TryFrom<StateDescriptor<'_>> for State {
             if field.field.kind != StateFieldKind::Score
                 || field.criterion != "dummy"
                 || field.display_name.is_some()
-                || field.auto_tick
                 || field.objective != format!("{}.{}", descriptor.id, field.field.name)
             {
                 return Err(format!(
-                    "State field `{}.{}` is outside the player/global score v1 slice",
+                    "State field `{}.{}` is outside the player/entity/global score v1 slice",
                     descriptor.id, field.field.name
                 ));
             }
@@ -74,6 +74,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
                     name: field.field.name.to_owned(),
                     default: field.field.default,
                     bounds: field.field.bounds,
+                    timer: field.auto_tick,
                 })
                 .collect(),
         })
@@ -83,7 +84,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
 /// Resolve the scoreboard owner from the same identity used by lifecycle lowering.
 pub(crate) fn holder(state: &State) -> sand_commands::ScoreHolder {
     match state.scope.as_str() {
-        "player" => sand_commands::ScoreHolder::self_(),
+        "player" | "entity" => sand_commands::ScoreHolder::self_(),
         "global" => {
             sand_commands::ScoreHolder::fake(GlobalStateHolder::new(&state.id.to_string()).as_str())
         }
@@ -130,7 +131,7 @@ pub(crate) fn with_descriptors<R>(
                 .iter()
                 .zip(objectives)
                 .map(|(field, objective)| {
-                    StateLifecycleDescriptor::new(
+                    let descriptor = StateLifecycleDescriptor::new(
                         objective,
                         StateFieldDescriptor::new(
                             &field.name,
@@ -138,7 +139,12 @@ pub(crate) fn with_descriptors<R>(
                             field.default,
                             field.bounds,
                         ),
-                    )
+                    );
+                    if field.timer {
+                        descriptor.auto_tick()
+                    } else {
+                        descriptor
+                    }
                 })
                 .collect()
         })
@@ -150,6 +156,7 @@ pub(crate) fn with_descriptors<R>(
                 1,
                 match state.scope.as_str() {
                     "player" => StateScope::Player,
+                    "entity" => StateScope::Entity,
                     "global" => StateScope::Global(holder.as_str()),
                     _ => unreachable!("owned State scopes are validated before lowering"),
                 },
@@ -210,11 +217,13 @@ mod tests {
                     name: "first".into(),
                     default: -7,
                     bounds: None,
+                    timer: false,
                 },
                 ScoreField {
                     name: "second".into(),
                     default: 42,
                     bounds: None,
+                    timer: false,
                 },
             ],
         };
@@ -244,6 +253,7 @@ mod tests {
                 name: "value".to_owned(),
                 default: 0,
                 bounds: None,
+                timer: false,
             }],
         }])
         .unwrap();
@@ -274,6 +284,7 @@ mod tests {
                 name: "value".to_owned(),
                 default: 0,
                 bounds: None,
+                timer: false,
             }],
         }];
         const CONFLICTING_FIELDS: &[StateLifecycleDescriptor] = &[StateLifecycleDescriptor::new(

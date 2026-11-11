@@ -54,7 +54,7 @@
           "description": "Evaluate the comparison once and execute exactly one ordered body.",
           "properties": {
             "condition": {
-              "$ref": "#/$defs/ScoreComparison"
+              "$ref": "#/$defs/Condition"
             },
             "op": {
               "const": "branch",
@@ -83,7 +83,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Execute the body as each player without changing positional context.",
+          "description": "Execute the body as each player, positioned at that player.",
           "properties": {
             "body": {
               "items": {
@@ -137,8 +137,1286 @@
             "command"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Combine a field with another field or a constant using scoreboard\narithmetic, then apply the field's declared bounds.",
+          "properties": {
+            "op": {
+              "const": "score_operation",
+              "type": "string"
+            },
+            "operand": {
+              "$ref": "#/$defs/ScoreOperand"
+            },
+            "operator": {
+              "$ref": "#/$defs/ScoreOperator"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            }
+          },
+          "required": [
+            "op",
+            "score",
+            "operator",
+            "operand"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Store a uniformly random integer from the inclusive range.",
+          "properties": {
+            "max": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "min": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "op": {
+              "const": "score_random",
+              "type": "string"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            }
+          },
+          "required": [
+            "op",
+            "score",
+            "min",
+            "max"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Show styled text; a `player` audience needs a player executor.",
+          "properties": {
+            "audience": {
+              "$ref": "#/$defs/Audience"
+            },
+            "channel": {
+              "$ref": "#/$defs/MessageChannel"
+            },
+            "op": {
+              "const": "message",
+              "type": "string"
+            },
+            "text": {
+              "items": {
+                "$ref": "#/$defs/TextPart"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "op",
+            "audience",
+            "channel",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Play a sound to the executing player at their position.",
+          "properties": {
+            "op": {
+              "const": "sound",
+              "type": "string"
+            },
+            "pitch": {
+              "default": 1.0,
+              "format": "float",
+              "type": "number"
+            },
+            "sound": {
+              "type": "string"
+            },
+            "volume": {
+              "default": 1.0,
+              "format": "float",
+              "type": "number"
+            }
+          },
+          "required": [
+            "op",
+            "sound"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Spawn particles at the executor's position.",
+          "properties": {
+            "count": {
+              "default": 1,
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "op": {
+              "const": "particle",
+              "type": "string"
+            },
+            "particle": {
+              "type": "string"
+            },
+            "speed": {
+              "default": 0.0,
+              "format": "float",
+              "type": "number"
+            },
+            "spread": {
+              "default": 0.0,
+              "format": "float",
+              "type": "number"
+            }
+          },
+          "required": [
+            "op",
+            "particle"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Apply a status effect to the executing player.",
+          "properties": {
+            "amplifier": {
+              "default": 0,
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "effect": {
+              "type": "string"
+            },
+            "hide_particles": {
+              "default": false,
+              "type": "boolean"
+            },
+            "op": {
+              "const": "effect",
+              "type": "string"
+            },
+            "seconds": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "effect"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Remove one status effect, or all of them, from the executing player.",
+          "properties": {
+            "effect": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "op": {
+              "const": "clear_effect",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Give items to the executing player.",
+          "properties": {
+            "count": {
+              "default": 1,
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "item": {
+              "type": "string"
+            },
+            "op": {
+              "const": "give_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Remove matching items, or every item, from the executing player.",
+          "properties": {
+            "count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "item": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "op": {
+              "const": "clear_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Run a server-context function after a delay, replacing any pending\nschedule of the same function.",
+          "properties": {
+            "function": {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            "op": {
+              "const": "schedule",
+              "type": "string"
+            },
+            "ticks": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "op",
+            "function",
+            "ticks"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "End the current function. Inside a `Players` body it ends only the\ncurrent player's turn, like `continue`.",
+          "properties": {
+            "op": {
+              "const": "return",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Check the condition before each pass and repeat the body while it holds.\nMinecraft's command-chain limit bounds runaway loops.",
+          "properties": {
+            "body": {
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "condition": {
+              "$ref": "#/$defs/Condition"
+            },
+            "op": {
+              "const": "while",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "condition",
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Store the executing player's attribute base value, multiplied by\n`scale` and truncated, in a State field.",
+          "properties": {
+            "attribute": {
+              "type": "string"
+            },
+            "op": {
+              "const": "attribute_get",
+              "type": "string"
+            },
+            "scale": {
+              "default": 1.0,
+              "format": "double",
+              "type": "number"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            }
+          },
+          "required": [
+            "op",
+            "score",
+            "attribute"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set the executing player's attribute base value to a constant or a\nState-derived amount.",
+          "properties": {
+            "attribute": {
+              "type": "string"
+            },
+            "op": {
+              "const": "attribute_set",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "attribute",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Run the body as each matching entity, positioned at it. A `Return`\ninside ends only the current entity's turn.",
+          "properties": {
+            "body": {
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "op": {
+              "const": "entities",
+              "type": "string"
+            },
+            "query": {
+              "$ref": "#/$defs/EntityQuery"
+            }
+          },
+          "required": [
+            "op",
+            "query",
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Kill the executing entity.",
+          "properties": {
+            "op": {
+              "const": "kill",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Add or remove a tag on the executing entity.",
+          "properties": {
+            "add": {
+              "type": "boolean"
+            },
+            "op": {
+              "const": "entity_tag",
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "tag",
+            "add"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Summon an entity at the executor's position.",
+          "properties": {
+            "entity_type": {
+              "type": "string"
+            },
+            "op": {
+              "const": "summon",
+              "type": "string"
+            },
+            "tag": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "entity_type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Damage the executing entity, in half-hearts.",
+          "properties": {
+            "amount": {
+              "format": "float",
+              "type": "number"
+            },
+            "op": {
+              "const": "damage",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Store how many entities match the query.",
+          "properties": {
+            "op": {
+              "const": "count_entities",
+              "type": "string"
+            },
+            "query": {
+              "$ref": "#/$defs/EntityQuery"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            }
+          },
+          "required": [
+            "op",
+            "score",
+            "query"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Move the executing entity.",
+          "properties": {
+            "destination": {
+              "$ref": "#/$defs/TeleportDestination"
+            },
+            "op": {
+              "const": "teleport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "destination"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Attach an entity State to the executor: fields without a value take\ntheir defaults, then the State is marked present.",
+          "properties": {
+            "op": {
+              "const": "attach_state",
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Detach an entity State from the executor, clearing its fields.",
+          "properties": {
+            "op": {
+              "const": "detach_state",
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Place a block.",
+          "properties": {
+            "at": {
+              "$ref": "#/$defs/BlockPosition"
+            },
+            "block": {
+              "type": "string"
+            },
+            "op": {
+              "const": "set_block",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "block",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fill a region, corners inclusive, with a block.",
+          "properties": {
+            "block": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/$defs/BlockPosition"
+            },
+            "op": {
+              "const": "fill_blocks",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/BlockPosition"
+            }
+          },
+          "required": [
+            "op",
+            "block",
+            "from",
+            "to"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Give the executing player experience points or levels.",
+          "properties": {
+            "amount": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "levels": {
+              "default": false,
+              "type": "boolean"
+            },
+            "op": {
+              "const": "add_experience",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Change the executing player's game mode.",
+          "properties": {
+            "mode": {
+              "$ref": "#/$defs/PlayerGameMode"
+            },
+            "op": {
+              "const": "set_game_mode",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set the time of day, in ticks.",
+          "properties": {
+            "op": {
+              "const": "set_time",
+              "type": "string"
+            },
+            "ticks": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "op",
+            "ticks"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set the weather, for a duration or until Minecraft changes it.",
+          "properties": {
+            "op": {
+              "const": "set_weather",
+              "type": "string"
+            },
+            "seconds": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "weather": {
+              "$ref": "#/$defs/Weather"
+            }
+          },
+          "required": [
+            "op",
+            "weather"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Show or hide a boss bar for the executing player or everyone.",
+          "properties": {
+            "audience": {
+              "$ref": "#/$defs/Audience"
+            },
+            "bar": {
+              "type": "string"
+            },
+            "op": {
+              "const": "boss_bar_audience",
+              "type": "string"
+            },
+            "visible": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "bar",
+            "audience",
+            "visible"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set a boss bar's value, or its maximum.",
+          "properties": {
+            "bar": {
+              "type": "string"
+            },
+            "max": {
+              "default": false,
+              "type": "boolean"
+            },
+            "op": {
+              "const": "set_boss_bar",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/ScoreOperand"
+            }
+          },
+          "required": [
+            "op",
+            "bar",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Give the executing player one roll of a loot table.",
+          "properties": {
+            "op": {
+              "const": "give_loot",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "table"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Drop one roll of a loot table at the executor's position.",
+          "properties": {
+            "op": {
+              "const": "drop_loot",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "table"
+          ],
+          "type": "object"
         }
       ]
+    },
+    "Amount": {
+      "anyOf": [
+        {
+          "description": "A constant number.",
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/ScaledField",
+          "description": "A State field divided by its scale."
+        }
+      ],
+      "description": "A number supplied to a command: a constant or a scaled State field."
+    },
+    "Audience": {
+      "description": "Who receives a message.",
+      "oneOf": [
+        {
+          "const": "player",
+          "description": "Only the executing player.",
+          "type": "string"
+        },
+        {
+          "const": "everyone",
+          "description": "Every online player.",
+          "type": "string"
+        }
+      ]
+    },
+    "BlockMatches": {
+      "additionalProperties": false,
+      "description": "A test that a block matches at a position.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/BlockPosition",
+          "description": "Tested position."
+        },
+        "block": {
+          "description": "Block identity, or `#tag`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "block",
+        "at"
+      ],
+      "type": "object"
+    },
+    "BlockPosition": {
+      "description": "A block position: absolute, or relative to the executor.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "World coordinates.",
+          "properties": {
+            "kind": {
+              "const": "absolute",
+              "type": "string"
+            },
+            "x": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "y": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "z": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Offset from the executor.",
+          "properties": {
+            "kind": {
+              "const": "relative",
+              "type": "string"
+            },
+            "x": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "y": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "z": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BossBar": {
+      "additionalProperties": false,
+      "description": "A named bar shown at the top of the screen.",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/BossBarColor",
+          "description": "Bar colour."
+        },
+        "id": {
+          "description": "Identity.",
+          "type": "string"
+        },
+        "max": {
+          "default": 100,
+          "description": "Largest value.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "style": {
+          "$ref": "#/$defs/BossBarStyle",
+          "description": "Bar division."
+        },
+        "title": {
+          "description": "Title parts; text only.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "color",
+        "style"
+      ],
+      "type": "object"
+    },
+    "BossBarColor": {
+      "description": "The colour of a boss bar.",
+      "oneOf": [
+        {
+          "const": "blue",
+          "description": "Blue.",
+          "type": "string"
+        },
+        {
+          "const": "green",
+          "description": "Green.",
+          "type": "string"
+        },
+        {
+          "const": "pink",
+          "description": "Pink.",
+          "type": "string"
+        },
+        {
+          "const": "purple",
+          "description": "Purple.",
+          "type": "string"
+        },
+        {
+          "const": "red",
+          "description": "Red.",
+          "type": "string"
+        },
+        {
+          "const": "white",
+          "description": "White.",
+          "type": "string"
+        },
+        {
+          "const": "yellow",
+          "description": "Yellow.",
+          "type": "string"
+        }
+      ]
+    },
+    "BossBarStyle": {
+      "description": "How a boss bar is divided.",
+      "oneOf": [
+        {
+          "const": "progress",
+          "description": "One solid bar.",
+          "type": "string"
+        },
+        {
+          "const": "notched6",
+          "description": "Six notches.",
+          "type": "string"
+        },
+        {
+          "const": "notched10",
+          "description": "Ten notches.",
+          "type": "string"
+        },
+        {
+          "const": "notched12",
+          "description": "Twelve notches.",
+          "type": "string"
+        },
+        {
+          "const": "notched20",
+          "description": "Twenty notches.",
+          "type": "string"
+        }
+      ]
+    },
+    "Condition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScoreComparison",
+          "description": "The field lies within inclusive constant bounds."
+        },
+        {
+          "$ref": "#/$defs/ScoreRelation",
+          "description": "Two fields satisfy a relation."
+        },
+        {
+          "$ref": "#/$defs/StateAttached",
+          "description": "The executor has an entity State attached."
+        },
+        {
+          "$ref": "#/$defs/EntitiesExist",
+          "description": "At least one entity matches."
+        },
+        {
+          "$ref": "#/$defs/BlockMatches",
+          "description": "A block matches at a position."
+        },
+        {
+          "$ref": "#/$defs/ItemHeld",
+          "description": "The executor holds an item."
+        },
+        {
+          "$ref": "#/$defs/FlagSet",
+          "description": "The executor has an entity flag."
+        }
+      ],
+      "description": "A branch condition: a constant range test or a field-to-field relation."
+    },
+    "CookingMethod": {
+      "description": "Which furnace-like block cooks a recipe.",
+      "oneOf": [
+        {
+          "const": "smelting",
+          "description": "Furnace.",
+          "type": "string"
+        },
+        {
+          "const": "blasting",
+          "description": "Blast furnace.",
+          "type": "string"
+        },
+        {
+          "const": "smoking",
+          "description": "Smoker.",
+          "type": "string"
+        },
+        {
+          "const": "campfire",
+          "description": "Campfire.",
+          "type": "string"
+        }
+      ]
+    },
+    "CustomItem": {
+      "additionalProperties": false,
+      "description": "A custom item: a vanilla base item with identity and display components.",
+      "properties": {
+        "base": {
+          "description": "Vanilla base item, such as `minecraft:diamond_sword`.",
+          "type": "string"
+        },
+        "custom_model_data": {
+          "description": "Resource-pack model selector.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "enchantments": {
+          "additionalProperties": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Enchantment identities and levels.",
+          "type": "object"
+        },
+        "glint": {
+          "description": "Force the enchantment glint on or off.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Identity, also the `custom_data` marker.",
+          "type": "string"
+        },
+        "lore": {
+          "description": "Lore lines; text only.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/TextPart"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "max_stack": {
+          "description": "Largest stack size, 1 to 99.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Display name parts; text only.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        },
+        "rarity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rarity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name rarity colour."
+        },
+        "unbreakable": {
+          "description": "Never loses durability.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "base"
+      ],
+      "type": "object"
+    },
+    "EntitiesExist": {
+      "additionalProperties": false,
+      "description": "A test that at least one entity matches a query.",
+      "properties": {
+        "exists": {
+          "$ref": "#/$defs/EntityQuery",
+          "description": "The tested query."
+        }
+      },
+      "required": [
+        "exists"
+      ],
+      "type": "object"
+    },
+    "EntityFlag": {
+      "description": "A movement or status flag of an entity.",
+      "oneOf": [
+        {
+          "const": "sneaking",
+          "description": "Crouching.",
+          "type": "string"
+        },
+        {
+          "const": "sprinting",
+          "description": "Sprinting.",
+          "type": "string"
+        },
+        {
+          "const": "swimming",
+          "description": "Swimming.",
+          "type": "string"
+        },
+        {
+          "const": "on_fire",
+          "description": "Burning.",
+          "type": "string"
+        }
+      ]
+    },
+    "EntityQuery": {
+      "additionalProperties": false,
+      "description": "Which entities an operation selects.",
+      "properties": {
+        "entity_type": {
+          "description": "Entity type identity, such as `minecraft:zombie`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "description": "Most entities selected.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_distance": {
+          "description": "Inclusive maximum distance in blocks.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min_distance": {
+          "description": "Inclusive minimum distance in blocks.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sort": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntitySort"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Order before the limit applies."
+        },
+        "tag": {
+          "description": "Required entity tag.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "with_state": {
+          "description": "Only entities with this entity State attached.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "EntitySort": {
+      "description": "How matching entities are ordered before a limit applies.",
+      "oneOf": [
+        {
+          "const": "nearest",
+          "description": "Nearest to the executor first.",
+          "type": "string"
+        },
+        {
+          "const": "furthest",
+          "description": "Furthest from the executor first.",
+          "type": "string"
+        },
+        {
+          "const": "random",
+          "description": "Random order.",
+          "type": "string"
+        },
+        {
+          "const": "arbitrary",
+          "description": "Minecraft's internal order; fastest.",
+          "type": "string"
+        }
+      ]
+    },
+    "EventHook": {
+      "additionalProperties": false,
+      "description": "A handler for a player event.",
+      "properties": {
+        "event": {
+          "$ref": "#/$defs/PlayerEvent",
+          "description": "Observed occurrence."
+        },
+        "function": {
+          "$ref": "#/$defs/FunctionReference",
+          "description": "Handler, run as the player."
+        }
+      },
+      "required": [
+        "event",
+        "function"
+      ],
+      "type": "object"
     },
     "ExecutionContext": {
       "description": "Minimum executor context required by a function or external call.",
@@ -151,6 +1429,11 @@
         {
           "const": "player",
           "description": "Requires a player executor; entry initializes player State.",
+          "type": "string"
+        },
+        {
+          "const": "entity",
+          "description": "Requires an entity executor (any entity, including players); cannot\nread player State or use player-only operations.",
           "type": "string"
         }
       ]
@@ -171,6 +1454,20 @@
       "required": [
         "state",
         "field"
+      ],
+      "type": "object"
+    },
+    "FlagSet": {
+      "additionalProperties": false,
+      "description": "A test that the executor has an entity flag.",
+      "properties": {
+        "flag": {
+          "$ref": "#/$defs/EntityFlag",
+          "description": "The tested flag."
+        }
+      },
+      "required": [
+        "flag"
       ],
       "type": "object"
     },
@@ -374,6 +1671,106 @@
         }
       ]
     },
+    "ItemHeld": {
+      "additionalProperties": false,
+      "description": "A test that the executor holds an item.",
+      "properties": {
+        "holding": {
+          "description": "Vanilla or custom item identity.",
+          "type": "string"
+        },
+        "offhand": {
+          "description": "Test the off hand instead of the main hand.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "holding"
+      ],
+      "type": "object"
+    },
+    "LootItem": {
+      "additionalProperties": false,
+      "description": "One choice in a loot table.",
+      "properties": {
+        "count": {
+          "default": 1,
+          "description": "Stack size produced.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "item": {
+          "description": "Vanilla item identity.",
+          "type": "string"
+        },
+        "weight": {
+          "default": 1,
+          "description": "Relative chance.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "item"
+      ],
+      "type": "object"
+    },
+    "LootTable": {
+      "additionalProperties": false,
+      "description": "A loot table: rolls drawn from weighted item choices.",
+      "properties": {
+        "id": {
+          "description": "Identity.",
+          "type": "string"
+        },
+        "items": {
+          "description": "Weighted item choices.",
+          "items": {
+            "$ref": "#/$defs/LootItem"
+          },
+          "type": "array"
+        },
+        "rolls": {
+          "default": 1,
+          "description": "Choices drawn each time.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "items"
+      ],
+      "type": "object"
+    },
+    "MessageChannel": {
+      "description": "Where a message appears.",
+      "oneOf": [
+        {
+          "const": "chat",
+          "description": "A chat line.",
+          "type": "string"
+        },
+        {
+          "const": "actionbar",
+          "description": "Text above the hotbar.",
+          "type": "string"
+        },
+        {
+          "const": "title",
+          "description": "Large centred title text.",
+          "type": "string"
+        },
+        {
+          "const": "subtitle",
+          "description": "Text under the title; shown with the next title.",
+          "type": "string"
+        }
+      ]
+    },
     "Operation": {
       "additionalProperties": false,
       "description": "A gameplay operation with optional host-provided source provenance.",
@@ -388,6 +1785,590 @@
       },
       "required": [
         "action"
+      ],
+      "type": "object"
+    },
+    "PlayerEvent": {
+      "description": "A player occurrence that runs handler functions as that player.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Every join, including the first; observed on the next tick.",
+          "properties": {
+            "kind": {
+              "const": "join",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Only the first time a player ever joins.",
+          "properties": {
+            "kind": {
+              "const": "first_join",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player died (any cause).",
+          "properties": {
+            "kind": {
+              "const": "death",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player killed any entity.",
+          "properties": {
+            "kind": {
+              "const": "kill_entity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player killed another player.",
+          "properties": {
+            "kind": {
+              "const": "kill_player",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player used (right-clicked or consumed) an item.",
+          "properties": {
+            "item": {
+              "description": "Used item identity, such as `minecraft:carrot_on_a_stick`.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "use_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player jumped.",
+          "properties": {
+            "kind": {
+              "const": "jump",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player dropped an item.",
+          "properties": {
+            "kind": {
+              "const": "drop_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player slept in a bed.",
+          "properties": {
+            "kind": {
+              "const": "sleep",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player took damage.",
+          "properties": {
+            "kind": {
+              "const": "take_damage",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player dealt damage.",
+          "properties": {
+            "kind": {
+              "const": "deal_damage",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player crafted an item.",
+          "properties": {
+            "item": {
+              "description": "Crafted item identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "craft_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player picked up an item.",
+          "properties": {
+            "item": {
+              "description": "Picked-up item identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "pick_up_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player mined a block.",
+          "properties": {
+            "block": {
+              "description": "Mined block identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "mine_block",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "block"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player killed an entity of one type.",
+          "properties": {
+            "entity": {
+              "description": "Killed entity type identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "kill_entity_type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "entity"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An entity of one type killed the player.",
+          "properties": {
+            "entity": {
+              "description": "Killer entity type identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "killed_by",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "entity"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PlayerGameMode": {
+      "description": "A player game mode.",
+      "oneOf": [
+        {
+          "const": "survival",
+          "description": "Survival.",
+          "type": "string"
+        },
+        {
+          "const": "creative",
+          "description": "Creative.",
+          "type": "string"
+        },
+        {
+          "const": "adventure",
+          "description": "Adventure.",
+          "type": "string"
+        },
+        {
+          "const": "spectator",
+          "description": "Spectator.",
+          "type": "string"
+        }
+      ]
+    },
+    "Rarity": {
+      "description": "How rare an item looks; colours its name.",
+      "oneOf": [
+        {
+          "const": "common",
+          "description": "White name.",
+          "type": "string"
+        },
+        {
+          "const": "uncommon",
+          "description": "Yellow name.",
+          "type": "string"
+        },
+        {
+          "const": "rare",
+          "description": "Aqua name.",
+          "type": "string"
+        },
+        {
+          "const": "epic",
+          "description": "Light purple name.",
+          "type": "string"
+        }
+      ]
+    },
+    "Recipe": {
+      "description": "A crafting, cooking, stonecutting, or smithing recipe.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A crafting-table pattern.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "key": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "kind": {
+              "const": "shaped",
+              "type": "string"
+            },
+            "pattern": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "result": {
+              "$ref": "#/$defs/RecipeOutput"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "pattern",
+            "key",
+            "result"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Crafting ingredients in any arrangement.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "ingredients": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "shapeless",
+              "type": "string"
+            },
+            "result": {
+              "$ref": "#/$defs/RecipeOutput"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "ingredients",
+            "result"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A furnace-like recipe.",
+          "properties": {
+            "experience": {
+              "default": 0.0,
+              "format": "float",
+              "type": "number"
+            },
+            "id": {
+              "type": "string"
+            },
+            "ingredient": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "cooking",
+              "type": "string"
+            },
+            "method": {
+              "$ref": "#/$defs/CookingMethod"
+            },
+            "result": {
+              "$ref": "#/$defs/RecipeOutput"
+            },
+            "time": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "method",
+            "ingredient",
+            "result"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A stonecutter recipe.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "ingredient": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "stonecutting",
+              "type": "string"
+            },
+            "result": {
+              "$ref": "#/$defs/RecipeOutput"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "ingredient",
+            "result"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A smithing-table upgrade.",
+          "properties": {
+            "addition": {
+              "type": "string"
+            },
+            "base": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "smithing",
+              "type": "string"
+            },
+            "result": {
+              "$ref": "#/$defs/RecipeOutput"
+            },
+            "template": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "template",
+            "base",
+            "addition",
+            "result"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RecipeOutput": {
+      "additionalProperties": false,
+      "description": "The item a recipe produces.",
+      "properties": {
+        "count": {
+          "default": 1,
+          "description": "Stack size produced.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "item": {
+          "description": "Vanilla item or declared custom item id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "item"
+      ],
+      "type": "object"
+    },
+    "Relation": {
+      "description": "How two State fields relate in a branch condition.",
+      "oneOf": [
+        {
+          "const": "lt",
+          "description": "Left is less than right.",
+          "type": "string"
+        },
+        {
+          "const": "le",
+          "description": "Left is at most right.",
+          "type": "string"
+        },
+        {
+          "const": "eq",
+          "description": "Both fields are equal.",
+          "type": "string"
+        },
+        {
+          "const": "ge",
+          "description": "Left is at least right.",
+          "type": "string"
+        },
+        {
+          "const": "gt",
+          "description": "Left is greater than right.",
+          "type": "string"
+        }
+      ]
+    },
+    "ResourceTag": {
+      "additionalProperties": false,
+      "description": "A registry tag: a named group of ids and other tags.",
+      "properties": {
+        "id": {
+          "description": "Tag identity.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/TagKind",
+          "description": "Grouped registry."
+        },
+        "replace": {
+          "description": "Replace lower-priority definitions instead of merging.",
+          "type": "boolean"
+        },
+        "values": {
+          "description": "Ids or `#tag` references.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "values"
+      ],
+      "type": "object"
+    },
+    "ScaledField": {
+      "additionalProperties": false,
+      "description": "A State field read as `value / scale`.",
+      "properties": {
+        "scale": {
+          "default": 1.0,
+          "description": "Divisor; a score of 25 with scale 10 means 2.5.",
+          "format": "double",
+          "type": "number"
+        },
+        "score": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The State field."
+        }
+      },
+      "required": [
+        "score"
       ],
       "type": "object"
     },
@@ -453,10 +2434,97 @@
         "name": {
           "description": "Field identity within its owning State.",
           "type": "string"
+        },
+        "timer": {
+          "description": "Count down by one each tick until zero, through the same State lifecycle\nthat drives Rust `Timer` and `Cooldown` fields. Timers cannot have bounds.",
+          "type": "boolean"
         }
       },
       "required": [
         "name"
+      ],
+      "type": "object"
+    },
+    "ScoreOperand": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Read another State field."
+        },
+        {
+          "description": "Use an integer constant.",
+          "format": "int32",
+          "type": "integer"
+        }
+      ],
+      "description": "The right-hand side of a score operation: another field or a constant."
+    },
+    "ScoreOperator": {
+      "description": "A vanilla scoreboard arithmetic operator applied to a State field.",
+      "oneOf": [
+        {
+          "const": "set",
+          "description": "Copy the operand into the field.",
+          "type": "string"
+        },
+        {
+          "const": "add",
+          "description": "Add the operand.",
+          "type": "string"
+        },
+        {
+          "const": "sub",
+          "description": "Subtract the operand.",
+          "type": "string"
+        },
+        {
+          "const": "mul",
+          "description": "Multiply by the operand.",
+          "type": "string"
+        },
+        {
+          "const": "div",
+          "description": "Floor-divide by the operand; dividing by zero leaves the field unchanged.",
+          "type": "string"
+        },
+        {
+          "const": "mod",
+          "description": "Floor modulo by the operand; modulo zero leaves the field unchanged.",
+          "type": "string"
+        },
+        {
+          "const": "min",
+          "description": "Keep the smaller of the field and the operand.",
+          "type": "string"
+        },
+        {
+          "const": "max",
+          "description": "Keep the larger of the field and the operand.",
+          "type": "string"
+        }
+      ]
+    },
+    "ScoreRelation": {
+      "additionalProperties": false,
+      "description": "A comparison between two State fields.",
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The left-hand State field."
+        },
+        "relation": {
+          "$ref": "#/$defs/Relation",
+          "description": "How the fields must relate."
+        },
+        "right": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The right-hand State field."
+        }
+      },
+      "required": [
+        "left",
+        "relation",
+        "right"
       ],
       "type": "object"
     },
@@ -494,6 +2562,40 @@
       ],
       "type": "object"
     },
+    "StateAttached": {
+      "additionalProperties": false,
+      "description": "A test that the executor has an entity State attached.",
+      "properties": {
+        "attached": {
+          "description": "The entity State.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attached"
+      ],
+      "type": "object"
+    },
+    "TagKind": {
+      "description": "Which registry a tag groups.",
+      "oneOf": [
+        {
+          "const": "item",
+          "description": "Items.",
+          "type": "string"
+        },
+        {
+          "const": "block",
+          "description": "Blocks.",
+          "type": "string"
+        },
+        {
+          "const": "entity_type",
+          "description": "Entity types.",
+          "type": "string"
+        }
+      ]
+    },
     "TagMembership": {
       "additionalProperties": false,
       "description": "A typed membership edge; load/tick tags require server-callable functions.",
@@ -512,12 +2614,246 @@
         "function"
       ],
       "type": "object"
+    },
+    "TeleportDestination": {
+      "description": "Where a teleport moves the executor.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Absolute coordinates.",
+          "properties": {
+            "kind": {
+              "const": "position",
+              "type": "string"
+            },
+            "x": {
+              "format": "double",
+              "type": "number"
+            },
+            "y": {
+              "format": "double",
+              "type": "number"
+            },
+            "z": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Coordinates relative to the executor.",
+          "properties": {
+            "kind": {
+              "const": "offset",
+              "type": "string"
+            },
+            "x": {
+              "format": "double",
+              "type": "number"
+            },
+            "y": {
+              "format": "double",
+              "type": "number"
+            },
+            "z": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The first entity matching a query.",
+          "properties": {
+            "kind": {
+              "const": "entity",
+              "type": "string"
+            },
+            "query": {
+              "$ref": "#/$defs/EntityQuery"
+            }
+          },
+          "required": [
+            "kind",
+            "query"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TextColor": {
+      "description": "One of Minecraft's sixteen named text colours.",
+      "enum": [
+        "black",
+        "dark_blue",
+        "dark_green",
+        "dark_aqua",
+        "dark_red",
+        "dark_purple",
+        "gold",
+        "gray",
+        "dark_gray",
+        "blue",
+        "green",
+        "aqua",
+        "red",
+        "light_purple",
+        "yellow",
+        "white"
+      ],
+      "type": "string"
+    },
+    "TextPart": {
+      "description": "One styled piece of a message.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Literal text.",
+          "properties": {
+            "kind": {
+              "const": "text",
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/TextStyle",
+              "default": {}
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The live value of a State field.",
+          "properties": {
+            "kind": {
+              "const": "score",
+              "type": "string"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            },
+            "style": {
+              "$ref": "#/$defs/TextStyle",
+              "default": {}
+            }
+          },
+          "required": [
+            "kind",
+            "score"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The executing player's name; needs a player executor.",
+          "properties": {
+            "kind": {
+              "const": "player_name",
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/TextStyle",
+              "default": {}
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TextStyle": {
+      "additionalProperties": false,
+      "description": "Visual styling shared by every text part.",
+      "properties": {
+        "bold": {
+          "description": "Bold text.",
+          "type": "boolean"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextColor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Named text colour."
+        },
+        "italic": {
+          "description": "Italic text.",
+          "type": "boolean"
+        },
+        "underlined": {
+          "description": "Underlined text.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "Weather": {
+      "description": "World weather.",
+      "oneOf": [
+        {
+          "const": "clear",
+          "description": "Clear skies.",
+          "type": "string"
+        },
+        {
+          "const": "rain",
+          "description": "Rain.",
+          "type": "string"
+        },
+        {
+          "const": "thunder",
+          "description": "Thunderstorm.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "boss_bars": {
+      "description": "Boss bars, created at load.",
+      "items": {
+        "$ref": "#/$defs/BossBar"
+      },
+      "type": "array"
+    },
+    "events": {
+      "description": "Player event handlers, dispatched in declaration order.",
+      "items": {
+        "$ref": "#/$defs/EventHook"
+      },
+      "type": "array"
+    },
     "flows": {
       "description": "Gameplay state machines owned by this module.",
       "items": {
@@ -536,10 +2872,38 @@
       "description": "Explicit semantic identity, independent of source filename.",
       "type": "string"
     },
+    "items": {
+      "description": "Custom items that operations and recipes refer to by id.",
+      "items": {
+        "$ref": "#/$defs/CustomItem"
+      },
+      "type": "array"
+    },
     "load": {
       "description": "Server-context bodies run at load in authored order.",
       "items": {
         "$ref": "#/$defs/Operation"
+      },
+      "type": "array"
+    },
+    "loot_tables": {
+      "description": "Loot tables.",
+      "items": {
+        "$ref": "#/$defs/LootTable"
+      },
+      "type": "array"
+    },
+    "recipes": {
+      "description": "Crafting, cooking, and stonecutting recipes.",
+      "items": {
+        "$ref": "#/$defs/Recipe"
+      },
+      "type": "array"
+    },
+    "resource_tags": {
+      "description": "Item, block, and entity-type tags.",
+      "items": {
+        "$ref": "#/$defs/ResourceTag"
       },
       "type": "array"
     },

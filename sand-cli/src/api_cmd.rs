@@ -4562,7 +4562,7 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 346);
+        assert_eq!(entries.len(), 711);
         assert!(
             show(catalog, "sand::advanced::compiler::ScoreField::bounds")
                 .unwrap()

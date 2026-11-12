@@ -48,9 +48,9 @@ event Payday(amount: number);
 fn deposit(amount: number) { Wallet.coins += amount; }
 
 #[on(Payday)]
-fn thank(amount: number) { chat!("paid"); }
+fn thank() { chat!("paid"); }
 
-fn wages() { emit(Payday, 2 + 3); }
+fn wages() { emit Payday(2 + 3); }
 "#,
     ));
     assert!(!analysis.has_errors(), "{:#?}", errors(&analysis));
@@ -68,12 +68,13 @@ fn wages() { emit(Payday, 2 + 3); }
         ["function demo:deposit", "function demo:thank"],
         "{dispatch}"
     );
+    // `thank` ignores the payload, so only `deposit` receives it.
     assert_eq!(
         dispatch
             .lines()
             .filter(|line| line.contains("scoreboard players operation"))
             .count(),
-        2,
+        1,
         "{dispatch}"
     );
     let wages = function(&pack, "demo/function/wages");
@@ -94,24 +95,24 @@ event Payday(amount: number);
 event Quiet;
 
 #[on(Payday)]
-fn wrong() {}
+fn wrong(amount: bool) {}
 
 #[on(Quiet)]
 fn pay() { Wallet.coins += 1; }
 
-fn a() { emit(Payday); }
-fn b() { emit(Missing); }
-fn c() { emit(); }
+fn a() { emit Payday; }
+fn b() { emit Missing; }
+fn c() { emit(Payday, 1); }
 fn d() { Payday(1); }
 #[tick]
-fn e() { emit(Quiet); }
+fn e() { emit Quiet; }
 "#,
     ));
     let errors = errors(&analysis);
     for expected in [
-        "`wrong` handles `Payday`, so it must take (amount: number)",
+        "`wrong` handles `Payday`, so it must take (amount: number) or no parameters",
         "`Payday` takes 1 argument, but 0 were given",
-        "`emit` needs an event first",
+        "write `emit Payday(1);`",
         "expected a function, found event `Payday`",
         "`e` runs from #[tick] without a player, but it calls `Quiet`, which needs a player",
     ] {
@@ -128,7 +129,7 @@ fn e() { emit(Quiet); }
 
 #[test]
 fn emitting_an_event_nobody_handles_warns() {
-    let analysis = analyze_one(&pack("event Quiet;\nfn a() { emit(Quiet); }\n"));
+    let analysis = analyze_one(&pack("event Quiet;\nfn a() { emit Quiet; }\n"));
     assert!(!analysis.has_errors(), "{:#?}", errors(&analysis));
     assert!(
         analysis
@@ -143,7 +144,7 @@ fn emitting_an_event_nobody_handles_warns() {
 #[test]
 fn events_have_editor_support() {
     let text = pack(
-        "/// Paid weekly.\nevent Payday;\n#[on()]\nfn pay() {}\nfn a() {\n    emit();\n    emit(Payday);\n}\n",
+        "/// Paid weekly.\nevent Payday;\n#[on()]\nfn pay() {}\nfn a() {\n    emit \n    emit Payday;\n}\n",
     );
     let analysis = analyze_one(&text);
     let on = text.find("#[on(").unwrap() + 5;
@@ -151,10 +152,10 @@ fn events_have_editor_support() {
     assert!(names.iter().any(|l| l == "Payday"), "{names:?}");
     assert!(names.iter().any(|l| l == "death"), "{names:?}");
     assert_eq!(
-        labels(&analysis, text.find("emit()").unwrap() + 5),
+        labels(&analysis, text.find("emit \n").unwrap() + 5),
         ["Payday"]
     );
-    let hover = ide::hover(&analysis, FileId(0), text.find("emit(Payday").unwrap() + 6).unwrap();
+    let hover = ide::hover(&analysis, FileId(0), text.find("emit Payday").unwrap() + 6).unwrap();
     assert!(
         hover.markdown.contains("event Payday()"),
         "{}",
@@ -563,7 +564,7 @@ fn public_events_are_handled_across_modules() {
         ),
         (
             "raid.sand",
-            "pub event Struck(damage: number);\npub fn hit() { emit(Struck, 4); }\n",
+            "pub event Struck(damage: number);\npub fn hit() { emit Struck(4); }\n",
         ),
     ]);
     assert!(!analysis.has_errors(), "{:#?}", errors(&analysis));

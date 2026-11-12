@@ -22,7 +22,7 @@ keyword = @{
     ( "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
     | "if" | "else" | "for" | "in" | "extern" | "as" | "let" | "return"
     | "while" | "loop" | "match" | "struct" | "true" | "false" | "mut" | "continue"
-    | "break" ) ~ !ident_char
+    | "break" | "emit" ) ~ !ident_char
 }
 ident = @{ !keyword ~ (ASCII_ALPHA | "_") ~ ident_char* }
 int   = @{ ASCII_DIGIT ~ (ASCII_DIGIT | "_")* }
@@ -58,6 +58,7 @@ kw_mut = @{ "mut" ~ !ident_char }
 kw_return = @{ "return" ~ !ident_char }
 kw_continue = @{ "continue" ~ !ident_char }
 kw_break = @{ "break" ~ !ident_char }
+kw_emit = @{ "emit" ~ !ident_char }
 kw_loop = @{ "loop" ~ !ident_char }
 kw_while = @{ "while" ~ !ident_char }
 kw_every = @{ "every" ~ !ident_char }
@@ -136,7 +137,7 @@ hook_phase = @{ ("enter" | "exit" | "tick") ~ !ident_char }
 
 block = { "{" ~ (stmt | bad_stmt)* ~ "}" }
 
-stmt = { outer_doc* ~ (let_stmt | return_stmt | continue_stmt | break_stmt | while_stmt | loop_stmt | if_stmt | for_stmt | macro_stmt | assign_stmt | call_stmt) }
+stmt = { outer_doc* ~ (let_stmt | return_stmt | continue_stmt | break_stmt | emit_stmt | while_stmt | loop_stmt | if_stmt | for_stmt | macro_stmt | assign_stmt | call_stmt) }
 // Recovery: skip the rest of the line (or up to `;`) without crossing `}`.
 bad_stmt = @{ (!(";" | "\n" | "}") ~ ANY)+ ~ ";"? }
 
@@ -147,6 +148,7 @@ mut_kw        = { kw_mut }
 return_stmt   = { kw_return ~ (value_expr | expr)? ~ ";" }
 continue_stmt = { kw_continue ~ ";" }
 break_stmt    = { kw_break ~ ";" }
+emit_stmt     = { kw_emit ~ path ~ ("(" ~ args? ~ ")")? ~ ";" }
 loop_stmt     = { kw_loop ~ block }
 while_stmt    = { kw_while ~ cond ~ block }
 if_stmt     = { kw_if ~ cond ~ block ~ (kw_else ~ (if_stmt | block))? }

@@ -46,8 +46,6 @@ pub enum ParamKind {
     BossBar,
     /// A declared `loot` table.
     Loot,
-    /// A declared `event`.
-    Event,
 }
 
 /// One builtin parameter.
@@ -158,17 +156,6 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
 
 /// Every builtin, in documentation order.
 pub const BUILTINS: &[Builtin] = &[
-    Builtin {
-        name: "emit",
-        kind: BuiltinKind::Statement,
-        signature: "emit(Event, args...)",
-        summary: "Run every handler of a custom event, in declaration order.",
-        details: "Declare the event with `event Name(params);` and handlers with `#[on(Name)]`. Arguments follow the event name and are evaluated once. Handlers run as the emitter, so an event with a handler that needs a player must be emitted by a player.",
-        minecraft: "function <ns>:sand_event/<name>",
-        needs_player: false,
-        params: &[p("event", ParamKind::Event, true, "The event to emit.")],
-        snippet: "emit(${1:Event});",
-    },
     Builtin {
         name: "start_timer",
         kind: BuiltinKind::Statement,
@@ -1167,7 +1154,39 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ),
     (
         "for",
-        "`for player in players() { ... }` runs the body once as each online player.",
+        "`for i in 0..10 { ... }` counts through a range (`..=` includes the end). `for player in players() { ... }` runs the body as each online player, and `for zombie in entities(type = Entity::Zombie) { ... }` as each matching entity; the binding is a handle to that entity, such as `zombie.health`.",
+    ),
+    (
+        "while",
+        "`while condition { ... }` repeats while the condition holds. Any condition works, including `!=`, `!`, `&&`, `||`, calculations, and calls.",
+    ),
+    (
+        "loop",
+        "`loop { ... }` repeats until `break` or `return`.",
+    ),
+    (
+        "break",
+        "`break;` leaves the innermost `while`, `loop`, or counting `for`. A `players()` or `entities(..)` loop runs once for every match and cannot be stopped early.",
+    ),
+    (
+        "continue",
+        "`continue;` skips the rest of this pass and starts the next one; in a `players()` or `entities(..)` loop it ends this match's turn.",
+    ),
+    (
+        "return",
+        "`return;` ends the function early; `return value;` also gives its result. Functions may call themselves: Sand saves their variables on a stack around each call that can come back to them.",
+    ),
+    (
+        "let",
+        "`let name = value;` declares a variable; `let mut name = value;` allows reassigning it. The type is inferred, or written as `let name: float = 1.5;`.",
+    ),
+    (
+        "as",
+        "`value as T` converts between `number`, `float`, `bool`, and enums. `float as number` rounds down, `x as bool` is `x != 0`, `bool as number` is 0 or 1, and an enum converts to and from its variant's value.",
+    ),
+    (
+        "emit",
+        "`emit Name(args);` runs every handler of the custom event `Name`, in declaration order, as the emitter. The arguments are evaluated once.",
     ),
     (
         "if",
@@ -1179,7 +1198,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ),
     (
         "enum",
-        "Named integer phases. Enum fields can only be assigned and compared with `==`/`!=`; convert with `as number`.",
+        "Named integer phases. Enum values can be assigned and compared with `==`/`!=`; convert with `as number`, or back with `value as Phase`.",
     ),
     (
         "const",
@@ -1200,7 +1219,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ),
     (
         "event",
-        "`event Name(params);` declares a custom event. Handlers are functions marked `#[on(Name)]` with the same parameters; `emit(Name, args)` runs them all in declaration order, as the emitter.",
+        "`event Name(params);` declares a custom event. Handlers are functions marked `#[on(Name)]` that take the same parameters or none; `emit Name(args);` runs them all in declaration order, as the emitter.",
     ),
     (
         "timer",

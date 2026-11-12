@@ -231,10 +231,7 @@ impl Cx {
             Expr::Bool(..) | Expr::Cond(..) => Ty::Bool,
             Expr::Str { .. } => Ty::Unknown,
             Expr::Neg(inner, _) => self.type_of(body, inner),
-            Expr::Cast(_, ty, _) => match ty.segments.first().map(|s| s.name.as_str()) {
-                Some("float") => Ty::Float,
-                _ => Ty::Number,
-            },
+            Expr::Cast(_, ty, _) => self.cast_target_quiet(body.module, ty),
             Expr::Binary(lhs, _, rhs, _) => {
                 let (left, right) = (self.type_of(body, lhs), self.type_of(body, rhs));
                 if left == Ty::Float || right == Ty::Float {
@@ -414,36 +411,53 @@ impl Cx {
                 self.emit_call(body, dest, ty, path, args, *span, ops)
             }
             Expr::Cast(inner, cast_ty, cast_span) => {
-                let target = cast_ty.segments.first().map(|s| s.name.as_str());
-                if !matches!(target, Some("number" | "float")) || cast_ty.segments.len() != 1 {
-                    self.error(
-                        "type",
-                        file,
-                        *cast_span,
-                        "only `as number` and `as float` casts are supported",
-                    );
+                let to = self.cast_target(body.module, file, cast_ty)?;
+                if !self.types_agree(file, *cast_span, ty, to) {
                     return None;
                 }
                 let from = self.type_of(body, inner);
-                self.emit(body, dest, from, inner, ops)?;
-                let step = match (from, target) {
-                    (Ty::Float, Some("number")) => Some(BinOp::Div),
-                    (Ty::Number, Some("float")) => Some(BinOp::Mul),
-                    (Ty::Bool | Ty::Enum(_), Some("float")) => {
-                        self.error(
-                            "type",
-                            file,
-                            *cast_span,
-                            "only `number` values can become `float`",
+                let step = match self.cast_step(from, to) {
+                    Ok(step) => step,
+                    Err((message, help)) => {
+                        self.diagnostics.push(
+                            Diagnostic::error("type", file, *cast_span, message).with_help(help),
                         );
                         return None;
                     }
-                    _ => None,
                 };
-                if let Some(step) = step {
-                    let action =
-                        self.arithmetic(file, dest, step, Value::Const(FLOAT_SCALE), *cast_span)?;
-                    ops.push(op_at(action, file, *cast_span));
+                self.emit(body, dest, from, inner, ops)?;
+                match step {
+                    super::CastStep::Same => {}
+                    super::CastStep::ToFloat | super::CastStep::ToNumber => {
+                        let op = if step == super::CastStep::ToFloat {
+                            BinOp::Mul
+                        } else {
+                            BinOp::Div
+                        };
+                        let action =
+                            self.arithmetic(file, dest, op, Value::Const(FLOAT_SCALE), *cast_span)?;
+                        ops.push(op_at(action, file, *cast_span));
+                    }
+                    super::CastStep::ToBool => ops.push(op_at(
+                        pc::Action::Branch {
+                            condition: pc::Condition::Range(pc::ScoreComparison {
+                                score: dest.clone(),
+                                min: Some(0),
+                                max: Some(0),
+                            }),
+                            then: Vec::new(),
+                            otherwise: vec![op_at(
+                                pc::Action::ScoreSet {
+                                    score: dest.clone(),
+                                    value: 1,
+                                },
+                                file,
+                                *cast_span,
+                            )],
+                        },
+                        file,
+                        *cast_span,
+                    )),
                 }
                 Some(())
             }
@@ -1659,10 +1673,6 @@ impl Cx {
         let name = &path.last().name;
         let is_builtin_name = path.segments.len() == 1 && !self.scopes[module.0].contains_key(name);
         if is_builtin_name && let Some(builtin) = builtins::find(name, BuiltinKind::Statement) {
-            if builtin.name == "emit" {
-                self.lower_emit(body, builtin, path, args, span, ops);
-                return;
-            }
             self.lower_builtin(body, builtin, path, args, span, ops);
             return;
         }
@@ -1706,29 +1716,17 @@ impl Cx {
     }
 
     /// `emit(Event, args...)`: pass the payload to the event's dispatcher.
-    fn lower_emit(
+    /// `emit Event(args);`: evaluate the payload once into the event's
+    /// parameters and run its dispatcher.
+    pub(super) fn lower_emit(
         &mut self,
         body: &mut BodyCx,
-        builtin: &'static Builtin,
-        path: &Path,
+        event: &Path,
         args: &[Arg],
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
         let (module, file) = (body.module, body.file);
-        self.references_builtin(file, path.span, builtin);
-        let Some(Arg {
-            name: None,
-            value: ArgValue::Expr(Expr::Path(event)),
-            ..
-        }) = args.first()
-        else {
-            self.diagnostics.push(
-                Diagnostic::error("call", file, span, "`emit` needs an event first")
-                    .with_help("declare `event Name;` and write `emit(Name);`"),
-            );
-            return;
-        };
         let Some(def) = self.expect_path(module, event, &[DefKind::Event], "an event") else {
             return;
         };
@@ -1747,7 +1745,7 @@ impl Cx {
         let Some(slots) = self.fn_slots.get(&def).cloned() else {
             return;
         };
-        let _ = self.call_user(body, def, &slots, event, &args[1..], span, ops);
+        let _ = self.call_user(body, def, &slots, event, args, span, ops);
     }
 
     fn lower_builtin(

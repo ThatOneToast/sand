@@ -64,6 +64,6 @@ fn strike() {
         set_block(Block::Glass, offset(0, -1, 0));
     }
     if any_entities(type = Entity::Zombie, distance = ..=16) {
-        emit(Struck, 10);
+        emit Struck(10);
     }
 }

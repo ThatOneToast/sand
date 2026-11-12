@@ -510,6 +510,15 @@ pub enum Stmt {
     Continue(Span),
     /// `break;`: leave the innermost `while`, `loop`, or counting `for`.
     Break(Span),
+    /// `emit Event(args);`: run every handler of a custom event.
+    Emit {
+        /// The emitted event.
+        event: Path,
+        /// Payload arguments, in order.
+        args: Vec<Arg>,
+        /// Whole statement.
+        span: Span,
+    },
     /// `loop { ... }`: repeat until `break` or `return`.
     Loop {
         /// Repeated body.

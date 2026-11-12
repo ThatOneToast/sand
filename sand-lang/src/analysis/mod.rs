@@ -526,6 +526,19 @@ pub(crate) fn is_int_literal(expr: &Expr) -> bool {
     }
 }
 
+/// What `value as T` does to the stored score.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CastStep {
+    /// The score is already right.
+    Same,
+    /// Multiply by the fixed-point scale.
+    ToFloat,
+    /// Divide by the fixed-point scale, rounding down.
+    ToNumber,
+    /// One when nonzero, zero otherwise.
+    ToBool,
+}
+
 /// One entity property written in source, such as `Player.health`.
 #[derive(Debug, Clone)]
 pub struct PropertyUse {
@@ -1838,24 +1851,126 @@ impl Cx {
             }
             Expr::Cast(inner, ty, span) => {
                 let (value, from) = self.eval(module, file, inner, bare)?;
-                let target = ty.segments.first().map(|s| s.name.as_str());
-                match (from, target) {
-                    (Ty::Float, Some("number")) => Some((value / FLOAT_SCALE, Ty::Number)),
-                    (Ty::Number, Some("float")) => Some((value * FLOAT_SCALE, Ty::Float)),
-                    (Ty::Float, Some("float")) => Some((value, Ty::Float)),
-                    (_, Some("number")) => Some((value, Ty::Number)),
-                    _ => {
-                        self.error(
-                            "type",
-                            file,
-                            *span,
-                            "only `as number` and `as float` casts are supported",
+                let to = self.cast_target(module, file, ty)?;
+                let step = match self.cast_step(from, to) {
+                    Ok(step) => step,
+                    Err((message, help)) => {
+                        self.diagnostics.push(
+                            Diagnostic::error("type", file, *span, message).with_help(help),
                         );
-                        None
+                        return None;
+                    }
+                };
+                let value = match step {
+                    CastStep::Same => value,
+                    CastStep::ToFloat => value * FLOAT_SCALE,
+                    CastStep::ToNumber => value.div_euclid(FLOAT_SCALE),
+                    CastStep::ToBool => i64::from(value != 0),
+                };
+                if let Ty::Enum(def) = to
+                    && from != to
+                {
+                    let variants = match &self.defs[def.0].info {
+                        DefInfo::Enum { variants } => variants.clone(),
+                        _ => Vec::new(),
+                    };
+                    if !variants.iter().any(|v| self.eval_def(*v) == Some(value)) {
+                        let name = self.defs[def.0].name.clone();
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                "range",
+                                file,
+                                *span,
+                                format!("no `{name}` variant has the value {value}"),
+                            )
+                            .with_help(format!(
+                                "`{name}` variants are numbered from 0 in declaration order unless given a value"
+                            )),
+                        );
+                        return None;
                     }
                 }
+                Some((value, to))
             }
         }
+    }
+
+    /// The type named after `as`, reporting unknown names.
+    pub(super) fn cast_target(&mut self, module: ModuleId, file: FileId, ty: &Path) -> Option<Ty> {
+        let _ = file;
+        match self.resolve_type(module, ty) {
+            Ty::Unknown => None,
+            ty => Some(ty),
+        }
+    }
+
+    /// The type named after `as`, resolved without diagnostics.
+    pub(super) fn cast_target_quiet(&mut self, module: ModuleId, ty: &Path) -> Ty {
+        if let [segment] = ty.segments.as_slice() {
+            match segment.name.as_str() {
+                "number" => return Ty::Number,
+                "float" => return Ty::Float,
+                "bool" => return Ty::Bool,
+                _ => {}
+            }
+        }
+        match self.resolve_path(module, ty) {
+            Ok((def, _)) if self.defs[def.0].kind == DefKind::Enum => Ty::Enum(def),
+            _ => Ty::Unknown,
+        }
+    }
+
+    /// How `value as T` converts a `from` value into `to`, or why it cannot.
+    ///
+    /// | from \\ to | number | float | bool | enum |
+    /// |---|---|---|---|---|
+    /// | number | same | ×1000 | `!= 0` | same value |
+    /// | float | rounds down | same | `!= 0` | — |
+    /// | bool | 0 or 1 | 0.0 or 1.0 | same | — |
+    /// | enum | its value | its value | — | same enum only |
+    pub(super) fn cast_step(
+        &self,
+        from: Ty,
+        to: Ty,
+    ) -> Result<CastStep, (String, &'static str)> {
+        Ok(match (from, to) {
+            (Ty::Unknown, _) | (_, Ty::Unknown) => CastStep::Same,
+            (a, b) if a == b => CastStep::Same,
+            (Ty::Number | Ty::Bool | Ty::Enum(_), Ty::Number) => CastStep::Same,
+            (Ty::Float, Ty::Number) => CastStep::ToNumber,
+            (Ty::Number | Ty::Bool | Ty::Enum(_), Ty::Float) => CastStep::ToFloat,
+            (Ty::Number | Ty::Float, Ty::Bool) => CastStep::ToBool,
+            (Ty::Number, Ty::Enum(_)) => CastStep::Same,
+            (Ty::Enum(_), Ty::Bool) => {
+                return Err((
+                    format!("cannot cast `{}` to `bool`", self.ty_name(from)),
+                    "compare the variant instead, such as `phase == Phase::Busy`",
+                ));
+            }
+            (Ty::Bool, Ty::Enum(_)) => {
+                return Err((
+                    format!("cannot cast `bool` to `{}`", self.ty_name(to)),
+                    "branch on the flag instead: `if flag { ... }`",
+                ));
+            }
+            (Ty::Float, Ty::Enum(_)) => {
+                return Err((
+                    format!("cannot cast `float` to `{}`", self.ty_name(to)),
+                    "convert to a whole number first: `(value as number) as Phase`",
+                ));
+            }
+            (Ty::Enum(_), Ty::Enum(_)) => {
+                return Err((
+                    format!(
+                        "cannot cast `{}` to `{}`",
+                        self.ty_name(from),
+                        self.ty_name(to)
+                    ),
+                    "go through its value: `value as number as Other`",
+                ));
+            }
+            _ => CastStep::Same,
+        })
     }
 
     // ── Lowering ────────────────────────────────────────────────────────────
@@ -2077,7 +2192,8 @@ impl Cx {
                     let expected: Vec<Ty> =
                         self.fn_slots[&event].params.iter().map(|p| p.2).collect();
                     let found: Vec<Ty> = self.fn_slots[&def].params.iter().map(|p| p.2).collect();
-                    if expected != found {
+                    // A handler takes the whole payload, or ignores it.
+                    if expected != found && !found.is_empty() {
                         let name = self.defs[event.0].name.clone();
                         let signature = match &self.defs[event.0].info {
                             DefInfo::Function { signature, .. } => signature.clone(),
@@ -2091,7 +2207,7 @@ impl Cx {
                                 file,
                                 function.name.span,
                                 format!(
-                                    "`{}` handles `{name}`, so it must take {signature}",
+                                    "`{}` handles `{name}`, so it must take {signature} or no parameters",
                                     function.name.name
                                 ),
                             )
@@ -3350,6 +3466,7 @@ impl Cx {
             Stmt::Return { value, span } => self.lower_return(body, value.as_ref(), *span, ops),
             Stmt::Continue(span) => self.lower_jump(body, false, *span, ops),
             Stmt::Break(span) => self.lower_jump(body, true, *span, ops),
+            Stmt::Emit { event, args, span } => self.lower_emit(body, event, args, *span, ops),
             Stmt::While {
                 cond,
                 body: block,
@@ -3993,6 +4110,7 @@ fn stmt_span(stmt: &Stmt) -> Span {
         | Stmt::Return { span, .. }
         | Stmt::Continue(span)
         | Stmt::Break(span)
+        | Stmt::Emit { span, .. }
         | Stmt::While { span, .. }
         | Stmt::Loop { span, .. }
         | Stmt::ForRange { span, .. }

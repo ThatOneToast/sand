@@ -67,6 +67,7 @@ fn is_keyword(rule: Rule) -> bool {
             | Rule::kw_else
             | Rule::kw_for
             | Rule::kw_break
+            | Rule::kw_emit
             | Rule::kw_loop
             | Rule::kw_in
             | Rule::kw_as
@@ -147,8 +148,9 @@ fn pratt() -> &'static PrattParser<Rule> {
             .op(Op::infix(Rule::mul, Assoc::Left)
                 | Op::infix(Rule::div, Assoc::Left)
                 | Op::infix(Rule::rem, Assoc::Left))
-            .op(Op::prefix(Rule::neg))
+            // As in Rust, `-x as T` casts the negated value.
             .op(Op::postfix(Rule::cast))
+            .op(Op::prefix(Rule::neg))
     })
 }
 
@@ -190,6 +192,24 @@ impl Builder<'_> {
 
     fn bad_stmt(&mut self, pair: P<'_>) -> SyntaxError {
         let s = span(&pair);
+        // The builtin-call spelling of `emit`, from before it was a statement.
+        if let Some(rest) = pair.as_str().trim_start().strip_prefix("emit")
+            && rest.trim_start().starts_with('(')
+        {
+            let inner = rest.trim_start()[1..].trim_end().trim_end_matches(';').trim_end();
+            let inner = inner.strip_suffix(')').unwrap_or(inner);
+            let (event, payload) = inner.split_once(',').unwrap_or((inner, ""));
+            let error = SyntaxError {
+                message: format!(
+                    "write `emit {}({});`",
+                    event.trim(),
+                    payload.trim()
+                ),
+                span: s,
+            };
+            self.errors.push(error.clone());
+            return error;
+        }
         let error =
             strict_error(Rule::stmt_only, pair.as_str(), s.start).unwrap_or_else(|| SyntaxError {
                 message: "expected a statement".into(),
@@ -603,6 +623,16 @@ impl Builder<'_> {
             },
             Rule::continue_stmt => Stmt::Continue(s),
             Rule::break_stmt => Stmt::Break(s),
+            Rule::emit_stmt => {
+                let mut parts = children(inner);
+                let event = path(parts.next().expect("emitted event"));
+                let args = parts.next().map(args).unwrap_or_default();
+                Stmt::Emit {
+                    event,
+                    args,
+                    span: s,
+                }
+            }
             Rule::loop_stmt => {
                 let mut parts = children(inner);
                 let body = self.block(parts.next().expect("loop body"));

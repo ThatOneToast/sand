@@ -177,7 +177,7 @@ fn a_handler_that_re_emits_its_event_saves_the_dispatcher() {
 event Countdown(n: number);
 #[on(Countdown)]
 fn tick_down(n: number) {
-    if n > 0 { emit(Countdown, n - 1); }
+    if n > 0 { emit Countdown(n - 1); }
 }
 "#,
     );

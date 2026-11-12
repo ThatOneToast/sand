@@ -45,7 +45,7 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 "{vis}const {}: {} = {}",
                 def.name,
                 ty_name(analysis, *ty),
-                value.map(|v| v.to_string()).unwrap_or_else(|| "?".into())
+                value_text(analysis, *ty, *value)
             ),
             Vec::new(),
         ),
@@ -266,15 +266,7 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
     else {
         return String::new();
     };
-    let default_text = match (ty, default) {
-        (Ty::Enum(e), Some(v)) => variant_name(analysis, *e, *v)
-            .map(|name| format!("{}::{name}", analysis.def(*e).name))
-            .unwrap_or_else(|| v.to_string()),
-        (Ty::Float, Some(v)) => format!("{}", *v as f64 / crate::analysis::FLOAT_SCALE as f64),
-        (Ty::Bool, Some(v)) => (*v != 0).to_string(),
-        (_, Some(v)) => v.to_string(),
-        (_, None) => "?".into(),
-    };
+    let default_text = value_text(analysis, *ty, *default);
     let clamp = bounds
         .map(|(min, max)| format!("    #[clamp({min}..={max})]\n"))
         .unwrap_or_default();
@@ -287,6 +279,19 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
             ty_name(analysis, *ty)
         }
     )
+}
+
+/// A stored value as source text: `Phase::Busy`, `0.5`, `true`, or `3`.
+fn value_text(analysis: &Analysis, ty: Ty, value: Option<i64>) -> String {
+    match (ty, value) {
+        (Ty::Enum(e), Some(v)) => variant_name(analysis, e, v)
+            .map(|name| format!("{}::{name}", analysis.def(e).name))
+            .unwrap_or_else(|| v.to_string()),
+        (Ty::Float, Some(v)) => format!("{}", v as f64 / crate::analysis::FLOAT_SCALE as f64),
+        (Ty::Bool, Some(v)) => (v != 0).to_string(),
+        (_, Some(v)) => v.to_string(),
+        (_, None) => "?".into(),
+    }
 }
 
 fn variant_name(analysis: &Analysis, enum_def: DefId, value: i64) -> Option<String> {
@@ -831,6 +836,16 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
         .package
         .module_at(file, offset)
         .unwrap_or(ModuleId(0));
+    // `emit |`: the events in scope.
+    if let Some(rest) = line.trim_start().strip_prefix("emit ")
+        && !rest.contains(['(', ';', ':'])
+    {
+        return scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == DefKind::Event)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect();
+    }
     let mut position = position::classify(text, offset);
     // A path being typed (`Hero.en`, `Phase::F`) takes the position where
     // the path starts.
@@ -1142,6 +1157,11 @@ fn statement_completions(
             "loop {\n    $0\n}",
         ),
         Completion::snippet(
+            "emit",
+            "run every handler of a custom event",
+            "emit ${1:Event}($2);",
+        ),
+        Completion::snippet(
             "for player in players()",
             "run as each online player",
             "for player in players() {\n    $0\n}",
@@ -1224,7 +1244,6 @@ fn expression_completions(
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }
             Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
-            Some("Event") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Event),
             Some("timer") => return timer_field_completions(analysis, in_scope),
             Some("Position") => {
                 return vec![
@@ -1923,7 +1942,6 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Position => "Position",
                 ParamKind::BossBar => "BossBar",
                 ParamKind::Loot => "Loot",
-                ParamKind::Event => "Event",
             };
             let rendered = if param.required {
                 format!("{}: {kind}", param.name)

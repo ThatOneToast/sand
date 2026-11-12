@@ -259,6 +259,88 @@ pub struct FlagSet {
     pub flag: EntityFlag,
 }
 
+/// A number stored in the executing entity's data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::EntityData", module = "sand::advanced::compiler",
+ summary = "A number stored in the executing entity's data.",
+ context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
+ minecraft = "Read with `data get entity @s <path> <scale>`.",
+ use_when = ["Reading health, hunger, experience, air, or position into a State field"],
+ avoid_when = ["Attribute base values, which AttributeGet reads"],
+ example = "let value = sand::advanced::compiler::EntityData::Health;",
+ variants(Health = "Current health in half-hearts.", Absorption = "Absorption health.", Air = "Remaining air in ticks.", Fire = "Burning ticks left; negative when not burning.", FallDistance = "Blocks fallen since last on the ground.", OnGround = "One when standing on the ground.", X = "X coordinate.", Y = "Y coordinate.", Z = "Z coordinate.", Food = "Player hunger, 0 to 20.", Saturation = "Player food saturation.", XpLevel = "Player experience level.", XpTotal = "Player total experience points.", XpProgress = "Progress to the next level, 0 to 1.", SelectedSlot = "Player hotbar slot, 0 to 8."),
+)]
+pub enum EntityData {
+    /// Current health in half-hearts.
+    Health,
+    /// Absorption health.
+    Absorption,
+    /// Remaining air in ticks.
+    Air,
+    /// Burning ticks left; negative when not burning.
+    Fire,
+    /// Blocks fallen since last on the ground.
+    FallDistance,
+    /// One when standing on the ground.
+    OnGround,
+    /// X coordinate.
+    X,
+    /// Y coordinate.
+    Y,
+    /// Z coordinate.
+    Z,
+    /// Player hunger, 0 to 20.
+    Food,
+    /// Player food saturation.
+    Saturation,
+    /// Player experience level.
+    XpLevel,
+    /// Player total experience points.
+    XpTotal,
+    /// Progress to the next level, 0 to 1.
+    XpProgress,
+    /// Player hotbar slot, 0 to 8.
+    SelectedSlot,
+}
+
+impl EntityData {
+    /// The entity data path that holds this value.
+    pub(crate) fn path(self) -> &'static str {
+        match self {
+            Self::Health => "Health",
+            Self::Absorption => "AbsorptionAmount",
+            Self::Air => "Air",
+            Self::Fire => "Fire",
+            Self::FallDistance => "FallDistance",
+            Self::OnGround => "OnGround",
+            Self::X => "Pos[0]",
+            Self::Y => "Pos[1]",
+            Self::Z => "Pos[2]",
+            Self::Food => "foodLevel",
+            Self::Saturation => "foodSaturationLevel",
+            Self::XpLevel => "XpLevel",
+            Self::XpTotal => "XpTotal",
+            Self::XpProgress => "XpP",
+            Self::SelectedSlot => "SelectedItemSlot",
+        }
+    }
+
+    /// Whether only players carry this value.
+    pub(crate) fn player_only(self) -> bool {
+        matches!(
+            self,
+            Self::Food
+                | Self::Saturation
+                | Self::XpLevel
+                | Self::XpTotal
+                | Self::XpProgress
+                | Self::SelectedSlot
+        )
+    }
+}
+
 /// A player game mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

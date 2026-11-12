@@ -456,7 +456,7 @@
     },
     {
       "additionalProperties": false,
-      "description": "Store the executing player's attribute base value, multiplied by\n`scale` and truncated, in a State field.",
+      "description": "Store the executor's attribute base value, multiplied by\n`scale` and truncated, in a State field.",
       "properties": {
         "attribute": {
           "type": "string"
@@ -483,7 +483,7 @@
     },
     {
       "additionalProperties": false,
-      "description": "Set the executing player's attribute base value to a constant or a\nState-derived amount.",
+      "description": "Set the executor's attribute base value to a constant or a\nState-derived amount.",
       "properties": {
         "attribute": {
           "type": "string"
@@ -903,6 +903,75 @@
       "required": [
         "op",
         "table"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Save State fields on the call-frame stack before a call that may\nre-enter the running function, so recursion keeps each call's values.\nEvery `PushFrame` is followed by a `PopFrame` naming the same fields.",
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "defs-FieldReference.schema.json"
+          },
+          "type": "array"
+        },
+        "op": {
+          "const": "push_frame",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "fields"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Restore the fields saved by the matching `PushFrame` and drop its frame.",
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "defs-FieldReference.schema.json"
+          },
+          "type": "array"
+        },
+        "op": {
+          "const": "pop_frame",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "fields"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Store a number read from the executing entity's data, multiplied by\n`scale` and truncated, in a State field.",
+      "properties": {
+        "op": {
+          "const": "data_get",
+          "type": "string"
+        },
+        "scale": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        "value": {
+          "$ref": "defs-EntityData.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "value"
       ],
       "type": "object"
     }

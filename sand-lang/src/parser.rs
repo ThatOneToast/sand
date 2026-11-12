@@ -66,6 +66,8 @@ fn is_keyword(rule: Rule) -> bool {
             | Rule::kw_if
             | Rule::kw_else
             | Rule::kw_for
+            | Rule::kw_break
+            | Rule::kw_loop
             | Rule::kw_in
             | Rule::kw_as
             | Rule::kw_on
@@ -538,7 +540,18 @@ impl Builder<'_> {
             Rule::for_stmt => {
                 let mut parts = children(inner);
                 let binding = ident(parts.next().expect("binding"));
-                let source = path(parts.next().expect("iterator"));
+                let source = parts.next().expect("iterator");
+                if source.as_rule() == Rule::range {
+                    let range = range(source);
+                    let body = self.block(parts.next().expect("for body"));
+                    return Stmt::ForRange {
+                        binding,
+                        range,
+                        body,
+                        span: s,
+                    };
+                }
+                let source = path(source);
                 let next = parts.next().expect("for body");
                 let (args, body) = if next.as_rule() == Rule::args {
                     (args(next), self.block(parts.next().expect("for body")))
@@ -589,6 +602,12 @@ impl Builder<'_> {
                 span: s,
             },
             Rule::continue_stmt => Stmt::Continue(s),
+            Rule::break_stmt => Stmt::Break(s),
+            Rule::loop_stmt => {
+                let mut parts = children(inner);
+                let body = self.block(parts.next().expect("loop body"));
+                Stmt::Loop { body, span: s }
+            }
             Rule::while_stmt => {
                 let mut parts = children(inner);
                 let cond = self.cond(parts.next().expect("while condition"));

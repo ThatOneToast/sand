@@ -22,6 +22,106 @@ struct Dest {
     name: String,
 }
 
+/// What a `while`-shaped loop repeats on.
+pub(super) enum Repeat<'a> {
+    /// `while cond { }`.
+    While(&'a Cond),
+    /// `loop { }`.
+    Forever,
+    /// `for binding in range { }`.
+    Count { binding: &'a Ident, range: &'a Range },
+}
+
+/// Whether the statement can `break` (or `continue`, when `is_break` is
+/// false) out of the innermost enclosing loop, without entering a nested one.
+pub(super) fn jumps_here(stmt: &Stmt, is_break: bool) -> bool {
+    match stmt {
+        Stmt::Break(_) => is_break,
+        Stmt::Continue(_) => !is_break,
+        Stmt::If(if_stmt) => if_jumps(if_stmt, is_break),
+        _ => false,
+    }
+}
+
+fn if_jumps(if_stmt: &IfStmt, is_break: bool) -> bool {
+    if_stmt.then.stmts.iter().any(|s| jumps_here(s, is_break))
+        || match &if_stmt.otherwise {
+            None => false,
+            Some(Else::Block(block)) => block.stmts.iter().any(|s| jumps_here(s, is_break)),
+            Some(Else::If(nested)) => if_jumps(nested, is_break),
+        }
+}
+
+/// Whether a `return` appears anywhere in the block.
+fn block_mentions_return(block: &Block) -> bool {
+    block.stmts.iter().any(|stmt| match stmt {
+        Stmt::Return { .. } => true,
+        Stmt::If(if_stmt) => if_mentions_return(if_stmt),
+        Stmt::While { body, .. } | Stmt::Loop { body, .. } | Stmt::ForRange { body, .. } => {
+            block_mentions_return(body)
+        }
+        _ => false,
+    })
+}
+
+fn if_mentions_return(if_stmt: &IfStmt) -> bool {
+    block_mentions_return(&if_stmt.then)
+        || match &if_stmt.otherwise {
+            None => false,
+            Some(Else::Block(block)) => block_mentions_return(block),
+            Some(Else::If(nested)) => if_mentions_return(nested),
+        }
+}
+
+/// Placeholder flag for loop tests built before the flag is allocated.
+fn keep_marker() -> pc::FieldReference {
+    pc::FieldReference {
+        state: "sand:keep".parse().expect("valid placeholder"),
+        field: "__keep".into(),
+    }
+}
+
+/// Point every placeholder flag write at `keep`.
+fn retarget_marker(mut ops: Vec<pc::Operation>, keep: &pc::FieldReference) -> Vec<pc::Operation> {
+    for op in &mut ops {
+        match &mut op.action {
+            pc::Action::ScoreSet { score, .. } if score.field == "__keep" => *score = keep.clone(),
+            pc::Action::Branch { then, otherwise, .. } => {
+                *then = retarget_marker(std::mem::take(then), keep);
+                *otherwise = retarget_marker(std::mem::take(otherwise), keep);
+            }
+            _ => {}
+        }
+    }
+    ops
+}
+
+/// Field-name prefix of an unresolved frame placeholder; `__` cannot start a
+/// slot name, so it never collides with a real slot.
+pub(super) const FRAME_MARKER: &str = "__frame";
+
+/// Whether evaluating the expression calls a function.
+pub(super) fn contains_call(expr: &Expr) -> bool {
+    match expr {
+        Expr::Call { .. } => true,
+        Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => contains_call(inner),
+        Expr::Binary(lhs, _, rhs, _) => contains_call(lhs) || contains_call(rhs),
+        Expr::Cond(cond, _) => cond_contains_call(cond),
+        _ => false,
+    }
+}
+
+fn cond_contains_call(cond: &Cond) -> bool {
+    match cond {
+        Cond::Or(a, b) | Cond::And(a, b) => cond_contains_call(a) || cond_contains_call(b),
+        Cond::Not(inner, _) => cond_contains_call(inner),
+        Cond::Compare { lhs, rhs, .. } => contains_call(lhs) || contains_call(rhs),
+        Cond::Value(value) | Cond::InRange { value, .. } => contains_call(value),
+        // Builtin predicates call nothing, but a `bool` function does.
+        Cond::Call { .. } => true,
+    }
+}
+
 fn place_key(place: &Place) -> String {
     format!("{}.{}", place.state.display(), place.field.name)
 }
@@ -51,7 +151,7 @@ impl Cx {
         self.slot(name)
     }
 
-    fn lookup_local(body: &BodyCx, name: &str) -> Option<DefId> {
+    pub(super) fn lookup_local(body: &BodyCx, name: &str) -> Option<DefId> {
         body.scopes
             .iter()
             .rev()
@@ -583,7 +683,7 @@ impl Cx {
                     format!("`{dname}` does not return a value"),
                 )
                 .with_note(df, ds, "declared without a return type")
-                .with_help(format!("declare one: `fn {dname}(...) -> i32`")),
+                .with_help(format!("declare one: `fn {dname}(...) -> number`")),
             );
             return None;
         };
@@ -641,14 +741,53 @@ impl Cx {
                 );
             return None;
         }
-        for ((field, _, param_ty), arg) in slots.params.iter().zip(args) {
+        let mut exprs = Vec::with_capacity(args.len());
+        for arg in args {
             let ArgValue::Expr(expr) = &arg.value else {
                 self.error("type", file, arg.span, "expected a value, found a range");
                 return None;
             };
-            let slot = self.slot(field.clone());
-            self.emit(body, &slot, *param_ty, expr, ops)?;
+            exprs.push(expr);
         }
+        // A self-call reads the parameters it is about to overwrite, and a
+        // nested call may overwrite parameters already passed, so those
+        // arguments are computed into temporaries before any is passed.
+        let staged = (body.owner == Some(def) && exprs.len() > 1)
+            || exprs.iter().any(|expr| contains_call(expr));
+        let depth = body.temp_depth;
+        let mut values = Vec::with_capacity(exprs.len());
+        if staged {
+            for ((_, _, param_ty), expr) in slots.params.iter().zip(&exprs) {
+                let value = match self.simple(body, expr, *param_ty).ok()? {
+                    Some(Value::Const(value)) => Value::Const(value),
+                    _ => {
+                        let temp = self.temp(body);
+                        self.emit(body, &temp, *param_ty, expr, ops)?;
+                        Value::Read(temp)
+                    }
+                };
+                values.push(value);
+            }
+        }
+        let marker = self.frame_marker(body.owner, def);
+        ops.push(op_at(
+            pc::Action::PushFrame {
+                fields: vec![marker.clone()],
+            },
+            file,
+            span,
+        ));
+        for (index, ((field, _, param_ty), expr)) in slots.params.iter().zip(&exprs).enumerate() {
+            let slot = self.slot(field.clone());
+            if staged {
+                if let Some(action) = Self::set_from(&slot, values[index].clone()) {
+                    ops.push(op_at(action, file, expr.span()));
+                }
+            } else {
+                self.emit(body, &slot, *param_ty, expr, ops)?;
+            }
+        }
+        body.temp_depth = depth;
         body.all_calls.push((def, path.span));
         if !body.in_players {
             body.calls.push((def, path.span));
@@ -658,7 +797,26 @@ impl Cx {
         }
         let function = self.function_reference(def)?;
         ops.push(op_at(pc::Action::Call { function }, file, span));
+        ops.push(op_at(
+            pc::Action::PopFrame {
+                fields: vec![marker],
+            },
+            file,
+            span,
+        ));
         Some(())
+    }
+
+    /// A placeholder frame field for one call, resolved once the whole call
+    /// graph is known: a call that can re-enter its caller saves the caller's
+    /// variables around it, and every other call drops the placeholder.
+    pub(super) fn frame_marker(&mut self, caller: Option<DefId>, callee: DefId) -> pc::FieldReference {
+        let index = self.call_frames.len();
+        self.call_frames.push((caller, callee));
+        pc::FieldReference {
+            state: self.locals_state().parse().expect("namespace validated"),
+            field: format!("{FRAME_MARKER}{index}"),
+        }
     }
 
     fn resolve_target(&mut self, body: &mut BodyCx, target: &AssignTarget) -> Option<Dest> {
@@ -884,23 +1042,7 @@ impl Cx {
             (None, Some(value)) => self.type_of(body, value),
             (None, None) => Ty::Number,
         };
-        let local = self.push_def(Def {
-            kind: DefKind::Local,
-            name: name.name.clone(),
-            module,
-            file,
-            name_span: name.span,
-            span,
-            docs: Vec::new(),
-            is_pub: false,
-            parent: None,
-            info: DefInfo::Local {
-                ty,
-                mutable,
-                param: false,
-                owner: body.owner,
-            },
-        });
+        let local = self.new_local(body, name, ty, mutable, span);
         let reference = self.local_ref(local);
         match value {
             Some(value) => {
@@ -917,8 +1059,33 @@ impl Cx {
         }
         // Visible from after the statement to the end of the block.
         let end = body.block_ends.last().copied().unwrap_or(span.end);
-        self.local_scopes
-            .push((file, Span::new(span.end, end), local));
+        self.bring_into_scope(body, name, local, Span::new(span.end, end));
+    }
+
+    /// A new local owned by the function being lowered; not yet visible.
+    fn new_local(&mut self, body: &BodyCx, name: &Ident, ty: Ty, mutable: bool, span: Span) -> DefId {
+        self.push_def(Def {
+            kind: DefKind::Local,
+            name: name.name.clone(),
+            module: body.module,
+            file: body.file,
+            name_span: name.span,
+            span,
+            docs: Vec::new(),
+            is_pub: false,
+            parent: None,
+            info: DefInfo::Local {
+                ty,
+                mutable,
+                param: false,
+                owner: body.owner,
+            },
+        })
+    }
+
+    /// Make a local visible by name in the innermost scope, over `visible`.
+    fn bring_into_scope(&mut self, body: &mut BodyCx, name: &Ident, local: DefId, visible: Span) {
+        self.local_scopes.push((body.file, visible, local));
         body.scopes
             .last_mut()
             .expect("block scope")
@@ -948,7 +1115,19 @@ impl Cx {
         }
         match (&body.ret.clone(), value) {
             (Some((slot, ty)), Some(value)) => {
-                if self.emit(body, slot, *ty, value, ops).is_none() {
+                // A recursive call would overwrite a partly computed return
+                // slot, so such a value is computed in a saved temporary.
+                if contains_call(value) && !matches!(value, Expr::Call { .. }) {
+                    let depth = body.temp_depth;
+                    let temp = self.temp(body);
+                    if self.emit(body, &temp, *ty, value, ops).is_none() {
+                        return;
+                    }
+                    body.temp_depth = depth;
+                    if let Some(action) = Self::set_from(slot, Value::Read(temp)) {
+                        ops.push(op_at(action, file, value.span()));
+                    }
+                } else if self.emit(body, slot, *ty, value, ops).is_none() {
                     return;
                 }
             }
@@ -970,7 +1149,7 @@ impl Cx {
                         value.span(),
                         "this function does not return a value",
                     )
-                    .with_help("declare a return type: `fn name() -> i32`"),
+                    .with_help("declare a return type: `fn name() -> number`"),
                 );
                 return;
             }
@@ -979,55 +1158,307 @@ impl Cx {
         ops.push(op_at(pc::Action::Return, file, span));
     }
 
-    pub(super) fn lower_while(
+    /// Lower `while`, `loop`, and counting `for` loops.
+    ///
+    /// Each becomes one backend `While` whose helper re-checks the test after
+    /// every pass. A test that is a single plain comparison is checked
+    /// directly; any other test (`!=`, `!`, `&&`, `||`, calculations, calls)
+    /// is computed into a saved flag before the first pass and again at the
+    /// end of each. `break` and `continue` set a jump flag that skips the rest
+    /// of the pass; `break` also clears the loop flag.
+    pub(super) fn lower_repeat(
         &mut self,
         body: &mut BodyCx,
-        cond: &Cond,
+        kind: Repeat<'_>,
         block: &Block,
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
         let file = body.file;
-        if !matches!(
-            cond,
-            Cond::Compare { .. } | Cond::InRange { .. } | Cond::Call { .. }
-        ) {
+        let depth = body.temp_depth;
+        let has_break = block.stmts.iter().any(|stmt| jumps_here(stmt, true));
+        let has_jump = has_break || block.stmts.iter().any(|stmt| jumps_here(stmt, false));
+        if matches!(kind, Repeat::Forever) && !has_break && !block_mentions_return(block) {
             self.diagnostics.push(
-                Diagnostic::error(
-                    "while",
-                    file,
-                    cond.span(),
-                    "a `while` condition must be a single comparison",
-                )
-                .with_help("compute the condition into a `let mut` variable, e.g. `while keep_going == 1 { ... }`"),
+                Diagnostic::warning("loop", file, span, "this `loop` never ends")
+                    .with_help("leave it with `break;` or `return`; Minecraft stops runaway command chains"),
             );
-            return;
         }
-        let mut pre = Vec::new();
-        let Some((condition, negated)) = self.atom(body, cond, &mut pre) else {
-            return;
+        let jump = has_jump.then(|| self.temp(body));
+        // Reserve the loop flag's temporary before the test uses any.
+        let keep_index = body.temp_depth;
+        body.temp_depth += 1;
+        let mut setup = Vec::new();
+        let mut step = Vec::new();
+        body.scopes.push(Vec::new());
+        // The plain condition, when the test is a single comparison.
+        let mut direct = None;
+        // Operations that compute the test into `keep`.
+        let mut test = Vec::new();
+        let keep_needed;
+        match kind {
+            Repeat::While(cond) => {
+                let mut pre = Vec::new();
+                let simple_shape = matches!(
+                    cond,
+                    Cond::Compare { .. } | Cond::InRange { .. } | Cond::Call { .. } | Cond::Value(_)
+                );
+                let atom = if simple_shape {
+                    let Some(atom) = self.atom(body, cond, &mut pre) else {
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    };
+                    Some(atom)
+                } else {
+                    None
+                };
+                match atom {
+                    Some((condition, false)) if pre.is_empty() => direct = Some(condition),
+                    Some((condition, negated)) => {
+                        test = pre;
+                        test.push(Self::flag_branch(condition, negated, file, cond.span()));
+                    }
+                    None => {
+                        let Some(lowered) =
+                            self.lower_cond(body, cond, vec![Self::marker_set(1, file, span)], Vec::new())
+                        else {
+                            body.scopes.pop();
+                            body.temp_depth = depth;
+                            return;
+                        };
+                        test.push(Self::marker_set(0, file, span));
+                        test.extend(lowered);
+                    }
+                }
+                keep_needed = direct.is_none() || has_break;
+            }
+            Repeat::Forever => {
+                test.push(Self::marker_set(1, file, span));
+                keep_needed = true;
+            }
+            Repeat::Count { binding, range } => {
+                let (Some(start), Some(end)) = (&range.start, &range.end) else {
+                    self.diagnostics.push(
+                        Diagnostic::error("for", file, range.span, "a counting `for` needs both ends")
+                            .with_help("write `for i in 0..10 { ... }`; `..=` includes the end"),
+                    );
+                    body.scopes.pop();
+                    return;
+                };
+                for bound in [start, end] {
+                    let ty = self.type_of(body, bound);
+                    if !matches!(ty, Ty::Number | Ty::Unknown) {
+                        let found = self.ty_name(ty);
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                "type",
+                                file,
+                                bound.span(),
+                                format!("a counting `for` counts `number`s, but this is `{found}`"),
+                            )
+                            .with_help(if ty == Ty::Float {
+                                "convert it with `as number`"
+                            } else {
+                                "use whole numbers for the range ends"
+                            }),
+                        );
+                        body.scopes.pop();
+                        return;
+                    }
+                }
+                let local = self.new_local(body, binding, Ty::Number, false, binding.span);
+                let counter = self.local_ref(local);
+                // The end is computed once, before the first pass.
+                let limit = match self.simple(body, end, Ty::Number) {
+                    Ok(Some(Value::Const(value))) => Value::Const(value),
+                    Ok(_) => {
+                        let temp = self.temp(body);
+                        if self.emit(body, &temp, Ty::Number, end, &mut setup).is_none() {
+                            body.scopes.pop();
+                            body.temp_depth = depth;
+                            return;
+                        }
+                        Value::Read(temp)
+                    }
+                    Err(()) => {
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    }
+                };
+                if self.emit(body, &counter, Ty::Number, start, &mut setup).is_none() {
+                    body.scopes.pop();
+                    body.temp_depth = depth;
+                    return;
+                }
+                self.bring_into_scope(body, binding, local, Span::new(binding.span.start, block.span.end));
+                let condition = match limit {
+                    Value::Const(value) => {
+                        let max = if range.inclusive { value } else { value - 1 };
+                        let Ok(max) = i32::try_from(max) else {
+                            self.error("range", file, end.span(), "this range end overflows `number`");
+                            body.scopes.pop();
+                            body.temp_depth = depth;
+                            return;
+                        };
+                        pc::Condition::Range(pc::ScoreComparison {
+                            score: counter.clone(),
+                            min: None,
+                            max: Some(max),
+                        })
+                    }
+                    Value::Read(limit) => pc::Condition::Relation(pc::ScoreRelation {
+                        left: counter.clone(),
+                        relation: if range.inclusive {
+                            pc::Relation::Le
+                        } else {
+                            pc::Relation::Lt
+                        },
+                        right: limit,
+                    }),
+                };
+                step.push(op_at(
+                    pc::Action::ScoreAdd {
+                        score: counter,
+                        value: 1,
+                    },
+                    file,
+                    range.span,
+                ));
+                direct = Some(condition);
+                keep_needed = has_break;
+            }
+        }
+        let keep = keep_needed.then(|| self.slot(format!("{}_t{keep_index}", body.slot)));
+        // `test` was built against a placeholder flag; point it at `keep`.
+        let test: Vec<pc::Operation> = match (&keep, &direct) {
+            (Some(keep), Some(condition)) => vec![
+                op_at(pc::Action::ScoreSet { score: keep.clone(), value: 0 }, file, span),
+                op_at(
+                    pc::Action::Branch {
+                        condition: condition.clone(),
+                        then: vec![op_at(pc::Action::ScoreSet { score: keep.clone(), value: 1 }, file, span)],
+                        otherwise: Vec::new(),
+                    },
+                    file,
+                    span,
+                ),
+            ],
+            (Some(keep), None) => retarget_marker(test, keep),
+            (None, _) => Vec::new(),
         };
-        if negated || !pre.is_empty() {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    "while",
-                    file,
-                    cond.span(),
-                    "a `while` condition must compare fields, variables, or constants without `!=` or calculations",
-                )
-                .with_help("compute it into a `let mut` variable before the loop and update it inside"),
-            );
-            return;
+        body.jumps.push(super::Jump {
+            flag: jump.clone(),
+            executor_loops: body.loops.len(),
+        });
+        let lowered = self.lower_block(body, block);
+        body.jumps.pop();
+        body.scopes.pop();
+        let mut inner = Vec::new();
+        if let Some(jump) = &jump {
+            inner.push(op_at(pc::Action::ScoreSet { score: jump.clone(), value: 0 }, file, span));
         }
-        let inner = self.lower_block(body, block);
-        ops.push(op_at(
-            pc::Action::While {
-                condition,
-                body: inner,
+        inner.extend(lowered);
+        inner.extend(step);
+        if let Some(keep) = &keep {
+            match (&jump, has_break) {
+                (Some(jump), true) => inner.push(op_at(
+                    pc::Action::Branch {
+                        condition: pc::Condition::Range(pc::ScoreComparison {
+                            score: jump.clone(),
+                            min: Some(2),
+                            max: Some(2),
+                        }),
+                        then: vec![op_at(pc::Action::ScoreSet { score: keep.clone(), value: 0 }, file, span)],
+                        otherwise: test.clone(),
+                    },
+                    file,
+                    span,
+                )),
+                _ => inner.extend(test.clone()),
+            }
+        }
+        body.temp_depth = depth;
+        ops.extend(setup);
+        let condition = match (keep, direct) {
+            (Some(keep), _) => {
+                ops.extend(test);
+                pc::Condition::Range(pc::ScoreComparison {
+                    score: keep,
+                    min: Some(1),
+                    max: Some(1),
+                })
+            }
+            (None, Some(condition)) => condition,
+            (None, None) => unreachable!("a loop without a direct test keeps a flag"),
+        };
+        ops.push(op_at(pc::Action::While { condition, body: inner }, file, span));
+    }
+
+    /// `keep = 1` (or 0) against the placeholder flag, retargeted later.
+    fn marker_set(value: i32, file: FileId, span: Span) -> pc::Operation {
+        op_at(
+            pc::Action::ScoreSet {
+                score: keep_marker(),
+                value,
             },
             file,
             span,
-        ));
+        )
+    }
+
+    /// Set the placeholder flag to whether `condition` holds (or fails).
+    fn flag_branch(condition: pc::Condition, negated: bool, file: FileId, span: Span) -> pc::Operation {
+        op_at(
+            pc::Action::Branch {
+                condition,
+                then: vec![Self::marker_set(i32::from(!negated), file, span)],
+                otherwise: vec![Self::marker_set(i32::from(negated), file, span)],
+            },
+            file,
+            span,
+        )
+    }
+
+    /// `break;` and `continue;`.
+    pub(super) fn lower_jump(&mut self, body: &mut BodyCx, is_break: bool, span: Span, ops: &mut Vec<pc::Operation>) {
+        let file = body.file;
+        let word = if is_break { "break" } else { "continue" };
+        let repeat = body
+            .jumps
+            .last()
+            .filter(|jump| jump.executor_loops == body.loops.len());
+        if let Some(jump) = repeat {
+            let flag = jump.flag.clone().expect("a loop with jumps keeps a jump flag");
+            ops.push(op_at(
+                pc::Action::ScoreSet {
+                    score: flag,
+                    value: if is_break { 2 } else { 1 },
+                },
+                file,
+                span,
+            ));
+        } else if !body.loops.is_empty() {
+            if is_break {
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        "control",
+                        file,
+                        span,
+                        "`break` cannot stop a `players()` or `entities(..)` loop",
+                    )
+                    .with_help("every match runs once; `continue` skips the rest of this one's turn"),
+                );
+            } else {
+                ops.push(op_at(pc::Action::Return, file, span));
+            }
+        } else {
+            self.diagnostics.push(
+                Diagnostic::error("control", file, span, format!("`{word}` only works inside a loop"))
+                    .with_help("loops are `while`, `loop`, `for i in a..b`, `for player in players()`, and `for entity in entities(..)`"),
+            );
+        }
     }
 
     /// Bind call arguments to a builtin's parameters by position and name.

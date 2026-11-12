@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A number stored in the executing entity's data.",
+  "oneOf": [
+    {
+      "const": "health",
+      "description": "Current health in half-hearts.",
+      "type": "string"
+    },
+    {
+      "const": "absorption",
+      "description": "Absorption health.",
+      "type": "string"
+    },
+    {
+      "const": "air",
+      "description": "Remaining air in ticks.",
+      "type": "string"
+    },
+    {
+      "const": "fire",
+      "description": "Burning ticks left; negative when not burning.",
+      "type": "string"
+    },
+    {
+      "const": "fall_distance",
+      "description": "Blocks fallen since last on the ground.",
+      "type": "string"
+    },
+    {
+      "const": "on_ground",
+      "description": "One when standing on the ground.",
+      "type": "string"
+    },
+    {
+      "const": "x",
+      "description": "X coordinate.",
+      "type": "string"
+    },
+    {
+      "const": "y",
+      "description": "Y coordinate.",
+      "type": "string"
+    },
+    {
+      "const": "z",
+      "description": "Z coordinate.",
+      "type": "string"
+    },
+    {
+      "const": "food",
+      "description": "Player hunger, 0 to 20.",
+      "type": "string"
+    },
+    {
+      "const": "saturation",
+      "description": "Player food saturation.",
+      "type": "string"
+    },
+    {
+      "const": "xp_level",
+      "description": "Player experience level.",
+      "type": "string"
+    },
+    {
+      "const": "xp_total",
+      "description": "Player total experience points.",
+      "type": "string"
+    },
+    {
+      "const": "xp_progress",
+      "description": "Progress to the next level, 0 to 1.",
+      "type": "string"
+    },
+    {
+      "const": "selected_slot",
+      "description": "Player hotbar slot, 0 to 8.",
+      "type": "string"
+    }
+  ]
+}

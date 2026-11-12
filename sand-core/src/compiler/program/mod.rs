@@ -13,7 +13,7 @@ pub use model::{
     Condition, CookingMethod, CustomItem, EntitiesExist, EntityFlag, EntityQuery, EntitySort,
     EventHook, ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase,
     FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel,
-    Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
+    EntityData, Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
     Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
     ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
     TeleportDestination, TextColor, TextPart, TextStyle, Weather,
@@ -61,6 +61,8 @@ const CAPABILITIES: &[&str] = &[
     "boss_bars",
     "loot_tables",
     "smithing_recipes",
+    "recursion",
+    "entity_data",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

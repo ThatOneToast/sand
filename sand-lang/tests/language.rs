@@ -166,7 +166,6 @@ fn loop_return() {
     for player in players() { return; }
 }
 fn stray() { continue; }
-fn recurse(n: number) { recurse(n); }
 fn after() {
     return;
     let y = 2;
@@ -175,11 +174,10 @@ fn after() {
     ));
     let errors = errors(&analysis);
     for expected in [
-        "`value` must return an `number` on every path",
+        "`value` must return a `number` on every path",
         "this function does not return a value",
         "`return` inside a `for` loop would only end this iteration",
-        "`continue` only works inside a `for` loop",
-        "`recurse` calls itself (directly or indirectly), but its variables live in shared slots",
+        "`continue` only works inside a loop",
     ] {
         assert!(
             errors.iter().any(|e| e == expected),

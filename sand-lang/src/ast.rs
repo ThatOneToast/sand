@@ -506,8 +506,28 @@ pub enum Stmt {
         /// Whole statement.
         span: Span,
     },
-    /// `continue;` inside `for player in players()`.
+    /// `continue;`: skip to the next pass of the innermost loop.
     Continue(Span),
+    /// `break;`: leave the innermost `while`, `loop`, or counting `for`.
+    Break(Span),
+    /// `loop { ... }`: repeat until `break` or `return`.
+    Loop {
+        /// Repeated body.
+        body: Block,
+        /// Whole statement.
+        span: Span,
+    },
+    /// `for i in start..end { ... }`: count through a range of numbers.
+    ForRange {
+        /// Loop variable.
+        binding: Ident,
+        /// Counted range; `..=` includes the end.
+        range: Range,
+        /// Loop body.
+        body: Block,
+        /// Whole statement.
+        span: Span,
+    },
     /// `while condition { ... }`.
     While {
         /// Checked before every pass.

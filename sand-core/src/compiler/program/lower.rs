@@ -1647,6 +1647,67 @@ impl Lower {
                 Action::DropLoot { table } => {
                     vec![Cmd::Raw(format!("loot spawn ~ ~ ~ loot {table}"))]
                 }
+                Action::PushFrame { fields } => {
+                    let storage = frame_storage(&self.namespace);
+                    let mut commands = vec![Cmd::Raw(format!(
+                        "data modify storage {storage} stack append value {{}}"
+                    ))];
+                    for (index, field) in fields.iter().enumerate() {
+                        commands.push(Cmd::Execute {
+                            operations: vec![sand_commands::ExecuteOp::StoreResult(
+                                sand_commands::ExecuteStoreTarget::Nbt {
+                                    target: sand_commands::DataTarget::Storage(storage.clone()),
+                                    path: format!("stack[-1].f{index}"),
+                                    kind: sand_commands::NbtStoreKind::Int,
+                                    scale: 1.0,
+                                },
+                            )],
+                            run: Box::new(Cmd::Raw(format!(
+                                "scoreboard players get {} {}",
+                                self.holders[&field.state.to_string()],
+                                objective(field)
+                            ))),
+                        });
+                    }
+                    commands
+                }
+                Action::PopFrame { fields } => {
+                    let storage = frame_storage(&self.namespace);
+                    let mut commands = Vec::with_capacity(fields.len() + 1);
+                    for (index, field) in fields.iter().enumerate() {
+                        commands.push(Cmd::Execute {
+                            operations: vec![sand_commands::ExecuteOp::StoreResult(
+                                sand_commands::ExecuteStoreTarget::Score {
+                                    holder: self.holders[&field.state.to_string()].clone(),
+                                    objective: objective(field),
+                                },
+                            )],
+                            run: Box::new(Cmd::Raw(format!(
+                                "data get storage {storage} stack[-1].f{index}"
+                            ))),
+                        });
+                    }
+                    commands.push(Cmd::Raw(format!(
+                        "data remove storage {storage} stack[-1]"
+                    )));
+                    commands
+                }
+                Action::DataGet {
+                    score,
+                    value,
+                    scale,
+                } => vec![Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Score {
+                            holder: self.holders[&score.state.to_string()].clone(),
+                            objective: objective(score),
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "data get entity @s {} {scale}",
+                        value.path()
+                    ))),
+                }],
                 Action::EntityTag { tag, add } => vec![Cmd::Raw(format!(
                     "tag @s {} {tag}",
                     if *add { "add" } else { "remove" }
@@ -1760,4 +1821,9 @@ impl Lower {
         }
         Ok(commands)
     }
+}
+
+/// The command storage that holds saved call frames for recursive functions.
+fn frame_storage(namespace: &str) -> String {
+    format!("{namespace}:__sand_frames")
 }

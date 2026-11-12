@@ -173,7 +173,7 @@ pub enum DefInfo {
         player_reason: Option<String>,
         /// Function tags the function joins, including `#[tick]`/`#[load]`.
         entry: Vec<String>,
-        /// Parameters and return type as written, such as `(cost: i32) -> i32`.
+        /// Parameters and return type as written, such as `(cost: number) -> number`.
         signature: String,
     },
     /// An external function.
@@ -416,6 +416,7 @@ pub fn analyze(package: Package) -> Analysis {
         fn_slots: BTreeMap::new(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
+        call_frames: Vec::new(),
     };
     cx.collect();
     cx.resolve_imports();
@@ -497,6 +498,8 @@ struct Cx {
     event_handlers: BTreeMap<DefId, Vec<(DefId, Span)>>,
     /// `#[on(Event)]` attributes that name a custom event.
     handler_attrs: HashSet<(FileId, Span)>,
+    /// Caller and callee of each frame marker, indexed by marker number.
+    call_frames: Vec<(Option<DefId>, DefId)>,
 }
 
 /// How many score units represent `1.0` in a `float`, matching Rust's
@@ -1843,7 +1846,7 @@ impl Cx {
             modules.push(self.lower_module(module, &mut lowerer));
         }
         self.infer_contexts(&mut lowerer);
-        self.check_recursion(&lowerer);
+        self.resolve_frames(&mut lowerer);
         if !self.local_fields.is_empty()
             && let Some(root) = modules.first_mut()
             && let Ok(id) = self.locals_state_id().parse()
@@ -2103,6 +2106,15 @@ impl Cx {
         let mut calls = Vec::new();
         for (handler, span) in self.event_handlers.get(&def).cloned().unwrap_or_default() {
             let handler_slots = self.fn_slots[&handler].clone();
+            // A handler that emits this event again re-enters the dispatcher.
+            let marker = self.frame_marker(Some(def), handler);
+            body.push(op_at(
+                pc::Action::PushFrame {
+                    fields: vec![marker.clone()],
+                },
+                file,
+                span,
+            ));
             for ((from, _, _), (to, _, _)) in slots.params.iter().zip(&handler_slots.params) {
                 let from = self.slot(from.clone());
                 let to = self.slot(to.clone());
@@ -2119,6 +2131,13 @@ impl Cx {
             if let Some(function) = self.function_reference(handler) {
                 body.push(op_at(pc::Action::Call { function }, file, span));
             }
+            body.push(op_at(
+                pc::Action::PopFrame {
+                    fields: vec![marker],
+                },
+                file,
+                span,
+            ));
             calls.push((handler, span));
         }
         lowerer.facts.insert(
@@ -2127,7 +2146,6 @@ impl Cx {
                 entity_direct: None,
                 entity_loop_calls: Vec::new(),
                 all_calls: calls.clone(),
-                has_slots: !slots.params.is_empty(),
                 schedules: Vec::new(),
                 forced: None,
                 direct: None,
@@ -2147,47 +2165,90 @@ impl Cx {
         });
     }
 
-    /// Locals live in shared slots, so a function must not re-enter itself.
-    fn check_recursion(&mut self, lowerer: &Lowering) {
-        let graph: BTreeMap<DefId, Vec<(DefId, Span)>> = lowerer
+    /// Resolve every call's frame placeholder now that the call graph is
+    /// known.
+    ///
+    /// Locals live in shared slots, so a call that can lead back into its
+    /// caller (directly or through other functions) saves the caller's
+    /// locals, parameters, and temporaries on a storage stack and restores
+    /// them afterwards. Return slots are left out: they carry the callee's
+    /// result out across the restore. Calls that cannot re-enter their caller
+    /// drop the placeholders and cost nothing.
+    fn resolve_frames(&mut self, lowerer: &mut Lowering) {
+        let graph: BTreeMap<DefId, Vec<DefId>> = lowerer
             .facts
             .iter()
-            .map(|(def, facts)| (*def, facts.all_calls.clone()))
+            .map(|(def, facts)| (*def, facts.all_calls.iter().map(|(d, _)| *d).collect()))
             .collect();
-        for (start, facts) in &lowerer.facts {
-            let uses_slots = facts.has_slots;
-            if !uses_slots {
-                continue;
-            }
-            // Depth-first search for a path back to `start`.
-            let mut stack: Vec<DefId> = graph[start].iter().map(|(d, _)| *d).collect();
+        let reaches = |from: DefId, to: DefId| {
+            let mut stack = vec![from];
             let mut seen = HashSet::new();
-            let mut cyclic = false;
             while let Some(next) = stack.pop() {
-                if next == *start {
-                    cyclic = true;
-                    break;
+                if next == to {
+                    return true;
                 }
                 if seen.insert(next)
                     && let Some(calls) = graph.get(&next)
                 {
-                    stack.extend(calls.iter().map(|(d, _)| *d));
+                    stack.extend(calls.iter().copied());
                 }
             }
-            if cyclic {
-                let d = &self.defs[start.0];
-                let (file, span, name) = (d.file, d.name_span, d.name.clone());
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        "recursion",
-                        file,
-                        span,
-                        format!("`{name}` calls itself (directly or indirectly), but its variables live in shared slots"),
-                    )
-                    .with_help("Minecraft functions have no call stack; use a `while` loop instead of recursion"),
-                );
-            }
+            false
+        };
+        let mut frames: BTreeMap<DefId, Vec<String>> = BTreeMap::new();
+        let resolved: Vec<Option<Vec<pc::FieldReference>>> = self
+            .call_frames
+            .clone()
+            .into_iter()
+            .map(|(caller, callee)| {
+                let caller = caller?;
+                if !reaches(callee, caller) {
+                    return None;
+                }
+                let fields = frames
+                    .entry(caller)
+                    .or_insert_with(|| self.frame_fields(caller))
+                    .clone();
+                (!fields.is_empty()).then(|| {
+                    fields
+                        .into_iter()
+                        .map(|field| pc::FieldReference {
+                            state: self.locals_state_id().parse().expect("namespace validated"),
+                            field,
+                        })
+                        .collect()
+                })
+            })
+            .collect();
+        for function in &mut lowerer.functions {
+            resolve_frame_markers(&mut function.body, &resolved);
         }
+    }
+
+    /// The slots a function's own frame holds: its locals, parameters, and
+    /// temporaries, in allocation order.
+    fn frame_fields(&self, function: DefId) -> Vec<String> {
+        let temps = format!("f{}_t", function.0);
+        self.local_fields
+            .iter()
+            .filter(|name| {
+                if name.starts_with(&temps) {
+                    return true;
+                }
+                let Some(local) = name
+                    .strip_prefix('v')
+                    .and_then(|rest| rest.split_once('_'))
+                    .and_then(|(index, _)| index.parse::<usize>().ok())
+                else {
+                    return false;
+                };
+                matches!(
+                    self.defs.get(local).map(|d| &d.info),
+                    Some(DefInfo::Local { owner: Some(owner), .. }) if *owner == function
+                )
+            })
+            .cloned()
+            .collect()
     }
 
     fn module_identity(&self, module: ModuleId) -> String {
@@ -2800,7 +2861,7 @@ impl Cx {
                     file,
                     function.name.span,
                     format!(
-                        "`{}` must return an `{ty}` on every path",
+                        "`{}` must return a `{ty}` on every path",
                         function.name.name
                     ),
                 )
@@ -2808,14 +2869,6 @@ impl Cx {
             );
         }
         self.local_lints(&body);
-        let has_slots = !body.locals.is_empty()
-            || slots
-                .as_ref()
-                .is_some_and(|s| s.ret.is_some() || !s.params.is_empty())
-            || self
-                .local_fields
-                .iter()
-                .any(|f| f.starts_with(&format!("{}_t", body.slot)));
         lowerer.raw |= body.raw;
         lowerer.facts.insert(
             def,
@@ -2823,7 +2876,6 @@ impl Cx {
                 entity_direct: body.entity_use.clone(),
                 entity_loop_calls: body.entity_loop_calls.clone(),
                 all_calls: body.all_calls.clone(),
-                has_slots,
                 schedules: body.schedules.clone(),
                 forced,
                 direct: body.player_use,
@@ -3179,7 +3231,7 @@ impl Cx {
     }
 
     fn lower_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
-        let mut ops = Vec::new();
+        let mut segments: Vec<(Vec<pc::Operation>, Option<pc::FieldReference>)> = Vec::new();
         body.scopes.push(Vec::new());
         body.block_ends.push(block.span.end);
         let mut exited = false;
@@ -3196,8 +3248,45 @@ impl Cx {
                 );
                 break;
             }
-            self.lower_stmt(body, stmt, &mut ops);
+            let mut lowered = Vec::new();
+            self.lower_stmt(body, stmt, &mut lowered);
             exited = stmt_exits(stmt);
+            // After a nested `break` or `continue`, the rest of this pass
+            // runs only while the jump flag is clear.
+            let flag = body
+                .jumps
+                .last()
+                .filter(|jump| jump.executor_loops == body.loops.len())
+                .and_then(|jump| jump.flag.clone());
+            let guard = (!exited
+                && (statements::jumps_here(stmt, true) || statements::jumps_here(stmt, false)))
+            .then_some(flag)
+            .flatten();
+            segments.push((lowered, guard));
+        }
+        let mut ops = Vec::new();
+        for (lowered, guard) in segments.into_iter().rev() {
+            if let Some(flag) = guard
+                && !ops.is_empty()
+            {
+                let origin = ops.first().and_then(|op: &pc::Operation| op.origin.clone());
+                let rest = std::mem::take(&mut ops);
+                ops.push(pc::Operation {
+                    action: pc::Action::Branch {
+                        condition: pc::Condition::Range(pc::ScoreComparison {
+                            score: flag,
+                            min: Some(0),
+                            max: Some(0),
+                        }),
+                        then: rest,
+                        otherwise: Vec::new(),
+                    },
+                    origin,
+                });
+            }
+            let mut segment = lowered;
+            segment.append(&mut ops);
+            ops = segment;
         }
         body.block_ends.pop();
         body.scopes.pop();
@@ -3230,26 +3319,28 @@ impl Cx {
                 ops,
             ),
             Stmt::Return { value, span } => self.lower_return(body, value.as_ref(), *span, ops),
-            Stmt::Continue(span) => {
-                if body.loops.is_empty() {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            "control",
-                            file,
-                            *span,
-                            "`continue` only works inside a `for` loop",
-                        )
-                        .with_help("it skips to the next player or entity"),
-                    );
-                } else {
-                    ops.push(op_at(pc::Action::Return, file, *span));
-                }
-            }
+            Stmt::Continue(span) => self.lower_jump(body, false, *span, ops),
+            Stmt::Break(span) => self.lower_jump(body, true, *span, ops),
             Stmt::While {
                 cond,
                 body: block,
                 span,
-            } => self.lower_while(body, cond, block, *span, ops),
+            } => self.lower_repeat(body, statements::Repeat::While(cond), block, *span, ops),
+            Stmt::Loop { body: block, span } => {
+                self.lower_repeat(body, statements::Repeat::Forever, block, *span, ops)
+            }
+            Stmt::ForRange {
+                binding,
+                range,
+                body: block,
+                span,
+            } => self.lower_repeat(
+                body,
+                statements::Repeat::Count { binding, range },
+                block,
+                *span,
+                ops,
+            ),
             Stmt::Call { path, args, span } => self.lower_call(body, path, args, *span, ops),
             Stmt::Macro { name, args, span } => self.lower_macro(body, name, args, *span, ops),
             Stmt::If(if_stmt) => {
@@ -3466,6 +3557,20 @@ impl Cx {
         };
         match cond {
             Cond::Call { path, args, span } => {
+                let name = &path.last().name;
+                let builtin = path.segments.len() == 1
+                    && !self.scopes[body.module.0].contains_key(name)
+                    && Self::lookup_local(body, name).is_none()
+                    && crate::builtins::find(name, crate::builtins::BuiltinKind::Condition).is_some();
+                if !builtin {
+                    // A function returning `bool`, tested like a variable.
+                    let call = Expr::Call {
+                        path: path.clone(),
+                        args: args.clone(),
+                        span: *span,
+                    };
+                    return self.atom_inner(body, &Cond::Value(call), pre);
+                }
                 self.predicate(body, path, args, *span).map(|c| (c, false))
             }
             Cond::Value(expr) => {
@@ -3850,7 +3955,10 @@ fn stmt_span(stmt: &Stmt) -> Span {
         Stmt::Let { span, .. }
         | Stmt::Return { span, .. }
         | Stmt::Continue(span)
+        | Stmt::Break(span)
         | Stmt::While { span, .. }
+        | Stmt::Loop { span, .. }
+        | Stmt::ForRange { span, .. }
         | Stmt::Assign { span, .. }
         | Stmt::Call { span, .. }
         | Stmt::Macro { span, .. }
@@ -3863,7 +3971,7 @@ fn stmt_span(stmt: &Stmt) -> Span {
 /// Whether control never continues past this statement.
 fn stmt_exits(stmt: &Stmt) -> bool {
     match stmt {
-        Stmt::Return { .. } | Stmt::Continue(_) => true,
+        Stmt::Return { .. } | Stmt::Continue(_) | Stmt::Break(_) => true,
         Stmt::If(if_stmt) => if_exits(if_stmt),
         _ => false,
     }
@@ -3945,6 +4053,39 @@ fn flatten_use(tree: &UseTree, prefix: &[Ident], out: &mut Vec<(Path, Ident)>) {
     }
 }
 
+/// Replace frame placeholders with their resolved fields, or drop them.
+fn resolve_frame_markers(ops: &mut Vec<pc::Operation>, resolved: &[Option<Vec<pc::FieldReference>>]) {
+    let index_of = |fields: &[pc::FieldReference]| {
+        fields
+            .first()
+            .and_then(|field| field.field.strip_prefix(statements::FRAME_MARKER))
+            .and_then(|index| index.parse::<usize>().ok())
+    };
+    ops.retain_mut(|op| match &mut op.action {
+        pc::Action::PushFrame { fields } | pc::Action::PopFrame { fields } => {
+            match index_of(fields).and_then(|index| resolved.get(index).cloned().flatten()) {
+                Some(frame) => {
+                    *fields = frame;
+                    true
+                }
+                None => index_of(fields).is_none(),
+            }
+        }
+        pc::Action::Branch { then, otherwise, .. } => {
+            resolve_frame_markers(then, resolved);
+            resolve_frame_markers(otherwise, resolved);
+            true
+        }
+        pc::Action::Players { body }
+        | pc::Action::Entities { body, .. }
+        | pc::Action::While { body, .. } => {
+            resolve_frame_markers(body, resolved);
+            true
+        }
+        _ => true,
+    });
+}
+
 #[derive(Default)]
 struct Lowering {
     /// Schedules made from generated flow hook bodies.
@@ -3970,13 +4111,22 @@ struct Facts {
     entity_direct: Option<(Span, String)>,
     entity_loop_calls: Vec<(DefId, Span)>,
     all_calls: Vec<(DefId, Span)>,
-    has_slots: bool,
     schedules: Vec<(DefId, Span)>,
     forced: Option<Span>,
     direct: Option<(Span, String)>,
     calls: Vec<(DefId, Span)>,
     entry: Vec<(String, Span)>,
     file: FileId,
+}
+
+/// A `while`, `loop`, or counting `for` that `break` and `continue` target.
+struct Jump {
+    /// 0 during a pass, 1 after `continue`, 2 after `break`; present when
+    /// the body jumps.
+    flag: Option<pc::FieldReference>,
+    /// Executor loops already open when this loop started; a jump inside a
+    /// deeper `players()` or `entities(..)` loop targets that loop instead.
+    executor_loops: usize,
 }
 
 /// The kind of an executor-changing loop.
@@ -4010,6 +4160,8 @@ struct BodyCx {
     all_calls: Vec<(DefId, Span)>,
     /// Enclosing executor loops, innermost last.
     loops: Vec<LoopKind>,
+    /// Enclosing `while`, `loop`, and counting `for` loops, innermost last.
+    jumps: Vec<Jump>,
     /// Calls made as entities inside `entities(..)` loops.
     entity_loop_calls: Vec<(DefId, Span)>,
     /// First use that needs an entity executor outside any loop.
@@ -4042,6 +4194,7 @@ impl BodyCx {
             assigned: HashSet::new(),
             all_calls: Vec::new(),
             loops: Vec::new(),
+            jumps: Vec::new(),
             entity_loop_calls: Vec::new(),
             entity_use: None,
             pending: Vec::new(),

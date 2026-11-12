@@ -1305,12 +1305,7 @@ impl Validator<'_, '_> {
                     attribute,
                     scale,
                 } => {
-                    self.player(
-                        context,
-                        owner,
-                        &ptr,
-                        "reading the executing player's attribute",
-                    );
+                    self.executor(context, owner, &ptr, "reading the executor's attribute");
                     self.score(score, context, owner, &format!("{ptr}/action/score"));
                     self.resource(
                         attribute,
@@ -1328,12 +1323,7 @@ impl Validator<'_, '_> {
                     }
                 }
                 Action::AttributeSet { attribute, value } => {
-                    self.player(
-                        context,
-                        owner,
-                        &ptr,
-                        "setting the executing player's attribute",
-                    );
+                    self.executor(context, owner, &ptr, "setting the executor's attribute");
                     self.resource(
                         attribute,
                         owner,
@@ -1372,6 +1362,49 @@ impl Validator<'_, '_> {
                     );
                 }
                 Action::Kill => self.executor(context, owner, &ptr, "killing the executor"),
+                Action::PushFrame { fields } | Action::PopFrame { fields } => {
+                    if fields.is_empty() {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_STATE",
+                            owner,
+                            &format!("{ptr}/action/fields"),
+                            "a call frame saves at least one field",
+                        ));
+                    }
+                    let mut seen = std::collections::BTreeSet::new();
+                    for (index, field) in fields.iter().enumerate() {
+                        let field_ptr = format!("{ptr}/action/fields/{index}");
+                        self.score(field, context, owner, &field_ptr);
+                        if !seen.insert((field.state.to_string(), field.field.clone())) {
+                            self.errors.push(Diagnostic::error(
+                                "SAND_PROGRAM_STATE",
+                                owner,
+                                &field_ptr,
+                                "a call frame names each field once",
+                            ));
+                        }
+                    }
+                }
+                Action::DataGet {
+                    score,
+                    value,
+                    scale,
+                } => {
+                    if value.player_only() {
+                        self.player(context, owner, &ptr, "reading player data");
+                    } else {
+                        self.executor(context, owner, &ptr, "reading entity data");
+                    }
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    if !(scale.is_finite() && *scale > 0.0) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/scale"),
+                            "data scale must be finite and positive",
+                        ));
+                    }
+                }
                 Action::Damage { amount } => {
                     self.executor(context, owner, &ptr, "damaging the executor");
                     if !(amount.is_finite() && *amount > 0.0) {

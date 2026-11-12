@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::builtins::{self, Builtin, BuiltinKind};
+use crate::properties::{Property, PropertyKind, PropertyType};
 
 /// A value that needs no computation: a constant or one score read.
 #[derive(Debug, Clone)]
@@ -205,6 +206,14 @@ impl Cx {
                     Err(_) => Ty::Unknown,
                 }
             }
+            Expr::Place(place) if self.is_handle(body, place) => {
+                match crate::properties::find(&place.field.name).map(|p| p.ty) {
+                    Some(PropertyType::Number) => Ty::Number,
+                    Some(PropertyType::Float) => Ty::Float,
+                    Some(PropertyType::Bool) => Ty::Bool,
+                    None => Ty::Unknown,
+                }
+            }
             Expr::Place(place) => {
                 let Ok((state, _)) = self.resolve_path(body.module, &place.state) else {
                     return Ty::Unknown;
@@ -277,6 +286,9 @@ impl Cx {
             return Ok(Some(Value::Read(self.local_ref(local))));
         }
         if let Expr::Place(place) = expr {
+            if self.is_handle(body, place) {
+                return Ok(None);
+            }
             let (state, field, field_ty) = self.resolve_place(module, file, place).ok_or(())?;
             body.note_state(self, state, place, "reads");
             if !self.types_agree(file, place.span, ty, field_ty) {
@@ -489,6 +501,36 @@ impl Cx {
                 };
                 self.apply(file, dest, ty, *op, value, rhs.span(), ops)
             }
+            Expr::Place(place) => {
+                let property = self.entity_property(body, place)?;
+                let found = match property.ty {
+                    PropertyType::Number => Ty::Number,
+                    PropertyType::Float => Ty::Float,
+                    PropertyType::Bool => Ty::Bool,
+                };
+                if !self.types_agree(file, place.span, ty, found) {
+                    return None;
+                }
+                let scale = if found == Ty::Float {
+                    FLOAT_SCALE as f64
+                } else {
+                    1.0
+                };
+                let action = match property.kind {
+                    PropertyKind::Attribute(attribute) => pc::Action::AttributeGet {
+                        score: dest.clone(),
+                        attribute,
+                        scale,
+                    },
+                    PropertyKind::Data(value) => pc::Action::DataGet {
+                        score: dest.clone(),
+                        value,
+                        scale,
+                    },
+                };
+                ops.push(op_at(action, file, place.span));
+                Some(())
+            }
             Expr::Str { span: s, .. } => {
                 self.error("type", file, *s, "expected a value, found text");
                 None
@@ -563,7 +605,7 @@ impl Cx {
         Some(())
     }
 
-    /// A call used as a value: `random(..)`, `get_attribute(..)`, or a function
+    /// A call used as a value: `random(..)`, `count_entities(..)`, or a function
     /// with a return type.
     #[allow(clippy::too_many_arguments)]
     fn emit_call(
@@ -586,7 +628,7 @@ impl Cx {
         if let Some(builtin) = builtin {
             self.references_builtin(file, path.span, builtin);
             self.expect_numeric(file, span, ty)?;
-            if builtin.name != "get_attribute" && !self.types_agree(file, span, ty, Ty::Number) {
+            if !self.types_agree(file, span, ty, Ty::Number) {
                 return None;
             }
             let bound = self.bind_args(body, builtin, args, span)?;
@@ -624,29 +666,6 @@ impl Cx {
                         score: dest.clone(),
                         min: min as i32,
                         max: max as i32,
-                    }
-                }
-                "get_attribute" => {
-                    body.note_player(
-                        path.span,
-                        "reads an attribute of the executing player".into(),
-                    );
-                    let attribute = self.arg_id(body, bound["attribute"], "Attribute")?;
-                    let scale = match bound.get("scale") {
-                        Some(arg) => self.arg_number(body, arg, 0.0001, 1_000_000.0)?,
-                        None => 1.0,
-                    };
-                    // A `float` destination keeps three decimals.
-                    let scale = f64::from(scale)
-                        * if ty == Ty::Float {
-                            FLOAT_SCALE as f64
-                        } else {
-                            1.0
-                        };
-                    pc::Action::AttributeGet {
-                        score: dest.clone(),
-                        attribute,
-                        scale,
                     }
                 }
                 "count_entities" => pc::Action::CountEntities {
@@ -1760,10 +1779,6 @@ impl Cx {
                 ),
             );
         }
-        if builtin.name == "set_attribute" {
-            self.lower_set_attribute(body, &bound, span, ops);
-            return;
-        }
         if matches!(builtin.name, "set_bossbar" | "set_bossbar_max") {
             self.lower_set_bossbar(body, builtin, &bound, span, ops);
             return;
@@ -2185,75 +2200,194 @@ impl Cx {
         ok.then_some(query)
     }
 
-    fn lower_set_attribute(
+    /// Whether `Handle.field` names an entity handle rather than a State:
+    /// `Player` (when no item of that name is in scope) or the binding of an
+    /// enclosing `players()` or `entities(..)` loop.
+    pub(super) fn is_handle(&self, body: &BodyCx, place: &Place) -> bool {
+        let [segment] = place.state.segments.as_slice() else {
+            return false;
+        };
+        let name = segment.name.as_str();
+        body.loop_bindings.iter().any(|b| b == name)
+            || (name == "Player" && !self.scopes[body.module.0].contains_key(name))
+    }
+
+    /// Resolve a property of a handle, checking that the handle is the
+    /// executor and that the property exists on it.
+    fn entity_property(&mut self, body: &mut BodyCx, place: &Place) -> Option<Property> {
+        let file = body.file;
+        let handle = place.state.segments[0].name.clone();
+        let name = &place.field.name;
+        let Some(property) = crate::properties::find(name) else {
+            let suggestions = crate::properties::suggest(name);
+            let mut diagnostic = Diagnostic::error(
+                "resolve",
+                file,
+                place.field.span,
+                format!("`{handle}` has no property `{name}`"),
+            );
+            diagnostic = if suggestions.is_empty() {
+                diagnostic.with_help("properties are entity data such as `health`, `food`, and `on_ground`, and every attribute, such as `max_health` or `step_height`")
+            } else {
+                diagnostic.with_help(format!(
+                    "did you mean {}?",
+                    suggestions
+                        .iter()
+                        .map(|s| format!("`{s}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))
+            };
+            self.diagnostics.push(diagnostic);
+            return None;
+        };
+        self.property_uses.push(super::PropertyUse {
+            file,
+            span: place.field.span,
+            handle: handle.clone(),
+            property: property.clone(),
+        });
+        if handle == "Player" && !body.loop_bindings.iter().any(|b| b == "Player") {
+            body.note_player(
+                place.span,
+                format!("reads `Player.{name}`, which needs a player"),
+            );
+            return Some(property);
+        }
+        let innermost = body.loop_bindings.last().map(String::as_str);
+        if innermost != Some(handle.as_str()) {
+            let current = innermost.unwrap_or_default().to_string();
+            self.diagnostics.push(
+                Diagnostic::error(
+                    "context",
+                    file,
+                    place.state.span,
+                    format!("`{handle}` is not the executing entity here"),
+                )
+                .with_help(format!(
+                    "only the innermost loop's `{current}` can be read or changed; copy `{handle}.{name}` into a `let` before the inner loop"
+                )),
+            );
+            return None;
+        }
+        if property.player_only && body.loops.last() == Some(&super::LoopKind::Entities) {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    "context",
+                    file,
+                    place.field.span,
+                    format!("only players have `{name}`, but `entities(..)` may match other entities"),
+                )
+                .with_help("read it in `for player in players()`, or as `Player.{name}` in a player function"),
+            );
+            return None;
+        }
+        Some(property)
+    }
+
+    /// `Player.max_health = 40.0;`, `zombie.scale *= 2;`, and the other
+    /// assignments to a handle's attribute.
+    pub(super) fn lower_property_assign(
         &mut self,
         body: &mut BodyCx,
-        bound: &BTreeMap<&'static str, &Arg>,
+        place: &Place,
+        op: AssignOp,
+        value: &Expr,
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
         let file = body.file;
-        let Some(attribute) = self.arg_id(body, bound["attribute"], "Attribute") else {
+        let Some(property) = self.entity_property(body, place) else {
             return;
         };
-        let scale = match bound.get("scale") {
-            Some(arg) => match self.arg_number(body, arg, 0.0001, 1_000_000.0) {
-                Some(scale) => f64::from(scale),
-                None => return,
-            },
-            None => 1.0,
-        };
-        let ArgValue::Expr(expr) = &bound["value"].value else {
-            self.error("type", file, bound["value"].span, "expected a value");
+        let PropertyKind::Attribute(attribute) = property.kind.clone() else {
+            let help = match property.name.as_str() {
+                "health" => "change health with `damage(...)` or a healing effect such as `add_effect(Effect::InstantHealth, ...)`",
+                "food" | "saturation" => "feed the player with an effect such as `add_effect(Effect::Saturation, ...)`",
+                "xp_level" | "xp_total" | "xp_progress" => "give experience with `add_experience(...)`",
+                "x" | "y" | "z" => "move it with `teleport(...)` or `teleport_by(...)`",
+                _ => "entity data can be read but not written",
+            };
+            self.diagnostics.push(
+                Diagnostic::error(
+                    "assign",
+                    file,
+                    place.field.span,
+                    format!("`{}.{}` is read-only", place.state.display(), property.name),
+                )
+                .with_help(help),
+            );
             return;
         };
-        let value = match expr {
-            Expr::Float(value, _) => pc::Amount::Value(*value / scale),
-            Expr::Neg(inner, _) if matches!(**inner, Expr::Float(..)) => {
-                let Expr::Float(value, _) = **inner else {
-                    unreachable!()
-                };
-                pc::Amount::Value(-value / scale)
-            }
-            expr if Self::is_const_in(body, expr) => {
-                let ty = self.type_of(body, expr);
-                let Some(v) = self.eval_i32(body.module, file, expr, Some(ty), None) else {
+        let compound = match op {
+            AssignOp::Set => None,
+            AssignOp::Add => Some(BinOp::Add),
+            AssignOp::Sub => Some(BinOp::Sub),
+            AssignOp::Mul => Some(BinOp::Mul),
+            AssignOp::Div => Some(BinOp::Div),
+            AssignOp::Rem => Some(BinOp::Rem),
+        };
+        let amount = match compound {
+            None if Self::is_const_in(body, value) => {
+                let Some(v) = self.eval_i32(body.module, file, value, Some(Ty::Float), None) else {
                     return;
                 };
-                let divisor = if ty == Ty::Float {
-                    FLOAT_SCALE as f64 * scale
-                } else {
-                    scale
-                };
-                pc::Amount::Value(v as f64 / divisor)
+                pc::Amount::Value(v as f64 / FLOAT_SCALE as f64)
             }
-            expr => {
-                let ty = self.type_of(body, expr);
-                let reference = match self.simple(body, expr, ty) {
-                    Ok(Some(Value::Read(reference))) => reference,
-                    Ok(_) => {
-                        let depth = body.temp_depth;
-                        let temp = self.temp(body);
-                        if self.emit(body, &temp, ty, expr, ops).is_none() {
+            None => {
+                let depth = body.temp_depth;
+                let temp = self.temp(body);
+                if self.emit(body, &temp, Ty::Float, value, ops).is_none() {
+                    return;
+                }
+                body.temp_depth = depth;
+                pc::Amount::Field(pc::ScaledField {
+                    score: temp,
+                    scale: FLOAT_SCALE as f64,
+                })
+            }
+            Some(bin) => {
+                // Read the current base value, combine, and write it back.
+                let depth = body.temp_depth;
+                let temp = self.temp(body);
+                ops.push(op_at(
+                    pc::Action::AttributeGet {
+                        score: temp.clone(),
+                        attribute: attribute.clone(),
+                        scale: FLOAT_SCALE as f64,
+                    },
+                    file,
+                    place.span,
+                ));
+                let operand = match self.simple(body, value, Ty::Float) {
+                    Ok(Some(operand)) => operand,
+                    Ok(None) => {
+                        let rhs = self.temp(body);
+                        if self.emit(body, &rhs, Ty::Float, value, ops).is_none() {
                             return;
                         }
-                        body.temp_depth = depth;
-                        temp
+                        Value::Read(rhs)
                     }
                     Err(()) => return,
                 };
+                if self
+                    .apply(file, &temp, Ty::Float, bin, operand, value.span(), ops)
+                    .is_none()
+                {
+                    return;
+                }
+                body.temp_depth = depth;
                 pc::Amount::Field(pc::ScaledField {
-                    score: reference,
-                    scale: if ty == Ty::Float {
-                        FLOAT_SCALE as f64 * scale
-                    } else {
-                        scale
-                    },
+                    score: temp,
+                    scale: FLOAT_SCALE as f64,
                 })
             }
         };
         ops.push(op_at(
-            pc::Action::AttributeSet { attribute, value },
+            pc::Action::AttributeSet {
+                attribute,
+                value: amount,
+            },
             file,
             span,
         ));

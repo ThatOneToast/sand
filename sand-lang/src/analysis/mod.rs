@@ -278,6 +278,11 @@ pub struct Analysis {
     pub local_scopes: Vec<(FileId, Span, DefId)>,
     /// Typed vanilla values such as `Item::Diamond`, for hover.
     pub vanilla_uses: Vec<VanillaUse>,
+    /// Entity properties such as `Player.health`, for hover.
+    pub property_uses: Vec<PropertyUse>,
+    /// Loop bodies where a binding is an entity handle: (file, body, name,
+    /// whether it is a player), for completion after `zombie.`.
+    pub handle_scopes: Vec<(FileId, Span, String, bool)>,
     /// Program pointers mapped back to source, for backend diagnostics.
     pointers: Vec<(String, String, FileId, Span)>,
 }
@@ -417,6 +422,8 @@ pub fn analyze(package: Package) -> Analysis {
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
+        property_uses: Vec::new(),
+        handle_scopes: Vec::new(),
     };
     cx.collect();
     cx.resolve_imports();
@@ -441,6 +448,8 @@ pub fn analyze(package: Package) -> Analysis {
         builtin_uses: cx.builtin_uses,
         local_scopes: cx.local_scopes,
         vanilla_uses: cx.vanilla_uses,
+        property_uses: cx.property_uses,
+        handle_scopes: cx.handle_scopes,
     }
 }
 
@@ -500,6 +509,8 @@ struct Cx {
     handler_attrs: HashSet<(FileId, Span)>,
     /// Caller and callee of each frame marker, indexed by marker number.
     call_frames: Vec<(Option<DefId>, DefId)>,
+    property_uses: Vec<PropertyUse>,
+    handle_scopes: Vec<(FileId, Span, String, bool)>,
 }
 
 /// How many score units represent `1.0` in a `float`, matching Rust's
@@ -513,6 +524,19 @@ pub(crate) fn is_int_literal(expr: &Expr) -> bool {
         Expr::Neg(inner, _) => is_int_literal(inner),
         _ => false,
     }
+}
+
+/// One entity property written in source, such as `Player.health`.
+#[derive(Debug, Clone)]
+pub struct PropertyUse {
+    /// File containing the use.
+    pub file: FileId,
+    /// The property name's span.
+    pub span: Span,
+    /// The handle as written: `Player` or a loop binding.
+    pub handle: String,
+    /// The property.
+    pub property: crate::properties::Property,
 }
 
 /// One typed vanilla value written in source, such as `Item::Diamond`.
@@ -3302,7 +3326,12 @@ impl Cx {
                 op,
                 value,
                 span,
-            } => self.lower_assign(body, target, *op, value, *span, ops),
+            } => match target {
+                AssignTarget::Place(place) if self.is_handle(body, place) => {
+                    self.lower_property_assign(body, place, *op, value, *span, ops)
+                }
+                _ => self.lower_assign(body, target, *op, value, *span, ops),
+            },
             Stmt::Let {
                 mutable,
                 name,
@@ -3348,11 +3377,11 @@ impl Cx {
                 ops.extend(lowered);
             }
             Stmt::For {
+                binding,
                 source,
                 args,
                 body: block,
                 span,
-                ..
             } => {
                 let name = (source.segments.len() == 1).then(|| source.segments[0].name.as_str());
                 let kind = match name {
@@ -3399,6 +3428,13 @@ impl Cx {
                 let was = body.in_players;
                 body.in_players = true;
                 body.loops.push(kind);
+                body.loop_bindings.push(binding.name.clone());
+                self.handle_scopes.push((
+                    file,
+                    block.span,
+                    binding.name.clone(),
+                    kind == LoopKind::Players,
+                ));
                 if kind == LoopKind::Players {
                     body.player_loops += 1;
                 }
@@ -3407,6 +3443,7 @@ impl Cx {
                     body.player_loops -= 1;
                 }
                 body.loops.pop();
+                body.loop_bindings.pop();
                 body.in_players = was;
                 let action = match query {
                     None => pc::Action::Players { body: inner },
@@ -4160,6 +4197,8 @@ struct BodyCx {
     all_calls: Vec<(DefId, Span)>,
     /// Enclosing executor loops, innermost last.
     loops: Vec<LoopKind>,
+    /// The binding of each executor loop, parallel to `loops`.
+    loop_bindings: Vec<String>,
     /// Enclosing `while`, `loop`, and counting `for` loops, innermost last.
     jumps: Vec<Jump>,
     /// Calls made as entities inside `entities(..)` loops.
@@ -4194,6 +4233,7 @@ impl BodyCx {
             assigned: HashSet::new(),
             all_calls: Vec::new(),
             loops: Vec::new(),
+            loop_bindings: Vec::new(),
             jumps: Vec::new(),
             entity_loop_calls: Vec::new(),
             entity_use: None,

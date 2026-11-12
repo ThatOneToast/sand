@@ -948,67 +948,6 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "schedule(${1:function}, seconds = ${2:5});",
     },
     Builtin {
-        name: "set_attribute",
-        kind: BuiltinKind::Statement,
-        signature: "set_attribute(Attribute::..., value, scale = 1)",
-        summary: "Set the base value of one of the executing player's attributes.",
-        details: "`value` may be a constant like `40.0` or any integer expression, such as \
-                  `get_attribute(Attribute::MaxHealth) + 4`. Integer expressions are divided by \
-                  `scale`, so `set_attribute(Attribute::MovementSpeed, speed, scale = 1000)` \
-                  sets 0.1 when `speed` is 100. Common attributes: `Attribute::MaxHealth`, \
-                  `Attribute::MovementSpeed`, `Attribute::AttackDamage`, `Attribute::Armor`, \
-                  `Attribute::Scale`.",
-        minecraft: "attribute @s <attribute> base set <value> (through a macro for computed values)",
-        needs_player: true,
-        params: &[
-            p(
-                "attribute",
-                ParamKind::Registry("Attribute"),
-                true,
-                "Attribute, such as `Attribute::MaxHealth`.",
-            ),
-            p(
-                "value",
-                ParamKind::Number,
-                true,
-                "New base value: a constant or integer expression.",
-            ),
-            p(
-                "scale",
-                ParamKind::Number,
-                false,
-                "Divisor for integer expressions; default 1.",
-            ),
-        ],
-        snippet: "set_attribute(Attribute::${1:MaxHealth}, ${2:24.0});",
-    },
-    Builtin {
-        name: "get_attribute",
-        kind: BuiltinKind::Expression,
-        signature: "get_attribute(Attribute::..., scale = 1)",
-        summary: "The executing player's attribute base value, as an integer.",
-        details: "The value is multiplied by `scale` and truncated, so \
-                  `get_attribute(Attribute::MovementSpeed, scale = 1000)` reads 0.1 as 100. \
-                  Max health is in half-hearts: 20 is ten hearts.",
-        minecraft: "execute store result score ... run attribute @s <attribute> base get <scale>",
-        needs_player: true,
-        params: &[
-            p(
-                "attribute",
-                ParamKind::Registry("Attribute"),
-                true,
-                "Attribute, such as `Attribute::MaxHealth`.",
-            ),
-            p(
-                "scale",
-                ParamKind::Number,
-                false,
-                "Multiplier before truncation; default 1.",
-            ),
-        ],
-        snippet: "get_attribute(Attribute::${1:MaxHealth})",
-    },
-    Builtin {
         name: "random",
         kind: BuiltinKind::Expression,
         signature: "random(min..=max)",

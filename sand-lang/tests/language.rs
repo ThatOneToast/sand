@@ -31,7 +31,7 @@ fn heart_price(owned: number) -> number {
 
 #[on(use_item = Item::CarrotOnAStick)]
 fn buy_heart() {
-    let health = get_attribute(Attribute::MaxHealth);
+    let health = Player.max_health as number;
     if health >= 40 {
         actionbar!("{gold}You already have the maximum health.");
         return;
@@ -42,7 +42,7 @@ fn buy_heart() {
         return;
     }
     Wallet.coins -= price;
-    set_attribute(Attribute::MaxHealth, health + 2);
+    Player.max_health = (health + 2) as float;
 }
 "#;
 
@@ -58,7 +58,7 @@ fn spending_coins_on_max_health_compiles_with_early_returns() {
     );
     assert!(buy.contains(" run return 1"), "{buy}");
     assert!(
-        buy.contains("run attribute @s minecraft:max_health base get 1"),
+        buy.contains("run attribute @s minecraft:max_health base get 1000"),
         "{buy}"
     );
     assert!(buy.contains("function demo:heart_price"), "{buy}");
@@ -335,7 +335,7 @@ fn f() {
     give_item(Item::Diamond, 2);
     add_effect(Effect::Speed, seconds = 5);
     spawn_particle(Particle::Heart);
-    set_attribute(Attribute::MaxHealth, 24.0);
+    Player.max_health = 24.0;
     give_item(Effect::Speed);
     give_item(Item::Diamon);
     give_item("minecraft:diamond");

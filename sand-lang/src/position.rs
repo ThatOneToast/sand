@@ -18,6 +18,8 @@ pub(crate) enum Scope {
     Block,
     /// `for name in players()` / `entities(..)` body.
     Loop { entities: bool },
+    /// `while`, `loop`, or counting `for i in a..b` body.
+    Repeat,
     /// `player state Name { ... }`.
     State,
     /// `enum Name { ... }`.
@@ -116,6 +118,9 @@ pub(crate) struct Body {
     pub returns: bool,
     /// Innermost executor loop: `Some(true)` for `entities`, `Some(false)` for `players`.
     pub executor_loop: Option<bool>,
+    /// The innermost loop is a `while`, `loop`, or counting `for`, which
+    /// `break` and `continue` target.
+    pub in_repeat: bool,
     /// Inside a flow hook body.
     pub hook: bool,
 }
@@ -359,10 +364,11 @@ fn scope_of(masked: &str, open: usize, kind: u8, parents: &[Scope]) -> Scope {
                 },
                 "mod" => Scope::Items,
                 "use" => Scope::UseGroup,
-                "for" => Scope::Loop {
+                "for" if rest.contains("players") || rest.contains("entities") => Scope::Loop {
                     entities: rest.contains("entities"),
                 },
-                "if" | "else" | "while" => Scope::Block,
+                "for" | "while" | "loop" => Scope::Repeat,
+                "if" | "else" => Scope::Block,
                 "enter" | "exit" | "tick" if matches!(parent, Some(Scope::Flow { .. })) => {
                     Scope::Hook
                 }
@@ -490,10 +496,16 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
 
     let body = || {
         let mut body = Body::default();
+        let mut seen_loop = false;
         for scope in scopes.iter().rev() {
             match scope {
                 Scope::Loop { entities } if body.executor_loop.is_none() => {
-                    body.executor_loop = Some(*entities)
+                    body.executor_loop = Some(*entities);
+                    seen_loop = true;
+                }
+                Scope::Repeat if !seen_loop => {
+                    body.in_repeat = true;
+                    seen_loop = true;
                 }
                 Scope::Function { returns } => {
                     body.returns = *returns;
@@ -511,7 +523,11 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
 
     match &innermost {
         Scope::Items => items_position(&context),
-        Scope::Function { .. } | Scope::Hook | Scope::Block | Scope::Loop { .. } => {
+        Scope::Function { .. }
+        | Scope::Hook
+        | Scope::Block
+        | Scope::Loop { .. }
+        | Scope::Repeat => {
             statement_position(&context, body())
         }
         Scope::Call { .. } => Position::Expression(body()),

@@ -204,7 +204,7 @@ fn statements_and_expressions() {
             "Hero",
             "Item",
             "random",
-            "get_attribute",
+            "Player",
             "count_entities",
         ],
         &["act", "let", "give_item", "entities"],

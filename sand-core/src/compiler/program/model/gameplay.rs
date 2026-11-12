@@ -307,7 +307,10 @@ pub enum EntityData {
 
 impl EntityData {
     /// The entity data path that holds this value.
-    pub(crate) fn path(self) -> &'static str {
+    ///
+    /// `DataGet` reads it with `data get entity @s <path>`.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::advanced::compiler::EntityData::path", summary = "The entity data path that holds this value, such as `Health` or `Pos[1]`.", context = "Language hosts show it in editor help; lowering reads it with data get.", minecraft = "The NBT path passed to `data get entity @s`.", use_when = ["Explaining which entity data a DataGet reads"], avoid_when = ["Reading the value; emit a DataGet operation"], returns = "The entity data path.", example = "assert_eq!(sand::advanced::compiler::EntityData::Health.path(), \"Health\");")]
+    pub fn path(self) -> &'static str {
         match self {
             Self::Health => "Health",
             Self::Absorption => "AbsorptionAmount",
@@ -328,7 +331,10 @@ impl EntityData {
     }
 
     /// Whether only players carry this value.
-    pub(crate) fn player_only(self) -> bool {
+    ///
+    /// Validation requires a player executor for these values.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::advanced::compiler::EntityData::player_only", summary = "Whether only players carry this value, such as food or experience.", context = "Language hosts reject reading these from other entities before validation does.", minecraft = "Players store hunger, experience, and the selected slot; other entities do not.", use_when = ["Checking whether a DataGet needs a player executor"], avoid_when = ["Values every living entity has, such as health"], returns = "True for player-only values.", example = "assert!(sand::advanced::compiler::EntityData::Food.player_only());")]
+    pub fn player_only(self) -> bool {
         matches!(
             self,
             Self::Food

@@ -345,6 +345,16 @@ fn word_at(text: &str, offset: usize) -> Option<(usize, usize)> {
 fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<Hover> {
     use crate::builtins;
     if let Some(used) = analysis
+        .property_uses
+        .iter()
+        .find(|u| u.file == file && u.span.contains(offset))
+    {
+        return Some(Hover {
+            markdown: used.property.describe(&used.handle),
+            span: used.span,
+        });
+    }
+    if let Some(used) = analysis
         .vanilla_uses
         .iter()
         .find(|u| u.file == file && u.span.contains(offset))
@@ -405,6 +415,22 @@ fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<
                 color => format!("Colours the following text {}.", color.replace('_', " ")),
             };
             return markdown(format!("`{{{word}}}`: {doc}"));
+        }
+    }
+    if text[end..].starts_with('.') {
+        match handle_at(analysis, file, offset, word) {
+            Some(true) if word == "Player" => {
+                return markdown(format!("```sand\nPlayer\n```\n\n{PLAYER_DOC}"));
+            }
+            Some(player) => {
+                let what = if player { "player" } else { "entity" };
+                return markdown(format!(
+                    "```sand\n{word}: {what}\n```\n\nThe {what} this loop runs as. \
+                     Its data (`{word}.health`, `{word}.on_ground`, ...) is read-only; \
+                     its attributes (`{word}.max_health`, `{word}.scale`, ...) can be assigned."
+                ));
+            }
+            None => {}
         }
     }
     // A builtin written without a recorded use (for example with errors).
@@ -858,6 +884,13 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             | Position::Data { .. }
     );
     if value_position && let Some(dot) = token.rfind('.') {
+        if let Some(player) = handle_at(analysis, file, offset, &token[..dot]) {
+            return crate::properties::all()
+                .into_iter()
+                .filter(|p| player || !p.player_only)
+                .map(|p| property_completion(&token[..dot], p))
+                .collect();
+        }
         let base: Vec<&str> = token[..dot].split("::").collect();
         let Some(Target::Def(def)) = resolve_names(analysis, module, &base) else {
             return Vec::new();
@@ -1099,6 +1132,16 @@ fn statement_completions(
             "while ${1:condition} {\n    $0\n}",
         ),
         Completion::snippet(
+            "for i in 0..n",
+            "count through a range of numbers",
+            "for ${1:i} in ${2:0}..${3:10} {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "loop",
+            "repeat until `break` or `return`",
+            "loop {\n    $0\n}",
+        ),
+        Completion::snippet(
             "for player in players()",
             "run as each online player",
             "for player in players() {\n    $0\n}",
@@ -1114,13 +1157,17 @@ fn statement_completions(
             Completion::snippet("return", "end the function early", "return;")
         },
     ]);
-    if body.executor_loop.is_some() {
+    if body.in_repeat {
+        out.push(Completion::snippet("break", "leave the loop", "break;"));
+    }
+    if body.in_repeat || body.executor_loop.is_some() {
         out.push(Completion::snippet(
             "continue",
-            "skip to the next one",
+            "skip to the next pass",
             "continue;",
         ));
     }
+    out.extend(handle_completions(analysis, file, offset));
     let in_entities = body.executor_loop == Some(true);
     out.extend(
         crate::builtins::BUILTINS
@@ -1218,6 +1265,7 @@ fn expression_completions(
         }
     }
     out.extend(local_completions(analysis, file, offset));
+    out.extend(handle_completions(analysis, file, offset));
     out.extend(scope_defs(analysis, in_scope, &|d| match &d.info {
         DefInfo::Function { signature, .. } => signature.contains("->"),
         DefInfo::Const { .. }
@@ -1250,6 +1298,73 @@ fn expression_completions(
     );
     out.extend(paths);
     out
+}
+
+/// Docs for the `Player` handle.
+const PLAYER_DOC: &str = "The executing player. Read entity data such as `Player.health`, \
+    `Player.food`, or `Player.on_ground`, and read or assign any attribute's base value, \
+    such as `Player.max_health = 40.0;` or `Player.step_height`. Using it makes the \
+    function need a player.";
+
+/// Whether `name` is an entity handle at `offset`: `Some(true)` for a
+/// player (`Player`, or a `players()` loop binding), `Some(false)` for an
+/// `entities(..)` binding.
+fn handle_at(analysis: &Analysis, file: FileId, offset: usize, name: &str) -> Option<bool> {
+    let binding = analysis
+        .handle_scopes
+        .iter()
+        .filter(|(f, span, binding, _)| *f == file && span.contains(offset) && binding == name)
+        .min_by_key(|(_, span, _, _)| span.end - span.start)
+        .map(|(_, _, _, player)| *player);
+    if binding.is_some() {
+        return binding;
+    }
+    let module = analysis.package.module_at(file, offset)?;
+    (name == "Player" && !scope_names(analysis, module).iter().any(|(n, _)| n == "Player"))
+        .then_some(true)
+}
+
+/// `Player` and the loop bindings visible at `offset`.
+fn handle_completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Completion> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for (_, _, name, player) in analysis
+        .handle_scopes
+        .iter()
+        .filter(|(f, span, _, _)| *f == file && span.contains(offset))
+    {
+        if seen.insert(name.clone()) {
+            out.push(Completion {
+                detail: Some(if *player { "player" } else { "entity" }.into()),
+                documentation: Some(format!(
+                    "The {} this loop runs as. Read its data and attributes with `{name}.health`, \
+                     `{name}.max_health`, and so on; assign attributes with `{name}.scale = 2.0;`.",
+                    if *player { "player" } else { "entity" }
+                )),
+                ..Completion::plain(name, CompletionKind::Variable)
+            });
+        }
+    }
+    if handle_at(analysis, file, offset, "Player") == Some(true) && !seen.contains("Player") {
+        out.push(Completion {
+            detail: Some("the executing player".into()),
+            documentation: Some(PLAYER_DOC.into()),
+            ..Completion::plain("Player", CompletionKind::State)
+        });
+    }
+    out
+}
+
+fn property_completion(handle: &str, property: crate::properties::Property) -> Completion {
+    Completion {
+        detail: Some(format!(
+            "{}{}",
+            property.ty.name(),
+            if property.writable() { "" } else { " (read-only)" }
+        )),
+        documentation: Some(property.describe(handle)),
+        ..Completion::plain(&property.name, CompletionKind::Field)
+    }
 }
 
 /// Locals visible at `offset`, inner declarations first. Falls back to a

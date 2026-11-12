@@ -252,8 +252,8 @@ const SHOP_TEMPLATE: &str = r#"//! Spend coins on extra hearts.
 
 use crate::Wallet;
 
-/// Max health is measured in half-hearts: 20 is ten hearts.
-const MAX_HEALTH: number = 40;
+/// Max health is measured in half-hearts: 20.0 is ten hearts.
+const MAX_HEALTH: float = 40.0;
 
 /// The price of the next heart, rising with each one bought.
 fn heart_price(extra_hearts: number) -> number {
@@ -263,18 +263,18 @@ fn heart_price(extra_hearts: number) -> number {
 /// Right-click a carrot on a stick to buy one heart of max health.
 #[on(use_item = Item::CarrotOnAStick)]
 fn buy_heart() {
-    let health = get_attribute(Attribute::MaxHealth);
+    let health = Player.max_health;
     if health >= MAX_HEALTH {
         actionbar!("{gold}You already have the most hearts possible.");
         return;
     }
-    let price = heart_price((health - 20) / 2);
+    let price = heart_price(((health - 20.0) / 2.0) as number);
     if Wallet.coins < price {
         chat!("{red}A heart costs {price} coins; you have {Wallet.coins}.");
         return;
     }
     Wallet.coins -= price;
-    set_attribute(Attribute::MaxHealth, health + 2);
+    Player.max_health = health + 2.0;
     play_sound(Sound::EntityPlayerLevelup);
     chat!("{green}Bought a heart for {price} coins!");
 }

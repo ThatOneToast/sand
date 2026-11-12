@@ -192,7 +192,7 @@ fn f() {
 #[test]
 fn attributes_read_and_write_floats_with_decimals() {
     let analysis = analyze_one(&pack(
-        "fn f() {\n    let speed: float = get_attribute(Attribute::MovementSpeed);\n    set_attribute(Attribute::MovementSpeed, speed * 1.5);\n}\n",
+        "fn f() {\n    let speed: float = Player.movement_speed;\n    Player.movement_speed = speed * 1.5;\n}\n",
     ));
     assert!(!analysis.has_errors(), "{:#?}", errors(&analysis));
     let ops = operations(&analysis, "f");

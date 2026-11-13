@@ -220,7 +220,10 @@ module.exports = grammar({
         $.let_statement,
         $.return_statement,
         $.continue_statement,
+        $.break_statement,
+        $.emit_statement,
         $.while_statement,
+        $.loop_statement,
         $.if_statement,
         $.for_statement,
         $.macro_invocation,
@@ -240,6 +243,10 @@ module.exports = grammar({
     return_statement: ($) => seq('return', optional($._value_or_condition), ';'),
     _value_or_condition: ($) => choice($._expression, $.comparison, $.logical_condition, $.not_condition, $.in_range),
     continue_statement: (_) => seq('continue', ';'),
+    break_statement: (_) => seq('break', ';'),
+    emit_statement: ($) =>
+      seq('emit', field('event', $.path), optional($.arguments), ';'),
+    loop_statement: ($) => seq('loop', field('body', $.block)),
     while_statement: ($) =>
       seq('while', field('condition', $._condition), field('body', $.block)),
     if_statement: ($) =>
@@ -254,7 +261,7 @@ module.exports = grammar({
         'for',
         field('binding', $.identifier),
         'in',
-        field('source', $.call_expression),
+        field('source', choice($.call_expression, $.range)),
         field('body', $.block),
       ),
     macro_invocation: ($) =>

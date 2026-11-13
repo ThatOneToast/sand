@@ -84,8 +84,11 @@
   "every"
   "priority"
   "while"
+  "loop"
   "return"
   "continue"
+  "break"
+  "emit"
 ] @keyword.control
 
 (visibility) @keyword

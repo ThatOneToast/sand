@@ -379,11 +379,19 @@
           "named": true
         },
         {
+          "type": "break_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
         {
           "type": "continue_statement",
+          "named": true
+        },
+        {
+          "type": "emit_statement",
           "named": true
         },
         {
@@ -396,6 +404,10 @@
         },
         {
           "type": "let_statement",
+          "named": true
+        },
+        {
+          "type": "loop_statement",
           "named": true
         },
         {
@@ -415,6 +427,11 @@
   },
   {
     "type": "boolean",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "break_statement",
     "named": true,
     "fields": {}
   },
@@ -879,6 +896,32 @@
     }
   },
   {
+    "type": "emit_statement",
+    "named": true,
+    "fields": {
+      "event": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "arguments",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "enum_item",
     "named": true,
     "fields": {
@@ -1150,6 +1193,10 @@
         "types": [
           {
             "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "range",
             "named": true
           }
         ]
@@ -1665,6 +1712,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "loop_statement",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -2889,6 +2952,10 @@
     "named": true
   },
   {
+    "type": "break",
+    "named": false
+  },
+  {
     "type": "const",
     "named": false
   },
@@ -2911,6 +2978,10 @@
   },
   {
     "type": "else",
+    "named": false
+  },
+  {
+    "type": "emit",
     "named": false
   },
   {
@@ -2989,6 +3060,10 @@
     "type": "line_comment",
     "named": true,
     "extra": true
+  },
+  {
+    "type": "loop",
+    "named": false
   },
   {
     "type": "macro_name",

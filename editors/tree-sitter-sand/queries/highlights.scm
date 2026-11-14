@@ -83,6 +83,7 @@
   "in"
   "every"
   "priority"
+  "match"
   "while"
   "loop"
   "return"

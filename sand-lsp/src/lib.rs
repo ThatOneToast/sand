@@ -73,6 +73,8 @@ pub fn server_capabilities() -> lsp::ServerCapabilities {
                 ..Default::default()
             },
         )),
+        document_formatting_provider: Some(lsp::OneOf::Left(true)),
+        code_action_provider: Some(lsp::CodeActionProviderCapability::Simple(true)),
         hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
         definition_provider: Some(lsp::OneOf::Left(true)),
         references_provider: Some(lsp::OneOf::Left(true)),
@@ -249,6 +251,79 @@ impl Server {
         }
         let json = |value: serde_json::Value| Ok(value);
         match request.method.as_str() {
+            Formatting::METHOD => {
+                let params = parse::<Formatting>(request)?;
+                let Some(path) = uri_to_path(&params.text_document.uri) else {
+                    return json(serde_json::Value::Null);
+                };
+                let (analysis, file) = self.analysis_for(&path);
+                let Some(file) = file else {
+                    return json(serde_json::Value::Null);
+                };
+                let source = &analysis.package.files[file.0].text;
+                let edits: Vec<lsp::TextEdit> = sand_lang::format::format(source)
+                    .ok()
+                    .filter(|formatted| formatted != source)
+                    .map(|new_text| lsp::TextEdit {
+                        range: range(&analysis, file, Span::new(0, source.len())),
+                        new_text,
+                    })
+                    .into_iter()
+                    .collect();
+                json(serde_json::to_value(edits).unwrap_or_default())
+            }
+            CodeActionRequest::METHOD => {
+                let params = parse::<CodeActionRequest>(request)?;
+                if params.context.only.as_ref().is_some_and(|kinds| {
+                    !kinds
+                        .iter()
+                        .any(|kind| kind.as_str().is_empty() || kind.as_str() == "quickfix")
+                }) {
+                    return json(serde_json::json!([]));
+                }
+                let Some(path) = uri_to_path(&params.text_document.uri) else {
+                    return json(serde_json::json!([]));
+                };
+                let (analysis, file) = self.analysis_for(&path);
+                let Some(file) = file else {
+                    return json(serde_json::json!([]));
+                };
+                let lines = &analysis.package.files[file.0].lines;
+                let selection = Span::new(
+                    lines.offset_utf16(sand_lang::source::LineCol {
+                        line: params.range.start.line,
+                        col: params.range.start.character,
+                    }),
+                    lines.offset_utf16(sand_lang::source::LineCol {
+                        line: params.range.end.line,
+                        col: params.range.end.character,
+                    }),
+                );
+                let mut actions = Vec::new();
+                for action in ide::code_actions(&analysis, file, selection) {
+                    // URI keys are immutable after construction.
+                    #[allow(clippy::mutable_key_type)]
+                    let mut changes: HashMap<lsp::Uri, Vec<lsp::TextEdit>> = HashMap::new();
+                    for edit in action.edits {
+                        if let Some(uri) = path_to_uri(&analysis.package.files[edit.file.0].path) {
+                            changes.entry(uri).or_default().push(lsp::TextEdit {
+                                range: range(&analysis, edit.file, edit.span),
+                                new_text: edit.text,
+                            });
+                        }
+                    }
+                    actions.push(lsp::CodeAction {
+                        title: action.title,
+                        kind: Some(lsp::CodeActionKind::QUICKFIX),
+                        edit: Some(lsp::WorkspaceEdit {
+                            changes: Some(changes),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    });
+                }
+                json(serde_json::to_value(actions).unwrap_or_default())
+            }
             HoverRequest::METHOD => {
                 let params = parse::<HoverRequest>(request)?;
                 let at = self.locate(&params.text_document_position_params)?;

@@ -211,7 +211,7 @@ module.exports = grammar({
         field('body', $.block),
       ),
     parameters: ($) => seq('(', commaSep($.parameter), ')'),
-    parameter: ($) => seq(field('name', $.identifier), ':', field('type', $.type)),
+    parameter: ($) => seq(optional('mut'), field('name', $.identifier), ':', field('type', $.type)),
 
     // ── Statements ─────────────────────────────────────────────────────────
     block: ($) => seq('{', repeat($._statement), '}'),
@@ -222,6 +222,7 @@ module.exports = grammar({
         $.continue_statement,
         $.break_statement,
         $.emit_statement,
+        $.match_statement,
         $.while_statement,
         $.loop_statement,
         $.if_statement,
@@ -247,6 +248,11 @@ module.exports = grammar({
     emit_statement: ($) =>
       seq('emit', field('event', $.path), optional($.arguments), ';'),
     loop_statement: ($) => seq('loop', field('body', $.block)),
+    match_statement: ($) =>
+      seq('match', field('value', $._expression), '{', repeat($.match_arm), '}'),
+    match_arm: ($) =>
+      seq(field('pattern', choice('_', seq($._expression, repeat(seq('|', $._expression))))),
+        '=>', field('body', $.block), optional(',')),
     while_statement: ($) =>
       seq('while', field('condition', $._condition), field('body', $.block)),
     if_statement: ($) =>
@@ -261,9 +267,12 @@ module.exports = grammar({
         'for',
         field('binding', $.identifier),
         'in',
-        field('source', choice($.call_expression, $.range)),
+        field('source', choice($.call_expression, $.count_range)),
         field('body', $.block),
       ),
+    count_range: ($) => choice($.range,
+      seq('(', $.range, ')', optional(seq('.', 'rev', '(', ')')),
+        optional(seq('.', 'step_by', '(', $._expression, ')')))),
     macro_invocation: ($) =>
       seq(field('macro', alias($.identifier, $.macro_name)), '!', $.arguments, ';'),
     assignment: ($) =>

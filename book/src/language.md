@@ -38,6 +38,7 @@ fn tax() {
 ```sh
 sand lang new my-pack      # create my-pack/ with pack.sand and a module
 cd my-pack
+sand fmt                   # format the package (or --check for CI)
 sand lang check            # report errors and warnings
 sand lang build            # write the datapack to dist/<namespace>
 sand lang run              # compile and launch a local Minecraft server
@@ -59,7 +60,8 @@ A larger example lives in
 
 The language server gives you diagnostics as you type, hover explanations for
 every item, builtin, attribute, and keyword, plus completion, go to definition,
-references, rename, an outline, and inlay hints showing where each function
+references, rename, formatting, naming and mutability quick fixes, an outline,
+and inlay hints showing where each function
 runs.
 
 1. Install the `sand` CLI so editors can start `sand lsp`:
@@ -223,7 +225,8 @@ fn buy_heart() {
 
 - `let name = value;` declares a variable; `let mut` allows reassignment.
   Variables are block-scoped and can shadow outer ones.
-- Parameters are immutable (copy one into `let mut` to change it).
+- Parameters are immutable by default; write `mut amount: number` to allow
+  reassignment within the function. Arguments are passed by value.
 - `return;` ends a function early; `return value;` returns from a function
   declared with `-> number`. Every path must return a value in such functions.
 - Functions can call each other and themselves, directly or through other
@@ -300,8 +303,20 @@ fn collatz_steps(start: number) -> number {
 }
 ```
 
-A counting `for` computes its end once, before the first pass, and its
-variable cannot be assigned. `while` accepts any condition; one plain
+A counting `for` computes both bounds once, from left to right, before the
+first pass, and its variable cannot be assigned. Parenthesized ranges support
+`.rev()` and `.step_by(n)`, where `n` is a positive constant whole number:
+
+```rust,ignore
+for i in (0..10).step_by(2) { ... }       // 0, 2, 4, 6, 8
+for i in (0..10).rev() { ... }            // 9 down to 0
+for i in (0..=10).rev().step_by(3) { ... } // 10, 7, 4, 1
+```
+
+Empty ranges stay empty when reversed. Counting stops at the scoreboard's
+integer boundaries without wrapping.
+
+ `while` accepts any condition; one plain
 comparison is checked directly, and anything else is computed into a flag
 before each pass.
 
@@ -322,6 +337,26 @@ Conditions can also ask about the world and the executor:
 | `holding(Item::Diamond)`, `holding(Wand, offhand = true)` | the executor holds the item |
 | `is_sneaking()`, `is_sprinting()`, `is_swimming()`, `is_on_fire()` | the executor is doing it |
 | `timer_running(Ability.dash)`, `timer_done(Ability.dash)` | a `timer` field has time left, or none |
+
+### Match
+
+`match` evaluates its value once and runs exactly one arm. Arms have their own
+local scope and can return, break, or continue their enclosing loop:
+
+```rust,ignore
+fn price(phase: Phase) -> number {
+    match phase {
+        Phase::Idle => { return 10; }
+        Phase::Fighting | Phase::Resting => { return 20; }
+    }
+}
+```
+
+Patterns are typed constants or enum variants, with `|` joining alternatives.
+Cover every enum variant, both booleans, or add `_ => { ... }` for all remaining
+values. Numeric matches require a wildcard. Duplicate patterns, missing cases,
+and arms following a wildcard are errors. Match currently uses statement arms
+with block bodies; it is not a value expression.
 
 ### Casts
 
@@ -759,7 +794,7 @@ express produces identical output. Today the language covers:
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
 | State | player, global, and entity State; `number`, `float`, `bool`, enum, and `timer` fields; clamps; flows | NBT-backed values, relations, derived values, migrations |
-| Logic | functions with parameters and returns, recursion, `let`, `if`, `while`, `loop`, counting `for`, `break`/`continue`, casts, early return, custom events | closures, generics, compile-time Rust code |
+| Logic | functions with parameters and returns, recursion, `let`, `if`, exhaustive `match`, `while`, `loop`, counting/reversed/stepped `for`, `break`/`continue`, casts, early return, custom events | closures, generics, compile-time Rust code |
 | Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes and entity data as properties, effects, items, experience, game mode, sneaking and other flags, held items | selection by NBT or scores, motion, vehicles, equipment edits, archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | blocks and regions, block tests, time, weather | structures, biomes, dimensions, clone, data on blocks |
@@ -769,3 +804,17 @@ express produces identical output. Today the language covers:
 
 `raw!("...")` covers single commands that have no builtin yet.
 
+
+## Automated runtime regression probe
+
+The repository includes a control-flow fixture and a runner that compiles it,
+executes 13 assertions on a disposable vanilla 26.2 server, and checks reload:
+
+```sh
+cargo build -p sand-cli
+python3 scripts/validate_language.py --binary target/debug/sand \
+  --jar /path/to/bundled-server.jar --output /tmp/sand-language-probe
+```
+
+The JAR must be the complete downloaded server bundle, including its libraries.
+The output path must be new; it retains the emitted pack and server logs.

@@ -1,0 +1,79 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+enum Phase { Idle, Active = 5, Done }
+global state Result { checks: number, failed: number, limit: number, phase: Phase }
+
+fn check(actual: number, expected: number) {
+    Result.checks += 1;
+    if actual != expected { Result.failed += 1; }
+}
+
+fn first() -> number { Result.limit = 3; return 0; }
+fn end() -> number { return Result.limit; }
+fn phase() -> Phase { Result.limit += 1; return Result.phase; }
+fn classify() -> number {
+    match phase() {
+        Phase::Idle => { return 10; }
+        Phase::Active | Phase::Done => { return 20; }
+    }
+}
+fn recursive(mut n: number) -> number {
+    if n == 0 { return 0; }
+    n -= 1;
+    return n + recursive(n);
+}
+
+fn run() {
+    Result.checks = 0;
+    Result.failed = 0;
+    let mut total = 0;
+    for i in (0..4).rev() { total = total * 10 + i; }
+    check(total, 3210);
+    total = 0;
+    for i in (1..10).rev().step_by(2) { total += i; }
+    check(total, 25);
+    total = 0;
+    for i in (1..=10).step_by(3) { total += i; }
+    check(total, 22);
+    total = 0;
+    for i in (-3..2).rev() { total += i; }
+    check(total, -5);
+    total = 0;
+    for i in (5..2).rev() { total += i; }
+    for i in (2..2).rev() { total += i; }
+    for i in -2147483648..-2147483648 { total += i; }
+    check(total, 0);
+    total = 0;
+    for _i in 2147483647..=2147483647 { total += 1; }
+    for _i in (-2147483648..=-2147483648).rev() { total += 1; }
+    for _i in (2147483646..=2147483647).step_by(2) { total += 1; }
+    for _i in (-2147483648..=-2147483647).rev().step_by(2) { total += 1; }
+    check(total, 4);
+    total = 0;
+    Result.limit = 0;
+    for i in first()..end() { total += i; }
+    check(total, 3);
+    Result.limit = 0;
+    check(classify(), 10);
+    check(Result.limit, 1);
+    Result.phase = Phase::Active;
+    check(classify(), 20);
+    Result.phase = Phase::Done;
+    check(classify(), 20);
+    total = 0;
+    for i in 0..10 {
+        match i {
+            0 => { continue; }
+            5 => { break; }
+            _ => { total += i; }
+        }
+        total += 10;
+    }
+    check(total, 50);
+    check(recursive(5), 10);
+    if Result.checks == 13 && Result.failed == 0 {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

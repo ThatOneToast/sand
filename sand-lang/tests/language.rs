@@ -534,3 +534,203 @@ fn BuyHeart(itemCount: number) {
         "already PascalCase"
     );
 }
+
+#[test]
+fn exhaustive_match_snapshots_value_and_propagates_returns() {
+    let analysis = analyze_one(&pack(
+        r#"
+enum Phase { Idle, Active = 5, Done }
+global state Game { phase: Phase }
+fn next() -> Phase { return Game.phase; }
+fn price() -> number {
+    match next() {
+        Phase::Idle => { return 10; }
+        Phase::Active | Phase::Done => { return 20; }
+    }
+}
+fn boolean(value: bool) -> number {
+    match value {
+        true => { return 1; },
+        false => { return 0; },
+    }
+}
+#[load]
+fn start() { let result = price() + boolean(true); }
+"#,
+    ));
+    let pack = compile(&analysis);
+    let text = function(&pack, "demo/function/price");
+    assert_eq!(text.matches("function demo:next").count(), 1, "{text}");
+    assert!(text.contains("execute if function"), "{text}");
+    let all = pack
+        .resources
+        .values()
+        .map(|v| String::from_utf8_lossy(v))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(all.contains("matches 5"), "{all}");
+    assert!(all.contains("matches 6"), "{all}");
+    let offset = at(&analysis.package.files[0].text, "Phase::Active |") + 7;
+    assert!(ide::hover(&analysis, FileId(0), offset).is_some());
+}
+
+#[test]
+fn match_diagnoses_missing_duplicate_mistyped_and_dynamic_patterns() {
+    for (body, expected) in [
+        (
+            "fn f(x: bool) { match x { true => {} } }",
+            "non-exhaustive match",
+        ),
+        (
+            "fn f(x: number) { match x { 1 => {} } }",
+            "non-exhaustive match",
+        ),
+        (
+            "enum E { A, B } fn f(x: E) { match x { E::A => {} } }",
+            "non-exhaustive match",
+        ),
+        (
+            "fn f(x: number) { match x { 1 | 1 => {} _ => {} } }",
+            "already covered",
+        ),
+        (
+            "fn f(x: bool) { match x { 1 => {} _ => {} } }",
+            "mismatched types",
+        ),
+        (
+            "fn f(x: number) { match x { x => {} _ => {} } }",
+            "patterns must be constants",
+        ),
+        (
+            "fn f(x: number) { match x { _ => {} 1 => {} } }",
+            "unreachable match arm",
+        ),
+        ("fn f(x: number) { match x {} }", "non-exhaustive match"),
+    ] {
+        let analysis = analyze_one(&pack(body));
+        assert!(
+            errors(&analysis).iter().any(|s| s.contains(expected)),
+            "{body}: {:?}",
+            errors(&analysis)
+        );
+    }
+}
+
+#[test]
+fn match_arms_scope_locals_and_support_loop_jumps() {
+    let analysis = analyze_one(&pack(
+        r#"
+#[load]
+fn run() {
+    for i in 0..10 {
+        match i {
+            0 => { continue; }
+            5 => { break; }
+            _ => { let value = i; broadcast!("{value}"); }
+        }
+        broadcast!("remaining");
+    }
+}
+"#,
+    ));
+    compile(&analysis);
+    let analysis = analyze_one(&pack(
+        "fn f(x: number) { match x { 0 => { let y = 1; } _ => { let z = y; } } }",
+    ));
+    assert!(analysis.has_errors());
+}
+
+#[test]
+fn mutable_parameters_use_normal_slots_and_keep_recursive_frames() {
+    let analysis = analyze_one(&pack(
+        r#"
+fn sum(mut n: number) -> number {
+    if n == 0 { return 0; }
+    n -= 1;
+    return n + sum(n);
+}
+#[load]
+fn start() { let value = sum(5); }
+"#,
+    ));
+    let pack = compile(&analysis);
+    let text = function(&pack, "demo/function/sum");
+    assert!(text.contains("__sand_frames"), "{text}");
+    let source = &analysis.package.files[0].text;
+    let hover = ide::hover(&analysis, FileId(0), at(source, "n: number")).unwrap();
+    assert!(hover.markdown.contains("mut"), "{hover:?}");
+}
+
+#[test]
+fn naming_fixes_rename_references_across_modules() {
+    let root = pack("mod rewards; #[load] fn start() { rewards::BadName(); }");
+    let module = "pub fn BadName() {}";
+    let analysis = analyze(&[("pack.sand", &root), ("rewards.sand", module)]);
+    let offset = at(module, "BadName");
+    let fixes = ide::code_actions(
+        &analysis,
+        FileId(1),
+        sand_lang::ast::Span::new(offset, offset),
+    );
+    let fix = fixes
+        .iter()
+        .find(|f| f.title == "Rename to `bad_name`")
+        .unwrap();
+    assert!(
+        fix.edits
+            .iter()
+            .any(|e| e.file == FileId(0) && e.text == "bad_name")
+    );
+    assert!(
+        fix.edits
+            .iter()
+            .any(|e| e.file == FileId(1) && e.text == "bad_name")
+    );
+}
+
+#[test]
+fn mutable_binding_fixes_edit_the_declaration_and_keep_counters_immutable() {
+    let source = pack("fn run(x: number) { let y = x; y += 1; x += 1; for i in 0..2 { i += 1; } }");
+    let analysis = analyze_one(&source);
+    for usage in ["y +=", "x +="] {
+        let offset = at(&source, usage);
+        let fixes = ide::code_actions(
+            &analysis,
+            FileId(0),
+            sand_lang::ast::Span::new(offset, offset),
+        );
+        assert_eq!(fixes.len(), 1, "{fixes:?}");
+        let mut changed = source.clone();
+        for edit in &fixes[0].edits {
+            changed.replace_range(edit.span.start..edit.span.end, &edit.text);
+        }
+        assert!(changed.contains(if usage.starts_with('y') {
+            "let mut y"
+        } else {
+            "mut x: number"
+        }));
+    }
+    let offset = at(&source, "i +=");
+    assert!(
+        ide::code_actions(
+            &analysis,
+            FileId(0),
+            sand_lang::ast::Span::new(offset, offset)
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn match_arm_completion_keeps_locals_and_enclosing_loop_context() {
+    let source = pack("fn run(x: bool) { loop { match x { true => {  } false => { break; } } } }");
+    let analysis = analyze_one(&source);
+    let offset = at(&source, "true => {  }") + "true => { ".len();
+    let items = ide::completions(&analysis, FileId(0), offset);
+    for expected in ["x", "let", "match", "break", "continue"] {
+        assert!(
+            items.iter().any(|item| item.label == expected),
+            "missing {expected}: {items:?}"
+        );
+    }
+}

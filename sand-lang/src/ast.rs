@@ -442,6 +442,8 @@ impl DataValue {
 /// A function parameter: `name: Type`.
 #[derive(Debug, Clone)]
 pub struct Param {
+    /// Whether this parameter can be reassigned with `mut`.
+    pub mutable: bool,
     /// Parameter name.
     pub name: Ident,
     /// Parameter type.
@@ -532,8 +534,21 @@ pub enum Stmt {
         binding: Ident,
         /// Counted range; `..=` includes the end.
         range: Range,
+        /// Iterate from the last included value down to the start.
+        reverse: bool,
+        /// Positive constant increment magnitude, defaulting to one.
+        step: Option<Expr>,
         /// Loop body.
         body: Block,
+        /// Whole statement.
+        span: Span,
+    },
+    /// Select one exhaustive arm after evaluating the value once.
+    Match {
+        /// Matched value.
+        value: Expr,
+        /// Arms in source order.
+        arms: Vec<MatchArm>,
         /// Whole statement.
         span: Span,
     },
@@ -592,6 +607,18 @@ pub enum Stmt {
     },
     /// A recovered malformed statement.
     Error(SyntaxError),
+}
+
+/// One arm of a `match` statement. Patterns are constants separated by `|`,
+/// or a wildcard `_` that handles every remaining value.
+#[derive(Debug, Clone)]
+pub struct MatchArm {
+    /// Constant alternatives; empty for `_`.
+    pub patterns: Vec<Expr>,
+    /// Body scoped to this arm.
+    pub body: Block,
+    /// Whole arm.
+    pub span: Span,
 }
 
 /// An `if` statement.

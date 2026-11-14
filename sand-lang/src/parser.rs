@@ -78,6 +78,7 @@ fn is_keyword(rule: Rule) -> bool {
             | Rule::kw_mut
             | Rule::kw_return
             | Rule::kw_continue
+            | Rule::kw_match
             | Rule::kw_while
     )
 }
@@ -90,7 +91,13 @@ fn children<'i>(pair: P<'i>) -> impl Iterator<Item = P<'i>> {
 fn parameter(pair: P<'_>) -> Param {
     let s = span(&pair);
     let mut pieces = pair.into_inner();
-    let name = ident(pieces.next().expect("param name"));
+    let first = pieces.next().expect("param name");
+    let mutable = first.as_rule() == Rule::mut_kw;
+    let name = ident(if mutable {
+        pieces.next().expect("param name")
+    } else {
+        first
+    });
     let ty = path(
         pieces
             .next()
@@ -99,7 +106,12 @@ fn parameter(pair: P<'_>) -> Param {
             .next()
             .expect("type path"),
     );
-    Param { name, ty, span: s }
+    Param {
+        mutable,
+        name,
+        ty,
+        span: s,
+    }
 }
 
 fn ident(pair: P<'_>) -> Ident {
@@ -555,17 +567,58 @@ impl Builder<'_> {
             .expect("statement body");
         let s = span(&inner);
         match inner.as_rule() {
+            Rule::match_stmt => {
+                let mut parts = children(inner);
+                let value = expr(parts.next().expect("matched value"));
+                let arms = parts
+                    .map(|arm| {
+                        let arm_span = span(&arm);
+                        let mut parts = arm.into_inner();
+                        let patterns = parts
+                            .next()
+                            .expect("patterns")
+                            .into_inner()
+                            .map(expr)
+                            .collect();
+                        let body = self.block(parts.next().expect("arm body"));
+                        MatchArm {
+                            patterns,
+                            body,
+                            span: arm_span,
+                        }
+                    })
+                    .collect();
+                Stmt::Match {
+                    value,
+                    arms,
+                    span: s,
+                }
+            }
             Rule::if_stmt => Stmt::If(Box::new(self.if_stmt(inner))),
             Rule::for_stmt => {
                 let mut parts = children(inner);
                 let binding = ident(parts.next().expect("binding"));
                 let source = parts.next().expect("iterator");
-                if source.as_rule() == Rule::range {
-                    let range = range(source);
+                if source.as_rule() == Rule::count_range {
+                    let mut range_parts = source.into_inner();
+                    let range = range(range_parts.next().expect("range"));
+                    let mut reverse = false;
+                    let mut step = None;
+                    for part in range_parts {
+                        match part.as_rule() {
+                            Rule::reverse_range => reverse = true,
+                            Rule::range_step => {
+                                step = Some(expr(part.into_inner().next().expect("step")))
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
                     let body = self.block(parts.next().expect("for body"));
                     return Stmt::ForRange {
                         binding,
                         range,
+                        reverse,
+                        step,
                         body,
                         span: s,
                     };

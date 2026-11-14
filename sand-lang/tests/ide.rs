@@ -256,7 +256,7 @@ fn ok() {
     assert_eq!(
         errors,
         vec![
-            "expected `)` or identifier; found `{`",
+            "expected `)`, `mut` or identifier; found `{`",
             "expected expression; found `;`"
         ]
     );

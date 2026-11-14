@@ -144,3 +144,38 @@ fn tally() {
     // `continue` sets the jump flag instead of ending the player's turn.
     assert!(!program.contains("\"op\":\"return\""), "{program}");
 }
+
+#[test]
+fn reversed_and_stepped_ranges_compile_with_checked_advancement() {
+    let analysis = analyze_one(&pack(
+        r#"
+global state Totals { sum: number }
+fn tally(start: number, end: number) {
+    for i in (start..end).rev() { Totals.sum += i; }
+    for i in (start..=end).rev().step_by(3) { Totals.sum += i; }
+    for i in (start..end).step_by(2) { Totals.sum += i; }
+    for i in 2147483647..=2147483647 { Totals.sum += 1; }
+    for i in -2147483648..-2147483648 { Totals.sum += 1; }
+}
+"#,
+    ));
+    let pack = compile(&analysis);
+    let all = pack
+        .resources
+        .values()
+        .map(|b| String::from_utf8_lossy(b))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(all.contains("matches -2147483645..2147483647"), "{all}");
+    assert!(all.contains("matches -2147483648..2147483645"), "{all}");
+}
+
+#[test]
+fn step_size_must_be_a_positive_constant_number() {
+    for size in ["0", "-1", "1.5", "size"] {
+        let analysis = analyze_one(&pack(&format!(
+            "fn f(size: number) {{ for i in (0..10).step_by({size}) {{ let value = i; }} }}"
+        )));
+        assert!(analysis.has_errors(), "{size}: {:?}", errors(&analysis));
+    }
+}

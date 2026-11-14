@@ -24,6 +24,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Format a Sand language package
+    Fmt {
+        /// Package directory or source file
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Report unformatted files without modifying them
+        #[arg(long)]
+        check: bool,
+    },
     /// Compile or inspect portable gameplay programs
     Program(sand_cli::program::ProgramArgs),
     /// Check, build, or inspect packs written in the Sand language (.sand)
@@ -234,6 +243,7 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Commands::Fmt { path, check } => sand_cli::lang_cmd::format_package(&path, check),
         Commands::Program(args) => sand_cli::program::run(args),
         Commands::Lang(args) => sand_cli::lang_cmd::run(args),
         Commands::Lsp => sand_cli::lang_cmd::run_lsp(),

@@ -3,6 +3,7 @@
 use super::*;
 use crate::builtins::{self, Builtin, BuiltinKind};
 use crate::properties::{Property, PropertyKind, PropertyType};
+use std::collections::BTreeSet;
 
 /// A value that needs no computation: a constant or one score read.
 #[derive(Debug, Clone)]
@@ -33,6 +34,8 @@ pub(super) enum Repeat<'a> {
     Count {
         binding: &'a Ident,
         range: &'a Range,
+        reverse: bool,
+        step: Option<&'a Expr>,
     },
 }
 
@@ -43,6 +46,9 @@ pub(super) fn jumps_here(stmt: &Stmt, is_break: bool) -> bool {
         Stmt::Break(_) => is_break,
         Stmt::Continue(_) => !is_break,
         Stmt::If(if_stmt) => if_jumps(if_stmt, is_break),
+        Stmt::Match { arms, .. } => arms
+            .iter()
+            .any(|arm| arm.body.stmts.iter().any(|s| jumps_here(s, is_break))),
         _ => false,
     }
 }
@@ -61,6 +67,7 @@ fn block_mentions_return(block: &Block) -> bool {
     block.stmts.iter().any(|stmt| match stmt {
         Stmt::Return { .. } => true,
         Stmt::If(if_stmt) => if_mentions_return(if_stmt),
+        Stmt::Match { arms, .. } => arms.iter().any(|arm| block_mentions_return(&arm.body)),
         Stmt::While { body, .. } | Stmt::Loop { body, .. } | Stmt::ForRange { body, .. } => {
             block_mentions_return(body)
         }
@@ -913,10 +920,7 @@ impl Cx {
                     let d = &self.defs[local.0];
                     let (df, ds) = (d.file, d.name_span);
                     let help = if param {
-                        format!(
-                            "copy it into a mutable local: `let mut {0} = {0};`",
-                            ident.name
-                        )
+                        format!("make the parameter mutable: `mut {0}: ...`", ident.name)
                     } else {
                         format!("make it mutable: `let mut {}`", ident.name)
                     };
@@ -1207,6 +1211,115 @@ impl Cx {
         ops.push(op_at(pc::Action::Return, file, span));
     }
 
+    /// Match a snapshot of a value against typed constant alternatives.
+    pub(super) fn lower_match(
+        &mut self,
+        body: &mut BodyCx,
+        value: &Expr,
+        arms: &[MatchArm],
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let file = body.file;
+        let depth = body.temp_depth;
+        let ty = self.type_of(body, value);
+        let snapshot = self.temp(body);
+        if self.emit(body, &snapshot, ty, value, ops).is_none() {
+            body.temp_depth = depth;
+            return;
+        }
+        let mut covered = BTreeSet::new();
+        let mut wildcard = false;
+        let mut lowered = Vec::new();
+        for arm in arms {
+            if wildcard {
+                self.error("match", file, arm.span, "unreachable match arm after `_`");
+            }
+            let mut values = Vec::new();
+            if arm.patterns.is_empty() {
+                wildcard = true;
+            }
+            for pattern in &arm.patterns {
+                if !Self::is_const_in(body, pattern) {
+                    self.error(
+                        "match",
+                        file,
+                        pattern.span(),
+                        "match patterns must be constants or enum variants",
+                    );
+                    continue;
+                }
+                if let Some(value) = self.eval_i32(body.module, file, pattern, Some(ty), None) {
+                    let value = value as i32;
+                    if !covered.insert(value) {
+                        self.error(
+                            "match",
+                            file,
+                            pattern.span(),
+                            "this value is already covered by a previous pattern",
+                        );
+                    }
+                    values.push(value);
+                }
+            }
+            let branch = self.lower_block(body, &arm.body);
+            lowered.push((values, arm.patterns.is_empty(), branch, arm.span));
+        }
+        let exhaustive = wildcard
+            || match ty {
+                Ty::Bool => covered.contains(&0) && covered.contains(&1),
+                Ty::Enum(def) => match &self.defs[def.0].info {
+                    DefInfo::Enum { variants } => {
+                        variants
+                            .iter()
+                            .all(|variant| match self.defs[variant.0].info {
+                                DefInfo::Variant { value: Some(value) } => {
+                                    covered.contains(&(value as i32))
+                                }
+                                _ => false,
+                            })
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
+        if !exhaustive && ty != Ty::Unknown {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    "match",
+                    file,
+                    span,
+                    "non-exhaustive match: some values are not covered",
+                )
+                .with_help("cover every variant, both boolean values, or add `_ => { ... }`"),
+            );
+        }
+        let mut otherwise = Vec::new();
+        for (values, wildcard, branch, arm_span) in lowered.into_iter().rev() {
+            if wildcard {
+                otherwise = branch;
+            } else {
+                for value in values.into_iter().rev() {
+                    otherwise = vec![op_at(
+                        pc::Action::Branch {
+                            condition: pc::Condition::Range(pc::ScoreComparison {
+                                score: snapshot.clone(),
+                                min: Some(value),
+                                max: Some(value),
+                            }),
+                            then: branch.clone(),
+                            otherwise,
+                        },
+                        file,
+                        arm_span,
+                    )];
+                }
+            }
+        }
+        ops.extend(otherwise);
+        body.temp_depth = depth;
+    }
+
     /// Lower `while`, `loop`, and counting `for` loops.
     ///
     /// Each becomes one backend `While` whose helper re-checks the test after
@@ -1225,7 +1338,17 @@ impl Cx {
     ) {
         let file = body.file;
         let depth = body.temp_depth;
-        let has_break = block.stmts.iter().any(|stmt| jumps_here(stmt, true));
+        let count_guard = match &kind {
+            Repeat::Count {
+                reverse: false,
+                step: None,
+                range,
+                ..
+            } => !matches!(range.end, Some(Expr::Int(n, _)) if n < i64::from(i32::MAX)),
+            Repeat::Count { .. } => true,
+            _ => false,
+        };
+        let has_break = count_guard || block.stmts.iter().any(|stmt| jumps_here(stmt, true));
         let has_jump = has_break || block.stmts.iter().any(|stmt| jumps_here(stmt, false));
         if matches!(kind, Repeat::Forever) && !has_break && !block_mentions_return(block) {
             self.diagnostics.push(
@@ -1240,6 +1363,7 @@ impl Cx {
         body.temp_depth += 1;
         let mut setup = Vec::new();
         let mut step = Vec::new();
+        let mut pre_body = Vec::new();
         body.scopes.push(Vec::new());
         // The plain condition, when the test is a single comparison.
         let mut direct = None;
@@ -1293,7 +1417,12 @@ impl Cx {
                 test.push(Self::marker_set(1, file, span));
                 keep_needed = true;
             }
-            Repeat::Count { binding, range } => {
+            Repeat::Count {
+                binding,
+                range,
+                reverse,
+                step: increment,
+            } => {
                 let (Some(start), Some(end)) = (&range.start, &range.end) else {
                     self.diagnostics.push(
                         Diagnostic::error(
@@ -1328,37 +1457,94 @@ impl Cx {
                         return;
                     }
                 }
-                let local = self.new_local(body, binding, Ty::Number, false, binding.span);
-                let counter = self.local_ref(local);
-                // The end is computed once, before the first pass.
-                let limit = match self.simple(body, end, Ty::Number) {
-                    Ok(Some(Value::Const(value))) => Value::Const(value),
-                    Ok(_) => {
-                        let temp = self.temp(body);
-                        if self
-                            .emit(body, &temp, Ty::Number, end, &mut setup)
-                            .is_none()
-                        {
-                            body.scopes.pop();
-                            body.temp_depth = depth;
-                            return;
-                        }
-                        Value::Read(temp)
-                    }
-                    Err(()) => {
+                let magnitude = if let Some(increment) = increment {
+                    if !Self::is_const_in(body, increment) {
+                        self.error(
+                            "for",
+                            file,
+                            increment.span(),
+                            "`step_by` needs a positive constant number",
+                        );
                         body.scopes.pop();
                         body.temp_depth = depth;
                         return;
                     }
+                    let Some(value) =
+                        self.eval_i32(body.module, file, increment, Some(Ty::Number), None)
+                    else {
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    };
+                    if value <= 0 {
+                        self.error(
+                            "for",
+                            file,
+                            increment.span(),
+                            "`step_by` needs a positive constant number",
+                        );
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    }
+                    value as i32
+                } else {
+                    1
                 };
+                // Save the first bound before evaluating the second one: either
+                // expression may call a function that changes the other's State.
+                let first = self.temp(body);
                 if self
-                    .emit(body, &counter, Ty::Number, start, &mut setup)
+                    .emit(body, &first, Ty::Number, start, &mut setup)
                     .is_none()
                 {
                     body.scopes.pop();
                     body.temp_depth = depth;
                     return;
                 }
+                let local = self.new_local(body, binding, Ty::Number, false, binding.span);
+                let counter = self.local_ref(local);
+                let limit = if reverse {
+                    if self
+                        .emit(body, &counter, Ty::Number, end, &mut setup)
+                        .is_none()
+                    {
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    }
+                    Value::Read(first)
+                } else {
+                    setup.push(op_at(
+                        Self::set_from(&counter, Value::Read(first)).expect("score copy"),
+                        file,
+                        start.span(),
+                    ));
+                    match self.simple(body, end, Ty::Number) {
+                        Ok(Some(Value::Const(value)))
+                            if range.inclusive || value > i64::from(i32::MIN) =>
+                        {
+                            Value::Const(value)
+                        }
+                        Ok(_) => {
+                            let temp = self.temp(body);
+                            if self
+                                .emit(body, &temp, Ty::Number, end, &mut setup)
+                                .is_none()
+                            {
+                                body.scopes.pop();
+                                body.temp_depth = depth;
+                                return;
+                            }
+                            Value::Read(temp)
+                        }
+                        Err(()) => {
+                            body.scopes.pop();
+                            body.temp_depth = depth;
+                            return;
+                        }
+                    }
+                };
                 self.bring_into_scope(
                     body,
                     binding,
@@ -1387,22 +1573,69 @@ impl Cx {
                     }
                     Value::Read(limit) => pc::Condition::Relation(pc::ScoreRelation {
                         left: counter.clone(),
-                        relation: if range.inclusive {
-                            pc::Relation::Le
-                        } else {
-                            pc::Relation::Lt
+                        relation: match (reverse, range.inclusive) {
+                            (true, true) => pc::Relation::Ge,
+                            (true, false) => pc::Relation::Gt,
+                            (false, true) => pc::Relation::Le,
+                            (false, false) => pc::Relation::Lt,
                         },
                         right: limit,
                     }),
                 };
-                step.push(op_at(
-                    pc::Action::ScoreAdd {
-                        score: counter,
-                        value: 1,
-                    },
-                    file,
-                    range.span,
-                ));
+                // A reversed exclusive range decrements before the body;
+                // its strict lower-bound test proves this cannot underflow.
+                if reverse && !range.inclusive {
+                    pre_body.push(op_at(
+                        pc::Action::ScoreAdd {
+                            score: counter.clone(),
+                            value: -1,
+                        },
+                        file,
+                        range.span,
+                    ));
+                }
+                let delta = if reverse {
+                    -magnitude + i32::from(!range.inclusive)
+                } else {
+                    magnitude
+                };
+                if delta != 0 {
+                    let advance = op_at(
+                        pc::Action::ScoreAdd {
+                            score: counter.clone(),
+                            value: delta,
+                        },
+                        file,
+                        range.span,
+                    );
+                    if count_guard {
+                        // Do not wrap at the scoreboard's endpoints and loop
+                        // forever. A synthetic break shares the normal jump flag.
+                        let jump = jump.as_ref().expect("guarded counting loop");
+                        step.push(op_at(
+                            pc::Action::Branch {
+                                condition: pc::Condition::Range(pc::ScoreComparison {
+                                    score: counter,
+                                    min: (delta < 0).then(|| i32::MIN - delta),
+                                    max: (delta > 0).then(|| i32::MAX - delta),
+                                }),
+                                then: vec![advance],
+                                otherwise: vec![op_at(
+                                    pc::Action::ScoreSet {
+                                        score: jump.clone(),
+                                        value: 2,
+                                    },
+                                    file,
+                                    span,
+                                )],
+                            },
+                            file,
+                            span,
+                        ));
+                    } else {
+                        step.push(advance);
+                    }
+                }
                 direct = Some(condition);
                 keep_needed = has_break;
             }
@@ -1457,6 +1690,7 @@ impl Cx {
                 span,
             ));
         }
+        inner.extend(pre_body);
         inner.extend(lowered);
         inner.extend(step);
         if let Some(keep) = &keep {

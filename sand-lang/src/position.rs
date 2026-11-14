@@ -16,6 +16,8 @@ pub(crate) enum Scope {
     Hook,
     /// `if`, `else`, or `while` block.
     Block,
+    /// An exhaustive match's pattern list.
+    Match,
     /// `for name in players()` / `entities(..)` body.
     Loop { entities: bool },
     /// `while`, `loop`, or counting `for i in a..b` body.
@@ -369,6 +371,7 @@ fn scope_of(masked: &str, open: usize, kind: u8, parents: &[Scope]) -> Scope {
                 },
                 "for" | "while" | "loop" => Scope::Repeat,
                 "if" | "else" => Scope::Block,
+                "match" => Scope::Match,
                 "enter" | "exit" | "tick" if matches!(parent, Some(Scope::Flow { .. })) => {
                     Scope::Hook
                 }
@@ -377,7 +380,12 @@ fn scope_of(masked: &str, open: usize, kind: u8, parents: &[Scope]) -> Scope {
                         keyword,
                         tag_type: tag_type(rest),
                     },
-                    None if header.starts_with('}') || header.is_empty() => Scope::Block,
+                    None if header.starts_with('}')
+                        || header.is_empty()
+                        || (matches!(parent, Some(Scope::Match)) && header.contains("=>")) =>
+                    {
+                        Scope::Block
+                    }
                     None => Scope::Other,
                 },
             }
@@ -457,6 +465,7 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
             | Scope::Data { .. }
             | Scope::DataObject { .. }
             | Scope::DataArray { .. }
+            | Scope::Match
             | Scope::Other
     );
     let start = statement_start(&masked, from, list);
@@ -582,6 +591,7 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
             line: format!("{field}: "),
             used: Vec::new(),
         },
+        Scope::Match => Position::ConstValue,
         Scope::UseGroup => Position::UsePath,
         Scope::Other => Position::Nothing,
     }

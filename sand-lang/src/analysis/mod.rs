@@ -363,6 +363,31 @@ impl Analysis {
     }
 }
 
+/// Shared spelling for naming diagnostics and editor rename fixes.
+pub(crate) fn name_suggestion(def: &Def) -> Option<(&'static str, String)> {
+    let name = def.name.trim_start_matches('_');
+    if name.is_empty() || def.name_span == Span::default() {
+        return None;
+    }
+    let (style, fixed) = match def.kind {
+        DefKind::Function
+        | DefKind::ExternFunction
+        | DefKind::Field
+        | DefKind::Local
+        | DefKind::Module => ("snake_case", snake_case(name).to_ascii_lowercase()),
+        DefKind::Const => (
+            "SCREAMING_SNAKE_CASE",
+            snake_case(name).to_ascii_uppercase(),
+        ),
+        _ => ("PascalCase", pascal_case(name)),
+    };
+    if fixed == name || fixed.is_empty() {
+        return None;
+    }
+    let prefix = &def.name[..def.name.len() - name.len()];
+    Some((style, format!("{prefix}{fixed}")))
+}
+
 /// Convert an identifier to the snake_case used in Minecraft identities.
 /// `ruby_sword` or `RUBY_SWORD` -> `RubySword`.
 pub fn pascal_case(name: &str) -> String {
@@ -609,37 +634,11 @@ impl Cx {
     fn naming_lints(&mut self) {
         for index in 0..self.defs.len() {
             let def = &self.defs[index];
-            let name = def.name.trim_start_matches('_');
-            if name.is_empty() || def.name_span == Span::default() {
+            let Some((style, fixed)) = name_suggestion(def) else {
                 continue;
-            }
-            let (style, fixed) = match def.kind {
-                DefKind::Function
-                | DefKind::ExternFunction
-                | DefKind::Field
-                | DefKind::Local
-                | DefKind::Module => ("snake_case", snake_case(name).to_ascii_lowercase()),
-                DefKind::Const => (
-                    "SCREAMING_SNAKE_CASE",
-                    snake_case(name).to_ascii_uppercase(),
-                ),
-                DefKind::State
-                | DefKind::Enum
-                | DefKind::Variant
-                | DefKind::Flow
-                | DefKind::CustomItem
-                | DefKind::Recipe
-                | DefKind::Tag
-                | DefKind::Event
-                | DefKind::BossBar
-                | DefKind::Loot => ("PascalCase", pascal_case(name)),
             };
-            if fixed == name || fixed.is_empty() {
-                continue;
-            }
             let what = def.kind.describe();
             let (file, span) = (def.file, def.name_span);
-            let prefix = if def.name.starts_with('_') { "_" } else { "" };
             self.diagnostics.push(
                 Diagnostic::warning(
                     "naming",
@@ -647,7 +646,7 @@ impl Cx {
                     span,
                     format!("{what} `{}` should have a {style} name", def.name),
                 )
-                .with_help(format!("rename it to `{prefix}{fixed}`")),
+                .with_help(format!("rename it to `{fixed}`")),
             );
         }
     }
@@ -2112,7 +2111,12 @@ impl Cx {
                 );
             }
             let ty = self.resolve_type(module, &param.ty);
-            rendered.push(format!("{}: {}", param.name.name, self.ty_name(ty)));
+            rendered.push(format!(
+                "{}{}: {}",
+                if param.mutable { "mut " } else { "" },
+                param.name.name,
+                self.ty_name(ty)
+            ));
             let local = self.push_def(Def {
                 kind: DefKind::Local,
                 name: param.name.name.clone(),
@@ -2125,7 +2129,7 @@ impl Cx {
                 parent: None,
                 info: DefInfo::Local {
                     ty,
-                    mutable: false,
+                    mutable: param.mutable,
                     param: true,
                     owner: Some(owner),
                 },
@@ -3459,6 +3463,7 @@ impl Cx {
                 ops,
             ),
             Stmt::Return { value, span } => self.lower_return(body, value.as_ref(), *span, ops),
+            Stmt::Match { value, arms, span } => self.lower_match(body, value, arms, *span, ops),
             Stmt::Continue(span) => self.lower_jump(body, false, *span, ops),
             Stmt::Break(span) => self.lower_jump(body, true, *span, ops),
             Stmt::Emit { event, args, span } => self.lower_emit(body, event, args, *span, ops),
@@ -3473,11 +3478,18 @@ impl Cx {
             Stmt::ForRange {
                 binding,
                 range,
+                reverse,
+                step,
                 body: block,
                 span,
             } => self.lower_repeat(
                 body,
-                statements::Repeat::Count { binding, range },
+                statements::Repeat::Count {
+                    binding,
+                    range,
+                    reverse: *reverse,
+                    step: step.as_ref(),
+                },
                 block,
                 *span,
                 ops,
@@ -4107,6 +4119,7 @@ fn stmt_span(stmt: &Stmt) -> Span {
         | Stmt::Continue(span)
         | Stmt::Break(span)
         | Stmt::Emit { span, .. }
+        | Stmt::Match { span, .. }
         | Stmt::While { span, .. }
         | Stmt::Loop { span, .. }
         | Stmt::ForRange { span, .. }
@@ -4124,6 +4137,9 @@ fn stmt_exits(stmt: &Stmt) -> bool {
     match stmt {
         Stmt::Return { .. } | Stmt::Continue(_) | Stmt::Break(_) => true,
         Stmt::If(if_stmt) => if_exits(if_stmt),
+        Stmt::Match { arms, .. } => {
+            !arms.is_empty() && arms.iter().all(|arm| arm.body.stmts.iter().any(stmt_exits))
+        }
         _ => false,
     }
 }
@@ -4143,6 +4159,9 @@ pub(crate) fn block_returns(block: &Block) -> bool {
     block.stmts.iter().any(|stmt| match stmt {
         Stmt::Return { .. } => true,
         Stmt::If(if_stmt) => if_returns(if_stmt),
+        Stmt::Match { arms, .. } => {
+            !arms.is_empty() && arms.iter().all(|arm| block_returns(&arm.body))
+        }
         _ => false,
     })
 }

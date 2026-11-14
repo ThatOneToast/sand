@@ -226,7 +226,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 "Local variable"
             };
             let signature = if *param {
-                format!("{}: {}", def.name, ty_name(analysis, *ty))
+                format!(
+                    "{}{}: {}",
+                    if *mutable { "mut " } else { "" },
+                    def.name,
+                    ty_name(analysis, *ty)
+                )
             } else {
                 format!(
                     "let {}{}: {}",
@@ -608,6 +613,78 @@ pub struct Edit {
     pub span: Span,
     /// Replacement text.
     pub text: String,
+}
+
+/// A concrete editor fix, including every affected reference across files.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodeAction {
+    /// Label shown in the editor's quick-fix menu.
+    pub title: String,
+    /// Replacements to apply together.
+    pub edits: Vec<Edit>,
+}
+
+/// Return available fixes for diagnostics overlapping a byte range.
+///
+/// Naming fixes use the same scope-aware references as rename. Mutability
+/// fixes edit the binding declaration, even when the diagnostic is at a use.
+/// No fix is offered for compiler-owned counters or a conflicting new name.
+pub fn code_actions(analysis: &Analysis, file: FileId, selection: Span) -> Vec<CodeAction> {
+    let mut out = Vec::new();
+    for diagnostic in &analysis.diagnostics {
+        if diagnostic.file != file
+            || diagnostic.span.end < selection.start
+            || diagnostic.span.start > selection.end
+        {
+            continue;
+        }
+        let Some(id) = analysis.def_at(file, diagnostic.span.start) else {
+            continue;
+        };
+        let def = analysis.def(id);
+        match diagnostic.code.as_str() {
+            "naming" => {
+                let Some((_, fixed)) = crate::analysis::name_suggestion(def) else {
+                    continue;
+                };
+                if analysis.defs.iter().any(|other| other.name == fixed) {
+                    continue;
+                }
+                if let Ok(edits) = rename(analysis, file, diagnostic.span.start, &fixed) {
+                    out.push(CodeAction {
+                        title: format!("Rename to `{fixed}`"),
+                        edits,
+                    });
+                }
+            }
+            "mutability" => {
+                let DefInfo::Local {
+                    mutable: false,
+                    param,
+                    ..
+                } = def.info
+                else {
+                    continue;
+                };
+                if !param
+                    && !analysis.package.files[def.file.0].text[def.span.start..def.span.end]
+                        .starts_with("let")
+                {
+                    continue;
+                }
+                out.push(CodeAction {
+                    title: format!("Make `{}` mutable", def.name),
+                    edits: vec![Edit {
+                        file: def.file,
+                        span: Span::new(def.name_span.start, def.name_span.start),
+                        text: "mut ".into(),
+                    }],
+                });
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 /// The range and current name that would be renamed at `offset`.
@@ -1140,6 +1217,11 @@ fn statement_completions(
             "if",
             "branch on a condition",
             "if ${1:condition} {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "match",
+            "select an exhaustive arm",
+            "match ${1:value} {\n    ${2:pattern} => { $0 }\n    _ => {}\n}",
         ),
         Completion::snippet(
             "while",

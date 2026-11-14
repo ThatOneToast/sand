@@ -267,3 +267,60 @@ fn files_outside_the_module_tree_are_still_analysed() {
     );
     client.shutdown();
 }
+
+#[test]
+fn formatting_and_quick_fixes_use_unsaved_buffers() {
+    let mut client = Client::start();
+    let source = "#![pack(namespace=\"demo\")]\nfn update(amount:number){amount+=1;}\n";
+    client.open(ROOT, source);
+    client.diagnostics(1);
+    let formatted = client.request(
+        "textDocument/formatting",
+        json!({
+            "textDocument": {"uri": uri(ROOT)}, "options": {"tabSize": 4, "insertSpaces": true}
+        }),
+    );
+    let text = formatted[0]["newText"].as_str().unwrap();
+    assert!(
+        text.contains("fn update(amount: number) {\n    amount += 1;\n}"),
+        "{text}"
+    );
+    let at = position(source, "amount+=");
+    let actions = client.request(
+        "textDocument/codeAction",
+        json!({
+            "textDocument": {"uri": uri(ROOT)}, "range": {"start": at, "end": at},
+            "context": {"diagnostics": []}
+        }),
+    );
+    assert_eq!(actions[0]["title"], "Make `amount` mutable");
+    assert_eq!(
+        actions[0]["edit"]["changes"][uri(ROOT)][0]["newText"],
+        "mut "
+    );
+    // A request for an unrelated action kind must not return quick fixes.
+    let filtered = client.request(
+        "textDocument/codeAction",
+        json!({
+            "textDocument": {"uri": uri(ROOT)}, "range": {"start": at, "end": at},
+            "context": {"diagnostics": [], "only": ["refactor"]}
+        }),
+    );
+    assert_eq!(filtered, json!([]));
+    client.shutdown();
+}
+
+#[test]
+fn malformed_buffers_are_not_formatted() {
+    let mut client = Client::start();
+    client.open(ROOT, "fn broken( {");
+    client.diagnostics(1);
+    let edits = client.request(
+        "textDocument/formatting",
+        json!({
+            "textDocument": {"uri": uri(ROOT)}, "options": {"tabSize": 4, "insertSpaces": true}
+        }),
+    );
+    assert_eq!(edits, json!([]));
+    client.shutdown();
+}

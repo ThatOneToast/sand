@@ -46,6 +46,7 @@ pub mod analysis;
 pub mod ast;
 pub mod builtins;
 pub mod diagnostic;
+pub mod format;
 pub mod ide;
 pub mod package;
 pub mod parser;

@@ -17,6 +17,14 @@ pub struct LangArgs {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Format every source file in a Sand package
+    Fmt {
+        #[command(flatten)]
+        input: Input,
+        /// Report unformatted files without modifying them
+        #[arg(long)]
+        check: bool,
+    },
     /// Type-check a Sand language package without writing files
     Check(Input),
     /// Compile a Sand language package into a datapack directory
@@ -72,6 +80,7 @@ struct Input {
 /// Run a `sand lang` subcommand.
 pub fn run(args: LangArgs) -> Result<()> {
     match args.command {
+        Command::Fmt { input, check } => format_package(&input.path, check),
         Command::Check(input) => {
             let analysis = analyze(&input.path)?;
             let diagnostics = report(&analysis)?;
@@ -185,7 +194,43 @@ pub fn run(args: LangArgs) -> Result<()> {
     }
 }
 
-/// Run the Sand language server over stdio.
+/// Format all declared source files, or check their formatting without writes.
+///
+/// Every file is parsed and formatted before any file is changed. Semantic
+/// errors do not prevent formatting, but syntax and module-loading errors do.
+pub fn format_package(path: &Path, check: bool) -> Result<()> {
+    let analysis = analyze(path)?;
+    if !analysis.package.diagnostics.is_empty() {
+        for diagnostic in &analysis.package.diagnostics {
+            eprint!("{}", diagnostic.render(&analysis.package));
+        }
+        bail!("cannot format a package with syntax or module-loading errors");
+    }
+    let mut changed = Vec::new();
+    for file in &analysis.package.files {
+        let formatted = sand_lang::format::format(&file.text)
+            .map_err(|_| anyhow::anyhow!("cannot format {}: syntax errors", file.path.display()))?;
+        if formatted != file.text {
+            changed.push((file.path.clone(), formatted));
+        }
+    }
+    if check {
+        for (path, _) in &changed {
+            println!("Would format {}", path.display());
+        }
+        if !changed.is_empty() {
+            bail!("{} source file(s) need formatting", changed.len());
+        }
+    } else {
+        for (path, text) in &changed {
+            std::fs::write(path, text)
+                .with_context(|| format!("cannot write {}", path.display()))?;
+            println!("Formatted {}", path.display());
+        }
+    }
+    Ok(())
+}
+
 /// Compile a package and publish it; returns its namespace.
 fn build(analysis: &Analysis, output: Option<PathBuf>) -> Result<String> {
     let pack = analysis.compile().map_err(|errors| {

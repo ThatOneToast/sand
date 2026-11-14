@@ -1160,6 +1160,10 @@ pub const KEYWORDS: &[(&str, &str)] = &[
         "while",
         "`while condition { ... }` repeats while the condition holds. Any condition works, including `!=`, `!`, `&&`, `||`, calculations, and calls.",
     ),
+    (
+        "match",
+        "`match value { Variant => { ... }, _ => { ... } }` evaluates the value once and runs one arm. Patterns are typed constants; separate alternatives with `|`. Cover every enum variant, both booleans, or add `_`.",
+    ),
     ("loop", "`loop { ... }` repeats until `break` or `return`."),
     (
         "break",

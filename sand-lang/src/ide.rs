@@ -668,7 +668,10 @@ pub fn code_actions(analysis: &Analysis, file: FileId, selection: Span) -> Vec<C
                 };
                 if !param
                     && !analysis.package.files[def.file.0].text[def.span.start..def.span.end]
-                        .starts_with("let")
+                        .strip_prefix("let")
+                        .is_some_and(|tail| {
+                            tail.starts_with(char::is_whitespace) || tail.starts_with("/*")
+                        })
                 {
                     continue;
                 }

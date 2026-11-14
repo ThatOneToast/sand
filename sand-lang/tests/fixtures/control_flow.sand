@@ -24,6 +24,8 @@ fn recursive(mut n: number) -> number {
 }
 
 fn run() {
+    Result.phase = Phase::Idle;
+    Result.limit = 0;
     Result.checks = 0;
     Result.failed = 0;
     let mut total = 0;

@@ -734,3 +734,18 @@ fn match_arm_completion_keeps_locals_and_enclosing_loop_context() {
         );
     }
 }
+
+#[test]
+fn mutability_fixes_do_not_rewrite_counters_named_with_a_let_prefix() {
+    let source = pack("fn run() { for letter in 0..3 { letter += 1; } }");
+    let analysis = analyze_one(&source);
+    let offset = at(&source, "letter +=");
+    assert!(
+        ide::code_actions(
+            &analysis,
+            FileId(0),
+            sand_lang::ast::Span::new(offset, offset)
+        )
+        .is_empty()
+    );
+}

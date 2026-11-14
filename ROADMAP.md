@@ -214,6 +214,47 @@ Acceptance: deterministic output and semantic parity across targets; optimized
 paths have versioned native evidence. Static command counts are not MSPT claims.
 See [benchmarks and limitations](BENCHMARKS.md).
 
+## Sand language expansion
+
+The language uses the portable compiler shared with Rust. The current surface
+and Rust-only areas are documented in [the language guide](book/src/language.md).
+This checklist tracks the requested expansion; unchecked entries are not shipped.
+
+- [x] Recursive functions, scoped locals, scalar casts, counting loops and custom
+  events with payloads.
+- [x] Exhaustive statement `match`, constant alternatives, mutable parameters,
+  reversed/stepped ranges, left-to-right bound evaluation and safe range endpoints.
+- [x] Package formatting through `sand fmt`, `sand lang fmt`, `--check` and LSP;
+  naming and mutability quick fixes that edit declarations and references.
+- [x] Automated vanilla 26.2 control-flow probe with 13 assertions and reload;
+  run `scripts/validate_language.py` with a built CLI and bundled server JAR.
+- [ ] Records, collections, runtime text values and aggregate function arguments,
+  return values and State fields, with one shared typed value model.
+- [ ] First-class functions, closures, methods, generics and traits where they
+  compose with the runtime value and execution-context models.
+- [ ] Typed enchantments generated once for Rust and the language; typed time
+  values and storable positions. Use existing entity State instead of creating
+  a competing checked entity-tag model.
+- [ ] Equipment/inventory properties, richer entity data, motion, vehicles,
+  archetypes, query NBT/score filters and persistent entity relationships.
+- [ ] Broader event triggers, filters, tracked changes and event chains.
+- [ ] Suspended function continuations (`wait`) with per-invocation locals,
+  executor identity, dimension, cancellation and multiplayer isolation.
+- [ ] Structures, dimensions, biomes, clone and typed block-data access.
+- [ ] Multi-pool conditional loot, advancements, predicates, worldgen, damage
+  types, trim recipes, books, dialogs, interactive/translated text and VFX.
+- [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
+  transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
+  through canonical shared models.
+- [ ] Language-authored tests, additional diagnostic fixes, source maps and
+  debugging; real connected-player and Zed-session verification.
+
+Acceptance: compiler/export tests prove observable output, runtime features have
+native evidence, and each new public model preserves deterministic export,
+collision safety and per-player/per-invocation ownership. Minecraft's finite
+integer range, command limit and player-data restrictions remain runtime
+constraints; a new surface syntax alone does not remove them.
+
 ## Validation and coverage work
 
 - [x] Full local gate: `scripts/check.sh` plus `git diff --check`.

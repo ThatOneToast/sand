@@ -15,8 +15,9 @@ from validate_world_gameplay import WorldGameplayHarness
 class LanguageHarness(WorldGameplayHarness):
     def run_client(self):
         marker = "__SAND_LANGUAGE_OK__"
-        if not self.passed("LANGUAGE", "function language_probe:run", marker):
-            raise ValidationFailure("language", "control-flow fixture failed its assertions")
+        for invocation in range(2):
+            if not self.passed(f"LANGUAGE_{invocation}", "function language_probe:run", marker):
+                raise ValidationFailure("language", "control-flow fixture failed its assertions")
 
 
 def main():

@@ -2030,11 +2030,6 @@
     }
   },
   {
-    "type": "mutable_specifier",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "not_condition",
     "named": true,
     "fields": {},
@@ -2105,6 +2100,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "mutable_specifier",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3290,8 +3295,8 @@
     "named": false
   },
   {
-    "type": "mut",
-    "named": false
+    "type": "mutable_specifier",
+    "named": true
   },
   {
     "type": "on",

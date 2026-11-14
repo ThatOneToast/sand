@@ -1684,8 +1684,8 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "STRING",
-              "value": "mut"
+              "type": "SYMBOL",
+              "name": "mutable_specifier"
             },
             {
               "type": "BLANK"

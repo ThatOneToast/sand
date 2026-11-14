@@ -211,7 +211,7 @@ module.exports = grammar({
         field('body', $.block),
       ),
     parameters: ($) => seq('(', commaSep($.parameter), ')'),
-    parameter: ($) => seq(optional('mut'), field('name', $.identifier), ':', field('type', $.type)),
+    parameter: ($) => seq(optional($.mutable_specifier), field('name', $.identifier), ':', field('type', $.type)),
 
     // ── Statements ─────────────────────────────────────────────────────────
     block: ($) => seq('{', repeat($._statement), '}'),

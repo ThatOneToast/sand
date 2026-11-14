@@ -72,7 +72,10 @@ fn add_up() {
     let pack = compile(&analysis);
     let add_up = function(&pack, "demo/function/add_up");
     // The counter starts at 0 and the loop runs while it is at most 4.
-    assert!(add_up.contains("matches -2147483648..4 run function demo:__sand_program/"), "{add_up}");
+    assert!(
+        add_up.contains("matches -2147483648..4 run function demo:__sand_program/"),
+        "{add_up}"
+    );
 }
 
 #[test]

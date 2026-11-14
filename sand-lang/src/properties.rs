@@ -125,9 +125,19 @@ const DATA: &[(&str, EntityData, PropertyType, &str)] = &[
         PropertyType::Bool,
         "Whether it is standing on a block.",
     ),
-    ("x", EntityData::X, PropertyType::Float, "East-west position."),
+    (
+        "x",
+        EntityData::X,
+        PropertyType::Float,
+        "East-west position.",
+    ),
     ("y", EntityData::Y, PropertyType::Float, "Height."),
-    ("z", EntityData::Z, PropertyType::Float, "North-south position."),
+    (
+        "z",
+        EntityData::Z,
+        PropertyType::Float,
+        "North-south position.",
+    ),
     (
         "food",
         EntityData::Food,
@@ -182,9 +192,7 @@ pub fn all() -> Vec<Property> {
         let mut attributes: Vec<(&str, &str)> = registry
             .variants
             .iter()
-            .filter_map(|(variant, id)| {
-                Some((id.strip_prefix("minecraft:")?, variant.as_str()))
-            })
+            .filter_map(|(variant, id)| Some((id.strip_prefix("minecraft:")?, variant.as_str())))
             .collect();
         attributes.sort();
         for (name, variant) in attributes {

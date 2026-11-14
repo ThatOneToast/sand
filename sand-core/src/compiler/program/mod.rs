@@ -10,13 +10,13 @@ pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
     Action, Amount, Audience, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle,
-    Condition, CookingMethod, CustomItem, EntitiesExist, EntityFlag, EntityQuery, EntitySort,
-    EventHook, ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase,
-    FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel,
-    EntityData, Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
-    Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
-    ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
-    TeleportDestination, TextColor, TextPart, TextStyle, Weather,
+    Condition, CookingMethod, CustomItem, EntitiesExist, EntityData, EntityFlag, EntityQuery,
+    EntitySort, EventHook, ExecutionContext, FieldReference, FlagSet, Flow, FlowHook,
+    FlowHookPhase, FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootTable,
+    MessageChannel, Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program,
+    ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField,
+    ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached,
+    TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle, Weather,
 };
 use std::collections::BTreeMap;
 

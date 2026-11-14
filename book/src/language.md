@@ -93,8 +93,8 @@ warns when a name breaks it and suggests the fixed spelling.
 | `SCREAMING_SNAKE_CASE` | constants | `MAX_HEALTH` |
 
 Builtins are named `verb` or `verb_object`: `give_item`, `clear_item`,
-`add_effect`, `play_sound`, `spawn_particle`, `add_tag`, `get_attribute`,
-`set_attribute`, `count_entities`. Value sets are singular nouns: `Item`,
+`add_effect`, `play_sound`, `spawn_particle`, `add_tag`, `count_entities`.
+Value sets are singular nouns: `Item`,
 `Block`, `Entity`, `Sound`, `Particle`, `Attribute`, `Effect`, `Potion`,
 `Rarity`, `Sort`. Attribute words such as `#[tick]` and `#[on(death)]` are
 lowercase, as in Rust.
@@ -206,18 +206,18 @@ fn heart_price(owned: number) -> number {
 
 #[on(use_item = Item::CarrotOnAStick)]
 fn buy_heart() {
-    let health = get_attribute(Attribute::MaxHealth);   // 20 = ten hearts
-    if health >= 40 {
+    let health = Player.max_health;                   // 20.0 = ten hearts
+    if health >= 40.0 {
         actionbar!("{gold}You already have the maximum health.");
         return;                                       // early return
     }
-    let price = heart_price((health - 20) / 2);
+    let price = heart_price(((health - 20.0) / 2.0) as number);
     if Wallet.coins < price {
         chat!("{red}You need {price} coins.");
         return;
     }
     Wallet.coins -= price;
-    set_attribute(Attribute::MaxHealth, health + 2);
+    Player.max_health = health + 2.0;
 }
 ```
 
@@ -226,8 +226,28 @@ fn buy_heart() {
 - Parameters are immutable (copy one into `let mut` to change it).
 - `return;` ends a function early; `return value;` returns from a function
   declared with `-> number`. Every path must return a value in such functions.
-- Functions cannot call themselves (see "How Sand compiles" for why); use a
-  `while` loop instead.
+- Functions can call each other and themselves, directly or through other
+  functions. Recursion works like in Rust: each call has its own variables.
+
+```rust,ignore
+fn factorial(n: number) -> number {
+    if n <= 1 { return 1; }
+    return n * factorial(n - 1);
+}
+
+fn is_even(n: number) -> bool {
+    if n == 0 { return true; }
+    return is_odd(n - 1);
+}
+fn is_odd(n: number) -> bool {
+    if n == 0 { return false; }
+    return is_even(n - 1);
+}
+```
+
+  A function returning `bool` can be used directly as a condition:
+  `if is_even(Hero.gold) { ... }`. Minecraft limits how many commands one
+  tick can run (65,536 by default), which bounds how deep recursion can go.
 - Entry points (`#[tick]`, `#[load]`, `#[on(...)]`, `schedule`, flow hooks)
   run without arguments, so they cannot take parameters.
 
@@ -240,7 +260,10 @@ let total = Hero.gold * 3 + bonus(2);   // any integer expression
 Dice.roll = random(1..=6);              // random integer
 grant();                                // call (module paths work: rewards::grant())
 for player in players() { ... }         // run the body as each online player
-while n > 0 { n -= 1; }                 // loop while a comparison holds
+for i in 0..10 { ... }                  // count 0 to 9; `0..=10` includes 10
+while n != 1 && steps < 100 { ... }     // loop while any condition holds
+loop { if done() { break; } }           // loop until `break` or `return`
+emit Payday(25);                        // run every handler of a custom event
 if Hero.energy >= 30 && Hero.gold > Rival.gold { ... } else { ... }
 ```
 
@@ -251,9 +274,39 @@ after the whole value is computed.
 Conditions compare any integer expressions (`== != < <= > >=`) or test `in` a
 range (`a..b`, `a..=b`, `a..`, `..=b`). Combine them with `&&`, `||`, `!`, and
 parentheses. Every comparison is evaluated at most once, and exactly one branch
-runs. `while` takes a single comparison of fields, variables, or constants.
+runs.
 
-Inside `for player in players()`, `continue;` skips to the next player. As in
+### Loops
+
+`while`, `loop`, and counting `for` repeat their body; `break;` leaves the
+innermost one and `continue;` skips to its next pass:
+
+```rust,ignore
+fn first_square_over(limit: number) -> number {
+    for i in 0..1000 {
+        if i * i > limit { return i; }
+    }
+    return -1;
+}
+
+fn collatz_steps(start: number) -> number {
+    let mut n = start;
+    let mut steps = 0;
+    while n != 1 {
+        if n % 2 == 0 { n = n / 2; } else { n = n * 3 + 1; }
+        steps += 1;
+    }
+    return steps;
+}
+```
+
+A counting `for` computes its end once, before the first pass, and its
+variable cannot be assigned. `while` accepts any condition; one plain
+comparison is checked directly, and anything else is computed into a flag
+before each pass.
+
+Inside `for player in players()`, `continue;` skips to the next player;
+`break;` is an error there, because every player runs once. As in
 Rust, the loop changes who runs the body but not where: `offset(..)`, sounds,
 particles, and summons stay at the caller's position (the world spawn in
 `#[tick]`). `#[on(...)]` handlers and `for name in entities(..)` bodies do run
@@ -270,13 +323,57 @@ Conditions can also ask about the world and the executor:
 | `is_sneaking()`, `is_sprinting()`, `is_swimming()`, `is_on_fire()` | the executor is doing it |
 | `timer_running(Ability.dash)`, `timer_done(Ability.dash)` | a `timer` field has time left, or none |
 
-## Attributes
+### Casts
 
-`get_attribute(Attribute::MaxHealth)` reads the executing player's base value
-as an integer (pass `scale = 1000` to keep three decimals).
-`set_attribute(Attribute::MaxHealth, value)` sets it from a constant or any
-integer expression; divide integer expressions with `scale`:
-`set_attribute(Attribute::MovementSpeed, speed, scale = 1000)`.
+`value as T` converts between `number`, `float`, `bool`, and enums. The same
+rules apply to constants and to values computed while the game runs:
+
+| From \\ to | `number` | `float` | `bool` | enum |
+| --- | --- | --- | --- | --- |
+| `number` | same | `3` → `3.0` | `x != 0` | the variant with that value |
+| `float` | rounds down: `2.7` → `2`, `-1.5` → `-2` | same | `x != 0.0` | error |
+| `bool` | `0` or `1` | `0.0` or `1.0` | same | error |
+| enum | its value | its value | error | the same enum only |
+
+As in Rust, `-x as T` casts the negated value. Impossible casts say what to
+write instead, and a constant cast to an enum must name an existing variant.
+
+## Players and entities
+
+`Player` is the executing player, read and written like a State. Its fields
+are entity data (read-only) and every attribute (read and write):
+
+```rust,ignore
+fn tune() {
+    if Player.health < 6.0 && Player.food > 10 {
+        Player.movement_speed *= 1.2;          // attributes can be assigned
+    }
+    Player.max_health = 40.0;
+    Player.step_height = 1.0;
+}
+```
+
+Inside `for zombie in entities(..)` and `for player in players()`, the loop
+variable is a handle to the entity running the body: `zombie.health`,
+`zombie.scale = 2.0;`. Only the innermost loop's entity can be used.
+
+| Property | Type | Notes |
+| --- | --- | --- |
+| `health`, `absorption` | `float` | half-hearts |
+| `air` | `number` | ticks of breath; 300 is full |
+| `fire` | `number` | ticks left burning |
+| `fall_distance` | `float` | blocks |
+| `on_ground` | `bool` | |
+| `x`, `y`, `z` | `float` | position |
+| `food`, `xp_level`, `xp_total`, `selected_slot` | `number` | players only |
+| `saturation`, `xp_progress` | `float` | players only |
+| any attribute: `max_health`, `movement_speed`, `step_height`, `scale`, `gravity`, ... | `float` | base value; assignable |
+
+Attribute names are the attribute's identity without `minecraft:`, so
+`Attribute::StepHeight` is `step_height`. Assigning read-only data is an error
+that names the builtin to use instead, such as `damage(..)` or `teleport(..)`.
+The editor completes properties after `Player.` or a loop variable and shows
+each one's type, whether it can be assigned, and the command it becomes.
 
 ## Text
 
@@ -309,7 +406,6 @@ give_item(Item::Diamond, 3);
 add_effect(Effect::Speed, seconds = 10);
 play_sound(Sound::EntityPlayerLevelup);
 spawn_particle(Particle::Heart, count = 5);
-set_attribute(Attribute::MaxHealth, 24.0);
 ```
 
 | Sand | Rust |
@@ -336,8 +432,6 @@ vanilla identity as a string gets a warning pointing at the typed value.
 | `give_item(Item::..., 3)` | give items |
 | `clear_item(Item::..., 2)` / `clear_inventory()` | remove items |
 | `schedule(function, seconds = 5)` | run a server function later (`ticks = n` also works) |
-| `set_attribute(Attribute::..., value, scale = 1)` | set an attribute's base value |
-| `get_attribute(Attribute::..., scale = 1)` | read an attribute's base value (an expression) |
 | `raw!("command")` | run one command exactly as written (escape hatch) |
 
 Hover any builtin in the editor to see its arguments and the Minecraft command
@@ -421,13 +515,15 @@ event Payday(amount: number);
 fn deposit(amount: number) { Wallet.coins += amount; }
 
 #[on(Payday)]
-fn celebrate(amount: number) { chat!("{gold}Paid!"); }
+fn celebrate() { chat!("{gold}Paid!"); }   // ignores the payload
 
-fn wages() { emit(Payday, 25); }
+fn wages() { emit Payday(25); }
 ```
 
-Handlers run in declaration order, as whoever emitted the event, and must take
-exactly the event's parameters. Arguments are evaluated once. If a handler needs
+Handlers run in declaration order, as whoever emitted the event, and take
+either exactly the event's parameters or none. `emit Name;` emits an event
+without a payload. Arguments are evaluated once, and a handler may emit the
+event again (it is recursion, so it needs a stopping condition). If a handler needs
 a player, emitting the event needs one too, and the editor says so. Any module
 can handle a `pub event`.
 
@@ -636,15 +732,22 @@ language feature onto what Minecraft does have:
 | `let` variable, parameter, temporary | a slot on one compiler-owned global holder |
 | `fn` | a `.mcfunction` file |
 | calling `f(a, b)` | copy arguments into `f`'s parameter slots, then `function ns:f` |
+| a call that can come back to its caller | first save the caller's slots on a `<ns>:__sand_frames` storage stack, restore them after |
 | `return value;` | write `f`'s return slot, then `return 1` |
 | `return;` from inside an `if` | the branch helper returns 1; the caller runs `execute if function <helper> run return 1` |
 | `if` / `else` | `execute if score ... run return run function <then>` in a helper |
-| `while` | a helper that runs its body and tail-calls itself while the condition holds |
+| `while`, `loop`, `for i in a..b` | a helper that runs its body and tail-calls itself while the condition holds |
+| `break;` / `continue;` | a jump flag that skips the rest of the pass |
+| `Player.health` | `execute store result score ... run data get entity @s Health 1000` |
+| `Player.max_health = expr;` | the value is copied into storage and applied by a macro function |
 | `x * 3 + y` | `scoreboard players operation` steps through temporaries |
-| `set_attribute(..., expr)` | the value is copied into storage and applied by a macro function |
 
-Because variables are slots rather than stack frames, a function cannot be
-re-entered while it is running, which is why recursion is rejected. Commands
+Variables are slots rather than stack frames, so Sand works out from the call
+graph which calls can lead back into their caller (directly, through other
+functions, or through an event a handler emits again). Only those calls save
+and restore the caller's variables; every other call is a plain `function`
+command. Arguments that call functions, and the arguments of a function
+calling itself, are computed before any parameter is overwritten. Commands
 run one after another within a tick, so players never see each other's
 variables, even inside `for player in players()`.
 
@@ -656,8 +759,8 @@ express produces identical output. Today the language covers:
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
 | State | player, global, and entity State; `number`, `float`, `bool`, enum, and `timer` fields; clamps; flows | NBT-backed values, relations, derived values, migrations |
-| Logic | functions with parameters and returns, `let`, `if`, `while`, early return, custom events | closures, generics, compile-time Rust code |
-| Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes, effects, items, experience, game mode, sneaking and other flags, held items | selection by NBT or scores, motion, vehicles, equipment edits, archetypes |
+| Logic | functions with parameters and returns, recursion, `let`, `if`, `while`, `loop`, counting `for`, `break`/`continue`, casts, early return, custom events | closures, generics, compile-time Rust code |
+| Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes and entity data as properties, effects, items, experience, game mode, sneaking and other flags, held items | selection by NBT or scores, motion, vehicles, equipment edits, archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | blocks and regions, block tests, time, weather | structures, biomes, dimensions, clone, data on blocks |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |

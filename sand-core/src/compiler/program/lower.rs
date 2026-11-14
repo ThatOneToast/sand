@@ -1687,9 +1687,7 @@ impl Lower {
                             ))),
                         });
                     }
-                    commands.push(Cmd::Raw(format!(
-                        "data remove storage {storage} stack[-1]"
-                    )));
+                    commands.push(Cmd::Raw(format!("data remove storage {storage} stack[-1]")));
                     commands
                 }
                 Action::DataGet {

@@ -49,8 +49,8 @@ pub mod diagnostic;
 pub mod ide;
 pub mod package;
 pub mod parser;
-pub mod properties;
 mod position;
+pub mod properties;
 pub mod source;
 pub mod vanilla;
 

@@ -527,9 +527,7 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
         | Scope::Hook
         | Scope::Block
         | Scope::Loop { .. }
-        | Scope::Repeat => {
-            statement_position(&context, body())
-        }
+        | Scope::Repeat => statement_position(&context, body()),
         Scope::Call { .. } => Position::Expression(body()),
         Scope::Params => {
             if context.ends_with(':') {

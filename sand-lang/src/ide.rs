@@ -1339,8 +1339,11 @@ fn handle_at(analysis: &Analysis, file: FileId, offset: usize, name: &str) -> Op
         return binding;
     }
     let module = analysis.package.module_at(file, offset)?;
-    (name == "Player" && !scope_names(analysis, module).iter().any(|(n, _)| n == "Player"))
-        .then_some(true)
+    (name == "Player"
+        && !scope_names(analysis, module)
+            .iter()
+            .any(|(n, _)| n == "Player"))
+    .then_some(true)
 }
 
 /// `Player` and the loop bindings visible at `offset`.
@@ -1379,7 +1382,11 @@ fn property_completion(handle: &str, property: crate::properties::Property) -> C
         detail: Some(format!(
             "{}{}",
             property.ty.name(),
-            if property.writable() { "" } else { " (read-only)" }
+            if property.writable() {
+                ""
+            } else {
+                " (read-only)"
+            }
         )),
         documentation: Some(property.describe(handle)),
         ..Completion::plain(&property.name, CompletionKind::Field)

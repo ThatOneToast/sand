@@ -30,7 +30,10 @@ pub(super) enum Repeat<'a> {
     /// `loop { }`.
     Forever,
     /// `for binding in range { }`.
-    Count { binding: &'a Ident, range: &'a Range },
+    Count {
+        binding: &'a Ident,
+        range: &'a Range,
+    },
 }
 
 /// Whether the statement can `break` (or `continue`, when `is_break` is
@@ -87,7 +90,9 @@ fn retarget_marker(mut ops: Vec<pc::Operation>, keep: &pc::FieldReference) -> Ve
     for op in &mut ops {
         match &mut op.action {
             pc::Action::ScoreSet { score, .. } if score.field == "__keep" => *score = keep.clone(),
-            pc::Action::Branch { then, otherwise, .. } => {
+            pc::Action::Branch {
+                then, otherwise, ..
+            } => {
                 *then = retarget_marker(std::mem::take(then), keep);
                 *otherwise = retarget_marker(std::mem::take(otherwise), keep);
             }
@@ -843,7 +848,11 @@ impl Cx {
     /// A placeholder frame field for one call, resolved once the whole call
     /// graph is known: a call that can re-enter its caller saves the caller's
     /// variables around it, and every other call drops the placeholder.
-    pub(super) fn frame_marker(&mut self, caller: Option<DefId>, callee: DefId) -> pc::FieldReference {
+    pub(super) fn frame_marker(
+        &mut self,
+        caller: Option<DefId>,
+        callee: DefId,
+    ) -> pc::FieldReference {
         let index = self.call_frames.len();
         self.call_frames.push((caller, callee));
         pc::FieldReference {
@@ -1096,7 +1105,14 @@ impl Cx {
     }
 
     /// A new local owned by the function being lowered; not yet visible.
-    fn new_local(&mut self, body: &BodyCx, name: &Ident, ty: Ty, mutable: bool, span: Span) -> DefId {
+    fn new_local(
+        &mut self,
+        body: &BodyCx,
+        name: &Ident,
+        ty: Ty,
+        mutable: bool,
+        span: Span,
+    ) -> DefId {
         self.push_def(Def {
             kind: DefKind::Local,
             name: name.name.clone(),
@@ -1213,8 +1229,9 @@ impl Cx {
         let has_jump = has_break || block.stmts.iter().any(|stmt| jumps_here(stmt, false));
         if matches!(kind, Repeat::Forever) && !has_break && !block_mentions_return(block) {
             self.diagnostics.push(
-                Diagnostic::warning("loop", file, span, "this `loop` never ends")
-                    .with_help("leave it with `break;` or `return`; Minecraft stops runaway command chains"),
+                Diagnostic::warning("loop", file, span, "this `loop` never ends").with_help(
+                    "leave it with `break;` or `return`; Minecraft stops runaway command chains",
+                ),
             );
         }
         let jump = has_jump.then(|| self.temp(body));
@@ -1234,7 +1251,10 @@ impl Cx {
                 let mut pre = Vec::new();
                 let simple_shape = matches!(
                     cond,
-                    Cond::Compare { .. } | Cond::InRange { .. } | Cond::Call { .. } | Cond::Value(_)
+                    Cond::Compare { .. }
+                        | Cond::InRange { .. }
+                        | Cond::Call { .. }
+                        | Cond::Value(_)
                 );
                 let atom = if simple_shape {
                     let Some(atom) = self.atom(body, cond, &mut pre) else {
@@ -1253,9 +1273,12 @@ impl Cx {
                         test.push(Self::flag_branch(condition, negated, file, cond.span()));
                     }
                     None => {
-                        let Some(lowered) =
-                            self.lower_cond(body, cond, vec![Self::marker_set(1, file, span)], Vec::new())
-                        else {
+                        let Some(lowered) = self.lower_cond(
+                            body,
+                            cond,
+                            vec![Self::marker_set(1, file, span)],
+                            Vec::new(),
+                        ) else {
                             body.scopes.pop();
                             body.temp_depth = depth;
                             return;
@@ -1273,8 +1296,13 @@ impl Cx {
             Repeat::Count { binding, range } => {
                 let (Some(start), Some(end)) = (&range.start, &range.end) else {
                     self.diagnostics.push(
-                        Diagnostic::error("for", file, range.span, "a counting `for` needs both ends")
-                            .with_help("write `for i in 0..10 { ... }`; `..=` includes the end"),
+                        Diagnostic::error(
+                            "for",
+                            file,
+                            range.span,
+                            "a counting `for` needs both ends",
+                        )
+                        .with_help("write `for i in 0..10 { ... }`; `..=` includes the end"),
                     );
                     body.scopes.pop();
                     return;
@@ -1307,7 +1335,10 @@ impl Cx {
                     Ok(Some(Value::Const(value))) => Value::Const(value),
                     Ok(_) => {
                         let temp = self.temp(body);
-                        if self.emit(body, &temp, Ty::Number, end, &mut setup).is_none() {
+                        if self
+                            .emit(body, &temp, Ty::Number, end, &mut setup)
+                            .is_none()
+                        {
                             body.scopes.pop();
                             body.temp_depth = depth;
                             return;
@@ -1320,17 +1351,30 @@ impl Cx {
                         return;
                     }
                 };
-                if self.emit(body, &counter, Ty::Number, start, &mut setup).is_none() {
+                if self
+                    .emit(body, &counter, Ty::Number, start, &mut setup)
+                    .is_none()
+                {
                     body.scopes.pop();
                     body.temp_depth = depth;
                     return;
                 }
-                self.bring_into_scope(body, binding, local, Span::new(binding.span.start, block.span.end));
+                self.bring_into_scope(
+                    body,
+                    binding,
+                    local,
+                    Span::new(binding.span.start, block.span.end),
+                );
                 let condition = match limit {
                     Value::Const(value) => {
                         let max = if range.inclusive { value } else { value - 1 };
                         let Ok(max) = i32::try_from(max) else {
-                            self.error("range", file, end.span(), "this range end overflows `number`");
+                            self.error(
+                                "range",
+                                file,
+                                end.span(),
+                                "this range end overflows `number`",
+                            );
                             body.scopes.pop();
                             body.temp_depth = depth;
                             return;
@@ -1367,11 +1411,25 @@ impl Cx {
         // `test` was built against a placeholder flag; point it at `keep`.
         let test: Vec<pc::Operation> = match (&keep, &direct) {
             (Some(keep), Some(condition)) => vec![
-                op_at(pc::Action::ScoreSet { score: keep.clone(), value: 0 }, file, span),
+                op_at(
+                    pc::Action::ScoreSet {
+                        score: keep.clone(),
+                        value: 0,
+                    },
+                    file,
+                    span,
+                ),
                 op_at(
                     pc::Action::Branch {
                         condition: condition.clone(),
-                        then: vec![op_at(pc::Action::ScoreSet { score: keep.clone(), value: 1 }, file, span)],
+                        then: vec![op_at(
+                            pc::Action::ScoreSet {
+                                score: keep.clone(),
+                                value: 1,
+                            },
+                            file,
+                            span,
+                        )],
                         otherwise: Vec::new(),
                     },
                     file,
@@ -1390,7 +1448,14 @@ impl Cx {
         body.scopes.pop();
         let mut inner = Vec::new();
         if let Some(jump) = &jump {
-            inner.push(op_at(pc::Action::ScoreSet { score: jump.clone(), value: 0 }, file, span));
+            inner.push(op_at(
+                pc::Action::ScoreSet {
+                    score: jump.clone(),
+                    value: 0,
+                },
+                file,
+                span,
+            ));
         }
         inner.extend(lowered);
         inner.extend(step);
@@ -1403,7 +1468,14 @@ impl Cx {
                             min: Some(2),
                             max: Some(2),
                         }),
-                        then: vec![op_at(pc::Action::ScoreSet { score: keep.clone(), value: 0 }, file, span)],
+                        then: vec![op_at(
+                            pc::Action::ScoreSet {
+                                score: keep.clone(),
+                                value: 0,
+                            },
+                            file,
+                            span,
+                        )],
                         otherwise: test.clone(),
                     },
                     file,
@@ -1426,7 +1498,14 @@ impl Cx {
             (None, Some(condition)) => condition,
             (None, None) => unreachable!("a loop without a direct test keeps a flag"),
         };
-        ops.push(op_at(pc::Action::While { condition, body: inner }, file, span));
+        ops.push(op_at(
+            pc::Action::While {
+                condition,
+                body: inner,
+            },
+            file,
+            span,
+        ));
     }
 
     /// `keep = 1` (or 0) against the placeholder flag, retargeted later.
@@ -1442,7 +1521,12 @@ impl Cx {
     }
 
     /// Set the placeholder flag to whether `condition` holds (or fails).
-    fn flag_branch(condition: pc::Condition, negated: bool, file: FileId, span: Span) -> pc::Operation {
+    fn flag_branch(
+        condition: pc::Condition,
+        negated: bool,
+        file: FileId,
+        span: Span,
+    ) -> pc::Operation {
         op_at(
             pc::Action::Branch {
                 condition,
@@ -1455,7 +1539,13 @@ impl Cx {
     }
 
     /// `break;` and `continue;`.
-    pub(super) fn lower_jump(&mut self, body: &mut BodyCx, is_break: bool, span: Span, ops: &mut Vec<pc::Operation>) {
+    pub(super) fn lower_jump(
+        &mut self,
+        body: &mut BodyCx,
+        is_break: bool,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
         let file = body.file;
         let word = if is_break { "break" } else { "continue" };
         let repeat = body
@@ -1463,7 +1553,10 @@ impl Cx {
             .last()
             .filter(|jump| jump.executor_loops == body.loops.len());
         if let Some(jump) = repeat {
-            let flag = jump.flag.clone().expect("a loop with jumps keeps a jump flag");
+            let flag = jump
+                .flag
+                .clone()
+                .expect("a loop with jumps keeps a jump flag");
             ops.push(op_at(
                 pc::Action::ScoreSet {
                     score: flag,
@@ -1481,7 +1574,9 @@ impl Cx {
                         span,
                         "`break` cannot stop a `players()` or `entities(..)` loop",
                     )
-                    .with_help("every match runs once; `continue` skips the rest of this one's turn"),
+                    .with_help(
+                        "every match runs once; `continue` skips the rest of this one's turn",
+                    ),
                 );
             } else {
                 ops.push(op_at(pc::Action::Return, file, span));
@@ -2300,9 +2395,15 @@ impl Cx {
         };
         let PropertyKind::Attribute(attribute) = property.kind.clone() else {
             let help = match property.name.as_str() {
-                "health" => "change health with `damage(...)` or a healing effect such as `add_effect(Effect::InstantHealth, ...)`",
-                "food" | "saturation" => "feed the player with an effect such as `add_effect(Effect::Saturation, ...)`",
-                "xp_level" | "xp_total" | "xp_progress" => "give experience with `add_experience(...)`",
+                "health" => {
+                    "change health with `damage(...)` or a healing effect such as `add_effect(Effect::InstantHealth, ...)`"
+                }
+                "food" | "saturation" => {
+                    "feed the player with an effect such as `add_effect(Effect::Saturation, ...)`"
+                }
+                "xp_level" | "xp_total" | "xp_progress" => {
+                    "give experience with `add_experience(...)`"
+                }
                 "x" | "y" | "z" => "move it with `teleport(...)` or `teleport_by(...)`",
                 _ => "entity data can be read but not written",
             };

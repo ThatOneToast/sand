@@ -59,7 +59,10 @@ fn sample() {
         sample.contains("run data get entity @s Health 1000"),
         "{sample}"
     );
-    assert!(sample.contains("run data get entity @s foodLevel 1"), "{sample}");
+    assert!(
+        sample.contains("run data get entity @s foodLevel 1"),
+        "{sample}"
+    );
 }
 
 #[test]
@@ -80,8 +83,10 @@ fn grow(bonus: float) {
     assert_eq!(sets[0]["value"], 40.0);
     assert_eq!(sets[1]["value"]["scale"], 1000.0);
     // The compound update reads the current base value first.
-    assert!(ops.iter().any(|o| o["op"] == "attribute_get"
-        && o["attribute"] == "minecraft:movement_speed"));
+    assert!(
+        ops.iter()
+            .any(|o| o["op"] == "attribute_get" && o["attribute"] == "minecraft:movement_speed")
+    );
 }
 
 #[test]
@@ -112,7 +117,10 @@ fn shrink_zombies() {
         helpers.contains("attribute @s minecraft:scale base set 0.5"),
         "{helpers}"
     );
-    assert!(helpers.contains("data get entity @s OnGround 1"), "{helpers}");
+    assert!(
+        helpers.contains("data get entity @s OnGround 1"),
+        "{helpers}"
+    );
 }
 
 #[test]
@@ -177,11 +185,23 @@ fn f() {
     assert!(errors(&analysis).is_empty(), "{:#?}", errors(&analysis));
 
     let hover = ide::hover(&analysis, FileId(0), text.find("health").unwrap()).unwrap();
-    assert!(hover.markdown.contains("Player.health: float"), "{}", hover.markdown);
+    assert!(
+        hover.markdown.contains("Player.health: float"),
+        "{}",
+        hover.markdown
+    );
     assert!(hover.markdown.contains("read-only"), "{}", hover.markdown);
     let hover = ide::hover(&analysis, FileId(0), text.find("scale").unwrap()).unwrap();
-    assert!(hover.markdown.contains("zombie.scale: float"), "{}", hover.markdown);
-    assert!(hover.markdown.contains("read and write"), "{}", hover.markdown);
+    assert!(
+        hover.markdown.contains("zombie.scale: float"),
+        "{}",
+        hover.markdown
+    );
+    assert!(
+        hover.markdown.contains("read and write"),
+        "{}",
+        hover.markdown
+    );
 
     // After `Player.`: data and attributes, including player-only data.
     let cursor = text.find("Player.").unwrap() + "Player.".len();
@@ -190,7 +210,10 @@ fn f() {
         .map(|c| c.label)
         .collect();
     for expected in ["health", "food", "max_health", "step_height"] {
-        assert!(labels.iter().any(|l| l == expected), "{expected}: {labels:?}");
+        assert!(
+            labels.iter().any(|l| l == expected),
+            "{expected}: {labels:?}"
+        );
     }
     // After `zombie.`: no player-only data.
     let cursor = text.find("zombie.").unwrap() + "zombie.".len();

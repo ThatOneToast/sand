@@ -1,8 +1,8 @@
 //! Owned portable operation definitions.
 use super::{
-    Amount, Audience, BlockPosition, Condition, EntityData, EntityQuery, FieldReference, FunctionReference,
-    MessageChannel, PlayerGameMode, ScoreOperand, ScoreOperator, TeleportDestination, TextPart,
-    Weather,
+    Amount, Audience, BlockPosition, Condition, EntityData, EntityQuery, FieldReference,
+    FunctionReference, MessageChannel, PlayerGameMode, ScoreOperand, ScoreOperator,
+    TeleportDestination, TextPart, Weather,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

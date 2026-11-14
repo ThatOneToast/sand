@@ -1855,9 +1855,8 @@ impl Cx {
                 let step = match self.cast_step(from, to) {
                     Ok(step) => step,
                     Err((message, help)) => {
-                        self.diagnostics.push(
-                            Diagnostic::error("type", file, *span, message).with_help(help),
-                        );
+                        self.diagnostics
+                            .push(Diagnostic::error("type", file, *span, message).with_help(help));
                         return None;
                     }
                 };
@@ -1928,11 +1927,7 @@ impl Cx {
     /// | float | rounds down | same | `!= 0` | — |
     /// | bool | 0 or 1 | 0.0 or 1.0 | same | — |
     /// | enum | its value | its value | — | same enum only |
-    pub(super) fn cast_step(
-        &self,
-        from: Ty,
-        to: Ty,
-    ) -> Result<CastStep, (String, &'static str)> {
+    pub(super) fn cast_step(&self, from: Ty, to: Ty) -> Result<CastStep, (String, &'static str)> {
         Ok(match (from, to) {
             (Ty::Unknown, _) | (_, Ty::Unknown) => CastStep::Same,
             (a, b) if a == b => CastStep::Same,
@@ -3715,7 +3710,8 @@ impl Cx {
                 let builtin = path.segments.len() == 1
                     && !self.scopes[body.module.0].contains_key(name)
                     && Self::lookup_local(body, name).is_none()
-                    && crate::builtins::find(name, crate::builtins::BuiltinKind::Condition).is_some();
+                    && crate::builtins::find(name, crate::builtins::BuiltinKind::Condition)
+                        .is_some();
                 if !builtin {
                     // A function returning `bool`, tested like a variable.
                     let call = Expr::Call {
@@ -4209,7 +4205,10 @@ fn flatten_use(tree: &UseTree, prefix: &[Ident], out: &mut Vec<(Path, Ident)>) {
 }
 
 /// Replace frame placeholders with their resolved fields, or drop them.
-fn resolve_frame_markers(ops: &mut Vec<pc::Operation>, resolved: &[Option<Vec<pc::FieldReference>>]) {
+fn resolve_frame_markers(
+    ops: &mut Vec<pc::Operation>,
+    resolved: &[Option<Vec<pc::FieldReference>>],
+) {
     let index_of = |fields: &[pc::FieldReference]| {
         fields
             .first()
@@ -4226,7 +4225,9 @@ fn resolve_frame_markers(ops: &mut Vec<pc::Operation>, resolved: &[Option<Vec<pc
                 None => index_of(fields).is_none(),
             }
         }
-        pc::Action::Branch { then, otherwise, .. } => {
+        pc::Action::Branch {
+            then, otherwise, ..
+        } => {
             resolve_frame_markers(then, resolved);
             resolve_frame_markers(otherwise, resolved);
             true

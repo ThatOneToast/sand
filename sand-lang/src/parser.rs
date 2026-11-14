@@ -196,15 +196,14 @@ impl Builder<'_> {
         if let Some(rest) = pair.as_str().trim_start().strip_prefix("emit")
             && rest.trim_start().starts_with('(')
         {
-            let inner = rest.trim_start()[1..].trim_end().trim_end_matches(';').trim_end();
+            let inner = rest.trim_start()[1..]
+                .trim_end()
+                .trim_end_matches(';')
+                .trim_end();
             let inner = inner.strip_suffix(')').unwrap_or(inner);
             let (event, payload) = inner.split_once(',').unwrap_or((inner, ""));
             let error = SyntaxError {
-                message: format!(
-                    "write `emit {}({});`",
-                    event.trim(),
-                    payload.trim()
-                ),
+                message: format!("write `emit {}({});`", event.trim(), payload.trim()),
                 span: s,
             };
             self.errors.push(error.clone());

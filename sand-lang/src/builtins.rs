@@ -1160,10 +1160,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
         "while",
         "`while condition { ... }` repeats while the condition holds. Any condition works, including `!=`, `!`, `&&`, `||`, calculations, and calls.",
     ),
-    (
-        "loop",
-        "`loop { ... }` repeats until `break` or `return`.",
-    ),
+    ("loop", "`loop { ... }` repeats until `break` or `return`."),
     (
         "break",
         "`break;` leaves the innermost `while`, `loop`, or counting `for`. A `players()` or `entities(..)` loop runs once for every match and cannot be stopped early.",

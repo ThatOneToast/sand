@@ -166,7 +166,8 @@ assign_op   = @{ "+=" | "-=" | "*=" | "/=" | "%=" | ("=" ~ !"=") }
 call_stmt   = { path ~ "(" ~ args? ~ ")" ~ ";" }
 args        = { arg ~ ("," ~ arg)* ~ ","? }
 arg         = { (ident ~ "=" ~ !"=" ~ arg_value) | arg_value }
-arg_value   = { range | expr }
+arg_value   = { range | arg_condition | expr }
+arg_condition = { !(expr ~ ("," | ")")) ~ cond }
 place       = { path ~ "." ~ ident }
 
 // ── Conditions ──────────────────────────────────────────────────────────────
@@ -197,7 +198,8 @@ sub     = @{ "-" ~ !("=" | ">") }
 mul     = @{ "*" ~ !"=" }
 div     = @{ "/" ~ !"=" }
 rem     = @{ "%" ~ !"=" }
-primary = _{ float | int | bool_lit | string | ("(" ~ expr ~ ")") | call_expr | place | path }
+group = { "(" ~ ((expr ~ &")") | cond) ~ ")" }
+primary = _{ group | float | int | bool_lit | string | call_expr | place | path }
 call_expr = { path ~ "(" ~ args? ~ ")" }
 
 // ── Strict entry points used to explain recovered nodes ─────────────────────

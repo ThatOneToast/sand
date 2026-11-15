@@ -504,9 +504,18 @@ fn vanilla_doc(registry: &str, variant: &str, id: &str) -> String {
 }
 
 fn registry_completions(
+    analysis: &Analysis,
     registry: &'static crate::vanilla::Registry,
     qualified: bool,
 ) -> Vec<Completion> {
+    let target = analysis
+        .pack
+        .as_ref()
+        .map(|pack| pack.minecraft.as_str())
+        .unwrap_or(sand_version::LATEST_KNOWN);
+    let Some(registry) = crate::vanilla::for_target(target, registry.name) else {
+        return Vec::new();
+    };
     registry
         .order
         .iter()
@@ -944,7 +953,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
         Position::Nothing => return Vec::new(),
         Position::Attribute { inner, target } => return attribute_completions(*inner, *target),
         Position::AttributeArg { attr, key } => {
-            let mut out = attribute_arg_completions(attr, key.as_deref());
+            let mut out = attribute_arg_completions(analysis, attr, key.as_deref());
             if attr == "on" && key.is_none() {
                 out.extend(
                     scope_names(analysis, module)
@@ -1004,7 +1013,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             && let Some(registry) = crate::vanilla::registry(name)
             && !scope_names(analysis, module).iter().any(|(n, _)| n == name)
         {
-            return registry_completions(registry, false);
+            return registry_completions(analysis, registry, false);
         }
         let types_only = matches!(position, Position::ScoreType | Position::FieldType);
         return match resolve_names(analysis, module, &base) {
@@ -1348,7 +1357,7 @@ fn expression_completions(
             .and_then(|(start, end, _)| help.label[*start..*end].split_once(": "))
             .and_then(|(_, ty)| crate::vanilla::registry(ty))
         {
-            out.extend(registry_completions(registry, true));
+            out.extend(registry_completions(analysis, registry, true));
         }
         if let Some((name, _)) = help.label.split_once('(')
             && let Some(builtin) = crate::builtins::BUILTINS
@@ -1562,7 +1571,11 @@ fn attribute_completions(inner: bool, target: crate::position::AttrTarget) -> Ve
         .collect()
 }
 
-fn attribute_arg_completions(attr: &str, key: Option<&str>) -> Vec<Completion> {
+fn attribute_arg_completions(
+    analysis: &Analysis,
+    attr: &str,
+    key: Option<&str>,
+) -> Vec<Completion> {
     match (attr, key) {
         ("on", None) => crate::builtins::EVENTS
             .iter()
@@ -1581,7 +1594,7 @@ fn attribute_arg_completions(attr: &str, key: Option<&str>) -> Vec<Completion> {
             .find(|(label, _, _)| *label == key)
             .and_then(|(_, set, _)| *set)
             .and_then(crate::vanilla::registry)
-            .map(|r| registry_completions(r, true))
+            .map(|r| registry_completions(analysis, r, true))
             .unwrap_or_default(),
         ("pack", None) => [
             (
@@ -1735,7 +1748,7 @@ fn data_completions(
     };
     let registry = |name: &str| {
         crate::vanilla::registry(name)
-            .map(|r| registry_completions(r, true))
+            .map(|r| registry_completions(analysis, r, true))
             .unwrap_or_default()
     };
     let Some(field) = field else {

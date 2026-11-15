@@ -11,16 +11,13 @@
           "type": "string"
         },
         "x": {
-          "format": "double",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         },
         "y": {
-          "format": "double",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         },
         "z": {
-          "format": "double",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         }
       },
       "required": [
@@ -40,16 +37,13 @@
           "type": "string"
         },
         "x": {
-          "format": "double",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         },
         "y": {
-          "format": "double",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         },
         "z": {
-          "format": "double",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         }
       },
       "required": [

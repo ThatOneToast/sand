@@ -252,6 +252,14 @@ impl Cx {
                     left
                 }
             }
+            Expr::Call { path, .. }
+                if path.segments.len() == 1
+                    && Self::lookup_local(body, &path.last().name).is_none()
+                    && !self.scopes[body.module.0].contains_key(&path.last().name)
+                    && builtins::find(&path.last().name, BuiltinKind::Condition).is_some() =>
+            {
+                Ty::Bool
+            }
             Expr::Call { path, .. } => match self.resolve_path(body.module, path) {
                 Ok((def, _)) => self
                     .fn_slots
@@ -646,6 +654,21 @@ impl Cx {
     ) -> Option<()> {
         let (module, file) = (body.module, body.file);
         let name = &path.last().name;
+        if path.segments.len() == 1
+            && !self.scopes[module.0].contains_key(name)
+            && Self::lookup_local(body, name).is_none()
+            && builtins::find(name, BuiltinKind::Condition).is_some()
+        {
+            let value = Expr::Cond(
+                Box::new(Cond::Call {
+                    path: path.clone(),
+                    args: args.to_vec(),
+                    span,
+                }),
+                span,
+            );
+            return self.emit(body, dest, ty, &value, ops);
+        }
         let builtin = (path.segments.len() == 1
             && !self.scopes[module.0].contains_key(name)
             && Self::lookup_local(body, name).is_none())
@@ -2110,9 +2133,216 @@ impl Cx {
             self.lower_set_bossbar(body, builtin, &bound, span, ops);
             return;
         }
+        if matches!(
+            builtin.name,
+            "give_item" | "damage" | "teleport" | "teleport_by" | "play_sound" | "add_experience"
+        ) {
+            let depth = body.temp_depth;
+            let action = self.numeric_builtin_action(body, builtin.name, args, &bound, span, ops);
+            body.temp_depth = depth;
+            if let Some(action) = action {
+                ops.push(op_at(action, file, span));
+            }
+            return;
+        }
         if let Some(action) = self.builtin_action(body, builtin, &bound, span) {
             ops.push(op_at(action, file, span));
         }
+    }
+
+    // Numeric command arguments are frozen in authored argument order. A later
+    // argument may call a function that changes the State read by an earlier one.
+    fn numeric_builtin_action(
+        &mut self,
+        body: &mut BodyCx,
+        name: &str,
+        args: &[Arg],
+        bound: &BTreeMap<&str, &Arg>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<pc::Action> {
+        match name {
+            "give_item" => {
+                let item = self.arg_id(body, bound["item"], "Item")?;
+                let count = match bound.get("count") {
+                    None => pc::ScoreOperand::Value(1),
+                    Some(arg) => {
+                        let ArgValue::Expr(expr) = &arg.value else {
+                            self.error(
+                                "type",
+                                body.file,
+                                arg.span,
+                                "expected a number value, found a range",
+                            );
+                            return None;
+                        };
+                        if Self::is_const_in(body, expr) {
+                            pc::ScoreOperand::Value(self.arg_int(body, arg, 1, 6400)? as i32)
+                        } else {
+                            let found = self.type_of(body, expr);
+                            if !self.types_agree(body.file, expr.span(), Ty::Number, found) {
+                                return None;
+                            }
+                            let score = self.temp(body);
+                            self.emit(body, &score, Ty::Number, expr, ops)?;
+                            pc::ScoreOperand::Field(score)
+                        }
+                    }
+                };
+                Some(pc::Action::GiveItem { item, count })
+            }
+            "play_sound" => {
+                let sound = self.arg_id(body, bound["sound"], "Sound")?;
+                let mut volume = pc::Amount::Value(1.0);
+                let mut pitch = pc::Amount::Value(1.0);
+                for arg in args {
+                    let (key, _) = bound.iter().find(|(_, value)| std::ptr::eq(**value, arg))?;
+                    match *key {
+                        "volume" => volume = self.runtime_amount(body, arg, ops)?,
+                        "pitch" => pitch = self.runtime_amount(body, arg, ops)?,
+                        _ => {}
+                    }
+                }
+                for (key, amount, max) in
+                    [("volume", &volume, f32::MAX as f64), ("pitch", &pitch, 2.0)]
+                {
+                    if matches!(amount, pc::Amount::Value(value) if !(0.0..=max).contains(value)) {
+                        self.error(
+                            "range",
+                            body.file,
+                            bound.get(key).map_or(span, |arg| arg.span),
+                            format!("sound {key} must be from 0 to {max}"),
+                        );
+                        return None;
+                    }
+                }
+                Some(pc::Action::Sound {
+                    sound,
+                    volume,
+                    pitch,
+                })
+            }
+            "add_experience" => {
+                let (arg, levels) = match (bound.get("points"), bound.get("levels")) {
+                    (Some(arg), None) => (*arg, false),
+                    (None, Some(arg)) => (*arg, true),
+                    _ => {
+                        self.error(
+                            "call",
+                            body.file,
+                            span,
+                            "`add_experience` needs exactly one of `points` or `levels`",
+                        );
+                        return None;
+                    }
+                };
+                let ArgValue::Expr(expr) = &arg.value else {
+                    self.error(
+                        "type",
+                        body.file,
+                        arg.span,
+                        "expected a number value, found a range",
+                    );
+                    return None;
+                };
+                let found = self.type_of(body, expr);
+                if !self.types_agree(body.file, expr.span(), Ty::Number, found) {
+                    return None;
+                }
+                let amount = if Self::is_const_in(body, expr) {
+                    pc::ScoreOperand::Value(self.arg_int(
+                        body,
+                        arg,
+                        i32::MIN as i64,
+                        i32::MAX as i64,
+                    )? as i32)
+                } else {
+                    let score = self.temp(body);
+                    self.emit(body, &score, Ty::Number, expr, ops)?;
+                    pc::ScoreOperand::Field(score)
+                };
+                Some(pc::Action::AddExperience { amount, levels })
+            }
+            "damage" => {
+                let amount = self.runtime_amount(body, bound["amount"], ops)?;
+                if let pc::Amount::Value(value) = amount
+                    && !(0.01..=1_000_000.0).contains(&value)
+                {
+                    self.error(
+                        "range",
+                        body.file,
+                        bound["amount"].span,
+                        "damage must be from 0.01 to 1000000",
+                    );
+                    return None;
+                }
+                Some(pc::Action::Damage { amount })
+            }
+            "teleport" | "teleport_by" => {
+                let keys = if name == "teleport" {
+                    ["x", "y", "z"]
+                } else {
+                    ["dx", "dy", "dz"]
+                };
+                let mut values = BTreeMap::new();
+                for arg in args {
+                    let (key, _) = bound.iter().find(|(_, value)| std::ptr::eq(**value, arg))?;
+                    if keys.contains(key) {
+                        values.insert(*key, self.runtime_amount(body, arg, ops)?);
+                    }
+                }
+                let x = values.remove(keys[0])?;
+                let y = values.remove(keys[1])?;
+                let z = values.remove(keys[2])?;
+                Some(pc::Action::Teleport {
+                    destination: if name == "teleport" {
+                        pc::TeleportDestination::Position { x, y, z }
+                    } else {
+                        pc::TeleportDestination::Offset { x, y, z }
+                    },
+                })
+            }
+            _ => unreachable!("numeric builtin"),
+        }
+    }
+
+    fn runtime_amount(
+        &mut self,
+        body: &mut BodyCx,
+        arg: &Arg,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<pc::Amount> {
+        let ArgValue::Expr(expr) = &arg.value else {
+            self.error("type", body.file, arg.span, "expected a numeric value");
+            return None;
+        };
+        let ty = self.type_of(body, expr);
+        self.expect_numeric(body.file, expr.span(), ty)?;
+        if Self::is_const_in(body, expr) {
+            let value = if matches!(expr, Expr::Float(..))
+                || matches!(expr, Expr::Neg(inner, _) if matches!(**inner, Expr::Float(..)))
+            {
+                self.arg_coordinate(body, arg)?
+            } else {
+                self.eval_i32(body.module, body.file, expr, Some(ty), None)? as f64
+                    / if ty == Ty::Float {
+                        FLOAT_SCALE as f64
+                    } else {
+                        1.0
+                    }
+            };
+            return Some(pc::Amount::Value(value));
+        }
+        let score = self.temp(body);
+        self.emit(body, &score, ty, expr, ops)?;
+        Some(pc::Amount::Field(pc::ScaledField {
+            score,
+            scale: if ty == Ty::Float {
+                FLOAT_SCALE as f64
+            } else {
+                1.0
+            },
+        }))
     }
 
     /// A constant coordinate, in full double precision.
@@ -2735,22 +2965,6 @@ impl Cx {
     ) -> Option<pc::Action> {
         let file = body.file;
         Some(match builtin.name {
-            "play_sound" => {
-                let sound = self.arg_id(body, bound["sound"], "Sound")?;
-                let volume = match bound.get("volume") {
-                    Some(arg) => self.arg_number(body, arg, 0.0, 1000.0),
-                    None => Some(1.0),
-                };
-                let pitch = match bound.get("pitch") {
-                    Some(arg) => self.arg_number(body, arg, 0.0, 2.0),
-                    None => Some(1.0),
-                };
-                pc::Action::Sound {
-                    sound,
-                    volume: volume?,
-                    pitch: pitch?,
-                }
-            }
             "spawn_particle" => {
                 let particle = self.arg_id(body, bound["particle"], "Particle");
                 let count = match bound.get("count") {
@@ -2799,17 +3013,6 @@ impl Cx {
                     None => None,
                 };
                 pc::Action::ClearEffect { effect }
-            }
-            "give_item" => {
-                let item = self.arg_id(body, bound["item"], "Item");
-                let count = match bound.get("count") {
-                    Some(arg) => self.arg_int(body, arg, 1, 6400),
-                    None => Some(1),
-                };
-                pc::Action::GiveItem {
-                    item: item?,
-                    count: count? as u32,
-                }
             }
             "clear_item" => {
                 let item = self.arg_id(body, bound["item"], "Item");
@@ -2888,26 +3091,6 @@ impl Cx {
                     pc::Action::DetachState { state }
                 }
             }
-            "teleport" | "teleport_by" => {
-                let (a, b, c) = if builtin.name == "teleport" {
-                    ("x", "y", "z")
-                } else {
-                    ("dx", "dy", "dz")
-                };
-                let (x, y, z) = (
-                    self.arg_coordinate(body, bound[a]),
-                    self.arg_coordinate(body, bound[b]),
-                    self.arg_coordinate(body, bound[c]),
-                );
-                let (x, y, z) = (x?, y?, z?);
-                pc::Action::Teleport {
-                    destination: if builtin.name == "teleport" {
-                        pc::TeleportDestination::Position { x, y, z }
-                    } else {
-                        pc::TeleportDestination::Offset { x, y, z }
-                    },
-                }
-            }
             "teleport_to" => pc::Action::Teleport {
                 destination: pc::TeleportDestination::Entity {
                     query: self.query_from(body, bound)?,
@@ -2930,9 +3113,6 @@ impl Cx {
                     add: builtin.name == "add_tag",
                 }
             }
-            "damage" => pc::Action::Damage {
-                amount: self.arg_number(body, bound["amount"], 0.01, 1_000_000.0)?,
-            },
             "summon" => {
                 let entity_type = self.arg_id(body, bound["entity"], "Entity");
                 let tag = match bound.get("tag") {
@@ -3003,28 +3183,6 @@ impl Cx {
                     block: block?,
                     from: from?,
                     to: to?,
-                }
-            }
-            "add_experience" => {
-                let (amount, levels) = match (bound.get("points"), bound.get("levels")) {
-                    (Some(arg), None) => (arg, false),
-                    (None, Some(arg)) => (arg, true),
-                    _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                "call",
-                                file,
-                                span,
-                                "`add_experience` needs exactly one of `points` or `levels`",
-                            )
-                            .with_help("for example `add_experience(points = 10);`"),
-                        );
-                        return None;
-                    }
-                };
-                pc::Action::AddExperience {
-                    amount: self.arg_int(body, amount, i32::MIN as i64, i32::MAX as i64)? as i32,
-                    levels,
                 }
             }
             "set_gamemode" => pc::Action::SetGameMode {

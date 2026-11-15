@@ -749,3 +749,87 @@ fn mutability_fixes_do_not_rewrite_counters_named_with_a_let_prefix() {
         .is_empty()
     );
 }
+
+#[test]
+fn boolean_values_compose_in_arguments_parentheses_casts_and_predicates() {
+    let source = pack(
+        r#"
+entity state Marker { value: number }
+fn select(a: bool, b: bool, c: bool) -> bool { return a && b || c; }
+fn decide(n: number, flag: bool) -> number {
+    let answer = select(n > 0, !flag, n in 2..=5);
+    return (!answer) as number;
+}
+fn check() {
+    for mob in entities() {
+        let marked = has_state(Marker);
+        let value = select(marked, has_state(Marker), !has_state(Marker));
+        if value { damage(1.0); }
+    }
+}
+"#,
+    );
+    let analysis = analyze_one(&source);
+    compile(&analysis);
+}
+
+#[test]
+fn runtime_command_values_use_guarded_macros_and_preserve_custom_item_text() {
+    let analysis = analyze_one(include_str!("fixtures/runtime_values.sand"));
+    let pack = compile(&analysis);
+    let all = pack
+        .resources
+        .values()
+        .map(|value| String::from_utf8_lossy(value))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(all.contains("matches 1..6400"), "{all}");
+    assert!(
+        all.contains("count int 1 run scoreboard players get"),
+        "{all}"
+    );
+    assert!(all.contains("$give @s $(item) $(count)"), "{all}");
+    assert!(
+        !all.contains("$give @s minecraft:bread["),
+        "custom names must not become macro syntax: {all}"
+    );
+    assert!(
+        all.contains("$execute positioned 0.0 0.0 0.0 run tp @s ~$(x) ~$(y) ~-3"),
+        "{all}"
+    );
+    assert!(all.contains("$damage @s $(amount)"), "{all}");
+    assert!(all.contains("$xp add @s $(amount) points"), "{all}");
+    assert!(
+        all.contains(
+            "$playsound minecraft:entity.player.levelup master @s ~ ~ ~ $(volume) $(pitch)"
+        ),
+        "{all}"
+    );
+    assert!(all.contains("matches 0..2000"), "{all}");
+}
+
+#[test]
+fn runtime_command_operands_keep_numeric_types_and_constant_bounds() {
+    for source in [
+        "fn f(n: float) { give_item(Item::Bread, n); }",
+        "fn f(n: float) { add_experience(points = n); }",
+        "fn f() { give_item(Item::Bread, 1..3); }",
+        "fn f() { add_experience(points = 1..3); }",
+        "fn f(n: bool) { damage(n); }",
+        "fn f(n: bool) { play_sound(Sound::EntityPlayerLevelup, volume = n); }",
+        "fn f() { damage(-1.0); }",
+        "fn f() { give_item(Item::Bread, 6401); }",
+        "fn f() { play_sound(Sound::EntityPlayerLevelup, pitch = 3.0); }",
+    ] {
+        let analysis = analyze_one(&pack(source));
+        assert!(analysis.has_errors(), "accepted {source}");
+    }
+}
+
+#[test]
+fn nested_numeric_groups_do_not_retry_each_parenthesis_as_a_condition() {
+    let value = format!("{}n + 1{}", "(".repeat(40), ")".repeat(40));
+    compile(&analyze_one(&pack(&format!(
+        "fn f(n: number) -> number {{ return {value}; }}"
+    ))));
+}

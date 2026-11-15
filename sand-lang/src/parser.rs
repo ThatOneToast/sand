@@ -903,6 +903,19 @@ impl Builder<'_> {
 fn expr(pair: P<'_>) -> Expr {
     pratt()
         .map_primary(|primary| match primary.as_rule() {
+            Rule::group => {
+                let s = span(&primary);
+                let inner = primary.into_inner().next().expect("group value");
+                if inner.as_rule() == Rule::expr {
+                    expr(inner)
+                } else {
+                    let cond = Builder {
+                        errors: &mut Vec::new(),
+                    }
+                    .cond(inner);
+                    Expr::Cond(Box::new(cond), s)
+                }
+            }
             Rule::int => {
                 let s = span(&primary);
                 let digits: String = primary.as_str().chars().filter(|c| *c != '_').collect();
@@ -989,6 +1002,14 @@ fn args(pair: P<'_>) -> Vec<Arg> {
             let value = value.into_inner().next().expect("argument value kind");
             let value = match value.as_rule() {
                 Rule::range => ArgValue::Range(range(value)),
+                Rule::arg_condition => {
+                    let s = span(&value);
+                    let cond = Builder {
+                        errors: &mut Vec::new(),
+                    }
+                    .cond(value.into_inner().next().expect("condition argument"));
+                    ArgValue::Expr(Expr::Cond(Box::new(cond), s))
+                }
                 _ => ArgValue::Expr(expr(value)),
             };
             Arg {

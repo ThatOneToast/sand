@@ -988,6 +988,13 @@ struct Lower {
     /// Entity States by id, with their field defaults.
     entity_states: BTreeMap<String, Vec<(String, i32)>>,
 }
+struct NumericArgument<'a> {
+    name: &'a str,
+    value: &'a Amount,
+    integer: bool,
+    bounds: Option<(f64, f64)>,
+}
+
 impl Lower {
     fn function(
         &mut self,
@@ -1113,6 +1120,74 @@ impl Lower {
             format!("bossbar set {id} style {style}"),
             format!("bossbar set {id} max {}", bar.max),
         ]
+    }
+
+    // Snapshot validated numeric fields into storage before expanding one
+    // command. Macro identifiers follow normal helper ownership/collision rules.
+    fn numeric_command(
+        &mut self,
+        scope: (&str, &str, &str, &str),
+        label: &str,
+        mut command: String,
+        arguments: &[NumericArgument<'_>],
+        strings: &[(&str, String)],
+    ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
+        let (owner, path, module, ptr) = scope;
+        let storage = format!("{}:sand.args", self.namespace);
+        let mut setup = Vec::new();
+        let mut guards = Vec::new();
+        for arg in arguments {
+            match arg.value {
+                Amount::Value(value) => {
+                    // Integer absolute x/z coordinates are block-centered by
+                    // Minecraft. Preserve exact numeric positions with a decimal.
+                    let rendered =
+                        if label == "teleport" && !command.contains('~') && value.fract() == 0.0 {
+                            format!("{value:.1}")
+                        } else {
+                            value.to_string()
+                        };
+                    command = command.replace(&format!("$({})", arg.name), &rendered)
+                }
+                Amount::Field(field) => {
+                    let holder = &self.holders[&field.score.state.to_string()];
+                    let objective = objective(&field.score);
+                    if let Some((min, max)) = arg.bounds {
+                        let lower = (min * field.scale).ceil();
+                        let upper = (max * field.scale).floor();
+                        if lower > i32::MAX as f64 || upper < i32::MIN as f64 || lower > upper {
+                            return Ok(Vec::new());
+                        }
+                        guards.push(format!(
+                            "if score {holder} {objective} matches {}..{}",
+                            lower.max(i32::MIN as f64) as i32,
+                            upper.min(i32::MAX as f64) as i32
+                        ));
+                    }
+                    setup.push(Cmd::Raw(format!("execute store result storage {storage} {} {} {} run scoreboard players get {holder} {objective}", arg.name, if arg.integer { "int" } else { "double" }, 1.0 / field.scale)));
+                }
+            }
+        }
+        if setup.is_empty() && strings.is_empty() {
+            return Ok(vec![Cmd::Raw(command)]);
+        }
+        for (name, value) in strings {
+            // Substitute whole static item arguments, not text containing user
+            // components inside a macro template. Expansion is not recursive.
+            setup.push(Cmd::Raw(format!(
+                "data modify storage {storage} {name} set value {}",
+                serde_json::to_string(value).expect("string serialization")
+            )));
+        }
+        let id = helper(&self.namespace, &self.helper_keys[owner], path, label);
+        self.function(&id, vec![format!("${command}")], module, ptr)?;
+        let call = format!("function {id} with storage {storage}");
+        setup.push(Cmd::Raw(if guards.is_empty() {
+            call
+        } else {
+            format!("execute {} run {call}", guards.join(" "))
+        }));
+        Ok(setup)
     }
 
     /// A custom item as a command item argument with its identity components.
@@ -1381,13 +1456,26 @@ impl Lower {
                     sound,
                     volume,
                     pitch,
-                } => vec![Cmd::Raw(
-                    sand_commands::Sound::play_raw(sound.clone())
-                        .to(sand_commands::Selector::self_())
-                        .volume(f64::from(*volume))
-                        .pitch(f64::from(*pitch))
-                        .to_string(),
-                )],
+                } => self.numeric_command(
+                    (owner, &path, module, &ptr),
+                    "sound",
+                    format!("playsound {sound} master @s ~ ~ ~ $(volume) $(pitch)"),
+                    &[
+                        NumericArgument {
+                            name: "volume",
+                            value: volume,
+                            integer: false,
+                            bounds: Some((0.0, f32::MAX as f64)),
+                        },
+                        NumericArgument {
+                            name: "pitch",
+                            value: pitch,
+                            integer: false,
+                            bounds: Some((0.0, 2.0)),
+                        },
+                    ],
+                    &[],
+                )?,
                 Action::Particle {
                     particle,
                     count,
@@ -1418,17 +1506,42 @@ impl Lower {
                     None => "effect clear @s".to_owned(),
                 })],
                 Action::GiveItem { item, count } => {
-                    let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());
-                    let line = match self.custom_items.get(item) {
+                    let item = match self.custom_items.get(item) {
                         Some(custom) => {
-                            let stack =
-                                sand_components::IntoItemStack::try_into_item_stack(custom.clone())
-                                    .map_err(|e| fail(e.to_string()))?;
-                            inventory.give_count(stack, *count)
+                            sand_components::IntoItemStack::try_into_item_stack(custom.clone())
+                                .map_err(|e| fail(e.to_string()))?
+                                .to_string()
                         }
-                        None => inventory.give_count(item, *count),
+                        None => item.clone(),
                     };
-                    vec![Cmd::Raw(line)]
+                    let count = match count {
+                        ScoreOperand::Value(value) => Amount::Value(*value as f64),
+                        ScoreOperand::Field(score) => Amount::Field(ScaledField {
+                            score: score.clone(),
+                            scale: 1.0,
+                        }),
+                    };
+                    let dynamic = matches!(count, Amount::Field(_));
+                    let strings = if dynamic {
+                        vec![("item", item.clone())]
+                    } else {
+                        Vec::new()
+                    };
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "give",
+                        format!(
+                            "give @s {} $(count)",
+                            if dynamic { "$(item)" } else { &item }
+                        ),
+                        &[NumericArgument {
+                            name: "count",
+                            value: &count,
+                            integer: true,
+                            bounds: Some((1.0, 6400.0)),
+                        }],
+                        &strings,
+                    )?
                 }
                 Action::ClearItem { item, count } => {
                     let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());
@@ -1520,17 +1633,54 @@ impl Lower {
                     }]
                 }
                 Action::Kill => vec![Cmd::Raw("kill @s".into())],
-                Action::Teleport { destination } => vec![Cmd::Raw(match destination {
-                    TeleportDestination::Position { x, y, z } => format!("tp @s {x} {y} {z}"),
-                    TeleportDestination::Offset { x, y, z } => format!("tp @s ~{x} ~{y} ~{z}"),
+                Action::Teleport { destination } => match destination {
+                    TeleportDestination::Position { x, y, z }
+                    | TeleportDestination::Offset { x, y, z } => {
+                        let relative = matches!(destination, TeleportDestination::Offset { .. });
+                        let dynamic = [x, y, z].iter().any(|v| matches!(v, Amount::Field(_)));
+                        // Macro doubles may render without a decimal suffix.
+                        // Relative coordinates never receive block centering;
+                        // anchor absolute runtime positions at the world's zero.
+                        let anchor = if dynamic && !relative {
+                            "execute positioned 0.0 0.0 0.0 run "
+                        } else {
+                            ""
+                        };
+                        let prefix = if relative || dynamic { "~" } else { "" };
+                        self.numeric_command(
+                            (owner, &path, module, &ptr),
+                            "teleport",
+                            format!("{anchor}tp @s {prefix}$(x) {prefix}$(y) {prefix}$(z)"),
+                            &[
+                                NumericArgument {
+                                    name: "x",
+                                    value: x,
+                                    integer: false,
+                                    bounds: None,
+                                },
+                                NumericArgument {
+                                    name: "y",
+                                    value: y,
+                                    integer: false,
+                                    bounds: None,
+                                },
+                                NumericArgument {
+                                    name: "z",
+                                    value: z,
+                                    integer: false,
+                                    bounds: None,
+                                },
+                            ],
+                            &[],
+                        )?
+                    }
                     TeleportDestination::Entity { query } => {
-                        // Exactly one destination, nearest unless sorted.
                         let mut query = query.clone();
                         query.limit = Some(1);
                         query.sort = query.sort.or(Some(EntitySort::Nearest));
-                        format!("tp @s {}", query_selector(&query))
+                        vec![Cmd::Raw(format!("tp @s {}", query_selector(&query)))]
                     }
-                })],
+                },
                 // Mirrors Rust's `state_attach_commands` for entity State:
                 // keep existing values, default the rest, then mark present.
                 Action::AttachState { state } => {
@@ -1585,10 +1735,30 @@ impl Lower {
                     block_position(*from),
                     block_position(*to)
                 ))],
-                Action::AddExperience { amount, levels } => vec![Cmd::Raw(format!(
-                    "xp add @s {amount} {}",
-                    if *levels { "levels" } else { "points" }
-                ))],
+                Action::AddExperience { amount, levels } => {
+                    let amount = match amount {
+                        ScoreOperand::Value(value) => Amount::Value(*value as f64),
+                        ScoreOperand::Field(score) => Amount::Field(ScaledField {
+                            score: score.clone(),
+                            scale: 1.0,
+                        }),
+                    };
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "experience",
+                        format!(
+                            "xp add @s $(amount) {}",
+                            if *levels { "levels" } else { "points" }
+                        ),
+                        &[NumericArgument {
+                            name: "amount",
+                            value: &amount,
+                            integer: true,
+                            bounds: None,
+                        }],
+                        &[],
+                    )?
+                }
                 Action::SetGameMode { mode } => vec![Cmd::Raw(format!(
                     "gamemode {} @s",
                     match mode {
@@ -1714,7 +1884,18 @@ impl Lower {
                     Some(tag) => format!("summon {entity_type} ~ ~ ~ {{Tags:[\"{tag}\"]}}"),
                     None => format!("summon {entity_type} ~ ~ ~"),
                 })],
-                Action::Damage { amount } => vec![Cmd::Raw(format!("damage @s {amount}"))],
+                Action::Damage { amount } => self.numeric_command(
+                    (owner, &path, module, &ptr),
+                    "damage",
+                    "damage @s $(amount)".into(),
+                    &[NumericArgument {
+                        name: "amount",
+                        value: amount,
+                        integer: false,
+                        bounds: Some((0.01, 1_000_000.0)),
+                    }],
+                    &[],
+                )?,
                 Action::CountEntities { score, query } => vec![Cmd::Raw(format!(
                     "execute store result score {} {} if entity {}",
                     self.holders[&score.state.to_string()],

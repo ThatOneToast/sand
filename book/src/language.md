@@ -192,8 +192,10 @@ fn update() {
 }
 ```
 
-A `bool` works directly in conditions, and any condition can be assigned to
-one. Text can only show whole numbers, so copy a `float` first:
+A `bool` works directly in conditions, and conditions also work as function
+arguments: `accept(n > 0, !ready)`. Predicates such as `has_state(Mana)` can
+be stored or passed as booleans. Text can only show whole numbers, so copy a
+`float` first:
 `let shown = Hero.speed as number;`, then write `{shown}`.
 
 ## Functions and variables
@@ -534,7 +536,8 @@ outside a loop runs as an entity. Flows only run over player or global State.
 
 ### Movement
 
-`teleport(x, y, z)` moves the executor to constant coordinates,
+`teleport(x, y, z)` moves the executor to coordinates computed at runtime or
+written as constants,
 `teleport_by(dx, dy, dz)` moves it relatively, and `teleport_to(type = ...)`
 moves it to the nearest entity matching the same filters as `entities(..)`.
 
@@ -808,7 +811,7 @@ express produces identical output. Today the language covers:
 ## Automated runtime regression probe
 
 The repository includes a control-flow fixture and a runner that compiles it,
-executes 13 assertions on a disposable vanilla 26.2 server, and checks reload:
+executes 20 assertions on a disposable vanilla 26.2 server, and checks reload:
 
 ```sh
 cargo build -p sand-cli
@@ -818,3 +821,44 @@ python3 scripts/validate_language.py --binary target/debug/sand \
 
 The JAR must be the complete downloaded server bundle, including its libraries.
 The output path must be new; it retains the emitted pack and server logs.
+
+## Runtime command arguments
+
+Item counts, experience points/levels, sound volume/pitch, damage amounts and
+teleport coordinates accept parameters, State values and calculations:
+
+```rust,ignore
+fn reward(count: number) { give_item(Item::Bread, count); }
+fn hit(amount: float) { damage(amount); }
+fn move_to(x: float, y: float, z: float) { teleport(x, y, z); }
+```
+
+Arguments are evaluated once, in source order. A later argument cannot change a
+value already captured by an earlier one. Runtime item counts outside `1..=6400`
+and damage amounts outside `0.01..=1000000` perform no action; invalid constants
+are compile errors. Runtime sound volumes must be nonnegative and pitch must be
+within `0..=2`; out-of-range values perform no action. Other builtin parameters,
+including effect durations, still require constants unless their hover
+documentation says otherwise.
+
+The compiler validates vanilla identifiers against the pack's selected version,
+independently of the version used to build the CLI. Completion follows that same
+catalog. Custom namespaces remain explicit interoperability boundaries. Refresh
+committed catalogs only through the maintenance generator:
+
+```sh
+cargo run -p sand-build --example refresh_vanilla_catalog -- \
+  sand-version/src/vanilla_catalog.json 26.1 26.1.1 26.1.2 26.2 26.3
+```
+
+A separate vanilla 26.2 proof uses two real passive clients:
+
+```sh
+python3 scripts/validate_language_values.py --binary target/debug/sand \
+  --jar /path/to/bundled-server.jar --output /tmp/sand-values-probe
+```
+
+It checks independent inventories, invalid-count guards, custom-item macro text,
+player position/attribute properties, dynamic experience and entity damage, and
+coordinate evaluation order. It does not verify rendered UI or scripted player
+controls.

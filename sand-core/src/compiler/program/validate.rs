@@ -204,6 +204,7 @@ pub(super) fn validate(
         })
         .collect();
     let mut validator = Validator {
+        target: &program.target.minecraft,
         boss_bars: program
             .modules
             .iter()
@@ -386,11 +387,17 @@ pub(super) fn validate(
                 message,
             ));
         };
-        let item_id = |id: &str| {
+        let syntax_id = |id: &str| {
             id.strip_prefix('#').is_none()
                 && id.parse::<ResourceLocation>().is_ok()
                 && id.contains(':')
         };
+        let available = |id: &str, registry: &str| {
+            !id.starts_with("minecraft:")
+                || sand_version::registry::contains(&program.target.minecraft, registry, id)
+                    != Some(false)
+        };
+        let item_id = |id: &str| syntax_id(id) && available(id, "minecraft:item");
         let ingredient = |id: &str| {
             id.strip_prefix('#')
                 .unwrap_or(id)
@@ -437,7 +444,7 @@ pub(super) fn validate(
                 );
             }
             for (enchantment, level) in &item.enchantments {
-                if !item_id(enchantment) || !(1..=255).contains(level) {
+                if !syntax_id(enchantment) || !(1..=255).contains(level) {
                     push(
                         format!("{ptr}/enchantments"),
                         format!("enchantment `{enchantment}` needs an id and a level of 1..=255"),
@@ -563,7 +570,9 @@ pub(super) fn validate(
                             "custom item `{item}` cannot be a recipe ingredient: vanilla recipes match only by item id or tag"
                         ),
                     );
-                } else if !ingredient(item) {
+                } else if !ingredient(item)
+                    || (!item.starts_with('#') && !available(item, "minecraft:item"))
+                {
                     push(input_ptr, format!("`{item}` is not an item id or `#tag`"));
                 }
             }
@@ -632,7 +641,15 @@ pub(super) fn validate(
                 push(format!("{ptr}/id"), format!("duplicate tag `{}`", tag.id));
             }
             for (i, value) in tag.values.iter().enumerate() {
-                if !ingredient(value) || custom_items.contains(value.as_str()) {
+                let registry = match tag.kind {
+                    TagKind::Item => "minecraft:item",
+                    TagKind::Block => "minecraft:block",
+                    TagKind::EntityType => "minecraft:entity_type",
+                };
+                if !ingredient(value)
+                    || custom_items.contains(value.as_str())
+                    || (!value.starts_with('#') && !available(value, registry))
+                {
                     push(
                         format!("{ptr}/values/{i}"),
                         format!("`{value}` is not a vanilla id or `#tag`"),
@@ -689,6 +706,7 @@ fn valid_id(id: &ResourceLocation) -> bool {
 }
 
 struct Validator<'a, 'e> {
+    target: &'a str,
     boss_bars: BTreeSet<String>,
     loot_tables: BTreeSet<String>,
     custom_items: BTreeSet<String>,
@@ -805,7 +823,16 @@ impl Validator<'_, '_> {
             Condition::Exists(test) => self.query(&test.exists, owner, &format!("{ptr}/exists")),
             Condition::Block(test) => {
                 let id = test.block.strip_prefix('#').unwrap_or(&test.block);
-                self.resource(id, owner, &format!("{ptr}/block"), "block");
+                self.resource(
+                    id,
+                    owner,
+                    &format!("{ptr}/block"),
+                    if test.block.starts_with('#') {
+                        "block tag"
+                    } else {
+                        "block"
+                    },
+                );
             }
             Condition::Holding(test) => {
                 self.executor(context, owner, ptr, "testing a held item");
@@ -920,7 +947,54 @@ impl Validator<'_, '_> {
         }
     }
 
+    fn amount(
+        &mut self,
+        amount: &Amount,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+        bounds: Option<(f64, f64)>,
+    ) -> bool {
+        let valid = match amount {
+            Amount::Value(value) => {
+                value.is_finite() && bounds.is_none_or(|(min, max)| *value >= min && *value <= max)
+            }
+            Amount::Field(field) => {
+                self.score(&field.score, context, owner, ptr);
+                field.scale.is_finite() && field.scale > 0.0 && (1.0 / field.scale).is_finite()
+            }
+        };
+        if !valid {
+            self.errors.push(Diagnostic::error("SAND_PROGRAM_RANGE", owner, ptr, "numeric argument must be finite, within its command bounds, and use a positive finite scale"));
+        }
+        valid
+    }
+
     fn resource(&mut self, id: &str, owner: &str, ptr: &str, kind: &str) {
+        let registry = match kind {
+            "item" => Some("minecraft:item"),
+            "block" => Some("minecraft:block"),
+            "entity type" => Some("minecraft:entity_type"),
+            "sound" => Some("minecraft:sound_event"),
+            "particle" => Some("minecraft:particle_type"),
+            "attribute" => Some("minecraft:attribute"),
+            "effect" => Some("minecraft:mob_effect"),
+            "potion" => Some("minecraft:potion"),
+            _ => None,
+        };
+        if id.starts_with("minecraft:")
+            && !(kind == "item" && self.custom_items.contains(id))
+            && let Some(registry) = registry
+            && let Some(false) = sand_version::registry::contains(self.target, registry, id)
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_TARGET",
+                owner,
+                ptr,
+                format!("Minecraft {} has no {kind} `{id}`", self.target),
+            ));
+        }
+
         if id.parse::<ResourceLocation>().is_err() || !id.contains(':') {
             self.errors.push(Diagnostic::error(
                 "SAND_PROGRAM_ID",
@@ -1185,16 +1259,20 @@ impl Validator<'_, '_> {
                 } => {
                     self.player(context, owner, &ptr, "a sound for the executing player");
                     self.resource(sound, owner, &format!("{ptr}/action/sound"), "sound");
-                    let valid_volume = volume.is_finite() && *volume >= 0.0;
-                    let valid_pitch = pitch.is_finite() && (0.0..=2.0).contains(pitch);
-                    if !(valid_volume && valid_pitch) {
-                        self.errors.push(Diagnostic::error(
-                            "SAND_PROGRAM_RANGE",
-                            owner,
-                            &format!("{ptr}/action"),
-                            "sound volume must be at least 0 and pitch must be 0.0..=2.0",
-                        ));
-                    }
+                    self.amount(
+                        volume,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/volume"),
+                        Some((0.0, f32::MAX as f64)),
+                    );
+                    self.amount(
+                        pitch,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/pitch"),
+                        Some((0.0, 2.0)),
+                    );
                 }
                 Action::Particle {
                     particle,
@@ -1251,7 +1329,10 @@ impl Validator<'_, '_> {
                 Action::GiveItem { item, count } => {
                     self.player(context, owner, &ptr, "giving items to the executing player");
                     self.resource(item, owner, &format!("{ptr}/action/item"), "item");
-                    if *count == 0 || *count > 6400 {
+                    if let ScoreOperand::Field(score) = count {
+                        self.score(score, context, owner, &format!("{ptr}/action/count"));
+                    }
+                    if matches!(count, ScoreOperand::Value(count) if *count < 1 || *count > 6400) {
                         self.errors.push(Diagnostic::error(
                             "SAND_PROGRAM_RANGE",
                             owner,
@@ -1407,14 +1488,13 @@ impl Validator<'_, '_> {
                 }
                 Action::Damage { amount } => {
                     self.executor(context, owner, &ptr, "damaging the executor");
-                    if !(amount.is_finite() && *amount > 0.0) {
-                        self.errors.push(Diagnostic::error(
-                            "SAND_PROGRAM_RANGE",
-                            owner,
-                            &format!("{ptr}/action/amount"),
-                            "damage must be finite and positive",
-                        ));
-                    }
+                    self.amount(
+                        amount,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/amount"),
+                        Some((0.01, 1_000_000.0)),
+                    );
                 }
                 Action::EntityTag { tag, .. } => {
                     self.executor(context, owner, &ptr, "tagging the executor");
@@ -1440,7 +1520,28 @@ impl Validator<'_, '_> {
                     let finite = match destination {
                         TeleportDestination::Position { x, y, z }
                         | TeleportDestination::Offset { x, y, z } => {
-                            x.is_finite() && y.is_finite() && z.is_finite()
+                            let x = self.amount(
+                                x,
+                                context,
+                                owner,
+                                &format!("{ptr}/action/destination/x"),
+                                None,
+                            );
+                            let y = self.amount(
+                                y,
+                                context,
+                                owner,
+                                &format!("{ptr}/action/destination/y"),
+                                None,
+                            );
+                            let z = self.amount(
+                                z,
+                                context,
+                                owner,
+                                &format!("{ptr}/action/destination/z"),
+                                None,
+                            );
+                            x && y && z
                         }
                         TeleportDestination::Entity { query } => {
                             self.query(query, owner, &format!("{ptr}/action/destination/query"));
@@ -1462,8 +1563,11 @@ impl Validator<'_, '_> {
                 Action::SetBlock { block, .. } | Action::FillBlocks { block, .. } => {
                     self.resource(block, owner, &format!("{ptr}/action/block"), "block");
                 }
-                Action::AddExperience { .. } => {
+                Action::AddExperience { amount, .. } => {
                     self.player(context, owner, &ptr, "giving experience");
+                    if let ScoreOperand::Field(score) = amount {
+                        self.score(score, context, owner, &format!("{ptr}/action/amount"));
+                    }
                 }
                 Action::SetGameMode { .. } => {
                     self.player(context, owner, &ptr, "changing game mode");

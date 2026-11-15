@@ -26,9 +26,9 @@ pub enum ParamKind {
     Format,
     /// A plain string.
     Text,
-    /// An integer constant.
+    /// A whole number; individual builtins document whether runtime values are accepted.
     Int,
-    /// A decimal or integer constant.
+    /// A decimal or integer; individual builtins document whether runtime values are accepted.
     Number,
     /// `true` or `false`.
     Bool,
@@ -346,7 +346,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "add_experience(points = .. | levels = ..)",
         summary: "Give the executing player experience.",
-        details: "Give exactly one of `points` or `levels`. Negative amounts remove experience.",
+        details: "Give exactly one of `points` or `levels`, accepting runtime number values. Negative amounts remove experience.",
         minecraft: "xp add @s <amount> <points|levels>",
         needs_player: true,
         params: &[
@@ -499,8 +499,8 @@ pub const BUILTINS: &[Builtin] = &[
         name: "teleport",
         kind: BuiltinKind::Statement,
         signature: "teleport(x, y, z)",
-        summary: "Move the executing entity to fixed coordinates.",
-        details: "Coordinates are constants. Use `teleport_by` to move relative to where the entity is.",
+        summary: "Move the executing entity to coordinates computed at runtime or written literally.",
+        details: "Coordinates accept numbers, float values and calculations. Arguments are evaluated once, from left to right. Use `teleport_by` for relative movement.",
         minecraft: "tp @s <x> <y> <z>",
         needs_player: false,
         params: &[
@@ -515,7 +515,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "teleport_by(dx, dy, dz)",
         summary: "Move the executing entity relative to where it is.",
-        details: "`teleport_by(0.0, 5.0, 0.0)` lifts it five blocks.",
+        details: "`teleport_by(0.0, 5.0, 0.0)` lifts it five blocks. Offsets can be computed at runtime.",
         minecraft: "tp @s ~<dx> ~<dy> ~<dz>",
         needs_player: false,
         params: &[
@@ -653,7 +653,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "damage(amount)",
         summary: "Damage the executing entity.",
-        details: "`amount` is in half-hearts: `damage(4.0)` removes two hearts. Armour and effects apply.",
+        details: "`amount` is in half-hearts: `damage(4.0)` removes two hearts. Runtime number/float amounts are supported; values outside 0.01 to 1000000 do nothing. Armour and effects apply.",
         minecraft: "damage @s <amount>",
         needs_player: false,
         params: &[p(
@@ -763,7 +763,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "play_sound(Sound::..., volume = 1.0, pitch = 1.0)",
         summary: "Play a sound to the executing player at their position.",
-        details: "Only the executing player hears it. `pitch` ranges from 0.0 to 2.0.",
+        details: "Only the executing player hears it. Volume and pitch accept runtime numeric values. `pitch` ranges from 0.0 to 2.0; volume is nonnegative. Invalid runtime values perform no action.",
         minecraft: "playsound <sound> master @s ~ ~ ~ <volume> <pitch>",
         needs_player: true,
         params: &[
@@ -867,7 +867,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "give_item(Item::..., count = 1)",
         summary: "Give items to the executing player.",
-        details: "Items that do not fit in the inventory drop at the player's feet.",
+        details: "Runtime number counts are supported; values outside 1 to 6400 do nothing. Items that do not fit in the inventory drop at the player's feet.",
         minecraft: "give @s <item> <count>",
         needs_player: true,
         params: &[
@@ -1259,9 +1259,9 @@ pub enum FieldKind {
     Key,
     /// `true` or `false`.
     Bool,
-    /// An integer constant.
+    /// A whole number; individual builtins document whether runtime values are accepted.
     Int,
-    /// A decimal or integer constant.
+    /// A decimal or integer; individual builtins document whether runtime values are accepted.
     Number,
     /// A value from a typed set, such as `Rarity::Epic`.
     Registry(&'static str),

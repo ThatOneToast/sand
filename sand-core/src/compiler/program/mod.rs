@@ -242,13 +242,25 @@ impl Compiler {
  kind = "method", returns = "The validated result or located diagnostics; schema and capability methods return machine-readable JSON.",
 )]
     pub fn capabilities() -> serde_json::Value {
+        let schema = Self::schema();
+        let vocabulary = |definition: &str, field: &str| -> Vec<String> {
+            schema["$defs"][definition]["oneOf"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|entry| {
+                    entry["properties"][field]["const"]
+                        .as_str()
+                        .map(str::to_string)
+                })
+                .collect()
+        };
         serde_json::json!({
             "format": "sand.program", "format_version": 1,
             "compiler": { "name": "sand", "version": env!("CARGO_PKG_VERSION") },
-            "targets": ["26.1", "26.1.1", "26.1.2", "26.2"],
-            "operations": ["score_set", "score_add", "score_operation", "score_random", "branch", "players", "call",
-                "message", "sound", "particle", "effect", "clear_effect", "give_item", "clear_item", "schedule", "return", "while", "attribute_get", "attribute_set", "entities", "kill", "entity_tag", "summon", "damage", "count_entities", "attach_state", "detach_state", "teleport", "raw"],
-            "events": ["join", "first_join", "death", "kill_entity", "kill_player", "use_item"],
+            "targets": sand_version::registry::targets().collect::<Vec<_>>(),
+            "operations": vocabulary("Action", "op"),
+            "events": vocabulary("PlayerEvent", "kind"),
             "capabilities": CAPABILITIES,
             "raw_validation": "explicit opt-in; command-line safety and supported syntax only",
             "limits": { "document_bytes": limits::DOCUMENT_BYTES, "input_bytes": limits::INPUT_BYTES,

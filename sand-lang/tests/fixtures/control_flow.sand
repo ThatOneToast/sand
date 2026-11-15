@@ -23,6 +23,9 @@ fn recursive(mut n: number) -> number {
     return n + recursive(n);
 }
 
+fn divide(a: number, b: number) -> number { return a / b; }
+fn remainder(a: number, b: number) -> number { return a % b; }
+fn decimal(a: float, b: float) -> number { return ((a / b) * 1000.0) as number; }
 fn run() {
     Result.phase = Phase::Idle;
     Result.limit = 0;
@@ -73,7 +76,14 @@ fn run() {
     }
     check(total, 50);
     check(recursive(5), 10);
-    if Result.checks == 13 && Result.failed == 0 {
+    check(-3 / 2, -2);
+    check(3 / -2, divide(3, -2));
+    check(-3 % 2, remainder(-3, 2));
+    check(3 % -2, -1);
+    check(-3 % -2, remainder(-3, -2));
+    check(((-1.0 / 3.0) * 1000.0) as number, decimal(-1.0, 3.0));
+    check(((1.0 / -3.0) * 1000.0) as number, -334);
+    if Result.checks == 20 && Result.failed == 0 {
         raw!("say __SAND_LANGUAGE_OK__");
     } else {
         raw!("say __SAND_LANGUAGE_FAILED__");

@@ -13,8 +13,8 @@ const PREC = {
   compare: 4,
   additive: 5,
   multiplicative: 6,
-  unary: 7,
-  cast: 8,
+  unary: 8,
+  cast: 7,
 };
 
 const commaSep = (rule) => optional(seq(rule, repeat(seq(',', rule)), optional(',')));
@@ -286,7 +286,7 @@ module.exports = grammar({
 
     // ── Conditions ─────────────────────────────────────────────────────────
     _condition: ($) =>
-      choice($.logical_condition, $.not_condition, $.comparison, $.in_range, $.parenthesized_condition, $.call_expression, $.place, $.path, $.boolean),
+      choice($.logical_condition, $.not_condition, $.comparison, $.in_range, $.parenthesized_expression, $.call_expression, $.place, $.path, $.boolean),
     logical_condition: ($) =>
       choice(
         prec.left(PREC.or, seq($._condition, '||', $._condition)),
@@ -299,7 +299,6 @@ module.exports = grammar({
         seq($._expression, choice('==', '!=', '<', '<=', '>', '>='), $._expression),
       ),
     in_range: ($) => prec(PREC.compare, seq($._expression, 'in', $.range)),
-    parenthesized_condition: ($) => seq('(', $._condition, ')'),
     range: ($) =>
       prec.right(seq(optional($._expression), choice('..', '..='), optional($._expression))),
 
@@ -322,7 +321,7 @@ module.exports = grammar({
     arguments: ($) => seq('(', commaSep($.argument), ')'),
     argument: ($) =>
       choice(seq(field('name', alias($.identifier, $.argument_name)), '=', $._argument_value), $._argument_value),
-    _argument_value: ($) => choice($.range, $._expression),
+    _argument_value: ($) => choice($.range, $._value_or_condition),
     place: ($) =>
       seq(field('state', $.path), '.', field('field', alias($.identifier, $.field_identifier))),
     unary_expression: ($) => prec(PREC.unary, seq('-', $._expression)),
@@ -332,7 +331,7 @@ module.exports = grammar({
         prec.left(PREC.multiplicative, seq($._expression, choice('*', '/', '%'), $._expression)),
       ),
     cast_expression: ($) => prec(PREC.cast, seq($._expression, 'as', $.type)),
-    parenthesized_expression: ($) => seq('(', $._expression, ')'),
+    parenthesized_expression: ($) => seq('(', $._value_or_condition, ')'),
 
     path: ($) => prec.left(seq($._path_segment, repeat(seq('::', $._path_segment)))),
     _path_segment: ($) => choice($.identifier, $.crate, $.self, $.super),

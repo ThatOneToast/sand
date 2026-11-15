@@ -13,6 +13,26 @@ use crate::source::FileId;
 use sand::advanced::compiler as pc;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+// Minecraft uses floor division, including when the divisor is negative.
+// Rust's truncating and Euclidean operations each differ for some signs.
+fn floor_div(a: i64, b: i64) -> Option<i64> {
+    let quotient = a.checked_div(b)?;
+    if a.checked_rem(b)? != 0 && (a < 0) != (b < 0) {
+        quotient.checked_sub(1)
+    } else {
+        Some(quotient)
+    }
+}
+
+fn floor_rem(a: i64, b: i64) -> Option<i64> {
+    let remainder = a.checked_rem(b)?;
+    if remainder != 0 && (remainder < 0) != (b < 0) {
+        remainder.checked_add(b)
+    } else {
+        Some(remainder)
+    }
+}
+
 mod resources;
 mod statements;
 
@@ -1326,6 +1346,21 @@ impl Cx {
             return;
         }
         let minecraft = minecraft.unwrap_or_else(latest_target);
+        let minecraft = if minecraft == "latest" {
+            sand_version::LATEST_KNOWN.to_string()
+        } else {
+            minecraft
+        };
+        if sand_version::registry::variants(&minecraft, "minecraft:item").is_none() {
+            self.error(
+                "target",
+                root,
+                pack_span.unwrap_or(ns_span),
+                format!("no verified vanilla catalog for Minecraft {minecraft}"),
+            );
+            return;
+        }
+
         let description = description.unwrap_or_else(|| {
             let docs = self.package.files[0].ast.docs.join(" ");
             if docs.trim().is_empty() {
@@ -1828,17 +1863,15 @@ impl Cx {
                 let result = match op {
                     BinOp::Add => a.checked_add(b),
                     BinOp::Sub => a.checked_sub(b),
-                    BinOp::Mul if float => a.checked_mul(b).map(|v| v / FLOAT_SCALE),
+                    BinOp::Mul if float => a.checked_mul(b).and_then(|v| floor_div(v, FLOAT_SCALE)),
                     BinOp::Mul => a.checked_mul(b),
                     BinOp::Div | BinOp::Rem if b == 0 => {
                         self.error("const", file, rhs.span(), "division by zero");
                         return None;
                     }
-                    BinOp::Div if float => {
-                        a.checked_mul(FLOAT_SCALE).and_then(|v| v.checked_div(b))
-                    }
-                    BinOp::Div => a.checked_div(b),
-                    BinOp::Rem => a.checked_rem(b),
+                    BinOp::Div if float => a.checked_mul(FLOAT_SCALE).and_then(|v| floor_div(v, b)),
+                    BinOp::Div => floor_div(a, b),
+                    BinOp::Rem => floor_rem(a, b),
                 };
                 match result {
                     Some(value) => Some((value, if float { Ty::Float } else { Ty::Number })),
@@ -2696,7 +2729,12 @@ impl Cx {
         expr: &Expr,
         registry: &'static str,
     ) -> Option<String> {
-        let table = crate::vanilla::registry(registry);
+        let target = self
+            .pack
+            .as_ref()
+            .map(|pack| pack.minecraft.clone())
+            .unwrap_or_else(|| sand_version::LATEST_KNOWN.into());
+        let table = crate::vanilla::for_target(&target, registry);
         let noun = table.map(|t| t.noun).unwrap_or("value");
         if registry == "Item"
             && let Some((_, id)) = self.declared(module, file, expr, DefKind::CustomItem)
@@ -2734,7 +2772,16 @@ impl Cx {
                         "resolve",
                         file,
                         variant.span,
-                        format!("no {noun} named `{}` in `{registry}`", variant.name),
+                        if crate::vanilla::registry(registry)
+                            .is_some_and(|table| table.id(&variant.name).is_some())
+                        {
+                            format!(
+                                "`{registry}::{}` is not available in Minecraft {target}",
+                                variant.name
+                            )
+                        } else {
+                            format!("no {noun} named `{}` in `{registry}`", variant.name)
+                        },
                     );
                     if let Some(best) = suggestions.first() {
                         diagnostic =
@@ -2801,7 +2848,13 @@ impl Cx {
                                 "resolve",
                                 file,
                                 *span,
-                                format!("Minecraft has no {noun} `{value}`"),
+                                if crate::vanilla::registry(registry)
+                                    .is_some_and(|table| table.by_id.contains_key(value))
+                                {
+                                    format!("Minecraft {target} has no {noun} `{value}`")
+                                } else {
+                                    format!("Minecraft has no {noun} `{value}`")
+                                },
                             );
                             if let Some(best) = table.suggest(&guess).first() {
                                 diagnostic = diagnostic

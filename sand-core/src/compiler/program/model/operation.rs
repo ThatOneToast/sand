@@ -83,9 +83,9 @@ pub enum Action {
     Sound {
         sound: String,
         #[serde(default = "one")]
-        volume: f32,
+        volume: Amount,
         #[serde(default = "one")]
-        pitch: f32,
+        pitch: Amount,
     },
     /// Spawn particles at the executor's position.
     Particle {
@@ -112,11 +112,12 @@ pub enum Action {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         effect: Option<String>,
     },
-    /// Give items to the executing player.
+    /// Give items to the executing player. Runtime counts outside 1..=6400
+    /// perform no action; constants outside that range are rejected.
     GiveItem {
         item: String,
-        #[serde(default = "one_count")]
-        count: u32,
+        #[serde(default = "one_operand")]
+        count: ScoreOperand,
     },
     /// Remove matching items, or every item, from the executing player.
     ClearItem {
@@ -168,7 +169,7 @@ pub enum Action {
         tag: Option<String>,
     },
     /// Damage the executing entity, in half-hearts.
-    Damage { amount: f32 },
+    Damage { amount: Amount },
     /// Store how many entities match the query.
     CountEntities {
         score: FieldReference,
@@ -197,7 +198,7 @@ pub enum Action {
     },
     /// Give the executing player experience points or levels.
     AddExperience {
-        amount: i32,
+        amount: ScoreOperand,
         #[serde(default)]
         levels: bool,
     },
@@ -256,10 +257,14 @@ fn one_f64() -> f64 {
     1.0
 }
 
-fn one() -> f32 {
-    1.0
+fn one() -> Amount {
+    Amount::Value(1.0)
 }
 
 fn one_count() -> u32 {
     1
+}
+
+fn one_operand() -> ScoreOperand {
+    ScoreOperand::Value(1)
 }

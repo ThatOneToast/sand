@@ -226,8 +226,13 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   reversed/stepped ranges, left-to-right bound evaluation and safe range endpoints.
 - [x] Package formatting through `sand fmt`, `sand lang fmt`, `--check` and LSP;
   naming and mutability quick fixes that edit declarations and references.
-- [x] Automated vanilla 26.2 control-flow probe with 13 assertions and reload;
+- [x] Automated vanilla 26.2 control-flow probe with 20 assertions and reload;
   run `scripts/validate_language.py` with a built CLI and bundled server JAR.
+- [x] Constant/runtime signed arithmetic parity, target-specific vanilla catalogs
+  shared by validation/completion, and runtime item counts, damage, teleport,
+  experience and sound options.
+- [x] General boolean arguments and stored predicates; two-player native proof
+  for inventory isolation, runtime numeric commands and player properties.
 - [ ] Records, collections, runtime text values and aggregate function arguments,
   return values and State fields, with one shared typed value model.
 - [ ] First-class functions, closures, methods, generics and traits where they

@@ -8,6 +8,8 @@
 //! can declare and query version requirements without importing
 //! `sand_core::version::VersionProfile` (which would create a cycle).
 
+pub mod registry;
+
 /// The latest Minecraft version Sand's bundled version table was verified against.
 ///
 /// This is the **export/profile anchor**: it is the version

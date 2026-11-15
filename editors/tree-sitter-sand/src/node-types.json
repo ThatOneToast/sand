@@ -35,11 +35,27 @@
           "named": true
         },
         {
+          "type": "comparison",
+          "named": true
+        },
+        {
           "type": "float",
           "named": true
         },
         {
+          "type": "in_range",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "logical_condition",
+          "named": true
+        },
+        {
+          "type": "not_condition",
           "named": true
         },
         {
@@ -1503,7 +1519,7 @@
             "named": true
           },
           {
-            "type": "parenthesized_condition",
+            "type": "parenthesized_expression",
             "named": true
           },
           {
@@ -1763,7 +1779,7 @@
           "named": true
         },
         {
-          "type": "parenthesized_condition",
+          "type": "parenthesized_expression",
           "named": true
         },
         {
@@ -2062,7 +2078,7 @@
           "named": true
         },
         {
-          "type": "parenthesized_condition",
+          "type": "parenthesized_expression",
           "named": true
         },
         {
@@ -2128,53 +2144,6 @@
     }
   },
   {
-    "type": "parenthesized_condition",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "boolean",
-          "named": true
-        },
-        {
-          "type": "call_expression",
-          "named": true
-        },
-        {
-          "type": "comparison",
-          "named": true
-        },
-        {
-          "type": "in_range",
-          "named": true
-        },
-        {
-          "type": "logical_condition",
-          "named": true
-        },
-        {
-          "type": "not_condition",
-          "named": true
-        },
-        {
-          "type": "parenthesized_condition",
-          "named": true
-        },
-        {
-          "type": "path",
-          "named": true
-        },
-        {
-          "type": "place",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "parenthesized_expression",
     "named": true,
     "fields": {},
@@ -2199,11 +2168,27 @@
           "named": true
         },
         {
+          "type": "comparison",
+          "named": true
+        },
+        {
           "type": "float",
           "named": true
         },
         {
+          "type": "in_range",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "logical_condition",
+          "named": true
+        },
+        {
+          "type": "not_condition",
           "named": true
         },
         {
@@ -2618,7 +2603,7 @@
             "named": true
           },
           {
-            "type": "parenthesized_condition",
+            "type": "parenthesized_expression",
             "named": true
           },
           {
@@ -2992,7 +2977,7 @@
             "named": true
           },
           {
-            "type": "parenthesized_condition",
+            "type": "parenthesized_expression",
             "named": true
           },
           {

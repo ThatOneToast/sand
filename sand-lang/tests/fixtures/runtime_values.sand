@@ -1,0 +1,47 @@
+#![pack(namespace = "runtime_values", minecraft = "26.2")]
+
+item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
+global state Origin { x: float }
+
+#[load]
+fn setup() { raw!("scoreboard objectives add numeric_probe dummy"); }
+
+fn reward(count: number) {
+    give_item(Item::Bread, count);
+}
+fn experience(count: number) { add_experience(points = count); }
+fn player_a() {
+    experience(5);
+    reward(7);
+    reward(0);
+    reward(-1);
+    reward(6401);
+    let volume = 0.75;
+    let pitch = 0.5;
+    play_sound(Sound::EntityPlayerLevelup, pitch = pitch, volume = volume);
+    let extra = 2;
+    give_item(MacroBread, extra);
+    let x = 10.25;
+    teleport(x, 70.0, 20.5);
+    Player.max_health = 30.0;
+    if Player.x == 10.25 && Player.max_health == 30.0 {
+        raw!("scoreboard players set #property numeric_probe 1");
+    }
+}
+fn player_b() { reward(3); experience(3); }
+fn next_y() -> float { Origin.x = 9.0; return 70.0; }
+fn select(a: bool, b: bool) -> bool { return a && b; }
+fn mob() {
+    for pig in entities(type = Entity::Pig, tag = "numeric_probe", limit = 1) {
+        let before = pig.health;
+        let hit = 2.5;
+        damage(hit);
+        let invalid = -1.0;
+        damage(invalid);
+        Origin.x = 2.0;
+        teleport(x = Origin.x, y = next_y(), z = -3.0);
+        if select(pig.health == before - hit, pig.x == 2.0 && pig.z == -3.0) {
+            raw!("scoreboard players set #mob numeric_probe 1");
+        }
+    }
+}

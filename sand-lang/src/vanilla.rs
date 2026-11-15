@@ -1,9 +1,9 @@
 //! Typed value sets: `Item::Diamond`, `Effect::Speed`, `Rarity::Epic`, ...
 //!
-//! Vanilla sets are read from the same installed API catalogs that define
-//! Rust's `sand::vanilla` and `sand::registry` enums, so the language offers
-//! exactly the values (and the Minecraft version) that Rust does. Sand's own
-//! option sets, such as `Rarity`, mirror the portable compiler's enums.
+//! Vanilla sets come from the shared offline, version-specific Mojang report
+//! catalogs in `sand-version`. Their variant naming uses Rust's registry
+//! generator. Checking and completion use the pack's target version. Sand's
+//! own option sets, such as `Rarity`, mirror the portable compiler's enums.
 //!
 //! Every set follows one naming rule: a PascalCase singular noun, with
 //! PascalCase values.
@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 /// One typed registry, such as `Item`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Registry {
     /// Language and Rust name, such as `Item`.
     pub name: &'static str,
@@ -159,51 +159,76 @@ pub fn lookup(name: &str, id: &str) -> Option<&'static str> {
     registry(name)?.by_id.get(id).map(String::as_str)
 }
 
-/// The identity inside a contract's `minecraft` text, such as
-/// "Serializes as `minecraft:diamond` wherever ..." or
-/// "Serializes as minecraft:speed.".
-fn serialized_id(text: &str) -> Option<String> {
-    let rest = text.strip_prefix("Serializes as ")?;
-    let rest = rest.trim_start_matches('`');
-    let end = rest
-        .find(|c: char| c == '`' || c.is_whitespace())
-        .unwrap_or(rest.len());
-    let id = rest[..end].trim_end_matches('.');
-    id.contains(':').then(|| id.to_string())
+/// Registry identity shared by compiler validation and source values.
+pub(crate) fn registry_key(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "Item" => "minecraft:item",
+        "Block" => "minecraft:block",
+        "Entity" => "minecraft:entity_type",
+        "Sound" => "minecraft:sound_event",
+        "Particle" => "minecraft:particle_type",
+        "Attribute" => "minecraft:attribute",
+        "Effect" => "minecraft:mob_effect",
+        "Potion" => "minecraft:potion",
+        _ => return None,
+    })
+}
+
+/// Values available to a package's exact Minecraft target, including options.
+pub fn for_target(target: &str, name: &str) -> Option<&'static Registry> {
+    static TARGETS: OnceLock<BTreeMap<String, Vec<Registry>>> = OnceLock::new();
+    let maps = TARGETS.get_or_init(|| {
+        sand_version::registry::targets()
+            .map(|target| {
+                let values = registries()
+                    .iter()
+                    .map(|registry| {
+                        let mut r = registry.clone();
+                        if let Some(key) = registry_key(r.name) {
+                            r.variants = sand_version::registry::variants(target, key)
+                                .expect("generated registry")
+                                .clone();
+                            r.by_id = r
+                                .variants
+                                .iter()
+                                .map(|(name, id)| (id.clone(), name.clone()))
+                                .collect();
+                            r.order = r.variants.keys().cloned().collect();
+                        }
+                        r
+                    })
+                    .collect();
+                (target.to_string(), values)
+            })
+            .collect()
+    });
+    if registry_key(name).is_none() {
+        return registry(name);
+    }
+    let target = if target == "latest" {
+        sand_version::LATEST_KNOWN
+    } else {
+        target
+    };
+    maps.get(target)
+        .or_else(|| {
+            target
+                .strip_suffix(".0")
+                .and_then(|target| maps.get(target))
+        })?
+        .iter()
+        .find(|registry| registry.name == name)
 }
 
 fn load() -> Vec<Registry> {
     let mut found: BTreeMap<&'static str, BTreeMap<String, String>> = BTreeMap::new();
-    let mut add = |path: &str, minecraft: &str| {
-        let Some((parent, variant)) = path.rsplit_once("::") else {
-            return;
-        };
-        if let Some((name, _, _)) = SOURCES.iter().find(|(_, rust, _)| *rust == parent)
-            && let Some(id) = serialized_id(minecraft)
-        {
-            found
-                .entry(name)
-                .or_default()
-                .insert(variant.to_string(), id);
-        }
-    };
-    for provider in sand::__private::api_contract::GENERATED_API_PROVIDER_CATALOGS {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(provider) else {
-            continue;
-        };
-        for entry in value["entries"].as_array().into_iter().flatten() {
-            let contract = &entry["contract"];
-            if contract["kind"] == "variant" {
-                add(
-                    contract["canonical_path"].as_str().unwrap_or_default(),
-                    contract["minecraft"].as_str().unwrap_or_default(),
-                );
+    for (name, _, _) in SOURCES {
+        for target in sand_version::registry::targets() {
+            if let Some(values) =
+                registry_key(name).and_then(|key| sand_version::registry::variants(target, key))
+            {
+                found.entry(name).or_default().extend(values.clone());
             }
-        }
-    }
-    for registration in sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration> {
-        if registration.kind == sand_api_contract::ApiKind::Variant {
-            add(registration.canonical_path, registration.minecraft);
         }
     }
     let mut registries: Vec<Registry> = SOURCES

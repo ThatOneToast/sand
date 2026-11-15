@@ -2452,7 +2452,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "parenthesized_condition"
+          "name": "parenthesized_expression"
         },
         {
           "type": "SYMBOL",
@@ -2602,23 +2602,6 @@
           }
         ]
       }
-    },
-    "parenthesized_condition": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "("
-        },
-        {
-          "type": "SYMBOL",
-          "name": "_condition"
-        },
-        {
-          "type": "STRING",
-          "value": ")"
-        }
-      ]
     },
     "range": {
       "type": "PREC_RIGHT",
@@ -2834,7 +2817,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "_expression"
+          "name": "_value_or_condition"
         }
       ]
     },
@@ -2870,7 +2853,7 @@
     },
     "unary_expression": {
       "type": "PREC",
-      "value": 7,
+      "value": 8,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2956,7 +2939,7 @@
     },
     "cast_expression": {
       "type": "PREC",
-      "value": 8,
+      "value": 7,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2984,7 +2967,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "_expression"
+          "name": "_value_or_condition"
         },
         {
           "type": "STRING",

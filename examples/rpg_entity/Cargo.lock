@@ -1182,6 +1182,7 @@ version = "0.1.0"
 dependencies = [
  "sand-api-contract",
  "sand-macros",
+ "serde_json",
 ]
 
 [[package]]

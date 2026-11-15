@@ -2,7 +2,7 @@ mod biomes;
 mod blocks;
 pub mod cache;
 mod commands;
-mod registries;
+pub(crate) mod registries;
 
 use std::path::Path;
 

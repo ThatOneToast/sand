@@ -10,11 +10,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from player_validation_harness import PlayerHarness
 from validate_cooperative_arena import ArenaHarness
 from validate_world_gameplay import WorldGameplayHarness
+from validate_language_values import ValuesHarness
 
 
 class PlayerCapacityTests(unittest.TestCase):
     def test_native_properties_match_declared_population(self):
-        for harness_type, count in [(PlayerHarness, 2), (ArenaHarness, 4)]:
+        for harness_type, count in [(PlayerHarness, 2), (ArenaHarness, 4), (ValuesHarness, 2)]:
             with self.subTest(harness=harness_type.__name__), tempfile.TemporaryDirectory() as root:
                 harness = object.__new__(harness_type)
                 harness.args = SimpleNamespace(version="26.3")

@@ -205,14 +205,22 @@ fn lift(height: number) {
 }
 "#,
     ));
-    let errors_ = errors(&analysis);
-    assert_eq!(errors_, vec!["coordinates must be constants"]);
+    assert!(errors(&analysis).is_empty(), "{:?}", errors(&analysis));
+    let dynamic_pack = compile(&analysis);
+    let lift = function(&dynamic_pack, "demo/function/lift");
+    assert!(lift.contains("with storage demo:sand.args"), "{lift}");
+    assert!(
+        dynamic_pack
+            .resources
+            .values()
+            .any(|bytes| String::from_utf8_lossy(bytes).contains("$tp @s ~0 ~$(y) ~0"))
+    );
     let ok = analyze_one(&pack(
         "fn go() {\n    teleport(0.5, 64.0, -2.0);\n    teleport_by(0.0, 5.0, 0.0);\n    teleport_to(type = Entity::Villager, tag = \"guide\");\n}\n",
     ));
     let pack = compile(&ok);
     let go = function(&pack, "demo/function/go");
-    assert!(go.contains("tp @s 0.5 64 -2"), "{go}");
+    assert!(go.contains("tp @s 0.5 64.0 -2.0"), "{go}");
     assert!(go.contains("tp @s ~0 ~5 ~0"), "{go}");
     assert!(
         go.contains("tp @s @e[type=minecraft:villager,tag=guide,sort=nearest,limit=1]"),

@@ -217,3 +217,40 @@ fn hover_shows_the_friendly_values() {
         hover.markdown
     );
 }
+
+#[test]
+fn folded_arithmetic_matches_scoreboard_floor_semantics_for_every_sign() {
+    let source = r#"#![pack(namespace = "demo", minecraft = "26.2")]
+const A: number = -3 / 2;
+const B: number = 3 / -2;
+const C: number = -3 / -2;
+const D: number = -3 % 2;
+const E: number = 3 % -2;
+const F: number = -3 % -2;
+const G: float = -1.0 / 3.0;
+const H: float = 1.0 / -3.0;
+const I: float = -0.001 * 0.5;
+const J: float = -1.0 / -3.0;
+"#;
+    let analysis = analyze_one(source);
+    assert!(errors(&analysis).is_empty(), "{:?}", errors(&analysis));
+    for (name, expected) in [
+        ("A", -2),
+        ("B", -2),
+        ("C", 1),
+        ("D", 1),
+        ("E", -1),
+        ("F", -1),
+        ("G", -334),
+        ("H", -334),
+        ("I", -1),
+        ("J", 333),
+    ] {
+        let def = analysis.defs.iter().find(|def| def.name == name).unwrap();
+        let sand_lang::DefInfo::Const { value, .. } = def.info else {
+            panic!("not a constant")
+        };
+        assert_eq!(value, Some(expected), "{name}");
+    }
+    compile(&analysis);
+}

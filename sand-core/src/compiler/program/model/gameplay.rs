@@ -833,9 +833,9 @@ pub struct EntityQuery {
 )]
 pub enum TeleportDestination {
     /// Absolute coordinates.
-    Position { x: f64, y: f64, z: f64 },
+    Position { x: Amount, y: Amount, z: Amount },
     /// Coordinates relative to the executor.
-    Offset { x: f64, y: f64, z: f64 },
+    Offset { x: Amount, y: Amount, z: Amount },
     /// The first entity matching a query.
     Entity { query: EntityQuery },
 }

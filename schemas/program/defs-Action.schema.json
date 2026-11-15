@@ -229,17 +229,15 @@
           "type": "string"
         },
         "pitch": {
-          "default": 1.0,
-          "format": "float",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json",
+          "default": 1.0
         },
         "sound": {
           "type": "string"
         },
         "volume": {
-          "default": 1.0,
-          "format": "float",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json",
+          "default": 1.0
         }
       },
       "required": [
@@ -341,13 +339,11 @@
     },
     {
       "additionalProperties": false,
-      "description": "Give items to the executing player.",
+      "description": "Give items to the executing player. Runtime counts outside 1..=6400\nperform no action; constants outside that range are rejected.",
       "properties": {
         "count": {
-          "default": 1,
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
+          "$ref": "defs-ScoreOperand.schema.json",
+          "default": 1
         },
         "item": {
           "type": "string"
@@ -593,8 +589,7 @@
       "description": "Damage the executing entity, in half-hearts.",
       "properties": {
         "amount": {
-          "format": "float",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json"
         },
         "op": {
           "const": "damage",
@@ -736,8 +731,7 @@
       "description": "Give the executing player experience points or levels.",
       "properties": {
         "amount": {
-          "format": "int32",
-          "type": "integer"
+          "$ref": "defs-ScoreOperand.schema.json"
         },
         "levels": {
           "default": false,

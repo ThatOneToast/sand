@@ -198,8 +198,12 @@ all fields must appear exactly once. Struct fields and methods follow module
 privacy; add `pub` to expose them. Implementations may live in another module of
 the same package, with the same visibility checks as ordinary code.
 
-Struct methods take `self` or `mut self` **by value**. Return `Self` and assign
-it back to keep a change. Borrowed struct receivers, references, traits, generics,
+Struct methods can take `self` or `mut self` **by value**: return `Self` and
+assign it back to keep a change. They can also take `&self` to read a value or
+`&mut self` to update a mutable local or State field. Mutable receiver changes
+commit when the call returns, including early returns and recursive calls; these
+are scoped method receivers rather than general reference values. Mutable calls
+on immutable variables or temporary expressions are errors. Traits, generics,
 collections, runtime strings, and whole-record arithmetic/comparison are not
 supported. Empty or recursive record layouts are rejected. Each record has at
 most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
@@ -557,7 +561,7 @@ fn sweep() {
 | `count_entities(...)` | how many entities match (an expression) |
 | `kill()` | kill the executing entity |
 | `add_tag("x")` / `remove_tag("x")` | add or remove a tag |
-| `damage(amount)` | damage the executing entity, in half-hearts |
+| `damage(amount, by = reference)` | damage the executor, optionally credited to a retained attacker |
 | `summon(Entity::..., tag = "x")` | summon at the executor's position |
 
 An entity may not be a player, so player State and player builtins are errors
@@ -592,6 +596,43 @@ fn tick() {
 `attach_state` gives fields without a value their defaults, and keeps existing
 values. `detach_state` clears them. A function that touches entity State
 outside a loop runs as an entity. Flows only run over player or global State.
+
+### Retained entity references
+
+`EntityRef` stores a persistent, pack-owned entity identity in a local, State
+field, record, parameter, return value, or custom event payload. Capture the
+executing entity with `entity_ref()` and resolve it explicitly:
+
+```rust,ignore
+entity state Mark { owner: EntityRef }
+fn mark() {
+    let owner = entity_ref();
+    for target in entities(type = Entity::Zombie, distance = ..=8) {
+        attach_state(Mark);
+        Mark.owner = owner;
+    }
+}
+fn hurt_marked() {
+    for target in entities(with = Mark) {
+        damage(4.0, by = Mark.owner);
+        for player in resolve_player(Mark.owner) { chat!("Your mark hit!"); }
+    }
+}
+```
+
+`resolve_player(reference)` runs a `for` body as an online player, at that player,
+including across dimensions. `resolve_entity(reference)` also resolves loaded
+non-player entities in the current dimension; its body has an entity context.
+Missing, dead, unloaded, and empty references skip the body. Default references
+are empty. IDs survive reload, are isolated by pack, never wrap, and are never
+reassigned; exhaustion produces an empty reference. References support copying
+and equality, not arithmetic or numeric casts.
+
+`damage(amount, by = reference)` attributes generic damage to the retained
+attacker, including vanilla kill credit. Missing attackers skip the damage.
+This preserves ownership instead of silently making an attack unattributed.
+The [marked-combat example](../../examples/lang_reference_combat/pack.sand)
+combines these references with delayed entity-State timers.
 
 ### Movement
 

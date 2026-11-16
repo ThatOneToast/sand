@@ -592,6 +592,17 @@
             "amount": {
               "$ref": "#/$defs/Amount"
             },
+            "by": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FieldReference"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Retained attacker identity; absence uses unattributed generic damage."
+            },
             "op": {
               "const": "damage",
               "type": "string"
@@ -600,6 +611,53 @@
           "required": [
             "op",
             "amount"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Capture the executing entity's pack-owned, persistent numeric identity.\nZero denotes no entity; identity allocation never wraps or reuses IDs.",
+          "properties": {
+            "op": {
+              "const": "capture_entity",
+              "type": "string"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            }
+          },
+          "required": [
+            "op",
+            "score"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Run a body as the retained entity, positioned at it. Missing, unloaded,\nor dead entities skip the body. Players can resolve across dimensions;\nnon-player resolution uses the current dimension.",
+          "properties": {
+            "body": {
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "op": {
+              "const": "with_entity",
+              "type": "string"
+            },
+            "players": {
+              "default": false,
+              "type": "boolean"
+            },
+            "reference": {
+              "$ref": "#/$defs/FieldReference"
+            }
+          },
+          "required": [
+            "op",
+            "reference",
+            "body"
           ],
           "type": "object"
         },

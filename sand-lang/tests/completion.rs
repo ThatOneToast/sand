@@ -93,7 +93,7 @@ fn item_level() {
     exactly("tag Ores: |", &["Item", "Block", "Entity"]);
     exactly(
         "const LIMIT: |",
-        &["number", "float", "bool", "Phase", "tools"],
+        &["number", "float", "bool", "EntityRef", "Phase", "tools"],
     );
     exactly(
         "const LIMIT: number = |",
@@ -147,7 +147,15 @@ fn attributes_fit_what_they_are_attached_to() {
 fn types_and_state_bodies() {
     exactly(
         "player state S { v: | }",
-        &["number", "float", "bool", "timer", "Phase", "tools"],
+        &[
+            "number",
+            "float",
+            "bool",
+            "EntityRef",
+            "timer",
+            "Phase",
+            "tools",
+        ],
     );
     exactly(
         "player state S { v: number = | }",
@@ -156,11 +164,11 @@ fn types_and_state_bodies() {
     exactly("player state S {\n    |\n}", &["#[clamp]"]);
     exactly(
         "fn f(n: |) {}",
-        &["number", "float", "bool", "Phase", "tools"],
+        &["number", "float", "bool", "EntityRef", "Phase", "tools"],
     );
     exactly(
         "fn f() -> |",
-        &["number", "float", "bool", "Phase", "tools"],
+        &["number", "float", "bool", "EntityRef", "Phase", "tools"],
     );
     exactly("fn f(|) {}", &[]);
     exactly(

@@ -273,6 +273,13 @@ impl Cx {
             {
                 Ty::Bool
             }
+            Expr::Call { path, .. }
+                if path.segments.len() == 1
+                    && path.last().name == "entity_ref"
+                    && !self.scopes[body.module.0].contains_key("entity_ref") =>
+            {
+                Ty::EntityRef
+            }
             Expr::Call { path, .. } => match self.resolve_path(body.module, path) {
                 Ok((def, _)) => self
                     .fn_slots
@@ -658,7 +665,7 @@ impl Cx {
     }
 
     fn expect_numeric(&mut self, file: FileId, span: Span, ty: Ty) -> Option<()> {
-        if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::Struct(_)) {
+        if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::Struct(_) | Ty::EntityRef) {
             self.diagnostics.push(
                 Diagnostic::error(
                     "type",
@@ -710,8 +717,15 @@ impl Cx {
         .flatten();
         if let Some(builtin) = builtin {
             self.references_builtin(file, path.span, builtin);
-            self.expect_numeric(file, span, ty)?;
-            if !self.types_agree(file, span, ty, Ty::Number) {
+            if builtin.name != "entity_ref" {
+                self.expect_numeric(file, span, ty)?;
+            }
+            let result_ty = if builtin.name == "entity_ref" {
+                Ty::EntityRef
+            } else {
+                Ty::Number
+            };
+            if !self.types_agree(file, span, ty, result_ty) {
                 return None;
             }
             let bound = self.bind_args(body, builtin, args, span)?;
@@ -749,6 +763,15 @@ impl Cx {
                         score: dest.clone(),
                         min: min as i32,
                         max: max as i32,
+                    }
+                }
+                "entity_ref" => {
+                    if !self.types_agree(file, span, ty, Ty::EntityRef) {
+                        return None;
+                    }
+                    body.note_executor(span, "captures the executing entity".into());
+                    pc::Action::CaptureEntity {
+                        score: dest.clone(),
                     }
                 }
                 "count_entities" => pc::Action::CountEntities {
@@ -864,6 +887,11 @@ impl Cx {
             };
             exprs.push(expr);
         }
+        let receiver_dest = if slots.receiver_out.is_some() {
+            Some(self.receiver_destination(body, exprs.first().copied()?)?)
+        } else {
+            None
+        };
         // A self-call reads the parameters it is about to overwrite, and a
         // nested call may overwrite parameters already passed, so those
         // arguments are computed into temporaries before any is passed.
@@ -930,6 +958,10 @@ impl Cx {
             file,
             span,
         ));
+        if let (Some(dest), Some((field, ty))) = (receiver_dest, &slots.receiver_out) {
+            let output = self.slot(field.clone());
+            self.copy_value(&dest, &output, *ty, file, span, ops);
+        }
         Some(())
     }
 
@@ -1057,7 +1089,7 @@ impl Cx {
                 );
                 return;
             }
-            if matches!(dest.ty, Ty::Enum(_) | Ty::Bool) {
+            if matches!(dest.ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef) {
                 self.error(
                     "type",
                     file,
@@ -1303,6 +1335,7 @@ impl Cx {
             }
             (None, None) => {}
         }
+        self.finish_receiver(body, span, ops);
         ops.push(op_at(pc::Action::Return, file, span));
     }
 
@@ -1919,7 +1952,7 @@ impl Cx {
     }
 
     /// Bind call arguments to a builtin's parameters by position and name.
-    fn bind_args<'a>(
+    pub(super) fn bind_args<'a>(
         &mut self,
         body: &BodyCx,
         builtin: &Builtin,
@@ -2340,7 +2373,21 @@ impl Cx {
                 Some(pc::Action::AddExperience { amount, levels })
             }
             "damage" => {
-                let amount = self.runtime_amount(body, bound["amount"], ops)?;
+                let mut amount = None;
+                let mut by = None;
+                for arg in args {
+                    if std::ptr::eq(arg, bound["amount"]) {
+                        amount = Some(self.runtime_amount(body, arg, ops)?);
+                    } else if bound.get("by").is_some_and(|by| std::ptr::eq(arg, *by)) {
+                        let ArgValue::Expr(expr) = &arg.value else {
+                            return None;
+                        };
+                        let score = self.temp(body);
+                        self.emit(body, &score, Ty::EntityRef, expr, ops)?;
+                        by = Some(score);
+                    }
+                }
+                let amount = amount?;
                 if let pc::Amount::Value(value) = amount
                     && !(0.01..=1_000_000.0).contains(&value)
                 {
@@ -2352,7 +2399,7 @@ impl Cx {
                     );
                     return None;
                 }
-                Some(pc::Action::Damage { amount })
+                Some(pc::Action::Damage { amount, by })
             }
             "teleport" | "teleport_by" => {
                 let keys = if name == "teleport" {
@@ -3462,7 +3509,12 @@ impl Cx {
         );
     }
 
-    fn references_builtin(&mut self, file: FileId, span: Span, builtin: &'static Builtin) {
+    pub(super) fn references_builtin(
+        &mut self,
+        file: FileId,
+        span: Span,
+        builtin: &'static Builtin,
+    ) {
         self.builtin_uses
             .push((file, span, builtin.name, builtin.kind));
     }

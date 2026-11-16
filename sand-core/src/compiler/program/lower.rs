@@ -305,12 +305,6 @@ pub(super) fn lower(
         &entries,
         lifecycle.player_initializer.as_deref(),
     );
-    tags::assemble_tags(
-        &program.pack.namespace,
-        &mut lower.records,
-        tag_map,
-        memberships,
-    );
     functions::drain_generated_resources_into(
         &mut lower.records,
         &program.pack.namespace,
@@ -318,6 +312,18 @@ pub(super) fn lower(
         &mut lower.runtime,
     )
     .map_err(|e| error(e.to_string()))?;
+    functions::drain_score_setup(
+        &mut lower.records,
+        &program.pack.namespace,
+        &mut lower.runtime,
+        &mut tag_map,
+    );
+    tags::assemble_tags(
+        &program.pack.namespace,
+        &mut lower.records,
+        tag_map,
+        memberships,
+    );
     for record in &mut lower.records {
         record.content = functions::resolve_local_refs(&record.content, &program.pack.namespace);
     }
@@ -1884,18 +1890,153 @@ impl Lower {
                     Some(tag) => format!("summon {entity_type} ~ ~ ~ {{Tags:[\"{tag}\"]}}"),
                     None => format!("summon {entity_type} ~ ~ ~"),
                 })],
-                Action::Damage { amount } => self.numeric_command(
-                    (owner, &path, module, &ptr),
-                    "damage",
-                    "damage @s $(amount)".into(),
-                    &[NumericArgument {
+                Action::CaptureEntity { score } => {
+                    let identity = crate::gameplay::identity::objective(
+                        &format!("{}:entities", self.namespace)
+                            .parse()
+                            .expect("valid scope"),
+                    )
+                    .map_err(|error| fail(error.to_string()))?;
+                    let id = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "capture_entity",
+                    );
+                    self.function(&id, vec![
+                        format!("execute if score @s {identity} matches 1.. run return 1"),
+                        format!("scoreboard players add #next {identity} 0"),
+                        format!("execute unless score #next {identity} matches 0..2147483645 run return 0"),
+                        format!("scoreboard players add #next {identity} 1"),
+                        format!("scoreboard players operation @s {identity} = #next {identity}"),
+                        "return 1".into(),
+                    ], module, &ptr)?;
+                    vec![
+                        Cmd::Raw(format!(
+                            "scoreboard players set {} {} 0",
+                            self.holders[&score.state.to_string()],
+                            objective(score)
+                        )),
+                        Cmd::Raw(format!(
+                            "execute if function {id} run scoreboard players operation {} {} = @s {identity}",
+                            self.holders[&score.state.to_string()],
+                            objective(score)
+                        )),
+                    ]
+                }
+                Action::WithEntity {
+                    reference,
+                    players,
+                    body,
+                } => {
+                    let identity = crate::gameplay::identity::objective(
+                        &format!("{}:entities", self.namespace)
+                            .parse()
+                            .expect("valid scope"),
+                    )
+                    .map_err(|error| fail(error.to_string()))?;
+                    let id = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "with_entity_body",
+                    );
+                    let mut lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/with_entity"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    if *players && let Some(init) = &self.init {
+                        lines.insert(0, Cmd::Function(init.clone()).render());
+                    }
+                    self.function(&id, lines, module, &ptr)?;
+                    let selectors = crate::gameplay::identity::selectors(
+                        if *players { "player" } else { "entity" },
+                        &identity.to_string(),
+                        "$(reference)",
+                    );
+                    // Each selector is expanded before its callback runs. Use one
+                    // dispatch macro so recursive callbacks cannot change a later
+                    // selection through shared numeric argument storage.
+                    let dispatch = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "with_entity_dispatch",
+                    );
+                    let mut lines: Vec<_> = selectors
+                        .into_iter()
+                        .map(|selector| {
+                            format!("$execute as {selector} at @s run return run function {id}")
+                        })
+                        .collect();
+                    lines.push("return 0".into());
+                    self.function(&dispatch, lines, module, &ptr)?;
+                    let value = Amount::Field(ScaledField {
+                        score: reference.clone(),
+                        scale: 1.0,
+                    });
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "with_entity",
+                        format!("function {dispatch} {{reference:$(reference)}}"),
+                        &[NumericArgument {
+                            name: "reference",
+                            value: &value,
+                            integer: true,
+                            bounds: Some((1.0, 2147483646.0)),
+                        }],
+                        &[],
+                    )?
+                }
+                Action::Damage { amount, by } => {
+                    let reference;
+                    let mut arguments = vec![NumericArgument {
                         name: "amount",
                         value: amount,
                         integer: false,
                         bounds: Some((0.01, 1_000_000.0)),
-                    }],
-                    &[],
-                )?,
+                    }];
+                    let command = if let Some(by) = by {
+                        let identity = crate::gameplay::identity::objective(
+                            &format!("{}:entities", self.namespace)
+                                .parse()
+                                .expect("valid scope"),
+                        )
+                        .map_err(|error| fail(error.to_string()))?;
+                        reference = Amount::Field(ScaledField {
+                            score: by.clone(),
+                            scale: 1.0,
+                        });
+                        arguments.push(NumericArgument {
+                            name: "attacker",
+                            value: &reference,
+                            integer: true,
+                            bounds: Some((1.0, 2147483646.0)),
+                        });
+                        let dispatch = helper(
+                            &self.namespace,
+                            &self.helper_keys[owner],
+                            &path,
+                            "damage_source",
+                        );
+                        let mut lines: Vec<_> = crate::gameplay::identity::selectors("entity", &identity.to_string(), "$(attacker)").into_iter().map(|selector| format!("$execute if entity {selector} run return run damage @s $(amount) minecraft:generic by {selector}")).collect();
+                        lines.push("return 0".into());
+                        self.function(&dispatch, lines, module, &ptr)?;
+                        format!("function {dispatch} {{amount:$(amount),attacker:$(attacker)}}")
+                    } else {
+                        "damage @s $(amount)".into()
+                    };
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "damage",
+                        command,
+                        &arguments,
+                        &[],
+                    )?
+                }
                 Action::CountEntities { score, query } => vec![Cmd::Raw(format!(
                     "execute store result score {} {} if entity {}",
                     self.holders[&score.state.to_string()],

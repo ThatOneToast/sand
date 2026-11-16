@@ -47,6 +47,7 @@
 # Generated ParticleType and Attribute registries add two enums, two
 # resource_location methods and one variant per vanilla entry (+169 on 26.2,
 # +172 on 26.3).
+# Portable retained entity capture/resolution and attributed damage add seven advanced items.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -55,19 +56,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5660
+static_surface_items = 5667
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11929
+static_surface_items = 11936
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12191
+static_surface_items = 12198
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

@@ -56,7 +56,6 @@ fn records_reject_invalid_layouts_and_mutation() {
         "player state S { t: timer } impl S { fn f(&self) { start_timer(Self.t, ticks = 5); } }",
         "player state S { t: timer } impl S { fn f(&self) { stop_timer(Self.t); } }",
         "entity state S { x: number } impl S { fn f(&self) { detach_state(Self); } }",
-        "struct R { x: number } impl R { fn f(&mut self) {} }",
         "struct R { x: number } impl R { fn f(self) { self.x = 2; } }",
         "player state S { x: number } impl S { fn f(&self) { self.x = 2; } }",
         "player state S { x: number } impl S { fn f(&self) { Self.g(); } fn g(&mut self) { self.x = 2; } }",
@@ -124,5 +123,31 @@ fn record_fields_and_methods_enforce_module_privacy() {
             ),
         ]);
         assert!(analysis.has_errors(), "accepted {access}");
+    }
+}
+
+#[test]
+fn borrowed_receivers_support_locals_nested_state_early_returns_and_recursion() {
+    compile(&analyze_one(
+        r#"#![pack(namespace = "borrows", minecraft = "26.2")]
+struct Point { x: number }
+global state World { point: Point }
+impl Point {
+    fn get(&self) -> number { return self.x; }
+    fn add(&mut self, n: number) -> number { self.x += n; return self.x; }
+    fn recurse(&mut self, n: number) { if n == 0 { return; } self.add(1); self.recurse(n - 1); }
+}
+fn run() { let mut p = Point { x: 1 }; p.recurse(3); let n = p.add(p.get()); World.point = p; World.point.add(n); }
+"#,
+    ));
+}
+
+#[test]
+fn mutable_borrowed_receivers_reject_immutable_values_and_temporaries() {
+    for call in ["p.add();", "Point { x: 1 }.add();"] {
+        let source = format!(
+            "#![pack(namespace = \"borrows\")] struct Point {{ x: number }} impl Point {{ fn add(&mut self) {{ self.x += 1; }} }} fn run() {{ let p = Point {{ x: 1 }}; {call} }}"
+        );
+        assert!(analyze_one(&source).has_errors());
     }
 }

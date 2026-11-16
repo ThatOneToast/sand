@@ -333,3 +333,52 @@ fn custom_items_recipes_and_tags_lower_through_typed_components() {
         );
     }
 }
+
+#[test]
+fn retained_entity_actions_initialize_identity_and_snapshot_resolution() {
+    let reference = field("world", "round");
+    let doc = program(
+        serde_json::json!([
+            {"id":"play:capture", "context":"entity", "body":[{"action":{"op":"capture_entity","score":reference}}]},
+            {"id":"play:resolve", "context":"server", "body":[{"action":{"op":"with_entity","reference":reference,"players":true,"body":[{"action":{"op":"give_item","item":"minecraft:bread","count":1}}]}}]},
+            {"id":"play:hit", "context":"entity", "body":[{"action":{"op":"damage","amount":2.5,"by":reference}}]}
+        ]),
+        serde_json::json!([]),
+    );
+    let pack = Compiler::compile(&decode(doc)).unwrap();
+    let all = pack
+        .resources
+        .values()
+        .filter_map(|b| std::str::from_utf8(b).ok())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let identity = sand_commands::ObjectiveName::logical("sand runtime owner play").to_string();
+    let load = function_text(&pack, "__sand_score_init");
+    assert!(
+        load.contains(&format!("scoreboard objectives add {identity} dummy")),
+        "{load}"
+    );
+    assert!(all.contains(&format!("scoreboard players add #next {identity} 1")));
+    assert!(all.contains("0..2147483645"));
+    assert!(all.contains("minecraft:generic by @a[scores="));
+    assert!(all.contains("reference:$(reference)"));
+}
+
+#[test]
+fn retained_entity_capture_rejects_bounded_identity_storage() {
+    let doc = program(
+        serde_json::json!([
+            {"id":"play:capture", "context":"player", "body":[{"action":{"op":"capture_entity","score":field("stats", "gold")}}]}
+        ]),
+        serde_json::json!([]),
+    );
+    let errors = Compiler::compile(&decode(doc))
+        .err()
+        .expect("bounded capture must fail");
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("unbounded, non-timer")),
+        "{errors:?}"
+    );
+}

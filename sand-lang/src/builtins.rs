@@ -46,6 +46,8 @@ pub enum ParamKind {
     BossBar,
     /// A declared `loot` table.
     Loot,
+    /// A retained EntityRef value.
+    EntityRef,
 }
 
 /// One builtin parameter.
@@ -156,6 +158,49 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
 
 /// Every builtin, in documentation order.
 pub const BUILTINS: &[Builtin] = &[
+    Builtin {
+        name: "entity_ref",
+        kind: BuiltinKind::Expression,
+        signature: "entity_ref() -> EntityRef",
+        summary: "Retain the executing entity's identity.",
+        details: "The identity survives reload and can be stored in State or records. It is pack-owned and never reused. Allocation exhaustion returns an empty reference. Resolve players across dimensions; other entities resolve while loaded in the current dimension.",
+        minecraft: "Capture the canonical Sand runtime owner identity.",
+        needs_player: false,
+        params: &[],
+        snippet: "entity_ref()",
+    },
+    Builtin {
+        name: "resolve_entity",
+        kind: BuiltinKind::Expression,
+        signature: "resolve_entity(reference)",
+        summary: "Run a loop body as a retained entity when it is present.",
+        details: "Use `for entity in resolve_entity(reference) { ... }`. Missing or unloaded entities skip the body. The body is positioned at the entity; references remain valid outside this loop.",
+        minecraft: "Resolve a canonical Sand runtime owner score.",
+        needs_player: false,
+        params: &[p(
+            "reference",
+            ParamKind::EntityRef,
+            true,
+            "Retained entity identity.",
+        )],
+        snippet: "resolve_entity(${1:reference})",
+    },
+    Builtin {
+        name: "resolve_player",
+        kind: BuiltinKind::Expression,
+        signature: "resolve_player(reference)",
+        summary: "Run a loop body as an online retained player.",
+        details: "Use `for player in resolve_player(reference) { ... }`. Offline players or references to non-player entities skip the body. Online players resolve across dimensions.",
+        minecraft: "Resolve a canonical Sand runtime owner score on @a.",
+        needs_player: false,
+        params: &[p(
+            "reference",
+            ParamKind::EntityRef,
+            true,
+            "Retained entity identity.",
+        )],
+        snippet: "resolve_player(${1:reference})",
+    },
     Builtin {
         name: "start_timer",
         kind: BuiltinKind::Statement,
@@ -651,17 +696,20 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin {
         name: "damage",
         kind: BuiltinKind::Statement,
-        signature: "damage(amount)",
+        signature: "damage(amount, by = reference)",
         summary: "Damage the executing entity.",
         details: "`amount` is in half-hearts: `damage(4.0)` removes two hearts. Runtime number/float amounts are supported; values outside 0.01 to 1000000 do nothing. Armour and effects apply.",
         minecraft: "damage @s <amount>",
         needs_player: false,
-        params: &[p(
-            "amount",
-            ParamKind::Number,
-            true,
-            "Damage in half-hearts.",
-        )],
+        params: &[
+            p("amount", ParamKind::Number, true, "Damage in half-hearts."),
+            p(
+                "by",
+                ParamKind::EntityRef,
+                false,
+                "Retained attacker; missing attackers skip damage instead of losing attribution.",
+            ),
+        ],
         snippet: "damage(${1:4.0});",
     },
     Builtin {

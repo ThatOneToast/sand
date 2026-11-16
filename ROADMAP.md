@@ -240,8 +240,11 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Runtime timer durations with checked seconds conversion and player-State
   method isolation in the two-player runtime probe.
 - [ ] Collections and runtime text values using the shared typed value model.
-- [ ] First-class functions, closures, borrowed struct receivers, generics and
-  traits where they compose with runtime values and execution contexts.
+- [x] Read-only and mutable struct receivers, with write-back on early return and
+  recursive calls; retained EntityRef values, reload-safe identities, explicit
+  resolution, and damage attribution with native two-player kill-credit proof.
+- [ ] First-class functions, closures, generics and traits where they compose
+  with runtime values and execution contexts.
 - [ ] Typed enchantments generated once for Rust and the language; typed time
   values and storable positions. Use existing entity State instead of creating
   a competing checked entity-tag model.

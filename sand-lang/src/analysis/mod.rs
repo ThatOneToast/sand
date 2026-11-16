@@ -54,6 +54,8 @@ pub enum Ty {
     Enum(DefId),
     /// A named, copyable record layout.
     Struct(DefId),
+    /// A retained, pack-owned entity identity; zero is empty.
+    EntityRef,
     /// A type that failed to resolve; suppresses follow-up errors.
     Unknown,
 }
@@ -635,6 +637,7 @@ pub struct VanillaUse {
 pub(crate) struct FnSlots {
     params: Vec<(String, DefId, Ty)>,
     ret: Option<(String, Ty)>,
+    receiver_out: Option<(String, Ty)>,
 }
 
 type Resolved = Result<(DefId, Vec<Reference>), Box<Diagnostic>>;
@@ -1471,6 +1474,7 @@ impl Cx {
                 "number" => return Ty::Number,
                 "float" => return Ty::Float,
                 "bool" => return Ty::Bool,
+                "EntityRef" => return Ty::EntityRef,
                 "i32" => {
                     let file = self.package.module(module).file;
                     self.diagnostics.push(
@@ -1518,6 +1522,7 @@ impl Cx {
             Ty::Float => "float".into(),
             Ty::Bool => "bool".into(),
             Ty::Enum(def) | Ty::Struct(def) => self.defs[def.0].name.clone(),
+            Ty::EntityRef => "EntityRef".into(),
             Ty::Unknown => "{unknown}".into(),
         }
     }
@@ -2039,6 +2044,7 @@ impl Cx {
                 "number" => return Ty::Number,
                 "float" => return Ty::Float,
                 "bool" => return Ty::Bool,
+                "EntityRef" => return Ty::EntityRef,
                 _ => {}
             }
         }
@@ -2057,10 +2063,12 @@ impl Cx {
     /// | bool | 0 or 1 | 0.0 or 1.0 | same | — |
     /// | enum | its value | its value | — | same enum only |
     pub(super) fn cast_step(&self, from: Ty, to: Ty) -> Result<CastStep, (String, &'static str)> {
-        if matches!(from, Ty::Struct(_)) || matches!(to, Ty::Struct(_)) {
+        if matches!(from, Ty::Struct(_) | Ty::EntityRef)
+            || matches!(to, Ty::Struct(_) | Ty::EntityRef)
+        {
             return Err((
-                "struct values cannot be cast".into(),
-                "convert their scalar fields instead",
+                "struct and entity-reference values cannot be cast".into(),
+                "use scalar fields or resolve the entity reference",
             ));
         }
         Ok(match (from, to) {
@@ -2255,12 +2263,25 @@ impl Cx {
                 );
             }
             let ty = self.resolve_type(module, &param.ty);
-            rendered.push(format!(
-                "{}{}: {}",
-                if param.mutable { "mut " } else { "" },
-                param.name.name,
-                self.ty_name(ty)
-            ));
+            if param.name.name == "self"
+                && let Some(receiver) = self
+                    .methods
+                    .get(&owner)
+                    .and_then(|method| method.receiver.as_ref())
+                && receiver.borrowed
+            {
+                rendered.push(format!(
+                    "&{}self",
+                    if receiver.mutable { "mut " } else { "" }
+                ));
+            } else {
+                rendered.push(format!(
+                    "{}{}: {}",
+                    if param.mutable { "mut " } else { "" },
+                    param.name.name,
+                    self.ty_name(ty)
+                ));
+            }
             let local = self.push_def(Def {
                 kind: DefKind::Local,
                 name: param.name.name.clone(),
@@ -2300,7 +2321,30 @@ impl Cx {
         if let DefInfo::Function { signature: s, .. } = &mut self.defs[owner.0].info {
             *s = signature;
         }
-        self.fn_slots.insert(owner, FnSlots { params, ret });
+        let receiver_out = self
+            .methods
+            .get(&owner)
+            .filter(|method| {
+                !method.state_receiver
+                    && method
+                        .receiver
+                        .as_ref()
+                        .is_some_and(|r| r.borrowed && r.mutable)
+            })
+            .and_then(|_| params.first())
+            .map(|(_, _, ty)| (format!("f{}_receiver_out", owner.0), *ty));
+        if let Some((field, ty)) = &receiver_out {
+            let base = self.slot(field.clone());
+            self.value_slots(&base, *ty);
+        }
+        self.fn_slots.insert(
+            owner,
+            FnSlots {
+                params,
+                ret,
+                receiver_out,
+            },
+        );
     }
 
     /// Bind `#[on(Event)]` functions to their custom events.
@@ -3203,7 +3247,14 @@ impl Cx {
                 let _ = field;
             }
         }
-        let ops = self.lower_block(&mut body, &function.body);
+        if let Some(slots) = &slots
+            && let Some((output, ty)) = &slots.receiver_out
+            && let Some((_, receiver, _)) = slots.params.first()
+        {
+            body.receiver_out = Some((self.local_ref(*receiver), self.slot(output.clone()), *ty));
+        }
+        let mut ops = self.lower_block(&mut body, &function.body);
+        self.finish_receiver(&body, function.body.span, &mut ops);
         if let Some((_, ty)) = slots.as_ref().and_then(|s| s.ret.as_ref())
             && !block_returns(&function.body)
         {
@@ -3737,6 +3788,10 @@ impl Cx {
                 span,
             } => {
                 let name = (source.segments.len() == 1).then(|| source.segments[0].name.as_str());
+                if matches!(name, Some("resolve_entity" | "resolve_player")) {
+                    self.lower_reference_loop(body, stmt, ops);
+                    return;
+                }
                 let kind = match name {
                     Some("players") => LoopKind::Players,
                     Some("entities") => LoopKind::Entities,
@@ -3998,7 +4053,7 @@ impl Cx {
             }
             Cond::InRange { value, range, span } => {
                 let ty = self.type_of(body, value);
-                if matches!(ty, Ty::Enum(_) | Ty::Bool) {
+                if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef) {
                     self.error(
                         "type",
                         file,
@@ -4047,7 +4102,9 @@ impl Cx {
                 } else {
                     left_ty
                 };
-                if matches!(ty, Ty::Enum(_) | Ty::Bool) && !matches!(op, CmpOp::Eq | CmpOp::Ne) {
+                if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef)
+                    && !matches!(op, CmpOp::Eq | CmpOp::Ne)
+                {
                     let what = if ty == Ty::Bool { "bool" } else { "enum" };
                     self.error(
                         "type",
@@ -4494,6 +4551,7 @@ fn resolve_frame_markers(
         }
         pc::Action::Players { body }
         | pc::Action::Entities { body, .. }
+        | pc::Action::WithEntity { body, .. }
         | pc::Action::While { body, .. } => {
             resolve_frame_markers(body, resolved);
             true
@@ -4567,6 +4625,8 @@ struct BodyCx {
     temp_depth: usize,
     /// The return slot, when the function returns a value.
     ret: Option<(pc::FieldReference, Ty)>,
+    /// Mutable borrowed receiver output, separate from recursive frame slots.
+    receiver_out: Option<(pc::FieldReference, pc::FieldReference, Ty)>,
     /// Nesting depth of `for player in players()` loops.
     player_loops: usize,
     /// Locals read and reassigned, for lints.
@@ -4607,6 +4667,7 @@ impl BodyCx {
             scopes: vec![Vec::new()],
             temp_depth: 0,
             ret: None,
+            receiver_out: None,
             player_loops: 0,
             used: HashSet::new(),
             assigned: HashSet::new(),

@@ -145,3 +145,18 @@ fn the_methods_example_compiles_without_warnings() {
             .contains_key("data/blinkstep/function/hero/hero.method/blink.mcfunction")
     );
 }
+
+#[test]
+fn the_retained_attacker_example_compiles_without_warnings() {
+    let root = std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/lang_reference_combat/pack.sand"
+    ));
+    let analysis = sand_lang::analyze_path(root, &sand_lang::DiskFiles);
+    compile(&analysis);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+}

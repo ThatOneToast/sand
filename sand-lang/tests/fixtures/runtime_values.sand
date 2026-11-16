@@ -50,3 +50,31 @@ fn mob() {
         }
     }
 }
+
+
+global state References { first: EntityRef, second: EntityRef, victim: EntityRef }
+entity state Ownership { owner: EntityRef }
+fn store_first() { References.first = entity_ref(); }
+fn store_second() { References.second = entity_ref(); }
+fn check_reference() {
+    if entity_ref() == References.first { raw!("scoreboard players set #stable numeric_probe 1"); }
+}
+fn resolve_references() {
+    for actor in resolve_player(References.first) { give_item(Item::Emerald, 2); }
+    for actor in resolve_player(References.second) { give_item(Item::Emerald, 3); }
+    let empty: EntityRef;
+    for actor in resolve_entity(empty) { raw!("scoreboard players set #empty numeric_probe 1"); }
+}
+fn attributed_hit() {
+    for victim in entities(type = Entity::Pig, tag = "reference_victim", limit = 1) {
+        attach_state(Ownership);
+        Ownership.owner = References.first;
+        References.victim = entity_ref();
+        damage(20.0, by = Ownership.owner);
+    }
+}
+fn check_dead_reference() {
+    let mut count = 0;
+    for victim in resolve_entity(References.victim) { count += 1; }
+    if count == 0 { raw!("say __SAND_REFERENCE_DEAD_OK__"); }
+}

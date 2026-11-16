@@ -25,6 +25,7 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
         Ty::Float => "float".into(),
         Ty::Bool => "bool".into(),
         Ty::Enum(def) | Ty::Struct(def) => analysis.def(def).name.clone(),
+        Ty::EntityRef => "EntityRef".into(),
         Ty::Unknown => "{unknown}".into(),
     }
 }
@@ -1172,6 +1173,12 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 documentation: Some("`true` or `false`.".into()),
                 ..Completion::plain("bool", CompletionKind::Keyword)
             });
+            out.push(Completion {
+                documentation: Some(
+                    "A retained entity identity, storable in State and records.".into(),
+                ),
+                ..Completion::plain("EntityRef", CompletionKind::Keyword)
+            });
             if field_type {
                 out.push(Completion {
                     documentation: Some("Counts down by one every tick until zero.".into()),
@@ -2172,6 +2179,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Position => "Position",
                 ParamKind::BossBar => "BossBar",
                 ParamKind::Loot => "Loot",
+                ParamKind::EntityRef => "EntityRef",
             };
             let rendered = if param.required {
                 format!("{}: {kind}", param.name)
@@ -2213,7 +2221,11 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
             .map(|(inner, _)| inner)
             .unwrap_or("");
         for param in inner.split(", ").filter(|p| !p.is_empty()).filter(|p| {
-            !name.contains('.') || !(p.starts_with("self:") || p.starts_with("mut self:"))
+            !name.contains('.')
+                || !(p.starts_with("self:")
+                    || p.starts_with("mut self:")
+                    || *p == "&self"
+                    || *p == "&mut self")
         }) {
             let param_name = param.split(':').next().unwrap_or(param).to_string();
             push(&mut label, param.to_string(), param_name);

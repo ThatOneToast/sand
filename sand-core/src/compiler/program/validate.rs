@@ -237,6 +237,18 @@ pub(super) fn validate(
             })
             .collect(),
         functions,
+        identity_unsafe: program
+            .modules
+            .iter()
+            .flat_map(|m| &m.states)
+            .flat_map(|state| {
+                state
+                    .fields
+                    .iter()
+                    .filter(|field| field.timer || field.bounds.is_some())
+                    .map(|field| format!("{}.{}", state.id, field.name))
+            })
+            .collect(),
         operations: 0,
         flow_bytes: 0,
         raw: program.requires.iter().any(|v| v == "raw_commands"),
@@ -712,6 +724,7 @@ struct Validator<'a, 'e> {
     custom_items: BTreeSet<String>,
     states: BTreeMap<String, (&'a str, BTreeSet<&'a str>)>,
     functions: BTreeMap<String, ExecutionContext>,
+    identity_unsafe: BTreeSet<String>,
     operations: usize,
     flow_bytes: usize,
     raw: bool,
@@ -1442,6 +1455,44 @@ impl Validator<'_, '_> {
                         depth + 1,
                     );
                 }
+                Action::CaptureEntity { score } => {
+                    if self
+                        .identity_unsafe
+                        .contains(&format!("{}.{}", score.state, score.field))
+                    {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_STATE",
+                            owner,
+                            &format!("{ptr}/action/score"),
+                            "entity identities require an unbounded, non-timer field",
+                        ));
+                    }
+                    self.executor(context, owner, &ptr, "capturing an entity identity");
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                }
+                Action::WithEntity {
+                    reference,
+                    players,
+                    body,
+                } => {
+                    self.score(
+                        reference,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/reference"),
+                    );
+                    self.body(
+                        body,
+                        if *players {
+                            ExecutionContext::Player
+                        } else {
+                            ExecutionContext::Entity
+                        },
+                        owner,
+                        &format!("{ptr}/action/body"),
+                        depth + 1,
+                    );
+                }
                 Action::Kill => self.executor(context, owner, &ptr, "killing the executor"),
                 Action::PushFrame { fields } | Action::PopFrame { fields } => {
                     if fields.is_empty() {
@@ -1486,7 +1537,10 @@ impl Validator<'_, '_> {
                         ));
                     }
                 }
-                Action::Damage { amount } => {
+                Action::Damage { amount, by } => {
+                    if let Some(by) = by {
+                        self.score(by, context, owner, &format!("{ptr}/action/by"));
+                    }
                     self.executor(context, owner, &ptr, "damaging the executor");
                     self.amount(
                         amount,

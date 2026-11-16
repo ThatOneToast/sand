@@ -1,6 +1,7 @@
 //! Record layouts and inherent methods reuse ordinary score slots and calls.
 use super::statements::Value;
 use super::*;
+use crate::builtins::{self, BuiltinKind};
 
 #[derive(Clone)]
 pub(super) struct Method {
@@ -111,9 +112,6 @@ impl Cx {
                     };
                     let receiver = function.receiver.take();
                     if !state && let Some(receiver) = &receiver {
-                        if receiver.borrowed {
-                            self.error("receiver", file, receiver.span, "struct methods take `self` or `mut self` by value; return `Self` to save changes");
-                        }
                         let self_span =
                             Span::new(receiver.span.end.saturating_sub(4), receiver.span.end);
                         function.params.insert(
@@ -459,6 +457,119 @@ impl Cx {
             return false;
         }
         true
+    }
+
+    pub(super) fn lower_reference_loop(
+        &mut self,
+        body: &mut BodyCx,
+        stmt: &Stmt,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let Stmt::For {
+            binding,
+            source,
+            args,
+            body: block,
+            span,
+        } = stmt
+        else {
+            unreachable!()
+        };
+        let players = source.last().name == "resolve_player";
+        let builtin = builtins::find(&source.last().name, BuiltinKind::Expression)
+            .expect("reference builtin");
+        self.references_builtin(body.file, source.span, builtin);
+        let Some(bound) = self.bind_args(body, builtin, args, *span) else {
+            return;
+        };
+        let ArgValue::Expr(expr) = &bound["reference"].value else {
+            return;
+        };
+        let depth = body.temp_depth;
+        let reference = self.temp(body);
+        if self
+            .emit(body, &reference, Ty::EntityRef, expr, ops)
+            .is_none()
+        {
+            body.temp_depth = depth;
+            return;
+        }
+        let was = body.in_players;
+        body.in_players = true;
+        body.loops.push(if players {
+            LoopKind::Players
+        } else {
+            LoopKind::Entities
+        });
+        body.loop_bindings.push(binding.name.clone());
+        if players {
+            body.player_loops += 1;
+        }
+        self.handle_scopes
+            .push((body.file, block.span, binding.name.clone(), players));
+        let inner = self.lower_block(body, block);
+        if players {
+            body.player_loops -= 1;
+        }
+        body.loops.pop();
+        body.loop_bindings.pop();
+        body.in_players = was;
+        body.temp_depth = depth;
+        ops.push(op_at(
+            pc::Action::WithEntity {
+                reference,
+                players,
+                body: inner,
+            },
+            body.file,
+            *span,
+        ));
+    }
+
+    /// Resolve a mutable receiver to existing writable storage. A method call
+    /// commits its receiver result after restoring the caller's recursive frame.
+    pub(super) fn receiver_destination(
+        &mut self,
+        body: &mut BodyCx,
+        expr: &Expr,
+    ) -> Option<pc::FieldReference> {
+        match expr {
+            Expr::Path(path) if path.segments.len() == 1 => {
+                let local = Self::lookup_local(body, &path.last().name)?;
+                if !matches!(
+                    self.defs[local.0].info,
+                    DefInfo::Local { mutable: true, .. }
+                ) {
+                    self.error(
+                        "mutability",
+                        body.file,
+                        path.span,
+                        "a mutable method needs a mutable receiver; declare it with `let mut`",
+                    );
+                    return None;
+                }
+                body.assigned.insert(local);
+                Some(self.local_ref(local))
+            }
+            Expr::Place(place) => self
+                .place_value(body, place, true)
+                .map(|value| value.reference),
+            _ => {
+                self.error("receiver", body.file, expr.span(), "a mutable method needs a variable or State field; store this value in `let mut` first");
+                None
+            }
+        }
+    }
+
+    pub(super) fn finish_receiver(
+        &mut self,
+        body: &BodyCx,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        if let Some((source, dest, ty)) = &body.receiver_out {
+            self.copy_value(dest, source, *ty, body.file, span, ops);
+        }
     }
 
     pub(super) fn record_constant(

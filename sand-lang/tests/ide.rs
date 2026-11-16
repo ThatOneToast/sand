@@ -257,7 +257,7 @@ fn ok() {
         errors,
         vec![
             "expected `&`, `)` or `mut`; found `{`",
-            "expected expression; found `;`"
+            "expected `[` or expression; found `;`"
         ]
     );
     // Hover and definition still work on the healthy statement.
@@ -319,4 +319,26 @@ fn run() { let p = Point::new(1); let q = p.moved(2); let x = q.x; }
         assert!(implementation.span.start <= method.span.start);
         assert!(implementation.span.end >= method.span.end);
     }
+}
+
+#[test]
+fn array_methods_have_completion_hover_and_signature_help() {
+    let text = r#"#![pack(namespace = "arrays")]
+fn run() { let values = [1, 2, 3]; let found = values.get_or(1, 0); }
+"#;
+    let analysis = analyze_one(text);
+    assert!(!analysis.has_errors(), "{:?}", errors(&analysis));
+    let at = offset(text, "values.get_or", 0) + "values.".len();
+    let completions = ide::completions(&analysis, ROOT, at);
+    for method in ["len", "is_empty", "contains", "get_or", "fill"] {
+        assert!(
+            completions.iter().any(|c| c.label == method),
+            "missing {method}"
+        );
+    }
+    let hover = ide::hover(&analysis, ROOT, at).unwrap();
+    assert!(hover.markdown.contains("fallback"));
+    let help = ide::signature_help(&analysis, ROOT, at + "get_or(1, ".len()).unwrap();
+    assert_eq!(help.params.len(), 2);
+    assert_eq!(help.active, 1);
 }

@@ -508,7 +508,26 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 5_382);
+    // CaptureEntity (+2), WithEntity (+4), and Damage::by (+1) extend
+    // the same enforced advanced vocabulary; no scope exemptions are added.
+    assert_eq!(declarations.len(), 5_389);
+    for member in [
+        "CaptureEntity",
+        "CaptureEntity::score",
+        "WithEntity",
+        "WithEntity::reference",
+        "WithEntity::players",
+        "WithEntity::body",
+        "Damage::by",
+    ] {
+        let path = format!("sand::advanced::compiler::Action::{member}");
+        assert!(
+            declarations
+                .iter()
+                .any(|declaration| declaration.canonical_path == path),
+            "missing contract {path}"
+        );
+    }
     assert!(
         declarations
             .iter()

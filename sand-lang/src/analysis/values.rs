@@ -16,7 +16,7 @@ pub(super) struct PlaceValue {
     pub field: DefId,
 }
 
-fn child(base: &pc::FieldReference, name: &str) -> pc::FieldReference {
+pub(super) fn child(base: &pc::FieldReference, name: &str) -> pc::FieldReference {
     pc::FieldReference {
         state: base.state.clone(),
         field: format!("{}_f{}_{name}", base.field, name.len()),
@@ -122,13 +122,13 @@ impl Cx {
                                     name: "self".into(),
                                     span: self_span,
                                 },
-                                ty: Path {
+                                ty: Type::named(Path {
                                     segments: vec![Ident {
                                         name: "Self".into(),
                                         span: self_span,
                                     }],
                                     span: self_span,
-                                },
+                                }),
                                 span: receiver.span,
                             },
                         );
@@ -229,24 +229,7 @@ impl Cx {
             .map(|(i, _)| DefId(i))
             .collect();
         for def in structs {
-            fn visit(cx: &Cx, ty: Ty, stack: &mut Vec<DefId>, leaves: &mut usize) -> bool {
-                if let Ty::Struct(def) = ty {
-                    if stack.len() >= 32 || stack.contains(&def) {
-                        return false;
-                    }
-                    stack.push(def);
-                    for field in cx.struct_fields(def) {
-                        if !visit(cx, cx.field_ty(field), stack, leaves) {
-                            return false;
-                        }
-                    }
-                    stack.pop();
-                } else {
-                    *leaves += 1;
-                }
-                *leaves <= 1024
-            }
-            if !visit(self, Ty::Struct(def), &mut Vec::new(), &mut 0) {
+            if self.layout_leaves(Ty::Struct(def)).is_none() {
                 let d = self.defs[def.0].clone();
                 self.error(
                     "struct",
@@ -259,9 +242,33 @@ impl Cx {
         }
     }
 
-    fn struct_fields(&self, def: DefId) -> Vec<DefId> {
+    /// Validate one aggregate layout, including inferred arrays created while
+    /// lowering bodies, before any recursive slot expansion can run.
+    pub(super) fn layout_leaves(&self, ty: Ty) -> Option<usize> {
+        fn visit(cx: &Cx, ty: Ty, stack: &mut Vec<DefId>) -> Option<usize> {
+            let Ty::Struct(def) = ty else {
+                return Some(1);
+            };
+            if stack.len() >= 32 || stack.contains(&def) {
+                return None;
+            }
+            stack.push(def);
+            let mut leaves = 0usize;
+            for field in cx.struct_fields(def) {
+                leaves = leaves.checked_add(visit(cx, cx.field_ty(field), stack)?)?;
+                if leaves > 1024 {
+                    return None;
+                }
+            }
+            stack.pop();
+            Some(leaves)
+        }
+        visit(self, ty, &mut Vec::new())
+    }
+
+    pub(super) fn struct_fields(&self, def: DefId) -> Vec<DefId> {
         match &self.defs[def.0].info {
-            DefInfo::Struct { fields } => fields.clone(),
+            DefInfo::Struct { fields } | DefInfo::Array { fields, .. } => fields.clone(),
             _ => Vec::new(),
         }
     }
@@ -549,6 +556,12 @@ impl Cx {
                     return None;
                 }
                 body.assigned.insert(local);
+                body.used.insert(local);
+                self.references.push(Reference {
+                    file: body.file,
+                    span: path.span,
+                    def: local,
+                });
                 Some(self.local_ref(local))
             }
             Expr::Place(place) => self
@@ -579,6 +592,50 @@ impl Cx {
         expr: Option<&Expr>,
         ty: Ty,
     ) -> Option<Vec<i32>> {
+        if let Some((element, length)) = self.array_shape(ty) {
+            if let Some(Expr::ArrayRepeat {
+                value,
+                length: count,
+                span,
+            }) = expr
+            {
+                let count = self.eval_i32(module, file, count, Some(Ty::Number), None)?;
+                if count != length as i64 {
+                    self.error(
+                        "const",
+                        file,
+                        *span,
+                        format!("expected {length} array elements, found {count}"),
+                    );
+                    return None;
+                }
+                let repeated = self.record_constant(module, file, Some(value), element)?;
+                return Some((0..length).flat_map(|_| repeated.clone()).collect());
+            }
+            let values = match expr {
+                Some(Expr::Array(values, _)) if values.len() == length => Some(values),
+                Some(value) => {
+                    self.error(
+                        "const",
+                        file,
+                        value.span(),
+                        format!("expected an array literal with {length} elements"),
+                    );
+                    return None;
+                }
+                None => None,
+            };
+            let mut leaves = Vec::new();
+            for index in 0..length {
+                leaves.extend(self.record_constant(
+                    module,
+                    file,
+                    values.map(|v| &v[index]),
+                    element,
+                )?);
+            }
+            return Some(leaves);
+        }
         if let Ty::Struct(def) = ty {
             let mut supplied = BTreeMap::new();
             if let Some(expr) = expr {
@@ -685,6 +742,9 @@ impl Cx {
         expr: &Expr,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
+        if matches!(expr, Expr::Array(..) | Expr::ArrayRepeat { .. }) {
+            return self.emit_array(body, dest, ty, expr, ops);
+        }
         self.value_slots(dest, ty);
         let found = self.type_of(body, expr);
         if !self.types_agree(body.file, expr.span(), ty, found) {
@@ -782,9 +842,14 @@ impl Cx {
                 args,
                 span,
             } => {
+                let receiver_ty = self.type_of(body, receiver);
+                if self.array_shape(receiver_ty).is_some() {
+                    return self.emit_array_method(body, dest, ty, expr, ops);
+                }
                 let (path, args) = self.method_call(body, receiver, name, args)?;
                 self.emit_call(body, dest, ty, &path, &args, *span, ops)
             }
+            Expr::Index(..) => self.emit_index(body, dest, ty, expr, ops),
             Expr::Project(value, field, _) => {
                 self.emit_projection(body, dest, ty, value, field, ops)
             }
@@ -963,6 +1028,11 @@ impl Cx {
             ..
         } = expr
         {
+            let receiver_ty = self.type_of(body, receiver);
+            if self.array_shape(receiver_ty).is_some() {
+                self.lower_array_statement(body, expr, ops);
+                return;
+            }
             if let Some((path, args)) = self.method_call(body, receiver, name, args) {
                 self.lower_call(body, &path, &args, span, ops);
             }

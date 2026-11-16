@@ -222,7 +222,12 @@ fn statements_and_expressions() {
     exactly("fn f() {\n    for p |\n}", &["in"]);
     exactly(
         "fn f() {\n    for p in |\n}",
-        &["players()", "entities(..)"],
+        &[
+            "players()",
+            "entities(..)",
+            "resolve_entity(..)",
+            "resolve_player(..)",
+        ],
     );
     exactly("fn f() {\n    if true {} else |\n}", &["if"]);
     includes_excludes(

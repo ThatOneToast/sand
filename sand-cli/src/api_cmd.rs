@@ -4562,7 +4562,16 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 737);
+        assert_eq!(entries.len(), 744);
+        for member in ["CaptureEntity", "WithEntity", "Damage::by"] {
+            assert!(
+                show(
+                    catalog,
+                    &format!("sand::advanced::compiler::Action::{member}")
+                )
+                .is_ok()
+            );
+        }
         assert!(
             show(catalog, "sand::advanced::compiler::ScoreField::bounds")
                 .unwrap()

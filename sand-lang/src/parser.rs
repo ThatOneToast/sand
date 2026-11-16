@@ -100,14 +100,7 @@ fn parameter(pair: P<'_>) -> Param {
     } else {
         first
     });
-    let ty = path(
-        pieces
-            .next()
-            .expect("param type")
-            .into_inner()
-            .next()
-            .expect("type path"),
-    );
+    let ty = value_type(pieces.next().expect("param type"));
     Param {
         mutable,
         name,
@@ -165,7 +158,9 @@ fn pratt() -> &'static PrattParser<Rule> {
             // As in Rust, `-x as T` casts the negated value.
             .op(Op::postfix(Rule::cast))
             .op(Op::prefix(Rule::neg))
-            .op(Op::postfix(Rule::method_postfix) | Op::postfix(Rule::field_postfix))
+            .op(Op::postfix(Rule::method_postfix)
+                | Op::postfix(Rule::field_postfix)
+                | Op::postfix(Rule::index_postfix))
     })
 }
 
@@ -318,14 +313,7 @@ impl Builder<'_> {
             }),
             Rule::const_item => {
                 let name = ident(inner.next().expect("const name"));
-                let ty = path(
-                    inner
-                        .next()
-                        .expect("const type")
-                        .into_inner()
-                        .next()
-                        .unwrap(),
-                );
+                let ty = value_type(inner.next().expect("const type"));
                 let value = self.expr(inner.next().expect("const value"));
                 ItemKind::Const(ConstItem { name, ty, value })
             }
@@ -467,11 +455,7 @@ impl Builder<'_> {
                             }
                         }
                         Rule::ret_ty => {
-                            ret = part
-                                .into_inner()
-                                .next()
-                                .and_then(|ty| ty.into_inner().next())
-                                .map(path);
+                            ret = part.into_inner().next().map(value_type);
                         }
                         _ => body = Some(self.block(part)),
                     }
@@ -506,7 +490,7 @@ impl Builder<'_> {
                     attrs.push(self.attr_body(body, a));
                 }
                 Rule::ident => name = Some(ident(part)),
-                Rule::ty => ty = Some(path(part.into_inner().next().expect("type path"))),
+                Rule::ty => ty = Some(value_type(part)),
                 _ => default = Some(self.expr(part)),
             }
         }
@@ -652,19 +636,30 @@ impl Builder<'_> {
                         span: s,
                     };
                 }
-                let source = path(source);
-                let next = parts.next().expect("for body");
-                let (args, body) = if next.as_rule() == Rule::args {
-                    (args(next), self.block(parts.next().expect("for body")))
-                } else {
-                    (Vec::new(), self.block(next))
-                };
-                Stmt::For {
-                    binding,
-                    source,
-                    args,
-                    body,
-                    span: s,
+                let value = expr(source);
+                let body = self.block(parts.next().expect("for body"));
+                match value {
+                    Expr::Call { path, args, .. }
+                        if path.segments.len() == 1
+                            && matches!(
+                                path.last().name.as_str(),
+                                "players" | "entities" | "resolve_entity" | "resolve_player"
+                            ) =>
+                    {
+                        Stmt::For {
+                            binding,
+                            source: path,
+                            args,
+                            body,
+                            span: s,
+                        }
+                    }
+                    value => Stmt::ForValues {
+                        binding,
+                        value,
+                        body,
+                        span: s,
+                    },
                 }
             }
             Rule::macro_stmt => {
@@ -686,7 +681,7 @@ impl Builder<'_> {
                     match part.as_rule() {
                         Rule::mut_kw => mutable = true,
                         Rule::ident => name = Some(ident(part)),
-                        Rule::ty => ty = part.into_inner().next().map(path),
+                        Rule::ty => ty = Some(value_type(part)),
                         _ => value = Some(self.value(part)),
                     }
                 }
@@ -732,9 +727,12 @@ impl Builder<'_> {
             Rule::assign_stmt => {
                 let mut parts = inner.into_inner();
                 let first = parts.next().expect("assign target");
-                let target = match first.as_rule() {
-                    Rule::place => AssignTarget::Place(place(first)),
-                    _ => AssignTarget::Local(ident(first)),
+                let target = match expr(first) {
+                    Expr::Place(place) => AssignTarget::Place(place),
+                    Expr::Path(path) if path.segments.len() == 1 => {
+                        AssignTarget::Local(path.segments.into_iter().next().expect("local name"))
+                    }
+                    value => AssignTarget::Value(Box::new(value)),
                 };
                 let op = match parts.next().expect("assign op").as_str() {
                     "+=" => AssignOp::Add,
@@ -924,6 +922,43 @@ impl Builder<'_> {
 fn expr(pair: P<'_>) -> Expr {
     pratt()
         .map_primary(|primary| match primary.as_rule() {
+            Rule::array_expr => {
+                let location = span(&primary);
+                let mut parts = primary.into_inner().peekable();
+                if parts
+                    .peek()
+                    .is_some_and(|p| p.as_rule() == Rule::array_repeat)
+                {
+                    let mut repeat = parts.next().expect("array repeat").into_inner();
+                    let value = expr(repeat.next().expect("repeated value"));
+                    let length = array_length(repeat.next().expect("repeat length"));
+                    return Expr::ArrayRepeat {
+                        value: Box::new(value),
+                        length: Box::new(length),
+                        span: location,
+                    };
+                }
+                let values = parts
+                    .map(|value| {
+                        let inner = value.into_inner().next().expect("array value");
+                        if inner.as_rule() == Rule::cond {
+                            let location = span(&inner);
+                            Expr::Cond(
+                                Box::new(
+                                    Builder {
+                                        errors: &mut Vec::new(),
+                                    }
+                                    .cond(inner),
+                                ),
+                                location,
+                            )
+                        } else {
+                            expr(inner)
+                        }
+                    })
+                    .collect();
+                Expr::Array(values, location)
+            }
             Rule::record_literal => {
                 let s = span(&primary);
                 let mut parts = primary.into_inner();
@@ -1039,6 +1074,10 @@ fn expr(pair: P<'_>) -> Expr {
                     span: s,
                 };
             }
+            if op.as_rule() == Rule::index_postfix {
+                let index = expr(op.into_inner().next().expect("array index"));
+                return Expr::Index(Box::new(lhs), Box::new(index), s);
+            }
             if op.as_rule() == Rule::field_postfix {
                 let field = ident(op.into_inner().next().expect("field name"));
                 return Expr::Project(Box::new(lhs), field, s);
@@ -1046,8 +1085,7 @@ fn expr(pair: P<'_>) -> Expr {
             let ty = op
                 .into_inner()
                 .find(|p| p.as_rule() == Rule::ty)
-                .and_then(|ty| ty.into_inner().next())
-                .map(path)
+                .map(value_type)
                 .expect("cast type");
             Expr::Cast(Box::new(lhs), ty, s)
         })
@@ -1119,6 +1157,37 @@ fn range(pair: P<'_>) -> Range {
         end,
         inclusive,
         span: s,
+    }
+}
+
+fn array_length(pair: P<'_>) -> Expr {
+    if pair.as_rule() == Rule::int {
+        Expr::Int(
+            pair.as_str().replace('_', "").parse().unwrap_or(i64::MAX),
+            span(&pair),
+        )
+    } else {
+        Expr::Path(path(pair))
+    }
+}
+
+fn value_type(pair: P<'_>) -> Type {
+    let location = span(&pair);
+    let inner = pair.into_inner().next().expect("type form");
+    if inner.as_rule() == Rule::array_ty {
+        let mut parts = inner.into_inner();
+        let element = value_type(parts.next().expect("array element type"));
+        let length = parts.next().expect("array length");
+        let length = array_length(length);
+        Type {
+            kind: TypeKind::Array {
+                element: Box::new(element),
+                length: Box::new(length),
+            },
+            span: location,
+        }
+    } else {
+        Type::named(path(inner))
     }
 }
 

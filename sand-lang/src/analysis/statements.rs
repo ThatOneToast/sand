@@ -34,6 +34,8 @@ pub(super) enum Repeat<'a> {
         range: &'a Range,
         reverse: bool,
         step: Option<&'a Expr>,
+        /// Array snapshot supplying the loop binding instead of the counter.
+        collection: Option<&'a Expr>,
     },
 }
 
@@ -66,9 +68,10 @@ fn block_mentions_return(block: &Block) -> bool {
         Stmt::Return { .. } => true,
         Stmt::If(if_stmt) => if_mentions_return(if_stmt),
         Stmt::Match { arms, .. } => arms.iter().any(|arm| block_mentions_return(&arm.body)),
-        Stmt::While { body, .. } | Stmt::Loop { body, .. } | Stmt::ForRange { body, .. } => {
-            block_mentions_return(body)
-        }
+        Stmt::While { body, .. }
+        | Stmt::Loop { body, .. }
+        | Stmt::ForRange { body, .. }
+        | Stmt::ForValues { body, .. } => block_mentions_return(body),
         _ => false,
     })
 }
@@ -121,6 +124,9 @@ pub(super) fn contains_call(expr: &Expr) -> bool {
         Expr::Struct { fields, .. } => fields.iter().any(|(_, value)| contains_call(value)),
         Expr::Method { .. } => true,
         Expr::Project(value, ..) => contains_call(value),
+        Expr::Array(values, _) => values.iter().any(contains_call),
+        Expr::ArrayRepeat { value, .. } => contains_call(value),
+        Expr::Index(value, index, _) => contains_call(value) || contains_call(index),
         _ => false,
     }
 }
@@ -196,7 +202,10 @@ impl Cx {
             | Expr::Str { .. }
             | Expr::Struct { .. }
             | Expr::Method { .. }
-            | Expr::Project(..) => false,
+            | Expr::Project(..)
+            | Expr::Array(..)
+            | Expr::ArrayRepeat { .. }
+            | Expr::Index(..) => false,
             Expr::Float(..) | Expr::Bool(..) => true,
         }
     }
@@ -229,6 +238,36 @@ impl Cx {
                     None => Ty::Unknown,
                 }
             }
+            Expr::ArrayRepeat { value, length, .. } => {
+                let element = self.type_of(body, value);
+                let Some(length) =
+                    self.eval_i32(body.module, body.file, length, Some(Ty::Number), None)
+                else {
+                    return Ty::Unknown;
+                };
+                if !(0..=1024).contains(&length) {
+                    self.error(
+                        "type",
+                        body.file,
+                        expr.span(),
+                        "array length must be between 0 and 1024",
+                    );
+                    return Ty::Unknown;
+                }
+                self.array_type(body.module, element, length as usize)
+            }
+            Expr::Array(values, _) => {
+                let Some(first) = values.first() else {
+                    return Ty::Unknown;
+                };
+                let element = self.type_of(body, first);
+                self.array_type(body.module, element, values.len())
+            }
+            Expr::Index(value, _, _) => {
+                let ty = self.type_of(body, value);
+                self.array_shape(ty)
+                    .map_or(Ty::Unknown, |(element, _)| element)
+            }
             Expr::Place(place) => self.place_ty(body, place),
             Expr::Struct { path, .. } => self
                 .resolve_path(body.module, path)
@@ -241,6 +280,15 @@ impl Cx {
                     .map_or(Ty::Unknown, |field| self.field_ty(field))
             }
             Expr::Method { receiver, name, .. } => {
+                let receiver_ty = self.type_of(body, receiver);
+                if let Some((element, _)) = self.array_shape(receiver_ty) {
+                    return match name.name.as_str() {
+                        "len" => Ty::Number,
+                        "is_empty" | "contains" => Ty::Bool,
+                        "get_or" => element,
+                        _ => Ty::Unknown,
+                    };
+                }
                 let target = self.method_target(body, receiver).or_else(|| {
                     match self.type_of(body, receiver) {
                         Ty::Struct(def) => Some(def),
@@ -456,12 +504,17 @@ impl Cx {
             return Some(());
         }
         match expr {
+            Expr::Index(..) => self.emit_index(body, dest, ty, expr, ops),
             Expr::Method {
                 receiver,
                 name,
                 args,
                 span,
             } => {
+                let receiver_ty = self.type_of(body, receiver);
+                if self.array_shape(receiver_ty).is_some() {
+                    return self.emit_array_method(body, dest, ty, expr, ops);
+                }
                 let (path, args) = self.method_call(body, receiver, name, args)?;
                 self.emit_call(body, dest, ty, &path, &args, *span, ops)
             }
@@ -620,7 +673,7 @@ impl Cx {
     /// One arithmetic step. Decimal multiply and divide rescale, because a
     /// `float` score already holds `value * 1000`.
     #[allow(clippy::too_many_arguments)]
-    fn apply(
+    pub(super) fn apply(
         &mut self,
         file: FileId,
         dest: &pc::FieldReference,
@@ -887,8 +940,9 @@ impl Cx {
             };
             exprs.push(expr);
         }
+        let depth = body.temp_depth;
         let receiver_dest = if slots.receiver_out.is_some() {
-            Some(self.receiver_destination(body, exprs.first().copied()?)?)
+            Some(self.value_address(body, exprs.first().copied()?, ops)?)
         } else {
             None
         };
@@ -901,10 +955,17 @@ impl Cx {
                 .iter()
                 .any(|(_, _, ty)| matches!(ty, Ty::Struct(_)))
             || exprs.iter().any(|expr| contains_call(expr));
-        let depth = body.temp_depth;
         let mut values = Vec::with_capacity(exprs.len());
         if staged {
-            for ((_, _, param_ty), expr) in slots.params.iter().zip(&exprs) {
+            for (index, ((_, _, param_ty), expr)) in slots.params.iter().zip(&exprs).enumerate() {
+                if index == 0
+                    && let Some(address) = &receiver_dest
+                {
+                    let temp = self.temp(body);
+                    self.read_address(body, &temp, address, span, ops)?;
+                    values.push(Value::Read(temp));
+                    continue;
+                }
                 let value = match self.simple(body, expr, *param_ty).ok()? {
                     Some(Value::Const(value)) => Value::Const(value),
                     _ => {
@@ -916,6 +977,7 @@ impl Cx {
                 values.push(value);
             }
         }
+        let invocation_start = ops.len();
         let marker = self.frame_marker(body.owner, def);
         ops.push(op_at(
             pc::Action::PushFrame {
@@ -958,9 +1020,24 @@ impl Cx {
             file,
             span,
         ));
-        if let (Some(dest), Some((field, ty))) = (receiver_dest, &slots.receiver_out) {
+        if let (Some(dest), Some((field, _))) = (&receiver_dest, &slots.receiver_out) {
             let output = self.slot(field.clone());
-            self.copy_value(&dest, &output, *ty, file, span, ops);
+            self.write_address(body, dest, &output, span, ops);
+        }
+        if let Some(address) = &receiver_dest
+            && self.address_is_guarded(address)
+        {
+            let invocation = ops.split_off(invocation_start);
+            if let Some((field, ty)) = &slots.ret {
+                let reference = self.slot(field.clone());
+                let defaults = self.record_constant(body.module, file, None, *ty)?;
+                for ((score, _), value) in
+                    self.value_slots(&reference, *ty).into_iter().zip(defaults)
+                {
+                    ops.push(op_at(pc::Action::ScoreSet { score, value }, file, span));
+                }
+            }
+            ops.extend(self.guard_address(body, address, span, invocation));
         }
         Some(())
     }
@@ -984,6 +1061,7 @@ impl Cx {
     fn resolve_target(&mut self, body: &mut BodyCx, target: &AssignTarget) -> Option<Dest> {
         let (module, file) = (body.module, body.file);
         match target {
+            AssignTarget::Value(_) => None,
             AssignTarget::Place(place) => {
                 let value = self.place_value(body, place, true)?;
                 let bounds = match self.defs[value.field.0].info {
@@ -1068,6 +1146,10 @@ impl Cx {
         ops: &mut Vec<pc::Operation>,
     ) {
         let file = body.file;
+        if let AssignTarget::Value(target) = target {
+            self.lower_value_assignment(body, target, op, value, ops);
+            return;
+        }
         let Some(dest) = self.resolve_target(body, target) else {
             return;
         };
@@ -1197,7 +1279,7 @@ impl Cx {
         body: &mut BodyCx,
         mutable: bool,
         name: &Ident,
-        ty: Option<&Path>,
+        ty: Option<&Type>,
         value: Option<&Expr>,
         span: Span,
         ops: &mut Vec<pc::Operation>,
@@ -1550,6 +1632,7 @@ impl Cx {
                 range,
                 reverse,
                 step: increment,
+                collection,
             } => {
                 let (Some(start), Some(end)) = (&range.start, &range.end) else {
                     self.diagnostics.push(
@@ -1619,6 +1702,24 @@ impl Cx {
                 } else {
                     1
                 };
+                let snapshot = if let Some(value) = collection {
+                    let ty = self.type_of(body, value);
+                    let Some((element, length)) = self.array_shape(ty) else {
+                        self.error("for", file, value.span(), "this loop needs an array value");
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    };
+                    let array = self.temp(body);
+                    if self.emit(body, &array, ty, value, &mut setup).is_none() {
+                        body.scopes.pop();
+                        body.temp_depth = depth;
+                        return;
+                    }
+                    Some((array, element, length))
+                } else {
+                    None
+                };
                 // Save the first bound before evaluating the second one: either
                 // expression may call a function that changes the other's State.
                 let first = self.temp(body);
@@ -1630,8 +1731,43 @@ impl Cx {
                     body.temp_depth = depth;
                     return;
                 }
-                let local = self.new_local(body, binding, Ty::Number, false, binding.span);
-                let counter = self.local_ref(local);
+                let binding_ty = snapshot
+                    .as_ref()
+                    .map_or(Ty::Number, |(_, element, _)| *element);
+                let local = self.new_local(body, binding, binding_ty, false, binding.span);
+                let binding_slot = self.local_ref(local);
+                self.value_slots(&binding_slot, binding_ty);
+                let counter = if snapshot.is_some() {
+                    self.temp(body)
+                } else {
+                    binding_slot.clone()
+                };
+                if let Some((array, element, length)) = snapshot {
+                    for offset in 0..length {
+                        let mut then = Vec::new();
+                        self.copy_value(
+                            &binding_slot,
+                            &super::values::child(&array, &format!("i{offset}")),
+                            element,
+                            file,
+                            span,
+                            &mut then,
+                        );
+                        pre_body.push(op_at(
+                            pc::Action::Branch {
+                                condition: pc::Condition::Range(pc::ScoreComparison {
+                                    score: counter.clone(),
+                                    min: Some(offset as i32),
+                                    max: Some(offset as i32),
+                                }),
+                                then,
+                                otherwise: Vec::new(),
+                            },
+                            file,
+                            span,
+                        ));
+                    }
+                }
                 let limit = if reverse {
                     if self
                         .emit(body, &counter, Ty::Number, end, &mut setup)
@@ -1677,7 +1813,7 @@ impl Cx {
                     body,
                     binding,
                     local,
-                    Span::new(binding.span.start, block.span.end),
+                    Span::new(block.span.start, block.span.end),
                 );
                 let condition = match limit {
                     Value::Const(value) => {

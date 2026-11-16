@@ -160,3 +160,18 @@ fn the_retained_attacker_example_compiles_without_warnings() {
         analysis.diagnostics
     );
 }
+
+#[test]
+fn the_collection_example_compiles_without_warnings() {
+    let root = std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/lang_collections/pack.sand"
+    ));
+    let analysis = sand_lang::analyze_path(root, &sand_lang::DiskFiles);
+    compile(&analysis);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+}

@@ -68,6 +68,9 @@ pub fn format(source: &str) -> Result<String, Vec<SyntaxError>> {
                 stack.push(token);
             }
             "[" => {
+                if matches!(prev, "return" | "in") {
+                    space(&mut out);
+                }
                 write(&mut out, token, indent);
                 stack.push(if attribute { "#[" } else { "[" });
                 attribute = false;
@@ -82,7 +85,11 @@ pub fn format(source: &str) -> Result<String, Vec<SyntaxError>> {
             ";" => {
                 trim_spaces(&mut out);
                 write(&mut out, token, indent);
-                newline(&mut out);
+                if stack.last() == Some(&"[") {
+                    space(&mut out);
+                } else {
+                    newline(&mut out);
+                }
             }
             "," => {
                 trim_spaces(&mut out);
@@ -300,6 +307,7 @@ mod tests {
     fn formats_real_projects_without_changing_tokens_or_emitted_packs() {
         for source in [
             include_str!("../tests/fixtures/control_flow.sand"),
+            include_str!("../tests/fixtures/collections.sand"),
             include_str!("../../examples/lang_encounters/pack.sand"),
         ] {
             let result = format(source).unwrap();

@@ -239,7 +239,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   for aliasing, casts, bounded float arithmetic, record calls and event copies.
 - [x] Runtime timer durations with checked seconds conversion and player-State
   method isolation in the two-player runtime probe.
-- [ ] Collections and runtime text values using the shared typed value model.
+- [x] Fixed-size arrays with inference, repeat literals, nested State/records,
+  calls/returns, snapshot iteration, checked indexing, indexed mutable receivers,
+  and len/is_empty/contains/get_or/fill methods; forty native assertions.
+- [ ] Dynamic collections, slices and runtime text values using the shared typed value model.
 - [x] Read-only and mutable struct receivers, with write-back on early return and
   recursive calls; retained EntityRef values, reload-safe identities, explicit
   resolution, and damage attribution with native two-player kill-credit proof.

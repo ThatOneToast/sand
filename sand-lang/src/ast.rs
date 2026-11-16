@@ -32,6 +32,37 @@ impl Span {
     }
 }
 
+/// A source type annotation, shared by fields, parameters, returns and casts.
+#[derive(Debug, Clone)]
+pub struct Type {
+    /// Type syntax.
+    pub kind: TypeKind,
+    /// Whole annotation.
+    pub span: Span,
+}
+
+/// Named and composite source type forms.
+#[derive(Debug, Clone)]
+pub enum TypeKind {
+    /// A named scalar, enum, record or imported type.
+    Named(Path),
+    /// A fixed-length homogeneous array with a constant length.
+    Array {
+        element: Box<Type>,
+        length: Box<Expr>,
+    },
+}
+
+impl Type {
+    /// Construct a named annotation without losing its source span.
+    pub fn named(path: Path) -> Self {
+        Self {
+            span: path.span,
+            kind: TypeKind::Named(path),
+        }
+    }
+}
+
 /// An identifier together with its source location.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident {
@@ -229,7 +260,7 @@ pub struct ConstItem {
     /// Constant name.
     pub name: Ident,
     /// Declared type.
-    pub ty: Path,
+    pub ty: Type,
     /// Value expression.
     pub value: Expr,
 }
@@ -319,7 +350,7 @@ pub struct Field {
     /// Field name.
     pub name: Ident,
     /// Field value type.
-    pub ty: Path,
+    pub ty: Type,
     /// Default value.
     pub default: Option<Expr>,
     /// Location of the whole field.
@@ -483,7 +514,7 @@ pub struct Param {
     /// Parameter name.
     pub name: Ident,
     /// Parameter type.
-    pub ty: Path,
+    pub ty: Type,
     /// Whole parameter.
     pub span: Span,
 }
@@ -498,7 +529,7 @@ pub struct FnItem {
     /// Parameters in order.
     pub params: Vec<Param>,
     /// Declared return type.
-    pub ret: Option<Path>,
+    pub ret: Option<Type>,
     /// Body.
     pub body: Block,
 }
@@ -535,7 +566,7 @@ pub enum Stmt {
         /// Bound name.
         name: Ident,
         /// Declared type.
-        ty: Option<Path>,
+        ty: Option<Type>,
         /// Initial value.
         value: Option<Expr>,
         /// Whole statement.
@@ -564,6 +595,17 @@ pub enum Stmt {
     /// `loop { ... }`: repeat until `break` or `return`.
     Loop {
         /// Repeated body.
+        body: Block,
+        /// Whole statement.
+        span: Span,
+    },
+    /// Iterate an independent snapshot of a fixed-size array.
+    ForValues {
+        /// Immutable element binding.
+        binding: Ident,
+        /// Array expression, evaluated once.
+        value: Expr,
+        /// Loop body.
         body: Block,
         /// Whole statement.
         span: Span,
@@ -690,6 +732,8 @@ pub enum AssignTarget {
     Place(Place),
     /// A local variable or parameter.
     Local(Ident),
+    /// An indexed or projected writable value.
+    Value(Box<Expr>),
 }
 
 impl AssignTarget {
@@ -698,6 +742,7 @@ impl AssignTarget {
         match self {
             AssignTarget::Place(place) => place.span,
             AssignTarget::Local(ident) => ident.span,
+            AssignTarget::Value(value) => value.span(),
         }
     }
 }
@@ -879,6 +924,16 @@ pub enum Expr {
         /// Location including quotes.
         span: Span,
     },
+    /// A homogeneous array literal, evaluated from left to right.
+    Array(Vec<Expr>, Span),
+    /// Repeat one evaluated value a constant number of times.
+    ArrayRepeat {
+        value: Box<Expr>,
+        length: Box<Expr>,
+        span: Span,
+    },
+    /// An indexed element of an array value.
+    Index(Box<Expr>, Box<Expr>, Span),
     /// A named record literal, evaluated in authored field order.
     Struct {
         /// Record type.
@@ -921,7 +976,7 @@ pub enum Expr {
     /// Binary arithmetic.
     Binary(Box<Expr>, BinOp, Box<Expr>, Span),
     /// `expr as Type`.
-    Cast(Box<Expr>, Path, Span),
+    Cast(Box<Expr>, Type, Span),
 }
 
 impl Expr {
@@ -936,6 +991,9 @@ impl Expr {
             | Expr::Struct { span, .. }
             | Expr::Method { span, .. }
             | Expr::Project(_, _, span)
+            | Expr::Array(_, span)
+            | Expr::ArrayRepeat { span, .. }
+            | Expr::Index(_, _, span)
             | Expr::Cond(_, span)
             | Expr::Neg(_, span)
             | Expr::Binary(_, _, _, span)

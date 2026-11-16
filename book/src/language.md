@@ -204,7 +204,7 @@ assign it back to keep a change. They can also take `&self` to read a value or
 commit when the call returns, including early returns and recursive calls; these
 are scoped method receivers rather than general reference values. Mutable calls
 on immutable variables or temporary expressions are errors. Traits, generics,
-collections, runtime strings, and whole-record arithmetic/comparison are not
+dynamic collections, runtime strings, and whole-record arithmetic/comparison are not
 supported. Empty or recursive record layouts are rejected. Each record has at
 most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
 or clamps; an uninitialized record recursively uses zero or the first enum
@@ -221,6 +221,50 @@ returns, recursive calls and event payloads use the same record representation.
 The [Blinkstep example](../../examples/lang_methods/pack.sand) combines a private
 position record with player State methods and a runtime cooldown.
 
+## Fixed-size arrays
+
+Arrays use one shared element type and a compile-time length:
+
+```rust,ignore
+let mut values: [number; 3] = [1, 2, 3];
+values[1] += 5;
+let zeros = [0; 8];
+for value in values { chat!("{value}"); }
+```
+
+Arrays work in locals, State, records, function arguments/returns, custom events,
+and recursive frames. Elements can themselves be arrays, structs, enums, or
+entity references. Type inference works for nonempty literals and repeat forms;
+an empty literal needs a type such as `[number; 0]`. Lengths can name number
+constants. Arrays and their elements copy independently. `[expression; N]`
+evaluates its expression once and copies the result, even when N is zero.
+
+`for value in array` evaluates its source once and iterates a snapshot. Changing
+the original array does not change later elements in that iteration. The loop
+binding is an immutable value copy. Nested loops, `break`, `continue` and early
+returns use the same rules as counting loops.
+
+Indexes accept runtime whole numbers. A constant out-of-range index is an
+error. An invalid runtime read returns the element's default; an invalid write
+leaves the array unchanged. `get_or(index, fallback)` provides an explicit
+fallback. Mutable methods on invalid indexed receivers skip their bodies and
+return a default result. Indexes evaluate once, including for nested assignment
+and mutable method receivers. Indexed assignment freezes its indexes before
+evaluating the right-hand side.
+
+| Method | Behavior |
+| --- | --- |
+| `array.len()` | Fixed length as a number |
+| `array.is_empty()` | Whether length is zero |
+| `array.contains(value)` | Value equality, including nested aggregate leaves |
+| `array.get_or(index, fallback)` | Element or supplied fallback |
+| `array.fill(value)` | Replace every element with an independent copy; needs a mutable receiver |
+
+Arrays have at most 1,024 elements; complete aggregate layouts have at most
+1,024 scalar leaves and 32 storage levels. Dynamic vectors/maps, slices, and
+runtime strings remain separate roadmap work. See the
+[quest-board example](../../examples/lang_collections/pack.sand).
+
 ## Types
 
 | Type | Holds | Stored as |
@@ -230,6 +274,7 @@ position record with player State methods and a runtime cooldown.
 | `bool` | `true` or `false` | a score holding one or zero |
 | an `enum` | one of its named phases | a score holding the phase's number |
 | a `struct` | named fields of existing value types | one score per scalar leaf |
+| `[T; N]` | N independent values of one type | the same aggregate leaf layout |
 
 Scoreboards only hold whole numbers, so `float` is fixed point, the same
 scheme as Rust's `Fixed` fields. Sand rescales arithmetic for you. Its range

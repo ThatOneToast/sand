@@ -33,6 +33,7 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
     }
 }
 
+mod collections;
 mod resources;
 mod statements;
 mod values;
@@ -42,7 +43,7 @@ mod values;
 pub struct DefId(pub usize);
 
 /// The value type of a constant, field, or expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Ty {
     /// A whole number, stored directly in a score.
     Number,
@@ -169,6 +170,13 @@ pub enum DefInfo {
     /// A named record layout, shared by locals, arguments, returns, and State.
     Struct {
         /// Field definitions in declaration order.
+        fields: Vec<DefId>,
+    },
+    /// An interned fixed-size array using the same leaf layout as records.
+    Array {
+        /// Element type.
+        element: Ty,
+        /// Compiler-owned element field definitions in index order.
         fields: Vec<DefId>,
     },
     /// An enum variant.
@@ -469,6 +477,7 @@ pub fn analyze(package: Package) -> Analysis {
         members: BTreeMap::new(),
         methods: BTreeMap::new(),
         record_defaults: BTreeMap::new(),
+        array_types: BTreeMap::new(),
         const_src: BTreeMap::new(),
         variant_src: BTreeMap::new(),
         memo: BTreeMap::new(),
@@ -488,6 +497,7 @@ pub fn analyze(package: Package) -> Analysis {
     cx.collect();
     cx.resolve_imports();
     cx.pack_info();
+    cx.declare_constant_types();
     cx.evaluate_structs();
     cx.evaluate_declarations();
     let program = cx.lower();
@@ -556,6 +566,7 @@ struct Cx {
     members: BTreeMap<DefId, BTreeMap<String, DefId>>,
     methods: BTreeMap<DefId, values::Method>,
     record_defaults: BTreeMap<DefId, Vec<i32>>,
+    array_types: BTreeMap<(Ty, usize), DefId>,
     const_src: BTreeMap<DefId, ConstSrc>,
     variant_src: BTreeMap<DefId, VariantSrc>,
     memo: BTreeMap<DefId, Memo>,
@@ -1468,7 +1479,31 @@ impl Cx {
 
     // ── Constants, enums, and State declarations ────────────────────────────
 
-    fn resolve_type(&mut self, module: ModuleId, ty: &Path) -> Ty {
+    fn resolve_type(&mut self, module: ModuleId, annotation: &Type) -> Ty {
+        match &annotation.kind {
+            TypeKind::Named(path) => self.resolve_named_type(module, path),
+            TypeKind::Array { element, length } => {
+                let element = self.resolve_type(module, element);
+                let file = self.package.module(module).file;
+                let Some(length) = self.eval_i32(module, file, length, Some(Ty::Number), None)
+                else {
+                    return Ty::Unknown;
+                };
+                if !(0..=1024).contains(&length) {
+                    self.error(
+                        "type",
+                        file,
+                        annotation.span,
+                        "array length must be between 0 and 1024",
+                    );
+                    return Ty::Unknown;
+                }
+                self.array_type(module, element, length as usize)
+            }
+        }
+    }
+
+    fn resolve_named_type(&mut self, module: ModuleId, ty: &Path) -> Ty {
         if let [segment] = ty.segments.as_slice() {
             match segment.name.as_str() {
                 "number" => return Ty::Number,
@@ -1527,23 +1562,32 @@ impl Cx {
         }
     }
 
-    fn evaluate_declarations(&mut self) {
-        // Constant types first, so evaluation can check against them.
-        for index in 0..self.package.modules.len() {
-            let module = ModuleId(index);
-            for item in self.package.module(module).items.clone() {
-                let Some(name) = item.name() else { continue };
-                let Some(def) = self.def_by_span(module, name.span) else {
-                    continue;
-                };
-                if let ItemKind::Const(c) = &item.kind {
+    fn declare_constant_types(&mut self) {
+        // Scalar annotations precede composite lengths, including forward
+        // references, so a bool constant cannot silently become an array size.
+        for named in [true, false] {
+            for index in 0..self.package.modules.len() {
+                let module = ModuleId(index);
+                for item in self.package.module(module).items.clone() {
+                    let ItemKind::Const(c) = item.kind else {
+                        continue;
+                    };
+                    if matches!(c.ty.kind, TypeKind::Named(_)) != named {
+                        continue;
+                    }
+                    let Some(def) = self.def_by_span(module, c.name.span) else {
+                        continue;
+                    };
                     let ty = self.resolve_type(module, &c.ty);
-                    if let Some(src) = self.const_src.get_mut(&def) {
-                        src.ty = ty;
+                    if let Some(source) = self.const_src.get_mut(&def) {
+                        source.ty = ty;
                     }
                 }
             }
         }
+    }
+
+    fn evaluate_declarations(&mut self) {
         let consts: Vec<DefId> = self.const_src.keys().copied().collect();
         for def in consts {
             let value = self.eval_def(def);
@@ -1615,7 +1659,7 @@ impl Cx {
     }
 
     fn field(&mut self, module: ModuleId, file: FileId, field: &Field, def: DefId) {
-        let timer = matches!(field.ty.segments.as_slice(), [s] if s.name == "timer");
+        let timer = matches!(&field.ty.kind, TypeKind::Named(path) if matches!(path.segments.as_slice(), [s] if s.name == "timer"));
         let ty = if timer {
             Ty::Number
         } else {
@@ -1974,7 +2018,12 @@ impl Cx {
                     }
                 }
             }
-            Expr::Struct { span, .. } | Expr::Method { span, .. } | Expr::Project(_, _, span) => {
+            Expr::Struct { span, .. }
+            | Expr::Method { span, .. }
+            | Expr::Project(_, _, span)
+            | Expr::Array(_, span)
+            | Expr::ArrayRepeat { span, .. }
+            | Expr::Index(_, _, span) => {
                 self.error(
                     "const",
                     file,
@@ -2029,7 +2078,7 @@ impl Cx {
     }
 
     /// The type named after `as`, reporting unknown names.
-    pub(super) fn cast_target(&mut self, module: ModuleId, file: FileId, ty: &Path) -> Option<Ty> {
+    pub(super) fn cast_target(&mut self, module: ModuleId, file: FileId, ty: &Type) -> Option<Ty> {
         let _ = file;
         match self.resolve_type(module, ty) {
             Ty::Unknown => None,
@@ -2038,7 +2087,10 @@ impl Cx {
     }
 
     /// The type named after `as`, resolved without diagnostics.
-    pub(super) fn cast_target_quiet(&mut self, module: ModuleId, ty: &Path) -> Ty {
+    pub(super) fn cast_target_quiet(&mut self, module: ModuleId, annotation: &Type) -> Ty {
+        let TypeKind::Named(ty) = &annotation.kind else {
+            return Ty::Unknown;
+        };
         if let [segment] = ty.segments.as_slice() {
             match segment.name.as_str() {
                 "number" => return Ty::Number,
@@ -2248,7 +2300,7 @@ impl Cx {
         file: FileId,
         owner: DefId,
         declared: &[Param],
-        ret: Option<&Path>,
+        ret: Option<&Type>,
     ) {
         let mut params = Vec::new();
         let mut seen = HashSet::new();
@@ -3755,6 +3807,42 @@ impl Cx {
             Stmt::Loop { body: block, span } => {
                 self.lower_repeat(body, statements::Repeat::Forever, block, *span, ops)
             }
+            Stmt::ForValues {
+                binding,
+                value,
+                body: block,
+                span,
+            } => {
+                let ty = self.type_of(body, value);
+                let Some((_, length)) = self.array_shape(ty) else {
+                    self.error(
+                        "for",
+                        file,
+                        value.span(),
+                        "iterate an array, players(), entities(..), or an entity reference",
+                    );
+                    return;
+                };
+                let range = Range {
+                    start: Some(Expr::Int(0, value.span())),
+                    end: Some(Expr::Int(length as i64, value.span())),
+                    inclusive: false,
+                    span: value.span(),
+                };
+                self.lower_repeat(
+                    body,
+                    statements::Repeat::Count {
+                        binding,
+                        range: &range,
+                        reverse: false,
+                        step: None,
+                        collection: Some(value),
+                    },
+                    block,
+                    *span,
+                    ops,
+                );
+            }
             Stmt::ForRange {
                 binding,
                 range,
@@ -3769,6 +3857,7 @@ impl Cx {
                     range,
                     reverse: *reverse,
                     step: step.as_ref(),
+                    collection: None,
                 },
                 block,
                 *span,
@@ -4420,6 +4509,7 @@ fn stmt_span(stmt: &Stmt) -> Span {
         | Stmt::While { span, .. }
         | Stmt::Loop { span, .. }
         | Stmt::ForRange { span, .. }
+        | Stmt::ForValues { span, .. }
         | Stmt::Assign { span, .. }
         | Stmt::Call { span, .. }
         | Stmt::Macro { span, .. }

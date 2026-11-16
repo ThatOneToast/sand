@@ -6,6 +6,7 @@
 
 use crate::analysis::{Analysis, Context, DefId, DefInfo, DefKind, Ty, scope_names};
 use crate::ast::{Scope, Span};
+use crate::builtins;
 use crate::package::ModuleId;
 use crate::source::FileId;
 use std::collections::HashSet;
@@ -81,6 +82,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 Vec::new(),
             )
         }
+        DefInfo::Array { element, fields } => (
+            format!("[{}; {}]", ty_name(analysis, *element), fields.len()),
+            vec!["Fixed-size homogeneous array; value copies use the normal record layout.".into()],
+        ),
         DefInfo::Struct { fields } => (
             format!(
                 "{vis}struct {} {{\n{}\n}}",
@@ -407,7 +412,7 @@ fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<
         .find(|(f, span, _, _)| *f == file && span.contains(offset))
     {
         return Some(Hover {
-            markdown: builtins::describe(builtins::find(name, *kind)?),
+            markdown: builtins::describe(builtins::documented(name, *kind)?),
             span: *span,
         });
     }
@@ -1069,6 +1074,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             | Position::Expression(_)
             | Position::Condition(_)
             | Position::ConstValue
+            | Position::ForSource
             | Position::FlowField
             | Position::Data { .. }
     );
@@ -1081,12 +1087,30 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 .collect();
         }
         if let Some(owner) = value_owner(analysis, file, offset, &token[..dot]) {
+            if matches!(analysis.def(owner).info, DefInfo::Array { .. }) {
+                return builtins::ARRAY_METHODS
+                    .iter()
+                    .map(|method| Completion {
+                        detail: Some(method.signature.into()),
+                        documentation: Some(builtins::describe(method)),
+                        insert: Some(method.snippet.into()),
+                        snippet: method.snippet.contains("${"),
+                        ..Completion::plain(
+                            method
+                                .name
+                                .strip_prefix("array.")
+                                .expect("method namespace"),
+                            CompletionKind::Function,
+                        )
+                    })
+                    .collect();
+            }
             return analysis.defs.iter().enumerate()
                 .filter(|(_, member)| member.parent == Some(owner)
                     && (member.is_pub || is_ancestor(analysis, member.module, module)))
                 .filter(|(_, member)| member.kind == DefKind::Field || matches!(&member.info,
                     DefInfo::Function { signature, .. } if analysis.def(owner).kind == DefKind::State
-                        || signature.starts_with("(self: ") || signature.starts_with("(mut self: ")))
+                        || signature.starts_with("(self: ") || signature.starts_with("(mut self: ") || signature.starts_with("(&self") || signature.starts_with("(&mut self")))
                 .map(|(id, member)| def_completion(analysis, &member.name, DefId(id))).collect();
         }
         return Vec::new();
@@ -1224,23 +1248,48 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             out
         }
         Position::ForIn => vec![Completion::plain("in", CompletionKind::Keyword)],
-        Position::ForSource => vec![
-            Completion {
-                documentation: Some("Run the body as each online player.".into()),
-                insert: Some("players()".into()),
-                ..Completion::plain("players()", CompletionKind::Function)
-            },
-            crate::builtins::find("entities", crate::builtins::BuiltinKind::Expression)
-                .map(|b| Completion {
-                    label: "entities(..)".into(),
-                    kind: CompletionKind::Function,
-                    detail: Some(b.summary.into()),
-                    documentation: Some(crate::builtins::describe(b)),
-                    insert: Some("entities(type = Entity::${1:Zombie})".into()),
-                    snippet: true,
-                })
-                .expect("entities builtin"),
-        ],
+        Position::ForSource => {
+            let mut out = vec![
+                Completion {
+                    documentation: Some("Run the body as each online player.".into()),
+                    insert: Some("players()".into()),
+                    ..Completion::plain("players()", CompletionKind::Function)
+                },
+                crate::builtins::find("entities", crate::builtins::BuiltinKind::Expression)
+                    .map(|b| Completion {
+                        label: "entities(..)".into(),
+                        kind: CompletionKind::Function,
+                        detail: Some(b.summary.into()),
+                        documentation: Some(crate::builtins::describe(b)),
+                        insert: Some("entities(type = Entity::${1:Zombie})".into()),
+                        snippet: true,
+                    })
+                    .expect("entities builtin"),
+            ];
+            for name in ["resolve_entity", "resolve_player"] {
+                let builtin = builtins::find(name, builtins::BuiltinKind::Expression)
+                    .expect("reference iterator");
+                let mut completion = builtin_completion(builtin);
+                completion.label = format!("{name}(..)");
+                out.push(completion);
+            }
+            out.extend(
+                local_completions(analysis, file, offset)
+                    .into_iter()
+                    .filter(|completion| {
+                        value_owner(analysis, file, offset, &completion.label).is_some_and(
+                            |owner| matches!(analysis.def(owner).info, DefInfo::Array { .. }),
+                        )
+                    }),
+            );
+            out.extend(defs(&|def| match &def.info {
+                DefInfo::Function { signature, .. } => signature.contains(") -> ["),
+                DefInfo::State { fields, .. } => fields.iter().any(|field| matches!(analysis.def(*field).info, DefInfo::Field { ty: Ty::Struct(owner), .. } if matches!(analysis.def(owner).info, DefInfo::Array { .. }))),
+                _ => false,
+            }));
+            out
+        }
+
         Position::AfterElse => vec![Completion::plain("if", CompletionKind::Keyword)],
         Position::StateField => vec![Completion::snippet(
             "#[clamp]",
@@ -1505,6 +1554,7 @@ fn expression_completions(
         DefInfo::Const { .. }
         | DefInfo::Enum { .. }
         | DefInfo::Struct { .. }
+        | DefInfo::Array { .. }
         | DefInfo::State { .. }
         | DefInfo::Module { .. } => true,
         DefInfo::Data { kind, .. } => *kind == crate::ast::DataKind::Item,
@@ -2155,11 +2205,19 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
             BuiltinKind::Condition,
         ]
     };
-    let builtin = (!scope_names(analysis, module).iter().any(|(n, _)| n == name))
-        .then(|| kinds.iter().find_map(|kind| builtins::find(name, *kind)))
-        .flatten();
+    let array_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        let owner = value_owner(analysis, file, offset, receiver)?;
+        matches!(analysis.def(owner).info, DefInfo::Array { .. })
+            .then(|| builtins::array_method(method))
+            .flatten()
+    });
+    let builtin = array_builtin.or_else(|| {
+        (!scope_names(analysis, module).iter().any(|(n, _)| n == name))
+            .then(|| kinds.iter().find_map(|kind| builtins::find(name, *kind)))
+            .flatten()
+    });
     if let Some(builtin) = builtin {
-        label.push_str(builtin.name);
+        label.push_str(builtin.name.strip_prefix("array.").unwrap_or(builtin.name));
         if is_macro {
             label.push('!');
         }
@@ -2180,6 +2238,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::BossBar => "BossBar",
                 ParamKind::Loot => "Loot",
                 ParamKind::EntityRef => "EntityRef",
+                ParamKind::Value => "T",
             };
             let rendered = if param.required {
                 format!("{}: {kind}", param.name)

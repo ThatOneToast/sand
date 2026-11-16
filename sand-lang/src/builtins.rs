@@ -48,6 +48,8 @@ pub enum ParamKind {
     Loot,
     /// A retained EntityRef value.
     EntityRef,
+    /// A value of the receiver collection's element type.
+    Value,
 }
 
 /// One builtin parameter.
@@ -1656,3 +1658,97 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
         "`tag Name: Item { values: [...] }` groups values of one type: `Item`, `Block`, or `Entity`. An item tag can be a recipe ingredient; any tag can include other tags of the same type.",
     ),
 ];
+
+/// Intrinsic array methods; separate from free functions so `len()` cannot be
+/// accidentally called without a receiver. The names also identify editor help.
+pub const ARRAY_METHODS: &[Builtin] = &[
+    Builtin {
+        name: "array.len",
+        kind: BuiltinKind::Expression,
+        signature: "array.len() -> number",
+        summary: "Return the array's fixed length.",
+        details: "The receiver is evaluated once, including calls with side effects.",
+        minecraft: "A compile-time length copied into a score.",
+        needs_player: false,
+        params: &[],
+        snippet: "len()",
+    },
+    Builtin {
+        name: "array.is_empty",
+        kind: BuiltinKind::Expression,
+        signature: "array.is_empty() -> bool",
+        summary: "Whether this array has zero elements.",
+        details: "The receiver is evaluated once.",
+        minecraft: "A constant boolean score.",
+        needs_player: false,
+        params: &[],
+        snippet: "is_empty()",
+    },
+    Builtin {
+        name: "array.contains",
+        kind: BuiltinKind::Expression,
+        signature: "array.contains(value: T) -> bool",
+        summary: "Whether an element equals this value.",
+        details: "Elements compare by value, including nested record and array leaves. The receiver and argument evaluate once in that order.",
+        minecraft: "Typed leaf-score comparisons.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Value,
+            true,
+            "Value of the array's element type.",
+        )],
+        snippet: "contains(${1:value})",
+    },
+    Builtin {
+        name: "array.get_or",
+        kind: BuiltinKind::Expression,
+        signature: "array.get_or(index: number, fallback: T) -> T",
+        summary: "Read an element or return the supplied fallback.",
+        details: "Negative and out-of-range indexes return the fallback. The receiver and arguments evaluate once in authored order.",
+        minecraft: "Guarded indexed copies.",
+        needs_player: false,
+        params: &[
+            p("index", ParamKind::Int, true, "Element index."),
+            p(
+                "fallback",
+                ParamKind::Value,
+                true,
+                "Value returned for an invalid index.",
+            ),
+        ],
+        snippet: "get_or(${1:index}, ${2:fallback})",
+    },
+    Builtin {
+        name: "array.fill",
+        kind: BuiltinKind::Statement,
+        signature: "array.fill(value: T)",
+        summary: "Replace every element with an independent copy of a value.",
+        details: "Needs a mutable receiver. The value evaluates once, including for an empty array.",
+        minecraft: "Typed aggregate copies to every element.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Value,
+            true,
+            "New value for each element.",
+        )],
+        snippet: "fill(${1:value})",
+    },
+];
+
+/// Find one intrinsic method on a fixed-size array.
+pub fn array_method(name: &str) -> Option<&'static Builtin> {
+    ARRAY_METHODS
+        .iter()
+        .find(|builtin| builtin.name.strip_prefix("array.") == Some(name))
+}
+
+/// Resolve an editor-help identity without exposing intrinsic methods as free functions.
+pub fn documented(name: &str, kind: BuiltinKind) -> Option<&'static Builtin> {
+    find(name, kind).or_else(|| {
+        ARRAY_METHODS
+            .iter()
+            .find(|builtin| builtin.name == name && builtin.kind == kind)
+    })
+}

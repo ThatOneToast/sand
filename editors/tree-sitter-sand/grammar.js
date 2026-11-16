@@ -99,8 +99,7 @@ module.exports = grammar({
         ':',
         field('value', $._data_value),
       ),
-    _data_value: ($) => choice($.data_array, $.data_object, $._expression),
-    data_array: ($) => seq('[', commaSep($._data_value), ']'),
+    _data_value: ($) => choice($.data_object, $._expression),
 
     mod_item: ($) =>
       seq(
@@ -167,7 +166,10 @@ module.exports = grammar({
         field('type', $.type),
         optional(seq('=', field('default', $._expression))),
       ),
-    type: ($) => $.path,
+    type: ($) => choice($.array_type, $.path),
+    array_type: ($) => seq('[', field('element', $.type), ';', field('length', choice($.integer, $.path)), ']'),
+    array_expression: ($) => seq('[', choice(commaSep(choice($.data_object, $._value_or_condition)), seq($._expression, ';', choice($.integer, $.path))), ']'),
+    index_expression: ($) => prec.left(10, seq(field('value', $._expression), '[', field('index', $._expression), ']')),
 
     flow_item: ($) =>
       seq(
@@ -278,7 +280,7 @@ module.exports = grammar({
         'for',
         field('binding', $.identifier),
         'in',
-        field('source', choice($.call_expression, $.count_range)),
+        field('source', choice($._expression, $.count_range)),
         field('body', $.block),
       ),
     count_range: ($) => choice($.range,
@@ -288,7 +290,7 @@ module.exports = grammar({
       seq(field('macro', alias($.identifier, $.macro_name)), '!', $.arguments, ';'),
     assignment: ($) =>
       seq(
-        field('target', choice($.place, $.field_expression, $.identifier)),
+        field('target', $._expression),
         field('operator', choice('=', '+=', '-=', '*=', '/=', '%=')),
         field('value', $._value_or_condition),
         ';',
@@ -297,7 +299,7 @@ module.exports = grammar({
 
     // ── Conditions ─────────────────────────────────────────────────────────
     _condition: ($) =>
-      choice($.logical_condition, $.not_condition, $.comparison, $.in_range, $.parenthesized_expression, $.call_expression, $.method_expression, $.field_expression, $.place, $.path, $.boolean),
+      choice($.logical_condition, $.not_condition, $.comparison, $.in_range, $.parenthesized_expression, $.call_expression, $.method_expression, $.field_expression, $.index_expression, $.place, $.path, $.boolean),
     logical_condition: ($) =>
       choice(
         prec.left(PREC.or, seq($._condition, '||', $._condition)),
@@ -330,6 +332,8 @@ module.exports = grammar({
         $.record_expression,
         $.method_expression,
         $.field_expression,
+        $.array_expression,
+        $.index_expression,
       ),
     call_expression: ($) => seq(field('function', $.path), $.arguments),
     arguments: ($) => seq('(', commaSep($.argument), ')'),

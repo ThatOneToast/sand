@@ -177,6 +177,39 @@ pub(crate) fn resolve_local_refs(content: &str, namespace: &str) -> String {
         .replace(&format!("{sentinel}:"), &format!("{namespace}:"))
 }
 
+/// Finish compiler-managed numeric objectives through the same owned load
+/// function in every frontend. The reserved initializer identity is part of
+/// collision validation; ordinary authored functions cannot declare these scores.
+pub(crate) fn drain_score_setup(
+    records: &mut Vec<ComponentRecord>,
+    namespace: &str,
+    runtime: &mut crate::compiler::runtime::RuntimePlan,
+    tag_map: &mut std::collections::BTreeMap<String, Vec<String>>,
+) {
+    let setup = crate::state::score::drain_internal_score_setup();
+    if setup.is_empty() {
+        return;
+    }
+    let path = "__sand_score_init";
+    runtime.generated_lifecycle(
+        format!("{namespace}:{path}"),
+        "load",
+        resolve_origins(crate::function::take_score_origins(), namespace),
+    );
+    records.push(ComponentRecord {
+        namespace: namespace.into(),
+        dir: "function".into(),
+        path: path.into(),
+        ext: "mcfunction".into(),
+        content_type: "text".into(),
+        content: setup.join("\n"),
+    });
+    tag_map
+        .entry("minecraft:load".into())
+        .or_default()
+        .insert(0, format!("{namespace}:{path}"));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -422,37 +455,4 @@ mod tests {
         assert!(second.iter().all(|r| !r.content.contains("first:")));
         assert_eq!(second, export("second"));
     }
-}
-
-/// Finish compiler-managed numeric objectives through the same owned load
-/// function in every frontend. The reserved initializer identity is part of
-/// collision validation; ordinary authored functions cannot declare these scores.
-pub(crate) fn drain_score_setup(
-    records: &mut Vec<ComponentRecord>,
-    namespace: &str,
-    runtime: &mut crate::compiler::runtime::RuntimePlan,
-    tag_map: &mut std::collections::BTreeMap<String, Vec<String>>,
-) {
-    let setup = crate::state::score::drain_internal_score_setup();
-    if setup.is_empty() {
-        return;
-    }
-    let path = "__sand_score_init";
-    runtime.generated_lifecycle(
-        format!("{namespace}:{path}"),
-        "load",
-        resolve_origins(crate::function::take_score_origins(), namespace),
-    );
-    records.push(ComponentRecord {
-        namespace: namespace.into(),
-        dir: "function".into(),
-        path: path.into(),
-        ext: "mcfunction".into(),
-        content_type: "text".into(),
-        content: setup.join("\n"),
-    });
-    tag_map
-        .entry("minecraft:load".into())
-        .or_default()
-        .insert(0, format!("{namespace}:{path}"));
 }

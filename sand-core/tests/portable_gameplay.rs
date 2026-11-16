@@ -372,9 +372,10 @@ fn retained_entity_capture_rejects_bounded_identity_storage() {
         ]),
         serde_json::json!([]),
     );
-    let errors = Compiler::compile(&decode(doc))
-        .err()
-        .expect("bounded capture must fail");
+    let errors = match Compiler::compile(&decode(doc)) {
+        Err(errors) => errors,
+        Ok(_) => panic!("bounded capture must fail"),
+    };
     assert!(
         errors
             .iter()

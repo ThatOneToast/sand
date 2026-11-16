@@ -45,7 +45,14 @@ fn f() {
                     action["operator"].as_str().unwrap(),
                     action["operand"]
                         .get("field")
-                        .map(|f| f.as_str().unwrap().to_string())
+                        .map(|f| {
+                            let name = f.as_str().unwrap();
+                            if name.contains("_t") {
+                                "scratch".into()
+                            } else {
+                                name.to_string()
+                            }
+                        })
                         .unwrap_or_else(|| action["operand"].to_string())
                 ),
                 other => format!("{other} {}", action["value"]),
@@ -55,7 +62,15 @@ fn f() {
     assert_eq!(
         ops,
         vec![
-            "set b", "mul 5", "sub c", "mul 4", "mod b", "set b", "mul -1"
+            "set b",
+            "mul 5",
+            "sub c",
+            "set scratch",
+            "mul 4",
+            "mod b",
+            "set b",
+            "mul -1",
+            "set scratch"
         ]
     );
     let pack = compile(&analysis);

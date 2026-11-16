@@ -65,6 +65,7 @@ fn item_level() {
             "global state",
             "entity state",
             "enum",
+            "struct",
             "flow",
             "const",
             "item",

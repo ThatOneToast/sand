@@ -161,7 +161,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "start_timer(State.field, ticks = .. | seconds = ..)",
         summary: "Start a `timer` field counting down.",
-        details: "Give exactly one of `ticks` (20 per second) or `seconds`. Starting a running timer restarts it. Timers are numbers of ticks left, so you can also read and compare them.",
+        details: "Give exactly one of `ticks` (20 per second) or `seconds`; both accept runtime number values. Invalid runtime durations leave the timer unchanged (ticks 1..=2147483647, seconds 1..=107374182). Starting a running timer restarts it. Timers are numbers of ticks left, so you can also read and compare them.",
         minecraft: "scoreboard players set <holder> <objective> <ticks>",
         needs_player: false,
         params: &[

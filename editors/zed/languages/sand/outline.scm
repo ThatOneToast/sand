@@ -41,3 +41,11 @@
 (data_item
   kind: (data_kind) @context
   name: (identifier) @name) @item
+
+(struct_item
+  "struct" @context
+  name: (identifier) @name) @item
+
+(impl_item
+  "impl" @context
+  type: (path) @name) @item

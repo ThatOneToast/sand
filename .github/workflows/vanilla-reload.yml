@@ -191,6 +191,14 @@ jobs:
           python3 scripts/validate_language.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/language-control-flow"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/assignments.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-assignments"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/structs.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-structs"
           python3 scripts/validate_language_values.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/language-values"
@@ -447,6 +455,8 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/latest.log
             target/vanilla-reload/${{ matrix.version }}/language-control-flow
             target/vanilla-reload/${{ matrix.version }}/language-values
+            target/vanilla-reload/${{ matrix.version }}/language-assignments
+            target/vanilla-reload/${{ matrix.version }}/language-structs
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/compute

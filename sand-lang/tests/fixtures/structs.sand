@@ -1,0 +1,55 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+struct Point { x: number, y: number }
+struct Shape { center: Point, visible: bool }
+global state World { shape: Shape = Shape { center: Point { x: 2, y: 3 }, visible: true } }
+global state Result { checks: number, failed: number, events: number, order: number }
+impl Point {
+    fn new(x: number, y: number) -> Self { return Self { x, y }; }
+    fn sum(self) -> number { return self.x + self.y; }
+    fn shifted(mut self, dx: number) -> Self { self.x += dx; return self; }
+    fn recurse(self, n: number) -> Self {
+        if n == 0 { return self; }
+        return self.shifted(1).recurse(n - 1);
+    }
+}
+impl World {
+    fn shift(&mut self, dx: number) { self.shape.center = self.shape.center.shifted(dx); }
+    fn total(&self) -> number { return self.shape.center.sum(); }
+}
+event Moved(point: Point);
+#[on(Moved)]
+fn first(mut point: Point) { point.x += 100; Result.events += point.sum(); }
+#[on(Moved)]
+fn second(point: Point) { Result.events += point.sum(); }
+fn transform(mut point: Point) -> Point { point.y += 4; return point; }
+fn check(actual: number, expected: number) { Result.checks += 1; if actual != expected { Result.failed += 1; } }
+fn next() -> number { Result.order += 1; return Result.order; }
+fn run() {
+    Result.checks = 0; Result.failed = 0; Result.events = 0; Result.order = 0;
+    World.shape = Shape { center: Point { x: 2, y: 3 }, visible: true };
+    check(World.total(), 5);
+    let original = Point::new(2, 3);
+    let moved = original.shifted(4);
+    check(original.sum(), 5);
+    check(moved.sum(), 9);
+    let mut copied = transform(moved);
+    copied.x += original.y;
+    check(copied.sum(), 16);
+    World.shape.center = copied;
+    World.shift(3);
+    check(World.total(), 19);
+    check(Point::new(7, 8).x, 7);
+    let recursive = original.recurse(5);
+    check(recursive.sum(), 10);
+    let mut swapped = Point::new(4, 9);
+    swapped = Point { x: swapped.y, y: swapped.x };
+    check(swapped.x, 9);
+    check(swapped.y, 4);
+    let authored = Point { y: next(), x: next() };
+    check(authored.x, 2);
+    check(authored.y, 1);
+    emit Moved(original);
+    check(Result.events, 110);
+    if Result.checks == 12 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

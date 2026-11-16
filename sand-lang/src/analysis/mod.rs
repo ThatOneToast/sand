@@ -35,6 +35,7 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
 
 mod resources;
 mod statements;
+mod values;
 
 /// Index of a definition within an [`Analysis`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -51,6 +52,8 @@ pub enum Ty {
     Bool,
     /// An enum whose variants are integer phases.
     Enum(DefId),
+    /// A named, copyable record layout.
+    Struct(DefId),
     /// A type that failed to resolve; suppresses follow-up errors.
     Unknown,
 }
@@ -86,6 +89,8 @@ pub enum DefKind {
     Const,
     /// `enum Name`.
     Enum,
+    /// A named record value type.
+    Struct,
     /// An enum variant.
     Variant,
     /// `player state` or `global state`.
@@ -121,6 +126,7 @@ impl DefKind {
             DefKind::Module => "module",
             DefKind::Const => "constant",
             DefKind::Enum => "enum",
+            DefKind::Struct => "struct",
             DefKind::Variant => "variant",
             DefKind::State => "state",
             DefKind::Field => "field",
@@ -157,6 +163,11 @@ pub enum DefInfo {
     Enum {
         /// Variants in order.
         variants: Vec<DefId>,
+    },
+    /// A named record layout, shared by locals, arguments, returns, and State.
+    Struct {
+        /// Field definitions in declaration order.
+        fields: Vec<DefId>,
     },
     /// An enum variant.
     Variant {
@@ -454,6 +465,8 @@ pub fn analyze(package: Package) -> Analysis {
         references: Vec::new(),
         scopes: Vec::new(),
         members: BTreeMap::new(),
+        methods: BTreeMap::new(),
+        record_defaults: BTreeMap::new(),
         const_src: BTreeMap::new(),
         variant_src: BTreeMap::new(),
         memo: BTreeMap::new(),
@@ -473,8 +486,11 @@ pub fn analyze(package: Package) -> Analysis {
     cx.collect();
     cx.resolve_imports();
     cx.pack_info();
+    cx.evaluate_structs();
     cx.evaluate_declarations();
     let program = cx.lower();
+    cx.references
+        .retain(|reference| reference.span.start < reference.span.end);
     cx.naming_lints();
     cx.diagnostics
         .sort_by_key(|d| (d.file, d.span.start, d.span.end));
@@ -536,6 +552,8 @@ struct Cx {
     diagnostics: Vec<Diagnostic>,
     scopes: Vec<BTreeMap<String, Binding>>,
     members: BTreeMap<DefId, BTreeMap<String, DefId>>,
+    methods: BTreeMap<DefId, values::Method>,
+    record_defaults: BTreeMap<DefId, Vec<i32>>,
     const_src: BTreeMap<DefId, ConstSrc>,
     variant_src: BTreeMap<DefId, VariantSrc>,
     memo: BTreeMap<DefId, Memo>,
@@ -812,6 +830,7 @@ impl Cx {
                 self.members.insert(id, members);
                 id
             }
+            ItemKind::Struct(record) => self.collect_struct(module, file, item, record),
             ItemKind::State(s) => {
                 let state_id = self.item_id(module, &name.name);
                 let id = self.push_def(base(
@@ -965,7 +984,7 @@ impl Cx {
                     },
                 ))
             }
-            ItemKind::Use(_) | ItemKind::Error(_) => return,
+            ItemKind::Use(_) | ItemKind::Impl(_) | ItemKind::Error(_) => return,
         };
         self.bind(
             module,
@@ -1008,7 +1027,8 @@ impl Cx {
                 }
             }
         }
-        // Imports may resolve through other imports; iterate to a fixpoint.
+        // Type aliases resolve first; methods then join the same import fixpoint.
+        let mut implementations = false;
         loop {
             let mut progressed = false;
             let mut remaining = Vec::new();
@@ -1032,6 +1052,13 @@ impl Cx {
             }
             pending = remaining;
             if !progressed || pending.is_empty() {
+                if !implementations {
+                    self.collect_impls();
+                    implementations = true;
+                    if !pending.is_empty() {
+                        continue;
+                    }
+                }
                 break;
             }
         }
@@ -1067,51 +1094,69 @@ impl Cx {
         let mut cur = Cur::Module(from);
         let mut segments = path.segments.iter().peekable();
         let first = segments.peek().expect("non-empty path");
-        match first.name.as_str() {
-            "crate" => {
-                cur = Cur::Module(ModuleId(0));
-                segments.next();
-            }
-            "self" => {
-                segments.next();
-            }
-            "super" => {
-                while segments.peek().is_some_and(|s| s.name == "super") {
-                    let segment = segments.next().expect("peeked");
-                    let Cur::Module(module) = cur else {
-                        unreachable!()
-                    };
-                    match self.package.module(module).parent {
-                        Some(parent) => cur = Cur::Module(parent),
-                        None => {
-                            return fail(
-                                segment.span,
-                                "there are too many leading `super` keywords".into(),
-                            );
+        let method_target = self.methods.iter().find_map(|(def, method)| {
+            let owner = &self.defs[def.0];
+            (owner.module == from
+                && owner.span.contains(path.span.start)
+                && (first.name == "Self"
+                    || (first.name == "self" && path.segments.len() == 1 && method.state_receiver)))
+                .then_some(method.target)
+        });
+        if let Some(target) = method_target {
+            let segment = segments.next().expect("Self");
+            refs.push(Reference {
+                file,
+                span: segment.span,
+                def: target,
+            });
+            cur = Cur::Def(target);
+        } else {
+            match first.name.as_str() {
+                "crate" => {
+                    cur = Cur::Module(ModuleId(0));
+                    segments.next();
+                }
+                "self" => {
+                    segments.next();
+                }
+                "super" => {
+                    while segments.peek().is_some_and(|s| s.name == "super") {
+                        let segment = segments.next().expect("peeked");
+                        let Cur::Module(module) = cur else {
+                            unreachable!()
+                        };
+                        match self.package.module(module).parent {
+                            Some(parent) => cur = Cur::Module(parent),
+                            None => {
+                                return fail(
+                                    segment.span,
+                                    "there are too many leading `super` keywords".into(),
+                                );
+                            }
                         }
                     }
                 }
-            }
-            _ => {
-                let segment = segments.next().expect("peeked");
-                let Some(binding) = self.scopes[from.0].get(&segment.name) else {
-                    let mut message = format!("cannot find `{}` in this scope", segment.name);
-                    if self.package.module(from).parent.is_some()
-                        && self.scopes[0].contains_key(&segment.name)
-                    {
-                        message.push_str(&format!(
+                _ => {
+                    let segment = segments.next().expect("peeked");
+                    let Some(binding) = self.scopes[from.0].get(&segment.name) else {
+                        let mut message = format!("cannot find `{}` in this scope", segment.name);
+                        if self.package.module(from).parent.is_some()
+                            && self.scopes[0].contains_key(&segment.name)
+                        {
+                            message.push_str(&format!(
                             "; it is defined at the crate root, so import it with `use crate::{};`",
                             segment.name
                         ));
-                    }
-                    return fail(segment.span, message);
-                };
-                refs.push(Reference {
-                    file,
-                    span: segment.span,
-                    def: binding.def,
-                });
-                cur = self.enter(binding.def);
+                        }
+                        return fail(segment.span, message);
+                    };
+                    refs.push(Reference {
+                        file,
+                        span: segment.span,
+                        def: binding.def,
+                    });
+                    cur = self.enter(binding.def);
+                }
             }
         }
         for segment in segments {
@@ -1174,7 +1219,27 @@ impl Cx {
                                 ),
                             );
                         }
-                        (DefKind::State, _) => {
+                        (DefKind::State | DefKind::Struct, Some(method))
+                            if self.defs[method.0].kind == DefKind::Function =>
+                        {
+                            if !self.visible(
+                                from,
+                                self.defs[method.0].module,
+                                self.defs[method.0].is_pub,
+                            ) {
+                                return fail(
+                                    segment.span,
+                                    format!("method `{}` is private", segment.name),
+                                );
+                            }
+                            refs.push(Reference {
+                                file,
+                                span: segment.span,
+                                def: method,
+                            });
+                            cur = Cur::Def(method);
+                        }
+                        (DefKind::State | DefKind::Struct, _) => {
                             return fail(
                                 segment.span,
                                 format!(
@@ -1378,7 +1443,14 @@ impl Cx {
         for index in 0..self.defs.len() {
             let def = &self.defs[index];
             let mut fresh = self.item_id(def.module, &def.name);
-            if def.kind == DefKind::Event {
+            if let Some(method) = self.methods.get(&DefId(index)) {
+                let target = &self.defs[method.target.0];
+                fresh = format!(
+                    "{}.method/{}",
+                    self.item_id(target.module, &target.name),
+                    def.name
+                );
+            } else if def.kind == DefKind::Event {
                 fresh = event_id(&fresh);
             }
             match &mut self.defs[index].info {
@@ -1431,9 +1503,10 @@ impl Cx {
         match self.expect_path(
             module,
             ty,
-            &[DefKind::Enum],
-            "a type (`number`, `float`, `bool`, or an enum)",
+            &[DefKind::Enum, DefKind::Struct],
+            "a type (`number`, `float`, `bool`, enum, or struct)",
         ) {
+            Some(def) if self.defs[def.0].kind == DefKind::Struct => Ty::Struct(def),
             Some(def) => Ty::Enum(def),
             None => Ty::Unknown,
         }
@@ -1444,7 +1517,7 @@ impl Cx {
             Ty::Number => "number".into(),
             Ty::Float => "float".into(),
             Ty::Bool => "bool".into(),
-            Ty::Enum(def) => self.defs[def.0].name.clone(),
+            Ty::Enum(def) | Ty::Struct(def) => self.defs[def.0].name.clone(),
             Ty::Unknown => "{unknown}".into(),
         }
     }
@@ -1543,18 +1616,33 @@ impl Cx {
         } else {
             self.resolve_type(module, &field.ty)
         };
-        let default = match (&field.default, ty) {
-            (Some(expr), _) => self.eval_i32(module, file, expr, Some(ty), None),
-            (None, Ty::Enum(e)) => match &self.defs[e.0].info {
-                DefInfo::Enum { variants } => {
-                    variants.first().and_then(|v| match self.defs[v.0].info {
-                        DefInfo::Variant { value } => value,
-                        _ => None,
-                    })
-                }
-                _ => None,
-            },
-            (None, _) => Some(0),
+        if field.name.name.starts_with("__sand_record_") {
+            self.error(
+                "field",
+                file,
+                field.name.span,
+                "`__sand_record_` is reserved for struct storage",
+            );
+        }
+        let default = if matches!(ty, Ty::Struct(_)) {
+            if let Some(defaults) = self.record_constant(module, file, field.default.as_ref(), ty) {
+                self.record_defaults.insert(def, defaults);
+            }
+            None
+        } else {
+            match (&field.default, ty) {
+                (Some(expr), _) => self.eval_i32(module, file, expr, Some(ty), None),
+                (None, Ty::Enum(e)) => match &self.defs[e.0].info {
+                    DefInfo::Enum { variants } => {
+                        variants.first().and_then(|v| match self.defs[v.0].info {
+                            DefInfo::Variant { value } => value,
+                            _ => None,
+                        })
+                    }
+                    _ => None,
+                },
+                (None, _) => Some(0),
+            }
         };
         let mut bounds = None;
         for attr in &field.attrs {
@@ -1881,6 +1969,15 @@ impl Cx {
                     }
                 }
             }
+            Expr::Struct { span, .. } | Expr::Method { span, .. } | Expr::Project(_, _, span) => {
+                self.error(
+                    "const",
+                    file,
+                    *span,
+                    "expected a scalar constant expression",
+                );
+                None
+            }
             Expr::Cast(inner, ty, span) => {
                 let (value, from) = self.eval(module, file, inner, bare)?;
                 let to = self.cast_target(module, file, ty)?;
@@ -1960,6 +2057,12 @@ impl Cx {
     /// | bool | 0 or 1 | 0.0 or 1.0 | same | — |
     /// | enum | its value | its value | — | same enum only |
     pub(super) fn cast_step(&self, from: Ty, to: Ty) -> Result<CastStep, (String, &'static str)> {
+        if matches!(from, Ty::Struct(_)) || matches!(to, Ty::Struct(_)) {
+            return Err((
+                "struct values cannot be cast".into(),
+                "convert their scalar fields instead",
+            ));
+        }
         Ok(match (from, to) {
             (Ty::Unknown, _) | (_, Ty::Unknown) => CastStep::Same,
             (a, b) if a == b => CastStep::Same,
@@ -2100,6 +2203,14 @@ impl Cx {
             for item in self.package.module(module).items.clone() {
                 match &item.kind {
                     ItemKind::Fn(function) => {
+                        if let Some(receiver) = &function.receiver {
+                            self.error(
+                                "receiver",
+                                file,
+                                receiver.span,
+                                "`self` parameters belong inside an impl block",
+                            );
+                        }
                         if let Some(def) = self.def_by_span(module, function.name.span) {
                             self.declare_slots(
                                 module,
@@ -2167,11 +2278,20 @@ impl Cx {
                     owner: Some(owner),
                 },
             });
+            if matches!(ty, Ty::Struct(_)) {
+                let base = self.local_ref(local);
+                self.value_slots(&base, ty);
+            }
             params.push((format!("v{}_{}", local.0, param.name.name), local, ty));
         }
         let ret = ret.map(|ret| {
             let ty = self.resolve_type(module, ret);
-            (format!("f{}_ret", owner.0), ty)
+            let name = format!("f{}_ret", owner.0);
+            if matches!(ty, Ty::Struct(_)) {
+                let base = self.slot(name.clone());
+                self.value_slots(&base, ty);
+            }
+            (name, ty)
         });
         let mut signature = format!("({})", rendered.join(", "));
         if let Some((_, ty)) = &ret {
@@ -2287,18 +2407,10 @@ impl Cx {
                 file,
                 span,
             ));
-            for ((from, _, _), (to, _, _)) in slots.params.iter().zip(&handler_slots.params) {
+            for ((from, _, ty), (to, _, _)) in slots.params.iter().zip(&handler_slots.params) {
                 let from = self.slot(from.clone());
                 let to = self.slot(to.clone());
-                body.push(op_at(
-                    pc::Action::ScoreOperation {
-                        score: to,
-                        operator: pc::ScoreOperator::Set,
-                        operand: pc::ScoreOperand::Field(from),
-                    },
-                    file,
-                    span,
-                ));
+                self.copy_value(&to, &from, *ty, file, span, &mut body);
             }
             if let Some(function) = self.function_reference(handler) {
                 body.push(op_at(pc::Action::Call { function }, file, span));
@@ -2468,7 +2580,7 @@ impl Cx {
                         .push((id_text.clone(), ptr.clone(), file, name.span));
                     let mut score_fields = Vec::new();
                     for (index, field) in fields.iter().enumerate() {
-                        let d = &self.defs[field.0];
+                        let d = self.defs[field.0].clone();
                         self.pointers.push((
                             id_text.clone(),
                             format!("{ptr}/fields/{index}"),
@@ -2484,6 +2596,34 @@ impl Cx {
                         else {
                             continue;
                         };
+                        if let DefInfo::Field {
+                            ty: Ty::Struct(record),
+                            ..
+                        } = d.info
+                        {
+                            let base = self.field_reference(def, *field).expect("State field");
+                            let defaults =
+                                self.record_defaults.get(field).cloned().unwrap_or_default();
+                            for (index, (leaf, _)) in self
+                                .value_slots(&base, Ty::Struct(record))
+                                .into_iter()
+                                .enumerate()
+                            {
+                                self.pointers.push((
+                                    id_text.clone(),
+                                    format!("{ptr}/fields/{}", score_fields.len()),
+                                    file,
+                                    d.name_span,
+                                ));
+                                score_fields.push(pc::ScoreField {
+                                    name: leaf.field,
+                                    default: defaults.get(index).copied().unwrap_or(0),
+                                    bounds: None,
+                                    timer: false,
+                                });
+                            }
+                            continue;
+                        }
                         score_fields.push(pc::ScoreField {
                             name: d.name.clone(),
                             default: default.unwrap_or(0) as i32,
@@ -2544,7 +2684,8 @@ impl Cx {
                 ItemKind::Const(_) | ItemKind::Enum(_) | ItemKind::Mod(_) => {
                     self.reject_attrs(file, &item);
                 }
-                ItemKind::Use(_) | ItemKind::Error(_) => {}
+                ItemKind::Use(_) | ItemKind::Struct(_) | ItemKind::Impl(_) | ItemKind::Error(_) => {
+                }
             }
         }
         out
@@ -3030,6 +3171,26 @@ impl Cx {
         let mut body = BodyCx::new(module, file, false);
         body.slot = format!("f{}", def.0);
         body.owner = Some(def);
+        if let Some(method) = self.methods.get(&def)
+            && let Some(receiver) = &method.receiver
+            && method.state_receiver
+        {
+            let reason = format!(
+                "uses a receiver for State `{}`",
+                self.defs[method.target.0].name
+            );
+            match self.defs[method.target.0].info {
+                DefInfo::State {
+                    scope: Scope::Player,
+                    ..
+                } => body.note_player(receiver.span, reason),
+                DefInfo::State {
+                    scope: Scope::Entity,
+                    ..
+                } => body.note_executor(receiver.span, reason),
+                _ => {}
+            }
+        }
         if let Some(slots) = &slots {
             if let Some((field, ty)) = &slots.ret {
                 body.ret = Some((self.slot(field.clone()), *ty));
@@ -3361,7 +3522,21 @@ impl Cx {
         };
         Some(pc::FieldReference {
             state: id.parse().ok()?,
-            field: self.defs[field.0].name.clone(),
+            field: if matches!(
+                self.defs[field.0].info,
+                DefInfo::Field {
+                    ty: Ty::Struct(_),
+                    ..
+                }
+            ) {
+                format!(
+                    "__sand_record_{}_{}",
+                    self.defs[field.0].name.len(),
+                    self.defs[field.0].name
+                )
+            } else {
+                self.defs[field.0].name.clone()
+            },
         })
     }
 
@@ -3489,6 +3664,7 @@ impl Cx {
     fn lower_stmt(&mut self, body: &mut BodyCx, stmt: &Stmt, ops: &mut Vec<pc::Operation>) {
         let file = body.file;
         match stmt {
+            Stmt::Expr(value, span) => self.lower_value_statement(body, value, *span, ops),
             Stmt::Assign {
                 target,
                 op,
@@ -3854,6 +4030,17 @@ impl Cx {
                 Some((range_condition(self, score, start, end, *span)?, false))
             }
             Cond::Compare { lhs, op, rhs, span } => {
+                if matches!(self.type_of(body, lhs), Ty::Struct(_))
+                    || matches!(self.type_of(body, rhs), Ty::Struct(_))
+                {
+                    self.error(
+                        "type",
+                        file,
+                        *span,
+                        "compare struct fields rather than whole struct values",
+                    );
+                    return None;
+                }
                 let left_ty = self.type_of(body, lhs);
                 let ty = if Self::is_const_in(body, lhs) && !matches!(left_ty, Ty::Enum(_)) {
                     self.type_of(body, rhs)
@@ -4181,6 +4368,7 @@ fn stmt_span(stmt: &Stmt) -> Span {
         | Stmt::Macro { span, .. }
         | Stmt::For { span, .. } => *span,
         Stmt::If(if_stmt) => if_stmt.span,
+        Stmt::Expr(_, span) => *span,
         Stmt::Error(error) => error.span,
     }
 }

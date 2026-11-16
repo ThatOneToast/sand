@@ -26,7 +26,7 @@ module.exports = grammar({
 
   word: ($) => $.identifier,
 
-  conflicts: ($) => [[$._condition, $._expression]],
+  conflicts: ($) => [[$._condition, $._expression], [$._expression, $.place], [$.record_expression, $._condition], [$.record_expression, $._expression]],
 
   rules: {
     source_file: ($) => repeat(choice($.inner_attribute, $._item)),
@@ -56,12 +56,22 @@ module.exports = grammar({
         $.const_item,
         $.enum_item,
         $.state_item,
+        $.struct_item,
+        $.impl_item,
         $.flow_item,
         $.extern_function,
         $.function_item,
         $.event_item,
         $.data_item,
       ),
+
+    struct_item: ($) => seq(repeat($.attribute), optional($.visibility), 'struct', field('name', $.identifier), '{', commaSep($.field_declaration), '}'),
+    impl_item: ($) => seq('impl', field('type', $.path), '{', repeat($.function_item), '}'),
+    record_expression: ($) => seq(field('type', $.path), '{', $.record_field, repeat(seq(',', $.record_field)), optional(','), '}'),
+    record_field: ($) => seq(field('name', $.identifier), optional(seq(':', $._value_or_condition))),
+    method_expression: ($) => prec.left(10, seq(field('receiver', $._expression), '.', field('method', $.identifier), $.arguments)),
+    field_expression: ($) => prec.left(10, seq(field('value', $._expression), '.', field('field', $.identifier))),
+    receiver: (_) => seq(optional('&'), optional('mut'), 'self'),
 
     event_item: ($) =>
       seq(
@@ -151,6 +161,7 @@ module.exports = grammar({
     field_declaration: ($) =>
       seq(
         repeat($.attribute),
+        optional($.visibility),
         field('name', alias($.identifier, $.field_identifier)),
         ':',
         field('type', $.type),
@@ -210,7 +221,7 @@ module.exports = grammar({
         optional(seq('->', field('return_type', $.type))),
         field('body', $.block),
       ),
-    parameters: ($) => seq('(', commaSep($.parameter), ')'),
+    parameters: ($) => seq('(', commaSep(choice($.receiver, $.parameter)), ')'),
     parameter: ($) => seq(optional($.mutable_specifier), field('name', $.identifier), ':', field('type', $.type)),
 
     // ── Statements ─────────────────────────────────────────────────────────
@@ -277,16 +288,16 @@ module.exports = grammar({
       seq(field('macro', alias($.identifier, $.macro_name)), '!', $.arguments, ';'),
     assignment: ($) =>
       seq(
-        field('target', choice($.place, $.identifier)),
+        field('target', choice($.place, $.field_expression, $.identifier)),
         field('operator', choice('=', '+=', '-=', '*=', '/=', '%=')),
         field('value', $._value_or_condition),
         ';',
       ),
-    call_statement: ($) => seq($.call_expression, ';'),
+    call_statement: ($) => seq(choice($.call_expression, $.method_expression), ';'),
 
     // ── Conditions ─────────────────────────────────────────────────────────
     _condition: ($) =>
-      choice($.logical_condition, $.not_condition, $.comparison, $.in_range, $.parenthesized_expression, $.call_expression, $.place, $.path, $.boolean),
+      choice($.logical_condition, $.not_condition, $.comparison, $.in_range, $.parenthesized_expression, $.call_expression, $.method_expression, $.field_expression, $.place, $.path, $.boolean),
     logical_condition: ($) =>
       choice(
         prec.left(PREC.or, seq($._condition, '||', $._condition)),
@@ -316,6 +327,9 @@ module.exports = grammar({
         $.binary_expression,
         $.cast_expression,
         $.parenthesized_expression,
+        $.record_expression,
+        $.method_expression,
+        $.field_expression,
       ),
     call_expression: ($) => seq(field('function', $.path), $.arguments),
     arguments: ($) => seq('(', commaSep($.argument), ')'),

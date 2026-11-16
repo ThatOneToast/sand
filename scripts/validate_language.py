@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile the language control-flow fixture and execute it on vanilla 26.2.
+"""Compile a language assertion fixture and execute it on vanilla 26.2.
 
 Requires a built Sand CLI, a matching server JAR, and Java. Keeps compilation,
 startup, reload, and assertion evidence in the requested output directory.
@@ -17,7 +17,7 @@ class LanguageHarness(WorldGameplayHarness):
         marker = "__SAND_LANGUAGE_OK__"
         for invocation in range(2):
             if not self.passed(f"LANGUAGE_{invocation}", "function language_probe:run", marker):
-                raise ValidationFailure("language", "control-flow fixture failed its assertions")
+                raise ValidationFailure("language", "language fixture failed its assertions")
 
 
 def main():
@@ -26,10 +26,11 @@ def main():
     parser.add_argument("--jar", type=Path, required=True)
     parser.add_argument("--java", default="java")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--fixture", type=Path, help="Source with language_probe:run and the standard assertion marker")
     options = parser.parse_args()
     root = options.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
-    fixture = Path(__file__).resolve().parents[1] / "sand-lang/tests/fixtures/control_flow.sand"
+    fixture = options.fixture or Path(__file__).resolve().parents[1] / "sand-lang/tests/fixtures/control_flow.sand"
     subprocess.run([str(options.binary.resolve()), "lang", "build", str(fixture),
                     "--output", str(root / "pack")], check=True, timeout=60)
     args = argparse.Namespace(version="26.2", pack=str(root / "pack"), jar=options.jar,
@@ -37,7 +38,7 @@ def main():
                               op_player=None, client_command=None)
     harness = LanguageHarness(args)
     harness.run()
-    print(f"PASSED: language control flow on vanilla 26.2; log: {harness.log_path}")
+    print(f"PASSED: language fixture on vanilla 26.2; log: {harness.log_path}")
 
 
 if __name__ == "__main__":

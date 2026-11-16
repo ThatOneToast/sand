@@ -126,3 +126,22 @@ fn the_shipped_example_compiles() {
             .contains_key("data/demo/function/encounter.flow/tick_active.mcfunction")
     );
 }
+
+#[test]
+fn the_methods_example_compiles_without_warnings() {
+    let root = std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/lang_methods/pack.sand"
+    ));
+    let analysis = sand_lang::analyze_path(root, &sand_lang::DiskFiles);
+    let pack = compile(&analysis);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(
+        pack.resources
+            .contains_key("data/blinkstep/function/hero/hero.method/blink.mcfunction")
+    );
+}

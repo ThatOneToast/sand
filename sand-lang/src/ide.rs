@@ -24,7 +24,7 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
         Ty::Number => "number".into(),
         Ty::Float => "float".into(),
         Ty::Bool => "bool".into(),
-        Ty::Enum(def) => analysis.def(def).name.clone(),
+        Ty::Enum(def) | Ty::Struct(def) => analysis.def(def).name.clone(),
         Ty::Unknown => "{unknown}".into(),
     }
 }
@@ -80,6 +80,18 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 Vec::new(),
             )
         }
+        DefInfo::Struct { fields } => (
+            format!(
+                "{vis}struct {} {{\n{}\n}}",
+                def.name,
+                fields
+                    .iter()
+                    .map(|field| field_line(analysis, *field))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+            vec!["Copyable value; fields share the normal function-call and State layout.".into()],
+        ),
         DefInfo::State { scope, id, fields } => {
             let body = fields
                 .iter()
@@ -243,7 +255,7 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
             (
                 signature,
                 vec![format!(
-                    "{kind}{owner}. Stored in a compiler-owned scoreboard slot for this function."
+                    "{kind}{owner}. Stored in compiler-owned value slots for this function."
                 )],
             )
         }
@@ -271,6 +283,20 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
     else {
         return String::new();
     };
+    if def
+        .parent
+        .is_some_and(|parent| analysis.def(parent).kind == DefKind::Struct)
+    {
+        return format!(
+            "    {}{}: {},",
+            if def.is_pub { "pub " } else { "" },
+            def.name,
+            ty_name(analysis, *ty)
+        );
+    }
+    if matches!(ty, Ty::Struct(_)) {
+        return format!("    {}: {},", def.name, ty_name(analysis, *ty));
+    }
     let default_text = value_text(analysis, *ty, *default);
     let clamp = bounds
         .map(|(min, max)| format!("    #[clamp({min}..={max})]\n"))
@@ -704,6 +730,9 @@ pub fn prepare_rename(analysis: &Analysis, file: FileId, offset: usize) -> Resul
     let def = analysis
         .def_at(file, offset)
         .ok_or_else(|| "no renameable symbol here".to_string())?;
+    if analysis.def(def).kind == DefKind::Local && analysis.def(def).name == "self" {
+        return Err("the self receiver cannot be renamed".into());
+    }
     if analysis.def(def).kind == DefKind::Module {
         return Err("renaming modules would rename files; rename the file instead".into());
     }
@@ -753,7 +782,7 @@ pub fn rename(
 
 /// Reserved words that cannot name items.
 pub const KEYWORDS: &[&str] = &[
-    "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if", "else", "for", "in",
+    "impl", "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if", "else", "for", "in",
     "extern", "as", "let", "return", "while", "loop", "match", "struct", "true", "false", "crate",
     "self", "super",
 ];
@@ -833,13 +862,68 @@ enum Target {
     Def(DefId),
 }
 
+fn value_owner(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<DefId> {
+    let module = analysis.package.module_at(file, offset)?;
+    let mut parts = text.split('.');
+    let root = parts.next()?;
+    let local = analysis
+        .local_scopes
+        .iter()
+        .filter(|(f, span, def)| {
+            *f == file && span.contains(offset) && analysis.def(*def).name == root
+        })
+        .max_by_key(|(_, _, def)| def.0)
+        .map(|(_, _, def)| *def);
+    let mut owner = if let Some(local) = local {
+        match analysis.def(local).info {
+            DefInfo::Local {
+                ty: Ty::Struct(def),
+                ..
+            } => def,
+            _ => return None,
+        }
+    } else if root == "self" || root == "Self" {
+        analysis
+            .defs
+            .iter()
+            .find(|def| {
+                def.file == file
+                    && def.kind == DefKind::Function
+                    && def.span.contains(offset)
+                    && def.parent.is_some()
+            })?
+            .parent?
+    } else {
+        let Target::Def(def) =
+            resolve_names(analysis, module, &root.split("::").collect::<Vec<_>>())?
+        else {
+            return None;
+        };
+        def
+    };
+    for field in parts {
+        let member = analysis.defs.iter().find(|def| {
+            def.parent == Some(owner) && def.name == field && def.kind == DefKind::Field
+        })?;
+        let DefInfo::Field {
+            ty: Ty::Struct(def),
+            ..
+        } = member.info
+        else {
+            return None;
+        };
+        owner = def;
+    }
+    Some(owner)
+}
+
 fn kind_of(kind: DefKind) -> CompletionKind {
     match kind {
         DefKind::Module => CompletionKind::Module,
         DefKind::Const => CompletionKind::Constant,
         DefKind::Enum => CompletionKind::Enum,
         DefKind::Variant => CompletionKind::Variant,
-        DefKind::State => CompletionKind::State,
+        DefKind::State | DefKind::Struct => CompletionKind::State,
         DefKind::Field => CompletionKind::Field,
         DefKind::Function | DefKind::ExternFunction | DefKind::Event => CompletionKind::Function,
         DefKind::Flow => CompletionKind::Flow,
@@ -995,18 +1079,18 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 .map(|p| property_completion(&token[..dot], p))
                 .collect();
         }
-        let base: Vec<&str> = token[..dot].split("::").collect();
-        let Some(Target::Def(def)) = resolve_names(analysis, module, &base) else {
-            return Vec::new();
-        };
-        let DefInfo::State { fields, .. } = &analysis.def(def).info else {
-            return Vec::new();
-        };
-        return fields
-            .iter()
-            .map(|f| def_completion(analysis, &analysis.def(*f).name, *f))
-            .collect();
+        if let Some(owner) = value_owner(analysis, file, offset, &token[..dot]) {
+            return analysis.defs.iter().enumerate()
+                .filter(|(_, member)| member.parent == Some(owner)
+                    && (member.is_pub || is_ancestor(analysis, member.module, module)))
+                .filter(|(_, member)| member.kind == DefKind::Field || matches!(&member.info,
+                    DefInfo::Function { signature, .. } if analysis.def(owner).kind == DefKind::State
+                        || signature.starts_with("(self: ") || signature.starts_with("(mut self: ")))
+                .map(|(id, member)| def_completion(analysis, &member.name, DefId(id))).collect();
+        }
+        return Vec::new();
     }
+
     if let Some(sep) = token.rfind("::") {
         let base: Vec<&str> = token[..sep].split("::").collect();
         if let [name] = base.as_slice()
@@ -1015,14 +1099,20 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
         {
             return registry_completions(analysis, registry, false);
         }
-        let types_only = matches!(position, Position::ScoreType | Position::FieldType);
+        let types_only = matches!(
+            position,
+            Position::ScoreType | Position::FieldType | Position::ImplType
+        );
         return match resolve_names(analysis, module, &base) {
             Some(Target::Module(m)) => scope_names(analysis, m)
                 .into_iter()
                 .filter(|(_, def)| analysis.def(*def).is_pub || is_ancestor(analysis, m, module))
                 .filter(|(_, def)| {
                     !types_only
-                        || matches!(analysis.def(*def).kind, DefKind::Enum | DefKind::Module)
+                        || matches!(
+                            analysis.def(*def).kind,
+                            DefKind::Enum | DefKind::Struct | DefKind::Module
+                        )
                 })
                 .map(|(name, def)| def_completion(analysis, &name, def))
                 .collect(),
@@ -1030,6 +1120,17 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 DefInfo::Enum { variants } if !types_only => variants
                     .iter()
                     .map(|v| def_completion(analysis, &analysis.def(*v).name, *v))
+                    .collect(),
+                DefInfo::Struct { .. } | DefInfo::State { .. } if !types_only => analysis
+                    .defs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, member)| {
+                        member.parent == Some(def)
+                            && member.kind == DefKind::Function
+                            && (member.is_pub || is_ancestor(analysis, member.module, module))
+                    })
+                    .map(|(id, member)| def_completion(analysis, &member.name, DefId(id)))
                     .collect(),
                 _ => Vec::new(),
             },
@@ -1046,6 +1147,9 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
     };
     match position {
         Position::ItemStart { after_pub } => item_snippets(after_pub),
+        Position::ImplType => {
+            defs(&|d| matches!(d.kind, DefKind::State | DefKind::Struct | DefKind::Module))
+        }
         Position::StateKeyword => vec![Completion::plain("state", CompletionKind::Keyword)],
         Position::FlowOn => vec![Completion::plain("on", CompletionKind::Keyword)],
         Position::FlowField => defs(&|d| d.kind == DefKind::State),
@@ -1074,7 +1178,9 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                     ..Completion::plain("timer", CompletionKind::Keyword)
                 });
             }
-            out.extend(defs(&|d| matches!(d.kind, DefKind::Enum | DefKind::Module)));
+            out.extend(defs(&|d| {
+                matches!(d.kind, DefKind::Enum | DefKind::Struct | DefKind::Module)
+            }));
             out
         }
         Position::TagType => ["Item", "Block", "Entity"]
@@ -1085,8 +1191,12 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             })
             .collect(),
         Position::ConstValue => {
-            let mut out =
-                defs(&|d| matches!(d.kind, DefKind::Const | DefKind::Enum | DefKind::Module));
+            let mut out = defs(&|d| {
+                matches!(
+                    d.kind,
+                    DefKind::Const | DefKind::Enum | DefKind::Struct | DefKind::Module
+                )
+            });
             out.extend(paths());
             out
         }
@@ -1215,7 +1325,11 @@ fn statement_completions(
     out.extend(scope_defs(analysis, in_scope, &|d| {
         matches!(
             d.kind,
-            DefKind::Function | DefKind::ExternFunction | DefKind::State | DefKind::Module
+            DefKind::Function
+                | DefKind::ExternFunction
+                | DefKind::State
+                | DefKind::Struct
+                | DefKind::Module
         )
     }));
     out.extend([
@@ -1383,6 +1497,7 @@ fn expression_completions(
         DefInfo::Function { signature, .. } => signature.contains("->"),
         DefInfo::Const { .. }
         | DefInfo::Enum { .. }
+        | DefInfo::Struct { .. }
         | DefInfo::State { .. }
         | DefInfo::Module { .. } => true,
         DefInfo::Data { kind, .. } => *kind == crate::ast::DataKind::Item,
@@ -1832,6 +1947,16 @@ fn data_completions(
 
 fn item_snippets(after_pub: bool) -> Vec<Completion> {
     let mut all = vec![
+        Completion::snippet(
+            "struct",
+            "a copyable value type",
+            "struct ${1:Point} {\n    ${2:x}: ${3:number},\n    $0\n}",
+        ),
+        Completion::snippet(
+            "impl",
+            "associated functions and methods",
+            "impl ${1:Type} {\n    $0\n}",
+        ),
         Completion::snippet("fn", "function", "fn ${1:name}() {\n    $0\n}"),
         Completion::snippet(
             "fn ->",
@@ -1921,7 +2046,7 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
     ];
     if after_pub {
         // Attributes come before `pub`, and `pub` cannot repeat.
-        all.retain(|c| !matches!(c.label.as_str(), "tick fn" | "event fn" | "pub"));
+        all.retain(|c| !matches!(c.label.as_str(), "tick fn" | "event fn" | "pub" | "impl"));
     }
     all
 }
@@ -1982,7 +2107,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
     let name_start = text[..name_end]
         .char_indices()
         .rev()
-        .take_while(|(_, c)| c.is_ascii_alphanumeric() || *c == '_' || *c == ':')
+        .take_while(|(_, c)| c.is_ascii_alphanumeric() || *c == '_' || *c == ':' || *c == '.')
         .last()
         .map(|(i, _)| i)?;
     let name = &text[name_start..name_end];
@@ -2058,9 +2183,23 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         label.push(')');
         documentation = Some(builtins::describe(builtin));
     } else {
-        let segments: Vec<&str> = name.split("::").collect();
-        let Target::Def(def) = resolve_names(analysis, module, &segments)? else {
-            return None;
+        let def = if let Some((receiver, method)) = name.rsplit_once('.') {
+            let owner = value_owner(analysis, file, offset, receiver)?;
+            analysis
+                .defs
+                .iter()
+                .enumerate()
+                .find(|(_, def)| {
+                    def.parent == Some(owner) && def.name == method && def.kind == DefKind::Function
+                })
+                .map(|(id, _)| DefId(id))?
+        } else {
+            let Target::Def(def) =
+                resolve_names(analysis, module, &name.split("::").collect::<Vec<_>>())?
+            else {
+                return None;
+            };
+            def
         };
         let d = analysis.def(def);
         let DefInfo::Function { signature, .. } = &d.info else {
@@ -2073,7 +2212,9 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
             .and_then(|s| s.split_once(')'))
             .map(|(inner, _)| inner)
             .unwrap_or("");
-        for param in inner.split(", ").filter(|p| !p.is_empty()) {
+        for param in inner.split(", ").filter(|p| !p.is_empty()).filter(|p| {
+            !name.contains('.') || !(p.starts_with("self:") || p.starts_with("mut self:"))
+        }) {
             let param_name = param.split(':').next().unwrap_or(param).to_string();
             push(&mut label, param.to_string(), param_name);
         }
@@ -2138,6 +2279,43 @@ pub fn document_symbols(analysis: &Analysis, file: FileId) -> Vec<Symbol> {
 }
 
 fn module_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Vec<Symbol> {
+    let mut symbols = module_def_symbols(analysis, file, module);
+    for item in &analysis.package.module(module).items {
+        let crate::ast::ItemKind::Impl(implementation) = &item.kind else {
+            continue;
+        };
+        let children = implementation
+            .methods
+            .iter()
+            .filter_map(|method| {
+                let name = method.name()?;
+                let def = analysis.defs.iter().find(|def| {
+                    def.file == file && def.name_span == name.span && def.kind == DefKind::Function
+                })?;
+                Some(Symbol {
+                    name: def.name.clone(),
+                    detail: None,
+                    kind: def.kind,
+                    span: method.span,
+                    selection: def.name_span,
+                    children: Vec::new(),
+                })
+            })
+            .collect();
+        symbols.push(Symbol {
+            name: format!("impl {}", implementation.target.display()),
+            detail: None,
+            kind: DefKind::Struct,
+            span: item.span,
+            selection: implementation.target.span,
+            children,
+        });
+    }
+    symbols.sort_by_key(|symbol| symbol.span.start);
+    symbols
+}
+
+fn module_def_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Vec<Symbol> {
     analysis
         .defs
         .iter()
@@ -2147,7 +2325,9 @@ fn module_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Vec<Sy
         })
         .map(|(_, d)| {
             let children = match &d.info {
-                DefInfo::State { fields: list, .. } | DefInfo::Enum { variants: list } => list
+                DefInfo::State { fields: list, .. }
+                | DefInfo::Struct { fields: list }
+                | DefInfo::Enum { variants: list } => list
                     .iter()
                     .map(|child| {
                         let c = analysis.def(*child);

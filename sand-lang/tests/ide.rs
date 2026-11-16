@@ -256,7 +256,7 @@ fn ok() {
     assert_eq!(
         errors,
         vec![
-            "expected `)`, `mut` or identifier; found `{`",
+            "expected `&`, `)` or `mut`; found `{`",
             "expected expression; found `;`"
         ]
     );
@@ -273,4 +273,50 @@ fn ok() {
         .map(|s| s.name)
         .collect();
     assert_eq!(symbols, vec!["H", "ok"]);
+}
+
+#[test]
+fn record_methods_offer_navigation_completion_signatures_and_outline() {
+    let text = r#"#![pack(namespace = "records")]
+struct Point { pub x: number }
+impl Point {
+    pub fn new(x: number) -> Self { return Self { x }; }
+    pub fn moved(self, dx: number) -> Self { return Self { x: self.x + dx }; }
+}
+fn run() { let p = Point::new(1); let q = p.moved(2); let x = q.x; }
+"#;
+    let analysis = analyze_one(text);
+    assert!(!analysis.has_errors(), "{:#?}", errors(&analysis));
+    let at = offset(text, "p.moved", 0) + 2;
+    let completion = ide::completions(&analysis, ROOT, at);
+    assert!(completion.iter().any(|c| c.label == "moved"));
+    assert!(completion.iter().any(|c| c.label == "x"));
+    let hover = ide::hover(&analysis, ROOT, at).unwrap();
+    assert!(hover.markdown.contains("moved"));
+    let (file, declaration) = ide::definition(&analysis, ROOT, at).unwrap();
+    assert_eq!(file, ROOT);
+    assert_eq!(&text[declaration.start..declaration.end], "moved");
+    let edits = ide::rename(&analysis, ROOT, at, "shifted").unwrap();
+    assert_eq!(edits.len(), 2);
+    let edits = ide::rename(&analysis, ROOT, offset(text, "Point", 0), "Position").unwrap();
+    assert!(
+        edits
+            .iter()
+            .all(|edit| &text[edit.span.start..edit.span.end] == "Point")
+    );
+    let help = ide::signature_help(&analysis, ROOT, at + "moved(".len()).unwrap();
+    assert_eq!(help.params.len(), 1, "{help:?}");
+    assert!(help.label.contains("dx: number"), "{help:?}");
+    let symbols = ide::document_symbols(&analysis, ROOT);
+    assert!(
+        symbols
+            .iter()
+            .any(|s| s.name == "Point" && s.children.len() == 1)
+    );
+    let implementation = symbols.iter().find(|s| s.name == "impl Point").unwrap();
+    assert_eq!(implementation.children.len(), 2);
+    for method in &implementation.children {
+        assert!(implementation.span.start <= method.span.start);
+        assert!(implementation.span.end >= method.span.end);
+    }
 }

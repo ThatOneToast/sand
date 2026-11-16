@@ -19,8 +19,6 @@ struct Dest {
     reference: pc::FieldReference,
     ty: Ty,
     bounds: Option<(i32, i32)>,
-    /// Source text of the target (`Hero.gold` or `x`) for hazard checks.
-    key: String,
     name: String,
 }
 
@@ -120,6 +118,9 @@ pub(super) fn contains_call(expr: &Expr) -> bool {
         Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => contains_call(inner),
         Expr::Binary(lhs, _, rhs, _) => contains_call(lhs) || contains_call(rhs),
         Expr::Cond(cond, _) => cond_contains_call(cond),
+        Expr::Struct { fields, .. } => fields.iter().any(|(_, value)| contains_call(value)),
+        Expr::Method { .. } => true,
+        Expr::Project(value, ..) => contains_call(value),
         _ => false,
     }
 }
@@ -133,10 +134,6 @@ fn cond_contains_call(cond: &Cond) -> bool {
         // Builtin predicates call nothing, but a `bool` function does.
         Cond::Call { .. } => true,
     }
-}
-
-fn place_key(place: &Place) -> String {
-    format!("{}.{}", place.state.display(), place.field.name)
 }
 
 impl Cx {
@@ -180,7 +177,7 @@ impl Cx {
         }
     }
 
-    fn local_ty(&self, def: DefId) -> Ty {
+    pub(super) fn local_ty(&self, def: DefId) -> Ty {
         match self.defs[def.0].info {
             DefInfo::Local { ty, .. } => ty,
             _ => Ty::Unknown,
@@ -193,7 +190,13 @@ impl Cx {
             Expr::Path(_) => Self::local_of(body, expr).is_none(),
             Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => Self::is_const_in(body, inner),
             Expr::Binary(a, _, b, _) => Self::is_const_in(body, a) && Self::is_const_in(body, b),
-            Expr::Place(_) | Expr::Call { .. } | Expr::Cond(..) | Expr::Str { .. } => false,
+            Expr::Place(_)
+            | Expr::Call { .. }
+            | Expr::Cond(..)
+            | Expr::Str { .. }
+            | Expr::Struct { .. }
+            | Expr::Method { .. }
+            | Expr::Project(..) => false,
             Expr::Float(..) | Expr::Bool(..) => true,
         }
     }
@@ -226,18 +229,28 @@ impl Cx {
                     None => Ty::Unknown,
                 }
             }
-            Expr::Place(place) => {
-                let Ok((state, _)) = self.resolve_path(body.module, &place.state) else {
-                    return Ty::Unknown;
-                };
-                self.members
-                    .get(&state)
-                    .and_then(|m| m.get(&place.field.name))
-                    .map(|field| match self.defs[field.0].info {
-                        DefInfo::Field { ty, .. } => ty,
-                        _ => Ty::Unknown,
-                    })
-                    .unwrap_or(Ty::Unknown)
+            Expr::Place(place) => self.place_ty(body, place),
+            Expr::Struct { path, .. } => self
+                .resolve_path(body.module, path)
+                .ok()
+                .filter(|(def, _)| self.defs[def.0].kind == DefKind::Struct)
+                .map_or(Ty::Unknown, |(def, _)| Ty::Struct(def)),
+            Expr::Project(value, field, _) => {
+                let ty = self.type_of(body, value);
+                self.record_member(ty, &field.name)
+                    .map_or(Ty::Unknown, |field| self.field_ty(field))
+            }
+            Expr::Method { receiver, name, .. } => {
+                let target = self.method_target(body, receiver).or_else(|| {
+                    match self.type_of(body, receiver) {
+                        Ty::Struct(def) => Some(def),
+                        _ => None,
+                    }
+                });
+                target
+                    .and_then(|def| self.members.get(&def)?.get(&name.name))
+                    .and_then(|def| self.fn_slots.get(def)?.ret.as_ref())
+                    .map_or(Ty::Unknown, |(_, ty)| *ty)
             }
             Expr::Float(..) => Ty::Float,
             Expr::Bool(..) | Expr::Cond(..) => Ty::Bool,
@@ -279,6 +292,9 @@ impl Cx {
         expr: &Expr,
         ty: Ty,
     ) -> Result<Option<Value>, ()> {
+        if matches!(ty, Ty::Struct(_)) {
+            return Ok(None);
+        }
         let (module, file) = (body.module, body.file);
         if Self::is_const_in(body, expr) {
             return self
@@ -306,19 +322,22 @@ impl Cx {
             if self.is_handle(body, place) {
                 return Ok(None);
             }
-            let (state, field, field_ty) = self.resolve_place(module, file, place).ok_or(())?;
-            body.note_state(self, state, place, "reads");
-            if !self.types_agree(file, place.span, ty, field_ty) {
+            let value = self.place_value(body, place, false).ok_or(())?;
+            if !self.types_agree(file, place.span, ty, value.ty) {
                 return Err(());
             }
-            return Ok(Some(Value::Read(
-                self.field_reference(state, field).ok_or(())?,
-            )));
+            return Ok(Some(Value::Read(value.reference)));
         }
         Ok(None)
     }
 
-    fn types_agree(&mut self, file: FileId, span: Span, expected: Ty, found: Ty) -> bool {
+    pub(super) fn types_agree(
+        &mut self,
+        file: FileId,
+        span: Span,
+        expected: Ty,
+        found: Ty,
+    ) -> bool {
         if expected == Ty::Unknown || found == Ty::Unknown || expected == found {
             return true;
         }
@@ -394,7 +413,7 @@ impl Cx {
         })
     }
 
-    fn set_from(dest: &pc::FieldReference, value: Value) -> Option<pc::Action> {
+    pub(super) fn set_from(dest: &pc::FieldReference, value: Value) -> Option<pc::Action> {
         match value {
             Value::Const(v) => Some(pc::Action::ScoreSet {
                 score: dest.clone(),
@@ -420,6 +439,9 @@ impl Cx {
     ) -> Option<()> {
         let file = body.file;
         let span = expr.span();
+        if matches!(ty, Ty::Struct(_)) {
+            return self.emit_record(body, dest, ty, expr, ops);
+        }
         if let Some(value) = self.simple(body, expr, ty).ok()? {
             if let Some(action) = Self::set_from(dest, value) {
                 ops.push(op_at(action, file, span));
@@ -427,6 +449,18 @@ impl Cx {
             return Some(());
         }
         match expr {
+            Expr::Method {
+                receiver,
+                name,
+                args,
+                span,
+            } => {
+                let (path, args) = self.method_call(body, receiver, name, args)?;
+                self.emit_call(body, dest, ty, &path, &args, *span, ops)
+            }
+            Expr::Project(value, field, _) => {
+                self.emit_projection(body, dest, ty, value, field, ops)
+            }
             Expr::Call { path, args, span } => {
                 self.emit_call(body, dest, ty, path, args, *span, ops)
             }
@@ -624,7 +658,7 @@ impl Cx {
     }
 
     fn expect_numeric(&mut self, file: FileId, span: Span, ty: Ty) -> Option<()> {
-        if matches!(ty, Ty::Enum(_) | Ty::Bool) {
+        if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::Struct(_)) {
             self.diagnostics.push(
                 Diagnostic::error(
                     "type",
@@ -642,7 +676,7 @@ impl Cx {
     /// A call used as a value: `random(..)`, `count_entities(..)`, or a function
     /// with a return type.
     #[allow(clippy::too_many_arguments)]
-    fn emit_call(
+    pub(super) fn emit_call(
         &mut self,
         body: &mut BodyCx,
         dest: &pc::FieldReference,
@@ -760,9 +794,7 @@ impl Cx {
         }
         self.call_user(body, def, &slots, path, args, span, ops)?;
         let ret = self.slot(ret_field);
-        if let Some(action) = Self::set_from(dest, Value::Read(ret)) {
-            ops.push(op_at(action, file, span));
-        }
+        self.copy_value(dest, &ret, ty, file, span, ops);
         Some(())
     }
 
@@ -779,6 +811,21 @@ impl Cx {
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
         let file = body.file;
+        if let Some(caller) = body.owner.and_then(|owner| self.methods.get(&owner))
+            && let Some(callee) = self.methods.get(&def)
+            && caller.state_receiver
+            && caller.target == callee.target
+            && caller.receiver.as_ref().is_some_and(|r| !r.mutable)
+            && callee.receiver.as_ref().is_some_and(|r| r.mutable)
+        {
+            self.error(
+                "mutability",
+                file,
+                span,
+                "this State receiver is read-only; calling a mutable method requires `&mut self`",
+            );
+            return None;
+        }
         if args.len() != slots.params.len() || args.iter().any(|a| a.name.is_some()) {
             let name = self.defs[def.0].name.clone();
             let expected = slots.params.len();
@@ -820,7 +867,11 @@ impl Cx {
         // A self-call reads the parameters it is about to overwrite, and a
         // nested call may overwrite parameters already passed, so those
         // arguments are computed into temporaries before any is passed.
-        let staged = (body.owner == Some(def) && exprs.len() > 1)
+        let staged = body.owner == Some(def)
+            || slots
+                .params
+                .iter()
+                .any(|(_, _, ty)| matches!(ty, Ty::Struct(_)))
             || exprs.iter().any(|expr| contains_call(expr));
         let depth = body.temp_depth;
         let mut values = Vec::with_capacity(exprs.len());
@@ -848,8 +899,15 @@ impl Cx {
         for (index, ((field, _, param_ty), expr)) in slots.params.iter().zip(&exprs).enumerate() {
             let slot = self.slot(field.clone());
             if staged {
-                if let Some(action) = Self::set_from(&slot, values[index].clone()) {
-                    ops.push(op_at(action, file, expr.span()));
+                match values[index].clone() {
+                    Value::Read(source) => {
+                        self.copy_value(&slot, &source, *param_ty, file, expr.span(), ops)
+                    }
+                    value => {
+                        if let Some(action) = Self::set_from(&slot, value) {
+                            ops.push(op_at(action, file, expr.span()));
+                        }
+                    }
                 }
             } else {
                 self.emit(body, &slot, *param_ty, expr, ops)?;
@@ -895,18 +953,16 @@ impl Cx {
         let (module, file) = (body.module, body.file);
         match target {
             AssignTarget::Place(place) => {
-                let (state, field, ty) = self.resolve_place(module, file, place)?;
-                body.note_state(self, state, place, "writes");
-                let bounds = match self.defs[field.0].info {
+                let value = self.place_value(body, place, true)?;
+                let bounds = match self.defs[value.field.0].info {
                     DefInfo::Field { bounds, .. } => bounds,
                     _ => None,
                 };
                 Some(Dest {
-                    reference: self.field_reference(state, field)?,
-                    ty,
+                    reference: value.reference,
+                    ty: value.ty,
                     bounds,
-                    key: place_key(place),
-                    name: place.field.name.clone(),
+                    name: self.defs[value.field.0].name.clone(),
                 })
             }
             AssignTarget::Local(ident) => {
@@ -964,31 +1020,9 @@ impl Cx {
                     reference: self.local_ref(local),
                     ty,
                     bounds: None,
-                    key: ident.name.clone(),
                     name: ident.name.clone(),
                 })
             }
-        }
-    }
-
-    /// Whether `expr` reads `key` anywhere except as its leftmost operand.
-    fn reads_target(expr: &Expr, key: &str, leftmost: bool) -> bool {
-        match expr {
-            Expr::Place(place) => !leftmost && place_key(place) == key,
-            Expr::Path(path) => {
-                !leftmost && path.segments.len() == 1 && path.segments[0].name == key
-            }
-            Expr::Binary(lhs, _, rhs, _) => {
-                Self::reads_target(lhs, key, leftmost) || Self::reads_target(rhs, key, false)
-            }
-            Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => {
-                Self::reads_target(inner, key, leftmost)
-            }
-            Expr::Call { args, .. } => args.iter().any(|arg| match &arg.value {
-                ArgValue::Expr(e) => Self::reads_target(e, key, false),
-                ArgValue::Range(_) => false,
-            }),
-            _ => false,
         }
     }
 
@@ -1014,6 +1048,15 @@ impl Cx {
             AssignOp::Rem => Some(BinOp::Rem),
         };
         if let Some(bin) = compound {
+            if matches!(dest.ty, Ty::Struct(_)) {
+                self.error(
+                    "type",
+                    file,
+                    span,
+                    "compound arithmetic needs scalar fields, not a struct value",
+                );
+                return;
+            }
             if matches!(dest.ty, Ty::Enum(_) | Ty::Bool) {
                 self.error(
                     "type",
@@ -1023,28 +1066,40 @@ impl Cx {
                 );
                 return;
             }
+            let depth = body.temp_depth;
             let value_ = match self.simple(body, value, dest.ty) {
                 Ok(Some(v)) => v,
                 Ok(None) => {
-                    let depth = body.temp_depth;
                     let temp = self.temp(body);
                     if self.emit(body, &temp, dest.ty, value, ops).is_none() {
                         return;
                     }
-                    body.temp_depth = depth;
                     Value::Read(temp)
                 }
                 Err(()) => return,
             };
-            let _ = self.apply(
-                file,
-                &dest.reference,
-                dest.ty,
-                bin,
-                value_,
-                value.span(),
-                ops,
-            );
+            // Evaluate the RHS first, then snapshot the compound-assignment
+            // value. Rescaling must not clamp intermediate score writes.
+            let rescale = dest.bounds.is_some()
+                && dest.ty == Ty::Float
+                && matches!(bin, BinOp::Mul | BinOp::Div);
+            let target = if rescale {
+                let temp = self.temp(body);
+                if let Some(action) = Self::set_from(&temp, Value::Read(dest.reference.clone())) {
+                    ops.push(op_at(action, file, span));
+                }
+                temp
+            } else {
+                dest.reference.clone()
+            };
+            let applied = self.apply(file, &target, dest.ty, bin, value_, value.span(), ops);
+            if applied.is_some()
+                && rescale
+                && let Some(action) = Self::set_from(&dest.reference, Value::Read(target))
+            {
+                ops.push(op_at(action, file, span));
+            }
+            body.temp_depth = depth;
             return;
         }
         // Constant writes outside a clamp range are worth flagging.
@@ -1073,24 +1128,34 @@ impl Cx {
             ));
             return;
         }
-        // Compute through a temporary when writing in place would be wrong:
-        // a clamped target would clamp every intermediate step, and reading
-        // the target after overwriting it would observe partial results.
-        let multi_step = matches!(value, Expr::Binary(..) | Expr::Neg(..));
-        let via_temp =
-            (dest.bounds.is_some() && multi_step) || Self::reads_target(value, &dest.key, true);
-        if via_temp {
-            let depth = body.temp_depth;
-            let temp = self.temp(body);
-            if self.emit(body, &temp, dest.ty, value, ops).is_none() {
-                return;
-            }
-            body.temp_depth = depth;
-            if let Some(action) = Self::set_from(&dest.reference, Value::Read(temp)) {
-                ops.push(op_at(action, file, span));
-            }
-        } else {
+        // Calls and entity-property reads already write their result once.
+        if dest.bounds.is_none()
+            && !matches!(dest.ty, Ty::Struct(_))
+            && (matches!(value, Expr::Call { .. } | Expr::Method { .. })
+                || matches!(value, Expr::Place(place) if self.is_handle(body, place)))
+        {
             let _ = self.emit(body, &dest.reference, dest.ty, value, ops);
+            return;
+        }
+        // A simple read/constant commits once. Every computed value uses
+        // scratch storage: calls and conditions may read or mutate the target,
+        // and casts must finish in their source units before bounds apply.
+        match self.simple(body, value, dest.ty) {
+            Ok(Some(value)) => {
+                if let Some(action) = Self::set_from(&dest.reference, value) {
+                    ops.push(op_at(action, file, span));
+                }
+            }
+            Ok(None) => {
+                let depth = body.temp_depth;
+                let temp = self.temp(body);
+                let computed = self.emit(body, &temp, dest.ty, value, ops);
+                body.temp_depth = depth;
+                if computed.is_some() {
+                    self.copy_value(&dest.reference, &temp, dest.ty, file, span, ops);
+                }
+            }
+            Err(()) => {}
         }
     }
 
@@ -1117,14 +1182,23 @@ impl Cx {
             Some(value) => {
                 let _ = self.emit(body, &reference, ty, value, ops);
             }
-            None => ops.push(op_at(
-                pc::Action::ScoreSet {
-                    score: reference,
-                    value: 0,
-                },
-                file,
-                span,
-            )),
+            None => {
+                let defaults = self
+                    .record_constant(module, file, None, ty)
+                    .unwrap_or_default();
+                for ((score, _), default) in
+                    self.value_slots(&reference, ty).into_iter().zip(defaults)
+                {
+                    ops.push(op_at(
+                        pc::Action::ScoreSet {
+                            score,
+                            value: default,
+                        },
+                        file,
+                        span,
+                    ));
+                }
+            }
         }
         // Visible from after the statement to the end of the block.
         let end = body.block_ends.last().copied().unwrap_or(span.end);
@@ -1200,9 +1274,7 @@ impl Cx {
                         return;
                     }
                     body.temp_depth = depth;
-                    if let Some(action) = Self::set_from(slot, Value::Read(temp)) {
-                        ops.push(op_at(action, file, value.span()));
-                    }
+                    self.copy_value(slot, &temp, *ty, file, value.span(), ops);
                 } else if self.emit(body, slot, *ty, value, ops).is_none() {
                     return;
                 }
@@ -2129,6 +2201,10 @@ impl Cx {
                 ),
             );
         }
+        if builtin.name == "start_timer" {
+            self.lower_start_timer(body, &bound, span, ops);
+            return;
+        }
         if matches!(builtin.name, "set_bossbar" | "set_bossbar_max") {
             self.lower_set_bossbar(body, builtin, &bound, span, ops);
             return;
@@ -2306,6 +2382,93 @@ impl Cx {
         }
     }
 
+    fn lower_start_timer(
+        &mut self,
+        body: &mut BodyCx,
+        bound: &BTreeMap<&str, &Arg>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let Some(timer) = self.arg_timer(body, bound["timer"], "starts") else {
+            return;
+        };
+        let (arg, scale) = match (bound.get("ticks"), bound.get("seconds")) {
+            (Some(arg), None) => (*arg, 1),
+            (None, Some(arg)) => (*arg, 20),
+            _ => {
+                self.error(
+                    "call",
+                    body.file,
+                    span,
+                    "`start_timer` needs exactly one of `ticks` or `seconds`",
+                );
+                return;
+            }
+        };
+        let max = i32::MAX / scale;
+        let ArgValue::Expr(expr) = &arg.value else {
+            self.error(
+                "type",
+                body.file,
+                arg.span,
+                "expected a number duration, found a range",
+            );
+            return;
+        };
+        if Self::is_const_in(body, expr) {
+            if let Some(value) = self.arg_int(body, arg, 1, max as i64) {
+                ops.push(op_at(
+                    pc::Action::ScoreSet {
+                        score: timer,
+                        value: value as i32 * scale,
+                    },
+                    body.file,
+                    span,
+                ));
+            }
+            return;
+        }
+        let found = self.type_of(body, expr);
+        if !self.types_agree(body.file, expr.span(), Ty::Number, found) {
+            return;
+        }
+        let depth = body.temp_depth;
+        let temp = self.temp(body);
+        let computed = self.emit(body, &temp, Ty::Number, expr, ops);
+        body.temp_depth = depth;
+        if computed.is_none() {
+            return;
+        }
+        let mut then = Vec::new();
+        if scale != 1 {
+            then.push(op_at(
+                pc::Action::ScoreOperation {
+                    score: temp.clone(),
+                    operator: pc::ScoreOperator::Mul,
+                    operand: pc::ScoreOperand::Value(scale),
+                },
+                body.file,
+                span,
+            ));
+        }
+        if let Some(action) = Self::set_from(&timer, Value::Read(temp.clone())) {
+            then.push(op_at(action, body.file, span));
+        }
+        ops.push(op_at(
+            pc::Action::Branch {
+                condition: pc::Condition::Range(pc::ScoreComparison {
+                    score: temp,
+                    min: Some(1),
+                    max: Some(max),
+                }),
+                then,
+                otherwise: Vec::new(),
+            },
+            body.file,
+            span,
+        ));
+    }
+
     fn runtime_amount(
         &mut self,
         body: &mut BodyCx,
@@ -2418,6 +2581,9 @@ impl Cx {
             return None;
         };
         let (state, field, _) = self.resolve_place(module, file, place)?;
+        if verb != "tests" && !self.check_state_write(body, state, place.span) {
+            return None;
+        }
         if !matches!(self.defs[field.0].info, DefInfo::Field { timer: true, .. }) {
             self.diagnostics.push(
                 Diagnostic::error(
@@ -3083,7 +3249,10 @@ impl Cx {
                 }
             }
             "attach_state" | "detach_state" => {
-                let (_, id) = self.arg_attachable_state(body, bound["state"])?;
+                let (def, id) = self.arg_attachable_state(body, bound["state"])?;
+                if !self.check_state_write(body, def, bound["state"].span) {
+                    return None;
+                }
                 let state: sand::ResourceLocation = id.parse().ok()?;
                 if builtin.name == "attach_state" {
                     pc::Action::AttachState { state }
@@ -3136,31 +3305,6 @@ impl Cx {
                 pc::Action::Summon {
                     entity_type: entity_type?,
                     tag,
-                }
-            }
-            "start_timer" => {
-                let score = self.arg_timer(body, bound["timer"], "starts");
-                let ticks = match (bound.get("ticks"), bound.get("seconds")) {
-                    (Some(arg), None) => self.arg_int(body, arg, 1, i32::MAX as i64),
-                    (None, Some(arg)) => self
-                        .arg_int(body, arg, 1, i32::MAX as i64 / 20)
-                        .map(|s| s * 20),
-                    _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                "call",
-                                file,
-                                span,
-                                "`start_timer` needs exactly one of `ticks` or `seconds`",
-                            )
-                            .with_help("for example `start_timer(Ability.dash, seconds = 5);`"),
-                        );
-                        None
-                    }
-                };
-                pc::Action::ScoreSet {
-                    score: score?,
-                    value: ticks? as i32,
                 }
             }
             "stop_timer" => pc::Action::ScoreSet {
@@ -3529,6 +3673,7 @@ impl Cx {
                         segments,
                         span: Span::new(span.start, span.start + state_text.len()),
                     },
+                    projections: Vec::new(),
                     field: Ident {
                         name: field_text.to_string(),
                         span: Span::new(field_start, span.end),

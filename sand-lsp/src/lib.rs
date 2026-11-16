@@ -640,7 +640,7 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         D::Const => lsp::SymbolKind::CONSTANT,
         D::Enum => lsp::SymbolKind::ENUM,
         D::Variant => lsp::SymbolKind::ENUM_MEMBER,
-        D::State => lsp::SymbolKind::STRUCT,
+        D::State | D::Struct => lsp::SymbolKind::STRUCT,
         D::Field => lsp::SymbolKind::FIELD,
         D::Function | D::ExternFunction => lsp::SymbolKind::FUNCTION,
         D::Flow | D::Event => lsp::SymbolKind::EVENT,

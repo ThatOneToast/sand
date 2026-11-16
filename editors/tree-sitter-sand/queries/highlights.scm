@@ -21,6 +21,15 @@
 (attribute_name) @attribute
 (argument_name) @property
 
+; Struct values and inherent methods
+(struct_item name: (identifier) @type)
+(impl_item type: (path) @type)
+(record_expression type: (path) @type)
+(record_field name: (identifier) @property)
+(method_expression method: (identifier) @function.method)
+(field_expression field: (identifier) @property)
+(receiver) @variable.builtin
+
 ; Declarations
 (function_item name: (identifier) @function)
 (extern_function name: (identifier) @function)
@@ -63,6 +72,8 @@
 ; Keywords
 [
   "fn"
+  "struct"
+  "impl"
   "mod"
   "use"
   "const"

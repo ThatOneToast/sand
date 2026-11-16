@@ -37,7 +37,14 @@ fn summary(ops: &[serde_json::Value]) -> Vec<String> {
                 a["operator"].as_str().unwrap(),
                 a["operand"]
                     .get("field")
-                    .map(|f| f.as_str().unwrap().to_string())
+                    .map(|f| {
+                        let name = f.as_str().unwrap();
+                        if name.contains("_t") {
+                            "scratch".to_string()
+                        } else {
+                            name.to_string()
+                        }
+                    })
                     .unwrap_or_else(|| a["operand"].to_string())
             ),
             other => other.to_string(),
@@ -72,12 +79,16 @@ fn f() {
     assert_eq!(
         summary(&operations(&analysis, "f")),
         vec![
-            "set 2000", // 2.0
+            "set 2000",  // 2.0
+            "set other", // snapshot the old value before computing
             "mul 3",
-            "div 2", // * 1.5, reduced from 1500/1000
-            "mul 2", // / 0.5, reduced from 1000/500
+            "div 2",       // * 1.5, reduced from 1500/1000
+            "set scratch", // commit the final value
+            "mul 2",       // / 0.5, reduced from 1000/500
+            "set other",
             "mul speed",
             "div 1000", // field * field rescales
+            "set scratch",
             "add 1500", // + 1.5
         ]
     );
@@ -113,7 +124,14 @@ fn bad() {
     }
     assert_eq!(
         summary(&operations_of_ok(&pack_ok())),
-        vec!["set n", "mul 1000", "set f", "div 1000"]
+        vec![
+            "set n",
+            "mul 1000",
+            "set scratch",
+            "set f",
+            "div 1000",
+            "set scratch"
+        ]
     );
 }
 

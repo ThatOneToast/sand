@@ -134,6 +134,8 @@ name: `fn grant` in `rewards.sand` becomes `arena:rewards/grant`, and
 | `global state Name { ... }` | One shared value for the server |
 | `enum Phase { Idle, Active = 5 }` | Named integer phases, usable as field types |
 | `const NAME: number = expr;` | Compile-time constant (`+ - * / %`, `as number`) |
+| `struct Point { x: float, y: float }` | A named, typed value with fields |
+| `impl Point { ... }` | Associated functions and methods for a struct or State |
 | `fn name() { ... }` | A Minecraft function |
 | `extern "ns:path" fn name();` | A function implemented by another pack |
 | `flow Name on State.field { ... }` | A state machine over a field |
@@ -159,6 +161,62 @@ Function attributes:
 - `#[player]` requires a player executor explicitly. Without it, the context is
   inferred (see below).
 
+## Struct values and methods
+
+Structs group existing value types into named records. They work in locals,
+function arguments and returns, event payloads, and State fields, including nested
+records. Copies are independent; changing one copy does not change another.
+
+```rust,ignore
+struct Point { pub x: float, pub y: float }
+impl Point {
+    pub fn new(x: float, y: float) -> Self { return Self { x, y }; }
+    pub fn east(mut self, distance: float) -> Self {
+        self.x += distance;
+        return self;
+    }
+}
+player state Hero { position: Point, energy: number = 100 }
+impl Hero {
+    pub fn spend(&mut self, amount: number) { self.energy -= amount; }
+    pub fn energy_left(&self) -> number { return self.energy; }
+}
+fn example() {
+    let origin = Point::new(1.0, 2.0);
+    let shifted = origin.east(3.0);
+    for player in players() {
+        Hero.position = shifted;
+        Hero.spend(5);
+    }
+}
+```
+
+Use `Type::function(...)` for associated functions and `value.method(...)` for
+methods. `Self` names the enclosing type. Field shorthand (`Point { x, y }`)
+uses locals with matching names. Literal fields evaluate in their written order;
+all fields must appear exactly once. Struct fields and methods follow module
+privacy; add `pub` to expose them. Implementations may live in another module of
+the same package, with the same visibility checks as ordinary code.
+
+Struct methods take `self` or `mut self` **by value**. Return `Self` and assign
+it back to keep a change. Borrowed struct receivers, references, traits, generics,
+collections, runtime strings, and whole-record arithmetic/comparison are not
+supported. Empty or recursive record layouts are rejected. Each record has at
+most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
+or clamps; an uninitialized record recursively uses zero or the first enum
+variant. State defaults can instead provide a complete record literal.
+
+State methods use `&self` or `&mut self` to access persistent storage. These are
+State receivers, not general Rust references. Player and entity receivers require
+the corresponding executor, even if a method does not read a field. A read-only
+receiver cannot write its State or call its mutable methods. Associated State
+functions can use `Self.field` without a receiver. Existing clamps apply to final
+field writes, and a whole-record State assignment copies every leaf. Arguments,
+returns, recursive calls and event payloads use the same record representation.
+
+The [Blinkstep example](../../examples/lang_methods/pack.sand) combines a private
+position record with player State methods and a runtime cooldown.
+
 ## Types
 
 | Type | Holds | Stored as |
@@ -167,6 +225,7 @@ Function attributes:
 | `float` | decimals with three places, like `1.5` | a score holding `value * 1000` |
 | `bool` | `true` or `false` | a score holding one or zero |
 | an `enum` | one of its named phases | a score holding the phase's number |
+| a `struct` | named fields of existing value types | one score per scalar leaf |
 
 Scoreboards only hold whole numbers, so `float` is fixed point, the same
 scheme as Rust's `Fixed` fields. Sand rescales arithmetic for you. Its range
@@ -583,8 +642,10 @@ fn dash() {
 }
 ```
 
-`start_timer` takes `ticks` or `seconds`, and `stop_timer` ends one early. A
-timer reads as the number of ticks left, so comparisons and `{Ability.dash}`
+`start_timer` takes exactly one of `ticks` or `seconds`, including runtime
+`number` values. Durations must be positive: ticks allow up to 2,147,483,647,
+seconds up to 107,374,182. Invalid constants are errors; an invalid runtime
+duration leaves the timer unchanged. `stop_timer` ends one early. A timer reads as the number of ticks left, so comparisons and `{Ability.dash}`
 text work too.
 
 ## The world
@@ -796,7 +857,7 @@ express produces identical output. Today the language covers:
 
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
-| State | player, global, and entity State; `number`, `float`, `bool`, enum, and `timer` fields; clamps; flows | NBT-backed values, relations, derived values, migrations |
+| State | player, global, and entity State; scalar and nested struct fields; timers; clamps; flows; impl methods | NBT-backed values, relations, derived values, migrations |
 | Logic | functions with parameters and returns, recursion, `let`, `if`, exhaustive `match`, `while`, `loop`, counting/reversed/stepped `for`, `break`/`continue`, casts, early return, custom events | closures, generics, compile-time Rust code |
 | Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes and entity data as properties, effects, items, experience, game mode, sneaking and other flags, held items | selection by NBT or scores, motion, vehicles, equipment edits, archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |

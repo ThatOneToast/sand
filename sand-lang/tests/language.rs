@@ -833,3 +833,17 @@ fn nested_numeric_groups_do_not_retry_each_parenthesis_as_a_condition() {
         "fn f(n: number) -> number {{ return {value}; }}"
     ))));
 }
+
+#[test]
+fn assignments_commit_computed_values_once_in_final_units() {
+    let analysis = analyze_one(include_str!("fixtures/assignments.sand"));
+    let pack = compile(&analysis);
+    let cast = function(&pack, "language_probe/function/from_float");
+    let rescale = cast.find(" /= ").unwrap();
+    let bounded_write = cast.find("matches 11..").unwrap();
+    assert!(
+        rescale < bounded_write,
+        "cast must rescale before bounds: {cast}"
+    );
+    assert_eq!(cast.matches("matches 11..").count(), 1, "{cast}");
+}

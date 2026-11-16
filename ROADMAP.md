@@ -233,10 +233,15 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   experience and sound options.
 - [x] General boolean arguments and stored predicates; two-player native proof
   for inventory isolation, runtime numeric commands and player properties.
-- [ ] Records, collections, runtime text values and aggregate function arguments,
-  return values and State fields, with one shared typed value model.
-- [ ] First-class functions, closures, methods, generics and traits where they
-  compose with the runtime value and execution-context models.
+- [x] Named, nested struct values in locals, arguments, returns, events and State;
+  value receivers and State receivers in impl blocks, with privacy and IDE support.
+- [x] Final-write assignment clamping and RHS snapshots; vanilla regression probes
+  for aliasing, casts, bounded float arithmetic, record calls and event copies.
+- [x] Runtime timer durations with checked seconds conversion and player-State
+  method isolation in the two-player runtime probe.
+- [ ] Collections and runtime text values using the shared typed value model.
+- [ ] First-class functions, closures, borrowed struct receivers, generics and
+  traits where they compose with runtime values and execution contexts.
 - [ ] Typed enchantments generated once for Rust and the language; typed time
   values and storable positions. Use existing entity State instead of creating
   a competing checked entity-tag model.

@@ -42,6 +42,8 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute store result score #b numeric_probe run clear NumericB minecraft:bread 0")
             self.check("PLAYER_A_ITEMS", "if score #a numeric_probe matches 9")
             self.check("PLAYER_B_ITEMS", "if score #b numeric_probe matches 3")
+            self.check("STATE_IMPL_A", "if score #impl_a numeric_probe matches 1")
+            self.check("STATE_IMPL_B", "if score #impl_b numeric_probe matches 1")
             self.check("PLAYER_PROPERTIES", "if score #property numeric_probe matches 1")
             for name, expected in (("NumericA", 5), ("NumericB", 3)):
                 self.send(f"execute store result score #xp numeric_probe run experience query {name} points")

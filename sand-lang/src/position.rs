@@ -24,6 +24,8 @@ pub(crate) enum Scope {
     Repeat,
     /// `player state Name { ... }`.
     State,
+    /// A struct's value fields.
+    Struct,
     /// `enum Name { ... }`.
     Enum,
     /// `flow Name on State.field { ... }`, with the field text.
@@ -69,6 +71,8 @@ pub(crate) enum Position {
     ItemStart { after_pub: bool },
     /// After `player` or `global`: only `state`.
     StateKeyword,
+    /// The target of an impl block.
+    ImplType,
     /// After `flow Name`: only `on`.
     FlowOn,
     /// After `flow Name on`: a State.
@@ -364,7 +368,8 @@ fn scope_of(masked: &str, open: usize, kind: u8, parents: &[Scope]) -> Scope {
                         .map(|(_, field)| field.trim().to_string())
                         .unwrap_or_default(),
                 },
-                "mod" => Scope::Items,
+                "mod" | "impl" => Scope::Items,
+                "struct" => Scope::Struct,
                 "use" => Scope::UseGroup,
                 "for" if rest.contains("players") || rest.contains("entities") => Scope::Loop {
                     entities: rest.contains("entities"),
@@ -458,6 +463,7 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
     let list = matches!(
         innermost,
         Scope::State
+            | Scope::Struct
             | Scope::Enum
             | Scope::Params
             | Scope::Call { .. }
@@ -545,11 +551,15 @@ pub(crate) fn classify(text: &str, offset: usize) -> Position {
                 Position::Nothing
             }
         }
-        Scope::State => {
+        Scope::State | Scope::Struct => {
             if context.ends_with('=') {
                 Position::ConstValue
             } else if context.ends_with(':') {
-                Position::FieldType
+                if innermost == Scope::Struct {
+                    Position::ScoreType
+                } else {
+                    Position::FieldType
+                }
             } else if context.is_empty() {
                 Position::StateField
             } else {
@@ -635,6 +645,7 @@ fn items_position(context: &str) -> Position {
         ["player" | "global" | "entity"] | ["pub", "player" | "global" | "entity"] => {
             Position::StateKeyword
         }
+        ["impl"] => Position::ImplType,
         ["use", ..] | ["pub", "use", ..] => Position::UsePath,
         ["flow", _] | ["pub", "flow", _] => Position::FlowOn,
         ["flow", _, "on"] | ["pub", "flow", _, "on"] => Position::FlowField,

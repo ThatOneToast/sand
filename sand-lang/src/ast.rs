@@ -140,12 +140,13 @@ impl Item {
             ItemKind::Const(item) => Some(&item.name),
             ItemKind::Enum(item) => Some(&item.name),
             ItemKind::State(item) => Some(&item.name),
+            ItemKind::Struct(item) => Some(&item.name),
             ItemKind::Flow(item) => Some(&item.name),
             ItemKind::Fn(item) => Some(&item.name),
             ItemKind::ExternFn(item) => Some(&item.name),
             ItemKind::Data(item) => Some(&item.name),
             ItemKind::Event(item) => Some(&item.name),
-            ItemKind::Use(_) | ItemKind::Error(_) => None,
+            ItemKind::Use(_) | ItemKind::Impl(_) | ItemKind::Error(_) => None,
         }
     }
 
@@ -168,6 +169,10 @@ pub enum ItemKind {
     Enum(EnumItem),
     /// `player state Name { ... }` or `global state Name { ... }`.
     State(StateItem),
+    /// A named, copyable record value.
+    Struct(StructItem),
+    /// Associated functions and methods for a State or struct.
+    Impl(ImplItem),
     /// `flow Name on State.field { ... }`.
     Flow(FlowItem),
     /// `fn name() { ... }`.
@@ -273,16 +278,47 @@ pub struct StateItem {
     pub fields: Vec<Field>,
 }
 
+/// A named record with typed fields.
+#[derive(Debug, Clone)]
+pub struct StructItem {
+    /// Type name.
+    pub name: Ident,
+    /// Fields in declaration order.
+    pub fields: Vec<Field>,
+}
+
+/// An inherent implementation for a State or struct.
+#[derive(Debug, Clone)]
+pub struct ImplItem {
+    /// Implemented type.
+    pub target: Path,
+    /// Functions declared inside the implementation.
+    pub methods: Vec<Item>,
+}
+
+/// The explicit `self` parameter of a method.
+#[derive(Debug, Clone)]
+pub struct Receiver {
+    /// Whether writes through this receiver are allowed.
+    pub mutable: bool,
+    /// Whether the receiver uses `&` syntax.
+    pub borrowed: bool,
+    /// Source location.
+    pub span: Span,
+}
+
 /// One State field.
 #[derive(Debug, Clone)]
 pub struct Field {
+    /// Whether this struct field is public outside its module.
+    pub is_pub: bool,
     /// Documentation lines.
     pub docs: Vec<String>,
     /// Field attributes such as `#[clamp(0..=100)]`.
     pub attrs: Vec<Attr>,
     /// Field name.
     pub name: Ident,
-    /// Field type: `i32` or an enum.
+    /// Field value type.
     pub ty: Path,
     /// Default value.
     pub default: Option<Expr>,
@@ -455,6 +491,8 @@ pub struct Param {
 /// A function definition.
 #[derive(Debug, Clone)]
 pub struct FnItem {
+    /// Optional method receiver; valid only inside an impl.
+    pub receiver: Option<Receiver>,
     /// Function name.
     pub name: Ident,
     /// Parameters in order.
@@ -488,6 +526,8 @@ pub struct Block {
 /// A statement.
 #[derive(Debug, Clone)]
 pub enum Stmt {
+    /// A method call or evaluated value statement.
+    Expr(Expr, Span),
     /// `let mut name: Type = value;`.
     Let {
         /// Whether the binding is `mut`.
@@ -686,6 +726,8 @@ pub struct Place {
     pub state: Path,
     /// Field name.
     pub field: Ident,
+    /// Further record-field projections.
+    pub projections: Vec<Ident>,
     /// Whole place.
     pub span: Span,
 }
@@ -837,6 +879,28 @@ pub enum Expr {
         /// Location including quotes.
         span: Span,
     },
+    /// A named record literal, evaluated in authored field order.
+    Struct {
+        /// Record type.
+        path: Path,
+        /// Field initializers.
+        fields: Vec<(Ident, Expr)>,
+        /// Whole expression.
+        span: Span,
+    },
+    /// A call using a value or State receiver.
+    Method {
+        /// Receiver expression.
+        receiver: Box<Expr>,
+        /// Method name.
+        name: Ident,
+        /// Explicit arguments.
+        args: Vec<Arg>,
+        /// Whole expression.
+        span: Span,
+    },
+    /// A field selected from a computed record value.
+    Project(Box<Expr>, Ident, Span),
     /// A condition used as a boolean value: `let ok = a > b;`.
     Cond(Box<Cond>, Span),
     /// A call such as `random(1..=6)`.
@@ -869,6 +933,9 @@ impl Expr {
             | Expr::Bool(_, span)
             | Expr::Str { span, .. }
             | Expr::Call { span, .. }
+            | Expr::Struct { span, .. }
+            | Expr::Method { span, .. }
+            | Expr::Project(_, _, span)
             | Expr::Cond(_, span)
             | Expr::Neg(_, span)
             | Expr::Binary(_, _, _, span)

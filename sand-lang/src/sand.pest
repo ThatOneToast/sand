@@ -19,7 +19,7 @@ inner_doc = @{ "//!" ~ (!"\n" ~ ANY)* }
 
 ident_char = _{ ASCII_ALPHANUMERIC | "_" }
 keyword = @{
-    ( "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
+    ( "impl" | "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
     | "if" | "else" | "for" | "in" | "extern" | "as" | "let" | "return"
     | "while" | "loop" | "match" | "struct" | "true" | "false" | "mut" | "continue"
     | "break" | "emit" ) ~ !ident_char
@@ -38,6 +38,8 @@ self_kw  = @{ "self" ~ !ident_char }
 path = { path_segment ~ ("::" ~ path_segment)* }
 
 // Whole-word keyword tokens; the AST builder skips them.
+kw_struct = @{ "struct" ~ !ident_char }
+kw_impl = @{ "impl" ~ !ident_char }
 kw_fn = @{ "fn" ~ !ident_char }
 kw_mod = @{ "mod" ~ !ident_char }
 kw_use = @{ "use" ~ !ident_char }
@@ -80,7 +82,7 @@ vis = @{ "pub" ~ !ident_char }
 
 item = { (outer_doc | attr)* ~ vis? ~ item_kind }
 item_kind = _{
-    mod_item | use_item | const_item | enum_item | state_item
+    mod_item | use_item | const_item | enum_item | state_item | struct_item | impl_item
   | flow_item | extern_fn | fn_item | event_item | data_item
 }
 
@@ -101,7 +103,7 @@ data_array  = { "[" ~ (data_value ~ ("," ~ data_value)* ~ ","?)? ~ "]" }
 bad_item  = @{ (!("\n" ~ item_head) ~ ANY)+ }
 item_head = _{
     "#" | "///"
-  | (( "pub" | "fn" | "mod" | "use" | "const" | "enum" | "player" | "global" | "entity"
+  | (( "struct" | "impl" | "pub" | "fn" | "mod" | "use" | "const" | "enum" | "player" | "global" | "entity"
      | "flow" | "extern" | "item" | "recipe" | "tag" | "event" | "bossbar" | "loot" ) ~ !ident_char)
 }
 
@@ -118,13 +120,18 @@ const_item = { kw_const ~ ident ~ ":" ~ ty ~ "=" ~ expr ~ ";" }
 enum_item  = { kw_enum ~ ident ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}" }
 variant    = { outer_doc* ~ ident ~ ("=" ~ expr)? }
 
+struct_item = { kw_struct ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
+impl_item = { kw_impl ~ path ~ "{" ~ item* ~ "}" }
+
 state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
-field      = { (outer_doc | attr)* ~ ident ~ ":" ~ ty ~ ("=" ~ expr)? }
+field      = { (outer_doc | attr)* ~ vis? ~ ident ~ ":" ~ ty ~ ("=" ~ expr)? }
 ty         = { path }
 
 extern_fn  = { kw_extern ~ string ~ kw_fn ~ ident ~ "(" ~ ")" ~ ";" }
-fn_item    = { kw_fn ~ ident ~ "(" ~ params? ~ ")" ~ ret_ty? ~ block }
+fn_item    = { kw_fn ~ ident ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ block }
+fn_params = { (receiver ~ ("," ~ params)? ~ ","?) | params }
+receiver = { (("&" ~ kw_mut?) | kw_mut)? ~ self_kw }
 params     = { param ~ ("," ~ param)* ~ ","? }
 param      = { mut_kw? ~ ident ~ ":" ~ ty }
 ret_ty     = { "->" ~ ty }
@@ -163,12 +170,12 @@ range_step = { "." ~ "step_by" ~ "(" ~ expr ~ ")" }
 macro_stmt  = { ident ~ "!" ~ "(" ~ args? ~ ")" ~ ";" }
 assign_stmt = { (place | ident) ~ assign_op ~ (value_expr | expr) ~ ";" }
 assign_op   = @{ "+=" | "-=" | "*=" | "/=" | "%=" | ("=" ~ !"=") }
-call_stmt   = { path ~ "(" ~ args? ~ ")" ~ ";" }
+call_stmt   = { expr ~ ";" }
 args        = { arg ~ ("," ~ arg)* ~ ","? }
 arg         = { (ident ~ "=" ~ !"=" ~ arg_value) | arg_value }
 arg_value   = { range | arg_condition | expr }
 arg_condition = { !(expr ~ ("," | ")")) ~ cond }
-place       = { path ~ "." ~ ident }
+place       = { path ~ ("." ~ ident ~ !"(")+ }
 
 // ── Conditions ──────────────────────────────────────────────────────────────
 
@@ -176,8 +183,8 @@ cond       = { cond_and ~ ("||" ~ cond_and)* }
 cond_and   = { cond_unary ~ ("&&" ~ cond_unary)* }
 cond_unary = { not_op* ~ cond_atom }
 not_op     = @{ "!" ~ !"=" }
-cond_atom  = _{ ("(" ~ cond ~ ")") | comparison | in_range | cond_call | cond_bool }
-cond_bool  = { bool_lit | place | path }
+cond_atom  = _{ ("(" ~ cond ~ ")") | comparison | in_range | cond_call | cond_expr }
+cond_expr = { expr }
 cond_call  = { path ~ "(" ~ args? ~ ")" }
 comparison = { expr ~ cmp_op ~ expr }
 cmp_op     = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
@@ -190,7 +197,9 @@ range_op   = { "..=" | ".." }
 expr    = { prefix* ~ primary ~ postfix* ~ (infix ~ prefix* ~ primary ~ postfix*)* }
 prefix  = _{ neg }
 neg     = { "-" }
-postfix = _{ cast }
+postfix = _{ cast | method_postfix | field_postfix }
+method_postfix = { "." ~ ident ~ "(" ~ args? ~ ")" }
+field_postfix = { "." ~ ident }
 cast    = { kw_as ~ ty }
 infix   = _{ add | sub | mul | div | rem }
 add     = @{ "+" ~ !"=" }
@@ -199,7 +208,10 @@ mul     = @{ "*" ~ !"=" }
 div     = @{ "/" ~ !"=" }
 rem     = @{ "%" ~ !"=" }
 group = { "(" ~ ((expr ~ &")") | cond) ~ ")" }
-primary = _{ group | float | int | bool_lit | string | call_expr | place | path }
+record_literal = { path ~ "{" ~ record_field ~ ("," ~ record_field)* ~ ","? ~ "}" }
+record_field = { ident ~ (":" ~ record_value)? }
+record_value = { (expr ~ &( "," | "}" )) | cond }
+primary = _{ record_literal | group | float | int | bool_lit | string | call_expr | place | path }
 call_expr = { path ~ "(" ~ args? ~ ")" }
 
 // ── Strict entry points used to explain recovered nodes ─────────────────────

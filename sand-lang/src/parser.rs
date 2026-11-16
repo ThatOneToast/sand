@@ -55,6 +55,8 @@ fn is_keyword(rule: Rule) -> bool {
     matches!(
         rule,
         Rule::kw_fn
+            | Rule::kw_struct
+            | Rule::kw_impl
             | Rule::kw_mod
             | Rule::kw_use
             | Rule::kw_const
@@ -163,6 +165,7 @@ fn pratt() -> &'static PrattParser<Rule> {
             // As in Rust, `-x as T` casts the negated value.
             .op(Op::postfix(Rule::cast))
             .op(Op::prefix(Rule::neg))
+            .op(Op::postfix(Rule::method_postfix) | Op::postfix(Rule::field_postfix))
     })
 }
 
@@ -388,6 +391,16 @@ impl Builder<'_> {
                 }
                 ItemKind::Flow(flow)
             }
+            Rule::struct_item => {
+                let name = ident(inner.next().expect("struct name"));
+                let fields = inner.map(|field| self.field(field)).collect();
+                ItemKind::Struct(StructItem { name, fields })
+            }
+            Rule::impl_item => {
+                let target = path(inner.next().expect("impl target"));
+                let methods = inner.map(|method| self.item(method)).collect();
+                ItemKind::Impl(ImplItem { target, methods })
+            }
             Rule::data_item => {
                 let kind = match inner.next().expect("data kind").as_str() {
                     "item" => DataKind::Item,
@@ -435,11 +448,23 @@ impl Builder<'_> {
                 let name = ident(inner.next().expect("fn name"));
                 let mut params = Vec::new();
                 let mut ret = None;
+                let mut receiver = None;
                 let mut body = None;
                 for part in inner {
                     match part.as_rule() {
-                        Rule::params => {
-                            params.extend(part.into_inner().map(parameter));
+                        Rule::fn_params => {
+                            for entry in part.into_inner() {
+                                if entry.as_rule() == Rule::receiver {
+                                    let text = entry.as_str();
+                                    receiver = Some(Receiver {
+                                        mutable: text.contains("mut"),
+                                        borrowed: text.starts_with('&'),
+                                        span: span(&entry),
+                                    });
+                                } else {
+                                    params.extend(entry.into_inner().map(parameter));
+                                }
+                            }
                         }
                         Rule::ret_ty => {
                             ret = part
@@ -453,6 +478,7 @@ impl Builder<'_> {
                 }
                 ItemKind::Fn(FnItem {
                     name,
+                    receiver,
                     params,
                     ret,
                     body: body.expect("fn body"),
@@ -465,12 +491,14 @@ impl Builder<'_> {
     fn field(&mut self, pair: P<'_>) -> Field {
         let s = span(&pair);
         let mut docs = Vec::new();
+        let mut is_pub = false;
         let mut attrs = Vec::new();
         let mut name = None;
         let mut ty = None;
         let mut default = None;
         for part in pair.into_inner() {
             match part.as_rule() {
+                Rule::vis => is_pub = true,
                 Rule::outer_doc => docs.push(doc_text(&part, "///")),
                 Rule::attr => {
                     let a = span(&part);
@@ -483,6 +511,7 @@ impl Builder<'_> {
             }
         }
         Field {
+            is_pub,
             docs,
             attrs,
             name: name.expect("field name"),
@@ -723,16 +752,14 @@ impl Builder<'_> {
                     span: s,
                 }
             }
-            Rule::call_stmt => {
-                let mut parts = inner.into_inner();
-                let path = path(parts.next().expect("callee"));
-                let args = parts.next().map(args).unwrap_or_default();
-                Stmt::Call {
+            Rule::call_stmt => match expr(inner.into_inner().next().expect("call expression")) {
+                Expr::Call { path, args, .. } => Stmt::Call {
                     path,
                     args,
                     span: s,
-                }
-            }
+                },
+                value => Stmt::Expr(value, s),
+            },
             other => unreachable!("unexpected statement rule {other:?}"),
         }
     }
@@ -789,14 +816,8 @@ impl Builder<'_> {
                 }
                 cond
             }
-            Rule::cond_bool => {
-                let inner = pair.into_inner().next().expect("boolean value");
-                let s = span(&inner);
-                Cond::Value(match inner.as_rule() {
-                    Rule::bool_lit => Expr::Bool(inner.as_str() == "true", s),
-                    Rule::place => Expr::Place(place(inner)),
-                    _ => Expr::Path(path(inner)),
-                })
+            Rule::cond_expr => {
+                Cond::Value(expr(pair.into_inner().next().expect("condition value")))
             }
             Rule::cond_call => {
                 let s = span(&pair);
@@ -903,6 +924,48 @@ impl Builder<'_> {
 fn expr(pair: P<'_>) -> Expr {
     pratt()
         .map_primary(|primary| match primary.as_rule() {
+            Rule::record_literal => {
+                let s = span(&primary);
+                let mut parts = primary.into_inner();
+                let path = path(parts.next().expect("record type"));
+                let fields = parts
+                    .map(|field| {
+                        let mut parts = field.into_inner();
+                        let name = ident(parts.next().expect("field name"));
+                        let value = parts
+                            .next()
+                            .map(|value| {
+                                let inner = value.into_inner().next().expect("field value");
+                                if inner.as_rule() == Rule::cond {
+                                    let s = span(&inner);
+                                    Expr::Cond(
+                                        Box::new(
+                                            Builder {
+                                                errors: &mut Vec::new(),
+                                            }
+                                            .cond(inner),
+                                        ),
+                                        s,
+                                    )
+                                } else {
+                                    expr(inner)
+                                }
+                            })
+                            .unwrap_or_else(|| {
+                                Expr::Path(Path {
+                                    segments: vec![name.clone()],
+                                    span: name.span,
+                                })
+                            });
+                        (name, value)
+                    })
+                    .collect();
+                Expr::Struct {
+                    path,
+                    fields,
+                    span: s,
+                }
+            }
             Rule::group => {
                 let s = span(&primary);
                 let inner = primary.into_inner().next().expect("group value");
@@ -966,6 +1029,20 @@ fn expr(pair: P<'_>) -> Expr {
         })
         .map_postfix(|lhs, op| {
             let s = lhs.span().to(span(&op));
+            if op.as_rule() == Rule::method_postfix {
+                let mut parts = op.into_inner();
+                let name = ident(parts.next().expect("method name"));
+                return Expr::Method {
+                    receiver: Box::new(lhs),
+                    name,
+                    args: parts.next().map(args).unwrap_or_default(),
+                    span: s,
+                };
+            }
+            if op.as_rule() == Rule::field_postfix {
+                let field = ident(op.into_inner().next().expect("field name"));
+                return Expr::Project(Box::new(lhs), field, s);
+            }
             let ty = op
                 .into_inner()
                 .find(|p| p.as_rule() == Rule::ty)
@@ -1061,6 +1138,7 @@ fn place(pair: P<'_>) -> Place {
     Place {
         state,
         field,
+        projections: parts.map(ident).collect(),
         span: s,
     }
 }

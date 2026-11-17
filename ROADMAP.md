@@ -245,7 +245,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Owned runtime strings, scalar formatting, Unicode indexing/slicing, substring
   methods, plain runtime text and styled interpolation; native recursive, owner
   lifecycle and per-player reload proofs.
-- [ ] Growable collections and general borrowed slices using the shared typed value model.
+- [x] Growable `Vec<T>` values, nested/recursive records, indexed borrowed
+  methods, deep copies/equality, bounded mutation and snapshot iteration; native
+  vector, array and text regressions plus independent player reload proofs.
+- [ ] Maps and sets implemented with general generics; general borrowed slices.
 - [x] Read-only and mutable struct receivers, with write-back on early return and
   recursive calls; retained EntityRef values, reload-safe identities, explicit
   resolution, and damage attribution with native two-player kill-credit proof.

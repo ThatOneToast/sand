@@ -268,6 +268,9 @@ impl Cx {
                 if ty == Ty::String {
                     return Ty::String;
                 }
+                if let Some(element) = self.list_element(ty) {
+                    return element;
+                }
                 self.array_shape(ty)
                     .map_or(Ty::Unknown, |(element, _)| element)
             }
@@ -289,6 +292,14 @@ impl Cx {
                 {
                     return Ty::String;
                 }
+                if let Some(element) = self.list_element(receiver_ty) {
+                    return match name.name.as_str() {
+                        "len" | "extend" => Ty::Number,
+                        "is_empty" | "contains" | "push" | "insert" => Ty::Bool,
+                        "get_or" | "pop_or" | "remove_or" => element,
+                        _ => Ty::Unknown,
+                    };
+                }
                 if receiver_ty == Ty::String {
                     return match name.name.as_str() {
                         "len" => Ty::Number,
@@ -298,6 +309,9 @@ impl Cx {
                     };
                 }
                 if let Some((element, _)) = self.array_shape(receiver_ty) {
+                    if name.name == "to_vec" {
+                        return self.list_type(body.module, element);
+                    }
                     return match name.name.as_str() {
                         "len" => Ty::Number,
                         "is_empty" | "contains" => Ty::Bool,
@@ -363,7 +377,7 @@ impl Cx {
         expr: &Expr,
         ty: Ty,
     ) -> Result<Option<Value>, ()> {
-        if matches!(ty, Ty::Struct(_) | Ty::String) {
+        if matches!(ty, Ty::Struct(_) | Ty::String | Ty::List(_)) {
             return Ok(None);
         }
         let (module, file) = (body.module, body.file);
@@ -390,7 +404,7 @@ impl Cx {
             return Ok(Some(Value::Read(self.local_ref(local))));
         }
         if let Expr::Place(place) = expr {
-            if self.is_handle(body, place) {
+            if self.is_handle(body, place) || self.entity_place(body, place) {
                 return Ok(None);
             }
             let value = self.place_value(body, place, false).ok_or(())?;
@@ -511,6 +525,9 @@ impl Cx {
         let file = body.file;
         let span = expr.span();
         self.value_slots(dest, ty);
+        if let Ty::List(_) = ty {
+            return self.emit_list(body, dest, ty, expr, ops);
+        }
         if ty == Ty::String {
             return self.emit_text(body, dest, expr, ops);
         }
@@ -532,6 +549,9 @@ impl Cx {
                 span,
             } => {
                 let receiver_ty = self.type_of(body, receiver);
+                if self.list_element(receiver_ty).is_some() {
+                    return self.emit_list_method(body, dest, ty, expr, ops);
+                }
                 if receiver_ty == Ty::String {
                     return self.emit_text_method(body, dest, ty, expr, ops);
                 }
@@ -651,6 +671,14 @@ impl Cx {
                     }
                 };
                 self.apply(file, dest, ty, *op, value, rhs.span(), ops)
+            }
+            Expr::Place(place) if !self.is_handle(body, place) => {
+                let value = self.place_value(body, place, false)?;
+                if !self.types_agree(file, place.span, ty, value.ty) {
+                    return None;
+                }
+                self.copy_value(dest, &value.reference, ty, file, place.span, ops);
+                Some(())
             }
             Expr::Place(place) => {
                 let property = self.entity_property(body, place)?;
@@ -1202,6 +1230,15 @@ impl Cx {
             body.temp_depth = depth;
             return;
         }
+        if compound.is_some() && matches!(dest.ty, Ty::List(_)) {
+            self.error(
+                "type",
+                file,
+                span,
+                "vectors use `=` for assignment; use collection methods to change their contents",
+            );
+            return;
+        }
         if let Some(bin) = compound {
             if matches!(dest.ty, Ty::Struct(_)) {
                 self.error(
@@ -1738,8 +1775,19 @@ impl Cx {
                 };
                 let snapshot = if let Some(value) = collection {
                     let ty = self.type_of(body, value);
-                    let Some((element, length)) = self.array_shape(ty) else {
-                        self.error("for", file, value.span(), "this loop needs an array value");
+                    let (element, length) = if let Some((element, length)) = self.array_shape(ty) {
+                        (element, Some(length))
+                    } else if let Some(element) = self.list_element(ty) {
+                        (element, None)
+                    } else if ty == Ty::String {
+                        (Ty::String, None)
+                    } else {
+                        self.error(
+                            "for",
+                            file,
+                            value.span(),
+                            "this loop needs an array, vector or string value",
+                        );
                         body.scopes.pop();
                         body.temp_depth = depth;
                         return;
@@ -1750,7 +1798,7 @@ impl Cx {
                         body.temp_depth = depth;
                         return;
                     }
-                    Some((array, element, length))
+                    Some((array, element, length, ty == Ty::String))
                 } else {
                     None
                 };
@@ -1767,7 +1815,7 @@ impl Cx {
                 }
                 let binding_ty = snapshot
                     .as_ref()
-                    .map_or(Ty::Number, |(_, element, _)| *element);
+                    .map_or(Ty::Number, |(_, element, _, _)| *element);
                 let local = self.new_local(body, binding, binding_ty, false, binding.span);
                 let binding_slot = self.local_ref(local);
                 self.value_slots(&binding_slot, binding_ty);
@@ -1776,30 +1824,73 @@ impl Cx {
                 } else {
                     binding_slot.clone()
                 };
-                if let Some((array, element, length)) = snapshot {
-                    for offset in 0..length {
-                        let mut then = Vec::new();
-                        self.copy_value(
-                            &binding_slot,
-                            &super::values::child(&array, &format!("i{offset}")),
-                            element,
-                            file,
-                            span,
-                            &mut then,
-                        );
-                        pre_body.push(op_at(
-                            pc::Action::Branch {
-                                condition: pc::Condition::Range(pc::ScoreComparison {
-                                    score: counter.clone(),
-                                    min: Some(offset as i32),
-                                    max: Some(offset as i32),
-                                }),
-                                then,
-                                otherwise: Vec::new(),
+                let mut dynamic_length = None;
+                if let Some((array, element, length, characters)) = snapshot {
+                    if let Some(length) = length {
+                        for offset in 0..length {
+                            let mut then = Vec::new();
+                            self.copy_value(
+                                &binding_slot,
+                                &super::values::child(&array, &format!("i{offset}")),
+                                element,
+                                file,
+                                span,
+                                &mut then,
+                            );
+                            pre_body.push(op_at(
+                                pc::Action::Branch {
+                                    condition: pc::Condition::Range(pc::ScoreComparison {
+                                        score: counter.clone(),
+                                        min: Some(offset as i32),
+                                        max: Some(offset as i32),
+                                    }),
+                                    then,
+                                    otherwise: Vec::new(),
+                                },
+                                file,
+                                span,
+                            ));
+                        }
+                    } else {
+                        let length = self.temp(body);
+                        setup.push(op_at(
+                            pc::Action::DataRead {
+                                score: length.clone(),
+                                source: Self::data_reference(&array),
                             },
                             file,
                             span,
                         ));
+                        dynamic_length = Some(length);
+                        let source = Self::stored_element(&array, &counter);
+                        if characters {
+                            pre_body.push(op_at(
+                                Self::initialize_leaf(
+                                    binding_slot.clone(),
+                                    super::text::LeafDefault::Data(super::text::text_value("")),
+                                ),
+                                file,
+                                span,
+                            ));
+                            pre_body.push(op_at(
+                                pc::Action::DataModify {
+                                    target: Self::data_reference(&binding_slot),
+                                    operator: pc::DataModifyOperation::Append,
+                                    source: pc::DataOperand::Reference { value: source },
+                                },
+                                file,
+                                span,
+                            ));
+                        } else {
+                            self.unpack_value(
+                                body,
+                                &binding_slot,
+                                source,
+                                element,
+                                span,
+                                &mut pre_body,
+                            );
+                        }
                     }
                 }
                 let limit = if reverse {
@@ -1818,28 +1909,32 @@ impl Cx {
                         file,
                         start.span(),
                     ));
-                    match self.simple(body, end, Ty::Number) {
-                        Ok(Some(Value::Const(value)))
-                            if range.inclusive || value > i64::from(i32::MIN) =>
-                        {
-                            Value::Const(value)
-                        }
-                        Ok(_) => {
-                            let temp = self.temp(body);
-                            if self
-                                .emit(body, &temp, Ty::Number, end, &mut setup)
-                                .is_none()
+                    if let Some(length) = dynamic_length {
+                        Value::Read(length)
+                    } else {
+                        match self.simple(body, end, Ty::Number) {
+                            Ok(Some(Value::Const(value)))
+                                if range.inclusive || value > i64::from(i32::MIN) =>
                             {
+                                Value::Const(value)
+                            }
+                            Ok(_) => {
+                                let temp = self.temp(body);
+                                if self
+                                    .emit(body, &temp, Ty::Number, end, &mut setup)
+                                    .is_none()
+                                {
+                                    body.scopes.pop();
+                                    body.temp_depth = depth;
+                                    return;
+                                }
+                                Value::Read(temp)
+                            }
+                            Err(()) => {
                                 body.scopes.pop();
                                 body.temp_depth = depth;
                                 return;
                             }
-                            Value::Read(temp)
-                        }
-                        Err(()) => {
-                            body.scopes.pop();
-                            body.temp_depth = depth;
-                            return;
                         }
                     }
                 };

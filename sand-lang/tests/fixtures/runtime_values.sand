@@ -2,7 +2,7 @@
 
 item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
 global state Origin { x: float }
-player state Ledger { requested: number, label: string = "new" }
+player state Ledger { requested: number, label: string = "new", recent: Vec<string> }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
 }
@@ -16,6 +16,7 @@ fn reward(count: number) {
 fn experience(count: number) { add_experience(points = count); }
 fn player_a() {
     Ledger.label = "A 🌍 $(uuid)";
+    Ledger.recent = ["A"]; Ledger.recent.push("🌍");
     chat!("{gold}{Ledger.label}");
     experience(5);
     reward(7);
@@ -35,7 +36,7 @@ fn player_a() {
         raw!("scoreboard players set #property numeric_probe 1");
     }
 }
-fn player_b() { Ledger.label = "B"; reward(3); experience(3); if Ledger.requested == 3 { raw!("scoreboard players set #impl_b numeric_probe 1"); } }
+fn player_b() { Ledger.label = "B"; Ledger.recent = ["B"]; reward(3); experience(3); if Ledger.requested == 3 { raw!("scoreboard players set #impl_b numeric_probe 1"); } }
 fn next_y() -> float { Origin.x = 9.0; return 70.0; }
 fn select(a: bool, b: bool) -> bool { return a && b; }
 fn mob() {
@@ -86,4 +87,11 @@ fn check_player_text_a() {
 }
 fn check_player_text_b() {
     if Ledger.label == "B" { raw!("scoreboard players set #text_b numeric_probe 1"); }
+}
+
+fn check_player_vector_a() {
+    if Ledger.recent == ["A", "🌍"] { raw!("scoreboard players set #vec_a numeric_probe 1"); }
+}
+fn check_player_vector_b() {
+    if Ledger.recent == ["B"] { raw!("scoreboard players set #vec_b numeric_probe 1"); }
 }

@@ -3,6 +3,18 @@ use super::*;
 use pc::DataModifyOperation;
 use sand::data::NbtValue;
 
+pub(super) const TEXT_LITERAL_BYTES: usize = 65_536;
+pub(super) const DEFAULT_BYTES: usize = 1_048_576;
+
+pub(super) fn defaults_cost(values: &[LeafDefault]) -> usize {
+    values.iter().fold(0usize, |total, value| {
+        total.saturating_add(match value {
+            LeafDefault::Score(value) => value.to_string().len(),
+            LeafDefault::Data(value) => value.to_string().len(),
+        })
+    })
+}
+
 #[derive(Clone)]
 pub(super) enum LeafDefault {
     Score(i32),
@@ -111,7 +123,7 @@ impl Cx {
                 target: Self::data_reference(dest),
                 operator: DataModifyOperation::Prepend,
                 source: pc::DataOperand::Reference {
-                    value: Self::text_character(&digits, &digit),
+                    value: Self::stored_element(&digits, &digit),
                 },
             }),
         ];
@@ -299,7 +311,7 @@ impl Cx {
         }
     }
 
-    fn text_character(
+    pub(super) fn stored_element(
         source: &pc::FieldReference,
         index: &pc::FieldReference,
     ) -> pc::DataReference {
@@ -346,7 +358,7 @@ impl Cx {
                 target: Self::data_reference(dest),
                 operator: DataModifyOperation::Append,
                 source: pc::DataOperand::Reference {
-                    value: Self::text_character(&source, &selected),
+                    value: Self::stored_element(&source, &selected),
                 },
             },
             body.file,
@@ -410,7 +422,7 @@ impl Cx {
                     target: Self::data_reference(dest),
                     operator: DataModifyOperation::Append,
                     source: pc::DataOperand::Reference {
-                        value: Self::text_character(source, &counter),
+                        value: Self::stored_element(source, &counter),
                     },
                 }),
                 at(pc::Action::ScoreAdd {
@@ -740,11 +752,40 @@ impl Cx {
         expr: &Expr,
         stack: &mut Vec<DefId>,
     ) -> Option<String> {
+        self.constant_text_depth(module, file, expr, stack, 0)
+    }
+
+    fn constant_text_depth(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        expr: &Expr,
+        stack: &mut Vec<DefId>,
+        depth: usize,
+    ) -> Option<String> {
+        if depth > 64 {
+            self.error(
+                "const",
+                file,
+                expr.span(),
+                "constant string expansion exceeds 64 levels",
+            );
+            return None;
+        }
         match expr {
-            Expr::Str { value, .. } => Some(value.clone()),
+            Expr::Str { value, .. } => {
+                if !self.text_size(file, expr.span(), value.len()) {
+                    return None;
+                }
+                Some(value.clone())
+            }
             Expr::Binary(left, BinOp::Add, right, _) => {
-                let mut value = self.constant_text(module, file, left, stack)?;
-                value.push_str(&self.constant_text(module, file, right, stack)?);
+                let mut value = self.constant_text_depth(module, file, left, stack, depth + 1)?;
+                let right = self.constant_text_depth(module, file, right, stack, depth + 1)?;
+                if !self.text_size(file, expr.span(), value.len().saturating_add(right.len())) {
+                    return None;
+                }
+                value.push_str(&right);
                 Some(value)
             }
             Expr::Path(path) => {
@@ -768,7 +809,7 @@ impl Cx {
                 }
                 let (module, file, expr) = (source.module, source.file, source.expr.clone());
                 stack.push(def);
-                let value = self.constant_text(module, file, &expr, stack);
+                let value = self.constant_text_depth(module, file, &expr, stack, depth + 1);
                 stack.pop();
                 value
             }
@@ -782,6 +823,32 @@ impl Cx {
                 None
             }
         }
+    }
+
+    fn text_size(&mut self, file: FileId, span: Span, bytes: usize) -> bool {
+        if bytes > TEXT_LITERAL_BYTES {
+            self.error(
+                "const",
+                file,
+                span,
+                "text literals and expanded constants support at most 65536 UTF-8 bytes",
+            );
+            return false;
+        }
+        true
+    }
+
+    pub(super) fn default_size(&mut self, file: FileId, span: Span, bytes: usize) -> bool {
+        if bytes > DEFAULT_BYTES {
+            self.error(
+                "const",
+                file,
+                span,
+                "expanded State default exceeds 1048576 bytes; build larger values at runtime",
+            );
+            return false;
+        }
+        true
     }
 
     pub(super) fn emit_text(
@@ -798,11 +865,16 @@ impl Cx {
         }
         self.register_data_slot(dest, text_value(""));
         match expr {
-            Expr::Str { value, .. } => ops.push(op_at(
-                Self::initialize_leaf(dest.clone(), LeafDefault::Data(text_value(value))),
-                body.file,
-                span,
-            )),
+            Expr::Str { value, .. } => {
+                if !self.text_size(body.file, span, value.len()) {
+                    return None;
+                }
+                ops.push(op_at(
+                    Self::initialize_leaf(dest.clone(), LeafDefault::Data(text_value(value))),
+                    body.file,
+                    span,
+                ));
+            }
             Expr::Binary(left, BinOp::Add, right, _) => {
                 let depth = body.temp_depth;
                 let lhs = self.temp(body);
@@ -844,6 +916,11 @@ impl Cx {
                 return self.emit_index(body, dest, Ty::String, expr, ops);
             }
             Expr::Index(..) => return self.emit_text_index(body, dest, expr, ops),
+            Expr::Method { receiver, .. }
+                if matches!(self.type_of(body, receiver), Ty::List(_)) =>
+            {
+                return self.emit_list_method(body, dest, Ty::String, expr, ops);
+            }
             Expr::Method { receiver, .. } if self.type_of(body, receiver) == Ty::String => {
                 return self.emit_text_method(body, dest, Ty::String, expr, ops);
             }

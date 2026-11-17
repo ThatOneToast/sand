@@ -35,6 +35,8 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
 
 mod collections;
 mod resources;
+mod sequence_methods;
+mod sequences;
 mod statements;
 mod text;
 mod values;
@@ -54,6 +56,8 @@ pub enum Ty {
     Bool,
     /// Owned Unicode text stored as a sequence of scalar characters.
     String,
+    /// A growable owned homogeneous sequence.
+    List(DefId),
     /// An enum whose variants are integer phases.
     Enum(DefId),
     /// A named, copyable record layout.
@@ -182,6 +186,8 @@ pub enum DefInfo {
         /// Compiler-owned element field definitions in index order.
         fields: Vec<DefId>,
     },
+    /// An interned growable collection; its element may contain nested values.
+    List { element: Ty },
     /// An enum variant.
     Variant {
         /// Evaluated discriminant.
@@ -481,6 +487,7 @@ pub fn analyze(package: Package) -> Analysis {
         methods: BTreeMap::new(),
         record_defaults: BTreeMap::new(),
         array_types: BTreeMap::new(),
+        list_types: BTreeMap::new(),
         const_src: BTreeMap::new(),
         variant_src: BTreeMap::new(),
         memo: BTreeMap::new(),
@@ -573,6 +580,7 @@ struct Cx {
     methods: BTreeMap<DefId, values::Method>,
     record_defaults: BTreeMap<DefId, Vec<text::LeafDefault>>,
     array_types: BTreeMap<(Ty, usize), DefId>,
+    list_types: BTreeMap<Ty, DefId>,
     const_src: BTreeMap<DefId, ConstSrc>,
     variant_src: BTreeMap<DefId, VariantSrc>,
     memo: BTreeMap<DefId, Memo>,
@@ -1490,6 +1498,21 @@ impl Cx {
     fn resolve_type(&mut self, module: ModuleId, annotation: &Type) -> Ty {
         match &annotation.kind {
             TypeKind::Named(path) => self.resolve_named_type(module, path),
+            TypeKind::Applied { path, arguments } => {
+                let file = self.package.module(module).file;
+                if path.segments.len() == 1 && path.last().name == "Vec" && arguments.len() == 1 {
+                    let element = self.resolve_type(module, &arguments[0]);
+                    self.list_type(module, element)
+                } else {
+                    self.error(
+                        "type",
+                        file,
+                        annotation.span,
+                        "expected `Vec<T>` with one element type",
+                    );
+                    Ty::Unknown
+                }
+            }
             TypeKind::Array { element, length } => {
                 let element = self.resolve_type(module, element);
                 let file = self.package.module(module).file;
@@ -1568,6 +1591,7 @@ impl Cx {
             Ty::Enum(def) | Ty::Struct(def) => self.defs[def.0].name.clone(),
             Ty::EntityRef => "EntityRef".into(),
             Ty::String => "string".into(),
+            Ty::List(def) => self.defs[def.0].name.clone(),
             Ty::Unknown => "{unknown}".into(),
         }
     }
@@ -1695,7 +1719,7 @@ impl Cx {
                 "`__sand_record_` is reserved for struct storage",
             );
         }
-        let default = if matches!(ty, Ty::Struct(_) | Ty::String) {
+        let default = if matches!(ty, Ty::Struct(_) | Ty::String | Ty::List(_)) {
             if let Some(defaults) = self.record_constant(module, file, field.default.as_ref(), ty) {
                 self.record_defaults.insert(def, defaults);
             }
@@ -2138,8 +2162,10 @@ impl Cx {
     /// | bool | 0 or 1 | 0.0 or 1.0 | same | — |
     /// | enum | its value | its value | — | same enum only |
     pub(super) fn cast_step(&self, from: Ty, to: Ty) -> Result<CastStep, (String, &'static str)> {
-        if matches!(from, Ty::Struct(_) | Ty::EntityRef | Ty::String)
-            || matches!(to, Ty::Struct(_) | Ty::EntityRef | Ty::String)
+        if matches!(
+            from,
+            Ty::Struct(_) | Ty::EntityRef | Ty::String | Ty::List(_)
+        ) || matches!(to, Ty::Struct(_) | Ty::EntityRef | Ty::String | Ty::List(_))
         {
             return Err((
                 "struct, string and entity-reference values cannot be cast".into(),
@@ -2726,7 +2752,10 @@ impl Cx {
                         else {
                             continue;
                         };
-                        if matches!(self.field_ty(*field), Ty::Struct(_) | Ty::String) {
+                        if matches!(
+                            self.field_ty(*field),
+                            Ty::Struct(_) | Ty::String | Ty::List(_)
+                        ) {
                             let value_ty = self.field_ty(*field);
                             let base = self.field_reference(def, *field).expect("State field");
                             let defaults =
@@ -3858,12 +3887,16 @@ impl Cx {
                 span,
             } => {
                 let ty = self.type_of(body, value);
-                let Some((_, length)) = self.array_shape(ty) else {
+                let length = if let Some((_, length)) = self.array_shape(ty) {
+                    length
+                } else if matches!(ty, Ty::List(_) | Ty::String) {
+                    0
+                } else {
                     self.error(
                         "for",
                         file,
                         value.span(),
-                        "iterate an array, players(), entities(..), or an entity reference",
+                        "iterate an array, vector, string, player query, or entity query",
                     );
                     return;
                 };
@@ -4186,7 +4219,7 @@ impl Cx {
             }
             Cond::InRange { value, range, span } => {
                 let ty = self.type_of(body, value);
-                if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef) {
+                if !matches!(ty, Ty::Number | Ty::Float | Ty::Unknown) {
                     self.error(
                         "type",
                         file,
@@ -4218,20 +4251,31 @@ impl Cx {
                 Some((range_condition(self, score, start, end, *span)?, false))
             }
             Cond::Compare { lhs, op, rhs, span } => {
-                if self.type_of(body, lhs) == Ty::String || self.type_of(body, rhs) == Ty::String {
+                let left_value_ty = self.type_of(body, lhs);
+                let right_value_ty = self.type_of(body, rhs);
+                if matches!(left_value_ty, Ty::String | Ty::List(_))
+                    || matches!(right_value_ty, Ty::String | Ty::List(_))
+                {
+                    let value_ty = if matches!(left_value_ty, Ty::List(_)) {
+                        left_value_ty
+                    } else if matches!(right_value_ty, Ty::List(_)) {
+                        right_value_ty
+                    } else {
+                        Ty::String
+                    };
                     if !matches!(op, CmpOp::Eq | CmpOp::Ne) {
                         self.error(
                             "type",
                             file,
                             *span,
-                            "strings support equality comparisons with `==` or `!=`",
+                            "stored values support equality comparisons with `==` or `!=`",
                         );
                         return None;
                     }
                     let left = self.temp(body);
-                    self.emit(body, &left, Ty::String, lhs, pre)?;
+                    self.emit(body, &left, value_ty, lhs, pre)?;
                     let right = self.temp(body);
-                    self.emit(body, &right, Ty::String, rhs, pre)?;
+                    self.emit(body, &right, value_ty, rhs, pre)?;
                     let score = self.temp(body);
                     pre.push(op_at(
                         pc::Action::DataEqual {

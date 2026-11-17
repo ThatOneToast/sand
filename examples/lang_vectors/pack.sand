@@ -1,0 +1,70 @@
+//! An eight-entry personal exploration log stored as a vector of records.
+#![pack(namespace = "explorer_log", minecraft = "26.2")]
+struct Visit {
+    label: string,
+    x: float,
+    z: float
+}
+impl Visit {
+    fn capture(label: string) -> Self {
+        return Self {
+            label,
+            x: Player.x,
+            z: Player.z
+        };
+    }
+    fn describe(&self) -> string {
+        return self.label + " at " + self.x.to_string() + ", " + self.z.to_string();
+    }
+}
+player state Journal {
+    visits: Vec<Visit>
+}
+impl Journal {
+    fn record(&mut self, label: string) {
+        if self.visits.len() == 8 {
+            self.visits.remove_or(0, Visit {
+                label: "",
+                x: 0.0,
+                z: 0.0
+            });
+        }
+        self.visits.push(Visit::capture(label));
+        chat!("{green}Added a visit to your exploration log.");
+    }
+    fn show(&self) {
+        let count = self.visits.len();
+        chat!("{gold}{bold}Exploration log: {count} entries");
+        for visit in self.visits {
+            chat!(visit.describe());
+        }
+        if self.visits.is_empty() {
+            chat!("{gray}Mine stone or defeat a zombie to record a visit.");
+        }
+    }
+}
+item Notebook {
+    base: Item::CarrotOnAStick,
+    name: "{gold}Exploration Log",
+    lore: ["{gray}Right-click to read your recent visits."],
+    unbreakable: true
+}
+#[on(first_join)]
+fn welcome() {
+    give_item(Notebook);
+    Journal.record("The journey begins");
+}
+#[on(mine_block = Block::Stone)]
+fn stone() {
+    Journal.record("Mined stone");
+}
+#[on(kill = Entity::Zombie)]
+fn zombie() {
+    Journal.record("Defeated a zombie");
+}
+#[on(use_item = Item::CarrotOnAStick)]
+fn read() {
+    if holding(Notebook) {
+        Journal.show();
+    }
+}

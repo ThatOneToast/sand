@@ -302,7 +302,7 @@ impl Cx {
                 })
                 .collect()
         } else {
-            if ty == Ty::String {
+            if matches!(ty, Ty::String | Ty::List(_)) {
                 self.register_data_slot(base, text::text_value(""));
             } else if base.state.to_string() == self.locals_state_id() {
                 self.slot(base.field.clone());
@@ -310,6 +310,32 @@ impl Cx {
             vec![(base.clone(), ty)]
         }
     }
+    pub(super) fn entity_storage(&self, reference: &pc::FieldReference) -> bool {
+        if reference.state.to_string() == self.locals_state_id() {
+            return false;
+        }
+        let state = reference.state.to_string();
+        self.defs.iter().any(|def| matches!(&def.info, DefInfo::State { scope: Scope::Entity, id, .. } if *id == state))
+    }
+
+    pub(super) fn entity_place(&self, body: &BodyCx, place: &Place) -> bool {
+        if place.state.segments.len() == 1
+            && Self::lookup_local(body, &place.state.last().name).is_some()
+        {
+            return false;
+        }
+        self.resolve_path(body.module, &place.state)
+            .is_ok_and(|(def, _)| {
+                matches!(
+                    self.defs[def.0].info,
+                    DefInfo::State {
+                        scope: Scope::Entity,
+                        ..
+                    }
+                )
+            })
+    }
+
     pub(super) fn copy_value(
         &mut self,
         dest: &pc::FieldReference,
@@ -319,15 +345,51 @@ impl Cx {
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
+        let default_missing = self.entity_storage(source);
         for ((dest, leaf_ty), (source, _)) in self
             .value_slots(dest, ty)
             .into_iter()
             .zip(self.value_slots(source, ty))
         {
-            if leaf_ty == Ty::String {
+            if dest.state == source.state && dest.field == source.field {
+                continue;
+            }
+            let default = default_missing.then(|| {
+                self.record_constant(ModuleId(0), file, None, leaf_ty)
+                    .and_then(|values| values.into_iter().next())
+                    .unwrap_or(text::LeafDefault::Score(0))
+            });
+            if matches!(leaf_ty, Ty::String | Ty::List(_)) {
+                if let Some(default) = default {
+                    ops.push(op_at(
+                        Self::initialize_leaf(dest.clone(), default),
+                        file,
+                        span,
+                    ));
+                }
                 ops.push(op_at(Self::copy_data(&dest, &source), file, span));
-            } else if let Some(action) = Self::set_from(&dest, Value::Read(source)) {
-                ops.push(op_at(action, file, span));
+            } else if let Some(action) = Self::set_from(&dest, Value::Read(source.clone())) {
+                if let Some(default) = default {
+                    ops.push(op_at(
+                        pc::Action::Branch {
+                            condition: pc::Condition::Range(pc::ScoreComparison {
+                                score: source,
+                                min: Some(i32::MIN),
+                                max: Some(i32::MAX),
+                            }),
+                            then: vec![op_at(action, file, span)],
+                            otherwise: vec![op_at(
+                                Self::initialize_leaf(dest, default),
+                                file,
+                                span,
+                            )],
+                        },
+                        file,
+                        span,
+                    ));
+                } else {
+                    ops.push(op_at(action, file, span));
+                }
             }
         }
     }
@@ -596,6 +658,11 @@ impl Cx {
         expr: Option<&Expr>,
         ty: Ty,
     ) -> Option<Vec<text::LeafDefault>> {
+        if let Ty::List(def) = ty {
+            return self
+                .list_constant(module, file, def, expr)
+                .map(|value| vec![text::LeafDefault::Data(value)]);
+        }
         if ty == Ty::String {
             let value = match expr {
                 Some(expr) => self.constant_text(module, file, expr, &mut Vec::new())?,
@@ -621,6 +688,13 @@ impl Cx {
                     return None;
                 }
                 let repeated = self.record_constant(module, file, Some(value), element)?;
+                if !self.default_size(
+                    file,
+                    *span,
+                    text::defaults_cost(&repeated).saturating_mul(length),
+                ) {
+                    return None;
+                }
                 return Some((0..length).flat_map(|_| repeated.clone()).collect());
             }
             let values = match expr {
@@ -638,12 +712,16 @@ impl Cx {
             };
             let mut leaves = Vec::new();
             for index in 0..length {
-                leaves.extend(self.record_constant(
-                    module,
+                let next =
+                    self.record_constant(module, file, values.map(|v| &v[index]), element)?;
+                if !self.default_size(
                     file,
-                    values.map(|v| &v[index]),
-                    element,
-                )?);
+                    expr.map(Expr::span).unwrap_or_default(),
+                    text::defaults_cost(&leaves).saturating_add(text::defaults_cost(&next)),
+                ) {
+                    return None;
+                }
+                leaves.extend(next);
             }
             return Some(leaves);
         }
@@ -721,7 +799,15 @@ impl Cx {
                     );
                     return None;
                 }
-                values.extend(self.record_constant(module, file, value, self.field_ty(field))?);
+                let next = self.record_constant(module, file, value, self.field_ty(field))?;
+                if !self.default_size(
+                    file,
+                    expr.map(Expr::span).unwrap_or_default(),
+                    text::defaults_cost(&values).saturating_add(text::defaults_cost(&next)),
+                ) {
+                    return None;
+                }
+                values.extend(next);
             }
             Some(values)
         } else {
@@ -854,6 +940,9 @@ impl Cx {
                 span,
             } => {
                 let receiver_ty = self.type_of(body, receiver);
+                if self.list_element(receiver_ty).is_some() {
+                    return self.emit_list_method(body, dest, ty, expr, ops);
+                }
                 if self.array_shape(receiver_ty).is_some() {
                     return self.emit_array_method(body, dest, ty, expr, ops);
                 }
@@ -1040,6 +1129,21 @@ impl Cx {
         } = expr
         {
             let receiver_ty = self.type_of(body, receiver);
+            if self.list_element(receiver_ty).is_some() {
+                self.lower_list_statement(body, expr, ops);
+                return;
+            }
+            if receiver_ty == Ty::String
+                || (name.name == "to_string"
+                    && matches!(receiver_ty, Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_)))
+            {
+                let depth = body.temp_depth;
+                let ty = self.type_of(body, expr);
+                let ignored = self.temp(body);
+                self.emit(body, &ignored, ty, expr, ops);
+                body.temp_depth = depth;
+                return;
+            }
             if self.array_shape(receiver_ty).is_some() {
                 self.lower_array_statement(body, expr, ops);
                 return;

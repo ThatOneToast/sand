@@ -203,9 +203,10 @@ assign it back to keep a change. They can also take `&self` to read a value or
 `&mut self` to update a mutable local or State field. Mutable receiver changes
 commit when the call returns, including early returns and recursive calls; these
 are scoped method receivers rather than general reference values. Mutable calls
-on immutable variables or temporary expressions are errors. Traits, generics,
-dynamic collections, and whole-record arithmetic/comparison are not
-supported. Empty or recursive record layouts are rejected. Each record has at
+on immutable variables or temporary expressions are errors. User-defined traits,
+generics, maps, and whole-record arithmetic/comparison remain future work.
+Empty records and direct recursive layouts are rejected. A vector breaks layout
+recursion, allowing records such as `Node { children: Vec<Node> }`. Each record has at
 most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
 or clamps; an uninitialized record recursively uses zero or the first enum
 variant, and string fields use empty text. State defaults can instead provide a complete record literal.
@@ -261,10 +262,65 @@ evaluating the right-hand side.
 | `array.fill(value)` | Replace every element with an independent copy; needs a mutable receiver |
 
 Arrays have at most 1,024 elements; complete aggregate layouts have at most
-1,024 scalar leaves and 32 storage levels. Growable vectors/maps and general
-borrowed slices remain separate roadmap work. Arrays may contain strings and
-records with string fields. See the
+1,024 scalar leaves and 32 storage levels. Arrays may contain strings, vectors
+and records with stored fields. See the
 [quest-board example](../../examples/lang_collections/pack.sand).
+
+## Growable vectors
+
+`Vec<T>` is an owned growable sequence of one value type. Initialize it with an
+array-shaped literal in a `Vec<T>` context, leave it empty with a typed binding,
+or convert an existing array with `.to_vec()`.
+
+```rust,ignore
+let mut values: Vec<number> = [1, 2, 3];
+values.push(4);
+let mut copied = values;
+copied[0] = 90; // values still starts with 1
+for value in values { broadcast!(value.to_string()); }
+let words = ["hello", "world"].to_vec();
+```
+
+Vectors work in State, nested records, function parameters/returns, and event
+payloads. Elements may contain arrays, strings, other vectors or recursive
+records. Every copy is independent. Vector indexing reads the element's default
+when the index is outside its runtime length; invalid writes leave the vector
+unchanged. A constant negative index is a diagnostic. Indexed mutable methods
+freeze the index once, and skip the method body for an invalid receiver.
+
+A `for value in collection` loop evaluates its source once and iterates a value
+snapshot. Mutating the original collection in the loop preserves the original
+iteration sequence. This applies to arrays, vectors and strings; string loop
+bindings are single-character strings. Loop bindings are immutable values.
+
+| Method | Result |
+| --- | --- |
+| `len()`, `is_empty()` | Current element count or emptiness |
+| `get_or(index, fallback)` | Element or eagerly evaluated fallback |
+| `contains(value)` | Deep typed value equality |
+| `push(value)` | Append an independent copy; return whether it was added |
+| `pop_or(fallback)` | Remove the last element, or return the fallback |
+| `remove_or(index, fallback)` | Remove one indexed element, or return the fallback |
+| `insert(index, value)` | Insert at an index up to the length; return whether inserted |
+| `extend(values)` | Append independent copies and return the count added |
+| `clear()` | Remove all elements |
+| `truncate(length)` | Keep at most that many elements; a negative length clears the vector |
+
+Mutation methods require a mutable local, writable record field, or writable
+State receiver. As with borrowed struct methods, the receiver is copied in
+before explicit arguments and committed when the method returns. Explicit
+arguments evaluate once in authored order, including fallbacks and arguments to
+an operation that cannot add an element. `==` and `!=` compare entire vectors.
+
+Each vector supports up to 1,024 elements. A full vector rejects `push` and
+`insert`; `extend` adds as many elements as fit. Expanded State defaults have a
+1 MiB budget checked before repeat expansion; build larger values at runtime.
+Maps, sets, general borrowed slices and user-defined generic declarations remain
+separate expansion work. `Vec<T>` uses generic type application syntax, with
+built-in vector behavior.
+
+See the [exploration-log example](../../examples/lang_vectors/pack.sand), which
+stores a separate growable vector of coordinate records for each player.
 
 ## Types
 
@@ -277,6 +333,7 @@ records with string fields. See the
 | `string` | owned Unicode text | UUID-owned or global command storage |
 | a `struct` | named fields of existing value types | score or storage slots per leaf |
 | `[T; N]` | N independent values of one type | the same aggregate leaf layout |
+| `Vec<T>` | up to 1,024 owned values of one type | UUID-owned or global command storage |
 
 Scoreboards only hold whole numbers, so `float` is fixed point, the same
 scheme as Rust's `Fixed` fields. Sand rescales arithmetic for you. Its range
@@ -587,7 +644,9 @@ Escapes include `\\`, `\"`, `\n`, `\r`, `\t`, `\0`, `\b`, `\f` and
 `\u{hex}` for a Unicode scalar value. Malformed escapes report a source error.
 `to_string` preserves the minimum signed integer without overflowing. A float
 always shows three decimal places, including trailing zeros; an invalid enum
-discriminant formats as its number. Text operations run as Minecraft commands,
+discriminant formats as its number. Text literals and expanded string constants
+support up to 65,536 UTF-8 bytes, with at most 64 expansion levels. Runtime text
+operations run as Minecraft commands,
 so large values and searches remain subject to command execution limits.
 
 See the [saved journal example](../../examples/lang_runtime_text/pack.sand).
@@ -690,7 +749,10 @@ fn tick() {
 ```
 
 `attach_state` gives fields without a value their defaults, and keeps existing
-values. `detach_state` clears them. A function that touches entity State
+values. `detach_state` clears them. Value reads from an absent entity-State field
+use the type's default (zero, empty text/vector, or the first enum phase), so a
+getter cannot retain a previous entity's value. Reading does not attach the State
+or write its declared field default. A function that touches entity State
 outside a loop runs as an entity. Flows only run over player or global State.
 
 ### Retained entity references

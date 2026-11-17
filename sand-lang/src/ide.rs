@@ -28,6 +28,7 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
         Ty::Enum(def) | Ty::Struct(def) => analysis.def(def).name.clone(),
         Ty::EntityRef => "EntityRef".into(),
         Ty::String => "string".into(),
+        Ty::List(def) => analysis.def(def).name.clone(),
         Ty::Unknown => "{unknown}".into(),
     }
 }
@@ -86,6 +87,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 Vec::new(),
             )
         }
+        DefInfo::List { element } => (
+            format!("Vec<{}>", ty_name(analysis, *element)),
+            vec!["Owned growable sequence; at most 1024 independently copied elements.".into()],
+        ),
         DefInfo::Array { element, fields } => (
             format!("[{}; {}]", ty_name(analysis, *element), fields.len()),
             vec!["Fixed-size homogeneous array; value copies use the normal record layout.".into()],
@@ -304,7 +309,7 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
             ty_name(analysis, *ty)
         );
     }
-    if matches!(ty, Ty::Struct(_) | Ty::String) {
+    if matches!(ty, Ty::Struct(_) | Ty::String | Ty::List(_)) {
         return format!("    {}: {},", def.name, ty_name(analysis, *ty));
     }
     let default_text = value_text(analysis, *ty, *default);
@@ -872,10 +877,80 @@ enum Target {
     Def(DefId),
 }
 
+fn value_token_start(text: &str) -> usize {
+    let mut brackets = 0usize;
+    let mut parentheses = 0usize;
+    for (index, character) in text.char_indices().rev() {
+        match character {
+            ']' => brackets += 1,
+            ')' => parentheses += 1,
+            '[' if brackets > 0 => brackets -= 1,
+            '(' if parentheses > 0 => parentheses -= 1,
+            _ if brackets > 0 || parentheses > 0 => {}
+            _ if character.is_ascii_alphanumeric() || matches!(character, '_' | ':' | '.') => {}
+            _ => return index + character.len_utf8(),
+        }
+    }
+    0
+}
+
+fn value_parts(text: &str) -> Vec<&str> {
+    let mut depth = 0usize;
+    let mut start = 0;
+    let mut result = Vec::new();
+    for (index, character) in text.char_indices() {
+        match character {
+            '[' | '(' => depth += 1,
+            ']' | ')' => depth = depth.saturating_sub(1),
+            '.' if depth == 0 => {
+                result.push(&text[start..index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    result.push(&text[start..]);
+    result
+}
+
+fn indexed_type(analysis: &Analysis, mut ty: Ty, suffix: &str) -> Option<Ty> {
+    let mut depth = 0usize;
+    for character in suffix.chars() {
+        match character {
+            '[' => {
+                if depth == 0 {
+                    ty = match ty {
+                        Ty::String => Ty::String,
+                        Ty::List(def) => match analysis.def(def).info {
+                            DefInfo::List { element } => element,
+                            _ => return None,
+                        },
+                        Ty::Struct(def) => match analysis.def(def).info {
+                            DefInfo::Array { element, .. } => element,
+                            _ => return None,
+                        },
+                        _ => return None,
+                    };
+                }
+                depth += 1;
+            }
+            ']' => depth = depth.checked_sub(1)?,
+            _ => {}
+        }
+    }
+    (depth == 0).then_some(ty)
+}
+
+fn iterable_type(analysis: &Analysis, ty: Ty) -> bool {
+    matches!(ty, Ty::String | Ty::List(_))
+        || matches!(ty, Ty::Struct(def) if matches!(analysis.def(def).info, DefInfo::Array { .. }))
+}
+
 fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<Ty> {
     let module = analysis.package.module_at(file, offset)?;
-    let mut parts = text.split('.');
-    let root = parts.next()?;
+    let mut parts = value_parts(text).into_iter();
+    let root_text = parts.next()?;
+    let root = root_text.split('[').next()?;
     let local = analysis
         .local_scopes
         .iter()
@@ -913,7 +988,9 @@ fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> O
             _ => Ty::Struct(def),
         }
     };
-    for field in parts {
+    owner = indexed_type(analysis, owner, &root_text[root.len()..])?;
+    for field_text in parts {
+        let field = field_text.split('[').next()?;
         let Ty::Struct(parent) = owner else {
             return None;
         };
@@ -923,7 +1000,7 @@ fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> O
         let DefInfo::Field { ty, .. } = member.info else {
             return None;
         };
-        owner = ty;
+        owner = indexed_type(analysis, ty, &field_text[field.len()..])?;
     }
     Some(owner)
 }
@@ -1040,12 +1117,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
     let mut position = position::classify(text, offset);
     // A path being typed (`Hero.en`, `Phase::F`) takes the position where
     // the path starts.
-    let path_start = line
-        .char_indices()
-        .rev()
-        .find(|(_, c)| !(c.is_ascii_alphanumeric() || *c == '_' || *c == ':' || *c == '.'))
-        .map(|(i, c)| i + c.len_utf8())
-        .unwrap_or(0);
+    let path_start = value_token_start(line);
     if position == Position::Nothing && line[path_start..].contains(['.', ':']) {
         let start = offset - (line.len() - path_start);
         position = position::classify(text, start);
@@ -1073,12 +1145,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
     }
 
     // The path being typed, such as `crate::rewards::gr` or `Hero.en`.
-    let token_start = line
-        .char_indices()
-        .rev()
-        .find(|(_, c)| !(c.is_ascii_alphanumeric() || *c == '_' || *c == ':' || *c == '.'))
-        .map(|(i, c)| i + c.len_utf8())
-        .unwrap_or(0);
+    let token_start = value_token_start(line);
     let token = &line[token_start..];
     let value_position = matches!(
         position,
@@ -1110,6 +1177,24 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                     insert: Some(method.snippet.into()),
                     snippet: false,
                     ..Completion::plain("to_string", CompletionKind::Function)
+                })
+                .collect();
+        }
+        if matches!(
+            value_type(analysis, file, offset, &token[..dot]),
+            Some(Ty::List(_))
+        ) {
+            return builtins::LIST_METHODS
+                .iter()
+                .map(|method| Completion {
+                    detail: Some(method.signature.into()),
+                    documentation: Some(builtins::describe(method)),
+                    insert: Some(method.snippet.into()),
+                    snippet: method.snippet.contains("${"),
+                    ..Completion::plain(
+                        method.name.strip_prefix("vec.").expect("method namespace"),
+                        CompletionKind::Function,
+                    )
                 })
                 .collect();
         }
@@ -1249,6 +1334,12 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 ..Completion::plain("EntityRef", CompletionKind::Keyword)
             });
             out.push(Completion {
+                documentation: Some("Owned growable vector, up to 1024 elements.".into()),
+                insert: Some("Vec<${1:number}>".into()),
+                snippet: true,
+                ..Completion::plain("Vec", CompletionKind::Keyword)
+            });
+            out.push(Completion {
                 documentation: Some("Owned runtime Unicode text, copied by value.".into()),
                 ..Completion::plain("string", CompletionKind::Keyword)
             });
@@ -1326,14 +1417,13 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 local_completions(analysis, file, offset)
                     .into_iter()
                     .filter(|completion| {
-                        value_owner(analysis, file, offset, &completion.label).is_some_and(
-                            |owner| matches!(analysis.def(owner).info, DefInfo::Array { .. }),
-                        )
+                        value_type(analysis, file, offset, &completion.label)
+                            .is_some_and(|ty| iterable_type(analysis, ty))
                     }),
             );
             out.extend(defs(&|def| match &def.info {
-                DefInfo::Function { signature, .. } => signature.contains(") -> ["),
-                DefInfo::State { fields, .. } => fields.iter().any(|field| matches!(analysis.def(*field).info, DefInfo::Field { ty: Ty::Struct(owner), .. } if matches!(analysis.def(owner).info, DefInfo::Array { .. }))),
+                DefInfo::Function { signature, .. } => signature.contains(") -> [") || signature.contains(") -> Vec<") || signature.ends_with(") -> string"),
+                DefInfo::State { fields, .. } => fields.iter().any(|field| matches!(analysis.def(*field).info, DefInfo::Field { ty, .. } if iterable_type(analysis, ty))),
                 _ => false,
             }));
             out
@@ -2210,12 +2300,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
     if is_macro {
         name_end -= 1;
     }
-    let name_start = text[..name_end]
-        .char_indices()
-        .rev()
-        .take_while(|(_, c)| c.is_ascii_alphanumeric() || *c == '_' || *c == ':' || *c == '.')
-        .last()
-        .map(|(i, _)| i)?;
+    let name_start = value_token_start(&text[..name_end]);
     let name = &text[name_start..name_end];
     let current_arg_start = commas.first().map(|c| c + 1).unwrap_or(open + 1);
     let current = text[current_arg_start..offset].trim_start();
@@ -2267,6 +2352,14 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         .then(|| builtins::value_method(method))
         .flatten()
     });
+    let list_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        matches!(
+            value_type(analysis, file, offset, receiver),
+            Some(Ty::List(_))
+        )
+        .then(|| builtins::list_method(method))
+        .flatten()
+    });
     let array_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
         let owner = value_owner(analysis, file, offset, receiver)?;
         matches!(analysis.def(owner).info, DefInfo::Array { .. })
@@ -2275,6 +2368,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
     });
     let builtin = string_builtin
         .or(scalar_builtin)
+        .or(list_builtin)
         .or(array_builtin)
         .or_else(|| {
             (!scope_names(analysis, module).iter().any(|(n, _)| n == name))
@@ -2288,6 +2382,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 .strip_prefix("array.")
                 .or_else(|| builtin.name.strip_prefix("string."))
                 .or_else(|| builtin.name.strip_prefix("scalar."))
+                .or_else(|| builtin.name.strip_prefix("vec."))
                 .unwrap_or(builtin.name),
         );
         if is_macro {

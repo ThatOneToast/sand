@@ -1663,6 +1663,17 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
 /// accidentally called without a receiver. The names also identify editor help.
 pub const ARRAY_METHODS: &[Builtin] = &[
     Builtin {
+        name: "array.to_vec",
+        kind: BuiltinKind::Expression,
+        signature: "array.to_vec() -> Vec<T>",
+        summary: "Copy an array into an owned growable vector.",
+        details: "The receiver evaluates once; all elements are independently copied through the shared typed value layout.",
+        minecraft: "Pack the typed aggregate into an owned NBT sequence.",
+        needs_player: false,
+        params: &[],
+        snippet: "to_vec()",
+    },
+    Builtin {
         name: "array.len",
         kind: BuiltinKind::Expression,
         signature: "array.len() -> number",
@@ -1736,6 +1747,202 @@ pub const ARRAY_METHODS: &[Builtin] = &[
         snippet: "fill(${1:value})",
     },
 ];
+
+/// Intrinsic methods on owned growable vectors.
+pub const LIST_METHODS: &[Builtin] = &[
+    Builtin {
+        name: "vec.len",
+        kind: BuiltinKind::Expression,
+        signature: "vec.len() -> number",
+        summary: "Return the number of stored elements.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[],
+        snippet: "len()",
+    },
+    Builtin {
+        name: "vec.is_empty",
+        kind: BuiltinKind::Expression,
+        signature: "vec.is_empty() -> bool",
+        summary: "Whether this vector contains no elements.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[],
+        snippet: "is_empty()",
+    },
+    Builtin {
+        name: "vec.get_or",
+        kind: BuiltinKind::Expression,
+        signature: "vec.get_or(index: number, fallback: T) -> T",
+        summary: "Read an element or an eagerly evaluated fallback.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[
+            p(
+                "index",
+                ParamKind::Int,
+                true,
+                "Index value, evaluated once.",
+            ),
+            p(
+                "fallback",
+                ParamKind::Value,
+                true,
+                "Fallback value, evaluated once.",
+            ),
+        ],
+        snippet: "get_or(${1:index}, ${2:fallback})",
+    },
+    Builtin {
+        name: "vec.contains",
+        kind: BuiltinKind::Expression,
+        signature: "vec.contains(value: T) -> bool",
+        summary: "Compare elements by deep typed value equality.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Value,
+            true,
+            "Value value, evaluated once.",
+        )],
+        snippet: "contains(${1:value})",
+    },
+    Builtin {
+        name: "vec.push",
+        kind: BuiltinKind::Expression,
+        signature: "vec.push(value: T) -> bool",
+        summary: "Append an independent element copy; return false when full.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Value,
+            true,
+            "Value value, evaluated once.",
+        )],
+        snippet: "push(${1:value})",
+    },
+    Builtin {
+        name: "vec.pop_or",
+        kind: BuiltinKind::Expression,
+        signature: "vec.pop_or(fallback: T) -> T",
+        summary: "Remove the final element or return the fallback.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[p(
+            "fallback",
+            ParamKind::Value,
+            true,
+            "Fallback value, evaluated once.",
+        )],
+        snippet: "pop_or(${1:fallback})",
+    },
+    Builtin {
+        name: "vec.remove_or",
+        kind: BuiltinKind::Expression,
+        signature: "vec.remove_or(index: number, fallback: T) -> T",
+        summary: "Remove an indexed element or return the fallback.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[
+            p(
+                "index",
+                ParamKind::Int,
+                true,
+                "Index value, evaluated once.",
+            ),
+            p(
+                "fallback",
+                ParamKind::Value,
+                true,
+                "Fallback value, evaluated once.",
+            ),
+        ],
+        snippet: "remove_or(${1:index}, ${2:fallback})",
+    },
+    Builtin {
+        name: "vec.insert",
+        kind: BuiltinKind::Expression,
+        signature: "vec.insert(index: number, value: T) -> bool",
+        summary: "Insert at a position up to the current length; return whether inserted.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[
+            p(
+                "index",
+                ParamKind::Int,
+                true,
+                "Index value, evaluated once.",
+            ),
+            p(
+                "value",
+                ParamKind::Value,
+                true,
+                "Value value, evaluated once.",
+            ),
+        ],
+        snippet: "insert(${1:index}, ${2:value})",
+    },
+    Builtin {
+        name: "vec.extend",
+        kind: BuiltinKind::Expression,
+        signature: "vec.extend(values: Vec<T>) -> number",
+        summary: "Append independent copies, returning the count added.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Excess elements are skipped when capacity is exhausted.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[p(
+            "values",
+            ParamKind::Value,
+            true,
+            "Values value, evaluated once.",
+        )],
+        snippet: "extend(${1:values})",
+    },
+    Builtin {
+        name: "vec.clear",
+        kind: BuiltinKind::Statement,
+        signature: "vec.clear()",
+        summary: "Remove every element.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[],
+        snippet: "clear()",
+    },
+    Builtin {
+        name: "vec.truncate",
+        kind: BuiltinKind::Statement,
+        signature: "vec.truncate(length: number)",
+        summary: "Keep at most the requested number of elements.",
+        details: "Vectors have a maximum of 1024 elements. Receivers and arguments evaluate once in authored order. A mutable receiver is required, using scoped copy-in/copy-out semantics. Invalid runtime indices use the documented fallback or leave the vector unchanged.",
+        minecraft: "Typed State-owned NBT with integer projections and deep value copies.",
+        needs_player: false,
+        params: &[p(
+            "length",
+            ParamKind::Int,
+            true,
+            "Length value, evaluated once.",
+        )],
+        snippet: "truncate(${1:length})",
+    },
+];
+
+/// Find one intrinsic method on a growable vector.
+pub fn list_method(name: &str) -> Option<&'static Builtin> {
+    LIST_METHODS
+        .iter()
+        .find(|builtin| builtin.name.strip_prefix("vec.") == Some(name))
+}
 
 /// Value formatting shared by scalar types.
 pub const VALUE_METHODS: &[Builtin] = &[Builtin {
@@ -1871,6 +2078,7 @@ pub fn documented(name: &str, kind: BuiltinKind) -> Option<&'static Builtin> {
             .iter()
             .chain(STRING_METHODS)
             .chain(VALUE_METHODS)
+            .chain(LIST_METHODS)
             .find(|builtin| builtin.name == name && builtin.kind == kind)
     })
 }

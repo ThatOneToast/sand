@@ -64,3 +64,28 @@ fn g(s: string) -> bool { return (s).is_empty() || (s + "a").len() == 2; }
 "#,
     ));
 }
+
+#[test]
+fn string_constant_expansion_has_a_checked_byte_budget() {
+    let half = "x".repeat(32768);
+    let source = format!(
+        r#"#![pack(namespace = "limits")]
+const HALF: string = "{half}";
+const WHOLE: string = HALF + HALF;
+const TOO_BIG: string = WHOLE + HALF;
+"#
+    );
+    assert!(
+        errors(&analyze_one(&source))
+            .iter()
+            .any(|message| message.contains("65536 UTF-8 bytes"))
+    );
+    let literal = "x".repeat(65537);
+    let source =
+        format!(r#"#![pack(namespace = "limits")] fn run() {{ let value = "{literal}"; }}"#);
+    assert!(
+        errors(&analyze_one(&source))
+            .iter()
+            .any(|message| message.contains("65536 UTF-8 bytes"))
+    );
+}

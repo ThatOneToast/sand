@@ -400,3 +400,57 @@ fn run() {
             .starts_with("to_string(")
     );
 }
+
+#[test]
+fn vector_and_indexed_receivers_have_completion_and_signature_help() {
+    let text = r#"#![pack(namespace = "vectors")]
+struct Point { x: number }
+impl Point { fn add(&mut self, amount: number) { self.x += amount; } }
+fn index() -> number { return 0; }
+fn run() {
+    let mut rows: Vec<Vec<number>> = [[1]];
+    rows[0].push(2);
+    let mut points: Vec<Point> = [Point { x: 1 }];
+    points[index()].add(2);
+}
+"#;
+    let analysis = analyze_one(text);
+    assert!(!analysis.has_errors(), "{:?}", errors(&analysis));
+    let at = offset(text, "rows[0].push", 0) + "rows[0].".len();
+    let completions = ide::completions(&analysis, ROOT, at);
+    for name in [
+        "len",
+        "push",
+        "pop_or",
+        "get_or",
+        "contains",
+        "insert",
+        "remove_or",
+        "extend",
+        "clear",
+        "truncate",
+    ] {
+        assert!(
+            completions
+                .iter()
+                .any(|completion| completion.label == name),
+            "missing {name}"
+        );
+    }
+    let help = ide::signature_help(&analysis, ROOT, at + "push(".len()).unwrap();
+    assert_eq!(help.label, "push(value: T)");
+    assert!(
+        ide::hover(&analysis, ROOT, at)
+            .unwrap()
+            .markdown
+            .contains("1024")
+    );
+    let at = offset(text, "points[index()].add", 0) + "points[index()].".len();
+    assert!(
+        ide::completions(&analysis, ROOT, at)
+            .iter()
+            .any(|completion| completion.label == "add")
+    );
+    let help = ide::signature_help(&analysis, ROOT, at + "add(".len()).unwrap();
+    assert_eq!(help.label, "add(amount: number)");
+}

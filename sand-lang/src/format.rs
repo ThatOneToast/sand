@@ -15,6 +15,7 @@ pub fn format(source: &str) -> Result<String, Vec<SyntaxError>> {
     if !errors.is_empty() {
         return Err(errors);
     }
+    let delimiters = crate::parser::type_delimiters(source);
     let tokens = tokens(source);
     let mut out = String::new();
     let mut stack: Vec<&str> = Vec::new();
@@ -30,6 +31,17 @@ pub fn format(source: &str) -> Result<String, Vec<SyntaxError>> {
             }
             write(&mut out, token, indent);
             newline(&mut out);
+            continue;
+        }
+        let offset = token.as_ptr().addr() - source.as_ptr().addr();
+        if matches!(token, "<" | ">") && delimiters.contains(&offset) {
+            trim_spaces(&mut out);
+            write(&mut out, token, indent);
+            if token == "<" {
+                stack.push("<");
+            } else if stack.last() == Some(&"<") {
+                stack.pop();
+            }
             continue;
         }
         match token {
@@ -213,6 +225,7 @@ fn write(out: &mut String, text: &str, indent: usize) {
 // Lexemes are slices of the original file, so even escaped strings, Unicode,
 // nested block comments, and raw commands remain byte-identical.
 fn tokens(source: &str) -> Vec<&str> {
+    let delimiters = crate::parser::type_delimiters(source);
     let bytes = source.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
@@ -271,7 +284,7 @@ fn tokens(source: &str) -> Vec<&str> {
             "&&", "||",
         ]
         .iter()
-        .find(|op| source[i..].starts_with(**op))
+        .find(|op| source[i..].starts_with(**op) && !(**op == ">=" && delimiters.contains(&i)))
         {
             i += op.len();
         } else {
@@ -309,6 +322,7 @@ mod tests {
             include_str!("../tests/fixtures/control_flow.sand"),
             include_str!("../tests/fixtures/collections.sand"),
             include_str!("../tests/fixtures/text.sand"),
+            include_str!("../tests/fixtures/sequences.sand"),
             include_str!("../../examples/lang_encounters/pack.sand"),
         ] {
             let result = format(source).unwrap();

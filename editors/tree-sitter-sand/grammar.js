@@ -26,7 +26,7 @@ module.exports = grammar({
 
   word: ($) => $.identifier,
 
-  conflicts: ($) => [[$._condition, $._expression], [$._expression, $.place], [$.record_expression, $._condition], [$.record_expression, $._expression]],
+  conflicts: ($) => [[$.type, $.applied_type], [$._condition, $._expression], [$._expression, $.place], [$.record_expression, $._condition], [$.record_expression, $._expression]],
 
   rules: {
     source_file: ($) => repeat(choice($.inner_attribute, $._item)),
@@ -166,7 +166,8 @@ module.exports = grammar({
         field('type', $.type),
         optional(seq('=', field('default', $._expression))),
       ),
-    type: ($) => choice($.array_type, $.path),
+    type: ($) => choice($.array_type, $.applied_type, $.path),
+    applied_type: ($) => seq(field('name', $.path), '<', $.type, repeat(seq(',', $.type)), optional(','), '>'),
     array_type: ($) => seq('[', field('element', $.type), ';', field('length', choice($.integer, $.path)), ']'),
     array_expression: ($) => seq('[', choice(commaSep(choice($.data_object, $._value_or_condition)), seq($._expression, ';', choice($.integer, $.path))), ']'),
     index_expression: ($) => prec.left(10, seq(field('value', $._expression), '[', field('index', $._expression), ']')),

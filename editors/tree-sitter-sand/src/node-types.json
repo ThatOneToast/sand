@@ -1,5 +1,31 @@
 [
   {
+    "type": "applied_type",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "argument",
     "named": true,
     "fields": {
@@ -3947,6 +3973,10 @@
       "multiple": false,
       "required": true,
       "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
         {
           "type": "array_type",
           "named": true

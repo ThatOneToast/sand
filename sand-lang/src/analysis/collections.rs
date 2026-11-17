@@ -165,6 +165,9 @@ impl Cx {
             unreachable!()
         };
         let array_ty = self.type_of(body, value);
+        if self.list_element(array_ty).is_some() {
+            return self.emit_list_index(body, dest, ty, expr, ops);
+        }
         let Some((element, length)) = self.array_shape(array_ty) else {
             self.error(
                 "type",
@@ -244,9 +247,15 @@ pub(super) struct ValueAddress {
     valid: Vec<pc::ScoreComparison>,
     possible: bool,
 }
+#[derive(Clone)]
 struct AddressCell {
-    reference: pc::FieldReference,
+    target: AddressTarget,
     guards: Vec<pc::ScoreComparison>,
+}
+#[derive(Clone)]
+enum AddressTarget {
+    Slots(pc::FieldReference),
+    Data(pc::DataReference),
 }
 
 impl Cx {
@@ -263,7 +272,7 @@ impl Cx {
                 Some(ValueAddress {
                     ty,
                     cells: vec![AddressCell {
-                        reference,
+                        target: AddressTarget::Slots(reference),
                         guards: Vec::new(),
                     }],
                     valid: Vec::new(),
@@ -300,83 +309,23 @@ impl Cx {
                     def: member,
                 });
                 for cell in &mut address.cells {
-                    cell.reference = super::values::child(&cell.reference, &field.name);
+                    cell.target = match &cell.target {
+                        AddressTarget::Slots(reference) => {
+                            AddressTarget::Slots(super::values::child(reference, &field.name))
+                        }
+                        AddressTarget::Data(reference) => {
+                            let mut reference = reference.clone();
+                            reference.path.push(pc::DataProjection::Member {
+                                name: field.name.clone(),
+                            });
+                            AddressTarget::Data(reference)
+                        }
+                    };
                 }
                 address.ty = self.field_ty(member);
                 Some(address)
             }
-            Expr::Index(value, index, _) => {
-                let address = self.value_address(body, value, ops)?;
-                let Some((element, length)) = self.array_shape(address.ty) else {
-                    self.error(
-                        "type",
-                        body.file,
-                        value.span(),
-                        "indexing needs an array value",
-                    );
-                    return None;
-                };
-                let offset = if Self::is_const_in(body, index) {
-                    let offset =
-                        self.eval_i32(body.module, body.file, index, Some(Ty::Number), None)?;
-                    if offset < 0 || offset as usize >= length {
-                        self.error(
-                            "index",
-                            body.file,
-                            index.span(),
-                            format!("index {offset} is outside an array of length {length}"),
-                        );
-                        return None;
-                    }
-                    Some(offset as usize)
-                } else {
-                    None
-                };
-                let selected = if offset.is_none() {
-                    let selected = self.temp(body);
-                    self.emit(body, &selected, Ty::Number, index, ops)?;
-                    Some(selected)
-                } else {
-                    None
-                };
-                let mut valid = address.valid;
-                let possible = address.possible && length > 0;
-                if let Some(selected) = &selected
-                    && length > 0
-                {
-                    valid.push(pc::ScoreComparison {
-                        score: selected.clone(),
-                        min: Some(0),
-                        max: Some(length as i32 - 1),
-                    });
-                }
-                let mut cells = Vec::new();
-                for parent in address.cells {
-                    for offset in offset.map_or(0..length, |offset| offset..offset + 1) {
-                        let mut guards = parent.guards.clone();
-                        if let Some(selected) = &selected {
-                            guards.push(pc::ScoreComparison {
-                                score: selected.clone(),
-                                min: Some(offset as i32),
-                                max: Some(offset as i32),
-                            });
-                        }
-                        cells.push(AddressCell {
-                            reference: super::values::child(
-                                &parent.reference,
-                                &format!("i{offset}"),
-                            ),
-                            guards,
-                        });
-                    }
-                }
-                Some(ValueAddress {
-                    ty: element,
-                    cells,
-                    valid,
-                    possible,
-                })
-            }
+            Expr::Index(value, index, _) => self.index_address(body, value, index, ops),
             _ => {
                 self.error(
                     "mutability",
@@ -387,6 +336,168 @@ impl Cx {
                 None
             }
         }
+    }
+
+    fn index_address(
+        &mut self,
+        body: &mut BodyCx,
+        value: &Expr,
+        index: &Expr,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<ValueAddress> {
+        let address = self.value_address(body, value, ops)?;
+        if let Some(element) = self.list_element(address.ty) {
+            if Self::is_const_in(body, index)
+                && self.eval_i32(body.module, body.file, index, Some(Ty::Number), None)? < 0
+            {
+                self.error(
+                    "index",
+                    body.file,
+                    index.span(),
+                    "vector indices must be nonnegative",
+                );
+                return None;
+            }
+            let selected = self.temp(body);
+            self.emit(body, &selected, Ty::Number, index, ops)?;
+            let any_valid = self.temp(body);
+            ops.push(op_at(
+                pc::Action::ScoreSet {
+                    score: any_valid.clone(),
+                    value: 0,
+                },
+                body.file,
+                index.span(),
+            ));
+            let mut cells = Vec::new();
+            for mut parent in address.cells {
+                let mut source = match &parent.target {
+                    AddressTarget::Slots(reference) => Self::data_reference(reference),
+                    AddressTarget::Data(reference) => reference.clone(),
+                };
+                let valid =
+                    self.storage_index_valid(body, source.clone(), &selected, index.span(), ops);
+                let guard = pc::ScoreComparison {
+                    score: valid,
+                    min: Some(1),
+                    max: Some(1),
+                };
+                parent.guards.push(guard);
+                let mark = vec![op_at(
+                    pc::Action::ScoreSet {
+                        score: any_valid.clone(),
+                        value: 1,
+                    },
+                    body.file,
+                    index.span(),
+                )];
+                ops.extend(self.guard_cell(body, &parent, index.span(), mark));
+                source.path.push(pc::DataProjection::Index {
+                    index: pc::ScoreOperand::Field(selected.clone()),
+                });
+                cells.push(AddressCell {
+                    target: AddressTarget::Data(source),
+                    guards: parent.guards,
+                });
+            }
+            let mut valid = address.valid;
+            valid.push(pc::ScoreComparison {
+                score: any_valid,
+                min: Some(1),
+                max: Some(1),
+            });
+            return Some(ValueAddress {
+                ty: element,
+                cells,
+                valid,
+                possible: address.possible,
+            });
+        }
+        let Some((element, length)) = self.array_shape(address.ty) else {
+            self.error(
+                "type",
+                body.file,
+                value.span(),
+                "mutable indexing needs an array or vector value",
+            );
+            return None;
+        };
+        let offset = if Self::is_const_in(body, index) {
+            let offset = self.eval_i32(body.module, body.file, index, Some(Ty::Number), None)?;
+            if offset < 0 || offset as usize >= length {
+                self.error(
+                    "index",
+                    body.file,
+                    index.span(),
+                    format!("index {offset} is outside an array of length {length}"),
+                );
+                return None;
+            }
+            Some(offset as usize)
+        } else {
+            None
+        };
+        let selected = if offset.is_none() {
+            let selected = self.temp(body);
+            self.emit(body, &selected, Ty::Number, index, ops)?;
+            Some(selected)
+        } else {
+            None
+        };
+        let mut valid = address.valid;
+        let possible = address.possible && length > 0;
+        if let Some(selected) = &selected
+            && length > 0
+        {
+            valid.push(pc::ScoreComparison {
+                score: selected.clone(),
+                min: Some(0),
+                max: Some(length as i32 - 1),
+            });
+        }
+        let mut cells = Vec::new();
+        for parent in address.cells {
+            if let AddressTarget::Data(reference) = &parent.target {
+                let mut reference = reference.clone();
+                reference.path.push(pc::DataProjection::Index {
+                    index: selected.clone().map_or(
+                        pc::ScoreOperand::Value(offset.unwrap_or(0) as i32),
+                        pc::ScoreOperand::Field,
+                    ),
+                });
+                cells.push(AddressCell {
+                    target: AddressTarget::Data(reference),
+                    guards: parent.guards,
+                });
+                continue;
+            }
+            let AddressTarget::Slots(reference) = &parent.target else {
+                unreachable!()
+            };
+            for offset in offset.map_or(0..length, |offset| offset..offset + 1) {
+                let mut guards = parent.guards.clone();
+                if let Some(selected) = &selected {
+                    guards.push(pc::ScoreComparison {
+                        score: selected.clone(),
+                        min: Some(offset as i32),
+                        max: Some(offset as i32),
+                    });
+                }
+                cells.push(AddressCell {
+                    target: AddressTarget::Slots(super::values::child(
+                        reference,
+                        &format!("i{offset}"),
+                    )),
+                    guards,
+                });
+            }
+        }
+        Some(ValueAddress {
+            ty: element,
+            cells,
+            valid,
+            possible,
+        })
     }
 
     pub(super) fn address_is_guarded(&self, address: &ValueAddress) -> bool {
@@ -440,13 +551,16 @@ impl Cx {
 
     pub(super) fn read_address(
         &mut self,
-        body: &BodyCx,
+        body: &mut BodyCx,
         dest: &pc::FieldReference,
         address: &ValueAddress,
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
-        if address.cells.len() != 1 || !address.cells[0].guards.is_empty() {
+        if self.address_is_guarded(address)
+            || address.cells.len() != 1
+            || !address.cells[0].guards.is_empty()
+        {
             let defaults = self.record_constant(body.module, body.file, None, address.ty)?;
             for ((score, _), value) in self.value_slots(dest, address.ty).into_iter().zip(defaults)
             {
@@ -455,22 +569,23 @@ impl Cx {
         }
         for cell in &address.cells {
             let mut inner = Vec::new();
-            self.copy_value(
-                dest,
-                &cell.reference,
-                address.ty,
-                body.file,
-                span,
-                &mut inner,
-            );
-            ops.extend(self.guard_cell(body, cell, span, inner));
+            match &cell.target {
+                AddressTarget::Slots(reference) => {
+                    self.copy_value(dest, reference, address.ty, body.file, span, &mut inner)
+                }
+                AddressTarget::Data(reference) => {
+                    self.unpack_value(body, dest, reference.clone(), address.ty, span, &mut inner)
+                }
+            }
+            let inner = self.guard_cell(body, cell, span, inner);
+            ops.extend(self.guard_address(body, address, span, inner));
         }
         Some(())
     }
 
     pub(super) fn write_address(
         &mut self,
-        body: &BodyCx,
+        body: &mut BodyCx,
         address: &ValueAddress,
         source: &pc::FieldReference,
         span: Span,
@@ -478,15 +593,21 @@ impl Cx {
     ) {
         for cell in &address.cells {
             let mut inner = Vec::new();
-            self.copy_value(
-                &cell.reference,
-                source,
-                address.ty,
-                body.file,
-                span,
-                &mut inner,
-            );
-            ops.extend(self.guard_cell(body, cell, span, inner));
+            match &cell.target {
+                AddressTarget::Slots(reference) => {
+                    self.copy_value(reference, source, address.ty, body.file, span, &mut inner)
+                }
+                AddressTarget::Data(reference) => self.pack_value(
+                    body,
+                    reference.clone(),
+                    source,
+                    address.ty,
+                    span,
+                    &mut inner,
+                ),
+            }
+            let inner = self.guard_cell(body, cell, span, inner);
+            ops.extend(self.guard_address(body, address, span, inner));
         }
     }
 
@@ -804,7 +925,7 @@ impl Cx {
             let ty = self.type_of(body, expr);
             let depth = body.temp_depth;
             let ignored = self.temp(body);
-            self.emit_array_method(body, &ignored, ty, expr, ops);
+            self.emit(body, &ignored, ty, expr, ops);
             body.temp_depth = depth;
             return;
         }
@@ -820,6 +941,12 @@ impl Cx {
             return;
         };
         let ArgValue::Expr(value) = &bound["value"].value else {
+            self.error(
+                "argument",
+                body.file,
+                bound["value"].span,
+                "array fill needs a value expression",
+            );
             return;
         };
         let replacement = self.temp(body);

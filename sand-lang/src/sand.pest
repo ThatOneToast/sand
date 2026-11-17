@@ -126,7 +126,8 @@ impl_item = { kw_impl ~ path ~ "{" ~ item* ~ "}" }
 state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
 field      = { (outer_doc | attr)* ~ vis? ~ ident ~ ":" ~ ty ~ ("=" ~ expr)? }
-ty         = { array_ty | path }
+ty         = { array_ty | applied_ty | path }
+applied_ty = { path ~ "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
 array_ty = { "[" ~ ty ~ ";" ~ (int | path) ~ "]" }
 
 extern_fn  = { kw_extern ~ string ~ kw_fn ~ ident ~ "(" ~ ")" ~ ";" }

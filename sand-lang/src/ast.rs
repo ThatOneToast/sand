@@ -46,6 +46,8 @@ pub struct Type {
 pub enum TypeKind {
     /// A named scalar, enum, record or imported type.
     Named(Path),
+    /// A named type applied to other value types.
+    Applied { path: Path, arguments: Vec<Type> },
     /// A fixed-length homogeneous array with a constant length.
     Array {
         element: Box<Type>,

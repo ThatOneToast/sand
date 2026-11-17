@@ -56,6 +56,29 @@ pub fn parse(source: &str) -> (SourceFile, Vec<SyntaxError>) {
     (file, errors)
 }
 
+/// Delimiters belonging to type applications, for whitespace-only formatting.
+pub(crate) fn type_delimiters(source: &str) -> std::collections::BTreeSet<usize> {
+    let mut result = std::collections::BTreeSet::new();
+    let Ok(pairs) = SandParser::parse(Rule::file, source) else {
+        return result;
+    };
+    let mut pending: Vec<_> = pairs.collect();
+    while let Some(pair) = pending.pop() {
+        if pair.as_rule() == Rule::applied_ty {
+            let location = pair.as_span();
+            let path = pair.clone().into_inner().next().expect("applied type path");
+            if let Some(open) = source[path.as_span().end()..location.end()].find('<') {
+                result.insert(path.as_span().end() + open);
+            }
+            if let Some(close) = pair.as_str().rfind('>') {
+                result.insert(location.start() + close);
+            }
+        }
+        pending.extend(pair.into_inner());
+    }
+    result
+}
+
 struct Builder<'e> {
     errors: &'e mut Vec<SyntaxError>,
 }
@@ -1239,6 +1262,16 @@ fn value_type(pair: P<'_>) -> Type {
             kind: TypeKind::Array {
                 element: Box::new(element),
                 length: Box::new(length),
+            },
+            span: location,
+        }
+    } else if inner.as_rule() == Rule::applied_ty {
+        let mut parts = inner.into_inner();
+        let path = path(parts.next().expect("applied type"));
+        Type {
+            kind: TypeKind::Applied {
+                path,
+                arguments: parts.map(value_type).collect(),
             },
             span: location,
         }

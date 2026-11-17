@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A custom item: a vanilla base item with identity and display components.",
+  "properties": {
+    "base": {
+      "description": "Vanilla base item, such as `minecraft:diamond_sword`.",
+      "type": "string"
+    },
+    "custom_model_data": {
+      "description": "Resource-pack model selector.",
+      "format": "int32",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "enchantments": {
+      "additionalProperties": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "description": "Enchantment identities and levels.",
+      "type": "object"
+    },
+    "glint": {
+      "description": "Force the enchantment glint on or off.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Identity, also the `custom_data` marker.",
+      "type": "string"
+    },
+    "lore": {
+      "description": "Lore lines; text only.",
+      "items": {
+        "items": {
+          "$ref": "defs-TextPart.schema.json"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "max_stack": {
+      "description": "Largest stack size, 1 to 99.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "Display name parts; text only.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    },
+    "rarity": {
+      "anyOf": [
+        {
+          "$ref": "defs-Rarity.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Name rarity colour."
+    },
+    "unbreakable": {
+      "description": "Never loses durability.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "base"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How a boss bar is divided.",
+  "oneOf": [
+    {
+      "const": "progress",
+      "description": "One solid bar.",
+      "type": "string"
+    },
+    {
+      "const": "notched6",
+      "description": "Six notches.",
+      "type": "string"
+    },
+    {
+      "const": "notched10",
+      "description": "Ten notches.",
+      "type": "string"
+    },
+    {
+      "const": "notched12",
+      "description": "Twelve notches.",
+      "type": "string"
+    },
+    {
+      "const": "notched20",
+      "description": "Twenty notches.",
+      "type": "string"
+    }
+  ]
+}

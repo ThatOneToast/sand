@@ -14,6 +14,11 @@ on:
       - "scripts/mc_validation/local_rcon_server.py"
       - "scripts/mc_validation/rcon_client.py"
       - "sand-cli/**"
+      - "sand-lang/**"
+      - "sand-version/**"
+      - "sand-build/src/vanilla_catalog.rs"
+      - "scripts/validate_language.py"
+      - "scripts/validate_language_values.py"
       - "sand-core/src/**"
       - "sand-macros/src/**"
       - "sand/src/**"
@@ -178,6 +183,49 @@ jobs:
             --pack sand-vanilla-audit/dist/sand_audit \
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}"
+
+      - name: Validate language arithmetic and runtime operands
+        if: matrix.version == '26.2'
+        run: |
+          cargo build -p sand-cli
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-control-flow"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/assignments.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-assignments"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/structs.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-structs"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/borrows.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-borrows"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/collections.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-collections"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/text.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-text"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/sequences.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-vectors"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/patterns.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-patterns"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/generics.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-generics"
+          python3 scripts/validate_language_values.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-values"
 
       - name: Validate 26.3 compute execution
         if: matrix.version == '26.3'
@@ -429,6 +477,14 @@ jobs:
           retention-days: 14
           path: |
             target/vanilla-reload/${{ matrix.version }}/latest.log
+            target/vanilla-reload/${{ matrix.version }}/language-control-flow
+            target/vanilla-reload/${{ matrix.version }}/language-values
+            target/vanilla-reload/${{ matrix.version }}/language-assignments
+            target/vanilla-reload/${{ matrix.version }}/language-structs
+            target/vanilla-reload/${{ matrix.version }}/language-borrows
+            target/vanilla-reload/${{ matrix.version }}/language-collections
+            target/vanilla-reload/${{ matrix.version }}/language-text
+            target/vanilla-reload/${{ matrix.version }}/language-vectors
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/compute

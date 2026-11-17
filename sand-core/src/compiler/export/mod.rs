@@ -44,6 +44,20 @@ pub(crate) struct ExportCtx<'a> {
     pub(crate) is_fallback: bool,
 }
 
+/// Rewrites finished records into the resource schema of the target version.
+///
+/// Both Rust export and the portable compiler end here, so a resource has the
+/// same shape on a given target whichever frontend produced it.
+pub(crate) fn lower_for_target(
+    records: &mut [ComponentRecord],
+    ctx: &ExportCtx<'_>,
+) -> ExportResult<()> {
+    if ctx.caps.is_at_least(26, 3, 0) {
+        schema_26_3::lower(records)?;
+    }
+    Ok(())
+}
+
 /// Collect all inventory-registered components into records, routing every
 /// `ComponentFactory` through the fallible `component_to_record` helper
 /// which validates all components (JSON, text, and copy-backed) before

@@ -45,6 +45,10 @@
 - [Quests and session phases](23j-progression-and-sessions.md)
 - [Journals and checkpoints](23m-journals-and-checkpoints.md)
 
+# The Sand Language
+
+- [Writing Packs In Sand Source](language.md)
+
 # Typed World & Server Configuration
 
 - [24. What Ships In The Datapack vs. What's Local To Your Dev Server](23-world-vs-server.md)

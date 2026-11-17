@@ -1,0 +1,97 @@
+#![pack(namespace = "runtime_values", minecraft = "26.2")]
+
+item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
+global state Origin { x: float }
+player state Ledger { requested: number, label: string = "new", recent: Vec<string> }
+impl Ledger {
+    fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
+}
+
+#[load]
+fn setup() { raw!("scoreboard objectives add numeric_probe dummy"); }
+
+fn reward(count: number) {
+    Ledger.give(count);
+}
+fn experience(count: number) { add_experience(points = count); }
+fn player_a() {
+    Ledger.label = "A 🌍 $(uuid)";
+    Ledger.recent = ["A"]; Ledger.recent.push("🌍");
+    chat!("{gold}{Ledger.label}");
+    experience(5);
+    reward(7);
+    reward(0);
+    reward(-1);
+    reward(6401);
+    if Ledger.requested == 6407 { raw!("scoreboard players set #impl_a numeric_probe 1"); }
+    let volume = 0.75;
+    let pitch = 0.5;
+    play_sound(Sound::EntityPlayerLevelup, pitch = pitch, volume = volume);
+    let extra = 2;
+    give_item(MacroBread, extra);
+    let x = 10.25;
+    teleport(x, 70.0, 20.5);
+    Player.max_health = 30.0;
+    if Player.x == 10.25 && Player.max_health == 30.0 {
+        raw!("scoreboard players set #property numeric_probe 1");
+    }
+}
+fn player_b() { Ledger.label = "B"; Ledger.recent = ["B"]; reward(3); experience(3); if Ledger.requested == 3 { raw!("scoreboard players set #impl_b numeric_probe 1"); } }
+fn next_y() -> float { Origin.x = 9.0; return 70.0; }
+fn select(a: bool, b: bool) -> bool { return a && b; }
+fn mob() {
+    for pig in entities(type = Entity::Pig, tag = "numeric_probe", limit = 1) {
+        let before = pig.health;
+        let hit = 2.5;
+        damage(hit);
+        let invalid = -1.0;
+        damage(invalid);
+        Origin.x = 2.0;
+        teleport(x = Origin.x, y = next_y(), z = -3.0);
+        if select(pig.health == before - hit, pig.x == 2.0 && pig.z == -3.0) {
+            raw!("scoreboard players set #mob numeric_probe 1");
+        }
+    }
+}
+
+
+global state References { first: EntityRef, second: EntityRef, victim: EntityRef }
+entity state Ownership { owner: EntityRef }
+fn store_first() { References.first = entity_ref(); }
+fn store_second() { References.second = entity_ref(); }
+fn check_reference() {
+    if entity_ref() == References.first { raw!("scoreboard players set #stable numeric_probe 1"); }
+}
+fn resolve_references() {
+    for actor in resolve_player(References.first) { give_item(Item::Emerald, 2); }
+    for actor in resolve_player(References.second) { give_item(Item::Emerald, 3); }
+    let empty: EntityRef;
+    for actor in resolve_entity(empty) { raw!("scoreboard players set #empty numeric_probe 1"); }
+}
+fn attributed_hit() {
+    for victim in entities(type = Entity::Pig, tag = "reference_victim", limit = 1) {
+        attach_state(Ownership);
+        Ownership.owner = References.first;
+        References.victim = entity_ref();
+        damage(20.0, by = Ownership.owner);
+    }
+}
+fn check_dead_reference() {
+    let mut count = 0;
+    for victim in resolve_entity(References.victim) { count += 1; }
+    if count == 0 { raw!("say __SAND_REFERENCE_DEAD_OK__"); }
+}
+
+fn check_player_text_a() {
+    if Ledger.label == "A 🌍 $(uuid)" { raw!("scoreboard players set #text_a numeric_probe 1"); }
+}
+fn check_player_text_b() {
+    if Ledger.label == "B" { raw!("scoreboard players set #text_b numeric_probe 1"); }
+}
+
+fn check_player_vector_a() {
+    if Ledger.recent == ["A", "🌍"] { raw!("scoreboard players set #vec_a numeric_probe 1"); }
+}
+fn check_player_vector_b() {
+    if Ledger.recent == ["B"] { raw!("scoreboard players set #vec_b numeric_probe 1"); }
+}

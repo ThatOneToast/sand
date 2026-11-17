@@ -1,0 +1,12 @@
+//! Rewards granted by the world clock.
+
+use crate::Hero;
+
+/// Restore some energy to the current player.
+pub fn grant() {
+    Hero.energy += 25;
+    play_sound(Sound::EntityExperienceOrbPickup);
+    if Hero.phase == crate::Phase::Resting {
+        Hero.phase = crate::Phase::Idle;
+    }
+}

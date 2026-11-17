@@ -345,7 +345,7 @@ pub trait EntityState: 'static {
         returns = "The `& 'static [StateDataFieldDescriptor]` value produced to storage-backed fields owned by this component.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::EntityState>()  {\n    let data_fields = <T as sand::entity::EntityState>::data_fields();\n}",
     )]
-    fn data_fields() -> &'static [StateDataFieldDescriptor] {
+    fn data_fields() -> &'static [StateDataFieldDescriptor<'static>] {
         &[]
     }
 }
@@ -353,20 +353,16 @@ pub trait EntityState: 'static {
 /// Compiler metadata for one component-owned typed storage path.
 #[doc(hidden)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StateDataFieldDescriptor {
-    pub storage: &'static str,
-    pub path: &'static str,
-    pub default_snbt: &'static str,
+pub struct StateDataFieldDescriptor<'a> {
+    pub storage: &'a str,
+    pub path: &'a str,
+    pub default_snbt: &'a str,
     pub keyed: bool,
 }
 
-impl StateDataFieldDescriptor {
+impl<'a> StateDataFieldDescriptor<'a> {
     #[doc(hidden)]
-    pub const fn new(
-        storage: &'static str,
-        path: &'static str,
-        default_snbt: &'static str,
-    ) -> Self {
+    pub const fn new(storage: &'a str, path: &'a str, default_snbt: &'a str) -> Self {
         Self {
             storage,
             path,
@@ -376,11 +372,7 @@ impl StateDataFieldDescriptor {
     }
 
     #[doc(hidden)]
-    pub const fn keyed(
-        storage: &'static str,
-        path: &'static str,
-        default_snbt: &'static str,
-    ) -> Self {
+    pub const fn keyed(storage: &'a str, path: &'a str, default_snbt: &'a str) -> Self {
         Self {
             storage,
             path,
@@ -2723,7 +2715,7 @@ impl<T> KeyedData<T> {
     }
 }
 
-pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) -> Vec<String> {
+pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor<'_>) -> Vec<String> {
     if !field.keyed {
         return vec![format!(
             "execute unless data storage {} {} run data modify storage {} {} set value {}",
@@ -2755,7 +2747,7 @@ pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) ->
     )
 }
 
-fn state_data_remove_commands(field: StateDataFieldDescriptor) -> Vec<String> {
+pub(crate) fn state_data_remove_commands(field: StateDataFieldDescriptor<'_>) -> Vec<String> {
     if field.keyed {
         let commands = keyed_data_call(
             field.storage,
@@ -2774,6 +2766,42 @@ fn state_data_remove_commands(field: StateDataFieldDescriptor) -> Vec<String> {
             "data remove storage {} {}",
             field.storage, field.path
         )]
+    }
+}
+
+/// Copy through the canonical owner resolver. Only compiler-owned paths enter
+/// the macro template; arbitrary stored values are never substituted as text.
+pub(crate) fn state_data_copy_commands(
+    field: StateDataFieldDescriptor<'_>,
+    scratch_storage: &str,
+    scratch_path: &str,
+    write: bool,
+) -> Vec<String> {
+    let path = if field.keyed {
+        keyed_path(field.path)
+    } else {
+        field.path.to_owned()
+    };
+    let command = if write {
+        format!(
+            "data modify storage {} {path} set from storage {scratch_storage} {scratch_path}",
+            field.storage
+        )
+    } else {
+        format!(
+            "data modify storage {scratch_storage} {scratch_path} set from storage {} {path}",
+            field.storage
+        )
+    };
+    if field.keyed {
+        let command = if write {
+            format!("{}\n${command}", keyed_create_owner(field.storage))
+        } else {
+            format!("${command}")
+        };
+        keyed_data_call(field.storage, command)
+    } else {
+        vec![command]
     }
 }
 

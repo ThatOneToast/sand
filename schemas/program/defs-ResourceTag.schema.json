@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A registry tag: a named group of ids and other tags.",
+  "properties": {
+    "id": {
+      "description": "Tag identity.",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "defs-TagKind.schema.json",
+      "description": "Grouped registry."
+    },
+    "replace": {
+      "description": "Replace lower-priority definitions instead of merging.",
+      "type": "boolean"
+    },
+    "values": {
+      "description": "Ids or `#tag` references.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "id",
+    "values"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "description": "A constant number.",
+      "format": "double",
+      "type": "number"
+    },
+    {
+      "$ref": "defs-ScaledField.schema.json",
+      "description": "A State field divided by its scale."
+    }
+  ],
+  "description": "A number supplied to a command: a constant or a scaled State field."
+}

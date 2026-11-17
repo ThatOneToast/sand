@@ -1,0 +1,149 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+struct Inner { title: string, values: Vec<number> }
+struct Packet { inner: Inner, coords: [number; 2], ignored: bool }
+enum Mode { Ready = 3, Done = 8 }
+global state Result { checks: number, failed: number, calls: number, selected: number }
+fn check(value: bool) { Result.checks += 1; if !value { Result.failed += 1; } }
+fn next() -> number { Result.calls += 1; return 2; }
+fn selected(n: number) -> string { Result.selected += n; return n.to_string(); }
+fn recursive(n: number) -> string { return match n { 0 => "x", _ => recursive(n - 1) + "!" }; }
+fn pair(n: number) -> [number; 2] { return match n { 0 => [2, 4], _ => [n, n + 1] }; }
+fn many(n: number) -> number { return match n {
+0 => 0,
+1 => 3,
+2 => 6,
+3 => 9,
+4 => 12,
+5 => 15,
+6 => 18,
+7 => 21,
+8 => 24,
+9 => 27,
+10 => 30,
+11 => 33,
+12 => 36,
+13 => 39,
+14 => 42,
+15 => 45,
+16 => 48,
+17 => 51,
+18 => 54,
+19 => 57,
+20 => 60,
+21 => 63,
+22 => 66,
+23 => 69,
+24 => 72,
+25 => 75,
+26 => 78,
+27 => 81,
+28 => 84,
+29 => 87,
+30 => 90,
+31 => 93,
+32 => 96,
+33 => 99,
+34 => 102,
+35 => 105,
+36 => 108,
+37 => 111,
+38 => 114,
+39 => 117,
+40 => 120,
+41 => 123,
+42 => 126,
+43 => 129,
+44 => 132,
+45 => 135,
+46 => 138,
+47 => 141,
+48 => 144,
+49 => 147,
+50 => 150,
+51 => 153,
+52 => 156,
+53 => 159,
+54 => 162,
+55 => 165,
+56 => 168,
+57 => 171,
+58 => 174,
+59 => 177,
+60 => 180,
+61 => 183,
+62 => 186,
+63 => 189,
+64 => 192,
+65 => 195,
+66 => 198,
+67 => 201,
+68 => 204,
+69 => 207,
+70 => 210,
+71 => 213,
+72 => 216,
+73 => 219,
+74 => 222,
+75 => 225,
+76 => 228,
+77 => 231,
+78 => 234,
+79 => 237,
+80 => 240,
+81 => 243,
+82 => 246,
+83 => 249,
+84 => 252,
+85 => 255,
+86 => 258,
+87 => 261,
+88 => 264,
+89 => 267,
+90 => 270,
+91 => 273,
+92 => 276,
+93 => 279,
+94 => 282,
+95 => 285,
+96 => 288,
+97 => 291,
+98 => 294,
+99 => 297,
+_ => -1 }; }
+fn packet() -> Packet {
+    Result.calls += 1;
+    return Packet { inner: Inner { title: "hé🌍", values: [1, 2] }, coords: [4, 7], ignored: true };
+}
+fn run() {
+    Result.checks = 0; Result.failed = 0; Result.calls = 0; Result.selected = 0;
+    let label = match next() { 0 | 1 => selected(1), 2 => selected(2), _ => selected(9) };
+    check(label == "2"); check(Result.calls == 1); check(Result.selected == 2);
+    check(recursive(4) == "x!!!!");
+    let labels: Vec<string> = match Mode::Ready { Mode::Ready => ["yes", "🌍"], Mode::Done => [] };
+    check(labels.len() == 2); check(labels[1] == "🌍");
+    let flags = match 2 { 0 => false, _ => Result.calls > 0 }; check(flags);
+    let [a, mut b] = pair(0); check(a == 2); check(b == 4); b += a; check(b == 6);
+    let Packet { inner: Inner { title, values: mut copied }, coords: [x, mut y], .. } = packet();
+    check(Result.calls == 2); check(title == "hé🌍"); check(copied == [1, 2]); check(x == 4); check(y == 7);
+    copied.push(9); y += x; check(copied == [1, 2, 9]); check(y == 11);
+    let [x, _]: [number; 2] = [x, y]; check(x == 4);
+    let []: [number; 0] = [];
+    let original = packet();
+    let Packet { inner: Inner { title: mut edited, values: mut data }, .. } = original;
+    edited += "!"; data[0] = 99;
+    check(original.inner.title == "hé🌍"); check(original.inner.values == [1, 2]);
+    check(edited == "hé🌍!"); check(data == [99, 2]);
+    check(many(0) == 0); check(many(50) == 150); check(many(99) == 297); check(many(150) == -1);
+    let nested = match 1 { 0 => "no", _ => match true { true => "ok", false => "no" } }; check(nested == "ok");
+    let mut total = 0;
+    for i in 0..6 {
+        match i { 0 => { continue; }, 4 => { break; }, _ => { total += i * 2; } }
+        total += 10;
+    }
+    check(total == 42);
+    let mut fallthrough = 0;
+    match 1 { 1 => { let z = 3 - 3; fallthrough += z; }, _ => { fallthrough += 100; } }
+    check(fallthrough == 0);
+    if Result.checks == 29 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

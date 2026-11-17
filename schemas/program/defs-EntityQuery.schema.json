@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Which entities an operation selects.",
+  "properties": {
+    "entity_type": {
+      "description": "Entity type identity, such as `minecraft:zombie`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "limit": {
+      "description": "Most entities selected.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "max_distance": {
+      "description": "Inclusive maximum distance in blocks.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "min_distance": {
+      "description": "Inclusive minimum distance in blocks.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "sort": {
+      "anyOf": [
+        {
+          "$ref": "defs-EntitySort.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Order before the limit applies."
+    },
+    "tag": {
+      "description": "Required entity tag.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "with_state": {
+      "description": "Only entities with this entity State attached.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "type": "object"
+}

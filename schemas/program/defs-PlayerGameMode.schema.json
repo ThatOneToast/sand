@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A player game mode.",
+  "oneOf": [
+    {
+      "const": "survival",
+      "description": "Survival.",
+      "type": "string"
+    },
+    {
+      "const": "creative",
+      "description": "Creative.",
+      "type": "string"
+    },
+    {
+      "const": "adventure",
+      "description": "Adventure.",
+      "type": "string"
+    },
+    {
+      "const": "spectator",
+      "description": "Spectator.",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How two State fields relate in a branch condition.",
+  "oneOf": [
+    {
+      "const": "lt",
+      "description": "Left is less than right.",
+      "type": "string"
+    },
+    {
+      "const": "le",
+      "description": "Left is at most right.",
+      "type": "string"
+    },
+    {
+      "const": "eq",
+      "description": "Both fields are equal.",
+      "type": "string"
+    },
+    {
+      "const": "ge",
+      "description": "Left is at least right.",
+      "type": "string"
+    },
+    {
+      "const": "gt",
+      "description": "Left is greater than right.",
+      "type": "string"
+    }
+  ]
+}

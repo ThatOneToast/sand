@@ -11,6 +11,11 @@
       "const": "player",
       "description": "Requires a player executor; entry initializes player State.",
       "type": "string"
+    },
+    {
+      "const": "entity",
+      "description": "Requires an entity executor (any entity, including players); cannot\nread player State or use player-only operations.",
+      "type": "string"
     }
   ]
 }

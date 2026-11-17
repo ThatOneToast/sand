@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A named bar shown at the top of the screen.",
+  "properties": {
+    "color": {
+      "$ref": "defs-BossBarColor.schema.json",
+      "description": "Bar colour."
+    },
+    "id": {
+      "description": "Identity.",
+      "type": "string"
+    },
+    "max": {
+      "default": 100,
+      "description": "Largest value.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "style": {
+      "$ref": "defs-BossBarStyle.schema.json",
+      "description": "Bar division."
+    },
+    "title": {
+      "description": "Title parts; text only.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "color",
+    "style"
+  ],
+  "type": "object"
+}

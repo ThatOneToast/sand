@@ -1,0 +1,66 @@
+//! A delayed mark remembers its caster and awards vanilla kill credit.
+#![pack(namespace = "marked_combat", minecraft = "26.2")]
+struct Spell {
+    damage: float,
+    delay: number
+}
+impl Spell {
+    fn empower(&mut self) {
+        self.damage += 1.0;
+    }
+}
+entity state Mark {
+    owner: EntityRef,
+    damage: float,
+    delay: timer
+}
+player state Mage {
+    kills: number
+}
+item MarkingWand {
+    base: Item::CarrotOnAStick,
+    name: "{light_purple}Marking Wand",
+    unbreakable: true
+}
+recipe WandRecipe {
+    shapeless: [Item::Stick, Item::AmethystShard],
+    result: MarkingWand
+}
+#[on(first_join)]
+fn welcome() {
+    give_item(MarkingWand);
+    chat!("{light_purple}Use your wand near zombies to mark them.");
+}
+#[on(use_item = Item::CarrotOnAStick)]
+fn cast() {
+    if !holding(MarkingWand) {
+        return;
+    }
+    let owner = entity_ref();
+    let mut spell = Spell {
+        damage: 5.0,
+        delay: 20
+    };
+    spell.empower();
+    for target in entities(type = Entity::Zombie, distance =..=8) {
+        attach_state(Mark);
+        Mark.owner = owner;
+        Mark.damage = spell.damage;
+        start_timer(Mark.delay, ticks = spell.delay);
+    }
+    actionbar!("{light_purple}Marked nearby zombies.");
+}
+#[tick]
+fn resolve_marks() {
+    for target in entities(with = Mark) {
+        if timer_done(Mark.delay) {
+            damage(Mark.damage, by = Mark.owner);
+            detach_state(Mark);
+        }
+    }
+}
+#[on(kill = Entity::Zombie)]
+fn reward() {
+    Mage.kills += 1;
+    chat!("{gold}Zombies defeated: {Mage.kills}");
+}

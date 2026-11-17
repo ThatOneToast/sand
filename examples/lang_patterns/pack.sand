@@ -1,0 +1,27 @@
+//! A per-player mining streak with typed reward matches and owned destructuring.
+#![pack(namespace = "mining_streak", minecraft = "26.2")]
+enum Rank { Beginner, Explorer, Veteran }
+struct Reward { title: string, amounts: [number; 2] }
+player state Progress { mined: number }
+fn reward(rank: Rank) -> Reward {
+    return match rank {
+        Rank::Beginner => Reward { title: "First steps", amounts: [1, 0] },
+        Rank::Explorer => Reward { title: "Explorer", amounts: [2, 1] },
+        Rank::Veteran => Reward { title: "Veteran", amounts: [4, 2] },
+    };
+}
+#[on(mine_block = Block::Stone)]
+fn mine() {
+    Progress.mined += 1;
+    if Progress.mined % 10 == 0 {
+        let rank = match Progress.mined {
+            10 | 20 => Rank::Beginner,
+            30 | 40 => Rank::Explorer,
+            _ => Rank::Veteran,
+        };
+        let Reward { title, amounts: [iron, gold] } = reward(rank);
+        give_item(Item::IronIngot, count = iron);
+        if gold > 0 { give_item(Item::GoldIngot, count = gold); }
+        chat!("{gold}{title}{reset}: mined {Progress.mined} stone!");
+    }
+}

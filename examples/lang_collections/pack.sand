@@ -1,0 +1,82 @@
+//! Three saved quests, using arrays, indexed methods and snapshot iteration.
+#![pack(namespace = "quest_board", minecraft = "26.2")]
+struct Quest {
+    remaining: number,
+    reward: number
+}
+impl Quest {
+    fn advance(&mut self) -> bool {
+        if self.remaining == 0 {
+            return false;
+        }
+        self.remaining -= 1;
+        return self.remaining == 0;
+    }
+}
+player state QuestBook {
+    quests: [Quest; 3] = [Quest {
+        remaining: 12,
+        reward: 2
+    }, Quest {
+        remaining: 8,
+        reward: 3
+    }, Quest {
+        remaining: 4,
+        reward: 4
+    },],
+    recent_rewards: [number; 5] = [0; 5],
+    cursor: number,
+    completed: number,
+}
+impl QuestBook {
+    fn advance(&mut self, index: number) {
+        if self.quests[index].advance() {
+            let reward = self.quests[index].reward;
+            give_item(Item::Emerald, reward);
+            self.recent_rewards[self.cursor] = reward;
+            self.cursor = (self.cursor + 1) % self.recent_rewards.len();
+            self.completed += 1;
+            chat!("{gold}Quest complete! Earned {reward} emeralds.");
+        }
+    }
+    fn show(&self) {
+        let mut remaining = 0;
+        for quest in self.quests {
+            remaining += quest.remaining;
+        }
+        let latest = self.recent_rewards.get_or((self.cursor + self.recent_rewards.len() - 1) % self.recent_rewards.len(), 0);
+        chat!("{aqua}Quest board: {remaining} actions left; {self.completed} quests complete.");
+        chat!("{gray}Last recorded reward: {latest} emeralds.");
+        if self.recent_rewards.contains(4) {
+            chat!("{green}Zombie contract recorded!");
+        }
+    }
+}
+item Board {
+    base: Item::CarrotOnAStick,
+    name: "{aqua}Quest Board",
+    unbreakable: true
+}
+#[on(first_join)]
+fn welcome() {
+    give_item(Board);
+    chat!("{aqua}Quests: mine 12 stone, mine 8 oak logs, and defeat 4 zombies.");
+}
+#[on(use_item = Item::CarrotOnAStick)]
+fn inspect() {
+    if holding(Board) {
+        QuestBook.show();
+    }
+}
+#[on(mine_block = Block::Stone)]
+fn stone() {
+    QuestBook.advance(0);
+}
+#[on(mine_block = Block::OakLog)]
+fn logs() {
+    QuestBook.advance(1);
+}
+#[on(kill = Entity::Zombie)]
+fn zombies() {
+    QuestBook.advance(2);
+}

@@ -41,6 +41,8 @@ mod manifest;
 mod registry_fixture;
 mod registry_id_contracts;
 mod report;
+mod vanilla_catalog;
+pub use vanilla_catalog::refresh_vanilla_catalog;
 pub mod source_tree_fingerprint;
 
 pub use api_provider::{

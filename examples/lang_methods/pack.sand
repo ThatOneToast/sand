@@ -1,0 +1,25 @@
+//! Blinkstep: typed value objects and persistent State methods.
+#![pack(namespace = "blinkstep", minecraft = "26.2")]
+mod position;
+mod hero;
+use hero::Hero;
+item BlinkWand {
+    base: Item::CarrotOnAStick,
+    name: "{aqua}Blinkstep",
+    unbreakable: true
+}
+#[on(first_join)]
+fn welcome() {
+    give_item(BlinkWand);
+    chat!("{aqua}Use Blinkstep to move six blocks east. Costs 15 energy.");
+}
+#[on(use_item = Item::CarrotOnAStick)]
+fn blink() {
+    if holding(BlinkWand) {
+        Hero.blink(6.0, 3);
+    }
+}
+#[on(death)]
+fn restore_energy() {
+    Hero.restore();
+}

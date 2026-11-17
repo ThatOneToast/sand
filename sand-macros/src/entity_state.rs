@@ -869,7 +869,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             ];
 
             #[doc(hidden)]
-            const __SAND_DATA_FIELDS: &'static [::sand::__private::StateDataFieldDescriptor] = &[
+            const __SAND_DATA_FIELDS: &'static [::sand::__private::StateDataFieldDescriptor<'static>] = &[
                 #(#data_descriptors),*
             ];
 
@@ -899,7 +899,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 }
             }
 
-            fn data_fields() -> &'static [::sand::__private::StateDataFieldDescriptor] {
+            fn data_fields() -> &'static [::sand::__private::StateDataFieldDescriptor<'static>] {
                 Self::__SAND_DATA_FIELDS
             }
         }

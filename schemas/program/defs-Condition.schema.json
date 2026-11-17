@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "defs-ScoreComparison.schema.json",
+      "description": "The field lies within inclusive constant bounds."
+    },
+    {
+      "$ref": "defs-ScoreRelation.schema.json",
+      "description": "Two fields satisfy a relation."
+    },
+    {
+      "$ref": "defs-StateAttached.schema.json",
+      "description": "The executor has an entity State attached."
+    },
+    {
+      "$ref": "defs-EntitiesExist.schema.json",
+      "description": "At least one entity matches."
+    },
+    {
+      "$ref": "defs-BlockMatches.schema.json",
+      "description": "A block matches at a position."
+    },
+    {
+      "$ref": "defs-ItemHeld.schema.json",
+      "description": "The executor holds an item."
+    },
+    {
+      "$ref": "defs-FlagSet.schema.json",
+      "description": "The executor has an entity flag."
+    }
+  ],
+  "description": "A branch condition: a constant range test or a field-to-field relation."
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Which furnace-like block cooks a recipe.",
+  "oneOf": [
+    {
+      "const": "smelting",
+      "description": "Furnace.",
+      "type": "string"
+    },
+    {
+      "const": "blasting",
+      "description": "Blast furnace.",
+      "type": "string"
+    },
+    {
+      "const": "smoking",
+      "description": "Smoker.",
+      "type": "string"
+    },
+    {
+      "const": "campfire",
+      "description": "Campfire.",
+      "type": "string"
+    }
+  ]
+}

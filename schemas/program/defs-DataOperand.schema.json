@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "An NBT literal, stored value, or scoreboard integer used in a data write.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "A typed literal, staged outside any macro template.",
+      "properties": {
+        "kind": {
+          "const": "value",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-NbtValue.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A selection from another owned storage field.",
+      "properties": {
+        "kind": {
+          "const": "reference",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-DataReference.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A scoreboard integer encoded as NBT int.",
+      "properties": {
+        "kind": {
+          "const": "score",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-ScoreOperand.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    }
+  ]
+}

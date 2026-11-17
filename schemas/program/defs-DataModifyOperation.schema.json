@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Defines data modify operation for typed Minecraft NBT and data commands.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Selects the set NBT or data-command operation.",
+      "properties": {
+        "kind": {
+          "const": "set",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the append NBT or data-command operation.",
+      "properties": {
+        "kind": {
+          "const": "append",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the prepend NBT or data-command operation.",
+      "properties": {
+        "kind": {
+          "const": "prepend",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the insert NBT or data-command operation.",
+      "properties": {
+        "index": {
+          "description": "Selects the insert NBT or data-command operation.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "insert",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "index"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the merge NBT or data-command operation.",
+      "properties": {
+        "kind": {
+          "const": "merge",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    }
+  ]
+}

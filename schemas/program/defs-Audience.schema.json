@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Who receives a message.",
+  "oneOf": [
+    {
+      "const": "player",
+      "description": "Only the executing player.",
+      "type": "string"
+    },
+    {
+      "const": "everyone",
+      "description": "Every online player.",
+      "type": "string"
+    }
+  ]
+}

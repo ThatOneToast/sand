@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One typed step into a stored value.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Select a named compound member.",
+      "properties": {
+        "kind": {
+          "const": "member",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Select a nonnegative list index. Missing or invalid selections skip writes.",
+      "properties": {
+        "index": {
+          "$ref": "defs-ScoreOperand.schema.json"
+        },
+        "kind": {
+          "const": "index",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "index"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Select every list element; only valid as the final modification source.",
+      "properties": {
+        "kind": {
+          "const": "each",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    }
+  ]
+}

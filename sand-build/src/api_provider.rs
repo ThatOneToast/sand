@@ -362,7 +362,9 @@ pub fn write_placeholder_codegen(out_dir: &Path, minecraft_version: &str) -> Res
          pub(crate) enum EntityType {}\n\
          impl EntityType { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n\
          pub(crate) enum SoundEvent {}\n\
-         impl SoundEvent { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n",
+         impl SoundEvent { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n\
+         pub(crate) enum ParticleType {}\n\
+         impl ParticleType { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n",
     )?;
     std::fs::write(out_dir.join("block_states.rs"), "// Generation failed\n")?;
     std::fs::write(

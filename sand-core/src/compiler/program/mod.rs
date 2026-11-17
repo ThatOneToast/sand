@@ -9,10 +9,17 @@ mod validate;
 pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
-    Action, ExecutionContext, FieldReference, Flow, FlowHook, FlowHookPhase, FlowTransition,
-    Function, FunctionReference, Module, ModuleSource, Operation, Pack, Program, ProgramTarget,
-    ScoreComparison, ScoreField, State, TagMembership,
+    Action, Amount, Audience, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle,
+    Condition, CookingMethod, CustomItem, DataField, DataOperand, DataProjection, DataReference,
+    EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook, ExecutionContext,
+    FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase, FlowTransition, Function,
+    FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel, Module, ModuleSource,
+    Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity, Recipe,
+    RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand,
+    ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    TeleportDestination, TextColor, TextPart, TextStyle, Weather,
 };
+pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
 
 // Validation and host discovery consume one catalog as portable coverage grows.
@@ -30,6 +37,34 @@ const CAPABILITIES: &[&str] = &[
     "lifecycle",
     "function_tags",
     "raw_commands",
+    "score_operations",
+    "random",
+    "field_relations",
+    "messages",
+    "sounds",
+    "particles",
+    "effects",
+    "items",
+    "schedule",
+    "player_events",
+    "control_flow",
+    "attributes",
+    "entities",
+    "custom_items",
+    "recipes",
+    "resource_tags",
+    "entity_state",
+    "teleport",
+    "timers",
+    "blocks",
+    "world_conditions",
+    "experience",
+    "world_state",
+    "boss_bars",
+    "loot_tables",
+    "smithing_recipes",
+    "recursion",
+    "entity_data",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.
@@ -209,11 +244,25 @@ impl Compiler {
  kind = "method", returns = "The validated result or located diagnostics; schema and capability methods return machine-readable JSON.",
 )]
     pub fn capabilities() -> serde_json::Value {
+        let schema = Self::schema();
+        let vocabulary = |definition: &str, field: &str| -> Vec<String> {
+            schema["$defs"][definition]["oneOf"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|entry| {
+                    entry["properties"][field]["const"]
+                        .as_str()
+                        .map(str::to_string)
+                })
+                .collect()
+        };
         serde_json::json!({
             "format": "sand.program", "format_version": 1,
             "compiler": { "name": "sand", "version": env!("CARGO_PKG_VERSION") },
-            "targets": ["26.1", "26.1.1", "26.1.2", "26.2"],
-            "operations": ["score_set", "score_add", "branch", "players", "call", "raw"],
+            "targets": sand_version::registry::targets().collect::<Vec<_>>(),
+            "operations": vocabulary("Action", "op"),
+            "events": vocabulary("PlayerEvent", "kind"),
             "capabilities": CAPABILITIES,
             "raw_validation": "explicit opt-in; command-line safety and supported syntax only",
             "limits": { "document_bytes": limits::DOCUMENT_BYTES, "input_bytes": limits::INPUT_BYTES,

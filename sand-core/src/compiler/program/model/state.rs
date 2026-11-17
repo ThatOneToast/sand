@@ -3,18 +3,18 @@ use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Revision-one player or global score State with explicit integer defaults and canonical ownership.
+/// Revision-one State with typed score and storage fields and canonical ownership.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::State", module = "sand::advanced::compiler",
- summary = "Revision-one player or global score State with explicit integer defaults and canonical ownership.",
+ summary = "Revision-one State with typed score and storage fields and canonical ownership.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(id = "Id for this portable definition.", scope = "Scope for this portable definition.", revision = "Revision for this portable definition.", fields = "Fields for this portable definition."),
+ fields(id = "Id for this portable definition.", scope = "Scope for this portable definition.", revision = "Revision for this portable definition.", fields = "Fields for this portable definition.", data_fields = "Typed storage-backed fields with the same State ownership."),
 )]
 pub struct State {
     /// Namespaced State identity.
@@ -27,6 +27,31 @@ pub struct State {
     pub revision: u32,
     /// Named integer score fields.
     pub fields: Vec<ScoreField>,
+    /// Typed storage-backed fields, initialized only when absent. Player and
+    /// entity values are keyed by UUID through the canonical State lifecycle.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub data_fields: Vec<DataField>,
+}
+
+/// A component-owned storage value with a typed NBT default.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::DataField", module = "sand::advanced::compiler",
+ summary = "A component-owned storage value with a typed NBT default.",
+ context = "Storage fields share State presence, UUID ownership, initialization and removal with Rust-authored components.",
+ minecraft = "Global fields use command storage; player and entity fields are isolated by UUID.",
+ use_when = ["Lowering strings or collections from a typed frontend"],
+ avoid_when = ["An integer score field is sufficient"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(name = "Field identity within its State.", default = "Typed default applied only when the field is absent."),
+)]
+pub struct DataField {
+    /// Field identity within its State; shared namespace with score fields.
+    pub name: String,
+    /// Typed default applied only when the field is absent. Opaque raw SNBT
+    /// cannot be serialized in a portable program.
+    pub default: sand_commands::NbtValue,
 }
 
 /// An integer State field whose default initializes only an absent value.
@@ -40,7 +65,7 @@ pub struct State {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(name = "Name for this portable definition.", default = "Default for this portable definition.", bounds = "Optional inclusive bounds applied after score writes."),
+ fields(name = "Name for this portable definition.", default = "Default for this portable definition.", bounds = "Optional inclusive bounds applied after score writes.", timer = "Whether the score counts down by one each tick until zero."),
 )]
 pub struct ScoreField {
     /// Field identity within its owning State.
@@ -55,6 +80,10 @@ pub struct ScoreField {
     /// arithmetic before clamping; these bounds do not prevent overflow.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounds: Option<(i32, i32)>,
+    /// Count down by one each tick until zero, through the same State lifecycle
+    /// that drives Rust `Timer` and `Cooldown` fields. Timers cannot have bounds.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub timer: bool,
 }
 
 /// A field reference binds a field identity to its declaring State.

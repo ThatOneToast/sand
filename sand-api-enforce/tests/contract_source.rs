@@ -508,7 +508,48 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 4_991);
+    // CaptureEntity (+2), WithEntity (+4), and Damage::by (+1) extend
+    // the same enforced advanced vocabulary; no scope exemptions are added.
+    // Typed storage fields/projections/operands, canonical data operations,
+    // owned NBT text and the text constructor add 44 contracted source items.
+    assert_eq!(declarations.len(), 5_433);
+    for path in [
+        "sand::advanced::compiler::DataField",
+        "sand::advanced::compiler::DataReference",
+        "sand::advanced::compiler::DataProjection",
+        "sand::advanced::compiler::DataOperand",
+        "sand::advanced::compiler::DataModifyOperation",
+        "sand::advanced::compiler::Action::DataModify",
+        "sand::advanced::compiler::Action::DataRead",
+        "sand::advanced::compiler::Action::DataEqual",
+        "sand::advanced::compiler::Action::DataRemove",
+        "sand::advanced::compiler::TextPart::Stored",
+        "sand::text::TextComponent::nbt",
+    ] {
+        assert!(
+            declarations
+                .iter()
+                .any(|declaration| declaration.canonical_path == path),
+            "missing contract {path}"
+        );
+    }
+    for member in [
+        "CaptureEntity",
+        "CaptureEntity::score",
+        "WithEntity",
+        "WithEntity::reference",
+        "WithEntity::players",
+        "WithEntity::body",
+        "Damage::by",
+    ] {
+        let path = format!("sand::advanced::compiler::Action::{member}");
+        assert!(
+            declarations
+                .iter()
+                .any(|declaration| declaration.canonical_path == path),
+            "missing contract {path}"
+        );
+    }
     assert!(
         declarations
             .iter()

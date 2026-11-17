@@ -1,5 +1,9 @@
 //! Owned portable operation definitions.
-use super::{FieldReference, FunctionReference, ScoreComparison};
+use super::{
+    Amount, Audience, BlockPosition, Condition, DataOperand, DataReference, EntityData,
+    EntityQuery, FieldReference, FunctionReference, MessageChannel, PlayerGameMode, ScoreOperand,
+    ScoreOperator, TeleportDestination, TextPart, Weather,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -35,25 +39,272 @@ pub struct Operation {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(ScoreSet = "ScoreSet semantic alternative; see Rustdoc for its execution behavior.", ScoreAdd = "ScoreAdd semantic alternative; see Rustdoc for its execution behavior.", Branch = "Branch semantic alternative; see Rustdoc for its execution behavior.", Players = "Players semantic alternative; see Rustdoc for its execution behavior.", Call = "Call semantic alternative; see Rustdoc for its execution behavior.", Raw = "Raw semantic alternative; see Rustdoc for its execution behavior."),
- variant_fields(ScoreSet(score = "Score operand for this operation.", value = "Value operand for this operation."), ScoreAdd(score = "Score operand for this operation.", value = "Value operand for this operation."), Branch(condition = "Condition operand for this operation.", then = "Then operand for this operation.", otherwise = "Otherwise operand for this operation."), Players(body = "Body operand for this operation."), Call(function = "Function operand for this operation."), Raw(command = "Command operand for this operation.")),
+ variants(ScoreSet = "ScoreSet semantic alternative; see Rustdoc for its execution behavior.", ScoreAdd = "ScoreAdd semantic alternative; see Rustdoc for its execution behavior.", Branch = "Branch semantic alternative; see Rustdoc for its execution behavior.", Players = "Players semantic alternative; see Rustdoc for its execution behavior.", Call = "Call semantic alternative; see Rustdoc for its execution behavior.", Raw = "Raw semantic alternative; see Rustdoc for its execution behavior.", ScoreOperation = "Combine a field with another field or a constant.", ScoreRandom = "Store a uniformly random integer.", Message = "Show styled text.", Sound = "Play a sound to the executing player.", Particle = "Spawn particles at the executor.", Effect = "Apply a status effect to the executing player.", ClearEffect = "Remove status effects from the executing player.", GiveItem = "Give items to the executing player.", ClearItem = "Remove items from the executing player.", Schedule = "Run a server function after a delay.", Return = "End the current function, or the current player's turn inside Players.", While = "Repeat a body while a condition holds.", AttributeGet = "Store an attribute base value of the executor in a State field.", AttributeSet = "Set the executor's attribute base value.", Entities = "Run a body as each matching entity, at its position.", Kill = "Kill the executing entity.", EntityTag = "Add or remove a tag on the executing entity.", Summon = "Summon an entity at the executor's position.", CaptureEntity = "Retain the executor identity in a State field.", WithEntity = "Run as a retained entity when present.", Damage = "Damage the executing entity.", CountEntities = "Store how many entities match.", Teleport = "Move the executing entity.", AttachState = "Attach an entity State to the executor.", DetachState = "Detach an entity State from the executor.", SetBlock = "Place a block.", FillBlocks = "Fill a region with a block.", AddExperience = "Give the executing player experience.", SetGameMode = "Change the executing player's game mode.", SetTime = "Set the time of day.", SetWeather = "Set the weather.", BossBarAudience = "Show or hide a boss bar.", SetBossBar = "Set a boss bar value or maximum.", GiveLoot = "Give the executing player a loot roll.", DropLoot = "Drop a loot roll at the executor.", PushFrame = "Save State fields before a call that may re-enter this function.", PopFrame = "Restore the State fields saved by the matching PushFrame.", DataGet = "Store a number read from the executor's entity data.", DataModify = "Modify an owned storage value.", DataRemove = "Remove a stored value selection.", DataRead = "Read an integer or collection length into a score.", DataEqual = "Compare stored values for deep equality."),
+ variant_fields(ScoreSet(score = "Score operand for this operation.", value = "Value operand for this operation."), ScoreAdd(score = "Score operand for this operation.", value = "Value operand for this operation."), Branch(condition = "Condition operand for this operation.", then = "Then operand for this operation.", otherwise = "Otherwise operand for this operation."), Players(body = "Body operand for this operation."), Call(function = "Function operand for this operation."), Raw(command = "Command operand for this operation."), ScoreOperation(score = "Written State field.", operator = "Arithmetic operator.", operand = "Field or constant operand."), ScoreRandom(score = "Written State field.", min = "Inclusive minimum.", max = "Inclusive maximum."), Message(audience = "Recipients.", channel = "Display channel.", text = "Styled text parts."), Sound(sound = "Sound event identity.", volume = "Volume; 1.0 is normal.", pitch = "Pitch from 0.5 to 2.0."), Particle(particle = "Particle type identity.", count = "Particle count.", spread = "Random offset in blocks on each axis.", speed = "Particle speed."), Effect(effect = "Status effect identity.", seconds = "Duration in seconds; omitted means infinite.", amplifier = "Level minus one.", hide_particles = "Hide effect particles."), ClearEffect(effect = "Effect to remove; omitted removes all."), GiveItem(item = "Item identity.", count = "Item count."), ClearItem(item = "Item to remove; omitted removes all.", count = "Maximum count; omitted removes every match."), Schedule(function = "Server-context function to run.", ticks = "Delay in game ticks; at least one."), While(condition = "Checked before every pass.", body = "Repeated body."), AttributeGet(score = "Written State field.", attribute = "Attribute identity.", scale = "Multiplier applied before truncation."), AttributeSet(attribute = "Attribute identity.", value = "Constant or State-derived value."), Entities(query = "Selected entities.", body = "Run as each entity."), EntityTag(tag = "Tag name.", add = "Add when true, remove when false."), Summon(entity_type = "Entity type identity.", tag = "Tag given to the new entity."), CaptureEntity(score = "Field receiving the retained identity."), WithEntity(reference = "Retained entity identity.", players = "Resolve only online players.", body = "Body run as the resolved entity."), Damage(amount = "Damage in half-hearts.", by = "Retained attacker identity for kill credit."), CountEntities(score = "Written State field.", query = "Counted entities."), Teleport(destination = "Where the executor moves."), AttachState(state = "Entity State to attach."), DetachState(state = "Entity State to detach."), SetBlock(block = "Block identity.", at = "Position."), FillBlocks(block = "Block identity.", from = "One corner.", to = "Opposite corner."), AddExperience(amount = "Experience, which may be negative.", levels = "Levels instead of points."), SetGameMode(mode = "New game mode."), SetTime(ticks = "Time of day in ticks."), SetWeather(weather = "New weather.", seconds = "Duration; omitted lets Minecraft choose."), BossBarAudience(bar = "Boss bar.", audience = "Who changes.", visible = "Show when true, hide when false."), SetBossBar(bar = "Boss bar.", value = "Constant or State field shown as the bar progress.", max = "Set the maximum instead of the value."), GiveLoot(table = "Loot table."), DropLoot(table = "Loot table."), PushFrame(fields = "Saved State fields, in order."), PopFrame(fields = "Restored State fields, in the PushFrame order."), DataGet(score = "Written State field.", value = "Entity data read.", scale = "Multiplier applied before truncation."), DataModify(target = "Written storage selection.", operator = "Canonical typed NBT modification.", source = "Typed value operand."), DataRemove(target = "Removed storage selection."), DataRead(score = "Written integer field.", source = "Read storage selection."), DataEqual(score = "Boolean result field.", left = "Left stored value.", right = "Right stored value.")),
 )]
 pub enum Action {
+    /// Modify an owned storage value. Source values and dynamic indices are
+    /// staged before the write, including when source and target alias.
+    DataModify {
+        target: DataReference,
+        operator: sand_commands::DataModifyOperation,
+        source: DataOperand,
+    },
+    /// Remove a stored selection. A missing selection leaves the value unchanged.
+    DataRemove { target: DataReference },
+    /// Read a stored integer, string length, or collection length into a score.
+    /// Missing values produce zero, following Minecraft's data-get conversion.
+    DataRead {
+        score: FieldReference,
+        source: DataReference,
+    },
+    /// Compare two present stored values using Minecraft's deep NBT equality.
+    /// Missing selections compare false, even when both are absent.
+    DataEqual {
+        score: FieldReference,
+        left: DataReference,
+        right: DataReference,
+    },
+
     /// Assign an integer State field using its declared ownership.
     ScoreSet { score: FieldReference, value: i32 },
     /// Add an integer to a State field using its declared ownership.
     ScoreAdd { score: FieldReference, value: i32 },
     /// Evaluate the comparison once and execute exactly one ordered body.
     Branch {
-        condition: ScoreComparison,
+        condition: Condition,
         then: Vec<Operation>,
         #[serde(default)]
         otherwise: Vec<Operation>,
     },
-    /// Execute the body as each player without changing positional context.
+    /// Execute the body as each player, positioned at that player.
     Players { body: Vec<Operation> },
     /// Invoke a named function with a checked execution-context requirement.
     Call { function: FunctionReference },
     /// Explicit escape hatch; only command-line safety and syntax are checked.
     Raw { command: String },
+    /// Combine a field with another field or a constant using scoreboard
+    /// arithmetic, then apply the field's declared bounds.
+    ScoreOperation {
+        score: FieldReference,
+        operator: ScoreOperator,
+        operand: ScoreOperand,
+    },
+    /// Store a uniformly random integer from the inclusive range.
+    ScoreRandom {
+        score: FieldReference,
+        min: i32,
+        max: i32,
+    },
+    /// Show styled text; a `player` audience needs a player executor.
+    Message {
+        audience: Audience,
+        channel: MessageChannel,
+        text: Vec<TextPart>,
+    },
+    /// Play a sound to the executing player at their position.
+    Sound {
+        sound: String,
+        #[serde(default = "one")]
+        volume: Amount,
+        #[serde(default = "one")]
+        pitch: Amount,
+    },
+    /// Spawn particles at the executor's position.
+    Particle {
+        particle: String,
+        #[serde(default = "one_count")]
+        count: u32,
+        #[serde(default)]
+        spread: f32,
+        #[serde(default)]
+        speed: f32,
+    },
+    /// Apply a status effect to the executing player.
+    Effect {
+        effect: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seconds: Option<u32>,
+        #[serde(default)]
+        amplifier: u8,
+        #[serde(default)]
+        hide_particles: bool,
+    },
+    /// Remove one status effect, or all of them, from the executing player.
+    ClearEffect {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        effect: Option<String>,
+    },
+    /// Give items to the executing player. Runtime counts outside 1..=6400
+    /// perform no action; constants outside that range are rejected.
+    GiveItem {
+        item: String,
+        #[serde(default = "one_operand")]
+        count: ScoreOperand,
+    },
+    /// Remove matching items, or every item, from the executing player.
+    ClearItem {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        item: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        count: Option<u32>,
+    },
+    /// Run a server-context function after a delay, replacing any pending
+    /// schedule of the same function.
+    Schedule {
+        function: FunctionReference,
+        ticks: u32,
+    },
+    /// End the current function. Inside a `Players` body it ends only the
+    /// current player's turn, like `continue`.
+    Return,
+    /// Check the condition before each pass and repeat the body while it holds.
+    /// Minecraft's command-chain limit bounds runaway loops.
+    While {
+        condition: Condition,
+        body: Vec<Operation>,
+    },
+    /// Store the executor's attribute base value, multiplied by
+    /// `scale` and truncated, in a State field.
+    AttributeGet {
+        score: FieldReference,
+        attribute: String,
+        #[serde(default = "one_f64")]
+        scale: f64,
+    },
+    /// Set the executor's attribute base value to a constant or a
+    /// State-derived amount.
+    AttributeSet { attribute: String, value: Amount },
+    /// Run the body as each matching entity, positioned at it. A `Return`
+    /// inside ends only the current entity's turn.
+    Entities {
+        query: EntityQuery,
+        body: Vec<Operation>,
+    },
+    /// Kill the executing entity.
+    Kill,
+    /// Add or remove a tag on the executing entity.
+    EntityTag { tag: String, add: bool },
+    /// Summon an entity at the executor's position.
+    Summon {
+        entity_type: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tag: Option<String>,
+    },
+    /// Damage the executing entity, in half-hearts.
+    Damage {
+        amount: Amount,
+        /// Retained attacker identity; absence uses unattributed generic damage.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        by: Option<FieldReference>,
+    },
+    /// Capture the executing entity's pack-owned, persistent numeric identity.
+    /// Zero denotes no entity; identity allocation never wraps or reuses IDs.
+    CaptureEntity { score: FieldReference },
+    /// Run a body as the retained entity, positioned at it. Missing, unloaded,
+    /// or dead entities skip the body. Players can resolve across dimensions;
+    /// non-player resolution uses the current dimension.
+    WithEntity {
+        reference: FieldReference,
+        #[serde(default)]
+        players: bool,
+        body: Vec<Operation>,
+    },
+    /// Store how many entities match the query.
+    CountEntities {
+        score: FieldReference,
+        query: EntityQuery,
+    },
+    /// Move the executing entity.
+    Teleport { destination: TeleportDestination },
+    /// Attach an entity State to the executor: fields without a value take
+    /// their defaults, then the State is marked present.
+    AttachState {
+        #[schemars(with = "String")]
+        state: sand_components::ResourceLocation,
+    },
+    /// Detach an entity State from the executor, clearing its fields.
+    DetachState {
+        #[schemars(with = "String")]
+        state: sand_components::ResourceLocation,
+    },
+    /// Place a block.
+    SetBlock { block: String, at: BlockPosition },
+    /// Fill a region, corners inclusive, with a block.
+    FillBlocks {
+        block: String,
+        from: BlockPosition,
+        to: BlockPosition,
+    },
+    /// Give the executing player experience points or levels.
+    AddExperience {
+        amount: ScoreOperand,
+        #[serde(default)]
+        levels: bool,
+    },
+    /// Change the executing player's game mode.
+    SetGameMode { mode: PlayerGameMode },
+    /// Set the time of day, in ticks.
+    SetTime { ticks: u32 },
+    /// Set the weather, for a duration or until Minecraft changes it.
+    SetWeather {
+        weather: Weather,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seconds: Option<u32>,
+    },
+    /// Show or hide a boss bar for the executing player or everyone.
+    BossBarAudience {
+        #[schemars(with = "String")]
+        bar: sand_components::ResourceLocation,
+        audience: Audience,
+        visible: bool,
+    },
+    /// Set a boss bar's value, or its maximum.
+    SetBossBar {
+        #[schemars(with = "String")]
+        bar: sand_components::ResourceLocation,
+        value: ScoreOperand,
+        #[serde(default)]
+        max: bool,
+    },
+    /// Give the executing player one roll of a loot table.
+    GiveLoot {
+        #[schemars(with = "String")]
+        table: sand_components::ResourceLocation,
+    },
+    /// Drop one roll of a loot table at the executor's position.
+    DropLoot {
+        #[schemars(with = "String")]
+        table: sand_components::ResourceLocation,
+    },
+    /// Save State fields on the call-frame stack before a call that may
+    /// re-enter the running function, so recursion keeps each call's values.
+    /// Every `PushFrame` is followed by a `PopFrame` naming the same fields.
+    PushFrame { fields: Vec<FieldReference> },
+    /// Restore the fields saved by the matching `PushFrame` and drop its frame.
+    PopFrame { fields: Vec<FieldReference> },
+    /// Store a number read from the executing entity's data, multiplied by
+    /// `scale` and truncated, in a State field.
+    DataGet {
+        score: FieldReference,
+        value: EntityData,
+        #[serde(default = "one_f64")]
+        scale: f64,
+    },
+}
+
+fn one_f64() -> f64 {
+    1.0
+}
+
+fn one() -> Amount {
+    Amount::Value(1.0)
+}
+
+fn one_count() -> u32 {
+    1
+}
+
+fn one_operand() -> ScoreOperand {
+    ScoreOperand::Value(1)
 }

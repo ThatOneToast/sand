@@ -26,6 +26,9 @@
 (impl_item type: (path) @type)
 (record_expression type: (path) @type)
 (record_field name: (identifier) @property)
+(record_pattern type: (path) @type)
+(pattern_field name: (identifier) @property)
+(binding_pattern name: (identifier) @variable)
 (method_expression method: (identifier) @function.method)
 (field_expression field: (identifier) @property)
 (receiver) @variable.builtin

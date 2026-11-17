@@ -231,6 +231,7 @@ module.exports = grammar({
     block: ($) => seq('{', repeat($._statement), '}'),
     _statement: ($) =>
       choice(
+        $.destructure_statement,
         $.let_statement,
         $.return_statement,
         $.continue_statement,
@@ -254,6 +255,12 @@ module.exports = grammar({
         optional(seq('=', field('value', $._value_or_condition))),
         ';',
       ),
+    destructure_statement: ($) => seq('let', field('pattern', choice($.record_pattern, $.array_pattern, '_')), optional(seq(':', field('type', $.type))), '=', field('value', $._value_or_condition), ';'),
+    _value_pattern: ($) => choice($.record_pattern, $.array_pattern, '_', $.binding_pattern),
+    binding_pattern: ($) => seq(optional($.mutable_specifier), field('name', $.identifier)),
+    record_pattern: ($) => seq(field('type', $.path), '{', optional(choice(seq($.pattern_field, repeat(seq(',', $.pattern_field)), optional(seq(',', '..')), optional(',')), '..')), '}'),
+    pattern_field: ($) => seq(field('name', $.identifier), optional(seq(':', $._value_pattern))),
+    array_pattern: ($) => seq('[', commaSep($._value_pattern), ']'),
     mutable_specifier: (_) => 'mut',
     return_statement: ($) => seq('return', optional($._value_or_condition), ';'),
     _value_or_condition: ($) => choice($._expression, $.comparison, $.logical_condition, $.not_condition, $.in_range),
@@ -264,6 +271,8 @@ module.exports = grammar({
     loop_statement: ($) => seq('loop', field('body', $.block)),
     match_statement: ($) =>
       seq('match', field('value', $._expression), '{', repeat($.match_arm), '}'),
+    match_expression: ($) => seq('match', field('value', $._expression), '{', $.match_value_arm, repeat(seq(',', $.match_value_arm)), optional(','), '}'),
+    match_value_arm: ($) => seq(field('pattern', choice('_', seq($._expression, repeat(seq('|', $._expression))))), '=>', field('value', $._value_or_condition)),
     match_arm: ($) =>
       seq(field('pattern', choice('_', seq($._expression, repeat(seq('|', $._expression))))),
         '=>', field('body', $.block), optional(',')),
@@ -319,6 +328,7 @@ module.exports = grammar({
     // ── Expressions ────────────────────────────────────────────────────────
     _expression: ($) =>
       choice(
+        $.match_expression,
         $.integer,
         $.float,
         $.boolean,

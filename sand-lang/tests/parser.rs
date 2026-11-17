@@ -202,3 +202,16 @@ fn vector_example_builds_without_warnings() {
     );
     analysis.compile().unwrap();
 }
+
+#[test]
+fn pattern_example_builds_without_warnings() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../examples/lang_patterns/pack.sand");
+    let analysis = sand_lang::analyze_path(&path, &sand_lang::DiskFiles);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:#?}",
+        analysis.diagnostics
+    );
+    analysis.compile().unwrap();
+}

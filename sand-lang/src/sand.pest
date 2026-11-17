@@ -147,10 +147,18 @@ hook_phase = @{ ("enter" | "exit" | "tick") ~ !ident_char }
 
 block = { "{" ~ (stmt | bad_stmt)* ~ "}" }
 
-stmt = { outer_doc* ~ (let_stmt | return_stmt | continue_stmt | break_stmt | emit_stmt | while_stmt | loop_stmt | match_stmt | if_stmt | for_stmt | macro_stmt | assign_stmt | call_stmt) }
+stmt = { outer_doc* ~ (destructure_stmt | let_stmt | return_stmt | continue_stmt | break_stmt | emit_stmt | while_stmt | loop_stmt | match_stmt | if_stmt | for_stmt | macro_stmt | assign_stmt | call_stmt) }
 // Recovery: skip the rest of the line (or up to `;`) without crossing `}`.
 bad_stmt = @{ (!(";" | "\n" | "}") ~ ANY)+ ~ ";"? }
 
+destructure_stmt = { kw_let ~ (record_pattern | array_pattern | ignore_pattern) ~ (":" ~ ty)? ~ "=" ~ (value_expr | expr) ~ ";" }
+value_pattern = { record_pattern | array_pattern | ignore_pattern | binding_pattern }
+record_pattern = { path ~ "{" ~ (pattern_field ~ ("," ~ pattern_field)* ~ ("," ~ pattern_rest)? ~ ","? | pattern_rest)? ~ "}" }
+pattern_field = { ident ~ (":" ~ value_pattern)? }
+pattern_rest = { ".." }
+array_pattern = { "[" ~ (value_pattern ~ ("," ~ value_pattern)* ~ ","?)? ~ "]" }
+ignore_pattern = { "_" ~ !ident_char }
+binding_pattern = { mut_kw? ~ ident }
 let_stmt      = { kw_let ~ mut_kw? ~ ident ~ (":" ~ ty)? ~ ("=" ~ (value_expr | expr))? ~ ";" }
 // A boolean-valued condition used as a value: `let ok = a > b;`.
 value_expr    = { !";" ~ !(expr ~ ";") ~ cond }
@@ -162,6 +170,8 @@ emit_stmt     = { kw_emit ~ path ~ ("(" ~ args? ~ ")")? ~ ";" }
 loop_stmt     = { kw_loop ~ block }
 match_stmt    = { kw_match ~ expr ~ "{" ~ match_arm* ~ "}" }
 match_arm     = { match_pattern ~ "=>" ~ block ~ ","? }
+match_expr = { kw_match ~ expr ~ "{" ~ match_value_arm ~ ("," ~ match_value_arm)* ~ ","? ~ "}" }
+match_value_arm = { match_pattern ~ "=>" ~ record_value }
 match_pattern = { ("_" ~ !ident_char) | (expr ~ ("|" ~ !"|" ~ expr)*) }
 while_stmt    = { kw_while ~ cond ~ block }
 if_stmt     = { kw_if ~ cond ~ block ~ (kw_else ~ (if_stmt | block))? }
@@ -217,7 +227,7 @@ record_value = { (expr ~ &( "," | "}" )) | cond }
 array_expr = { "[" ~ (array_repeat | (array_value ~ ("," ~ array_value)* ~ ","?))? ~ "]" }
 array_repeat = { expr ~ ";" ~ (int | path) }
 array_value = { (expr ~ &( "," | "]" )) | cond }
-primary = _{ array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
+primary = _{ match_expr | array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
 call_expr = { path ~ "(" ~ args? ~ ")" }
 
 // ── Strict entry points used to explain recovered nodes ─────────────────────

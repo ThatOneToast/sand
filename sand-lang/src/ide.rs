@@ -787,10 +787,35 @@ pub fn rename(
                 .get(span.start..span.end)
                 .is_some_and(|text| text == old)
         })
-        .map(|(file, span)| Edit {
-            file,
-            span,
-            text: new_name.to_string(),
+        .map(|(file, span)| {
+            // A shorthand record field names both a member and a local. Expand
+            // it when renaming either symbol so the other keeps its identity.
+            let other = analysis
+                .references
+                .iter()
+                .filter(|r| r.file == file && r.span == span && r.def != def)
+                .map(|r| r.def)
+                .chain(
+                    analysis
+                        .defs
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, d)| d.file == file && d.name_span == span)
+                        .map(|(i, _)| crate::DefId(i)),
+                )
+                .filter(|other| *other != def)
+                .find(|other| {
+                    matches!(
+                        (analysis.def(def).kind, analysis.def(*other).kind),
+                        (DefKind::Field, DefKind::Local) | (DefKind::Local, DefKind::Field)
+                    )
+                });
+            let text = match other.map(|other| analysis.def(other).kind) {
+                Some(DefKind::Local) => format!("{new_name}: {old}"),
+                Some(DefKind::Field) => format!("{old}: {new_name}"),
+                _ => new_name.to_string(),
+            };
+            Edit { file, span, text }
         })
         .collect())
 }

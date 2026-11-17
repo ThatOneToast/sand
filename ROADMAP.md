@@ -248,6 +248,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Growable `Vec<T>` values, nested/recursive records, indexed borrowed
   methods, deep copies/equality, bounded mutation and snapshot iteration; native
   vector, array and text regressions plus independent player reload proofs.
+- [x] Value-producing matches for owned values, flat dispatch for large matches,
+  nested record/fixed-array destructuring and shorthand-safe editor renames.
+- [ ] Block expressions, match binding/guard patterns and enum payloads.
 - [ ] Maps and sets implemented with general generics; general borrowed slices.
 - [x] Read-only and mutable struct receivers, with write-back on early return and
   recursive calls; retained EntityRef values, reload-safe identities, explicit

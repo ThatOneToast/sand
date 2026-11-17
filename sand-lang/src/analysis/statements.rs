@@ -117,6 +117,9 @@ pub(super) const FRAME_MARKER: &str = "__frame";
 /// Whether evaluating the expression calls a function.
 pub(super) fn contains_call(expr: &Expr) -> bool {
     match expr {
+        Expr::Match { value, arms, .. } => {
+            contains_call(value) || arms.iter().any(|arm| contains_call(&arm.value))
+        }
         Expr::Call { .. } => true,
         Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => contains_call(inner),
         Expr::Binary(lhs, _, rhs, _) => contains_call(lhs) || contains_call(rhs),
@@ -205,7 +208,8 @@ impl Cx {
             | Expr::Project(..)
             | Expr::Array(..)
             | Expr::ArrayRepeat { .. }
-            | Expr::Index(..) => false,
+            | Expr::Index(..)
+            | Expr::Match { .. } => false,
             Expr::Float(..) | Expr::Bool(..) => true,
         }
     }
@@ -213,6 +217,9 @@ impl Cx {
     /// The type an expression produces, without reporting errors.
     pub(super) fn type_of(&mut self, body: &BodyCx, expr: &Expr) -> Ty {
         match expr {
+            Expr::Match { arms, .. } => arms
+                .first()
+                .map_or(Ty::Unknown, |arm| self.type_of(body, &arm.value)),
             Expr::Path(path) => {
                 if let Some(local) = Self::local_of(body, expr) {
                     return self.local_ty(local);
@@ -525,6 +532,9 @@ impl Cx {
         let file = body.file;
         let span = expr.span();
         self.value_slots(dest, ty);
+        if let Expr::Match { value, arms, span } = expr {
+            return self.emit_match(body, dest, ty, value, arms, *span, ops);
+        }
         if let Ty::List(_) = ty {
             return self.emit_list(body, dest, ty, expr, ops);
         }
@@ -1390,6 +1400,164 @@ impl Cx {
         self.bring_into_scope(body, name, local, Span::new(span.end, end));
     }
 
+    pub(super) fn lower_destructure(
+        &mut self,
+        body: &mut BodyCx,
+        pattern: &Pattern,
+        annotation: Option<&Type>,
+        value: &Expr,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let depth = body.temp_depth;
+        let ty = match annotation {
+            Some(ty) => self.resolve_type(body.module, ty),
+            None => self.type_of(body, value),
+        };
+        let snapshot = self.temp(body);
+        if self.emit(body, &snapshot, ty, value, ops).is_some() {
+            let mut bindings = Vec::new();
+            self.bind_pattern(body, pattern, &snapshot, ty, span, &mut bindings, ops);
+            let end = body.block_ends.last().copied().unwrap_or(span.end);
+            for (name, local) in bindings {
+                self.bring_into_scope(body, &name, local, Span::new(span.end, end));
+            }
+        }
+        body.temp_depth = depth;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn bind_pattern(
+        &mut self,
+        body: &mut BodyCx,
+        pattern: &Pattern,
+        source: &pc::FieldReference,
+        ty: Ty,
+        span: Span,
+        bindings: &mut Vec<(Ident, DefId)>,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        match pattern {
+            Pattern::Ignore(_) => {}
+            Pattern::Bind { name, mutable } => {
+                if bindings.iter().any(|(bound, _)| bound.name == name.name) {
+                    self.error(
+                        "pattern",
+                        body.file,
+                        name.span,
+                        format!("duplicate binding `{}` in pattern", name.name),
+                    );
+                    return;
+                }
+                let local = self.new_local(body, name, ty, *mutable, span);
+                let dest = self.local_ref(local);
+                self.copy_value(&dest, source, ty, body.file, name.span, ops);
+                bindings.push((name.clone(), local));
+            }
+            Pattern::Array(patterns, location) => {
+                let Some((element, length)) = self.array_shape(ty) else {
+                    self.error(
+                        "pattern",
+                        body.file,
+                        *location,
+                        "an array pattern requires a fixed array value",
+                    );
+                    return;
+                };
+                if patterns.len() != length {
+                    self.error(
+                        "pattern",
+                        body.file,
+                        *location,
+                        format!("expected {length} array patterns, found {}", patterns.len()),
+                    );
+                    return;
+                }
+                for (index, pattern) in patterns.iter().enumerate() {
+                    self.bind_pattern(
+                        body,
+                        pattern,
+                        &super::values::child(source, &format!("i{index}")),
+                        element,
+                        span,
+                        bindings,
+                        ops,
+                    );
+                }
+            }
+            Pattern::Record {
+                path,
+                fields,
+                rest,
+                span: location,
+            } => {
+                let Some(def) = self.expect_path(body.module, path, &[DefKind::Struct], "a struct")
+                else {
+                    return;
+                };
+                if !self.types_agree(body.file, *location, Ty::Struct(def), ty) {
+                    return;
+                }
+                let mut seen = HashSet::new();
+                for (name, pattern) in fields {
+                    if !seen.insert(name.name.clone()) {
+                        self.error(
+                            "pattern",
+                            body.file,
+                            name.span,
+                            "duplicate field in record pattern",
+                        );
+                        continue;
+                    }
+                    let Some(field) = self.record_member(ty, &name.name) else {
+                        self.error(
+                            "pattern",
+                            body.file,
+                            name.span,
+                            format!("unknown field `{}`", name.name),
+                        );
+                        continue;
+                    };
+                    if !self.visible(
+                        body.module,
+                        self.defs[field.0].module,
+                        self.defs[field.0].is_pub,
+                    ) {
+                        self.error(
+                            "privacy",
+                            body.file,
+                            name.span,
+                            format!("field `{}` is private", name.name),
+                        );
+                        continue;
+                    }
+                    self.references.push(Reference {
+                        file: body.file,
+                        span: name.span,
+                        def: field,
+                    });
+                    self.bind_pattern(
+                        body,
+                        pattern,
+                        &super::values::child(source, &name.name),
+                        self.field_ty(field),
+                        span,
+                        bindings,
+                        ops,
+                    );
+                }
+                if !rest {
+                    for field in self.struct_fields(def) {
+                        let name = self.defs[field.0].name.clone();
+                        if !seen.contains(&name) {
+                            self.error("pattern", body.file, *location, format!("missing record field `{name}`; add `..` to ignore remaining fields"));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// A new local owned by the function being lowered; not yet visible.
     fn new_local(
         &mut self,
@@ -1501,7 +1669,6 @@ impl Cx {
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
-        let file = body.file;
         let depth = body.temp_depth;
         let ty = self.type_of(body, value);
         let snapshot = self.temp(body);
@@ -1509,18 +1676,47 @@ impl Cx {
             body.temp_depth = depth;
             return;
         }
+        // Reserve the dispatch flag before lowering arm scratch storage.
+        let matched = self.temp(body);
+        let patterns: Vec<_> = arms.iter().map(|arm| (&arm.patterns, arm.span)).collect();
+        let values = self.match_patterns(body, ty, &patterns, span);
+        let lowered = arms
+            .iter()
+            .zip(values)
+            .map(|(arm, values)| {
+                (
+                    values,
+                    arm.patterns.is_empty(),
+                    self.lower_block(body, &arm.body),
+                    arm.span,
+                )
+            })
+            .collect();
+        self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
+        body.temp_depth = depth;
+    }
+
+    /// Validate shared statement/value-match patterns and exhaustiveness.
+    fn match_patterns(
+        &mut self,
+        body: &BodyCx,
+        ty: Ty,
+        arms: &[(&Vec<Expr>, Span)],
+        span: Span,
+    ) -> Vec<Vec<i32>> {
+        let file = body.file;
         let mut covered = BTreeSet::new();
         let mut wildcard = false;
         let mut lowered = Vec::new();
-        for arm in arms {
+        for (patterns, arm_span) in arms {
             if wildcard {
-                self.error("match", file, arm.span, "unreachable match arm after `_`");
+                self.error("match", file, *arm_span, "unreachable match arm after `_`");
             }
             let mut values = Vec::new();
-            if arm.patterns.is_empty() {
+            if patterns.is_empty() {
                 wildcard = true;
             }
-            for pattern in &arm.patterns {
+            for pattern in patterns.iter() {
                 if !Self::is_const_in(body, pattern) {
                     self.error(
                         "match",
@@ -1543,8 +1739,7 @@ impl Cx {
                     values.push(value);
                 }
             }
-            let branch = self.lower_block(body, &arm.body);
-            lowered.push((values, arm.patterns.is_empty(), branch, arm.span));
+            lowered.push(values);
         }
         let exhaustive = wildcard
             || match ty {
@@ -1575,30 +1770,107 @@ impl Cx {
                 .with_help("cover every variant, both boolean values, or add `_ => { ... }`"),
             );
         }
-        let mut otherwise = Vec::new();
-        for (values, wildcard, branch, arm_span) in lowered.into_iter().rev() {
-            if wildcard {
-                otherwise = branch;
+        lowered
+    }
+
+    /// Flat dispatch keeps the operation depth independent of the number of arms.
+    #[allow(clippy::too_many_arguments)]
+    fn match_dispatch(
+        &mut self,
+        body: &mut BodyCx,
+        snapshot: &pc::FieldReference,
+        matched: &pc::FieldReference,
+        arms: Vec<(Vec<i32>, bool, Vec<pc::Operation>, Span)>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        ops.push(op_at(
+            pc::Action::ScoreSet {
+                score: matched.clone(),
+                value: 0,
+            },
+            body.file,
+            span,
+        ));
+        for (values, wildcard, branch, arm_span) in arms {
+            let mut branch = branch;
+            branch.insert(
+                0,
+                op_at(
+                    pc::Action::ScoreSet {
+                        score: matched.clone(),
+                        value: 1,
+                    },
+                    body.file,
+                    arm_span,
+                ),
+            );
+            let selected = if wildcard {
+                branch
             } else {
-                for value in values.into_iter().rev() {
-                    otherwise = vec![op_at(
-                        pc::Action::Branch {
-                            condition: pc::Condition::Range(pc::ScoreComparison {
-                                score: snapshot.clone(),
-                                min: Some(value),
-                                max: Some(value),
-                            }),
-                            then: branch.clone(),
-                            otherwise,
-                        },
-                        file,
-                        arm_span,
-                    )];
-                }
-            }
+                values
+                    .into_iter()
+                    .map(|value| {
+                        op_at(
+                            pc::Action::Branch {
+                                condition: pc::Condition::Range(pc::ScoreComparison {
+                                    score: snapshot.clone(),
+                                    min: Some(value),
+                                    max: Some(value),
+                                }),
+                                then: branch.clone(),
+                                otherwise: Vec::new(),
+                            },
+                            body.file,
+                            arm_span,
+                        )
+                    })
+                    .collect()
+            };
+            ops.push(op_at(
+                pc::Action::Branch {
+                    condition: pc::Condition::Range(pc::ScoreComparison {
+                        score: matched.clone(),
+                        min: Some(0),
+                        max: Some(0),
+                    }),
+                    then: selected,
+                    otherwise: Vec::new(),
+                },
+                body.file,
+                arm_span,
+            ));
         }
-        ops.extend(otherwise);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_match(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        ty: Ty,
+        value: &Expr,
+        arms: &[MatchValueArm],
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<()> {
+        let depth = body.temp_depth;
+        let scrutinee_ty = self.type_of(body, value);
+        let snapshot = self.temp(body);
+        self.emit(body, &snapshot, scrutinee_ty, value, ops)?;
+        // Reserve the dispatch flag before lowering arm scratch storage.
+        let matched = self.temp(body);
+        let patterns: Vec<_> = arms.iter().map(|arm| (&arm.patterns, arm.span)).collect();
+        let values = self.match_patterns(body, scrutinee_ty, &patterns, span);
+        let mut lowered = Vec::new();
+        for (arm, values) in arms.iter().zip(values) {
+            let mut branch = Vec::new();
+            self.emit(body, dest, ty, &arm.value, &mut branch)?;
+            lowered.push((values, arm.patterns.is_empty(), branch, arm.span));
+        }
+        self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
         body.temp_depth = depth;
+        Some(())
     }
 
     /// Lower `while`, `loop`, and counting `for` loops.

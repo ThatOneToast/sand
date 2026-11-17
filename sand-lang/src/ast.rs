@@ -574,6 +574,13 @@ pub enum Stmt {
         /// Whole statement.
         span: Span,
     },
+    /// Irrefutable destructuring of an owned record or fixed array value.
+    Destructure {
+        pattern: Pattern,
+        ty: Option<Type>,
+        value: Expr,
+        span: Span,
+    },
     /// `return;` or `return value;`.
     Return {
         /// Returned value.
@@ -693,6 +700,34 @@ pub enum Stmt {
     Error(SyntaxError),
 }
 
+/// An irrefutable value pattern. Bindings receive independent owned copies.
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    /// A binding, with optional per-binding mutability.
+    Bind { name: Ident, mutable: bool },
+    /// Ignore this value.
+    Ignore(Span),
+    /// A record's named fields; `rest` permits omitted fields.
+    Record {
+        path: Path,
+        fields: Vec<(Ident, Pattern)>,
+        rest: bool,
+        span: Span,
+    },
+    /// An exact-length fixed array pattern.
+    Array(Vec<Pattern>, Span),
+}
+
+impl Pattern {
+    /// Location of the whole pattern.
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Bind { name, .. } => name.span,
+            Self::Ignore(span) | Self::Array(_, span) | Self::Record { span, .. } => *span,
+        }
+    }
+}
+
 /// One arm of a `match` statement. Patterns are constants separated by `|`,
 /// or a wildcard `_` that handles every remaining value.
 #[derive(Debug, Clone)]
@@ -701,6 +736,17 @@ pub struct MatchArm {
     pub patterns: Vec<Expr>,
     /// Body scoped to this arm.
     pub body: Block,
+    /// Whole arm.
+    pub span: Span,
+}
+
+/// One value-producing match arm. Only the selected expression is evaluated.
+#[derive(Debug, Clone)]
+pub struct MatchValueArm {
+    /// Constant alternatives; empty for the wildcard.
+    pub patterns: Vec<Expr>,
+    /// Value produced by this arm.
+    pub value: Expr,
     /// Whole arm.
     pub span: Span,
 }
@@ -934,6 +980,12 @@ pub enum Expr {
         length: Box<Expr>,
         span: Span,
     },
+    /// An exhaustive match that evaluates only the selected arm's value.
+    Match {
+        value: Box<Expr>,
+        arms: Vec<MatchValueArm>,
+        span: Span,
+    },
     /// An indexed element of an array value.
     Index(Box<Expr>, Box<Expr>, Span),
     /// A named record literal, evaluated in authored field order.
@@ -994,6 +1046,7 @@ impl Expr {
             | Expr::Method { span, .. }
             | Expr::Project(_, _, span)
             | Expr::Array(_, span)
+            | Expr::Match { span, .. }
             | Expr::ArrayRepeat { span, .. }
             | Expr::Index(_, _, span)
             | Expr::Cond(_, span)

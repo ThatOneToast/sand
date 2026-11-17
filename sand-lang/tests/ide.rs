@@ -257,7 +257,7 @@ fn ok() {
         errors,
         vec![
             "expected `&`, `)` or `mut`; found `{`",
-            "expected `[` or expression; found `;`"
+            "expected `[`, `match` or expression; found `;`"
         ]
     );
     // Hover and definition still work on the healthy statement.
@@ -453,4 +453,42 @@ fn run() {
     );
     let help = ide::signature_help(&analysis, ROOT, at + "add(".len()).unwrap();
     assert_eq!(help.label, "add(amount: number)");
+}
+
+#[test]
+fn renaming_shorthand_patterns_and_literals_preserves_both_symbols() {
+    let source = r#"#![pack(namespace = "patterns")]
+struct Point { x: number }
+fn run() { let Point { x } = Point { x: 3 }; let p = Point { x }; let n = x; }
+"#;
+    let analysis = analyze_one(source);
+    compile(&analysis);
+    let binding = offset(source, "{ x }", 0) + 2;
+    assert_eq!(
+        analysis.def(analysis.def_at(ROOT, binding).unwrap()).kind,
+        DefKind::Local
+    );
+    let field_edits = ide::rename(&analysis, ROOT, offset(source, "x:", 0), "width").unwrap();
+    assert_eq!(
+        field_edits
+            .iter()
+            .filter(|edit| edit.text == "width: x")
+            .count(),
+        2
+    );
+    let local_edits = ide::rename(&analysis, ROOT, source.rfind("x;").unwrap(), "value").unwrap();
+    assert_eq!(
+        local_edits
+            .iter()
+            .filter(|edit| edit.text == "x: value")
+            .count(),
+        2
+    );
+    for edits in [field_edits, local_edits] {
+        let mut renamed = source.to_owned();
+        for edit in edits.iter().rev() {
+            renamed.replace_range(edit.span.start..edit.span.end, &edit.text);
+        }
+        compile(&analyze_one(&renamed));
+    }
 }

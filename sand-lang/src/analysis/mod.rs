@@ -358,7 +358,14 @@ impl Analysis {
                     .filter(|(_, d)| d.file == file && d.name_span.contains(offset))
                     .map(|(i, d)| (d.name_span, DefId(i))),
             )
-            .min_by_key(|(span, _)| span.end - span.start)
+            // Shorthand patterns name both a field and a binding. The local
+            // is the symbol the author declares or reads at that location.
+            .min_by_key(|(span, def)| {
+                (
+                    span.end - span.start,
+                    self.defs[def.0].kind != DefKind::Local,
+                )
+            })
             .map(|(_, def)| def)
     }
 
@@ -2068,6 +2075,7 @@ impl Cx {
             | Expr::Method { span, .. }
             | Expr::Project(_, _, span)
             | Expr::Array(_, span)
+            | Expr::Match { span, .. }
             | Expr::ArrayRepeat { span, .. }
             | Expr::Index(_, _, span) => {
                 self.error(
@@ -3867,6 +3875,12 @@ impl Cx {
                 *span,
                 ops,
             ),
+            Stmt::Destructure {
+                pattern,
+                ty,
+                value,
+                span,
+            } => self.lower_destructure(body, pattern, ty.as_ref(), value, *span, ops),
             Stmt::Return { value, span } => self.lower_return(body, value.as_ref(), *span, ops),
             Stmt::Match { value, arms, span } => self.lower_match(body, value, arms, *span, ops),
             Stmt::Continue(span) => self.lower_jump(body, false, *span, ops),
@@ -4621,7 +4635,8 @@ pub(crate) fn article(name: &str) -> &'static str {
 
 fn stmt_span(stmt: &Stmt) -> Span {
     match stmt {
-        Stmt::Let { span, .. }
+        Stmt::Destructure { span, .. }
+        | Stmt::Let { span, .. }
         | Stmt::Return { span, .. }
         | Stmt::Continue(span)
         | Stmt::Break(span)

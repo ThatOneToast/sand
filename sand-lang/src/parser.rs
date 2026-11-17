@@ -751,6 +751,25 @@ impl Builder<'_> {
                     span: s,
                 }
             }
+            Rule::destructure_stmt => {
+                let mut parts = children(inner);
+                let pattern = value_pattern(parts.next().expect("pattern"));
+                let next = parts.next().expect("type or value");
+                let (ty, value) = if next.as_rule() == Rule::ty {
+                    (
+                        Some(value_type(next)),
+                        self.value(parts.next().expect("initial value")),
+                    )
+                } else {
+                    (None, self.value(next))
+                };
+                Stmt::Destructure {
+                    pattern,
+                    ty,
+                    value,
+                    span: s,
+                }
+            }
             Rule::let_stmt => {
                 let mut mutable = false;
                 let mut name = None;
@@ -998,9 +1017,107 @@ impl Builder<'_> {
     }
 }
 
+fn value_pattern(pair: P<'_>) -> Pattern {
+    let location = span(&pair);
+    match pair.as_rule() {
+        Rule::value_pattern => value_pattern(pair.into_inner().next().expect("pattern")),
+        Rule::ignore_pattern => Pattern::Ignore(location),
+        Rule::array_pattern => {
+            Pattern::Array(pair.into_inner().map(value_pattern).collect(), location)
+        }
+        Rule::binding_pattern => {
+            let mut parts = pair.into_inner().peekable();
+            let mutable = parts.peek().is_some_and(|p| p.as_rule() == Rule::mut_kw);
+            if mutable {
+                parts.next();
+            }
+            Pattern::Bind {
+                name: ident(parts.next().expect("binding name")),
+                mutable,
+            }
+        }
+        Rule::record_pattern => {
+            let mut parts = pair.into_inner();
+            let path = path(parts.next().expect("record type"));
+            let mut fields = Vec::new();
+            let mut rest = false;
+            for part in parts {
+                if part.as_rule() == Rule::pattern_rest {
+                    rest = true;
+                    continue;
+                }
+                let mut parts = part.into_inner();
+                let name = ident(parts.next().expect("field name"));
+                let pattern = parts
+                    .next()
+                    .map(value_pattern)
+                    .unwrap_or_else(|| Pattern::Bind {
+                        name: name.clone(),
+                        mutable: false,
+                    });
+                fields.push((name, pattern));
+            }
+            Pattern::Record {
+                path,
+                fields,
+                rest,
+                span: location,
+            }
+        }
+        other => unreachable!("unexpected pattern {other:?}"),
+    }
+}
+
 fn expr(pair: P<'_>) -> Expr {
     pratt()
         .map_primary(|primary| match primary.as_rule() {
+            Rule::match_expr => {
+                let location = span(&primary);
+                let mut parts = children(primary);
+                let value = Box::new(expr(parts.next().expect("matched value")));
+                let arms = parts
+                    .map(|arm| {
+                        let location = span(&arm);
+                        let mut parts = arm.into_inner();
+                        let patterns = parts
+                            .next()
+                            .expect("patterns")
+                            .into_inner()
+                            .map(expr)
+                            .collect();
+                        let value = parts
+                            .next()
+                            .expect("arm value")
+                            .into_inner()
+                            .next()
+                            .expect("value");
+                        let value = if value.as_rule() == Rule::cond {
+                            let location = span(&value);
+                            Expr::Cond(
+                                Box::new(
+                                    Builder {
+                                        errors: &mut Vec::new(),
+                                    }
+                                    .cond(value),
+                                ),
+                                location,
+                            )
+                        } else {
+                            expr(value)
+                        };
+                        MatchValueArm {
+                            patterns,
+                            value,
+                            span: location,
+                        }
+                    })
+                    .collect();
+                Expr::Match {
+                    value,
+                    arms,
+                    span: location,
+                }
+            }
             Rule::array_expr => {
                 let location = span(&primary);
                 let mut parts = primary.into_inner().peekable();

@@ -524,8 +524,44 @@ fn price(phase: Phase) -> number {
 Patterns are typed constants or enum variants, with `|` joining alternatives.
 Cover every enum variant, both booleans, or add `_ => { ... }` for all remaining
 values. Numeric matches require a wildcard. Duplicate patterns, missing cases,
-and arms following a wildcard are errors. Match currently uses statement arms
-with block bodies; it is not a value expression.
+and arms following a wildcard are errors. Dispatch depth does not grow with the
+number of arms.
+
+A value match evaluates only the selected arm's expression. It works in local
+initializers, assignments, returns, arguments, and larger expressions. All arms
+must produce the same type, including owned strings, records, arrays and vectors:
+
+```rust,ignore
+let label = match phase {
+    Phase::Idle => "waiting",
+    Phase::Fighting | Phase::Resting => "busy",
+};
+let rewards: Vec<number> = match won { true => [5, 10], false => [] };
+```
+
+Value arms are comma-separated expressions. Statement arms use scoped blocks;
+block expressions, match guards, binding patterns in matches and enum payloads
+remain future work.
+
+### Destructuring
+
+`let` can unpack a record or a fixed array into independent owned locals. Nested
+patterns, renamed fields, `_` and `..` for omitted record fields are supported.
+Use `mut` on each binding that will change:
+
+```rust,ignore
+let Point { x, y: mut height } = point;
+let [first, _, mut last] = [1, 2, 3];
+height += x;
+last += first;
+```
+
+The initializer runs once before any binding becomes visible. Array patterns
+must have the exact fixed length; vectors require explicit checked element access.
+Record fields follow privacy rules. Missing fields without `..`, duplicate fields,
+duplicate bindings, and incompatible types are errors. Renaming a shorthand field
+or local in the editor expands the shorthand to preserve the other symbol.
+See the [mining-streak example](../../examples/lang_patterns/pack.sand).
 
 ### Casts
 

@@ -4,6 +4,28 @@
   "oneOf": [
     {
       "additionalProperties": false,
+      "description": "A stored list of string characters, joined without separators. Read at\nmessage execution time through the field's canonical State ownership.",
+      "properties": {
+        "kind": {
+          "const": "stored",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        },
+        "value": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Literal text.",
       "properties": {
         "kind": {

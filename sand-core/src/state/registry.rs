@@ -92,7 +92,7 @@ pub struct StateDescriptor<'a> {
     /// Ordered component-version transitions.
     pub migrations: &'a [StateMigrationDescriptor],
     /// Component-owned typed storage paths.
-    pub data_fields: &'a [StateDataFieldDescriptor],
+    pub data_fields: &'a [StateDataFieldDescriptor<'a>],
 }
 
 /// One contiguous component presence/version transition.
@@ -119,7 +119,7 @@ impl<'a> StateDescriptor<'a> {
         suppression_objective: &'a str,
         fields: &'a [StateLifecycleDescriptor<'a>],
         migrations: &'a [StateMigrationDescriptor],
-        data_fields: &'a [StateDataFieldDescriptor],
+        data_fields: &'a [StateDataFieldDescriptor<'a>],
     ) -> Self {
         Self {
             id,

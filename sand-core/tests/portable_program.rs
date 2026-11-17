@@ -30,6 +30,7 @@ fn counter() -> Program {
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {
+                data_fields: Vec::new(),
                 id: "demo:counter".parse().unwrap(),
                 scope: "player".into(),
                 revision: 1,

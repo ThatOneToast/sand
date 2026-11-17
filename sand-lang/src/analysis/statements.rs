@@ -174,7 +174,7 @@ impl Cx {
             .find_map(|scope| scope.iter().rev().find(|(n, _)| n == name).map(|(_, d)| *d))
     }
 
-    fn local_of(body: &BodyCx, expr: &Expr) -> Option<DefId> {
+    pub(super) fn local_of(body: &BodyCx, expr: &Expr) -> Option<DefId> {
         match expr {
             Expr::Path(path) if path.segments.len() == 1 => {
                 Self::lookup_local(body, &path.segments[0].name)
@@ -265,6 +265,9 @@ impl Cx {
             }
             Expr::Index(value, _, _) => {
                 let ty = self.type_of(body, value);
+                if ty == Ty::String {
+                    return Ty::String;
+                }
                 self.array_shape(ty)
                     .map_or(Ty::Unknown, |(element, _)| element)
             }
@@ -281,6 +284,19 @@ impl Cx {
             }
             Expr::Method { receiver, name, .. } => {
                 let receiver_ty = self.type_of(body, receiver);
+                if name.name == "to_string"
+                    && matches!(receiver_ty, Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
+                {
+                    return Ty::String;
+                }
+                if receiver_ty == Ty::String {
+                    return match name.name.as_str() {
+                        "len" => Ty::Number,
+                        "slice" => Ty::String,
+                        "is_empty" | "contains" | "starts_with" | "ends_with" => Ty::Bool,
+                        _ => Ty::Unknown,
+                    };
+                }
                 if let Some((element, _)) = self.array_shape(receiver_ty) {
                     return match name.name.as_str() {
                         "len" => Ty::Number,
@@ -302,7 +318,7 @@ impl Cx {
             }
             Expr::Float(..) => Ty::Float,
             Expr::Bool(..) | Expr::Cond(..) => Ty::Bool,
-            Expr::Str { .. } => Ty::Unknown,
+            Expr::Str { .. } => Ty::String,
             Expr::Neg(inner, _) => self.type_of(body, inner),
             Expr::Cast(_, ty, _) => self.cast_target_quiet(body.module, ty),
             Expr::Binary(lhs, _, rhs, _) => {
@@ -347,7 +363,7 @@ impl Cx {
         expr: &Expr,
         ty: Ty,
     ) -> Result<Option<Value>, ()> {
-        if matches!(ty, Ty::Struct(_)) {
+        if matches!(ty, Ty::Struct(_) | Ty::String) {
             return Ok(None);
         }
         let (module, file) = (body.module, body.file);
@@ -494,6 +510,10 @@ impl Cx {
     ) -> Option<()> {
         let file = body.file;
         let span = expr.span();
+        self.value_slots(dest, ty);
+        if ty == Ty::String {
+            return self.emit_text(body, dest, expr, ops);
+        }
         if matches!(ty, Ty::Struct(_)) {
             return self.emit_record(body, dest, ty, expr, ops);
         }
@@ -512,6 +532,9 @@ impl Cx {
                 span,
             } => {
                 let receiver_ty = self.type_of(body, receiver);
+                if receiver_ty == Ty::String {
+                    return self.emit_text_method(body, dest, ty, expr, ops);
+                }
                 if self.array_shape(receiver_ty).is_some() {
                     return self.emit_array_method(body, dest, ty, expr, ops);
                 }
@@ -1034,7 +1057,7 @@ impl Cx {
                 for ((score, _), value) in
                     self.value_slots(&reference, *ty).into_iter().zip(defaults)
                 {
-                    ops.push(op_at(pc::Action::ScoreSet { score, value }, file, span));
+                    ops.push(op_at(Self::initialize_leaf(score, value), file, span));
                 }
             }
             ops.extend(self.guard_address(body, address, span, invocation));
@@ -1161,6 +1184,24 @@ impl Cx {
             AssignOp::Div => Some(BinOp::Div),
             AssignOp::Rem => Some(BinOp::Rem),
         };
+        if dest.ty == Ty::String && compound.is_some() {
+            if op != AssignOp::Add {
+                self.error(
+                    "type",
+                    file,
+                    span,
+                    "strings support `=` and `+=` assignments",
+                );
+                return;
+            }
+            let depth = body.temp_depth;
+            let rhs = self.temp(body);
+            if self.emit(body, &rhs, Ty::String, value, ops).is_some() {
+                ops.push(op_at(Self::append_text(&dest.reference, &rhs), file, span));
+            }
+            body.temp_depth = depth;
+            return;
+        }
         if let Some(bin) = compound {
             if matches!(dest.ty, Ty::Struct(_)) {
                 self.error(
@@ -1303,14 +1344,7 @@ impl Cx {
                 for ((score, _), default) in
                     self.value_slots(&reference, ty).into_iter().zip(defaults)
                 {
-                    ops.push(op_at(
-                        pc::Action::ScoreSet {
-                            score,
-                            value: default,
-                        },
-                        file,
-                        span,
-                    ));
+                    ops.push(op_at(Self::initialize_leaf(score, default), file, span));
                 }
             }
         }
@@ -3616,8 +3650,23 @@ impl Cx {
                 ),
             );
         }
-        let Some(text) = self.format_text(body, bound["text"]) else {
-            return;
+        let text = match &bound["text"].value {
+            ArgValue::Expr(value) if !matches!(value, Expr::Str { .. }) => {
+                let slot = self.temp(body);
+                if self.emit(body, &slot, Ty::String, value, ops).is_none() {
+                    return;
+                }
+                vec![pc::TextPart::Stored {
+                    value: Self::data_field(&slot),
+                    style: pc::TextStyle::default(),
+                }]
+            }
+            _ => {
+                let Some(text) = self.format_text(body, bound["text"]) else {
+                    return;
+                };
+                text
+            }
         };
         let (audience, channel) = match builtin.name {
             "chat" => (pc::Audience::Player, pc::MessageChannel::Chat),
@@ -3681,6 +3730,16 @@ impl Cx {
         };
         while i < bytes.len() {
             match bytes[i] {
+                b'\\' => {
+                    let start = i;
+                    i += 1;
+                    if bytes.get(i) == Some(&b'u') && bytes.get(i + 1) == Some(&b'{') {
+                        i = raw[i..].find('}').map_or(raw.len(), |end| i + end + 1);
+                    } else if let Some(character) = raw[i..].chars().next() {
+                        i += character.len_utf8();
+                    }
+                    literal.push_str(&raw[start..i]);
+                }
                 b'{' if bytes.get(i + 1) == Some(&b'{') => {
                     literal.push('{');
                     i += 2;
@@ -3783,9 +3842,16 @@ impl Cx {
                 def: local,
             });
             let score = self.local_ref(local);
-            parts.push(pc::TextPart::Score {
-                score,
-                style: style.clone(),
+            parts.push(if self.local_ty(local) == Ty::String {
+                pc::TextPart::Stored {
+                    value: Self::data_field(&score),
+                    style: style.clone(),
+                }
+            } else {
+                pc::TextPart::Score {
+                    score,
+                    style: style.clone(),
+                }
             });
             return true;
         }
@@ -3818,71 +3884,83 @@ impl Cx {
                 true
             }
             path_text if path_text.contains('.') => {
-                let (state_text, field_text) = path_text.rsplit_once('.').expect("contains a dot");
-                let mut segments = Vec::new();
+                let (state_text, rest) = path_text.split_once('.').expect("contains a dot");
                 let mut offset = span.start;
-                for segment in state_text.split("::") {
-                    segments.push(Ident {
-                        name: segment.to_string(),
-                        span: Span::new(offset, offset + segment.len()),
-                    });
-                    offset += segment.len() + 2;
-                }
-                let field_start = span.start + state_text.len() + 1;
-                let valid = segments
-                    .iter()
-                    .chain(std::iter::once(&Ident {
-                        name: field_text.to_string(),
-                        span: Span::default(),
-                    }))
-                    .all(|s| {
-                        s.name
-                            .chars()
-                            .next()
-                            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                            && s.name
-                                .chars()
-                                .all(|c| c.is_ascii_alphanumeric() || c == '_')
-                    });
-                if !valid {
+                let segments: Vec<_> = state_text
+                    .split("::")
+                    .map(|name| {
+                        let ident = Ident {
+                            name: name.into(),
+                            span: Span::new(offset, offset + name.len()),
+                        };
+                        offset += name.len() + 2;
+                        ident
+                    })
+                    .collect();
+                offset = span.start + state_text.len() + 1;
+                let mut projections: Vec<_> = rest
+                    .split('.')
+                    .map(|name| {
+                        let ident = Ident {
+                            name: name.into(),
+                            span: Span::new(offset, offset + name.len()),
+                        };
+                        offset += name.len() + 1;
+                        ident
+                    })
+                    .collect();
+                if !segments.iter().chain(&projections).all(|part| {
+                    part.name.chars().next().is_some_and(|character| {
+                        character.is_ascii_alphabetic() || character == '_'
+                    }) && part
+                        .name
+                        .bytes()
+                        .all(|character| character.is_ascii_alphanumeric() || character == b'_')
+                }) {
                     self.error(
                         "text",
                         file,
                         span,
-                        format!(
-                            "`{token_text}` is not a `State.field` path",
-                            token_text = path_text
-                        ),
+                        "expected a local or State field path in text",
                     );
                     return false;
                 }
+                let field = projections.remove(0);
                 let place = Place {
                     state: Path {
                         segments,
                         span: Span::new(span.start, span.start + state_text.len()),
                     },
-                    projections: Vec::new(),
-                    field: Ident {
-                        name: field_text.to_string(),
-                        span: Span::new(field_start, span.end),
-                    },
+                    field,
+                    projections,
                     span,
                 };
-                let Some((state, field, field_ty)) = self.resolve_place(body.module, file, &place)
-                else {
+                let Some(value) = self.place_value(body, &place, false) else {
                     return false;
                 };
-                if field_ty == Ty::Float {
+                if value.ty == Ty::Float {
                     self.float_in_text(file, span);
                     return false;
                 }
-                body.note_state(self, state, &place, "shows");
-                let Some(score) = self.field_reference(state, field) else {
+                if matches!(value.ty, Ty::Struct(_) | Ty::EntityRef) {
+                    self.error(
+                        "text",
+                        file,
+                        span,
+                        "text interpolation needs a scalar or string value",
+                    );
                     return false;
-                };
-                parts.push(pc::TextPart::Score {
-                    score,
-                    style: style.clone(),
+                }
+                parts.push(if value.ty == Ty::String {
+                    pc::TextPart::Stored {
+                        value: Self::data_field(&value.reference),
+                        style: style.clone(),
+                    }
+                } else {
+                    pc::TextPart::Score {
+                        score: value.reference,
+                        style: style.clone(),
+                    }
                 });
                 true
             }

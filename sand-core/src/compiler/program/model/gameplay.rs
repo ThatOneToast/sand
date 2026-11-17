@@ -534,10 +534,17 @@ pub struct TextStyle {
  use_when = ["Building Message text from literals, live scores, and player names"],
  avoid_when = ["Static resource text such as item names"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name."),
- variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling.")),
+ variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters."),
+ variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling.")),
 )]
 pub enum TextPart {
+    /// A stored list of string characters, joined without separators. Read at
+    /// message execution time through the field's canonical State ownership.
+    Stored {
+        value: FieldReference,
+        #[serde(default)]
+        style: TextStyle,
+    },
     /// Literal text.
     Text {
         text: String,

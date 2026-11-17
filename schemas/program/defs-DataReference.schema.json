@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A State storage field and its checked nested projections.",
+  "properties": {
+    "field": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Owning State storage field."
+    },
+    "path": {
+      "description": "Nested members or list indices, in order. An empty path selects the root.",
+      "items": {
+        "$ref": "defs-DataProjection.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "field"
+  ],
+  "type": "object"
+}

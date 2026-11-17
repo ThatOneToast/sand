@@ -36,6 +36,7 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
 mod collections;
 mod resources;
 mod statements;
+mod text;
 mod values;
 
 /// Index of a definition within an [`Analysis`].
@@ -51,6 +52,8 @@ pub enum Ty {
     Float,
     /// `true` or `false`, stored as one or zero.
     Bool,
+    /// Owned Unicode text stored as a sequence of scalar characters.
+    String,
     /// An enum whose variants are integer phases.
     Enum(DefId),
     /// A named, copyable record layout.
@@ -487,6 +490,8 @@ pub fn analyze(package: Package) -> Analysis {
         local_scopes: Vec::new(),
         vanilla_uses: Vec::new(),
         local_fields: Vec::new(),
+        local_data_fields: BTreeMap::new(),
+        text_constants: BTreeMap::new(),
         fn_slots: BTreeMap::new(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
@@ -532,6 +537,7 @@ struct Binding {
     is_pub: bool,
 }
 
+#[derive(Clone)]
 struct ConstSrc {
     module: ModuleId,
     file: FileId,
@@ -565,7 +571,7 @@ struct Cx {
     scopes: Vec<BTreeMap<String, Binding>>,
     members: BTreeMap<DefId, BTreeMap<String, DefId>>,
     methods: BTreeMap<DefId, values::Method>,
-    record_defaults: BTreeMap<DefId, Vec<i32>>,
+    record_defaults: BTreeMap<DefId, Vec<text::LeafDefault>>,
     array_types: BTreeMap<(Ty, usize), DefId>,
     const_src: BTreeMap<DefId, ConstSrc>,
     variant_src: BTreeMap<DefId, VariantSrc>,
@@ -577,6 +583,8 @@ struct Cx {
     vanilla_uses: Vec<VanillaUse>,
     /// Fields of the compiler-owned locals State, in allocation order.
     local_fields: Vec<String>,
+    local_data_fields: BTreeMap<String, sand::data::NbtValue>,
+    text_constants: BTreeMap<DefId, String>,
     /// Parameter and return slots per function.
     fn_slots: BTreeMap<DefId, FnSlots>,
     /// Handlers of each custom event, in declaration order.
@@ -1510,6 +1518,7 @@ impl Cx {
                 "float" => return Ty::Float,
                 "bool" => return Ty::Bool,
                 "EntityRef" => return Ty::EntityRef,
+                "string" => return Ty::String,
                 "i32" => {
                     let file = self.package.module(module).file;
                     self.diagnostics.push(
@@ -1543,7 +1552,7 @@ impl Cx {
             module,
             ty,
             &[DefKind::Enum, DefKind::Struct],
-            "a type (`number`, `float`, `bool`, enum, or struct)",
+            "a type (`number`, `float`, `bool`, `string`, `EntityRef`, enum, or struct)",
         ) {
             Some(def) if self.defs[def.0].kind == DefKind::Struct => Ty::Struct(def),
             Some(def) => Ty::Enum(def),
@@ -1558,6 +1567,7 @@ impl Cx {
             Ty::Bool => "bool".into(),
             Ty::Enum(def) | Ty::Struct(def) => self.defs[def.0].name.clone(),
             Ty::EntityRef => "EntityRef".into(),
+            Ty::String => "string".into(),
             Ty::Unknown => "{unknown}".into(),
         }
     }
@@ -1590,8 +1600,18 @@ impl Cx {
     fn evaluate_declarations(&mut self) {
         let consts: Vec<DefId> = self.const_src.keys().copied().collect();
         for def in consts {
-            let value = self.eval_def(def);
             let ty = self.const_src[&def].ty;
+            if ty == Ty::String {
+                let source = self.const_src[&def].clone();
+                if let Some(value) =
+                    self.constant_text(source.module, source.file, &source.expr, &mut vec![def])
+                {
+                    self.text_constants.insert(def, value);
+                }
+                self.defs[def.0].info = DefInfo::Const { ty, value: None };
+                continue;
+            }
+            let value = self.eval_def(def);
             self.defs[def.0].info = DefInfo::Const { ty, value };
         }
         let variants: Vec<DefId> = self.variant_src.keys().copied().collect();
@@ -1665,7 +1685,9 @@ impl Cx {
         } else {
             self.resolve_type(module, &field.ty)
         };
-        if field.name.name.starts_with("__sand_record_") {
+        if field.name.name.starts_with("__sand_record_")
+            || field.name.name.starts_with("__sand_data_")
+        {
             self.error(
                 "field",
                 file,
@@ -1673,7 +1695,7 @@ impl Cx {
                 "`__sand_record_` is reserved for struct storage",
             );
         }
-        let default = if matches!(ty, Ty::Struct(_)) {
+        let default = if matches!(ty, Ty::Struct(_) | Ty::String) {
             if let Some(defaults) = self.record_constant(module, file, field.default.as_ref(), ty) {
                 self.record_defaults.insert(def, defaults);
             }
@@ -2097,6 +2119,7 @@ impl Cx {
                 "float" => return Ty::Float,
                 "bool" => return Ty::Bool,
                 "EntityRef" => return Ty::EntityRef,
+                "string" => return Ty::String,
                 _ => {}
             }
         }
@@ -2115,12 +2138,12 @@ impl Cx {
     /// | bool | 0 or 1 | 0.0 or 1.0 | same | — |
     /// | enum | its value | its value | — | same enum only |
     pub(super) fn cast_step(&self, from: Ty, to: Ty) -> Result<CastStep, (String, &'static str)> {
-        if matches!(from, Ty::Struct(_) | Ty::EntityRef)
-            || matches!(to, Ty::Struct(_) | Ty::EntityRef)
+        if matches!(from, Ty::Struct(_) | Ty::EntityRef | Ty::String)
+            || matches!(to, Ty::Struct(_) | Ty::EntityRef | Ty::String)
         {
             return Err((
-                "struct and entity-reference values cannot be cast".into(),
-                "use scalar fields or resolve the entity reference",
+                "struct, string and entity-reference values cannot be cast".into(),
+                "format scalars with `.to_string()`, use scalar fields, or resolve the entity reference",
             ));
         }
         Ok(match (from, to) {
@@ -2176,13 +2199,21 @@ impl Cx {
         }
         self.infer_contexts(&mut lowerer);
         self.resolve_frames(&mut lowerer);
-        if !self.local_fields.is_empty()
+        if (!self.local_fields.is_empty() || !self.local_data_fields.is_empty())
             && let Some(root) = modules.first_mut()
             && let Ok(id) = self.locals_state_id().parse()
         {
             // One compiler-owned global State holds every local, parameter,
             // return value, and temporary slot.
             root.states.push(pc::State {
+                data_fields: self
+                    .local_data_fields
+                    .iter()
+                    .map(|(name, default)| pc::DataField {
+                        name: name.clone(),
+                        default: default.clone(),
+                    })
+                    .collect(),
                 id,
                 scope: "global".into(),
                 revision: 1,
@@ -2611,7 +2642,9 @@ impl Cx {
         let temps = format!("f{}_t", function.0);
         self.local_fields
             .iter()
+            .chain(self.local_data_fields.keys())
             .filter(|name| {
+                let name = name.strip_prefix("__sand_data_").unwrap_or(name);
                 if name.starts_with(&temps) {
                     return true;
                 }
@@ -2675,6 +2708,7 @@ impl Cx {
                     self.pointers
                         .push((id_text.clone(), ptr.clone(), file, name.span));
                     let mut score_fields = Vec::new();
+                    let mut data_fields = Vec::new();
                     for (index, field) in fields.iter().enumerate() {
                         let d = self.defs[field.0].clone();
                         self.pointers.push((
@@ -2692,18 +2726,13 @@ impl Cx {
                         else {
                             continue;
                         };
-                        if let DefInfo::Field {
-                            ty: Ty::Struct(record),
-                            ..
-                        } = d.info
-                        {
+                        if matches!(self.field_ty(*field), Ty::Struct(_) | Ty::String) {
+                            let value_ty = self.field_ty(*field);
                             let base = self.field_reference(def, *field).expect("State field");
                             let defaults =
                                 self.record_defaults.get(field).cloned().unwrap_or_default();
-                            for (index, (leaf, _)) in self
-                                .value_slots(&base, Ty::Struct(record))
-                                .into_iter()
-                                .enumerate()
+                            for (index, (leaf, _)) in
+                                self.value_slots(&base, value_ty).into_iter().enumerate()
                             {
                                 self.pointers.push((
                                     id_text.clone(),
@@ -2711,12 +2740,26 @@ impl Cx {
                                     file,
                                     d.name_span,
                                 ));
-                                score_fields.push(pc::ScoreField {
-                                    name: leaf.field,
-                                    default: defaults.get(index).copied().unwrap_or(0),
-                                    bounds: None,
-                                    timer: false,
-                                });
+                                match defaults
+                                    .get(index)
+                                    .cloned()
+                                    .unwrap_or(text::LeafDefault::Score(0))
+                                {
+                                    text::LeafDefault::Score(default) => {
+                                        score_fields.push(pc::ScoreField {
+                                            name: leaf.field,
+                                            default,
+                                            bounds: None,
+                                            timer: false,
+                                        })
+                                    }
+                                    text::LeafDefault::Data(default) => {
+                                        data_fields.push(pc::DataField {
+                                            name: Self::data_field(&leaf).field,
+                                            default,
+                                        })
+                                    }
+                                }
                             }
                             continue;
                         }
@@ -2737,6 +2780,7 @@ impl Cx {
                         continue;
                     };
                     out.states.push(pc::State {
+                        data_fields,
                         id: state_id,
                         scope: match state.scope {
                             Scope::Player => "player".into(),
@@ -4174,6 +4218,39 @@ impl Cx {
                 Some((range_condition(self, score, start, end, *span)?, false))
             }
             Cond::Compare { lhs, op, rhs, span } => {
+                if self.type_of(body, lhs) == Ty::String || self.type_of(body, rhs) == Ty::String {
+                    if !matches!(op, CmpOp::Eq | CmpOp::Ne) {
+                        self.error(
+                            "type",
+                            file,
+                            *span,
+                            "strings support equality comparisons with `==` or `!=`",
+                        );
+                        return None;
+                    }
+                    let left = self.temp(body);
+                    self.emit(body, &left, Ty::String, lhs, pre)?;
+                    let right = self.temp(body);
+                    self.emit(body, &right, Ty::String, rhs, pre)?;
+                    let score = self.temp(body);
+                    pre.push(op_at(
+                        pc::Action::DataEqual {
+                            score: score.clone(),
+                            left: Self::data_reference(&left),
+                            right: Self::data_reference(&right),
+                        },
+                        file,
+                        *span,
+                    ));
+                    return Some((
+                        pc::Condition::Range(pc::ScoreComparison {
+                            score,
+                            min: Some(1),
+                            max: Some(1),
+                        }),
+                        *op == CmpOp::Ne,
+                    ));
+                }
                 if matches!(self.type_of(body, lhs), Ty::Struct(_))
                     || matches!(self.type_of(body, rhs), Ty::Struct(_))
                 {

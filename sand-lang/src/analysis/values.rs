@@ -302,7 +302,9 @@ impl Cx {
                 })
                 .collect()
         } else {
-            if base.state.to_string() == self.locals_state_id() {
+            if ty == Ty::String {
+                self.register_data_slot(base, text::text_value(""));
+            } else if base.state.to_string() == self.locals_state_id() {
                 self.slot(base.field.clone());
             }
             vec![(base.clone(), ty)]
@@ -317,12 +319,14 @@ impl Cx {
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
-        for ((dest, _), (source, _)) in self
+        for ((dest, leaf_ty), (source, _)) in self
             .value_slots(dest, ty)
             .into_iter()
             .zip(self.value_slots(source, ty))
         {
-            if let Some(action) = Self::set_from(&dest, Value::Read(source)) {
+            if leaf_ty == Ty::String {
+                ops.push(op_at(Self::copy_data(&dest, &source), file, span));
+            } else if let Some(action) = Self::set_from(&dest, Value::Read(source)) {
                 ops.push(op_at(action, file, span));
             }
         }
@@ -591,7 +595,14 @@ impl Cx {
         file: FileId,
         expr: Option<&Expr>,
         ty: Ty,
-    ) -> Option<Vec<i32>> {
+    ) -> Option<Vec<text::LeafDefault>> {
+        if ty == Ty::String {
+            let value = match expr {
+                Some(expr) => self.constant_text(module, file, expr, &mut Vec::new())?,
+                None => String::new(),
+            };
+            return Some(vec![text::LeafDefault::Data(text::text_value(&value))]);
+        }
         if let Some((element, length)) = self.array_shape(ty) {
             if let Some(Expr::ArrayRepeat {
                 value,
@@ -730,7 +741,7 @@ impl Cx {
                     _ => 0,
                 },
             };
-            Some(vec![value as i32])
+            Some(vec![text::LeafDefault::Score(value as i32)])
         }
     }
 

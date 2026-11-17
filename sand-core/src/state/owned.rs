@@ -1,4 +1,4 @@
-//! Owned adaptation of the supported player/global score State slice.
+//! Owned adaptation of portable State through canonical lifecycle lowering.
 //!
 //! Strings are borrowed only while canonical lifecycle generation runs. No
 //! descriptor is interned, leaked or registered in link-time inventory.
@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use super::GlobalStateHolder;
 use super::registry::{AutomaticLifecycle, automatic_lifecycle_with_hooks};
 use super::registry::{StateDescriptor, StateLifecycleDescriptor, StateScope};
+use crate::entity::state::StateDataFieldDescriptor;
 use crate::entity::{StateFieldDescriptor, StateFieldKind};
 
 use crate::compiler::program::model::{ScoreField, State};
@@ -61,6 +62,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
             ));
         }
         Ok(Self {
+            data_fields: Vec::new(),
             id: descriptor
                 .id
                 .parse()
@@ -90,6 +92,40 @@ pub(crate) fn holder(state: &State) -> sand_commands::ScoreHolder {
         }
         _ => unreachable!("owned State scopes are validated before lowering"),
     }
+}
+
+/// Borrow one portable field through the same canonical storage identity used
+/// by derived Rust State components.
+pub(crate) fn with_data_field<R>(
+    state: &State,
+    name: &str,
+    lower: impl FnOnce(StateDataFieldDescriptor<'_>) -> R,
+) -> R {
+    let field = state
+        .data_fields
+        .iter()
+        .find(|field| field.name == name)
+        .expect("validated storage field");
+    let (storage, path, default) = data_identity(state, field);
+    lower(if state.scope == "global" {
+        StateDataFieldDescriptor::new(&storage, &path, &default)
+    } else {
+        StateDataFieldDescriptor::keyed(&storage, &path, &default)
+    })
+}
+
+fn data_identity(
+    state: &State,
+    field: &crate::compiler::program::model::DataField,
+) -> (String, String, String) {
+    let id = state.id.to_string();
+    let (namespace, component) = id.split_once(':').expect("validated State identity");
+    let component = serde_json::to_string(component).expect("component key serializes");
+    (
+        format!("{namespace}:state"),
+        format!("components.{component}.{}", field.name),
+        field.default.to_string(),
+    )
 }
 
 /// Lower explicit owned inputs through the same lifecycle implementation used
@@ -149,31 +185,104 @@ pub(crate) fn with_descriptors<R>(
                 .collect()
         })
         .collect();
-    let descriptors = states.iter().zip(&identities).zip(&fields).map(
-        |((state, (id, holder, presence, suppression, _)), fields)| {
-            StateDescriptor::new(
-                id,
-                1,
-                match state.scope.as_str() {
-                    "player" => StateScope::Player,
-                    "entity" => StateScope::Entity,
-                    "global" => StateScope::Global(holder.as_str()),
-                    _ => unreachable!("owned State scopes are validated before lowering"),
-                },
-                presence,
-                suppression,
-                fields,
-                &[],
-                &[],
-            )
-        },
-    );
+    let data_storage: Vec<_> = states
+        .iter()
+        .map(|state| {
+            state
+                .data_fields
+                .iter()
+                .map(|field| data_identity(state, field))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let data_fields: Vec<Vec<_>> = states
+        .iter()
+        .zip(&data_storage)
+        .map(|(state, fields)| {
+            fields
+                .iter()
+                .map(|(storage, path, default)| {
+                    if state.scope == "global" {
+                        StateDataFieldDescriptor::new(storage, path, default)
+                    } else {
+                        StateDataFieldDescriptor::keyed(storage, path, default)
+                    }
+                })
+                .collect()
+        })
+        .collect();
+    let descriptors = states
+        .iter()
+        .zip(&identities)
+        .zip(&fields)
+        .zip(&data_fields)
+        .map(
+            |(((state, (id, holder, presence, suppression, _)), fields), data_fields)| {
+                StateDescriptor::new(
+                    id,
+                    1,
+                    match state.scope.as_str() {
+                        "player" => StateScope::Player,
+                        "entity" => StateScope::Entity,
+                        "global" => StateScope::Global(holder.as_str()),
+                        _ => unreachable!("owned State scopes are validated before lowering"),
+                    },
+                    presence,
+                    suppression,
+                    fields,
+                    &[],
+                    data_fields,
+                )
+            },
+        );
     lower(descriptors.collect())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn owned_data_defaults_share_canonical_storage_lifecycle_without_static_allocations() {
+        for scope in ["player", "entity", "global"] {
+            let state = State {
+                id: "demo:notes".parse().unwrap(),
+                scope: scope.into(),
+                revision: 1,
+                fields: Vec::new(),
+                data_fields: vec![crate::compiler::program::model::DataField {
+                    name: "text".into(),
+                    default: sand_commands::NbtValue::String("$(uuid)".into()),
+                }],
+            };
+            let storage = String::from("demo:state");
+            let path = String::from("components.\"notes\".text");
+            let default = String::from("\"$(uuid)\"");
+            let field = if scope == "global" {
+                StateDataFieldDescriptor::new(&storage, &path, &default)
+            } else {
+                StateDataFieldDescriptor::keyed(&storage, &path, &default)
+            };
+            let holder = GlobalStateHolder::new("demo:notes");
+            let fields = [field];
+            let descriptor = StateDescriptor::new(
+                "demo:notes",
+                1,
+                match scope {
+                    "player" => StateScope::Player,
+                    "entity" => StateScope::Entity,
+                    _ => StateScope::Global(holder.as_str()),
+                },
+                "demo:notes.presence",
+                "demo:notes.suppressed",
+                &[],
+                &[],
+                &fields,
+            );
+            let expected = automatic_lifecycle_with_hooks([descriptor], &BTreeMap::new()).unwrap();
+            assert_eq!(lifecycle(&[state]).unwrap(), expected);
+        }
+    }
 
     #[test]
     fn owned_state_matches_static_lifecycle_without_static_allocations() {
@@ -209,6 +318,7 @@ mod tests {
     #[test]
     fn multi_field_player_helpers_are_owned_and_do_not_pollute_pending_resources() {
         let state = State {
+            data_fields: Vec::new(),
             id: "demo:pair".parse().unwrap(),
             scope: "player".into(),
             revision: 1,
@@ -246,6 +356,7 @@ mod tests {
     #[test]
     fn owned_counter_provisions_and_initializes_canonical_objectives() {
         let output = lifecycle(&[State {
+            data_fields: Vec::new(),
             id: "demo:counter".parse().unwrap(),
             scope: "player".into(),
             revision: 1,
@@ -277,6 +388,7 @@ mod tests {
     #[test]
     fn owned_and_rust_only_states_share_objective_collision_checks() {
         let owned = [State {
+            data_fields: Vec::new(),
             id: "demo:counter".parse().unwrap(),
             scope: "player".into(),
             revision: 1,

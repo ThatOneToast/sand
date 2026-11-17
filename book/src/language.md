@@ -204,11 +204,11 @@ assign it back to keep a change. They can also take `&self` to read a value or
 commit when the call returns, including early returns and recursive calls; these
 are scoped method receivers rather than general reference values. Mutable calls
 on immutable variables or temporary expressions are errors. Traits, generics,
-dynamic collections, runtime strings, and whole-record arithmetic/comparison are not
+dynamic collections, and whole-record arithmetic/comparison are not
 supported. Empty or recursive record layouts are rejected. Each record has at
 most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
 or clamps; an uninitialized record recursively uses zero or the first enum
-variant. State defaults can instead provide a complete record literal.
+variant, and string fields use empty text. State defaults can instead provide a complete record literal.
 
 State methods use `&self` or `&mut self` to access persistent storage. These are
 State receivers, not general Rust references. Player and entity receivers require
@@ -261,8 +261,9 @@ evaluating the right-hand side.
 | `array.fill(value)` | Replace every element with an independent copy; needs a mutable receiver |
 
 Arrays have at most 1,024 elements; complete aggregate layouts have at most
-1,024 scalar leaves and 32 storage levels. Dynamic vectors/maps, slices, and
-runtime strings remain separate roadmap work. See the
+1,024 scalar leaves and 32 storage levels. Growable vectors/maps and general
+borrowed slices remain separate roadmap work. Arrays may contain strings and
+records with string fields. See the
 [quest-board example](../../examples/lang_collections/pack.sand).
 
 ## Types
@@ -273,7 +274,8 @@ runtime strings remain separate roadmap work. See the
 | `float` | decimals with three places, like `1.5` | a score holding `value * 1000` |
 | `bool` | `true` or `false` | a score holding one or zero |
 | an `enum` | one of its named phases | a score holding the phase's number |
-| a `struct` | named fields of existing value types | one score per scalar leaf |
+| `string` | owned Unicode text | UUID-owned or global command storage |
+| a `struct` | named fields of existing value types | score or storage slots per leaf |
 | `[T; N]` | N independent values of one type | the same aggregate leaf layout |
 
 Scoreboards only hold whole numbers, so `float` is fixed point, the same
@@ -531,7 +533,7 @@ Text macros take a string with `{...}` interpolation:
 | `actionbar!("...")` | text above the executing player's hotbar |
 | `title!("...")` / `subtitle!("...")` | a big title (set the subtitle first) |
 
-Inside the text, `{variable}` or `{State.field}` shows a number and `{player}`
+Inside the text, `{variable}` or `{State.field}` shows a number or string and `{player}`
 shows the player's name. Style names (`{gold}`, `{red}`, `{bold}`, `{italic}`,
 `{underlined}`, all sixteen colours, and `{reset}`) style the text that follows.
 Write `{{` and `}}` for literal braces.
@@ -540,6 +542,55 @@ Write `{{` and `}}` for literal braces.
 title!("{yellow}{bold}Round {World.round}");
 chat!("{gray}Coins: {gold}{Wallet.coins}");
 ```
+
+### Runtime strings
+
+`string` is an owned value supported in locals, constants, State, record fields,
+arrays, function parameters/returns and event payloads. Assignment makes an
+independent copy; borrowed struct methods and recursive calls preserve strings
+through the same value and frame model as other fields.
+
+```rust,ignore
+const PREFIX: string = "Hello, ";
+player state Notes { title: string = "Journal" }
+let mut message = PREFIX + "world 🌍";
+message += "!";
+let count = 42;
+let line = "Collected " + count.to_string() + " items";
+chat!(line);
+chat!("{gold}{Notes.title}: {message}");
+```
+
+Literal macro arguments retain format interpolation. Runtime string arguments
+are shown as plain text, so braces and text such as `$(uuid)` remain literal.
+`{local.field}` and nested State/record field paths may interpolate strings.
+
+| Operation | Result |
+| --- | --- |
+| `left + right`, `text += suffix` | Concatenate text |
+| `left == right`, `left != right` | Compare the full character sequence |
+| `text.len()`, `text.is_empty()` | Character count or emptiness |
+| `text[index]` | One character as a string; invalid runtime indices return empty text |
+| `text.slice(start, end)` | Independent text in a clamped half-open range; reversed ranges are empty |
+| `text.contains(value)` | Substring membership; empty text is always contained |
+| `text.starts_with(value)`, `text.ends_with(value)` | Prefix or suffix membership |
+| `value.to_string()` | Signed decimal number, three-place float, boolean or enum variant name |
+
+Indices count Unicode scalar values, so a supplementary character counts once;
+combining characters remain separate. Stored strings use typed NBT character
+lists, and each State owner uses the canonical UUID lifecycle. These are plain
+text values, not rich-text component values or arbitrary imported NBT strings.
+String comparisons support equality rather than ordering. String constants may
+combine literals and other string constants. Numeric casts do not parse text.
+
+Escapes include `\\`, `\"`, `\n`, `\r`, `\t`, `\0`, `\b`, `\f` and
+`\u{hex}` for a Unicode scalar value. Malformed escapes report a source error.
+`to_string` preserves the minimum signed integer without overflowing. A float
+always shows three decimal places, including trailing zeros; an invalid enum
+discriminant formats as its number. Text operations run as Minecraft commands,
+so large values and searches remain subject to command execution limits.
+
+See the [saved journal example](../../examples/lang_runtime_text/pack.sand).
 
 ## Vanilla values
 

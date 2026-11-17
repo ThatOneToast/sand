@@ -92,7 +92,7 @@ pub(super) fn validate(
                     module
                         .states
                         .iter()
-                        .map(|state| state.fields.len())
+                        .map(|state| state.fields.len().saturating_add(state.data_fields.len()))
                         .sum::<usize>(),
                 )
         })
@@ -175,6 +175,42 @@ pub(super) fn validate(
                     ));
                 }
             }
+            for (index, field) in state.data_fields.iter().enumerate() {
+                let field_ptr = format!("{ptr}/data_fields/{index}");
+                if field.name.is_empty()
+                    || matches!(
+                        field.name.as_str(),
+                        "presence" | "suppressed" | "numeric_scratch"
+                    )
+                    || !field
+                        .name
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                    || !fields.insert(&field.name)
+                {
+                    errors.push(Diagnostic::error("SAND_PROGRAM_STATE", &owner, &field_ptr,
+                        "storage fields require unique simple names and share the score field namespace"));
+                }
+                let profile = sand_commands::CommandProfile::new(&program.target.minecraft, false);
+                let command = sand_commands::DataTarget::storage("sand:validate")
+                    .path("value")
+                    .set(field.default.clone());
+                if serde_json::to_value(&field.default).is_err() {
+                    errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_STATE",
+                        &owner,
+                        &field_ptr,
+                        "portable storage defaults require typed NBT; raw SNBT is unsupported",
+                    ));
+                } else if let Err(error) = command.try_render(&profile) {
+                    errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_STATE",
+                        &owner,
+                        &field_ptr,
+                        error,
+                    ));
+                }
+            }
         }
         for (index, function) in module.functions.iter().enumerate() {
             if !valid_id(&function.id)
@@ -233,6 +269,21 @@ pub(super) fn validate(
                             .map(|field| field.name.as_str())
                             .collect(),
                     ),
+                )
+            })
+            .collect(),
+        data_fields: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.states)
+            .map(|state| {
+                (
+                    state.id.to_string(),
+                    state
+                        .data_fields
+                        .iter()
+                        .map(|field| field.name.as_str())
+                        .collect(),
                 )
             })
             .collect(),
@@ -723,6 +774,7 @@ struct Validator<'a, 'e> {
     loot_tables: BTreeSet<String>,
     custom_items: BTreeSet<String>,
     states: BTreeMap<String, (&'a str, BTreeSet<&'a str>)>,
+    data_fields: BTreeMap<String, BTreeSet<&'a str>>,
     functions: BTreeMap<String, ExecutionContext>,
     identity_unsafe: BTreeSet<String>,
     operations: usize,
@@ -1018,7 +1070,13 @@ impl Validator<'_, '_> {
         }
     }
 
-    fn score(&mut self, score: &FieldReference, context: ExecutionContext, owner: &str, ptr: &str) {
+    fn field_context(
+        &mut self,
+        score: &FieldReference,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+    ) {
         if context == ExecutionContext::Server
             && self
                 .states
@@ -1045,6 +1103,10 @@ impl Validator<'_, '_> {
                 "player-self State requires player execution context",
             ));
         }
+    }
+
+    fn score(&mut self, score: &FieldReference, context: ExecutionContext, owner: &str, ptr: &str) {
+        self.field_context(score, context, owner, ptr);
         if !self
             .states
             .get(&score.state.to_string())
@@ -1058,6 +1120,95 @@ impl Validator<'_, '_> {
             ));
         }
     }
+    fn data_reference(
+        &mut self,
+        reference: &DataReference,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+        each: bool,
+    ) {
+        self.field_context(&reference.field, context, owner, ptr);
+        if !self
+            .data_fields
+            .get(&reference.field.state.to_string())
+            .is_some_and(|fields| fields.contains(reference.field.field.as_str()))
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_REFERENCE",
+                owner,
+                ptr,
+                "unresolved State storage field",
+            ));
+        }
+        if reference.path.len() > 32 {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_LIMIT",
+                owner,
+                ptr,
+                "storage projections support at most 32 steps",
+            ));
+            return;
+        }
+        for (index, projection) in reference.path.iter().enumerate() {
+            let location = format!("{ptr}/path/{index}");
+            match projection {
+                DataProjection::Member { name } => {
+                    if name.is_empty()
+                        || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                    {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &location,
+                            "storage members require nonempty simple names",
+                        ));
+                    }
+                }
+                DataProjection::Index {
+                    index: ScoreOperand::Field(score),
+                } => self.score(score, context, owner, &location),
+                DataProjection::Index {
+                    index: ScoreOperand::Value(value),
+                } if *value < 0 => {
+                    self.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_RANGE",
+                        owner,
+                        &location,
+                        "storage indices must be nonnegative",
+                    ));
+                }
+                DataProjection::Each if !each || index + 1 != reference.path.len() => {
+                    self.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_REFERENCE",
+                        owner,
+                        &location,
+                        "all-elements selection is only valid at the end of a modification source",
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn data_literal(&mut self, value: &sand_commands::NbtValue, owner: &str, ptr: &str) {
+        let profile = sand_commands::CommandProfile::new(self.target, false);
+        let command = sand_commands::DataTarget::storage("sand:validate")
+            .path("value")
+            .set(value.clone());
+        if serde_json::to_value(value).is_err() {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_STATE",
+                owner,
+                ptr,
+                "portable data requires typed NBT; raw SNBT is unsupported",
+            ));
+        } else if let Err(error) = command.try_render(&profile) {
+            self.errors
+                .push(Diagnostic::error("SAND_PROGRAM_STATE", owner, ptr, error));
+        }
+    }
+
     fn call(
         &mut self,
         reference: &FunctionReference,
@@ -1164,6 +1315,59 @@ impl Validator<'_, '_> {
                 }
             }
             match &operation.action {
+                Action::DataModify { target, source, .. } => {
+                    self.data_reference(
+                        target,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/target"),
+                        false,
+                    );
+                    match source {
+                        DataOperand::Value { value } => {
+                            self.data_literal(value, owner, &format!("{ptr}/action/source"))
+                        }
+                        DataOperand::Reference { value } => self.data_reference(
+                            value,
+                            context,
+                            owner,
+                            &format!("{ptr}/action/source"),
+                            true,
+                        ),
+                        DataOperand::Score {
+                            value: ScoreOperand::Field(score),
+                        } => self.score(score, context, owner, &format!("{ptr}/action/source")),
+                        DataOperand::Score { .. } => {}
+                    }
+                }
+                Action::DataRemove { target } => self.data_reference(
+                    target,
+                    context,
+                    owner,
+                    &format!("{ptr}/action/target"),
+                    false,
+                ),
+                Action::DataRead { score, source } => {
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    self.data_reference(
+                        source,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/source"),
+                        false,
+                    );
+                }
+                Action::DataEqual { score, left, right } => {
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                    self.data_reference(left, context, owner, &format!("{ptr}/action/left"), false);
+                    self.data_reference(
+                        right,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/right"),
+                        false,
+                    );
+                }
                 Action::ScoreSet { score, .. } | Action::ScoreAdd { score, .. } => {
                     self.score(score, context, owner, &format!("{ptr}/action/score"))
                 }
@@ -1252,6 +1456,16 @@ impl Validator<'_, '_> {
                     for (index, part) in text.iter().enumerate() {
                         let part_ptr = format!("{ptr}/action/text/{index}");
                         match part {
+                            TextPart::Stored { value, .. } => self.data_reference(
+                                &DataReference {
+                                    field: value.clone(),
+                                    path: Vec::new(),
+                                },
+                                context,
+                                owner,
+                                &format!("{ptr}/action/text"),
+                                false,
+                            ),
                             TextPart::Score { score, .. } => {
                                 self.score(score, context, owner, &format!("{part_ptr}/score"))
                             }
@@ -1506,7 +1720,24 @@ impl Validator<'_, '_> {
                     let mut seen = std::collections::BTreeSet::new();
                     for (index, field) in fields.iter().enumerate() {
                         let field_ptr = format!("{ptr}/action/fields/{index}");
-                        self.score(field, context, owner, &field_ptr);
+                        if self
+                            .data_fields
+                            .get(&field.state.to_string())
+                            .is_some_and(|fields| fields.contains(field.field.as_str()))
+                        {
+                            self.data_reference(
+                                &DataReference {
+                                    field: field.clone(),
+                                    path: Vec::new(),
+                                },
+                                context,
+                                owner,
+                                &field_ptr,
+                                false,
+                            );
+                        } else {
+                            self.score(field, context, owner, &field_ptr);
+                        }
                         if !seen.insert((field.state.to_string(), field.field.clone())) {
                             self.errors.push(Diagnostic::error(
                                 "SAND_PROGRAM_STATE",

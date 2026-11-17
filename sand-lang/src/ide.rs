@@ -27,6 +27,7 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
         Ty::Bool => "bool".into(),
         Ty::Enum(def) | Ty::Struct(def) => analysis.def(def).name.clone(),
         Ty::EntityRef => "EntityRef".into(),
+        Ty::String => "string".into(),
         Ty::Unknown => "{unknown}".into(),
     }
 }
@@ -41,6 +42,9 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                 .map(|t| analysis.package.module(t).display_path())
                 .unwrap_or_else(|| def.name.clone());
             (format!("{vis}mod {}", def.name), vec![format!("`{path}`")])
+        }
+        DefInfo::Const { ty: Ty::String, .. } => {
+            (format!("{vis}const {}: string", def.name), Vec::new())
         }
         DefInfo::Const { ty, value } => (
             format!(
@@ -300,7 +304,7 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
             ty_name(analysis, *ty)
         );
     }
-    if matches!(ty, Ty::Struct(_)) {
+    if matches!(ty, Ty::Struct(_) | Ty::String) {
         return format!("    {}: {},", def.name, ty_name(analysis, *ty));
     }
     let default_text = value_text(analysis, *ty, *default);
@@ -868,7 +872,7 @@ enum Target {
     Def(DefId),
 }
 
-fn value_owner(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<DefId> {
+fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<Ty> {
     let module = analysis.package.module_at(file, offset)?;
     let mut parts = text.split('.');
     let root = parts.next()?;
@@ -882,45 +886,53 @@ fn value_owner(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> 
         .map(|(_, _, def)| *def);
     let mut owner = if let Some(local) = local {
         match analysis.def(local).info {
-            DefInfo::Local {
-                ty: Ty::Struct(def),
-                ..
-            } => def,
+            DefInfo::Local { ty, .. } => ty,
             _ => return None,
         }
     } else if root == "self" || root == "Self" {
-        analysis
-            .defs
-            .iter()
-            .find(|def| {
-                def.file == file
-                    && def.kind == DefKind::Function
-                    && def.span.contains(offset)
-                    && def.parent.is_some()
-            })?
-            .parent?
+        Ty::Struct(
+            analysis
+                .defs
+                .iter()
+                .find(|def| {
+                    def.file == file
+                        && def.kind == DefKind::Function
+                        && def.span.contains(offset)
+                        && def.parent.is_some()
+                })?
+                .parent?,
+        )
     } else {
         let Target::Def(def) =
             resolve_names(analysis, module, &root.split("::").collect::<Vec<_>>())?
         else {
             return None;
         };
-        def
+        match analysis.def(def).info {
+            DefInfo::Const { ty, .. } => ty,
+            _ => Ty::Struct(def),
+        }
     };
     for field in parts {
-        let member = analysis.defs.iter().find(|def| {
-            def.parent == Some(owner) && def.name == field && def.kind == DefKind::Field
-        })?;
-        let DefInfo::Field {
-            ty: Ty::Struct(def),
-            ..
-        } = member.info
-        else {
+        let Ty::Struct(parent) = owner else {
             return None;
         };
-        owner = def;
+        let member = analysis.defs.iter().find(|def| {
+            def.parent == Some(parent) && def.name == field && def.kind == DefKind::Field
+        })?;
+        let DefInfo::Field { ty, .. } = member.info else {
+            return None;
+        };
+        owner = ty;
     }
     Some(owner)
+}
+
+fn value_owner(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<DefId> {
+    match value_type(analysis, file, offset, text)? {
+        Ty::Struct(def) => Some(def),
+        _ => None,
+    }
 }
 
 fn kind_of(kind: DefKind) -> CompletionKind {
@@ -1086,6 +1098,39 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 .map(|p| property_completion(&token[..dot], p))
                 .collect();
         }
+        if matches!(
+            value_type(analysis, file, offset, &token[..dot]),
+            Some(Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
+        ) {
+            return builtins::VALUE_METHODS
+                .iter()
+                .map(|method| Completion {
+                    detail: Some(method.signature.into()),
+                    documentation: Some(builtins::describe(method)),
+                    insert: Some(method.snippet.into()),
+                    snippet: false,
+                    ..Completion::plain("to_string", CompletionKind::Function)
+                })
+                .collect();
+        }
+        if value_type(analysis, file, offset, &token[..dot]) == Some(Ty::String) {
+            return builtins::STRING_METHODS
+                .iter()
+                .map(|method| Completion {
+                    detail: Some(method.signature.into()),
+                    documentation: Some(builtins::describe(method)),
+                    insert: Some(method.snippet.into()),
+                    snippet: method.snippet.contains("${"),
+                    ..Completion::plain(
+                        method
+                            .name
+                            .strip_prefix("string.")
+                            .expect("method namespace"),
+                        CompletionKind::Function,
+                    )
+                })
+                .collect();
+        }
         if let Some(owner) = value_owner(analysis, file, offset, &token[..dot]) {
             if matches!(analysis.def(owner).info, DefInfo::Array { .. }) {
                 return builtins::ARRAY_METHODS
@@ -1202,6 +1247,10 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                     "A retained entity identity, storable in State and records.".into(),
                 ),
                 ..Completion::plain("EntityRef", CompletionKind::Keyword)
+            });
+            out.push(Completion {
+                documentation: Some("Owned runtime Unicode text, copied by value.".into()),
+                ..Completion::plain("string", CompletionKind::Keyword)
             });
             if field_type {
                 out.push(Completion {
@@ -2205,19 +2254,42 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
             BuiltinKind::Condition,
         ]
     };
+    let string_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        (value_type(analysis, file, offset, receiver) == Some(Ty::String))
+            .then(|| builtins::string_method(method))
+            .flatten()
+    });
+    let scalar_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        matches!(
+            value_type(analysis, file, offset, receiver),
+            Some(Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
+        )
+        .then(|| builtins::value_method(method))
+        .flatten()
+    });
     let array_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
         let owner = value_owner(analysis, file, offset, receiver)?;
         matches!(analysis.def(owner).info, DefInfo::Array { .. })
             .then(|| builtins::array_method(method))
             .flatten()
     });
-    let builtin = array_builtin.or_else(|| {
-        (!scope_names(analysis, module).iter().any(|(n, _)| n == name))
-            .then(|| kinds.iter().find_map(|kind| builtins::find(name, *kind)))
-            .flatten()
-    });
+    let builtin = string_builtin
+        .or(scalar_builtin)
+        .or(array_builtin)
+        .or_else(|| {
+            (!scope_names(analysis, module).iter().any(|(n, _)| n == name))
+                .then(|| kinds.iter().find_map(|kind| builtins::find(name, *kind)))
+                .flatten()
+        });
     if let Some(builtin) = builtin {
-        label.push_str(builtin.name.strip_prefix("array.").unwrap_or(builtin.name));
+        label.push_str(
+            builtin
+                .name
+                .strip_prefix("array.")
+                .or_else(|| builtin.name.strip_prefix("string."))
+                .or_else(|| builtin.name.strip_prefix("scalar."))
+                .unwrap_or(builtin.name),
+        );
         if is_macro {
             label.push('!');
         }

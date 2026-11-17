@@ -342,3 +342,61 @@ fn run() { let values = [1, 2, 3]; let found = values.get_or(1, 0); }
     assert_eq!(help.params.len(), 2);
     assert_eq!(help.active, 1);
 }
+
+#[test]
+fn runtime_text_and_scalar_methods_have_editor_help() {
+    let text = r#"#![pack(namespace = "strings")]
+struct Card { title: string }
+fn run() {
+    let card = Card { title: "hello" };
+    let sliced = card.title.slice(1, 3);
+    let number = 42;
+    let formatted = number.to_string();
+}
+"#;
+    let analysis = analyze_one(text);
+    assert!(!analysis.has_errors(), "{:?}", errors(&analysis));
+    let at = offset(text, "card.title.slice", 0) + "card.title.".len();
+    let completions = ide::completions(&analysis, ROOT, at);
+    for method in [
+        "len",
+        "is_empty",
+        "contains",
+        "starts_with",
+        "ends_with",
+        "slice",
+    ] {
+        assert!(
+            completions
+                .iter()
+                .any(|completion| completion.label == method)
+        );
+    }
+    assert!(
+        ide::hover(&analysis, ROOT, at)
+            .unwrap()
+            .markdown
+            .contains("Unicode")
+    );
+    let help = ide::signature_help(&analysis, ROOT, at + "slice(1, ".len()).unwrap();
+    assert_eq!(help.label, "slice(start: number, end: number)");
+    assert_eq!(help.active, 1);
+    let at = offset(text, "number.to_string", 0) + "number.".len();
+    assert!(
+        ide::completions(&analysis, ROOT, at)
+            .iter()
+            .any(|completion| completion.label == "to_string")
+    );
+    assert!(
+        ide::hover(&analysis, ROOT, at)
+            .unwrap()
+            .markdown
+            .contains("signed decimal")
+    );
+    assert!(
+        ide::signature_help(&analysis, ROOT, at + "to_string(".len())
+            .unwrap()
+            .label
+            .starts_with("to_string(")
+    );
+}

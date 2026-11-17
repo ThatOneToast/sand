@@ -283,6 +283,11 @@ enum TextContent {
         with: Vec<TextComponent>,
     },
     Keybind(String),
+    Nbt {
+        target: crate::DataTarget,
+        path: crate::NbtPath,
+        separator: Box<TextComponent>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -591,6 +596,33 @@ impl TextComponent {
     )]
     pub fn keybind(key: impl Into<String>) -> Self {
         Self::new(TextContent::Keybind(key.into()))
+    }
+
+    /// Render readable NBT as plain text, joining multiple selected values with
+    /// `separator`. Stored text is never interpreted as JSON or command source.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::text::TextComponent::nbt",
+        aliases = ["sand::cmd::TextComponent::nbt", "sand::command::TextComponent::nbt", "sand::prelude::TextComponent::nbt", "sand::prelude::cmd::TextComponent::nbt"],
+        module = "sand::text", kind = "method",
+        summary = "Render readable NBT as plain text with an explicit separator.",
+        context = "The typed NBT reference selects storage, entity or block data; read-only views are accepted.",
+        minecraft = "Builds a validated NBT text component with interpret=false, preserving arbitrary stored text as text.",
+        use_when = ["Displaying runtime strings or values from command storage"],
+        avoid_when = ["Displaying a known literal or a scoreboard value"],
+        params(reference = "Readable typed NBT selection.", separator = "Component displayed between selected values."),
+        returns = "A plain-text NBT component that supports ordinary styling.",
+        example = "use sand::prelude::*; let text = TextComponent::nbt(sand::data::Nbt::storage(ResourceLocation::new(\"demo\", \"state\").unwrap()).path(\"name\"), TextComponent::literal(\"\"));",
+    )]
+    pub fn nbt<T>(
+        reference: impl Into<crate::ReadOnlyNbtRef<T>>,
+        separator: TextComponent,
+    ) -> Self {
+        let (target, path) = reference.into().into_parts();
+        Self::new(TextContent::Nbt {
+            target,
+            path,
+            separator: Box::new(separator),
+        })
     }
 
     fn new(content: TextContent) -> Self {
@@ -1427,6 +1459,22 @@ impl TextComponent {
                 }
             }
             TextContent::Keybind(key) => serde_json::json!({ "keybind": key }),
+            TextContent::Nbt {
+                target,
+                path,
+                separator,
+            } => {
+                let mut value = serde_json::json!({ "nbt": path.as_str(), "interpret": false, "separator": separator.to_json_value() });
+                let (kind, source) = match target {
+                    crate::DataTarget::Storage(id) | crate::DataTarget::StorageRaw(id) => {
+                        ("storage", id.clone())
+                    }
+                    crate::DataTarget::Entity(selector) => ("entity", selector.to_string()),
+                    crate::DataTarget::Block(position) => ("block", position.to_string()),
+                };
+                value[kind] = serde_json::Value::String(source);
+                value
+            }
         };
         if let Some(c) = &self.color {
             obj["color"] = serde_json::json!(c);
@@ -1584,6 +1632,14 @@ impl TextComponent {
 
         match &self.content {
             TextContent::Literal(_) => {}
+            TextContent::Nbt {
+                target,
+                path: selection,
+                separator,
+            } => {
+                crate::nbt::validate_ref_parts(target, selection, false, profile)?;
+                separator.validate_inner(profile, &format!("{path}.separator"), depth + 1)?;
+            }
             TextContent::Score { name, objective } => {
                 validate_score_holder(name).map_err(|error| {
                     text_error(

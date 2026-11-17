@@ -184,7 +184,7 @@ cond       = { cond_and ~ ("||" ~ cond_and)* }
 cond_and   = { cond_unary ~ ("&&" ~ cond_unary)* }
 cond_unary = { not_op* ~ cond_atom }
 not_op     = @{ "!" ~ !"=" }
-cond_atom  = _{ ("(" ~ cond ~ ")") | comparison | in_range | cond_call | cond_expr }
+cond_atom  = _{ ("(" ~ cond ~ ")" ~ !("." | "[" | cmp_op | infix | kw_as | kw_in)) | comparison | in_range | cond_call | cond_expr }
 cond_expr = { expr }
 cond_call  = { path ~ "(" ~ args? ~ ")" }
 comparison = { expr ~ cmp_op ~ expr }

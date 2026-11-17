@@ -4,6 +4,98 @@
   "oneOf": [
     {
       "additionalProperties": false,
+      "description": "Modify an owned storage value. Source values and dynamic indices are\nstaged before the write, including when source and target alias.",
+      "properties": {
+        "op": {
+          "const": "data_modify",
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "defs-DataModifyOperation.schema.json"
+        },
+        "source": {
+          "$ref": "defs-DataOperand.schema.json"
+        },
+        "target": {
+          "$ref": "defs-DataReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "target",
+        "operator",
+        "source"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Remove a stored selection. A missing selection leaves the value unchanged.",
+      "properties": {
+        "op": {
+          "const": "data_remove",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "defs-DataReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "target"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Read a stored integer, string length, or collection length into a score.\nMissing values produce zero, following Minecraft's data-get conversion.",
+      "properties": {
+        "op": {
+          "const": "data_read",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        "source": {
+          "$ref": "defs-DataReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "source"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Compare two present stored values using Minecraft's deep NBT equality.\nMissing selections compare false, even when both are absent.",
+      "properties": {
+        "left": {
+          "$ref": "defs-DataReference.schema.json"
+        },
+        "op": {
+          "const": "data_equal",
+          "type": "string"
+        },
+        "right": {
+          "$ref": "defs-DataReference.schema.json"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "left",
+        "right"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Assign an integer State field using its declared ownership.",
       "properties": {
         "op": {

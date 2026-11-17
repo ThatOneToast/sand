@@ -1,4 +1,6 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
+mod data;
+
 use super::{diagnostic::Diagnostic, limits, model::*};
 use crate::compiler::export::{
     functions, identities, lifecycle,
@@ -115,6 +117,10 @@ pub(super) fn lower(
         constants: std::collections::BTreeSet::new(),
         custom_items: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
+        data_states: states
+            .iter()
+            .map(|state| (state.id.to_string(), (*state).clone()))
+            .collect(),
         entity_states: states
             .iter()
             .filter(|state| state.scope == "entity")
@@ -568,13 +574,13 @@ fn custom_item(
 ) -> sand_components::CustomItem {
     let mut custom = sand_components::CustomItem::new(&item.base).custom_data(item.id.to_string());
     if !item.name.is_empty() {
-        custom = custom.custom_name(text_component(&item.name, holders));
+        custom = custom.custom_name(text_component(&item.name, holders, None));
     }
     if !item.lore.is_empty() {
         custom = custom.lore(
             item.lore
                 .iter()
-                .map(|line| text_component(line, holders))
+                .map(|line| text_component(line, holders, None))
                 .collect(),
         );
     }
@@ -844,6 +850,7 @@ enum EventLine {
 fn text_component(
     parts: &[TextPart],
     holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+    namespace: Option<&str>,
 ) -> sand_commands::TextComponent {
     use sand_commands::{ChatColor, TextComponent};
     let styled = |mut component: TextComponent, style: &TextStyle| {
@@ -881,8 +888,19 @@ fn text_component(
         component
     };
     let mut root = TextComponent::literal("");
-    for part in parts {
+    for (index, part) in parts.iter().enumerate() {
         let component = match part {
+            TextPart::Stored { style, .. } => styled(
+                TextComponent::nbt(
+                    sand_commands::DataTarget::storage(format!(
+                        "{}:__program_text",
+                        namespace.expect("stored text only occurs in runtime messages")
+                    ))
+                    .path(format!("p{index}[]")),
+                    TextComponent::literal(""),
+                ),
+                style,
+            ),
             TextPart::Text { text, style } => styled(TextComponent::literal(text.clone()), style),
             TextPart::Score { score, style } => styled(
                 TextComponent::score(
@@ -991,6 +1009,8 @@ struct Lower {
     custom_items: BTreeMap<String, sand_components::CustomItem>,
     /// Entity flags tested anywhere; each gets one generated predicate.
     flags: std::collections::BTreeSet<EntityFlag>,
+    /// Owned backing storage for canonical data-field descriptors.
+    data_states: BTreeMap<String, State>,
     /// Entity States by id, with their field defaults.
     entity_states: BTreeMap<String, Vec<(String, i32)>>,
 }
@@ -1101,7 +1121,7 @@ impl Lower {
     /// Commands that create a boss bar and refresh its display at load.
     fn boss_bar_setup(&self, bar: &BossBar) -> Vec<String> {
         let id = &bar.id;
-        let title = text_component(&bar.title, &self.holders);
+        let title = text_component(&bar.title, &self.holders, None);
         let color = match bar.color {
             BossBarColor::Blue => "blue",
             BossBarColor::Green => "green",
@@ -1441,7 +1461,20 @@ impl Lower {
                         Audience::Player => sand_commands::Selector::self_(),
                         Audience::Everyone => sand_commands::Selector::all_players(),
                     };
-                    let component = text_component(text, &self.holders);
+                    let storage = format!("{}:__program_text", self.namespace);
+                    let mut staged = Vec::new();
+                    for (index, part) in text.iter().enumerate() {
+                        if let TextPart::Stored { value, .. } = part {
+                            staged.push(format!("data remove storage {storage} p{index}"));
+                            staged.extend(self.copy_data_field(
+                                value,
+                                &storage,
+                                &format!("p{index}"),
+                                false,
+                            ));
+                        }
+                    }
+                    let component = text_component(text, &self.holders, Some(&self.namespace));
                     let lines = match channel {
                         MessageChannel::Chat => vec![crate::cmd::tellraw(target, component)],
                         MessageChannel::Actionbar => {
@@ -1456,7 +1489,13 @@ impl Lower {
                             .try_build()
                             .map_err(|e| fail(e.to_string()))?,
                     };
-                    lines.into_iter().map(Cmd::Raw).collect()
+                    staged.extend(lines);
+                    for (index, part) in text.iter().enumerate() {
+                        if matches!(part, TextPart::Stored { .. }) {
+                            staged.push(format!("data remove storage {storage} p{index}"));
+                        }
+                    }
+                    staged.into_iter().map(Cmd::Raw).collect()
                 }
                 Action::Sound {
                     sound,
@@ -1700,6 +1739,17 @@ impl Lower {
                             ))
                         })
                         .collect();
+                    for field in &self.data_states[&id].data_fields {
+                        commands.extend(
+                            crate::state::owned::with_data_field(
+                                &self.data_states[&id],
+                                &field.name,
+                                crate::entity::state::state_data_initialize_commands,
+                            )
+                            .into_iter()
+                            .map(Cmd::Raw),
+                        );
+                    }
                     let presence = state_objective(&id, "presence");
                     commands.push(Cmd::Raw(format!(
                         "execute unless score @s {presence} matches 1.. run scoreboard players set @s {presence} 1"
@@ -1719,6 +1769,17 @@ impl Lower {
                             "scoreboard players reset @s {}",
                             state_objective(&id, &format!("{field}.dirty"))
                         )));
+                    }
+                    for field in &self.data_states[&id].data_fields {
+                        commands.extend(
+                            crate::state::owned::with_data_field(
+                                &self.data_states[&id],
+                                &field.name,
+                                crate::entity::state::state_data_remove_commands,
+                            )
+                            .into_iter()
+                            .map(Cmd::Raw),
+                        );
                     }
                     commands.push(Cmd::Raw(format!(
                         "scoreboard players reset @s {}",
@@ -1823,12 +1884,31 @@ impl Lower {
                 Action::DropLoot { table } => {
                     vec![Cmd::Raw(format!("loot spawn ~ ~ ~ loot {table}"))]
                 }
+                Action::DataModify { .. }
+                | Action::DataRemove { .. }
+                | Action::DataRead { .. }
+                | Action::DataEqual { .. } => {
+                    self.data_operation(&operation.action, owner, &path, module, &ptr)?
+                }
                 Action::PushFrame { fields } => {
                     let storage = frame_storage(&self.namespace);
                     let mut commands = vec![Cmd::Raw(format!(
                         "data modify storage {storage} stack append value {{}}"
                     ))];
                     for (index, field) in fields.iter().enumerate() {
+                        if self.is_data_field(field) {
+                            commands.extend(
+                                self.copy_data_field(
+                                    field,
+                                    &storage,
+                                    &format!("stack[-1].f{index}"),
+                                    false,
+                                )
+                                .into_iter()
+                                .map(Cmd::Raw),
+                            );
+                            continue;
+                        }
                         commands.push(Cmd::Execute {
                             operations: vec![sand_commands::ExecuteOp::StoreResult(
                                 sand_commands::ExecuteStoreTarget::Nbt {
@@ -1851,6 +1931,19 @@ impl Lower {
                     let storage = frame_storage(&self.namespace);
                     let mut commands = Vec::with_capacity(fields.len() + 1);
                     for (index, field) in fields.iter().enumerate() {
+                        if self.is_data_field(field) {
+                            commands.extend(
+                                self.copy_data_field(
+                                    field,
+                                    &storage,
+                                    &format!("stack[-1].f{index}"),
+                                    true,
+                                )
+                                .into_iter()
+                                .map(Cmd::Raw),
+                            );
+                            continue;
+                        }
                         commands.push(Cmd::Execute {
                             operations: vec![sand_commands::ExecuteOp::StoreResult(
                                 sand_commands::ExecuteStoreTarget::Score {

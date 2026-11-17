@@ -14,9 +14,12 @@ from validate_world_gameplay import WorldGameplayHarness
 
 class LanguageHarness(WorldGameplayHarness):
     def run_client(self):
+        # Entity fixtures need a loaded origin before a server-context summon.
+        self.load_test_chunk("minecraft:overworld")
         marker = "__SAND_LANGUAGE_OK__"
         for invocation in range(2):
-            if not self.passed(f"LANGUAGE_{invocation}", "function language_probe:run", marker):
+            command = "execute positioned 0 80 0 run function language_probe:run"
+            if not self.passed(f"LANGUAGE_{invocation}", command, marker):
                 raise ValidationFailure("language", "language fixture failed its assertions")
 
 

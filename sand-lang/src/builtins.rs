@@ -1737,6 +1737,126 @@ pub const ARRAY_METHODS: &[Builtin] = &[
     },
 ];
 
+/// Value formatting shared by scalar types.
+pub const VALUE_METHODS: &[Builtin] = &[Builtin {
+    name: "scalar.to_string",
+    kind: BuiltinKind::Expression,
+    signature: "value.to_string() -> string",
+    summary: "Format a scalar as owned runtime text.",
+    details: "Numbers use signed decimal notation. Fixed-point floats always show three decimal places. Booleans show true or false. Enums show the variant name, with a numeric fallback for an invalid discriminant.",
+    minecraft: "Typed NBT character lists; decimal digits use Minecraft's floor arithmetic without overflowing the minimum integer.",
+    needs_player: false,
+    params: &[],
+    snippet: "to_string()",
+}];
+
+/// Find one intrinsic scalar-value method.
+pub fn value_method(name: &str) -> Option<&'static Builtin> {
+    VALUE_METHODS
+        .iter()
+        .find(|builtin| builtin.name.strip_prefix("scalar.") == Some(name))
+}
+
+/// Intrinsic methods on owned runtime text.
+pub const STRING_METHODS: &[Builtin] = &[
+    Builtin {
+        name: "string.len",
+        kind: BuiltinKind::Expression,
+        signature: "string.len() -> number",
+        summary: "Return the number of Unicode scalar characters.",
+        details: "Text uses Unicode scalar character indices. The receiver and supplied arguments evaluate once in authored order. Slices clamp to the available characters; reversed ranges are empty.",
+        minecraft: "Typed State-owned NBT values and integer indices; authored text remains data.",
+        needs_player: false,
+        params: &[],
+        snippet: "len()",
+    },
+    Builtin {
+        name: "string.is_empty",
+        kind: BuiltinKind::Expression,
+        signature: "string.is_empty() -> bool",
+        summary: "Whether this string has zero characters.",
+        details: "Text uses Unicode scalar character indices. The receiver and supplied arguments evaluate once in authored order. Slices clamp to the available characters; reversed ranges are empty.",
+        minecraft: "Typed State-owned NBT values and integer indices; authored text remains data.",
+        needs_player: false,
+        params: &[],
+        snippet: "is_empty()",
+    },
+    Builtin {
+        name: "string.contains",
+        kind: BuiltinKind::Expression,
+        signature: "string.contains(value: string) -> bool",
+        summary: "Whether this string contains the supplied substring.",
+        details: "Text uses Unicode scalar character indices. The receiver and supplied arguments evaluate once in authored order. Slices clamp to the available characters; reversed ranges are empty.",
+        minecraft: "Typed State-owned NBT values and integer indices; authored text remains data.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Text,
+            true,
+            "Value value, evaluated once.",
+        )],
+        snippet: "contains(${1:value})",
+    },
+    Builtin {
+        name: "string.starts_with",
+        kind: BuiltinKind::Expression,
+        signature: "string.starts_with(value: string) -> bool",
+        summary: "Whether this string starts with the supplied text.",
+        details: "Text uses Unicode scalar character indices. The receiver and supplied arguments evaluate once in authored order. Slices clamp to the available characters; reversed ranges are empty.",
+        minecraft: "Typed State-owned NBT values and integer indices; authored text remains data.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Text,
+            true,
+            "Value value, evaluated once.",
+        )],
+        snippet: "starts_with(${1:value})",
+    },
+    Builtin {
+        name: "string.ends_with",
+        kind: BuiltinKind::Expression,
+        signature: "string.ends_with(value: string) -> bool",
+        summary: "Whether this string ends with the supplied text.",
+        details: "Text uses Unicode scalar character indices. The receiver and supplied arguments evaluate once in authored order. Slices clamp to the available characters; reversed ranges are empty.",
+        minecraft: "Typed State-owned NBT values and integer indices; authored text remains data.",
+        needs_player: false,
+        params: &[p(
+            "value",
+            ParamKind::Text,
+            true,
+            "Value value, evaluated once.",
+        )],
+        snippet: "ends_with(${1:value})",
+    },
+    Builtin {
+        name: "string.slice",
+        kind: BuiltinKind::Expression,
+        signature: "string.slice(start: number, end: number) -> string",
+        summary: "Copy characters in a clamped half-open range.",
+        details: "Text uses Unicode scalar character indices. The receiver and supplied arguments evaluate once in authored order. Slices clamp to the available characters; reversed ranges are empty.",
+        minecraft: "Typed State-owned NBT values and integer indices; authored text remains data.",
+        needs_player: false,
+        params: &[
+            p(
+                "start",
+                ParamKind::Int,
+                true,
+                "Start value, evaluated once.",
+            ),
+            p("end", ParamKind::Int, true, "End value, evaluated once."),
+        ],
+        snippet: "slice(${1:start}, ${2:end})",
+    },
+];
+
+/// Find one intrinsic method on runtime text.
+pub fn string_method(name: &str) -> Option<&'static Builtin> {
+    STRING_METHODS
+        .iter()
+        .find(|builtin| builtin.name.strip_prefix("string.") == Some(name))
+}
+
 /// Find one intrinsic method on a fixed-size array.
 pub fn array_method(name: &str) -> Option<&'static Builtin> {
     ARRAY_METHODS
@@ -1749,6 +1869,8 @@ pub fn documented(name: &str, kind: BuiltinKind) -> Option<&'static Builtin> {
     find(name, kind).or_else(|| {
         ARRAY_METHODS
             .iter()
+            .chain(STRING_METHODS)
+            .chain(VALUE_METHODS)
             .find(|builtin| builtin.name == name && builtin.kind == kind)
     })
 }

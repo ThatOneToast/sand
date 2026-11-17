@@ -308,6 +308,7 @@ mod tests {
         for source in [
             include_str!("../tests/fixtures/control_flow.sand"),
             include_str!("../tests/fixtures/collections.sand"),
+            include_str!("../tests/fixtures/text.sand"),
             include_str!("../../examples/lang_encounters/pack.sand"),
         ] {
             let result = format(source).unwrap();

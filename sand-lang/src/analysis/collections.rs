@@ -205,11 +205,7 @@ impl Cx {
             self.emit(body, &selected, Ty::Number, index, ops)?;
             let defaults = self.record_constant(body.module, body.file, None, element)?;
             for ((score, _), value) in self.value_slots(dest, element).into_iter().zip(defaults) {
-                ops.push(op_at(
-                    pc::Action::ScoreSet { score, value },
-                    body.file,
-                    *span,
-                ));
+                ops.push(op_at(Self::initialize_leaf(score, value), body.file, *span));
             }
             for offset in 0..length {
                 let mut then = Vec::new();
@@ -454,11 +450,7 @@ impl Cx {
             let defaults = self.record_constant(body.module, body.file, None, address.ty)?;
             for ((score, _), value) in self.value_slots(dest, address.ty).into_iter().zip(defaults)
             {
-                ops.push(op_at(
-                    pc::Action::ScoreSet { score, value },
-                    body.file,
-                    span,
-                ));
+                ops.push(op_at(Self::initialize_leaf(score, value), body.file, span));
             }
         }
         for cell in &address.cells {
@@ -519,6 +511,17 @@ impl Cx {
         }
         let result = if operator == AssignOp::Set {
             rhs
+        } else if address.ty == Ty::String && operator == AssignOp::Add {
+            let current = self.temp(body);
+            if self
+                .read_address(body, &current, &address, span, ops)
+                .is_none()
+            {
+                body.temp_depth = depth;
+                return;
+            }
+            ops.push(op_at(Self::append_text(&current, &rhs), body.file, span));
+            current
         } else {
             if !matches!(address.ty, Ty::Number | Ty::Float) {
                 self.error(
@@ -657,18 +660,37 @@ impl Cx {
                         body.file,
                         *span,
                     ));
-                    for ((left, _), (right, _)) in self
+                    for ((left, leaf_ty), (right, _)) in self
                         .value_slots(&source, element)
                         .into_iter()
                         .zip(self.value_slots(&needle, element))
                     {
+                        let condition = if leaf_ty == Ty::String {
+                            let matched = self.temp(body);
+                            ops.push(op_at(
+                                pc::Action::DataEqual {
+                                    score: matched.clone(),
+                                    left: Self::data_reference(&left),
+                                    right: Self::data_reference(&right),
+                                },
+                                body.file,
+                                *span,
+                            ));
+                            pc::Condition::Range(pc::ScoreComparison {
+                                score: matched,
+                                min: Some(1),
+                                max: Some(1),
+                            })
+                        } else {
+                            pc::Condition::Relation(pc::ScoreRelation {
+                                left,
+                                relation: pc::Relation::Eq,
+                                right,
+                            })
+                        };
                         ops.push(op_at(
                             pc::Action::Branch {
-                                condition: pc::Condition::Relation(pc::ScoreRelation {
-                                    left,
-                                    relation: pc::Relation::Eq,
-                                    right,
-                                }),
+                                condition,
                                 then: Vec::new(),
                                 otherwise: vec![op_at(
                                     pc::Action::ScoreSet {

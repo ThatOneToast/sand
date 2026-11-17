@@ -27,6 +27,20 @@ pub fn parse(source: &str) -> (SourceFile, Vec<SyntaxError>) {
     let file = match SandParser::parse(Rule::file, source) {
         Ok(mut pairs) => {
             let file = pairs.next().expect("file rule");
+            let mut pending = vec![file.clone()];
+            while let Some(pair) = pending.pop() {
+                if pair.as_rule() == Rule::string_inner {
+                    if let Err((offset, message)) = unescape_checked(pair.as_str()) {
+                        let start = pair.as_span().start() + offset;
+                        errors.push(SyntaxError {
+                            message,
+                            span: Span::new(start, start + 1),
+                        });
+                    }
+                } else {
+                    pending.extend(pair.into_inner());
+                }
+            }
             let mut builder = Builder {
                 errors: &mut errors,
             };
@@ -125,21 +139,63 @@ fn doc_text(pair: &P<'_>, prefix: &str) -> String {
 }
 
 pub(crate) fn unescape(raw: &str) -> String {
+    unescape_checked(raw).unwrap_or_else(|_| raw.to_owned())
+}
+
+fn unescape_checked(raw: &str) -> Result<String, (usize, String)> {
     let mut out = String::with_capacity(raw.len());
-    let mut chars = raw.chars();
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            match chars.next() {
-                Some('n') => out.push('\n'),
-                Some('t') => out.push('\t'),
-                Some(other) => out.push(other),
-                None => {}
-            }
-        } else {
-            out.push(c);
+    let mut chars = raw.char_indices();
+    while let Some((offset, character)) = chars.next() {
+        if character != '\\' {
+            out.push(character);
+            continue;
         }
+        let escaped = match chars.next().map(|(_, character)| character) {
+            Some('n') => '\n',
+            Some('t') => '\t',
+            Some('r') => '\r',
+            Some('0') => '\0',
+            Some('b') => '\u{0008}',
+            Some('f') => '\u{000c}',
+            Some(other @ ('"' | '\\' | '{' | '}')) => other,
+            Some('u') => {
+                if chars.next().map(|(_, character)| character) != Some('{') {
+                    return Err((offset, "Unicode escapes use `\\u{hex}`".into()));
+                }
+                let mut hex = String::new();
+                let mut closed = false;
+                for (_, character) in chars.by_ref() {
+                    if character == '}' {
+                        closed = true;
+                        break;
+                    }
+                    if !character.is_ascii_hexdigit() || hex.len() == 6 {
+                        return Err((
+                            offset,
+                            "Unicode escapes require one to six hexadecimal digits".into(),
+                        ));
+                    }
+                    hex.push(character);
+                }
+                if !closed {
+                    return Err((offset, "unclosed Unicode escape".into()));
+                }
+                u32::from_str_radix(&hex, 16)
+                    .ok()
+                    .and_then(char::from_u32)
+                    .ok_or_else(|| {
+                        (
+                            offset,
+                            "Unicode escape must name a valid Unicode scalar value".into(),
+                        )
+                    })?
+            }
+            Some(other) => return Err((offset, format!("unknown string escape `\\{other}`"))),
+            None => return Err((offset, "incomplete string escape".into())),
+        };
+        out.push(escaped);
     }
-    out
+    Ok(out)
 }
 
 fn string(pair: P<'_>) -> String {

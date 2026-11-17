@@ -1,0 +1,55 @@
+//! A saved personal journal: owned text, record fields and a small history.
+#![pack(namespace = "field_journal", minecraft = "26.2")]
+const HEADING: string = "Field " + "journal";
+player state Journal {
+    entries: [string; 5] = [""; 5],
+    cursor: number,
+    stone: number,
+    title: string = HEADING,
+}
+impl Journal {
+    fn record(&mut self, entry: string) {
+        self.entries[self.cursor] = entry;
+        self.cursor = (self.cursor + 1) % self.entries.len();
+        chat!("{green}Recorded: {entry}");
+    }
+    fn show(&self) {
+        chat!("{gold}{bold}{self.title}");
+        for entry in self.entries {
+            if entry.is_empty() {
+                continue;
+            }
+            chat!("{gray}• {entry}");
+        }
+        let count = self.stone.to_string();
+        chat!("{aqua}Stone mined: {count}");
+    }
+}
+item Notebook {
+    base: Item::CarrotOnAStick,
+    name: "{gold}Field Journal",
+    lore: ["{gray}Right-click to read your saved notes."],
+    unbreakable: true
+}
+#[on(first_join)]
+fn welcome() {
+    give_item(Notebook);
+    Journal.record("The journey begins 🌍");
+}
+#[on(mine_block = Block::Stone)]
+fn stone() {
+    Journal.stone += 1;
+    if Journal.stone % 10 == 0 {
+        Journal.record("Mined " + Journal.stone.to_string() + " stone.");
+    }
+}
+#[on(kill = Entity::Zombie)]
+fn zombie() {
+    Journal.record("Defeated a zombie!");
+}
+#[on(use_item = Item::CarrotOnAStick)]
+fn read() {
+    if holding(Notebook) {
+        Journal.show();
+    }
+}

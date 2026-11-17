@@ -242,7 +242,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Fixed-size arrays with inference, repeat literals, nested State/records,
   calls/returns, snapshot iteration, checked indexing, indexed mutable receivers,
   and len/is_empty/contains/get_or/fill methods; forty native assertions.
-- [ ] Dynamic collections, slices and runtime text values using the shared typed value model.
+- [x] Owned runtime strings, scalar formatting, Unicode indexing/slicing, substring
+  methods, plain runtime text and styled interpolation; native recursive, owner
+  lifecycle and per-player reload proofs.
+- [ ] Growable collections and general borrowed slices using the shared typed value model.
 - [x] Read-only and mutable struct receivers, with write-back on early return and
   recursive calls; retained EntityRef values, reload-safe identities, explicit
   resolution, and damage attribution with native two-player kill-credit proof.

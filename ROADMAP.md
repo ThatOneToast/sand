@@ -255,8 +255,11 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Read-only and mutable struct receivers, with write-back on early return and
   recursive calls; retained EntityRef values, reload-safe identities, explicit
   resolution, and damage attribution with native two-player kill-credit proof.
-- [ ] First-class functions, closures, generics and traits where they compose
-  with runtime values and execution contexts.
+- [x] Generic functions, nominal records and impl methods, inference and explicit
+  applications, per-specialization slots/contexts, canonical source identities,
+  bounded expansion and native recursive/owned-value proof.
+- [ ] First-class functions, closures, traits and general borrowed slices where
+  they compose with runtime values and execution contexts.
 - [ ] Typed enchantments generated once for Rust and the language; typed time
   values and storable positions. Use existing entity State instead of creating
   a competing checked entity-tag model.

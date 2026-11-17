@@ -76,6 +76,30 @@ impl Cx {
         }
         self.defs[id.0].info = DefInfo::Struct { fields };
         self.members.insert(id, members);
+        if !record.generics.is_empty() {
+            if record.fields.is_empty() {
+                self.error(
+                    "struct",
+                    file,
+                    record.name.span,
+                    "a struct needs at least one field",
+                );
+            }
+            for field in &record.fields {
+                if !field.attrs.is_empty() || field.default.is_some() {
+                    self.error(
+                        "struct",
+                        file,
+                        field.span,
+                        "struct fields declare types; defaults and clamps belong on State fields",
+                    );
+                }
+            }
+            let parameters = self.generic_parameters(id, &record.generics);
+            self.generics
+                .records
+                .insert(id, (record.clone(), parameters));
+        }
         id
     }
 
@@ -104,87 +128,117 @@ impl Cx {
                 ) else {
                     continue;
                 };
-                let state = self.defs[target.0].kind == DefKind::State;
-                for mut method in implementation.methods {
-                    let ItemKind::Fn(function) = &mut method.kind else {
-                        self.error("impl", file, method.span, "impl blocks contain functions");
-                        continue;
-                    };
-                    let receiver = function.receiver.take();
-                    if !state && let Some(receiver) = &receiver {
-                        let self_span =
-                            Span::new(receiver.span.end.saturating_sub(4), receiver.span.end);
-                        function.params.insert(
-                            0,
-                            Param {
-                                mutable: receiver.mutable,
-                                name: Ident {
-                                    name: "self".into(),
-                                    span: self_span,
-                                },
-                                ty: Type::named(Path {
-                                    segments: vec![Ident {
-                                        name: "Self".into(),
-                                        span: self_span,
-                                    }],
-                                    span: self_span,
-                                }),
-                                span: receiver.span,
-                            },
-                        );
-                    }
-                    let name = function.name.clone();
-                    if self.members[&target].contains_key(&name.name) {
-                        self.error(
-                            "duplicate",
-                            file,
-                            name.span,
-                            format!(
-                                "`{}` already has a member named `{}`",
-                                self.defs[target.0].name, name.name
-                            ),
-                        );
-                        continue;
-                    }
-                    let id = format!(
-                        "{}.method/{}",
-                        self.item_id(module, &self.defs[target.0].name),
-                        name.name
-                    );
-                    let def = self.push_def(Def {
-                        kind: DefKind::Function,
-                        name: name.name.clone(),
-                        module,
+                if self.generics.records.contains_key(&target) {
+                    self.register_generic_impl(module, file, target, implementation, item.span);
+                    continue;
+                }
+                if !implementation.generics.is_empty()
+                    || !implementation.target.arguments().is_empty()
+                {
+                    self.error(
+                        "generic",
                         file,
-                        name_span: name.span,
-                        span: method.span,
-                        docs: method.docs.clone(),
-                        is_pub: method.is_pub,
-                        parent: Some(target),
-                        info: DefInfo::Function {
-                            id,
-                            context: Context::Server,
-                            player_reason: None,
-                            entry: Vec::new(),
-                            signature: "()".into(),
-                        },
-                    });
-                    self.methods.insert(
-                        def,
-                        Method {
-                            target,
-                            state_receiver: state && receiver.is_some(),
-                            receiver,
-                        },
+                        implementation.target.span,
+                        "type parameters on an impl require a generic struct",
                     );
-                    self.members
-                        .get_mut(&target)
-                        .expect("type members")
-                        .insert(name.name, def);
-                    self.package.modules[index].items.push(method);
+                    continue;
+                }
+                let state = self.defs[target.0].kind == DefKind::State;
+                for method in implementation.methods {
+                    if let Some((_, method)) =
+                        self.collect_method(module, file, target, state, method)
+                    {
+                        self.package.modules[index].items.push(method);
+                    }
                 }
             }
         }
+    }
+
+    pub(super) fn collect_method(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        target: DefId,
+        state: bool,
+        mut method: Item,
+    ) -> Option<(DefId, Item)> {
+        let ItemKind::Fn(function) = &mut method.kind else {
+            self.error("impl", file, method.span, "impl blocks contain functions");
+            return None;
+        };
+        let receiver = function.receiver.take();
+        if !state && let Some(receiver) = &receiver {
+            let self_span = Span::new(receiver.span.end.saturating_sub(4), receiver.span.end);
+            function.params.insert(
+                0,
+                Param {
+                    mutable: receiver.mutable,
+                    name: Ident {
+                        name: "self".into(),
+                        span: self_span,
+                    },
+                    ty: Type::named(Path {
+                        applications: Vec::new(),
+                        segments: vec![Ident {
+                            name: "Self".into(),
+                            span: self_span,
+                        }],
+                        span: self_span,
+                    }),
+                    span: receiver.span,
+                },
+            );
+        }
+        let name = function.name.clone();
+        if self.members[&target].contains_key(&name.name) {
+            self.error(
+                "duplicate",
+                file,
+                name.span,
+                format!(
+                    "`{}` already has a member named `{}`",
+                    self.defs[target.0].name, name.name
+                ),
+            );
+            return None;
+        }
+        let id = format!(
+            "{}.method/{}",
+            self.item_id(module, &self.defs[target.0].name),
+            name.name
+        );
+        let def = self.push_def(Def {
+            kind: DefKind::Function,
+            name: name.name.clone(),
+            module,
+            file,
+            name_span: name.span,
+            span: method.span,
+            docs: method.docs.clone(),
+            is_pub: method.is_pub,
+            parent: Some(target),
+            info: DefInfo::Function {
+                id,
+                context: Context::Server,
+                player_reason: None,
+                entry: Vec::new(),
+                signature: "()".into(),
+            },
+        });
+        self.methods.insert(
+            def,
+            Method {
+                target,
+                state_receiver: state && receiver.is_some(),
+                receiver,
+            },
+        );
+        self.members
+            .get_mut(&target)
+            .expect("type members")
+            .insert(name.name, def);
+        Some((def, method))
     }
 
     pub(super) fn evaluate_structs(&mut self) {
@@ -198,6 +252,9 @@ impl Cx {
                 let Some(def) = self.def_by_span(module, record.name.span) else {
                     continue;
                 };
+                if !record.generics.is_empty() {
+                    continue;
+                }
                 let fields = self.struct_fields(def);
                 if fields.is_empty() {
                     self.error(
@@ -318,7 +375,7 @@ impl Cx {
         self.defs.iter().any(|def| matches!(&def.info, DefInfo::State { scope: Scope::Entity, id, .. } if *id == state))
     }
 
-    pub(super) fn entity_place(&self, body: &BodyCx, place: &Place) -> bool {
+    pub(super) fn entity_place(&mut self, body: &BodyCx, place: &Place) -> bool {
         if place.state.segments.len() == 1
             && Self::lookup_local(body, &place.state.last().name).is_some()
         {
@@ -393,7 +450,10 @@ impl Cx {
             }
         }
     }
-    pub(super) fn place_ty(&self, body: &BodyCx, place: &Place) -> Ty {
+    pub(super) fn place_ty(&mut self, body: &BodyCx, place: &Place) -> Ty {
+        if !place.state.applications.is_empty() {
+            return Ty::Unknown;
+        }
         let local = (place.state.segments.len() == 1)
             .then(|| Self::lookup_local(body, &place.state.last().name))
             .flatten();
@@ -434,6 +494,15 @@ impl Cx {
         place: &Place,
         write: bool,
     ) -> Option<PlaceValue> {
+        if !place.state.applications.is_empty() {
+            self.error(
+                "generic",
+                body.file,
+                place.state.span,
+                "a value or State field access does not take type arguments",
+            );
+            return None;
+        }
         let local = (place.state.segments.len() == 1)
             .then(|| Self::lookup_local(body, &place.state.last().name))
             .flatten();
@@ -737,8 +806,9 @@ impl Cx {
                     );
                     return None;
                 };
-                let found = self.expect_path(module, path, &[DefKind::Struct], "a struct")?;
-                if found != def {
+                let found =
+                    self.record_literal_type(None, module, file, path, fields, Some(ty), true)?;
+                if found != ty {
                     self.error(
                         "type",
                         file,
@@ -843,13 +913,28 @@ impl Cx {
             return self.emit_array(body, dest, ty, expr, ops);
         }
         self.value_slots(dest, ty);
-        let found = self.type_of(body, expr);
+        let found = if let Expr::Struct { path, fields, .. } = expr {
+            self.record_literal_type(
+                Some(body),
+                body.module,
+                body.file,
+                path,
+                fields,
+                Some(ty),
+                true,
+            )?
+        } else {
+            self.type_of(body, expr)
+        };
         if !self.types_agree(body.file, expr.span(), ty, found) {
             return None;
         }
         match expr {
             Expr::Struct { path, fields, span } => {
-                let def = self.expect_path(body.module, path, &[DefKind::Struct], "a struct")?;
+                let Ty::Struct(def) = ty else {
+                    return None;
+                };
+                let _ = path;
                 let expected = self.struct_fields(def);
                 let mut seen = HashSet::new();
                 for (name, value) in fields {
@@ -936,6 +1021,7 @@ impl Cx {
             Expr::Method {
                 receiver,
                 name,
+                type_arguments,
                 args,
                 span,
             } => {
@@ -946,8 +1032,17 @@ impl Cx {
                 if self.array_shape(receiver_ty).is_some() {
                     return self.emit_array_method(body, dest, ty, expr, ops);
                 }
-                let (path, args) = self.method_call(body, receiver, name, args)?;
-                self.emit_call(body, dest, ty, &path, &args, *span, ops)
+                self.emit_method(
+                    body,
+                    dest,
+                    ty,
+                    receiver,
+                    name,
+                    type_arguments,
+                    args,
+                    *span,
+                    ops,
+                )
             }
             Expr::Index(..) => self.emit_index(body, dest, ty, expr, ops),
             Expr::Project(value, field, _) => {
@@ -1014,7 +1109,7 @@ impl Cx {
         Some(())
     }
 
-    pub(super) fn method_target(&self, body: &BodyCx, receiver: &Expr) -> Option<DefId> {
+    pub(super) fn method_target(&mut self, body: &BodyCx, receiver: &Expr) -> Option<DefId> {
         if let Expr::Path(path) = receiver
             && Self::lookup_local(body, &path.last().name).is_none()
             && let Ok((def, _)) = self.resolve_path(body.module, path)
@@ -1030,7 +1125,7 @@ impl Cx {
         receiver: &Expr,
         name: &Ident,
         args: &[Arg],
-    ) -> Option<(Path, Vec<Arg>)> {
+    ) -> Option<(DefId, Vec<Arg>)> {
         let target =
             self.method_target(body, receiver)
                 .or_else(|| match self.type_of(body, receiver) {
@@ -1087,33 +1182,79 @@ impl Cx {
         } else if let Expr::Path(path) = receiver {
             let _ = self.expect_path(body.module, path, &[DefKind::State], "a State");
         }
-        let mut segments = vec![Ident {
-            name: "crate".into(),
-            span: Span::default(),
-        }];
-        segments.extend(
-            self.package
-                .module(self.defs[target.0].module)
-                .path
-                .iter()
-                .map(|name| Ident {
-                    name: name.clone(),
-                    span: Span::default(),
-                }),
-        );
-        segments.push(Ident {
-            name: self.defs[target.0].name.clone(),
-            span: Span::default(),
+        if !self.visible(
+            body.module,
+            self.defs[def.0].module,
+            self.defs[def.0].is_pub,
+        ) {
+            self.error(
+                "privacy",
+                body.file,
+                name.span,
+                format!("method `{}` is private", name.name),
+            );
+            return None;
+        }
+        self.references.push(Reference {
+            file: body.file,
+            span: name.span,
+            def,
         });
-        segments.push(name.clone());
-        Some((
-            Path {
-                segments,
-                span: name.span,
-            },
-            arguments,
-        ))
+        Some((def, arguments))
     }
+
+    pub(super) fn validate_method_type_arguments(&mut self, body: &BodyCx, expr: &Expr) -> bool {
+        if let Expr::Method {
+            receiver,
+            name,
+            type_arguments,
+            ..
+        } = expr
+            && !type_arguments.is_empty()
+            && !matches!(self.type_of(body, receiver), Ty::Struct(_))
+            && self.method_target(body, receiver).is_none()
+        {
+            self.error(
+                "generic",
+                body.file,
+                name.span,
+                "intrinsic methods do not take type arguments",
+            );
+            return false;
+        }
+        true
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn emit_method(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        ty: Ty,
+        receiver: &Expr,
+        name: &Ident,
+        type_arguments: &[Type],
+        args: &[Arg],
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<()> {
+        let (def, args) = self.method_call(body, receiver, name, args)?;
+        let path = Path {
+            segments: vec![name.clone()],
+            applications: if type_arguments.is_empty() {
+                Vec::new()
+            } else {
+                vec![PathApplication {
+                    segment: 0,
+                    arguments: type_arguments.to_vec(),
+                }]
+            },
+            span: name.span,
+        };
+        let def = self.specialize_call(body, def, &path, &args, Some(ty), true)?;
+        self.emit_user_result(body, dest, ty, def, &path, &args, span, ops)
+    }
+
     pub(super) fn lower_value_statement(
         &mut self,
         body: &mut BodyCx,
@@ -1121,9 +1262,13 @@ impl Cx {
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
+        if !self.validate_method_type_arguments(body, expr) {
+            return;
+        }
         if let Expr::Method {
             receiver,
             name,
+            type_arguments,
             args,
             ..
         } = expr
@@ -1148,8 +1293,24 @@ impl Cx {
                 self.lower_array_statement(body, expr, ops);
                 return;
             }
-            if let Some((path, args)) = self.method_call(body, receiver, name, args) {
-                self.lower_call(body, &path, &args, span, ops);
+            if let Some((def, args)) = self.method_call(body, receiver, name, args) {
+                let path = Path {
+                    segments: vec![name.clone()],
+                    applications: if type_arguments.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![PathApplication {
+                            segment: 0,
+                            arguments: type_arguments.to_vec(),
+                        }]
+                    },
+                    span: name.span,
+                };
+                if let Some(def) = self.specialize_call(body, def, &path, &args, None, true)
+                    && let Some(slots) = self.fn_slots.get(&def).cloned()
+                {
+                    self.call_user(body, def, &slots, &path, &args, span, ops);
+                }
             }
         } else {
             self.error(

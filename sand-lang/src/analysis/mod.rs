@@ -34,6 +34,7 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
 }
 
 mod collections;
+mod generics;
 mod resources;
 mod sequence_methods;
 mod sequences;
@@ -101,6 +102,8 @@ pub enum DefKind {
     Enum,
     /// A named record value type.
     Struct,
+    /// A generic declaration's type parameter.
+    TypeParameter,
     /// An enum variant.
     Variant,
     /// `player state` or `global state`.
@@ -137,6 +140,7 @@ impl DefKind {
             DefKind::Const => "constant",
             DefKind::Enum => "enum",
             DefKind::Struct => "struct",
+            DefKind::TypeParameter => "type parameter",
             DefKind::Variant => "variant",
             DefKind::State => "state",
             DefKind::Field => "field",
@@ -157,6 +161,8 @@ impl DefKind {
 /// Kind-specific facts about a definition.
 #[derive(Debug, Clone)]
 pub enum DefInfo {
+    /// A generic type parameter, resolved by each concrete specialization.
+    TypeParameter,
     /// A module; `None` when its file could not be loaded.
     Module {
         /// Loaded module.
@@ -307,6 +313,15 @@ pub struct PackInfo {
     pub description: String,
 }
 
+/// A concrete function's value signature, projected from the shared call slots.
+#[derive(Debug, Clone)]
+pub struct FunctionType {
+    /// Parameter definitions in call order, including a struct receiver.
+    pub parameters: Vec<DefId>,
+    /// Returned value type, absent for a statement-only function.
+    pub returns: Option<Ty>,
+}
+
 /// The complete result of analysing a package.
 #[derive(Debug, Clone)]
 pub struct Analysis {
@@ -314,6 +329,10 @@ pub struct Analysis {
     pub package: Package,
     /// Every definition.
     pub defs: Vec<Def>,
+    /// Concrete specialization definitions mapped to their authored origin.
+    pub origins: BTreeMap<DefId, DefId>,
+    /// Concrete signatures shared by compiler and editor value inference.
+    pub function_types: BTreeMap<DefId, FunctionType>,
     /// Every resolved reference.
     pub references: Vec<Reference>,
     /// Syntax, resolution, and type diagnostics.
@@ -367,6 +386,11 @@ impl Analysis {
                 )
             })
             .map(|(_, def)| def)
+    }
+
+    /// Authored identity of a concrete specialization definition.
+    pub fn origin(&self, def: DefId) -> DefId {
+        self.origins.get(&def).copied().unwrap_or(def)
     }
 
     /// Definition by id.
@@ -507,6 +531,7 @@ pub fn analyze(package: Package) -> Analysis {
         local_data_fields: BTreeMap::new(),
         text_constants: BTreeMap::new(),
         fn_slots: BTreeMap::new(),
+        generics: generics::Generics::default(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
@@ -532,6 +557,20 @@ pub fn analyze(package: Package) -> Analysis {
     Analysis {
         package: cx.package,
         defs: cx.defs,
+        origins: cx.generics.origins,
+        function_types: cx
+            .fn_slots
+            .into_iter()
+            .map(|(def, slots)| {
+                (
+                    def,
+                    FunctionType {
+                        parameters: slots.params.into_iter().map(|(_, def, _)| def).collect(),
+                        returns: slots.ret.map(|(_, ty)| ty),
+                    },
+                )
+            })
+            .collect(),
         references: cx.references,
         diagnostics: cx.diagnostics,
         pack: cx.pack,
@@ -602,6 +641,7 @@ struct Cx {
     text_constants: BTreeMap<DefId, String>,
     /// Parameter and return slots per function.
     fn_slots: BTreeMap<DefId, FnSlots>,
+    generics: generics::Generics,
     /// Handlers of each custom event, in declaration order.
     event_handlers: BTreeMap<DefId, Vec<(DefId, Span)>>,
     /// `#[on(Event)]` attributes that name a custom event.
@@ -684,6 +724,14 @@ impl Cx {
 
     fn push_def(&mut self, def: Def) -> DefId {
         let id = DefId(self.defs.len());
+        if let Some(template) = self.generics.active {
+            let key = (template, def.file, def.name_span);
+            if let Some(origin) = self.generics.source_defs.get(&key) {
+                self.generics.origins.insert(id, *origin);
+            } else {
+                self.generics.source_defs.insert(key, id);
+            }
+        }
         self.defs.push(def);
         id
     }
@@ -708,6 +756,9 @@ impl Cx {
     /// constants. Mirrors Rust's naming lints.
     fn naming_lints(&mut self) {
         for index in 0..self.defs.len() {
+            if self.generics.origins.contains_key(&DefId(index)) {
+                continue;
+            }
             let def = &self.defs[index];
             let Some((style, fixed)) = name_suggestion(def) else {
                 continue;
@@ -1122,7 +1173,7 @@ impl Cx {
         false
     }
 
-    fn resolve_path(&self, from: ModuleId, path: &Path) -> Resolved {
+    fn resolve_path(&mut self, from: ModuleId, path: &Path) -> Resolved {
         let file = self.package.module(from).file;
         let fail = |span: Span, message: String| {
             Err(Box::new(Diagnostic::error("resolve", file, span, message)))
@@ -1131,20 +1182,32 @@ impl Cx {
         let mut cur = Cur::Module(from);
         let mut segments = path.segments.iter().peekable();
         let first = segments.peek().expect("non-empty path");
-        let method_target = self.methods.iter().find_map(|(def, method)| {
-            let owner = &self.defs[def.0];
-            (owner.module == from
-                && owner.span.contains(path.span.start)
-                && (first.name == "Self"
-                    || (first.name == "self" && path.segments.len() == 1 && method.state_receiver)))
-                .then_some(method.target)
-        });
-        if let Some(target) = method_target {
+        let method_target = self
+            .generics
+            .bindings
+            .get(&first.name)
+            .and_then(|(ty, parameter)| match ty {
+                Ty::Struct(def) | Ty::Enum(def) => Some((*def, *parameter)),
+                _ => None,
+            })
+            .or_else(|| {
+                self.methods.iter().find_map(|(def, method)| {
+                    let owner = &self.defs[def.0];
+                    (owner.module == from
+                        && owner.span.contains(path.span.start)
+                        && (first.name == "Self"
+                            || (first.name == "self"
+                                && path.segments.len() == 1
+                                && method.state_receiver)))
+                        .then_some((method.target, method.target))
+                })
+            });
+        if let Some((target, reference)) = method_target {
             let segment = segments.next().expect("Self");
             refs.push(Reference {
                 file,
                 span: segment.span,
-                def: target,
+                def: reference,
             });
             cur = Cur::Def(target);
         } else {
@@ -1196,7 +1259,28 @@ impl Cx {
                 }
             }
         }
-        for segment in segments {
+        while let Some(segment) = segments.next() {
+            let index = path.segments.len() - segments.len() - 1;
+            if let Some(application) = path
+                .applications
+                .iter()
+                .find(|application| application.segment + 1 == index)
+            {
+                let Cur::Def(def) = cur else {
+                    return fail(path.span, "type arguments require a generic struct".into());
+                };
+                let types = application
+                    .arguments
+                    .iter()
+                    .map(|ty| self.resolve_type(from, ty))
+                    .collect();
+                let Some(Ty::Struct(instance)) =
+                    self.instantiate_record(def, types, file, path.span)
+                else {
+                    return fail(path.span, "cannot instantiate this generic type".into());
+                };
+                cur = Cur::Def(instance);
+            }
             match cur {
                 Cur::Module(module) => {
                     let Some(binding) = self.scopes[module.0].get(&segment.name) else {
@@ -1335,6 +1419,17 @@ impl Cx {
             Ok((def, refs)) => {
                 self.references.extend(refs);
                 let found = &self.defs[def.0];
+                if !path.arguments().is_empty()
+                    && !matches!(found.kind, DefKind::Function | DefKind::Struct)
+                {
+                    self.error(
+                        "generic",
+                        self.package.module(module).file,
+                        path.span,
+                        "type arguments require a generic function or struct",
+                    );
+                    return None;
+                }
                 if kinds.contains(&found.kind) {
                     Some(def)
                 } else {
@@ -1507,17 +1602,39 @@ impl Cx {
             TypeKind::Named(path) => self.resolve_named_type(module, path),
             TypeKind::Applied { path, arguments } => {
                 let file = self.package.module(module).file;
-                if path.segments.len() == 1 && path.last().name == "Vec" && arguments.len() == 1 {
+                if !path.arguments().is_empty() {
+                    self.error(
+                        "generic",
+                        file,
+                        annotation.span,
+                        "duplicate type application",
+                    );
+                    return Ty::Unknown;
+                }
+                if path.segments.len() == 1 && path.last().name == "Vec" {
+                    if arguments.len() != 1 {
+                        self.error(
+                            "type",
+                            file,
+                            annotation.span,
+                            "expected `Vec<T>` with one element type",
+                        );
+                        return Ty::Unknown;
+                    }
                     let element = self.resolve_type(module, &arguments[0]);
                     self.list_type(module, element)
                 } else {
-                    self.error(
-                        "type",
-                        file,
-                        annotation.span,
-                        "expected `Vec<T>` with one element type",
-                    );
-                    Ty::Unknown
+                    let Some(def) =
+                        self.expect_path(module, path, &[DefKind::Struct], "a generic struct")
+                    else {
+                        return Ty::Unknown;
+                    };
+                    let types = arguments
+                        .iter()
+                        .map(|ty| self.resolve_type(module, ty))
+                        .collect();
+                    self.instantiate_record(def, types, file, annotation.span)
+                        .unwrap_or(Ty::Unknown)
                 }
             }
             TypeKind::Array { element, length } => {
@@ -1543,6 +1660,30 @@ impl Cx {
 
     fn resolve_named_type(&mut self, module: ModuleId, ty: &Path) -> Ty {
         if let [segment] = ty.segments.as_slice() {
+            if !ty.arguments().is_empty()
+                && (self.generics.bindings.contains_key(&segment.name)
+                    || matches!(
+                        segment.name.as_str(),
+                        "number" | "float" | "bool" | "string" | "EntityRef"
+                    ))
+            {
+                self.error(
+                    "generic",
+                    self.package.module(module).file,
+                    ty.span,
+                    "this type does not take type arguments",
+                );
+                return Ty::Unknown;
+            }
+            if let Some((resolved, parameter)) = self.generics.bindings.get(&segment.name).copied()
+            {
+                self.references.push(Reference {
+                    file: self.package.module(module).file,
+                    span: segment.span,
+                    def: parameter,
+                });
+                return resolved;
+            }
             match segment.name.as_str() {
                 "number" => return Ty::Number,
                 "float" => return Ty::Float,
@@ -1584,7 +1725,19 @@ impl Cx {
             &[DefKind::Enum, DefKind::Struct],
             "a type (`number`, `float`, `bool`, `string`, `EntityRef`, enum, or struct)",
         ) {
-            Some(def) if self.defs[def.0].kind == DefKind::Struct => Ty::Struct(def),
+            Some(def) if self.defs[def.0].kind == DefKind::Struct => {
+                if self.generics.records.contains_key(&def) || !ty.arguments().is_empty() {
+                    let types = ty
+                        .arguments()
+                        .iter()
+                        .map(|ty| self.resolve_type(module, ty))
+                        .collect();
+                    self.instantiate_record(def, types, self.package.module(module).file, ty.span)
+                        .unwrap_or(Ty::Unknown)
+                } else {
+                    Ty::Struct(def)
+                }
+            }
             Some(def) => Ty::Enum(def),
             None => Ty::Unknown,
         }
@@ -1829,8 +1982,13 @@ impl Cx {
         let file = self.package.module(module).file;
         self.defs
             .iter()
-            .position(|d| d.file == file && d.name_span == span)
-            .map(DefId)
+            .enumerate()
+            .find(|(index, d)| {
+                d.file == file
+                    && d.name_span == span
+                    && !self.generics.origins.contains_key(&DefId(*index))
+            })
+            .map(|(index, _)| DefId(index))
     }
 
     fn eval_def(&mut self, def: DefId) -> Option<i64> {
@@ -2146,6 +2304,9 @@ impl Cx {
             return Ty::Unknown;
         };
         if let [segment] = ty.segments.as_slice() {
+            if let Some((ty, _)) = self.generics.bindings.get(&segment.name) {
+                return *ty;
+            }
             match segment.name.as_str() {
                 "number" => return Ty::Number,
                 "float" => return Ty::Float,
@@ -2231,6 +2392,7 @@ impl Cx {
             let module = ModuleId(index);
             modules.push(self.lower_module(module, &mut lowerer));
         }
+        self.lower_generic_instances(&mut modules, &mut lowerer);
         self.infer_contexts(&mut lowerer);
         self.resolve_frames(&mut lowerer);
         if (!self.local_fields.is_empty() || !self.local_data_fields.is_empty())
@@ -2327,6 +2489,11 @@ impl Cx {
             let file = self.package.module(module).file;
             for item in self.package.module(module).items.clone() {
                 match &item.kind {
+                    ItemKind::Fn(function) if !function.generics.is_empty() => {
+                        if let Some(def) = self.def_by_span(module, function.name.span) {
+                            self.register_generic(def, &item, function);
+                        }
+                    }
                     ItemKind::Fn(function) => {
                         if let Some(receiver) = &function.receiver {
                             self.error(
@@ -2473,6 +2640,9 @@ impl Cx {
                 let ItemKind::Fn(function) = &item.kind else {
                     continue;
                 };
+                if !function.generics.is_empty() {
+                    continue;
+                }
                 let Some(def) = self.def_by_span(module, function.name.span) else {
                     continue;
                 };
@@ -2828,9 +2998,10 @@ impl Cx {
                         fields: score_fields,
                     });
                 }
-                ItemKind::Fn(function) => {
+                ItemKind::Fn(function) if function.generics.is_empty() => {
                     self.lower_fn(module, file, &item, function, def, &mut out, lowerer);
                 }
+                ItemKind::Fn(_) => {}
                 ItemKind::Event(event) => {
                     self.reject_attrs(file, &item);
                     self.lower_event(module, file, event, def, lowerer);
@@ -4742,7 +4913,14 @@ fn flatten_use(tree: &UseTree, prefix: &[Ident], out: &mut Vec<(Path, Ident)>) {
                 .expect("non-empty")
                 .span
                 .to(segments.last().expect("non-empty").span);
-            out.push((Path { segments, span }, alias));
+            out.push((
+                Path {
+                    segments,
+                    applications: Vec::new(),
+                    span,
+                },
+                alias,
+            ));
         }
     }
 }
@@ -4999,6 +5177,7 @@ pub(crate) fn scope_names(analysis: &Analysis, module: ModuleId) -> Vec<(String,
     // Items declared in the module.
     for (index, def) in analysis.defs.iter().enumerate() {
         if def.module == module
+            && !analysis.origins.contains_key(&DefId(index))
             && def.parent.is_none()
             && def.kind != DefKind::Local
             && seen.insert(def.name.clone())

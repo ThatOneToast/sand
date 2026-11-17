@@ -75,15 +75,33 @@ pub struct Ident {
 }
 
 /// A `::`-separated path such as `crate::combat::Phase`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Path {
     /// Path segments, including leading `crate`, `super`, or `self`.
     pub segments: Vec<Ident>,
+    /// Explicit applications on individual segments, written `::<T>`.
+    pub applications: Vec<PathApplication>,
     /// Location of the whole path.
     pub span: Span,
 }
 
+/// A type application on one segment of a qualified path.
+#[derive(Debug, Clone)]
+pub struct PathApplication {
+    /// Zero-based index into the path's segments.
+    pub segment: usize,
+    /// Concrete type syntax.
+    pub arguments: Vec<Type>,
+}
+
 impl Path {
+    /// Explicit arguments on the final item; preceding applications belong to types.
+    pub fn arguments(&self) -> &[Type] {
+        self.applications
+            .iter()
+            .find(|application| application.segment + 1 == self.segments.len())
+            .map_or(&[], |application| application.arguments.as_slice())
+    }
     /// The final segment, which names the referenced item.
     pub fn last(&self) -> &Ident {
         self.segments.last().expect("paths are never empty")
@@ -314,6 +332,8 @@ pub struct StateItem {
 /// A named record with typed fields.
 #[derive(Debug, Clone)]
 pub struct StructItem {
+    /// Type parameters specialized in each concrete record layout.
+    pub generics: Vec<Ident>,
     /// Type name.
     pub name: Ident,
     /// Fields in declaration order.
@@ -323,6 +343,8 @@ pub struct StructItem {
 /// An inherent implementation for a State or struct.
 #[derive(Debug, Clone)]
 pub struct ImplItem {
+    /// Type parameters bound by the implemented type.
+    pub generics: Vec<Ident>,
     /// Implemented type.
     pub target: Path,
     /// Functions declared inside the implementation.
@@ -524,6 +546,8 @@ pub struct Param {
 /// A function definition.
 #[derive(Debug, Clone)]
 pub struct FnItem {
+    /// Type parameters specialized for each concrete call.
+    pub generics: Vec<Ident>,
     /// Optional method receiver; valid only inside an impl.
     pub receiver: Option<Receiver>,
     /// Function name.
@@ -1003,6 +1027,8 @@ pub enum Expr {
         receiver: Box<Expr>,
         /// Method name.
         name: Ident,
+        /// Explicit generic arguments, written `::<T>`.
+        type_arguments: Vec<Type>,
         /// Explicit arguments.
         args: Vec<Arg>,
         /// Whole expression.

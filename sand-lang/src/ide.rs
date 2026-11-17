@@ -38,6 +38,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
     let def = analysis.def(id);
     let vis = if def.is_pub { "pub " } else { "" };
     let (signature, facts): (String, Vec<String>) = match &def.info {
+        DefInfo::TypeParameter => (
+            format!("type {}", def.name),
+            vec!["Specialized at each concrete call.".into()],
+        ),
         DefInfo::Module { target } => {
             let path = target
                 .map(|t| analysis.package.module(t).display_path())
@@ -615,7 +619,7 @@ fn data_item_at(items: &[crate::ast::Item], offset: usize) -> Option<&crate::ast
 /// Where the definition named at `offset` is declared.
 pub fn definition(analysis: &Analysis, file: FileId, offset: usize) -> Option<(FileId, Span)> {
     let def = analysis.def_at(file, offset)?;
-    let d = analysis.def(def);
+    let d = analysis.def(analysis.origin(def));
     // A file module's definition is the module file itself.
     if let DefInfo::Module {
         target: Some(target),
@@ -642,11 +646,11 @@ pub fn references(
     let mut out: Vec<(FileId, Span)> = analysis
         .references
         .iter()
-        .filter(|r| r.def == def)
+        .filter(|r| analysis.origin(r.def) == analysis.origin(def))
         .map(|r| (r.file, r.span))
         .collect();
     if include_declaration {
-        let d = analysis.def(def);
+        let d = analysis.def(analysis.origin(def));
         out.insert(0, (d.file, d.name_span));
     }
     out.sort();
@@ -777,7 +781,7 @@ pub fn rename(
     if !valid {
         return Err(format!("`{new_name}` is not a valid identifier"));
     }
-    let def = analysis.def_at(file, offset).expect("checked by prepare");
+    let def = analysis.origin(analysis.def_at(file, offset).expect("checked by prepare"));
     let old = analysis.def(def).name.clone();
     Ok(references(analysis, file, offset, true)
         .into_iter()
@@ -794,14 +798,14 @@ pub fn rename(
                 .references
                 .iter()
                 .filter(|r| r.file == file && r.span == span && r.def != def)
-                .map(|r| r.def)
+                .map(|r| analysis.origin(r.def))
                 .chain(
                     analysis
                         .defs
                         .iter()
                         .enumerate()
                         .filter(|(_, d)| d.file == file && d.name_span == span)
-                        .map(|(i, _)| crate::DefId(i)),
+                        .map(|(i, _)| analysis.origin(crate::DefId(i))),
                 )
                 .filter(|other| *other != def)
                 .find(|other| {
@@ -844,6 +848,8 @@ pub enum CompletionKind {
     Enum,
     /// An enum variant.
     Variant,
+    /// A generic type parameter.
+    TypeParameter,
     /// A State.
     State,
     /// A State field.
@@ -905,13 +911,16 @@ enum Target {
 fn value_token_start(text: &str) -> usize {
     let mut brackets = 0usize;
     let mut parentheses = 0usize;
+    let mut angles = 0usize;
     for (index, character) in text.char_indices().rev() {
         match character {
+            '>' if brackets == 0 && parentheses == 0 => angles += 1,
+            '<' if angles > 0 && brackets == 0 && parentheses == 0 => angles -= 1,
             ']' => brackets += 1,
             ')' => parentheses += 1,
             '[' if brackets > 0 => brackets -= 1,
             '(' if parentheses > 0 => parentheses -= 1,
-            _ if brackets > 0 || parentheses > 0 => {}
+            _ if brackets > 0 || parentheses > 0 || angles > 0 => {}
             _ if character.is_ascii_alphanumeric() || matches!(character, '_' | ':' | '.') => {}
             _ => return index + character.len_utf8(),
         }
@@ -971,11 +980,54 @@ fn iterable_type(analysis: &Analysis, ty: Ty) -> bool {
         || matches!(ty, Ty::Struct(def) if matches!(analysis.def(def).info, DefInfo::Array { .. }))
 }
 
+fn call_value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<Ty> {
+    let mut depth = 0usize;
+    let open = text.char_indices().rev().find_map(|(index, character)| {
+        match character {
+            ')' => depth += 1,
+            '(' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        None
+    })?;
+    let source = &analysis.package.files[file.0].text;
+    let start = source.get(..offset)?.rfind(text)?;
+    let reference = analysis
+        .references
+        .iter()
+        .filter(|reference| {
+            reference.file == file
+                && reference.span.start >= start
+                && reference.span.end <= start + open
+                && analysis.def(reference.def).kind == DefKind::Function
+        })
+        .max_by_key(|reference| reference.span.start)?;
+    analysis.function_types.get(&reference.def)?.returns
+}
+
+fn outer_index_start(text: &str) -> Option<usize> {
+    let mut depth = 0usize;
+    for (index, character) in text.char_indices() {
+        match character {
+            '[' if depth == 0 => return Some(index),
+            '(' | '<' => depth += 1,
+            ')' | '>' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    None
+}
+
 fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<Ty> {
     let module = analysis.package.module_at(file, offset)?;
     let mut parts = value_parts(text).into_iter();
     let root_text = parts.next()?;
-    let root = root_text.split('[').next()?;
+    let root = &root_text[..outer_index_start(root_text).unwrap_or(root_text.len())];
     let local = analysis
         .local_scopes
         .iter()
@@ -984,7 +1036,9 @@ fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> O
         })
         .max_by_key(|(_, _, def)| def.0)
         .map(|(_, _, def)| *def);
-    let mut owner = if let Some(local) = local {
+    let mut owner = if root.ends_with(')') {
+        call_value_type(analysis, file, offset, root)?
+    } else if let Some(local) = local {
         match analysis.def(local).info {
             DefInfo::Local { ty, .. } => ty,
             _ => return None,
@@ -1015,7 +1069,13 @@ fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> O
     };
     owner = indexed_type(analysis, owner, &root_text[root.len()..])?;
     for field_text in parts {
-        let field = field_text.split('[').next()?;
+        let field = &field_text[..outer_index_start(field_text).unwrap_or(field_text.len())];
+        if field.ends_with(')') {
+            let end = field.as_ptr().addr() - text.as_ptr().addr() + field.len();
+            let ty = call_value_type(analysis, file, offset, &text[..end])?;
+            owner = indexed_type(analysis, ty, &field_text[field.len()..])?;
+            continue;
+        }
         let Ty::Struct(parent) = owner else {
             return None;
         };
@@ -1044,6 +1104,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         DefKind::Enum => CompletionKind::Enum,
         DefKind::Variant => CompletionKind::Variant,
         DefKind::State | DefKind::Struct => CompletionKind::State,
+        DefKind::TypeParameter => CompletionKind::TypeParameter,
         DefKind::Field => CompletionKind::Field,
         DefKind::Function | DefKind::ExternFunction | DefKind::Event => CompletionKind::Function,
         DefKind::Flow => CompletionKind::Flow,
@@ -1377,6 +1438,18 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             out.extend(defs(&|d| {
                 matches!(d.kind, DefKind::Enum | DefKind::Struct | DefKind::Module)
             }));
+            out.extend(
+                analysis
+                    .defs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, d)| {
+                        d.kind == DefKind::TypeParameter
+                            && d.file == file
+                            && d.span.contains(offset)
+                    })
+                    .map(|(index, d)| def_completion(analysis, &d.name, DefId(index))),
+            );
             out
         }
         Position::TagType => ["Item", "Block", "Entity"]
@@ -2285,6 +2358,44 @@ pub struct SignatureHelp {
     pub documentation: Option<String>,
 }
 
+fn without_type_applications(text: &str) -> String {
+    let mut output = String::new();
+    let mut depth = 0usize;
+    for character in text.chars() {
+        match character {
+            '<' => {
+                if depth == 0 && output.ends_with("::") {
+                    output.truncate(output.len() - 2);
+                }
+                depth += 1;
+            }
+            '>' if depth > 0 => depth -= 1,
+            _ if depth == 0 => output.push(character),
+            _ => {}
+        }
+    }
+    output
+}
+
+fn signature_parameters(text: &str) -> Vec<&str> {
+    let mut depth = 0usize;
+    let mut start = 0;
+    let mut parameters = Vec::new();
+    for (index, character) in text.char_indices() {
+        match character {
+            '<' | '[' | '(' => depth += 1,
+            '>' | ']' | ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                parameters.push(text[start..index].trim());
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    parameters.push(text[start..].trim());
+    parameters
+}
+
 /// Signature help for a builtin, macro, or function call around `offset`.
 pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Option<SignatureHelp> {
     use crate::builtins::{self, BuiltinKind, ParamKind};
@@ -2326,7 +2437,9 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         name_end -= 1;
     }
     let name_start = value_token_start(&text[..name_end]);
-    let name = &text[name_start..name_end];
+    let name_source = &text[name_start..name_end];
+    let name_without_applications = without_type_applications(name_source);
+    let name = name_without_applications.as_str();
     let current_arg_start = commas.first().map(|c| c + 1).unwrap_or(open + 1);
     let current = text[current_arg_start..offset].trim_start();
     let named = current
@@ -2442,7 +2555,20 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         label.push(')');
         documentation = Some(builtins::describe(builtin));
     } else {
-        let def = if let Some((receiver, method)) = name.rsplit_once('.') {
+        let resolved = analysis
+            .references
+            .iter()
+            .filter(|reference| {
+                reference.file == file
+                    && reference.span.start >= name_start
+                    && reference.span.end <= name_end
+                    && analysis.def(reference.def).kind == DefKind::Function
+            })
+            .max_by_key(|reference| reference.span.start)
+            .map(|reference| reference.def);
+        let def = if let Some(def) = resolved {
+            def
+        } else if let Some((receiver, method)) = name.rsplit_once('.') {
             let owner = value_owner(analysis, file, offset, receiver)?;
             analysis
                 .defs
@@ -2466,25 +2592,50 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         };
         label.push_str(&d.name);
         label.push('(');
-        let inner = signature
-            .strip_prefix('(')
-            .and_then(|s| s.split_once(')'))
-            .map(|(inner, _)| inner)
-            .unwrap_or("");
-        for param in inner.split(", ").filter(|p| !p.is_empty()).filter(|p| {
-            !name.contains('.')
-                || !(p.starts_with("self:")
-                    || p.starts_with("mut self:")
-                    || *p == "&self"
-                    || *p == "&mut self")
-        }) {
-            let param_name = param.split(':').next().unwrap_or(param).to_string();
-            push(&mut label, param.to_string(), param_name);
-        }
-        label.push(')');
-        if let Some((_, ret)) = signature.split_once(") ") {
-            label.push(' ');
-            label.push_str(ret);
+        if let Some(function) = analysis.function_types.get(&def) {
+            for parameter in &function.parameters {
+                let parameter = analysis.def(*parameter);
+                if name.contains('.') && parameter.name == "self" {
+                    continue;
+                }
+                let DefInfo::Local { ty, .. } = parameter.info else {
+                    continue;
+                };
+                push(
+                    &mut label,
+                    format!("{}: {}", parameter.name, ty_name(analysis, ty)),
+                    parameter.name.clone(),
+                );
+            }
+            label.push(')');
+            if let Some(ty) = function.returns {
+                label.push_str(&format!(" -> {}", ty_name(analysis, ty)));
+            }
+        } else {
+            let inner = signature
+                .split_once('(')
+                .and_then(|(_, rest)| rest.split_once(')'))
+                .map(|(inner, _)| inner)
+                .unwrap_or("");
+            for param in signature_parameters(inner)
+                .into_iter()
+                .filter(|p| !p.is_empty())
+                .filter(|p| {
+                    !name.contains('.')
+                        || !(p.starts_with("self:")
+                            || p.starts_with("mut self:")
+                            || *p == "&self"
+                            || *p == "&mut self")
+                })
+            {
+                let param_name = param.split(':').next().unwrap_or(param).to_string();
+                push(&mut label, param.to_string(), param_name);
+            }
+            label.push(')');
+            if let Some((_, ret)) = signature.split_once(") ") {
+                label.push(' ');
+                label.push_str(ret);
+            }
         }
         documentation = Some(describe(analysis, def));
     }
@@ -2583,8 +2734,12 @@ fn module_def_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Ve
         .defs
         .iter()
         .enumerate()
-        .filter(|(_, d)| {
-            d.module == module && d.parent.is_none() && d.file == file && d.kind != DefKind::Local
+        .filter(|(index, d)| {
+            !analysis.origins.contains_key(&DefId(*index))
+                && d.module == module
+                && d.parent.is_none()
+                && d.file == file
+                && d.kind != DefKind::Local
         })
         .map(|(_, d)| {
             let children = match &d.info {

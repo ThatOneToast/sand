@@ -35,7 +35,10 @@ path_segment = _{ ident | crate_kw | super_kw | self_kw }
 crate_kw = @{ "crate" ~ !ident_char }
 super_kw = @{ "super" ~ !ident_char }
 self_kw  = @{ "self" ~ !ident_char }
-path = { path_segment ~ ("::" ~ path_segment)* }
+path = { path_segment ~ turbofish? ~ ("::" ~ path_segment ~ turbofish?)* }
+turbofish = { "::" ~ type_arguments }
+type_arguments = { "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
+generic_params = { "<" ~ ident ~ ("," ~ ident)* ~ ","? ~ ">" }
 
 // Whole-word keyword tokens; the AST builder skips them.
 kw_struct = @{ "struct" ~ !ident_char }
@@ -120,8 +123,8 @@ const_item = { kw_const ~ ident ~ ":" ~ ty ~ "=" ~ expr ~ ";" }
 enum_item  = { kw_enum ~ ident ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}" }
 variant    = { outer_doc* ~ ident ~ ("=" ~ expr)? }
 
-struct_item = { kw_struct ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
-impl_item = { kw_impl ~ path ~ "{" ~ item* ~ "}" }
+struct_item = { kw_struct ~ ident ~ generic_params? ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
+impl_item = { kw_impl ~ generic_params? ~ path ~ type_arguments? ~ "{" ~ item* ~ "}" }
 
 state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
@@ -131,7 +134,7 @@ applied_ty = { path ~ "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
 array_ty = { "[" ~ ty ~ ";" ~ (int | path) ~ "]" }
 
 extern_fn  = { kw_extern ~ string ~ kw_fn ~ ident ~ "(" ~ ")" ~ ";" }
-fn_item    = { kw_fn ~ ident ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ block }
+fn_item    = { kw_fn ~ ident ~ generic_params? ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ block }
 fn_params = { (receiver ~ ("," ~ params)? ~ ","?) | params }
 receiver = { (("&" ~ kw_mut?) | kw_mut)? ~ self_kw }
 params     = { param ~ ("," ~ param)* ~ ","? }
@@ -187,7 +190,7 @@ args        = { arg ~ ("," ~ arg)* ~ ","? }
 arg         = { (ident ~ "=" ~ !"=" ~ arg_value) | arg_value }
 arg_value   = { range | arg_condition | expr }
 arg_condition = { !(expr ~ ("," | ")")) ~ cond }
-place       = { path ~ ("." ~ ident ~ !"(")+ }
+place       = { path ~ ("." ~ ident ~ !("(" | "::" ~ "<"))+ }
 
 // ── Conditions ──────────────────────────────────────────────────────────────
 
@@ -211,7 +214,7 @@ prefix  = _{ neg }
 neg     = { "-" }
 postfix = _{ cast | method_postfix | field_postfix | index_postfix }
 index_postfix = { "[" ~ expr ~ "]" }
-method_postfix = { "." ~ ident ~ "(" ~ args? ~ ")" }
+method_postfix = { "." ~ ident ~ turbofish? ~ "(" ~ args? ~ ")" }
 field_postfix = { "." ~ ident }
 cast    = { kw_as ~ ty }
 infix   = _{ add | sub | mul | div | rem }

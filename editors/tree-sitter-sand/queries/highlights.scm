@@ -32,6 +32,7 @@
 (method_expression method: (identifier) @function.method)
 (field_expression field: (identifier) @property)
 (receiver) @variable.builtin
+(generic_parameters (identifier) @type)
 
 ; Declarations
 (function_item name: (identifier) @function)

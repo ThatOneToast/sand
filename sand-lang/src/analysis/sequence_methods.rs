@@ -36,6 +36,7 @@ impl Cx {
             name,
             args,
             span,
+            ..
         } = expr
         else {
             unreachable!()

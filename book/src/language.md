@@ -203,8 +203,7 @@ assign it back to keep a change. They can also take `&self` to read a value or
 `&mut self` to update a mutable local or State field. Mutable receiver changes
 commit when the call returns, including early returns and recursive calls; these
 are scoped method receivers rather than general reference values. Mutable calls
-on immutable variables or temporary expressions are errors. User-defined traits,
-generics, maps, and whole-record arithmetic/comparison remain future work.
+on immutable variables or temporary expressions are errors. User-defined traits, maps, and whole-record arithmetic/comparison remain future work.
 Empty records and direct recursive layouts are rejected. A vector breaks layout
 recursion, allowing records such as `Node { children: Vec<Node> }`. Each record has at
 most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
@@ -506,6 +505,47 @@ Conditions can also ask about the world and the executor:
 | `holding(Item::Diamond)`, `holding(Wand, offhand = true)` | the executor holds the item |
 | `is_sneaking()`, `is_sprinting()`, `is_swimming()`, `is_on_fire()` | the executor is doing it |
 | `timer_running(Ability.dash)`, `timer_done(Ability.dash)` | a `timer` field has time left, or none |
+
+### Generics
+
+Functions and structs can declare type parameters. Calls infer them from value
+arguments and an expected result type. Use `::<T>` when a type has no value from
+which to infer it:
+
+```rust,ignore
+fn duplicate<T>(value: T) -> [T; 2] { return [value, value]; }
+struct Envelope<T> { value: T }
+impl<T> Envelope<T> {
+    fn new(value: T) -> Self { return Self { value }; }
+    fn read(&self) -> T { return self.value; }
+    fn choose<U>(&self, first: U, second: U) -> U { return first; }
+}
+let copies = duplicate("hello");
+let envelope = Envelope::<string>::new("saved");
+let wrapped: Envelope<Vec<number>> = Envelope { value: [1, 2] };
+```
+
+Type annotations use `Envelope<string>`; record literals may infer their type
+arguments from fields or the expected type, or spell `Envelope::<string> { ... }`.
+Generic records work in State, defaults, events, arrays, vectors, parameters and
+returns. Recursive records can use vectors, such as
+`Node<T> { value: T, children: Vec<Node<T>> }`.
+
+Generic impl blocks use the same ownership, receiver and privacy rules as other
+impls. Methods can introduce their own parameters and accept explicit arguments
+as `value.method::<T>(...)`. Concrete call slots and execution contexts belong to
+each specialization; copies and recursive calls preserve the same isolation as
+ordinary functions. Navigation and rename follow the authored source across
+specializations. Signature help uses concrete parameter types, including nested
+generic arguments, and completed call results can supply receiver completions.
+
+Sand specializes generic bodies when concrete types are used. It checks each
+specialization, rather than proving an unused generic body valid for all possible
+types. Trait bounds and higher-kinded types are not implemented. A package supports
+at most 256 function specializations and 256 record specializations; expanding
+record types stop at 64 nested specializations. The existing finite record-layout
+limits still apply. These checks prevent recursively growing compile-time types.
+See the [generic mining-history example](../../examples/lang_generics/pack.sand).
 
 ### Match
 

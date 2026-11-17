@@ -64,6 +64,11 @@ pub(crate) fn type_delimiters(source: &str) -> std::collections::BTreeSet<usize>
     };
     let mut pending: Vec<_> = pairs.collect();
     while let Some(pair) = pending.pop() {
+        if matches!(pair.as_rule(), Rule::generic_params | Rule::type_arguments) {
+            let location = pair.as_span();
+            result.insert(location.start());
+            result.insert(location.end() - 1);
+        }
         if pair.as_rule() == Rule::applied_ty {
             let location = pair.as_span();
             let path = pair.clone().into_inner().next().expect("applied type path");
@@ -460,13 +465,44 @@ impl Builder<'_> {
             }
             Rule::struct_item => {
                 let name = ident(inner.next().expect("struct name"));
-                let fields = inner.map(|field| self.field(field)).collect();
-                ItemKind::Struct(StructItem { name, fields })
+                let mut generics = Vec::new();
+                let mut fields = Vec::new();
+                for part in inner {
+                    if part.as_rule() == Rule::generic_params {
+                        generics = part.into_inner().map(ident).collect();
+                    } else {
+                        fields.push(self.field(part));
+                    }
+                }
+                ItemKind::Struct(StructItem {
+                    generics,
+                    name,
+                    fields,
+                })
             }
             Rule::impl_item => {
-                let target = path(inner.next().expect("impl target"));
-                let methods = inner.map(|method| self.item(method)).collect();
-                ItemKind::Impl(ImplItem { target, methods })
+                let mut generics = Vec::new();
+                let mut target = None;
+                let mut methods = Vec::new();
+                for part in inner {
+                    match part.as_rule() {
+                        Rule::generic_params => generics = part.into_inner().map(ident).collect(),
+                        Rule::path => target = Some(path(part)),
+                        Rule::type_arguments => {
+                            let target = target.as_mut().expect("impl target");
+                            target.applications.push(PathApplication {
+                                segment: target.segments.len() - 1,
+                                arguments: part.into_inner().map(value_type).collect(),
+                            });
+                        }
+                        _ => methods.push(self.item(part)),
+                    }
+                }
+                ItemKind::Impl(ImplItem {
+                    generics,
+                    target: target.expect("impl target"),
+                    methods,
+                })
             }
             Rule::data_item => {
                 let kind = match inner.next().expect("data kind").as_str() {
@@ -516,9 +552,11 @@ impl Builder<'_> {
                 let mut params = Vec::new();
                 let mut ret = None;
                 let mut receiver = None;
+                let mut generics = Vec::new();
                 let mut body = None;
                 for part in inner {
                     match part.as_rule() {
+                        Rule::generic_params => generics = part.into_inner().map(ident).collect(),
                         Rule::fn_params => {
                             for entry in part.into_inner() {
                                 if entry.as_rule() == Rule::receiver {
@@ -540,6 +578,7 @@ impl Builder<'_> {
                     }
                 }
                 ItemKind::Fn(FnItem {
+                    generics,
                     name,
                     receiver,
                     params,
@@ -1184,6 +1223,7 @@ fn expr(pair: P<'_>) -> Expr {
                             })
                             .unwrap_or_else(|| {
                                 Expr::Path(Path {
+                                    applications: Vec::new(),
                                     segments: vec![name.clone()],
                                     span: name.span,
                                 })
@@ -1263,10 +1303,26 @@ fn expr(pair: P<'_>) -> Expr {
             if op.as_rule() == Rule::method_postfix {
                 let mut parts = op.into_inner();
                 let name = ident(parts.next().expect("method name"));
+                let mut type_arguments = Vec::new();
+                let mut arguments = Vec::new();
+                for part in parts {
+                    if part.as_rule() == Rule::turbofish {
+                        type_arguments = part
+                            .into_inner()
+                            .next()
+                            .expect("type arguments")
+                            .into_inner()
+                            .map(value_type)
+                            .collect();
+                    } else {
+                        arguments = args(part);
+                    }
+                }
                 return Expr::Method {
                     receiver: Box::new(lhs),
                     name,
-                    args: parts.next().map(args).unwrap_or_default(),
+                    type_arguments,
+                    args: arguments,
                     span: s,
                 };
             }
@@ -1398,10 +1454,29 @@ fn value_type(pair: P<'_>) -> Type {
 }
 
 fn path(pair: P<'_>) -> Path {
-    let s = span(&pair);
+    let location = span(&pair);
+    let mut segments = Vec::new();
+    let mut applications = Vec::new();
+    for part in pair.into_inner() {
+        if part.as_rule() == Rule::turbofish {
+            applications.push(PathApplication {
+                segment: segments.len() - 1,
+                arguments: part
+                    .into_inner()
+                    .next()
+                    .expect("type arguments")
+                    .into_inner()
+                    .map(value_type)
+                    .collect(),
+            });
+        } else {
+            segments.push(ident(part));
+        }
+    }
     Path {
-        segments: pair.into_inner().map(ident).collect(),
-        span: s,
+        segments,
+        applications,
+        span: location,
     }
 }
 

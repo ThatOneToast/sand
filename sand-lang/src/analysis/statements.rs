@@ -179,7 +179,7 @@ impl Cx {
 
     pub(super) fn local_of(body: &BodyCx, expr: &Expr) -> Option<DefId> {
         match expr {
-            Expr::Path(path) if path.segments.len() == 1 => {
+            Expr::Path(path) if path.segments.len() == 1 && path.arguments().is_empty() => {
                 Self::lookup_local(body, &path.segments[0].name)
             }
             _ => None,
@@ -282,17 +282,29 @@ impl Cx {
                     .map_or(Ty::Unknown, |(element, _)| element)
             }
             Expr::Place(place) => self.place_ty(body, place),
-            Expr::Struct { path, .. } => self
-                .resolve_path(body.module, path)
-                .ok()
-                .filter(|(def, _)| self.defs[def.0].kind == DefKind::Struct)
-                .map_or(Ty::Unknown, |(def, _)| Ty::Struct(def)),
+            Expr::Struct { path, fields, .. } => self
+                .record_literal_type(
+                    Some(body),
+                    body.module,
+                    body.file,
+                    path,
+                    fields,
+                    None,
+                    false,
+                )
+                .unwrap_or(Ty::Unknown),
             Expr::Project(value, field, _) => {
                 let ty = self.type_of(body, value);
                 self.record_member(ty, &field.name)
                     .map_or(Ty::Unknown, |field| self.field_ty(field))
             }
-            Expr::Method { receiver, name, .. } => {
+            Expr::Method {
+                receiver,
+                name,
+                type_arguments,
+                args,
+                ..
+            } => {
                 let receiver_ty = self.type_of(body, receiver);
                 if name.name == "to_string"
                     && matches!(receiver_ty, Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
@@ -332,9 +344,37 @@ impl Cx {
                         _ => None,
                     }
                 });
-                target
-                    .and_then(|def| self.members.get(&def)?.get(&name.name))
-                    .and_then(|def| self.fn_slots.get(def)?.ret.as_ref())
+                let Some(def) = target
+                    .and_then(|target| self.members.get(&target)?.get(&name.name))
+                    .copied()
+                else {
+                    return Ty::Unknown;
+                };
+                let mut arguments = args.clone();
+                if matches!(receiver_ty, Ty::Struct(_)) {
+                    arguments.insert(
+                        0,
+                        Arg {
+                            name: None,
+                            value: ArgValue::Expr((**receiver).clone()),
+                            span: receiver.span(),
+                        },
+                    );
+                }
+                let path = Path {
+                    segments: vec![name.clone()],
+                    applications: if type_arguments.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![PathApplication {
+                            segment: 0,
+                            arguments: type_arguments.clone(),
+                        }]
+                    },
+                    span: name.span,
+                };
+                self.specialize_call(body, def, &path, &arguments, None, false)
+                    .and_then(|def| self.fn_slots.get(&def)?.ret.as_ref())
                     .map_or(Ty::Unknown, |(_, ty)| *ty)
             }
             Expr::Float(..) => Ty::Float,
@@ -365,14 +405,11 @@ impl Cx {
             {
                 Ty::EntityRef
             }
-            Expr::Call { path, .. } => match self.resolve_path(body.module, path) {
-                Ok((def, _)) => self
-                    .fn_slots
-                    .get(&def)
-                    .and_then(|slots| slots.ret.as_ref().map(|(_, ty)| *ty))
-                    .unwrap_or(Ty::Number),
-                Err(_) => Ty::Number,
-            },
+            Expr::Call { path, args, .. } => self
+                .resolve_call(body, path, args, None, false)
+                .and_then(|def| self.fn_slots.get(&def))
+                .and_then(|slots| slots.ret.as_ref().map(|(_, ty)| *ty))
+                .unwrap_or(Ty::Unknown),
             _ => Ty::Number,
         }
     }
@@ -529,6 +566,9 @@ impl Cx {
         expr: &Expr,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
+        if !self.validate_method_type_arguments(body, expr) {
+            return None;
+        }
         let file = body.file;
         let span = expr.span();
         self.value_slots(dest, ty);
@@ -555,6 +595,7 @@ impl Cx {
             Expr::Method {
                 receiver,
                 name,
+                type_arguments,
                 args,
                 span,
             } => {
@@ -568,8 +609,17 @@ impl Cx {
                 if self.array_shape(receiver_ty).is_some() {
                     return self.emit_array_method(body, dest, ty, expr, ops);
                 }
-                let (path, args) = self.method_call(body, receiver, name, args)?;
-                self.emit_call(body, dest, ty, &path, &args, *span, ops)
+                self.emit_method(
+                    body,
+                    dest,
+                    ty,
+                    receiver,
+                    name,
+                    type_arguments,
+                    args,
+                    *span,
+                    ops,
+                )
             }
             Expr::Project(value, field, _) => {
                 self.emit_projection(body, dest, ty, value, field, ops)
@@ -809,6 +859,19 @@ impl Cx {
     ) -> Option<()> {
         let (module, file) = (body.module, body.file);
         let name = &path.last().name;
+        if !path.arguments().is_empty()
+            && path.segments.len() == 1
+            && !self.scopes[module.0].contains_key(name)
+        {
+            self.error(
+                "generic",
+                file,
+                path.span,
+                "builtins do not take type arguments",
+            );
+            return None;
+        }
+
         if path.segments.len() == 1
             && !self.scopes[module.0].contains_key(name)
             && Self::lookup_local(body, name).is_none()
@@ -904,13 +967,32 @@ impl Cx {
             ops.push(op_at(action, file, span));
             return Some(());
         }
-        let def = self.expect_path(
-            module,
-            path,
-            &[DefKind::Function],
-            "a function that returns a value",
-        )?;
-        let slots = self.fn_slots.get(&def).cloned()?;
+        let def = self.resolve_call(body, path, args, Some(ty), true)?;
+        self.emit_user_result(body, dest, ty, def, path, args, span, ops)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn emit_user_result(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        ty: Ty,
+        def: DefId,
+        path: &Path,
+        args: &[Arg],
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<()> {
+        let file = body.file;
+        let Some(slots) = self.fn_slots.get(&def).cloned() else {
+            self.error(
+                "call",
+                file,
+                path.span,
+                "this function does not return a value",
+            );
+            return None;
+        };
         let Some((ret_field, ret_ty)) = slots.ret.clone() else {
             let d = &self.defs[def.0];
             let (df, ds, dname) = (d.file, d.name_span, d.name.clone());
@@ -937,7 +1019,7 @@ impl Cx {
 
     /// Pass arguments into the callee's parameter slots, then call it.
     #[allow(clippy::too_many_arguments)]
-    fn call_user(
+    pub(super) fn call_user(
         &mut self,
         body: &mut BodyCx,
         def: DefId,
@@ -1495,9 +1577,28 @@ impl Cx {
                 else {
                     return;
                 };
-                if !self.types_agree(body.file, *location, Ty::Struct(def), ty) {
+                let expected = if self.generics.records.contains_key(&def)
+                    && path.arguments().is_empty()
+                    && matches!(ty, Ty::Struct(instance) if self.generics.record_arguments.get(&instance).is_some_and(|(template, _)| *template == def))
+                {
+                    ty
+                } else if !path.arguments().is_empty() {
+                    let types = path
+                        .arguments()
+                        .iter()
+                        .map(|ty| self.resolve_type(body.module, ty))
+                        .collect();
+                    self.instantiate_record(def, types, body.file, *location)
+                        .unwrap_or(Ty::Unknown)
+                } else {
+                    Ty::Struct(def)
+                };
+                if !self.types_agree(body.file, *location, expected, ty) {
                     return;
                 }
+                let Ty::Struct(def) = ty else {
+                    return;
+                };
                 let mut seen = HashSet::new();
                 for (name, pattern) in fields {
                     if !seen.insert(name.name.clone()) {
@@ -2665,6 +2766,19 @@ impl Cx {
     ) {
         let (module, file) = (body.module, body.file);
         let name = &path.last().name;
+        if !path.arguments().is_empty()
+            && path.segments.len() == 1
+            && !self.scopes[module.0].contains_key(name)
+        {
+            self.error(
+                "generic",
+                file,
+                path.span,
+                "builtins do not take type arguments",
+            );
+            return;
+        }
+
         let is_builtin_name = path.segments.len() == 1 && !self.scopes[module.0].contains_key(name);
         if is_builtin_name && let Some(builtin) = builtins::find(name, BuiltinKind::Statement) {
             self.lower_builtin(body, builtin, path, args, span, ops);
@@ -2677,12 +2791,7 @@ impl Cx {
             );
             return;
         }
-        let Some(def) = self.expect_path(
-            module,
-            path,
-            &[DefKind::Function, DefKind::ExternFunction],
-            "a function",
-        ) else {
+        let Some(def) = self.resolve_call(body, path, args, None, true) else {
             return;
         };
         if let Some(slots) = self.fn_slots.get(&def).cloned() {
@@ -3337,6 +3446,15 @@ impl Cx {
         args: &[Arg],
         span: Span,
     ) -> Option<pc::Condition> {
+        if !path.arguments().is_empty() {
+            self.error(
+                "generic",
+                body.file,
+                path.span,
+                "builtins do not take type arguments",
+            );
+            return None;
+        }
         let file = body.file;
         let name = &path.last().name;
         let Some(builtin) = (path.segments.len() == 1)
@@ -3511,6 +3629,9 @@ impl Cx {
     /// `Player` (when no item of that name is in scope) or the binding of an
     /// enclosing `players()` or `entities(..)` loop.
     pub(super) fn is_handle(&self, body: &BodyCx, place: &Place) -> bool {
+        if !place.state.applications.is_empty() {
+            return false;
+        }
         let [segment] = place.state.segments.as_slice() else {
             return false;
         };
@@ -4295,6 +4416,7 @@ impl Cx {
                 let field = projections.remove(0);
                 let place = Place {
                     state: Path {
+                        applications: Vec::new(),
                         segments,
                         span: Span::new(span.start, span.start + state_text.len()),
                     },

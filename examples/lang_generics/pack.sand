@@ -1,0 +1,36 @@
+//! Two independently saved histories using the same generic library.
+#![pack(namespace = "mining_history", minecraft = "26.2")]
+mod history;
+use history::History;
+player state Journal {
+    entries: History<string>,
+    rewards: History<number>,
+    mined: number
+}
+fn duplicate<T>(value: T) -> [T; 2] {
+    return [value, value];
+}
+#[on(first_join)]
+fn welcome() {
+    Journal.entries = History::<string>::new();
+    Journal.rewards = History::<number>::new();
+    chat!("{green}Mine stone to build your personal mining history.");
+}
+#[on(mine_block = Block::Stone)]
+fn mine() {
+    Journal.mined += 1;
+    let points = match Journal.mined % 10 { 0 => 5, _ => 1 };
+    Journal.entries.record("Mined stone");
+    Journal.rewards.record(points);
+    if Journal.mined % 10 == 0 {
+        let [iron, bonus] = duplicate(points);
+        give_item(Item::IronIngot, count = iron + bonus);
+        let heading = Journal.entries.choose("No history", "Recent mining history");
+        chat!("{gold}{heading}");
+        for entry in Journal.entries.snapshot() {
+            chat!(entry);
+        }
+        let recent = Journal.rewards.recent(0);
+        chat!("{gray}Latest reward: {recent} points.");
+    }
+}

@@ -706,6 +706,7 @@ impl Cx {
             name,
             args,
             span,
+            ..
         } = expr
         else {
             unreachable!()
@@ -908,6 +909,7 @@ impl Cx {
             name,
             args,
             span,
+            ..
         } = expr
         else {
             unreachable!()

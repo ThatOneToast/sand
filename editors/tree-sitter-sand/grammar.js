@@ -65,11 +65,11 @@ module.exports = grammar({
         $.data_item,
       ),
 
-    struct_item: ($) => seq(repeat($.attribute), optional($.visibility), 'struct', field('name', $.identifier), '{', commaSep($.field_declaration), '}'),
-    impl_item: ($) => seq('impl', field('type', $.path), '{', repeat($.function_item), '}'),
+    struct_item: ($) => seq(repeat($.attribute), optional($.visibility), 'struct', field('name', $.identifier), optional($.generic_parameters), '{', commaSep($.field_declaration), '}'),
+    impl_item: ($) => seq('impl', optional($.generic_parameters), field('type', $.path), optional($.type_arguments), '{', repeat($.function_item), '}'),
     record_expression: ($) => seq(field('type', $.path), '{', $.record_field, repeat(seq(',', $.record_field)), optional(','), '}'),
     record_field: ($) => seq(field('name', $.identifier), optional(seq(':', $._value_or_condition))),
-    method_expression: ($) => prec.left(10, seq(field('receiver', $._expression), '.', field('method', $.identifier), $.arguments)),
+    method_expression: ($) => prec.left(10, seq(field('receiver', $._expression), '.', field('method', $.identifier), optional(seq('::', $.type_arguments)), $.arguments)),
     field_expression: ($) => prec.left(10, seq(field('value', $._expression), '.', field('field', $.identifier))),
     receiver: (_) => seq(optional('&'), optional('mut'), 'self'),
 
@@ -220,6 +220,7 @@ module.exports = grammar({
         optional($.visibility),
         'fn',
         field('name', $.identifier),
+        optional($.generic_parameters),
         $.parameters,
         optional(seq('->', field('return_type', $.type))),
         field('body', $.block),
@@ -362,7 +363,9 @@ module.exports = grammar({
     cast_expression: ($) => prec(PREC.cast, seq($._expression, 'as', $.type)),
     parenthesized_expression: ($) => seq('(', $._value_or_condition, ')'),
 
-    path: ($) => prec.left(seq($._path_segment, repeat(seq('::', $._path_segment)))),
+    generic_parameters: ($) => seq('<', $.identifier, repeat(seq(',', $.identifier)), optional(','), '>'),
+    type_arguments: ($) => seq('<', $.type, repeat(seq(',', $.type)), optional(','), '>'),
+    path: ($) => prec.left(seq($._path_segment, optional(seq('::', $.type_arguments)), repeat(seq('::', $._path_segment, optional(seq('::', $.type_arguments)))))),
     _path_segment: ($) => choice($.identifier, $.crate, $.self, $.super),
     crate: (_) => 'crate',
     self: (_) => 'self',

@@ -176,6 +176,7 @@ impl Cx {
         let Expr::Method {
             receiver,
             name,
+            type_arguments: _,
             args,
             span,
         } = expr
@@ -444,6 +445,7 @@ impl Cx {
         let Expr::Method {
             receiver,
             name,
+            type_arguments: _,
             args,
             span,
         } = expr
@@ -939,11 +941,21 @@ impl Cx {
             Expr::Method {
                 receiver,
                 name,
+                type_arguments,
                 args,
                 ..
             } if self.type_of(body, receiver) != Ty::String => {
-                let (path, args) = self.method_call(body, receiver, name, args)?;
-                return self.emit_call(body, dest, Ty::String, &path, &args, span, ops);
+                return self.emit_method(
+                    body,
+                    dest,
+                    Ty::String,
+                    receiver,
+                    name,
+                    type_arguments,
+                    args,
+                    span,
+                    ops,
+                );
             }
             _ => {
                 self.error("type", body.file, span, "expected a string expression");

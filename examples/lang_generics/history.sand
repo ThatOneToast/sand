@@ -1,0 +1,24 @@
+//! Reusable owned history with one implementation for every element type.
+pub struct History<T> {
+    values: Vec<T>
+}
+impl<T> History<T> {
+    pub fn new() -> Self {
+        return Self { values: [] };
+    }
+    pub fn record(&mut self, value: T) {
+        if self.values.len() == 10 {
+            self.values.remove_or(0, value);
+        }
+        self.values.push(value);
+    }
+    pub fn recent(&self, fallback: T) -> T {
+        return self.values.get_or(self.values.len() - 1, fallback);
+    }
+    pub fn snapshot(&self) -> Vec<T> {
+        return self.values;
+    }
+    pub fn choose<U>(&self, empty: U, populated: U) -> U {
+        return match self.values.is_empty() { true => empty, false => populated };
+    }
+}

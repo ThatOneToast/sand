@@ -523,6 +523,7 @@ impl Cx {
             Expr::Method {
                 receiver,
                 name,
+                type_arguments,
                 args,
                 ..
             } if name.name == "to_vec"
@@ -557,11 +558,21 @@ impl Cx {
             Expr::Method {
                 receiver,
                 name,
+                type_arguments,
                 args,
                 ..
             } => {
-                let (path, args) = self.method_call(body, receiver, name, args)?;
-                return self.emit_call(body, dest, ty, &path, &args, span, ops);
+                return self.emit_method(
+                    body,
+                    dest,
+                    ty,
+                    receiver,
+                    name,
+                    type_arguments,
+                    args,
+                    span,
+                    ops,
+                );
             }
             Expr::Index(..) => return self.emit_index(body, dest, ty, expr, ops),
             _ => {

@@ -158,6 +158,8 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("REFERENCE_PLAYER_A", "if score #emerald_a numeric_probe matches 2")
             self.check("REFERENCE_PLAYER_B", "if score #emerald_b numeric_probe matches 3")
             self.check("REFERENCE_EMPTY", "unless score #empty numeric_probe matches 1")
+            for player in ("NumericA", "NumericB"):
+                self.send(f"advancement revoke {player} only runtime_values:hunt_pig")
             self.send("scoreboard objectives add reference_kills totalKillCount")
             self.send("scoreboard players set NumericA reference_kills 0")
             self.send("scoreboard players set NumericB reference_kills 0")
@@ -187,8 +189,10 @@ class ValuesHarness(WorldGameplayHarness):
     def check_owned_waits(self):
         self.send("scoreboard objectives add wait_origin dummy")
         self.send("scoreboard objectives add wait_clock dummy")
+        for dimension in ("overworld", "the_nether"):
+            self.send(f"execute in minecraft:{dimension} run forceload add 0 0")
         for name in ("NumericA", "NumericB"):
-            self.send(f"execute in minecraft:overworld run teleport {name} 0 80 0")
+            self.send(f"execute in minecraft:overworld run teleport {name} 0.5 80 0.5")
             self.send(f"scoreboard players set {name} wait_origin 0")
         self.send("tick freeze")
         try:
@@ -201,7 +205,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute as NumericA at @s run function runtime_values:player_waits/cancel")
             self.send("execute as NumericA at @s run function runtime_values:player_waits/queue_a")
             self.send("execute as NumericB at @s run function runtime_values:player_waits/queue_b")
-            self.send("execute in minecraft:the_nether run teleport NumericB 0 80 0")
+            self.send("execute in minecraft:the_nether run teleport NumericB 0.5 80 0.5")
             start = len(self.lines)
             self.send("tick step 40")
             for label, owner in (
@@ -223,6 +227,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("RUNTIME_ITEM_CLEAR", "if score #safe_clear numeric_probe matches 1")
             self.send("execute as NumericB run function runtime_values:inspect_inventory")
             self.check("RUNTIME_ITEM_CLEAR_ISOLATION", "if score NumericB numeric_probe matches 3")
+            self.send("execute in minecraft:overworld run teleport NumericB 1.5 80 0.5")
             self.check_control_waits()
             self.check_inventory_transfers()
             self.check_owner_huds()
@@ -233,7 +238,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_state_combat()
         finally:
             self.send("tick unfreeze")
-            self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
+            self.send("execute in minecraft:overworld run teleport NumericB 0.5 80 0.5")
 
 
     def check_control_waits(self):

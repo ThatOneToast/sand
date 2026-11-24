@@ -4127,7 +4127,7 @@ impl Cx {
             let (lowered, guard) = match segment {
                 Segment::Actions(lowered, guard) => (lowered, guard),
                 Segment::Wait(wait) => {
-                    ops = vec![wait.suspend(body.file, ops)];
+                    ops = wait.suspend(body.file, ops);
                     continue;
                 }
             };

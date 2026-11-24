@@ -7,7 +7,7 @@ use crate::{
     ir::{Actions, Cmd},
     registration::{DatapackRegistration, IntoDatapack, LifecycleContribution},
 };
-use sand_commands::{Anchor, CommandError, CommandResult, ObjectiveName};
+use sand_commands::{Anchor, CommandError, CommandResult, ObjectiveName, ScoreHolder};
 use sand_components::{
     ComponentContent, DatapackComponent, DimensionId, ResourceLocation, effect::Ticks,
 };
@@ -217,6 +217,7 @@ pub struct Lifetime<K: EntityKind = PlayerKind> {
     required: Vec<Actions>,
     pub(super) diagnostics: Vec<(crate::condition::Condition, String)>,
     duration: Ticks,
+    duration_score: Option<(ScoreHolder, ObjectiveName)>,
     interval: Ticks,
     capacity: u32,
     origin: Anchor,
@@ -260,6 +261,7 @@ impl<K: EntityKind> Lifetime<K> {
             required: vec![],
             diagnostics: vec![],
             duration,
+            duration_score: None,
             interval: Ticks::new(1),
             capacity: 128,
             origin: Anchor::Feet,
@@ -276,6 +278,17 @@ impl<K: EntityKind> Lifetime<K> {
             detach: vec![],
         }
     }
+    /// Read the lifetime and first callback interval from the executor's
+    /// score at admission. The resulting timer belongs to the spawned instance.
+    pub(crate) fn with_duration_score(
+        mut self,
+        holder: ScoreHolder,
+        objective: ObjectiveName,
+    ) -> Self {
+        self.duration_score = Some((holder, objective));
+        self
+    }
+
     /// Require a canonical State query to match the owner. Scoped State, bundles
     /// and composed `StateQuery` declarations share their normal membership rules.
     /// A missing required component, obsolete schema version or present forbidden
@@ -728,6 +741,20 @@ impl<K: EntityKind> RuntimeFunction<K> {
             .collect::<Vec<_>>();
         dimensions.sort();
         dimensions.dedup();
+        let (initial_delay, initial_phase, duration_prefix) = if d.duration_score.is_some() {
+            ("$(duration)".to_owned(), "$(duration)".to_owned(), "$")
+        } else {
+            (
+                d.duration.get().to_string(),
+                d.interval.get().to_string(),
+                "",
+            )
+        };
+        let child_duration = if d.duration_score.is_some() {
+            ",duration:$(duration)"
+        } else {
+            ""
+        };
         let mut lines:Vec<String> = match self.part {
             "load"=> vec![
                 format!("data remove storage {task_ledger} active"),
@@ -766,7 +793,7 @@ impl<K: EntityKind> RuntimeFunction<K> {
                     format!("data modify entity @s data.stop set value \"{}\"", resource("stop")),
                     format!("execute unless data storage {task_ledger} active run data modify storage {task_ledger} active set value []"),
                     format!("$data modify storage {task_ledger} active append value {{instance:$(instance),owner:$(owner),generation:$(generation),children:0}}"),
-                    format!("tag @s add {tag}"),"$data merge entity @s {data:{owner:$(owner),instance:$(instance),epoch:$(epoch),generation:$(generation)}}".into(),format!("$scoreboard players set @s {owner} $(instance)"),format!("$scoreboard players set @s {epoch} $(epoch)"),format!("scoreboard players set @s {remaining} {}",d.duration.get()),format!("scoreboard players set @s {phase} {}",d.interval.get()),format!("scoreboard players set @s {active} 1"),format!("scoreboard players add #live {active} 1"),"tp @s ~ ~ ~ ~ ~".into()];
+                    format!("tag @s add {tag}"),"$data merge entity @s {data:{owner:$(owner),instance:$(instance),epoch:$(epoch),generation:$(generation)}}".into(),format!("$scoreboard players set @s {owner} $(instance)"),format!("$scoreboard players set @s {epoch} $(epoch)"),format!("{duration_prefix}scoreboard players set @s {remaining} {initial_delay}"),format!("{duration_prefix}scoreboard players set @s {phase} {initial_phase}"),format!("scoreboard players set @s {active} 1"),format!("scoreboard players add #live {active} 1"),"tp @s ~ ~ ~ ~ ~".into()];
                 if d.invocation_position {
                     // A continuation started from a tick callback must first
                     // spend a tick on the following game tick, even when its
@@ -827,7 +854,7 @@ impl<K: EntityKind> RuntimeFunction<K> {
             "init_child"=> vec![
                 "$data modify entity @s data.ancestors set value $(ancestors)".into(),
                 format!("function {} with entity @s data.ancestors[-1]",resource("child_added")),
-                format!("$function {} {{owner:$(owner),instance:$(instance),epoch:$(epoch),generation:$(generation)}}", resource("init")),
+                format!("$function {} {{owner:$(owner),instance:$(instance),epoch:$(epoch),generation:$(generation){child_duration}}}", resource("init")),
             ],
             "retire"=>vec![
                 format!("execute if data entity @s data.ancestors[-1] run function {} with entity @s data.ancestors[-1]",resource("child_removed")),
@@ -859,6 +886,19 @@ impl<K: EntityKind> RuntimeFunction<K> {
             "status_admit"|"status_refresh"|"status_remove"=>vec![],
             _=>unreachable!()
         };
+        if matches!(self.part, "admit" | "admit_child")
+            && let Some((holder, objective)) = &d.duration_score
+        {
+            lines.insert(
+                0,
+                format!("execute unless score {holder} {objective} matches 1.. run return 0"),
+            );
+            let index = lines
+                .iter()
+                .position(|line| line.contains("summon minecraft:marker"))
+                .expect("admission summons an instance");
+            lines.insert(index, format!("execute store result storage {storage} spawn.duration int 1 run scoreboard players get {holder} {objective}"));
+        }
         if self.part == "admit_child" {
             let index = lines
                 .iter()

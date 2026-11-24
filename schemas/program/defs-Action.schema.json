@@ -558,10 +558,8 @@
           "type": "string"
         },
         "ticks": {
-          "description": "Positive number of loaded ticks.",
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
+          "$ref": "defs-ScoreOperand.schema.json",
+          "description": "Positive number of loaded ticks. An invalid runtime score resumes\nimmediately in the current execution context."
         }
       },
       "required": [

@@ -193,7 +193,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "wait(ticks?, seconds?)",
         summary: "Resume this function later with its own local values.",
-        details: "Use one positive constant duration directly in a function body with an entity executor. The continuation keeps its locals and original execution position. Player and entity State are read live when it resumes.",
+        details: "Use one positive number duration directly in a function body with an entity executor. The continuation keeps its locals and original execution position. Invalid runtime durations continue immediately. Player and entity State are read live when it resumes.",
         minecraft: "Start a canonical owner-bound Sand lifetime.",
         needs_player: false,
         params: &[

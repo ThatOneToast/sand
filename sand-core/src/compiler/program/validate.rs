@@ -1749,13 +1749,19 @@ impl Validator<'_, '_> {
                     body,
                 } => {
                     self.executor(context, owner, &ptr, "suspending a function");
-                    if !(1..=i32::MAX as u32).contains(ticks) {
-                        self.errors.push(Diagnostic::error(
-                            "SAND_PROGRAM_RANGE",
-                            owner,
-                            &format!("{ptr}/action/ticks"),
-                            "wait delay must be a positive scoreboard integer",
-                        ));
+                    match ticks {
+                        ScoreOperand::Field(score) => {
+                            self.score(score, context, owner, &format!("{ptr}/action/ticks"))
+                        }
+                        ScoreOperand::Value(ticks) if *ticks < 1 => {
+                            self.errors.push(Diagnostic::error(
+                                "SAND_PROGRAM_RANGE",
+                                owner,
+                                &format!("{ptr}/action/ticks"),
+                                "wait delay must be a positive scoreboard integer",
+                            ));
+                        }
+                        ScoreOperand::Value(_) => {}
                     }
                     if fields.len() > 64 {
                         self.errors.push(Diagnostic::error(

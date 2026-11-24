@@ -1085,6 +1085,9 @@ entity or player executor. When the delay ends, the rest of the function runs
 with its own saved parameters and locals. It runs as the original executor at
 the saved position and dimension. State fields are read live when the function
 resumes. A caller can continue as soon as the called function suspends.
+Pass a computed `number` in ticks or seconds to give each invocation a
+different delay. Invalid runtime durations continue immediately. Invalid
+constant durations produce a diagnostic.
 
 ```rust,ignore
 player state Orders { count: number }

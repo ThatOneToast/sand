@@ -2290,7 +2290,7 @@ impl Lower<'_> {
                     ticks,
                     fields,
                     body,
-                } => self.suspend((owner, &path, module, &ptr), *ticks, fields, body)?,
+                } => self.suspend((owner, &path, module, &ptr), ticks, fields, body)?,
                 Action::CancelWaits => {
                     self.cancel_waits = true;
                     vec![Cmd::Function(self.cancellation_function())]

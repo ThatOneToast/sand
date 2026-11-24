@@ -17,7 +17,7 @@ impl Lower<'_> {
     pub(super) fn suspend(
         &mut self,
         location: (&str, &str, &str, &str),
-        ticks: u32,
+        ticks: &ScoreOperand,
         fields: &[FieldReference],
         body: &[Operation],
     ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
@@ -65,17 +65,39 @@ impl Lower<'_> {
             "data modify storage {storage} stack append from storage {storage} stack[-2]"
         ));
         resume_body.extend(pop.iter().map(Cmd::render));
-        resume_body.push(Cmd::Function(continuation).render());
+        resume_body.push(Cmd::Function(continuation.clone()).render());
         resume_body.extend(pop.iter().map(Cmd::render));
         self.function(&resume, resume_body, module, pointer)?;
 
         let store =
             format!("data modify entity @s data.sand_wait set from storage {storage} stack[-1]");
         let discard_tick = discard_payload.clone();
-        let duration = Ticks::new(ticks);
-        let lifetime = Lifetime::<AnyEntity>::new(id.clone(), duration)
+        let (lifetime, invalid) = match ticks {
+            ScoreOperand::Value(ticks) => {
+                let duration = Ticks::new(*ticks as u32);
+                (
+                    Lifetime::<AnyEntity>::new(id.clone(), duration).every(duration),
+                    None,
+                )
+            }
+            ScoreOperand::Field(score) => {
+                let holder = self.holders[&score.state.to_string()].clone();
+                let objective = sand_commands::ObjectiveName::logical(format!(
+                    "{}.{}",
+                    score.state, score.field
+                ));
+                let invalid = Cmd::Raw(format!(
+                    "execute unless score {holder} {objective} matches 1.. run return run function {continuation}"
+                ));
+                (
+                    Lifetime::<AnyEntity>::new(id.clone(), Ticks::new(1))
+                        .with_duration_score(holder, objective),
+                    Some(invalid),
+                )
+            }
+        };
+        let lifetime = lifetime
             .at_invocation_position()
-            .every(duration)
             .on_start(move |_| Cmd::Raw(store.clone()))
             .on_tick(move |ctx| {
                 let mut actions = crate::ir::Actions(vec![
@@ -86,7 +108,9 @@ impl Lower<'_> {
                 actions.0.push(Cmd::Raw(discard_tick.clone()));
                 actions
             });
-        let mut commands = push;
+        let mut commands = Vec::new();
+        commands.extend(invalid);
+        commands.extend(push);
         commands.extend(lifetime.start().0);
         commands.push(Cmd::Raw(discard_payload));
         self.continuations.push(Continuation {

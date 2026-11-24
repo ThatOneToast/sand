@@ -1,10 +1,10 @@
 //! Imported by the two-client runtime probe.
-struct Plan { label: string, boost: number, steps: Vec<number> }
-player state Ledger { stage_one: number, stage_two: number, cancelled: number }
+struct Plan { label: string, boost: number, delay: number, steps: Vec<number> }
+player state Ledger { stage_one: number, stage_two: number, cancelled: number, immediate: number }
 
 fn run(plan: Plan) {
     let mut amount = plan.boost;
-    wait(12);
+    wait(plan.delay);
     amount += plan.steps[0];
     Ledger.stage_one += amount;
 
@@ -12,19 +12,19 @@ fn run(plan: Plan) {
     if plan.label == "A" || plan.label == "A2" || plan.label == "B🌍" {
         Ledger.stage_two += amount + plan.steps[1];
         raw!("execute if dimension minecraft:overworld run scoreboard players add @s wait_origin 1");
-        if plan.label == "A" { raw!("say __SAND_WAIT_A_DONE__"); }
-        if plan.label == "A2" { raw!("say __SAND_WAIT_A2_DONE__"); }
-        if plan.label == "B🌍" { raw!("say __SAND_WAIT_B_DONE__"); }
+        if plan.label == "A" { raw!("execute store result score #A wait_clock run time query gametime"); raw!("say __SAND_WAIT_A_DONE__"); }
+        if plan.label == "A2" { raw!("execute store result score #A2 wait_clock run time query gametime"); raw!("say __SAND_WAIT_A2_DONE__"); }
+        if plan.label == "B🌍" { raw!("execute store result score #B wait_clock run time query gametime"); raw!("say __SAND_WAIT_B_DONE__"); }
     }
 }
 
 pub fn queue_a() {
-    run(Plan { label: "A", boost: 2, steps: [1, 7] });
-    run(Plan { label: "A2", boost: 4, steps: [3, 8] });
+    run(Plan { label: "A", boost: 2, delay: 8, steps: [1, 7] });
+    run(Plan { label: "A2", boost: 4, delay: 14, steps: [3, 8] });
 }
 
 pub fn queue_b() {
-    run(Plan { label: "B🌍", boost: 4, steps: [1, 6] });
+    run(Plan { label: "B🌍", boost: 4, delay: 19, steps: [1, 6] });
 }
 
 pub fn cancel() { cancel_waits(); }
@@ -46,3 +46,28 @@ pub fn check_b() {
         raw!("scoreboard players set #wait_b numeric_probe 1");
     }
 }
+
+fn invalid_ticks(ticks: number) {
+    wait(ticks);
+    Ledger.immediate += 1;
+}
+
+fn invalid_seconds(seconds: number) {
+    wait(seconds = seconds);
+    Ledger.immediate += 1;
+}
+
+pub fn check_invalid() {
+    Ledger.immediate = 0;
+    invalid_ticks(-1);
+    invalid_seconds(2147483647);
+    if Ledger.immediate == 2 { raw!("scoreboard players set #wait_invalid numeric_probe 1"); }
+}
+
+fn runtime_seconds(seconds: number) {
+    wait(seconds = seconds);
+    raw!("execute store result score #seconds wait_clock run time query gametime");
+    raw!("say __SAND_WAIT_SECONDS_DONE__");
+}
+
+pub fn queue_seconds() { runtime_seconds(1); }

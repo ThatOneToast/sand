@@ -60,10 +60,7 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
             "directly in a function body",
         ),
         ("fn eager() { wait(0); }", "expected a value from 1"),
-        (
-            "fn eager(n: number) { wait(n); }",
-            "expected a constant number",
-        ),
+        ("fn eager(n: string) { wait(n); }", "mismatched types"),
         ("#[load] fn eager() { wait(1); }", "on the server"),
     ] {
         let source = format!("#![pack(namespace = \"wait_probe\")]\n{body}");
@@ -73,4 +70,38 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
             "{body}: {diagnostics:?}"
         );
     }
+}
+
+#[test]
+fn computed_wait_durations_are_read_once_and_stored_on_the_lifetime() {
+    let source = r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+player state Ledger { resumes: number }
+fn resume_later(seconds: number) {
+    wait(seconds = seconds + 1);
+    Ledger.resumes += 1;
+}
+"#;
+    let analysis = analyze_one(source);
+    let pack = compile(&analysis);
+    let commands = pack
+        .resources
+        .iter()
+        .filter(|(path, _)| path.ends_with(".mcfunction"))
+        .map(|(_, bytes)| std::str::from_utf8(bytes).unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(commands.contains("matches 1..107374182"));
+    assert!(commands.contains("spawn.duration int 1 run scoreboard players get"));
+    assert!(
+        commands
+            .lines()
+            .filter(|line| line.starts_with("$scoreboard players set @s")
+                && line.ends_with("$(duration)"))
+            .count()
+            == 2
+    );
+    assert!(commands.lines().any(|line| {
+        line.contains("matches 1.. run return run function") && line.contains("/continuation")
+    }));
 }

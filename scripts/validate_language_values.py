@@ -116,11 +116,16 @@ class ValuesHarness(WorldGameplayHarness):
 
     def check_owned_waits(self):
         self.send("scoreboard objectives add wait_origin dummy")
+        self.send("scoreboard objectives add wait_clock dummy")
         for name in ("NumericA", "NumericB"):
             self.send(f"execute in minecraft:overworld run teleport {name} 0 80 0")
             self.send(f"scoreboard players set {name} wait_origin 0")
         self.send("tick freeze")
         try:
+            self.send("execute store result score #zero wait_clock run time query gametime")
+            self.send("execute as NumericA at @s run function runtime_values:player_waits/check_invalid")
+            self.check("WAIT_BAD_DURATION_RESUMES_IMMEDIATELY", "if score #wait_invalid numeric_probe matches 1")
+            self.send("execute as NumericB at @s run function runtime_values:player_waits/queue_seconds")
             for name in ("NumericA", "NumericB"):
                 self.send(f"execute as {name} at @s run function runtime_values:player_waits/queue_cancellable")
             self.send("execute as NumericA at @s run function runtime_values:player_waits/cancel")
@@ -129,9 +134,15 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute in minecraft:the_nether run teleport NumericB 0 80 0")
             start = len(self.lines)
             self.send("tick step 40")
-            for label, owner in (("A", "NumericA"), ("A2", "NumericA"), ("B", "NumericB"), ("CANCELLABLE", "NumericB")):
+            for label, owner in (
+                ("A", "NumericA"), ("A2", "NumericA"), ("B", "NumericB"),
+                ("CANCELLABLE", "NumericB"), ("SECONDS", "NumericB"),
+            ):
                 marker = f"__SAND_WAIT_{label}_DONE__"
                 self.wait_for(re.compile(rf"\[{owner}\] {marker}$"), "wait-completion", start)
+            for timer, ticks in (("A", 12), ("A2", 18), ("B", 23), ("seconds", 20)):
+                self.send(f"scoreboard players operation #{timer} wait_clock -= #zero wait_clock")
+                self.check(f"WAIT_DELAY_{timer.upper()}", f"if score #{timer} wait_clock matches {ticks}")
             self.send("execute as NumericA run function runtime_values:player_waits/check_a")
             self.send("execute as NumericB run function runtime_values:player_waits/check_b")
             self.check("WAIT_A_OWNED_AND_CANCELLED", "if score #wait_a numeric_probe matches 1")

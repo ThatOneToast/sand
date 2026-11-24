@@ -4,14 +4,15 @@ use crate::builtins::{self, BuiltinKind};
 use std::collections::BTreeSet;
 
 pub(super) struct WaitSite {
-    ticks: u32,
+    setup: Vec<pc::Operation>,
+    ticks: pc::ScoreOperand,
     fields: Vec<pc::FieldReference>,
     span: Span,
 }
 
 impl WaitSite {
-    pub(super) fn suspend(self, file: FileId, body: Vec<pc::Operation>) -> pc::Operation {
-        op_at(
+    pub(super) fn suspend(mut self, file: FileId, body: Vec<pc::Operation>) -> Vec<pc::Operation> {
+        self.setup.push(op_at(
             pc::Action::Suspend {
                 ticks: self.ticks,
                 fields: self.fields,
@@ -19,7 +20,8 @@ impl WaitSite {
             },
             file,
             self.span,
-        )
+        ));
+        self.setup
     }
 }
 
@@ -50,9 +52,9 @@ impl Cx {
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
-        let ticks = match (bound.get("ticks"), bound.get("seconds")) {
-            (Some(arg), None) => self.arg_int(body, arg, 1, i32::MAX as i64)? as u32,
-            (None, Some(arg)) => 20 * self.arg_int(body, arg, 1, i32::MAX as i64 / 20)? as u32,
+        let (duration, scale) = match (bound.get("ticks"), bound.get("seconds")) {
+            (Some(arg), None) => (*arg, 1),
+            (None, Some(arg)) => (*arg, 20),
             _ => {
                 self.error(
                     "wait",
@@ -62,6 +64,61 @@ impl Cx {
                 );
                 return None;
             }
+        };
+        let ArgValue::Expr(expr) = &duration.value else {
+            self.error(
+                "type",
+                file,
+                duration.span,
+                "expected a number duration, found a range",
+            );
+            return None;
+        };
+        let mut setup = Vec::new();
+        let max = i32::MAX / scale;
+        let ticks = if Self::is_const_in(body, expr) {
+            pc::ScoreOperand::Value(self.arg_int(body, duration, 1, max.into())? as i32 * scale)
+        } else {
+            let found = self.type_of(body, expr);
+            if !self.types_agree(file, expr.span(), Ty::Number, found) {
+                return None;
+            }
+            let depth = body.temp_depth;
+            let score = self.temp(body);
+            let result = self.emit(body, &score, Ty::Number, expr, &mut setup);
+            body.temp_depth = depth;
+            result?;
+            if scale != 1 {
+                setup.push(op_at(
+                    pc::Action::Branch {
+                        condition: pc::Condition::Range(pc::ScoreComparison {
+                            score: score.clone(),
+                            min: Some(1),
+                            max: Some(max),
+                        }),
+                        then: vec![op_at(
+                            pc::Action::ScoreOperation {
+                                score: score.clone(),
+                                operator: pc::ScoreOperator::Mul,
+                                operand: pc::ScoreOperand::Value(scale),
+                            },
+                            file,
+                            span,
+                        )],
+                        otherwise: vec![op_at(
+                            pc::Action::ScoreSet {
+                                score: score.clone(),
+                                value: 0,
+                            },
+                            file,
+                            span,
+                        )],
+                    },
+                    file,
+                    span,
+                ));
+            }
+            pc::ScoreOperand::Field(score)
         };
         body.note_executor(span, "retains the executing entity across a wait".into());
 
@@ -98,6 +155,7 @@ impl Cx {
             return None;
         }
         Some(WaitSite {
+            setup,
             ticks,
             fields,
             span,

@@ -33,6 +33,7 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
     }
 }
 
+mod callables;
 mod collections;
 mod generics;
 mod resources;
@@ -70,6 +71,8 @@ pub enum Ty {
     Struct(DefId),
     /// A retained, pack-owned entity identity; zero is empty.
     EntityRef,
+    /// An opaque reference to a checked function with a concrete signature.
+    Callable(DefId),
     /// A type that failed to resolve; suppresses follow-up errors.
     Unknown,
 }
@@ -169,6 +172,13 @@ impl DefKind {
 /// Kind-specific facts about a definition.
 #[derive(Debug, Clone)]
 pub enum DefInfo {
+    /// An interned callable signature.
+    Callable {
+        /// Argument types in call order.
+        parameters: Vec<Ty>,
+        /// Return type when the callable produces a value.
+        returns: Option<Ty>,
+    },
     /// A generic type parameter, resolved by each concrete specialization.
     TypeParameter,
     /// An authored contract with required method signatures.
@@ -554,6 +564,7 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         fn_slots: BTreeMap::new(),
         generics: generics::Generics::default(),
         traits: traits::Traits::default(),
+        callables: callables::Callables::default(),
         test_mode,
         tests: BTreeMap::new(),
         test_functions: Default::default(),
@@ -669,6 +680,7 @@ struct Cx {
     fn_slots: BTreeMap<DefId, FnSlots>,
     generics: generics::Generics,
     traits: traits::Traits,
+    callables: callables::Callables,
     test_mode: bool,
     tests: BTreeMap<DefId, TestCase>,
     test_functions: std::collections::BTreeSet<DefId>,
@@ -1635,6 +1647,23 @@ impl Cx {
 
     fn resolve_type(&mut self, module: ModuleId, annotation: &Type) -> Ty {
         match &annotation.kind {
+            TypeKind::Function {
+                parameters,
+                returns,
+            } => {
+                let parameters = parameters
+                    .iter()
+                    .map(|ty| self.resolve_type(module, ty))
+                    .collect();
+                let returns = returns.as_ref().map(|ty| self.resolve_type(module, ty));
+                self.callable_type(
+                    module,
+                    callables::Signature {
+                        parameters,
+                        returns,
+                    },
+                )
+            }
             TypeKind::Named(path) => self.resolve_named_type(module, path),
             TypeKind::Applied { path, arguments } => {
                 let file = self.package.module(module).file;
@@ -1784,7 +1813,7 @@ impl Cx {
             Ty::Number => "number".into(),
             Ty::Float => "float".into(),
             Ty::Bool => "bool".into(),
-            Ty::Enum(def) | Ty::Struct(def) => self.defs[def.0].name.clone(),
+            Ty::Enum(def) | Ty::Struct(def) | Ty::Callable(def) => self.defs[def.0].name.clone(),
             Ty::EntityRef => "EntityRef".into(),
             Ty::String => "string".into(),
             Ty::List(def) => self.defs[def.0].name.clone(),
@@ -1915,7 +1944,10 @@ impl Cx {
                 "`__sand_record_` is reserved for struct storage",
             );
         }
-        let default = if matches!(ty, Ty::Struct(_) | Ty::String | Ty::List(_)) {
+        let default = if matches!(
+            ty,
+            Ty::Struct(_) | Ty::String | Ty::List(_) | Ty::Callable(_)
+        ) {
             if let Some(defaults) = self.record_constant(module, file, field.default.as_ref(), ty) {
                 self.record_defaults.insert(def, defaults);
             }
@@ -2265,6 +2297,10 @@ impl Cx {
                     }
                 }
             }
+            Expr::Closure(closure) => {
+                self.error("const", file, closure.span, "a closure is a runtime value");
+                None
+            }
             Expr::Struct { span, .. }
             | Expr::Method { span, .. }
             | Expr::Project(_, _, span)
@@ -2369,9 +2405,11 @@ impl Cx {
     pub(super) fn cast_step(&self, from: Ty, to: Ty) -> Result<CastStep, (String, &'static str)> {
         if matches!(
             from,
-            Ty::Struct(_) | Ty::EntityRef | Ty::String | Ty::List(_)
-        ) || matches!(to, Ty::Struct(_) | Ty::EntityRef | Ty::String | Ty::List(_))
-        {
+            Ty::Struct(_) | Ty::EntityRef | Ty::String | Ty::List(_) | Ty::Callable(_)
+        ) || matches!(
+            to,
+            Ty::Struct(_) | Ty::EntityRef | Ty::String | Ty::List(_) | Ty::Callable(_)
+        ) {
             return Err((
                 "struct, string and entity-reference values cannot be cast".into(),
                 "format scalars with `.to_string()`, use scalar fields, or resolve the entity reference",
@@ -2429,7 +2467,9 @@ impl Cx {
             modules.push(self.lower_module(module, &mut lowerer));
         }
         self.lower_generic_instances(&mut modules, &mut lowerer);
+        self.lower_callable_dispatchers(&mut lowerer);
         self.infer_contexts(&mut lowerer);
+        self.validate_callable_contexts();
         self.discover_tests(&lowerer);
         self.resolve_frames(&mut lowerer);
         if (!self.local_fields.is_empty() || !self.local_data_fields.is_empty())
@@ -2989,7 +3029,7 @@ impl Cx {
                         };
                         if matches!(
                             self.field_ty(*field),
-                            Ty::Struct(_) | Ty::String | Ty::List(_)
+                            Ty::Struct(_) | Ty::String | Ty::List(_) | Ty::Callable(_)
                         ) {
                             let value_ty = self.field_ty(*field);
                             let base = self.field_reference(def, *field).expect("State field");
@@ -3246,7 +3286,7 @@ impl Cx {
                 DefInfo::Local { mutable, param, .. } => (mutable, param),
                 _ => continue,
             };
-            if name.starts_with('_') {
+            if name.starts_with('_') || span == Span::default() {
                 continue;
             }
             if !body.used.contains(local) {
@@ -4521,6 +4561,17 @@ impl Cx {
             Cond::Compare { lhs, op, rhs, span } => {
                 let left_value_ty = self.type_of(body, lhs);
                 let right_value_ty = self.type_of(body, rhs);
+                if matches!(left_value_ty, Ty::Callable(_))
+                    || matches!(right_value_ty, Ty::Callable(_))
+                {
+                    self.error(
+                        "callable",
+                        file,
+                        *span,
+                        "function values cannot be compared directly",
+                    );
+                    return None;
+                }
                 if matches!(left_value_ty, Ty::String | Ty::List(_) | Ty::Struct(_))
                     || matches!(right_value_ty, Ty::String | Ty::List(_) | Ty::Struct(_))
                 {
@@ -4604,7 +4655,7 @@ impl Cx {
                 } else {
                     left_ty
                 };
-                if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef)
+                if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef | Ty::Callable(_))
                     && !matches!(op, CmpOp::Eq | CmpOp::Ne)
                 {
                     let what = if ty == Ty::Bool { "bool" } else { "enum" };

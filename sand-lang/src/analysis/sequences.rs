@@ -326,7 +326,7 @@ impl Cx {
                 );
             }
         } else {
-            let source = if matches!(ty, Ty::String | Ty::List(_)) {
+            let source = if matches!(ty, Ty::String | Ty::List(_) | Ty::Callable(_)) {
                 pc::DataOperand::Reference {
                     value: Self::data_reference(source),
                 }
@@ -387,7 +387,7 @@ impl Cx {
                 );
             }
         } else {
-            let action = if matches!(ty, Ty::String | Ty::List(_)) {
+            let action = if matches!(ty, Ty::String | Ty::List(_) | Ty::Callable(_)) {
                 pc::Action::DataModify {
                     target: Self::data_reference(target),
                     operator: DataModifyOperation::Set,

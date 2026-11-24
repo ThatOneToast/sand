@@ -394,7 +394,9 @@ impl Cx {
                 })
                 .collect()
         } else {
-            if matches!(ty, Ty::String | Ty::List(_)) {
+            if matches!(ty, Ty::Callable(_)) {
+                self.register_data_slot(base, Self::empty_callable());
+            } else if matches!(ty, Ty::String | Ty::List(_)) {
                 self.register_data_slot(base, text::text_value(""));
             } else if base.state.to_string() == self.locals_state_id() {
                 self.slot(base.field.clone());
@@ -451,7 +453,7 @@ impl Cx {
                     .and_then(|values| values.into_iter().next())
                     .unwrap_or(text::LeafDefault::Score(0))
             });
-            if matches!(leaf_ty, Ty::String | Ty::List(_)) {
+            if matches!(leaf_ty, Ty::String | Ty::List(_) | Ty::Callable(_)) {
                 if let Some(default) = default {
                     ops.push(op_at(
                         Self::initialize_leaf(dest.clone(), default),
@@ -762,6 +764,18 @@ impl Cx {
         expr: Option<&Expr>,
         ty: Ty,
     ) -> Option<Vec<text::LeafDefault>> {
+        if matches!(ty, Ty::Callable(_)) {
+            if let Some(value) = expr {
+                self.error(
+                    "callable",
+                    file,
+                    value.span(),
+                    "set function values at runtime, not in a State default",
+                );
+                return None;
+            }
+            return Some(vec![text::LeafDefault::Data(Self::empty_callable())]);
+        }
         if let Ty::List(def) = ty {
             return self
                 .list_constant(module, file, def, expr)

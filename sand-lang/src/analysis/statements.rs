@@ -209,7 +209,8 @@ impl Cx {
             | Expr::Array(..)
             | Expr::ArrayRepeat { .. }
             | Expr::Index(..)
-            | Expr::Match { .. } => false,
+            | Expr::Match { .. }
+            | Expr::Closure(_) => false,
             Expr::Float(..) | Expr::Bool(..) => true,
         }
     }
@@ -217,6 +218,7 @@ impl Cx {
     /// The type an expression produces, without reporting errors.
     pub(super) fn type_of(&mut self, body: &BodyCx, expr: &Expr) -> Ty {
         match expr {
+            Expr::Closure(closure) => self.closure_type(body.module, closure),
             Expr::Match { arms, .. } => arms
                 .first()
                 .map_or(Ty::Unknown, |arm| self.type_of(body, &arm.value)),
@@ -229,6 +231,7 @@ impl Cx {
                         DefKind::Variant => {
                             self.defs[def.0].parent.map(Ty::Enum).unwrap_or(Ty::Number)
                         }
+                        DefKind::Function => self.named_function_type(body.module, def),
                         DefKind::Const => {
                             self.const_src.get(&def).map(|s| s.ty).unwrap_or(Ty::Number)
                         }
@@ -392,6 +395,14 @@ impl Cx {
             }
             Expr::Call { path, .. }
                 if path.segments.len() == 1
+                    && let Some(local) = Self::lookup_local(body, &path.last().name) =>
+            {
+                self.callable_signature(self.local_ty(local))
+                    .and_then(|signature| signature.returns)
+                    .unwrap_or(Ty::Unknown)
+            }
+            Expr::Call { path, .. }
+                if path.segments.len() == 1
                     && Self::lookup_local(body, &path.last().name).is_none()
                     && !self.scopes[body.module.0].contains_key(&path.last().name)
                     && builtins::find(&path.last().name, BuiltinKind::Condition).is_some() =>
@@ -421,7 +432,10 @@ impl Cx {
         expr: &Expr,
         ty: Ty,
     ) -> Result<Option<Value>, ()> {
-        if matches!(ty, Ty::Struct(_) | Ty::String | Ty::List(_)) {
+        if matches!(
+            ty,
+            Ty::Struct(_) | Ty::String | Ty::List(_) | Ty::Callable(_)
+        ) {
             return Ok(None);
         }
         let (module, file) = (body.module, body.file);
@@ -583,6 +597,9 @@ impl Cx {
         }
         if matches!(ty, Ty::Struct(_)) {
             return self.emit_record(body, dest, ty, expr, ops);
+        }
+        if matches!(ty, Ty::Callable(_)) {
+            return self.emit_callable(body, dest, ty, expr, ops);
         }
         if let Some(value) = self.simple(body, expr, ty).ok()? {
             if let Some(action) = Self::set_from(dest, value) {
@@ -829,7 +846,10 @@ impl Cx {
     }
 
     fn expect_numeric(&mut self, file: FileId, span: Span, ty: Ty) -> Option<()> {
-        if matches!(ty, Ty::Enum(_) | Ty::Bool | Ty::Struct(_) | Ty::EntityRef) {
+        if matches!(
+            ty,
+            Ty::Enum(_) | Ty::Bool | Ty::Struct(_) | Ty::EntityRef | Ty::Callable(_)
+        ) {
             self.diagnostics.push(
                 Diagnostic::error(
                     "type",
@@ -858,6 +878,12 @@ impl Cx {
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
         let (module, file) = (body.module, body.file);
+        if path.segments.len() == 1
+            && let Some(local) = Self::lookup_local(body, &path.last().name)
+        {
+            let (def, actual) = self.indirect_call(body, path, local, args)?;
+            return self.emit_user_result(body, dest, ty, def, path, &actual, span, ops);
+        }
         let name = &path.last().name;
         if !path.arguments().is_empty()
             && path.segments.len() == 1
@@ -1341,7 +1367,10 @@ impl Cx {
                 );
                 return;
             }
-            if matches!(dest.ty, Ty::Enum(_) | Ty::Bool | Ty::EntityRef) {
+            if matches!(
+                dest.ty,
+                Ty::Enum(_) | Ty::Bool | Ty::EntityRef | Ty::Callable(_)
+            ) {
                 self.error(
                     "type",
                     file,
@@ -2765,6 +2794,15 @@ impl Cx {
         ops: &mut Vec<pc::Operation>,
     ) {
         let (module, file) = (body.module, body.file);
+        if path.segments.len() == 1
+            && let Some(local) = Self::lookup_local(body, &path.last().name)
+        {
+            if let Some((def, actual)) = self.indirect_call(body, path, local, args) {
+                let slots = self.fn_slots[&def].clone();
+                self.call_user(body, def, &slots, path, &actual, span, ops);
+            }
+            return;
+        }
         let name = &path.last().name;
         if !path.arguments().is_empty()
             && path.segments.len() == 1

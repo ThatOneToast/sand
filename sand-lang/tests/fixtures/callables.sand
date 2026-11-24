@@ -1,0 +1,73 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+struct Target { format: fn(number) -> string }
+struct Prefix { text: string, offsets: Vec<number> }
+global state Actions { saved: fn(number) -> string, many: Vec<Target>, total: number }
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+fn label(n: number) -> string { return "n=" + n.to_string(); }
+fn other(n: number) -> string { return "m=" + n.to_string(); }
+fn count(n: number) { Actions.total += n; }
+fn select(first: bool) -> fn(number) -> string {
+    return match first { true => label, false => other };
+}
+fn apply<T, R>(work: fn(T) -> R, input: T) -> R { return work(input); }
+fn make(prefix: Prefix) -> fn(number) -> string {
+    return move |n: number| -> string {
+        return prefix.text + (n + prefix.offsets[0]).to_string();
+    };
+}
+fn box<T>(value: T) -> fn() -> T {
+    return move || -> T { return value; };
+}
+fn fold(n: number) -> number {
+    if n == 0 { return 0; }
+    let callback = fold;
+    return n + callback(n - 1);
+}
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    Actions.total = 0;
+    let print = select(true);
+    check(print(3) == "n=3");
+    let print = select(false);
+    check(apply(print, 4) == "m=4");
+    let add = count;
+    add(2);
+    add(5);
+    check(Actions.total == 7);
+
+    let mut local = Prefix { text: "hé🌍:", offsets: [3] };
+    let saved = make(local);
+    local.text = "new:";
+    local.offsets[0] = 100;
+    check(saved(7) == "hé🌍:10");
+    let next = make(local);
+    check(next(7) == "new:107");
+
+    Actions.saved = saved;
+    let copy = Actions.saved;
+    check(copy(1) == "hé🌍:4");
+    Actions.many = [Target { format: saved }, Target { format: next }];
+    let copied = Actions.many[1].format;
+    check(copied(2) == "new:102");
+
+    let one = box(12);
+    let two = box("boxed");
+    check(one() == 12);
+    check(two() == "boxed");
+    let nested = box(saved);
+    let unwrapped = nested();
+    check(unwrapped(5) == "hé🌍:8");
+    check(fold(4) == 10);
+
+    let empty: fn(number) -> string;
+    check(empty(8) == "");
+    if Report.checks == 12 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

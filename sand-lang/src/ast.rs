@@ -46,6 +46,13 @@ pub struct Type {
 pub enum TypeKind {
     /// A named scalar, enum, record or imported type.
     Named(Path),
+    /// A concrete callable signature.
+    Function {
+        /// Argument types in call order.
+        parameters: Vec<Type>,
+        /// Return type, or no value for a statement function.
+        returns: Option<Box<Type>>,
+    },
     /// A named type applied to other value types.
     Applied { path: Path, arguments: Vec<Type> },
     /// A fixed-length homogeneous array with a constant length.
@@ -1007,9 +1014,24 @@ impl ArgValue {
     }
 }
 
+/// One authored move closure.
+#[derive(Debug, Clone)]
+pub struct ClosureExpr {
+    /// Explicitly typed arguments.
+    pub parameters: Vec<Param>,
+    /// Return annotation, if the closure produces a value.
+    pub returns: Option<Type>,
+    /// Authored closure body.
+    pub body: Block,
+    /// Whole closure.
+    pub span: Span,
+}
+
 /// An expression: a constant, a State field read, or a builtin call.
 #[derive(Debug, Clone)]
 pub enum Expr {
+    /// A callable with an owned snapshot of its captured locals.
+    Closure(Box<ClosureExpr>),
     /// An integer literal.
     Int(i64, Span),
     /// A decimal literal such as `0.5`.
@@ -1092,6 +1114,7 @@ impl Expr {
     /// Location of the expression.
     pub fn span(&self) -> Span {
         match self {
+            Expr::Closure(closure) => closure.span,
             Expr::Int(_, span)
             | Expr::Float(_, span)
             | Expr::Bool(_, span)

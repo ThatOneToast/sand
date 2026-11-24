@@ -25,7 +25,7 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
         Ty::Number => "number".into(),
         Ty::Float => "float".into(),
         Ty::Bool => "bool".into(),
-        Ty::Enum(def) | Ty::Struct(def) => analysis.def(def).name.clone(),
+        Ty::Enum(def) | Ty::Struct(def) | Ty::Callable(def) => analysis.def(def).name.clone(),
         Ty::EntityRef => "EntityRef".into(),
         Ty::String => "string".into(),
         Ty::List(def) => analysis.def(def).name.clone(),
@@ -39,6 +39,7 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
     let vis = if def.is_pub { "pub " } else { "" };
     let (signature, facts): (String, Vec<String>) = match &def.info {
         DefInfo::Trait => (format!("{vis}trait {}", def.name), Vec::new()),
+        DefInfo::Callable { .. } => (def.name.clone(), Vec::new()),
         DefInfo::TypeParameter => (
             format!("type {}", def.name),
             vec!["Specialized at each concrete call.".into()],
@@ -314,7 +315,10 @@ fn field_line(analysis: &Analysis, id: DefId) -> String {
             ty_name(analysis, *ty)
         );
     }
-    if matches!(ty, Ty::Struct(_) | Ty::String | Ty::List(_)) {
+    if matches!(
+        ty,
+        Ty::Struct(_) | Ty::String | Ty::List(_) | Ty::Callable(_)
+    ) {
         return format!("    {}: {},", def.name, ty_name(analysis, *ty));
     }
     let default_text = value_text(analysis, *ty, *default);
@@ -827,9 +831,9 @@ pub fn rename(
 
 /// Reserved words that cannot name items.
 pub const KEYWORDS: &[&str] = &[
-    "trait", "impl", "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if", "else",
-    "for", "in", "extern", "as", "let", "return", "while", "loop", "match", "struct", "true",
-    "false", "crate", "self", "super",
+    "move", "trait", "impl", "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if",
+    "else", "for", "in", "extern", "as", "let", "return", "while", "loop", "match", "struct",
+    "true", "false", "crate", "self", "super",
 ];
 
 /// What kind of thing a completion inserts.
@@ -2519,7 +2523,31 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 .then(|| kinds.iter().find_map(|kind| builtins::find(name, *kind)))
                 .flatten()
         });
-    if let Some(builtin) = builtin {
+    let callable = match value_type(analysis, file, offset, name) {
+        Some(Ty::Callable(def)) => Some(&analysis.def(def).info),
+        _ => None,
+    };
+    if let Some(DefInfo::Callable {
+        parameters,
+        returns,
+    }) = callable
+    {
+        label.push_str(name);
+        label.push('(');
+        for (index, ty) in parameters.iter().enumerate() {
+            let name = format!("arg{}", index + 1);
+            push(
+                &mut label,
+                format!("{name}: {}", ty_name(analysis, *ty)),
+                name,
+            );
+        }
+        label.push(')');
+        if let Some(ty) = returns {
+            label.push_str(&format!(" -> {}", ty_name(analysis, *ty)));
+        }
+        documentation = Some("Call a function or closure with this signature.".into());
+    } else if let Some(builtin) = builtin {
         label.push_str(
             builtin
                 .name

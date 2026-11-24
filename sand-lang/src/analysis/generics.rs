@@ -759,6 +759,19 @@ impl Cx {
                     }
                 }
             }
+            TypeKind::Function {
+                parameters: types,
+                returns,
+            } => {
+                if let Some(signature) = self.callable_signature(ty) {
+                    for (annotation, actual) in types.iter().zip(signature.parameters) {
+                        self.infer_type_arguments(module, annotation, actual, parameters, inferred);
+                    }
+                    if let (Some(annotation), Some(actual)) = (returns, signature.returns) {
+                        self.infer_type_arguments(module, annotation, actual, parameters, inferred);
+                    }
+                }
+            }
             TypeKind::Array { element, .. } => {
                 if let Some((ty, _)) = self.array_shape(ty) {
                     self.infer_type_arguments(module, element, ty, parameters, inferred);
@@ -766,6 +779,15 @@ impl Cx {
             }
             _ => {}
         }
+    }
+
+    pub(super) fn queue_generated_body(&mut self, def: DefId, item: Item) {
+        self.generics.pending.push_back(PendingBody {
+            def,
+            source: def,
+            item,
+            bindings: self.generics.bindings.clone(),
+        });
     }
 
     pub(super) fn lower_generic_instances(
@@ -806,6 +828,15 @@ fn mentions_parameter(ty: &Type, name: &str) -> bool {
         TypeKind::Named(path) => path.segments.len() == 1 && path.last().name == name,
         TypeKind::Applied { arguments, .. } => {
             arguments.iter().any(|ty| mentions_parameter(ty, name))
+        }
+        TypeKind::Function {
+            parameters,
+            returns,
+        } => {
+            parameters.iter().any(|ty| mentions_parameter(ty, name))
+                || returns
+                    .as_ref()
+                    .is_some_and(|ty| mentions_parameter(ty, name))
         }
         TypeKind::Array { element, .. } => mentions_parameter(element, name),
     }

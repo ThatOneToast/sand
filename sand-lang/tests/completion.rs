@@ -66,6 +66,7 @@ fn item_level() {
             "entity state",
             "enum",
             "struct",
+            "trait",
             "flow",
             "const",
             "item",
@@ -119,7 +120,7 @@ fn item_level() {
 fn attributes_fit_what_they_are_attached_to() {
     exactly(
         "#[|\nfn later() {}",
-        &["tick", "load", "on", "tag", "player"],
+        &["tick", "load", "on", "tag", "player", "test"],
     );
     exactly("#[|\nextern \"x:y\" fn ext();", &["player"]);
     exactly("#[|\nenum E { A }", &[]);

@@ -609,6 +609,37 @@ record types stop at 64 nested specializations. The existing finite record-layou
 limits still apply. These checks prevent recursively growing compile-time types.
 See the [generic mining-history example](../../examples/lang_generics/pack.sand).
 
+### Function values and closures
+
+Use `fn(number) -> string` for a callable that takes a number and returns text.
+Omit the arrow for a function that produces no value. An ordinary named function
+can be stored by writing its name without parentheses. Bind a stored callback to
+a local to call it.
+
+```rust,ignore
+fn with_prefix(prefix: string) -> fn(number) -> string {
+    return move |points: number| -> string {
+        return prefix + points.to_string();
+    };
+}
+
+let label = with_prefix("Points: ");
+let message = label(7);
+```
+
+A move closure owns a snapshot of its captured locals. Captures are immutable
+inside the closure and can contain records, collections, or other callbacks.
+Function values can be passed to generic functions and saved in State. Dispatch
+only invokes compile-checked functions with the same signature. A missing or
+unrecognized callable skips the call and returns the value type's default.
+
+Callable targets currently run without a player or entity executor. Named
+targets must be concrete non-generic functions or associated functions. Define a
+closure in a generic body to retain a specialized value. Closures survive reload
+of the same compiled pack. Recompiling a changed source can invalidate stored
+closure identities, so initialize persistent callbacks as part of pack setup.
+See the [reward notes example](../../examples/lang_callbacks/pack.sand).
+
 ### Traits
 
 A trait declares required method signatures. Use `impl Trait for Type` to supply

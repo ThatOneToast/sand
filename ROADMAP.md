@@ -260,8 +260,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   applications, per-specialization slots/contexts, canonical source identities,
   bounded expansion and native recursive/owned-value proof.
 - [x] Static traits, required signatures, and generic function and method bounds.
-- [ ] First-class functions, closures and general borrowed slices where
-  they compose with runtime values and execution contexts.
+- [x] Typed function values, owned move closures, generic call signatures,
+  recursive indirect calls and player-State persistence.
+- [ ] Executor-specific callable signatures and general borrowed slices.
 - [ ] Typed enchantments generated once for Rust and the language; typed time
   values and storable positions. Use existing entity State instead of creating
   a competing checked entity-tag model.

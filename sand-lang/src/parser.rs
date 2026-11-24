@@ -27,8 +27,16 @@ pub fn parse(source: &str) -> (SourceFile, Vec<SyntaxError>) {
     let file = match SandParser::parse(Rule::file, source) {
         Ok(mut pairs) => {
             let file = pairs.next().expect("file rule");
-            let mut pending = vec![file.clone()];
-            while let Some(pair) = pending.pop() {
+            let mut pending = vec![(file.clone(), false)];
+            while let Some((pair, nested)) = pending.pop() {
+                let in_closure = nested || pair.as_rule() == Rule::closure_expr;
+                if in_closure && pair.as_rule() == Rule::bad_stmt {
+                    Builder {
+                        errors: &mut errors,
+                    }
+                    .bad_stmt(pair);
+                    continue;
+                }
                 if pair.as_rule() == Rule::string_inner {
                     if let Err((offset, message)) = unescape_checked(pair.as_str()) {
                         let start = pair.as_span().start() + offset;
@@ -38,7 +46,7 @@ pub fn parse(source: &str) -> (SourceFile, Vec<SyntaxError>) {
                         });
                     }
                 } else {
-                    pending.extend(pair.into_inner());
+                    pending.extend(pair.into_inner().map(|pair| (pair, in_closure)));
                 }
             }
             let mut builder = Builder {
@@ -103,6 +111,7 @@ fn is_keyword(rule: Rule) -> bool {
             | Rule::kw_struct
             | Rule::kw_impl
             | Rule::kw_trait
+            | Rule::kw_move
             | Rule::kw_mod
             | Rule::kw_use
             | Rule::kw_const
@@ -1148,6 +1157,34 @@ fn value_pattern(pair: P<'_>) -> Pattern {
 fn expr(pair: P<'_>) -> Expr {
     pratt()
         .map_primary(|primary| match primary.as_rule() {
+            Rule::closure_expr => {
+                let location = span(&primary);
+                let mut parameters = Vec::new();
+                let mut returns = None;
+                let mut body = None;
+                let mut errors = Vec::new();
+                for part in children(primary) {
+                    match part.as_rule() {
+                        Rule::params => parameters = part.into_inner().map(parameter).collect(),
+                        Rule::ret_ty => returns = part.into_inner().next().map(value_type),
+                        Rule::block => {
+                            body = Some(
+                                Builder {
+                                    errors: &mut errors,
+                                }
+                                .block(part),
+                            )
+                        }
+                        _ => unreachable!("closure syntax"),
+                    }
+                }
+                Expr::Closure(Box::new(ClosureExpr {
+                    parameters,
+                    returns,
+                    body: body.expect("closure body"),
+                    span: location,
+                }))
+            }
             Rule::match_expr => {
                 let location = span(&primary);
                 let mut parts = children(primary);
@@ -1464,7 +1501,24 @@ fn array_length(pair: P<'_>) -> Expr {
 fn value_type(pair: P<'_>) -> Type {
     let location = span(&pair);
     let inner = pair.into_inner().next().expect("type form");
-    if inner.as_rule() == Rule::array_ty {
+    if inner.as_rule() == Rule::function_ty {
+        let mut parameters = Vec::new();
+        let mut returns = None;
+        for part in children(inner) {
+            if part.as_rule() == Rule::ret_ty {
+                returns = part.into_inner().next().map(value_type).map(Box::new);
+            } else {
+                parameters.push(value_type(part));
+            }
+        }
+        Type {
+            kind: TypeKind::Function {
+                parameters,
+                returns,
+            },
+            span: location,
+        }
+    } else if inner.as_rule() == Rule::array_ty {
         let mut parts = inner.into_inner();
         let element = value_type(parts.next().expect("array element type"));
         let length = parts.next().expect("array length");

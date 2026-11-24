@@ -77,6 +77,7 @@
 [
   "fn"
   "struct"
+  "move"
   "trait"
   "impl"
   "mod"

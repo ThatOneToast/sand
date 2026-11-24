@@ -22,7 +22,7 @@ keyword = @{
     ( "trait" | "impl" | "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
     | "if" | "else" | "for" | "in" | "extern" | "as" | "let" | "return"
     | "while" | "loop" | "match" | "struct" | "true" | "false" | "mut" | "continue"
-    | "break" | "emit" ) ~ !ident_char
+    | "break" | "emit" | "move" ) ~ !ident_char
 }
 ident = @{ !keyword ~ (ASCII_ALPHA | "_") ~ ident_char* }
 int   = @{ ASCII_DIGIT ~ (ASCII_DIGIT | "_")* }
@@ -42,6 +42,7 @@ generic_params = { "<" ~ ident ~ ("," ~ ident)* ~ ","? ~ ">" }
 
 // Whole-word keyword tokens; the AST builder skips them.
 kw_struct = @{ "struct" ~ !ident_char }
+kw_move = @{ "move" ~ !ident_char }
 kw_trait = @{ "trait" ~ !ident_char }
 kw_impl = @{ "impl" ~ !ident_char }
 kw_fn = @{ "fn" ~ !ident_char }
@@ -133,7 +134,8 @@ impl_item = { kw_impl ~ generic_params? ~ impl_contract? ~ path ~ type_arguments
 state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
 field      = { (outer_doc | attr)* ~ vis? ~ ident ~ ":" ~ ty ~ ("=" ~ expr)? }
-ty         = { array_ty | applied_ty | path }
+ty         = { function_ty | array_ty | applied_ty | path }
+function_ty = { kw_fn ~ "(" ~ (ty ~ ("," ~ ty)* ~ ","?)? ~ ")" ~ ret_ty? }
 applied_ty = { path ~ "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
 array_ty = { "[" ~ ty ~ ";" ~ (int | path) ~ "]" }
 
@@ -236,7 +238,8 @@ record_value = { (expr ~ &( "," | "}" )) | cond }
 array_expr = { "[" ~ (array_repeat | (array_value ~ ("," ~ array_value)* ~ ","?))? ~ "]" }
 array_repeat = { expr ~ ";" ~ (int | path) }
 array_value = { (expr ~ &( "," | "]" )) | cond }
-primary = _{ match_expr | array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
+closure_expr = { kw_move ~ "|" ~ params? ~ "|" ~ ret_ty? ~ block }
+primary = _{ closure_expr | match_expr | array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
 call_expr = { path ~ "(" ~ args? ~ ")" }
 
 // ── Strict entry points used to explain recovered nodes ─────────────────────

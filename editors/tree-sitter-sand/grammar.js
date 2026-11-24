@@ -169,7 +169,8 @@ module.exports = grammar({
         field('type', $.type),
         optional(seq('=', field('default', $._expression))),
       ),
-    type: ($) => choice($.array_type, $.applied_type, $.path),
+    type: ($) => choice($.function_type, $.array_type, $.applied_type, $.path),
+    function_type: ($) => prec.right(seq("fn", "(", commaSep($.type), ")", optional(seq("->", $.type)))),
     applied_type: ($) => seq(field('name', $.path), '<', $.type, repeat(seq(',', $.type)), optional(','), '>'),
     array_type: ($) => seq('[', field('element', $.type), ';', field('length', choice($.integer, $.path)), ']'),
     array_expression: ($) => seq('[', choice(commaSep(choice($.data_object, $._value_or_condition)), seq($._expression, ';', choice($.integer, $.path))), ']'),
@@ -330,9 +331,11 @@ module.exports = grammar({
       prec.right(seq(optional($._expression), choice('..', '..='), optional($._expression))),
 
     // ── Expressions ────────────────────────────────────────────────────────
+    closure_expression: ($) => seq('move', '|', commaSep($.parameter), '|', optional(seq('->', $.type)), field('body', $.block)),
     _expression: ($) =>
       choice(
         $.match_expression,
+        $.closure_expression,
         $.integer,
         $.float,
         $.boolean,

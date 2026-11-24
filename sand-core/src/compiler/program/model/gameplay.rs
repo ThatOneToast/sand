@@ -1,5 +1,6 @@
 //! Owned portable gameplay vocabulary: arithmetic, conditions, text, and events.
 use super::{FieldReference, FunctionReference, ScoreComparison};
+use sand_commands::ClickEvent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -564,7 +565,7 @@ pub enum TextColor {
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Serialized as text component style properties; unset properties inherit from the previous part.",
  use_when = ["Styling part of a Message"],
- avoid_when = ["Interactive click or hover behaviour, which portable programs do not yet support"],
+ avoid_when = ["Click and hover behavior, which belongs to an interactive text part"],
  example = "let style = sand::advanced::compiler::TextStyle::default();",
  fields(color = "Named text colour.", bold = "Bold text.", italic = "Italic text.", underlined = "Underlined text."),
 )]
@@ -592,10 +593,10 @@ pub struct TextStyle {
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Each part becomes one text component; scores and names resolve when the message is shown.",
  use_when = ["Building component text from literals, translations, live scores, and player names"],
- avoid_when = ["Interactive click or hover behavior"],
+ avoid_when = ["Embedding raw Minecraft text JSON"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters.", Translation = "A translation key with ordered text substitutions."),
- variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling."), Translation(key = "Client language-file key.", arguments = "One text component per placeholder.", style = "Styling.")),
+ variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters.", Translation = "A translation key with ordered text substitutions.", Interactive = "Chat text with an optional tooltip or click action."),
+ variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling."), Translation(key = "Client language-file key.", arguments = "One text component per placeholder.", style = "Styling."), Interactive(content = "Text displayed in chat.", tooltip = "Optional text shown on hover.", click = "Optional click action using Sand’s canonical native text model.")),
 )]
 pub enum TextPart {
     /// A stored list of string characters, joined without separators. Read at
@@ -619,6 +620,14 @@ pub enum TextPart {
         #[serde(default)]
         style: TextStyle,
     },
+    /// Text with an optional hover tooltip and click action for chat.
+    Interactive {
+        content: Vec<TextPart>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        tooltip: Vec<TextPart>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        click: Option<ClickEvent>,
+    },
     /// The live value of a State field.
     Score {
         score: FieldReference,
@@ -633,29 +642,29 @@ pub enum TextPart {
 }
 
 impl TextPart {
-    /// Maximum nesting of translation components, including the outermost translation.
+    /// Maximum nesting of portable translated and interactive components.
     #[sand_macros::api(
-        registry = sand_api_contract, path = "sand::advanced::compiler::TextPart::MAX_TRANSLATION_DEPTH",
+        registry = sand_api_contract, path = "sand::advanced::compiler::TextPart::MAX_NESTING_DEPTH",
         module = "sand::advanced::compiler", kind = "associated_const",
-        summary = "Maximum nesting of portable text translations.",
-        context = "Each substitution is a component that can itself contain a translation. This limit bounds component depth before Minecraft receives the text.",
-        minecraft = "Portable translation depth leaves room for the wrapper components generated for each substitution.",
-        use_when = ["Validating a portable translation tree in an authoring frontend"],
+        summary = "Maximum nesting of portable text components.",
+        context = "Substitutions and tooltips can themselves contain components. This limit bounds component depth before Minecraft receives the text.",
+        minecraft = "Portable nesting leaves room for wrapper components generated for substitutions and interactions.",
+        use_when = ["Validating a portable component tree in an authoring frontend"],
         avoid_when = ["Choosing a different limit for the same portable model"],
-        example = "let limit = sand::advanced::compiler::TextPart::MAX_TRANSLATION_DEPTH;",
+        example = "let limit = sand::advanced::compiler::TextPart::MAX_NESTING_DEPTH;",
     )]
-    pub const MAX_TRANSLATION_DEPTH: usize = 8;
+    pub const MAX_NESTING_DEPTH: usize = 8;
 
     /// Whether this part and its substitutions can be rendered in a static resource.
     #[sand_macros::api(
         registry = sand_api_contract, path = "sand::advanced::compiler::TextPart::is_static",
         module = "sand::advanced::compiler", kind = "method",
-        summary = "Checks whether a text part has any live State or executor references.",
+        summary = "Checks whether a text part belongs in a static resource.",
         context = "Use when validating fixed item names, lore and boss bar titles. Literals and translations with entirely static substitutions can be emitted without an executor.",
         minecraft = "Translation keys still resolve in the receiving client's language.",
         use_when = ["Checking whether portable component text belongs in a static resource"],
         avoid_when = ["Checking that a key exists in a client language file"],
-        returns = "Whether the part is independent of runtime State and executor context.",
+        returns = "Whether the part is independent of runtime State and executor context and has no interactive behavior.",
         example = "fn can_export(part: &sand::advanced::compiler::TextPart) -> bool { part.is_static() }",
     )]
     pub fn is_static(&self) -> bool {

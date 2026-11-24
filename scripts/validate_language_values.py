@@ -30,10 +30,13 @@ class ValuesHarness(WorldGameplayHarness):
                 log = (self.output / f"{name}.log").open("w")
                 logs.append(log)
                 start = len(self.lines)
-                client = subprocess.Popen([sys.executable,
-                    str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
-                    "127.0.0.1", str(self.port), "776", name, "20"],
-                    stdout=log, stderr=subprocess.STDOUT)
+                command = [sys.executable, str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
+                           "127.0.0.1", str(self.port), "776", name, "20"]
+                if name == "NumericA":
+                    for token in ("SAND-JOURNAL-PROBE", "click_event", "copy_to_clipboard",
+                                  "hover_event", "show_text", "Native text"):
+                        command.extend(["--expect-system-chat", token])
+                client = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
                 clients.append(client)
                 self.wait_for(re.compile(re.escape(name) + r" joined the game"), "player-join", start)
                 self.send(f"gamemode creative {name}")

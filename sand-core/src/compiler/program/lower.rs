@@ -1082,6 +1082,31 @@ fn text_component(
                     .collect();
                 styled(TextComponent::translate_with(key, with), style)
             }
+            TextPart::Interactive {
+                content,
+                tooltip,
+                click,
+            } => {
+                let mut component = text_component(
+                    content,
+                    holders,
+                    &format!("{path}{index}_0_"),
+                    resolve_stored,
+                );
+                if !tooltip.is_empty() {
+                    let hover = text_component(
+                        tooltip,
+                        holders,
+                        &format!("{path}{index}_1_"),
+                        resolve_stored,
+                    );
+                    component = component.hover_text(hover);
+                }
+                if let Some(click) = click {
+                    component = component.with_click_event(click.clone());
+                }
+                component
+            }
             TextPart::Text { text, style } => styled(TextComponent::literal(text.clone()), style),
             TextPart::Score { score, style } => styled(
                 TextComponent::score(

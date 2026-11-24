@@ -868,6 +868,21 @@ Built-in keys come from Minecraft’s language files. Keys supplied by a resourc
 pack resolve for players who have that pack. Sand stores runtime strings as
 plain text when it passes them to placeholder arguments.
 
+### Interactive chat
+
+`Text::hover(label, tooltip)` adds a text tooltip. `Text::link(label, url)`
+opens an HTTP(S) link, `Text::suggest(label, command)` fills the chat input,
+and `Text::copy(label, value)` copies a quoted string to the clipboard.
+These components work in `chat!` and `broadcast!`. Compose them with
+translations and formatted text.
+
+```rust,ignore
+chat!(Text::hover(
+    Text::suggest("{aqua}Next round", "/trigger next"),
+    "Click to put the command in chat",
+));
+```
+
 ### Runtime strings
 
 `string` is an owned value supported in locals, constants, State, record fields,

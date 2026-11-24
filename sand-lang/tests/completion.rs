@@ -359,7 +359,16 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         &["Text::translate"],
         &["Item::Diamond"],
     );
-    includes_excludes("fn f() { chat!(|); }", &["Text::translate"], &[]);
+    includes_excludes(
+        "fn f() { chat!(|); }",
+        &["Text::translate", "Text::hover", "Text::suggest"],
+        &[],
+    );
+    includes_excludes(
+        "fn f() { title!(|); }",
+        &["Text::translate"],
+        &["Text::hover", "Text::suggest"],
+    );
     exactly("tag T: Block {\n    |\n}", &["values", "replace"]);
     includes_excludes(
         "tag T: Block { values: [|] }",

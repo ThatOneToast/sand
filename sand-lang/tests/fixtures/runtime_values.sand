@@ -20,6 +20,7 @@ fn setup() { raw!("scoreboard objectives add numeric_probe dummy"); }
 fn show_localized() {
     let label = Ledger.label;
     chat!(Text::translate("chat.type.text", "{player}", Text::translate("chat.type.text", label, "Native text")));
+    chat!(Text::hover(Text::copy("{aqua}Journal code", "SAND-JOURNAL-PROBE"), "Native text"));
     give_item(LocalizedPaper);
 }
 

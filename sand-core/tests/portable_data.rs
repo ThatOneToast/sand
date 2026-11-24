@@ -108,6 +108,38 @@ fn translation_substitutions_use_their_enclosing_executor_and_text_style() {
 }
 
 #[test]
+fn interactive_components_cannot_bypass_channel_or_click_validation() {
+    let text = json!([{
+        "kind":"interactive",
+        "content":[{"kind":"text", "text":"A link"}],
+        "tooltip":[{"kind":"stored", "value":field("text")}],
+        "click":{"kind":"open_url", "value":"https://example.com"}
+    }]);
+    let mut source = document();
+    source["modules"][0]["functions"][0]["body"][6]["action"]["text"] = text;
+    let pack = Compiler::compile(&decode(source.clone())).unwrap();
+    let command =
+        std::str::from_utf8(&pack.resources["data/data/function/run.mcfunction"]).unwrap();
+    assert!(command.contains(r#""action":"open_url""#));
+    assert!(command.contains(r#""action":"show_text""#));
+    assert!(command.contains(r#""nbt":"p0_1_0[]""#));
+
+    for (field, value) in [
+        ("channel", json!("title")),
+        ("text/0/click/kind", json!("run_command")),
+        ("text/0/click/value", json!("file:///path")),
+    ] {
+        let mut input = source.clone();
+        let message = &mut input["modules"][0]["functions"][0]["body"][6]["action"];
+        *message.pointer_mut(&format!("/{field}")).unwrap() = value;
+        assert!(
+            Compiler::compile(&decode(input)).is_err(),
+            "accepted {field}"
+        );
+    }
+}
+
+#[test]
 fn storage_references_preserve_context_types_and_checked_projections() {
     let mut invalid = Vec::new();
     let mut server = document();

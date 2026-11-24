@@ -1656,6 +1656,108 @@
         }
       ]
     },
+    "ClickEvent": {
+      "description": "A click event attached to a [`TextComponent`].\n\n# Context\nA click event attached to a [`TextComponent`]. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.\n\n# Minecraft behavior\nThe component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.\n\n# Use when\n- Building player-visible text with typed styling or interactions\n\n# Avoid when\n- Passing an unvalidated JSON string when a typed text component can express the same value\n\n# Example\n```rust,ignore\nuse sand::text::ClickEvent;\n```\nA click event attached to a [`TextComponent`].",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Execute a command when clicked.\nExecute a command when clicked.",
+          "properties": {
+            "kind": {
+              "const": "run_command",
+              "type": "string"
+            },
+            "value": {
+              "description": "Execute a command when clicked.\nExecute a command when clicked.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fill the chat bar with a command suggestion.\nFill the chat bar with a command suggestion.",
+          "properties": {
+            "kind": {
+              "const": "suggest_command",
+              "type": "string"
+            },
+            "value": {
+              "description": "Fill the chat bar with a command suggestion.\nFill the chat bar with a command suggestion.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Open a URL in the player's browser.\nOpen a URL in the player's browser.",
+          "properties": {
+            "kind": {
+              "const": "open_url",
+              "type": "string"
+            },
+            "value": {
+              "description": "Open a URL in the player's browser.\nOpen a URL in the player's browser.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Copy text to the clipboard.\nCopy text to the clipboard.",
+          "properties": {
+            "kind": {
+              "const": "copy_to_clipboard",
+              "type": "string"
+            },
+            "value": {
+              "description": "Copy text to the clipboard.\nCopy text to the clipboard.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Emit `change_page` with a numeric page value (written books only).\n\nBook pages are one-indexed; validation rejects zero and values above\nthe positive 32-bit integer range accepted by Minecraft.\nEmit `change_page` with a numeric page value (written books only).",
+          "properties": {
+            "kind": {
+              "const": "change_page",
+              "type": "string"
+            },
+            "value": {
+              "description": "Emit `change_page` with a numeric page value (written books only).\nEmit `change_page` with a numeric page value (written books only).",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "CloneMode": {
       "description": "Clone mode for the `clone` command.\n\n# Context\nClone mode for the `clone` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.\n\n# Minecraft behavior\nBuilders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.\n\n# Use when\n- Constructing Minecraft commands through Sand's typed command model\n\n# Avoid when\n- Passing unvalidated command fragments when a typed builder or validated try_* entry point exists\n\n# Example\n```rust,ignore\nuse sand::command::CloneMode;\n```\nClone mode for the `clone` command.",
       "oneOf": [
@@ -4402,6 +4504,43 @@
           "required": [
             "kind",
             "key"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Text with an optional hover tooltip and click action for chat.",
+          "properties": {
+            "click": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ClickEvent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "content": {
+              "items": {
+                "$ref": "#/$defs/TextPart"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "interactive",
+              "type": "string"
+            },
+            "tooltip": {
+              "items": {
+                "$ref": "#/$defs/TextPart"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "content"
           ],
           "type": "object"
         },

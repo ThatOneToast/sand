@@ -1160,7 +1160,7 @@ impl Cx {
             value: ArgValue::Expr(expr),
             span,
         };
-        let parts = self.presentation_text(&mut body, &arg, None, 0)?;
+        let parts = self.presentation_text(&mut body, &arg, None, false, 0)?;
         self.diagnostics.append(&mut body.pending);
         if parts.iter().any(|part| !part.is_static()) || body.player_use.is_some() {
             self.diagnostics.push(

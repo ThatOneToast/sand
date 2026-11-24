@@ -1768,7 +1768,33 @@ fn expression_completions(
             .and_then(|(start, end, _)| help.label[*start..*end].split_once(": "))
             .map(|(_, ty)| ty);
         match active_type {
-            Some("text") => out.push(translation_completion()),
+            Some("text") => {
+                out.push(translation_completion());
+                if help.label.starts_with("chat!(") || help.label.starts_with("broadcast!(") {
+                    out.extend([
+                        Completion::snippet(
+                            "Text::hover",
+                            "show a chat tooltip",
+                            "Text::hover(\"${1:label}\", \"${2:tooltip}\")",
+                        ),
+                        Completion::snippet(
+                            "Text::link",
+                            "open a URL from chat",
+                            "Text::link(\"${1:label}\", \"${2:https://example.com}\")",
+                        ),
+                        Completion::snippet(
+                            "Text::suggest",
+                            "fill the chat input when clicked",
+                            "Text::suggest(\"${1:label}\", \"${2:/trigger next}\")",
+                        ),
+                        Completion::snippet(
+                            "Text::copy",
+                            "copy text when clicked",
+                            "Text::copy(\"${1:label}\", \"${2:content}\")",
+                        ),
+                    ]);
+                }
+            }
             Some("BossBar") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }

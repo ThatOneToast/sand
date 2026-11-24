@@ -4985,7 +4985,9 @@ impl Cx {
                 ),
             );
         }
-        let Some(text) = self.presentation_text(body, bound["text"], Some(ops), 0) else {
+        let interactive = matches!(builtin.name, "chat" | "broadcast");
+        let Some(text) = self.presentation_text(body, bound["text"], Some(ops), interactive, 0)
+        else {
             return;
         };
         let (audience, channel) = match builtin.name {
@@ -5030,64 +5032,117 @@ impl Cx {
         body: &mut BodyCx,
         arg: &Arg,
         mut ops: Option<&mut Vec<pc::Operation>>,
+        interactive: bool,
         depth: usize,
     ) -> Option<Vec<pc::TextPart>> {
+        use sand::text::ClickEvent;
         if let ArgValue::Expr(Expr::Call { path, args, span }) = &arg.value
             && path.applications.is_empty()
             && path.segments.len() == 2
             && path.segments[0].name == "Text"
-            && path.last().name == "translate"
+            && matches!(
+                path.last().name.as_str(),
+                "translate" | "hover" | "link" | "suggest" | "copy"
+            )
         {
-            if depth >= pc::TextPart::MAX_TRANSLATION_DEPTH {
+            let action = path.last().name.as_str();
+            if depth >= pc::TextPart::MAX_NESTING_DEPTH {
                 self.error(
                     "text",
                     body.file,
                     *span,
-                    "text exceeds the translation nesting limit",
+                    "text exceeds the component nesting limit",
                 );
                 return None;
             }
-            let Some((key, arguments)) = args.split_first() else {
+            if let Some(named) = args.iter().find_map(|arg| arg.name.as_ref()) {
+                let message = if action == "translate" {
+                    "translation arguments are positional"
+                } else {
+                    "interactive text arguments are positional"
+                };
+                self.error("text", body.file, named.span, message);
+                return None;
+            }
+            if action == "translate" {
+                let Some((key, arguments)) = args.split_first() else {
+                    self.error(
+                        "text",
+                        body.file,
+                        *span,
+                        "`Text::translate` needs a quoted translation key",
+                    );
+                    return None;
+                };
+                let (key, _, key_span) = self.arg_string(body.file, key, "a translation key")?;
+                if key.trim().is_empty() || key.chars().any(char::is_control) {
+                    self.error(
+                        "text",
+                        body.file,
+                        key_span,
+                        "translation keys must be nonblank and contain no control characters",
+                    );
+                    return None;
+                }
+                let mut rendered = Vec::with_capacity(arguments.len());
+                for argument in arguments {
+                    rendered.push(self.presentation_text(
+                        body,
+                        argument,
+                        ops.as_deref_mut(),
+                        interactive,
+                        depth + 1,
+                    )?);
+                }
+                return Some(vec![pc::TextPart::Translation {
+                    key,
+                    arguments: rendered,
+                    style: pc::TextStyle::default(),
+                }]);
+            }
+            if !interactive {
                 self.error(
                     "text",
                     body.file,
                     *span,
-                    "`Text::translate` needs a quoted translation key",
+                    "interactive text is only supported in chat messages",
+                );
+                return None;
+            }
+            let [content, payload] = args.as_slice() else {
+                self.error(
+                    "text",
+                    body.file,
+                    *span,
+                    format!("`Text::{action}` takes a label and one other argument"),
                 );
                 return None;
             };
-            if let Some(named) = args.iter().find_map(|arg| arg.name.as_ref()) {
-                self.error(
-                    "text",
-                    body.file,
-                    named.span,
-                    "translation arguments are positional",
-                );
-                return None;
-            }
-            let (key, _, key_span) = self.arg_string(body.file, key, "a translation key")?;
-            if key.trim().is_empty() || key.chars().any(char::is_control) {
-                self.error(
-                    "text",
-                    body.file,
-                    key_span,
-                    "translation keys must be nonblank and contain no control characters",
-                );
-                return None;
-            }
-            let mut rendered = Vec::with_capacity(arguments.len());
-            for argument in arguments {
-                rendered.push(self.presentation_text(
-                    body,
-                    argument,
-                    ops.as_deref_mut(),
-                    depth + 1,
-                )?);
-            }
-            return Some(vec![pc::TextPart::Translation {
-                key,
-                arguments: rendered,
-                style: pc::TextStyle::default(),
+            let content =
+                self.presentation_text(body, content, ops.as_deref_mut(), interactive, depth + 1)?;
+            let (tooltip, click) = if action == "hover" {
+                (
+                    self.presentation_text(body, payload, ops, interactive, depth + 1)?,
+                    None,
+                )
+            } else {
+                let (payload, _, payload_span) =
+                    self.arg_string(body.file, payload, "a click payload")?;
+                let click = match action {
+                    "link" => ClickEvent::OpenUrl(payload),
+                    "suggest" => ClickEvent::SuggestCommand(payload),
+                    _ => ClickEvent::CopyToClipboard(payload),
+                };
+                if let Err(error) = click.validate() {
+                    self.error("text", body.file, payload_span, error.to_string());
+                    return None;
+                }
+                (Vec::new(), Some(click))
+            };
+            return Some(vec![pc::TextPart::Interactive {
+                content,
+                tooltip,
+                click,
             }]);
         }
         if let ArgValue::Expr(value) = &arg.value

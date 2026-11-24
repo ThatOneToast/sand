@@ -155,6 +155,8 @@ def main():
     parser.add_argument("username")
     parser.add_argument("run_seconds", nargs="?", type=float, default=30)
     parser.add_argument("on_join", nargs="?")
+    parser.add_argument("--expect-system-chat", action="append", default=[], metavar="TEXT",
+                        help="require one system chat packet containing every supplied UTF-8 token")
     parser.add_argument("--auto-respawn", action="store_true")
     parser.add_argument("--control-dir", help="existing private directory for atomic JSON commands/status")
     args = parser.parse_args()
@@ -173,10 +175,12 @@ def main():
     conn = Conn(host, port)
     with closing(conn.sock):
         return run_session(conn, host, port, protocol_version, username, run_seconds, on_join,
-                           auto_respawn=args.auto_respawn, controls=controls)
+                           auto_respawn=args.auto_respawn, controls=controls,
+                           expected_system_chat=tuple(text.encode() for text in args.expect_system_chat))
 
 
-def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *, auto_respawn=False, controls=None):
+def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *,
+                auto_respawn=False, controls=None, expected_system_chat=()):
     profile = profile_for_protocol(protocol_version)
     packets = profile["packets"]
     login_in, login_out = packets["login"]["clientbound"], packets["login"]["serverbound"]
@@ -286,6 +290,10 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
             if pid == play_in["keep_alive"] and len(data) == 8:
                 conn.send_packet(play_out["keep_alive"], data)
                 print("[play] keep_alive echoed")
+            elif pid == play_in["system_chat"] and expected_system_chat:
+                if all(token in data for token in expected_system_chat):
+                    expected_system_chat = ()
+                    print("[play] observed the requested system chat component")
             elif pid == play_in["player_position"]:
                 # ClientboundPlayerPositionPacket starts with the teleport
                 # ID. Acknowledging it clears the server's changing-dimension
@@ -326,6 +334,9 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                 print(f"[play] packet id=0x{pid:02x} len={len(data)}")
 
     print(f"final state={state} joined_play={joined}")
+    if expected_system_chat:
+        print(f"[play] no system chat packet contained {expected_system_chat!r}")
+        return False
     return joined
 
 

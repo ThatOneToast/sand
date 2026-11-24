@@ -162,7 +162,7 @@ fn translations_check_keys_execution_context_and_nesting() {
         );
     }
     let mut message = "\"leaf\"".to_owned();
-    for _ in 0..=sand::advanced::compiler::TextPart::MAX_TRANSLATION_DEPTH {
+    for _ in 0..=sand::advanced::compiler::TextPart::MAX_NESTING_DEPTH {
         message = format!("Text::translate(\"demo.key\", {message})");
     }
     let too_deep = analyze_one(&format!(
@@ -171,6 +171,69 @@ fn translations_check_keys_execution_context_and_nesting() {
     assert!(
         errors(&too_deep)
             .iter()
-            .any(|message| message.contains("translation nesting limit"))
+            .any(|message| message.contains("component nesting limit"))
     );
+}
+
+#[test]
+fn rich_chat_exports_native_hover_and_click_actions() {
+    let analysis = analyze_one(
+        r#"#![pack(namespace = "interactive", minecraft = "26.2")]
+fn message() {
+    chat!(Text::hover(Text::link("{aqua}Guide", "https://example.com/guide"), "Open the field guide"));
+    chat!(Text::suggest("Next", "/trigger next"));
+    chat!(Text::copy("Copy", "saved-code"));
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    let commands = function(&pack, "interactive/function/message");
+    for expected in [
+        r#""action":"show_text""#,
+        r#""text":"Open the field guide""#,
+        r#""action":"open_url""#,
+        r#""url":"https://example.com/guide""#,
+        r#""action":"suggest_command""#,
+        r#""command":"/trigger next""#,
+        r#""action":"copy_to_clipboard""#,
+        r#""value":"saved-code""#,
+    ] {
+        assert!(
+            commands.contains(expected),
+            "missing {expected}: {commands}"
+        );
+    }
+}
+
+#[test]
+fn rich_text_validates_click_payloads_and_display_channels() {
+    for (code, expected) in [
+        (
+            r#"fn f() { chat!(Text::link("open", "file:///local")); }"#,
+            "HTTP(S) URI",
+        ),
+        (
+            r#"fn f() { chat!(Text::suggest("next", "/trigger\nnext")); }"#,
+            "without control",
+        ),
+        (
+            r#"fn f() { title!(Text::copy("copy", "code")); }"#,
+            "supported in chat",
+        ),
+        (
+            r#"item Bad { base: Item::Paper, name: Text::hover("name", "tooltip") }"#,
+            "supported in chat",
+        ),
+        (
+            r#"fn f() { chat!(Text::hover("label")); }"#,
+            "takes a label and one other argument",
+        ),
+    ] {
+        let analysis = analyze_one(&format!(r#"#![pack(namespace = "interactive")] {code}"#));
+        let errors = errors(&analysis);
+        assert!(
+            errors.iter().any(|error| error.contains(expected)),
+            "{errors:#?}"
+        );
+    }
 }

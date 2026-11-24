@@ -35,6 +35,10 @@ item Notebook {
 fn welcome() {
     give_item(Notebook);
     chat!(Text::translate("chat.type.text", "Journal", "The journey begins 🌍"));
+    chat!(Text::hover(
+        Text::copy("{aqua}Copy the journal code", "field-journal"),
+        "Right-click the notebook to read your notes.",
+    ));
     Journal.record("The journey begins 🌍");
 }
 #[on(mine_block = Block::Stone)]

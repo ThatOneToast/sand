@@ -79,6 +79,43 @@
     },
     {
       "additionalProperties": false,
+      "description": "Text with an optional hover tooltip and click action for chat.",
+      "properties": {
+        "click": {
+          "anyOf": [
+            {
+              "$ref": "defs-ClickEvent.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "items": {
+            "$ref": "defs-TextPart.schema.json"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "interactive",
+          "type": "string"
+        },
+        "tooltip": {
+          "items": {
+            "$ref": "defs-TextPart.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "content"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "The live value of a State field.",
       "properties": {
         "kind": {

@@ -1,5 +1,6 @@
 //! Whole-program validation before any output allocation or publication.
 use super::{diagnostic::Diagnostic, limits, model::*};
+use sand_commands::ClickEvent;
 use sand_components::ResourceLocation;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -493,7 +494,7 @@ pub(super) fn validate(
                 std::iter::once(item.name.as_slice()).chain(item.lore.iter().map(Vec::as_slice));
             for parts in item_text {
                 if let Some(error) = static_text_error(parts) {
-                    push(ptr.clone(), error.into());
+                    push(ptr.clone(), error);
                 }
             }
             if item.max_stack.is_some_and(|n| !(1..=99).contains(&n)) {
@@ -797,7 +798,7 @@ pub(super) fn validate(
                 push(format!("{ptr}/max"), "boss bar max must be positive".into());
             }
             if let Some(error) = static_text_error(&bar.title) {
-                push(format!("{ptr}/title"), error.into());
+                push(format!("{ptr}/title"), error);
             }
         }
         for (index, tag) in module.resource_tags.iter().enumerate() {
@@ -870,31 +871,69 @@ fn valid_id(id: &ResourceLocation) -> bool {
     safe_path(id.namespace()) && safe_path(id.path()) && id.namespace() != "__sand_local"
 }
 
-fn text_shape_error(text: &[TextPart], depth: usize) -> Option<&'static str> {
+fn text_shape_error(text: &[TextPart], depth: usize, interactive: bool) -> Option<String> {
     for part in text {
-        if let TextPart::Translation { key, arguments, .. } = part {
-            if key.trim().is_empty() || key.chars().any(char::is_control) {
-                return Some("translation keys must be nonblank and contain no control characters");
+        if depth >= TextPart::MAX_NESTING_DEPTH
+            && matches!(
+                part,
+                TextPart::Translation { .. } | TextPart::Interactive { .. }
+            )
+        {
+            return Some("text exceeds the component nesting limit".into());
+        }
+        match part {
+            TextPart::Translation { key, arguments, .. } => {
+                if key.trim().is_empty() || key.chars().any(char::is_control) {
+                    return Some(
+                        "translation keys must be nonblank and contain no control characters"
+                            .into(),
+                    );
+                }
+                if let Some(error) = arguments
+                    .iter()
+                    .find_map(|parts| text_shape_error(parts, depth + 1, interactive))
+                {
+                    return Some(error);
+                }
             }
-            if depth >= TextPart::MAX_TRANSLATION_DEPTH {
-                return Some("text exceeds the translation nesting limit");
+            TextPart::Interactive {
+                content,
+                tooltip,
+                click,
+            } => {
+                if !interactive {
+                    return Some("interactive text is only supported in chat messages".into());
+                }
+                if content.is_empty() || (click.is_none() && tooltip.is_empty()) {
+                    return Some(
+                        "interactive text needs text and a tooltip or click action".into(),
+                    );
+                }
+                if let Some(click) = click {
+                    if matches!(click, ClickEvent::RunCommand(_) | ClickEvent::ChangePage(_)) {
+                        return Some("portable chat supports opening URLs, suggesting commands, and copying text".into());
+                    }
+                    if let Err(error) = click.validate() {
+                        return Some(error.to_string());
+                    }
+                }
+                if let Some(error) = text_shape_error(content, depth + 1, interactive)
+                    .or_else(|| text_shape_error(tooltip, depth + 1, interactive))
+                {
+                    return Some(error);
+                }
             }
-            if let Some(error) = arguments
-                .iter()
-                .find_map(|parts| text_shape_error(parts, depth + 1))
-            {
-                return Some(error);
-            }
+            _ => {}
         }
     }
     None
 }
 
-fn static_text_error(text: &[TextPart]) -> Option<&'static str> {
-    text_shape_error(text, 0).or_else(|| {
+fn static_text_error(text: &[TextPart]) -> Option<String> {
+    text_shape_error(text, 0, false).or_else(|| {
         text.iter()
             .any(|part| !part.is_static())
-            .then_some("static text cannot use stored values, scores or player names")
+            .then(|| "static text cannot use stored values, scores or player names".into())
     })
 }
 
@@ -948,6 +987,12 @@ impl Validator<'_, '_> {
                             &format!("{part_ptr}/arguments/{index}"),
                         );
                     }
+                }
+                TextPart::Interactive {
+                    content, tooltip, ..
+                } => {
+                    self.message_parts(content, context, owner, &format!("{part_ptr}/content"));
+                    self.message_parts(tooltip, context, owner, &format!("{part_ptr}/tooltip"));
                 }
                 TextPart::Text { .. } => {}
             }
@@ -1752,7 +1797,7 @@ impl Validator<'_, '_> {
                 }
                 Action::Message {
                     audience,
-                    channel: _,
+                    channel,
                     text,
                 } => {
                     if *audience == Audience::Player {
@@ -1767,7 +1812,8 @@ impl Validator<'_, '_> {
                         ));
                     }
                     let text_ptr = format!("{ptr}/action/text");
-                    if let Some(error) = text_shape_error(text, 0) {
+                    if let Some(error) = text_shape_error(text, 0, *channel == MessageChannel::Chat)
+                    {
                         self.errors.push(Diagnostic::error(
                             "SAND_PROGRAM_TEXT",
                             owner,

@@ -43,6 +43,7 @@ const CAPABILITIES: &[&str] = &[
     "field_relations",
     "messages",
     "translated_text",
+    "interactive_text",
     "sounds",
     "particles",
     "effects",

@@ -297,7 +297,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Smithing armor trim recipes with a named native pattern.
 - [x] Client-localized component text with positional arguments in messages and
   static resources.
-- [ ] Advancements, worldgen, books, dialogs, interactive text and VFX.
+- [x] Interactive chat with hover text, links, command suggestions and clipboard actions.
+- [ ] Advancements, worldgen, books, dialogs and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.

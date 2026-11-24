@@ -8,6 +8,10 @@
 pub enum Library {
     /// Insertion-ordered, bounded maps and sets over owned typed values.
     Collections,
+    /// Persistent positions and coordinate arithmetic.
+    Spatial,
+    /// Typed, bounded loaded-tick durations.
+    Time,
 }
 
 impl Library {
@@ -15,6 +19,8 @@ impl Library {
     pub fn name(self) -> &'static str {
         match self {
             Self::Collections => "collections",
+            Self::Spatial => "spatial",
+            Self::Time => "time",
         }
     }
 
@@ -22,9 +28,12 @@ impl Library {
     ///
     /// `Collections` exports `Entry<K, V>`, `Map<K, V>` and `Set<T>`. Values use
     /// canonical vectors, with their 1,024-element bound and owned copy behavior.
+    /// `Spatial` exports `Position` and `Time` exports `Duration`.
     pub fn source(self) -> &'static str {
         match self {
             Self::Collections => include_str!("../stdlib/collections.sand"),
+            Self::Spatial => include_str!("../stdlib/spatial.sand"),
+            Self::Time => include_str!("../stdlib/time.sand"),
         }
     }
 }
@@ -35,8 +44,10 @@ impl std::str::FromStr for Library {
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         match name {
             "collections" => Ok(Self::Collections),
+            "spatial" => Ok(Self::Spatial),
+            "time" => Ok(Self::Time),
             _ => Err(format!(
-                "unknown Sand library `{name}`; available: collections"
+                "unknown Sand library `{name}`; available: collections, spatial, time"
             )),
         }
     }

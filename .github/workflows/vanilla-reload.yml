@@ -251,6 +251,15 @@ jobs:
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --wait-for-result --fixture sand-lang/tests/fixtures/loot_pools.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-loot-pools"
+          source="target/vanilla-reload/${{ matrix.version }}/language-time-spatial-source"
+          mkdir -p "$source"
+          cp sand-lang/tests/fixtures/time_spatial.sand "$source/pack.sand"
+          target/debug/sand lang add time "$source"
+          target/debug/sand lang add spatial "$source"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture "$source/pack.sand" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-time-spatial"
           mkdir -p "target/vanilla-reload/${{ matrix.version }}/language-authored-tests"
           target/debug/sand lang test sand-lang/tests/fixtures/authored_tests.sand \
             --accept-eula --jar "$SAND_SERVER_JAR" 2>&1 \

@@ -38,7 +38,7 @@ enum Command {
     },
     /// Vendor a bundled Sand library into an existing package
     Add {
-        /// Library to install (collections)
+        /// Library to install (collections, spatial, or time)
         library: Library,
         #[command(flatten)]
         input: Input,
@@ -135,7 +135,12 @@ pub fn run(args: LangArgs) -> Result<()> {
         Command::Add { library, input } => {
             let installed = install_library(&input.path, library)?;
             println!("{} {}", "Added".green().bold(), installed.display());
-            println!("  Import with use {}::{{Map, Set}};", library.name());
+            let import = match library {
+                Library::Collections => "use collections::{Map, Set};",
+                Library::Spatial => "use spatial::Position;",
+                Library::Time => "use time::Duration;",
+            };
+            println!("  Import with {import}");
             Ok(())
         }
         Command::Fmt { input, check } => format_package(&input.path, check),

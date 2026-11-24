@@ -1,0 +1,45 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+use spatial::Position;
+use time::Duration;
+
+global state Report { checks: number, failed: number }
+entity state Checkpoint { position: Position, cooldown: Duration, active: timer }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    check(Duration::from_ticks(-2).is_zero());
+    check(Duration::from_seconds(-2).is_zero());
+    check(Duration::from_seconds(107374183).is_zero());
+    check(Duration::from_seconds(107374182).as_ticks() == 2147483640);
+    check(Duration::from_seconds(2).saturating_add(Duration::from_ticks(3)).as_ticks() == 43);
+    check(Duration::from_ticks(2147483647).saturating_add(Duration::from_ticks(3)).as_ticks() == 2147483647);
+
+    raw!("summon minecraft:marker 1.25 80.125 0.5 {Tags:[\"sand_spatial_probe\"]}");
+    for actor in entities(type = Entity::Marker, tag = "sand_spatial_probe") {
+        attach_state(Checkpoint);
+        Checkpoint.position = Position::new(actor.x, actor.y, actor.z);
+        let shifted = Checkpoint.position.translated(0.5, -0.125, 0.75);
+        shifted.teleport();
+        check(actor.x == 1.75);
+        check(actor.y == 80.0);
+        check(actor.z == 1.25);
+        Checkpoint.position.teleport();
+        check(actor.x == 1.25);
+        check(actor.y == 80.125);
+        check(actor.z == 0.5);
+        Checkpoint.cooldown = Duration::from_seconds(3);
+        start_timer(Checkpoint.active, ticks = Checkpoint.cooldown.as_ticks());
+        check(Checkpoint.active == 60);
+        detach_state(Checkpoint);
+        kill();
+    }
+    if Report.checks == 13 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

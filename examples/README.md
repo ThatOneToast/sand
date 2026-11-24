@@ -24,6 +24,7 @@ subdirectories below contain standalone Rust crates or Sand language packages.
 | [lang_collections](lang_collections/) | Saved quest arrays, indexed mutable methods, array iteration and reward history in Sand source. |
 | [lang_runtime_text](lang_runtime_text/) | Saved personal journal with runtime strings, scalar formatting and styled interpolation. |
 | [lang_vectors](lang_vectors/) | Per-player exploration log with growable vectors of records and saved coordinates. |
+| [lang_checkpoints](lang_checkpoints/) | Save a player-owned position and return to it using a typed cooldown. |
 | [arcane_pack](arcane_pack/) | Advanced integration fixture with primitive scoreboard/storage controls and golden tests. |
 
 Start with `book_project` for the guided tutorial and `cooperative_arena` for a

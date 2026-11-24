@@ -1078,6 +1078,22 @@ seconds up to 107,374,182. Invalid constants are errors; an invalid runtime
 duration leaves the timer unchanged. `stop_timer` ends one early. A timer reads as the number of ticks left, so comparisons and `{Ability.dash}`
 text work too.
 
+### Duration and position libraries
+
+Run `sand lang add time` to use the bundled `Duration` type. Read a value
+with `.as_ticks()` when passing it to `wait` or `start_timer`. Negative tick
+values and seconds outside the representable range become zero.
+`saturating_add` caps the total at the largest scoreboard integer.
+
+Run `sand lang add spatial` to use `Position`. Construct one from coordinates
+or take a player snapshot with `Position::player()`. It stores three
+fixed-point `float` coordinates. Calling `.teleport()` moves the current
+executor to that position in its current dimension. A position can be stored
+in State, copied, and passed to functions.
+
+The [checkpoints example](../../examples/lang_checkpoints/) saves a position
+per player and uses a typed cooldown for returning to it.
+
 ### Waiting within a function
 
 Use `wait(20)` or `wait(seconds = 1)` directly in a function body with an

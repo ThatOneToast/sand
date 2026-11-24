@@ -1579,6 +1579,33 @@ The advancement's native reward runs the handlers once per player completion.
 Handlers in the same module run in declaration order. Experience rewards and
 the player's advancement progress use the same vanilla completion.
 
+### Native menus
+
+Use `menu` for a native dialog with gameplay choices. Each button calls a
+parameterless function as the player who selected it.
+
+```rust,ignore
+menu CampSupplies {
+    title: "{gold}Camp supplies",
+    ticks: 200,
+    page_size: 1,
+    choices: [
+        { label: "Stow rations", action: pack_rations },
+        { label: "Show instructions", action: show_slots },
+    ],
+}
+
+fn open_supplies() {
+    open_menu(CampSupplies);
+}
+```
+
+The engine gives each player a new set of button tokens on opening or changing
+pages. A valid choice consumes that player's session before calling its
+function. Use `close_menu(CampSupplies)` to invalidate its session early.
+`ticks` sets the online timeout. Choose from 1 to 256 buttons and optionally
+set `page_size` from 1 to 64 for automatic Previous and Next controls.
+
 ### Notice dialogs
 
 A named `dialog` displays a native notice with fixed rich text and a dismiss
@@ -1786,7 +1813,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers and player-owned HUDs | combat, abilities, encounters, jobs, menus, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs and native menus | combat, abilities, encounters, jobs, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

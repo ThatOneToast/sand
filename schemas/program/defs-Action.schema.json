@@ -556,6 +556,30 @@
     },
     {
       "additionalProperties": false,
+      "description": "Open or close a player-owned native menu session.",
+      "properties": {
+        "menu": {
+          "description": "Identity of a menu declared by this program.",
+          "type": "string"
+        },
+        "op": {
+          "const": "menu",
+          "type": "string"
+        },
+        "open": {
+          "description": "Open a new session when true, or close this menu's current session.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "menu",
+        "open"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Start or cancel named presentation for the executing player.",
       "properties": {
         "hud": {

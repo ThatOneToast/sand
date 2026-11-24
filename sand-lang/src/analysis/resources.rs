@@ -483,6 +483,39 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Menu => {
+                let Some(title) =
+                    get("title").and_then(|field| self.data_text(module, file, &field.value))
+                else {
+                    return;
+                };
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                }) else {
+                    return;
+                };
+                let page_size = get("page_size")
+                    .and_then(|field| self.data_int(module, file, &field.value, 1, 64))
+                    .map(|value| value as u32);
+                let Some(choices) = get("choices")
+                    .and_then(|field| self.data_menu_choices(module, file, &field.value))
+                else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/menus/{}", out.menus.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.menus.push(pc::MenuDefinition {
+                    id: location,
+                    title,
+                    ticks: ticks as u32,
+                    page_size,
+                    choices,
+                });
+            }
             DataKind::Hud => {
                 let Some(ticks) = get("ticks").and_then(|field| {
                     self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
@@ -1520,6 +1553,48 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_menu_choices(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<pc::MenuChoice>> {
+        let DataValue::Array(entries, _) = value else {
+            self.error(
+                "menu",
+                file,
+                value.span(),
+                "expected a list of menu choices",
+            );
+            return None;
+        };
+        if !(1..=256).contains(&entries.len()) {
+            self.error(
+                "menu",
+                file,
+                value.span(),
+                "a menu needs between 1 and 256 choices",
+            );
+            return None;
+        }
+        entries
+            .iter()
+            .map(|choice| {
+                let fields = self.data_object_fields(
+                    file,
+                    choice,
+                    "menu choice",
+                    &["label", "action"],
+                    &[],
+                )?;
+                Some(pc::MenuChoice {
+                    label: self.data_text(module, file, fields.get("label")?)?,
+                    action: self.data_callback(module, file, fields.get("action")?)?,
+                })
+            })
+            .collect()
     }
 
     fn data_hud_bossbar(

@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Menu, _) => (
+                    format!("{vis}menu {}", def.name),
+                    format!("Native menu `{id}`. Use `open_menu` or `close_menu`."),
+                ),
                 (crate::ast::DataKind::Hud, _) => (
                     format!("{vis}hud {}", def.name),
                     format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
@@ -1168,7 +1172,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Biome
         | DefKind::StructureTemplate
         | DefKind::InventoryTransfer
-        | DefKind::Hud => CompletionKind::Constant,
+        | DefKind::Hud
+        | DefKind::Menu => CompletionKind::Constant,
     }
 }
 
@@ -1843,6 +1848,9 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("Menu") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Menu);
+            }
             Some("Hud") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Hud);
             }
@@ -2452,6 +2460,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
         ),
         Completion::snippet(
+            "menu",
+            "native player menu",
+            r#"menu ${1:Supplies} { title: "${2:Supplies}", ticks: ${3:200}, choices: [{ label: "${4:Take rations}", action: ${5:take_rations} }] }"#,
+        ),
+        Completion::snippet(
             "hud",
             "player-owned presentation",
             r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
@@ -2766,6 +2779,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::StructureTemplate => "StructureTemplate",
                 ParamKind::InventoryTransfer => "InventoryTransfer",
                 ParamKind::Hud => "Hud",
+                ParamKind::Menu => "Menu",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

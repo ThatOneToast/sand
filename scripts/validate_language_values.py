@@ -225,6 +225,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("RUNTIME_ITEM_CLEAR_ISOLATION", "if score NumericB numeric_probe matches 3")
             self.check_inventory_transfers()
             self.check_owner_huds()
+            self.check_native_menus()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
@@ -308,6 +309,73 @@ class ValuesHarness(WorldGameplayHarness):
         self.send("execute as NumericB run function runtime_values:end_status")
         self.send(f"execute store success score #hud_exists numeric_probe run bossbar get {second} value")
         self.check("HUD_B_CANCELLED", "if score #hud_exists numeric_probe matches 0")
+
+
+    def check_native_menus(self):
+        directory = Path(self.args.pack) / "data/runtime_values/function/__sand_system/lifetime/field_menu"
+        load = (directory / "menu_load.mcfunction").read_text()
+        trigger = re.search(r"scoreboard objectives add (\S+) trigger", load).group(1)
+
+        def token_objectives(page):
+            commands = (directory / f"menu_page_{page}.mcfunction").read_text()
+            return re.findall(r"scoreboard players operation @s (\S+) = #next", commands)
+
+        first, next_page = token_objectives(0)
+        second, _previous_page = token_objectives(1)
+
+        def read_token(player, objective):
+            start = len(self.lines)
+            pattern = re.compile(rf"{player} has (\d+) \[{re.escape(objective)}\]$")
+            self.send(f"scoreboard players get {player} {objective}")
+            line = self.wait_for(pattern, "menu-token", start)
+            return int(pattern.search(self.lines[line]).group(1))
+
+        def select(player, token):
+            self.send(f"execute as {player} run trigger {trigger} set {token}")
+            self.send("execute store result score #menu_end numeric_probe run time query gametime")
+            self.send("scoreboard players add #menu_end numeric_probe 3")
+            self.send("tick step 3")
+            for _ in range(20):
+                self.send("execute store result score #menu_now numeric_probe run time query gametime")
+                if self.passed("MENU_TICK", "execute if score #menu_now numeric_probe >= #menu_end numeric_probe run say __SAND_WORLD_MENU_TICK_OK__"):
+                    return
+                time.sleep(0.05)
+            raise ValidationFailure("menu-tick", "native menu dispatch did not receive its ticks")
+
+        def report(player, result, label):
+            self.send(f"execute as {player} run function runtime_values:report_menu")
+            self.check(label, f"if score {player} numeric_probe matches {result}")
+
+        open_a = "execute as NumericA at @s run function runtime_values:open_field_menu"
+        self.send(open_a)
+        self.send("execute as NumericB at @s run function runtime_values:open_field_menu")
+        old_first = read_token("NumericA", first)
+        if old_first == read_token("NumericB", first):
+            raise ValidationFailure("menu-token", "separate player sessions shared a visible action token")
+
+        select("NumericB", old_first)
+        report("NumericB", 0, "MENU_OTHER_PLAYER_TOKEN")
+        select("NumericA", read_token("NumericA", next_page))
+        visible_choice = read_token("NumericA", second)
+        select("NumericA", old_first)
+        report("NumericA", 0, "MENU_STALE_PAGE_TOKEN")
+
+        self.send(open_a)
+        select("NumericA", read_token("NumericA", next_page))
+        fresh_choice = read_token("NumericA", second)
+        if fresh_choice == visible_choice:
+            raise ValidationFailure("menu-token", "reopening reused a visible action token")
+        select("NumericA", fresh_choice)
+        report("NumericA", 10, "MENU_FRESH_CHOICE")
+        select("NumericA", fresh_choice)
+        report("NumericA", 10, "MENU_ONE_SHOT")
+        report("NumericB", 0, "MENU_OTHER_PLAYER_UNCHANGED")
+
+        self.send(open_a)
+        live_choice = read_token("NumericA", first)
+        self.send("execute as NumericA run function runtime_values:close_field_menu")
+        select("NumericA", live_choice)
+        report("NumericA", 10, "MENU_CLOSED_TOKEN")
 
 
 def main():

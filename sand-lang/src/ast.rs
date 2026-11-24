@@ -515,6 +515,7 @@ pub enum DataKind {
     StructureTemplate,
     InventoryTransfer,
     Hud,
+    Menu,
 }
 
 impl DataKind {
@@ -535,6 +536,7 @@ impl DataKind {
             DataKind::StructureTemplate => "structure_template",
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Hud => "hud",
+            DataKind::Menu => "menu",
         }
     }
 }

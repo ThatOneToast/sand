@@ -557,6 +557,30 @@
         },
         {
           "additionalProperties": false,
+          "description": "Open or close a player-owned native menu session.",
+          "properties": {
+            "menu": {
+              "description": "Identity of a menu declared by this program.",
+              "type": "string"
+            },
+            "op": {
+              "const": "menu",
+              "type": "string"
+            },
+            "open": {
+              "description": "Open a new session when true, or close this menu's current session.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "menu",
+            "open"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Start or cancel named presentation for the executing player.",
           "properties": {
             "hud": {
@@ -3633,6 +3657,74 @@
       ],
       "type": "object"
     },
+    "MenuChoice": {
+      "additionalProperties": false,
+      "description": "A native menu button and the gameplay function it invokes.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/FunctionReference",
+          "description": "Function invoked with the choosing player as executor."
+        },
+        "label": {
+          "description": "Label shown on the button.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "action"
+      ],
+      "type": "object"
+    },
+    "MenuDefinition": {
+      "additionalProperties": false,
+      "description": "An ordered native dialog menu with one-shot callbacks as the owning player.",
+      "properties": {
+        "choices": {
+          "description": "Buttons in authored order.",
+          "items": {
+            "$ref": "#/$defs/MenuChoice"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Identity used to open or close a session.",
+          "type": "string"
+        },
+        "page_size": {
+          "description": "Optional count of choices per page.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ticks": {
+          "description": "Online ticks before the open session expires.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "title": {
+          "description": "Title of each native dialog page.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "ticks",
+        "choices"
+      ],
+      "type": "object"
+    },
     "MessageChannel": {
       "description": "Where a message appears.",
       "oneOf": [
@@ -3761,6 +3853,13 @@
           "description": "Loot tables.",
           "items": {
             "$ref": "#/$defs/LootTable"
+          },
+          "type": "array"
+        },
+        "menus": {
+          "description": "Native menus with bounded sessions and ordered choices.",
+          "items": {
+            "$ref": "#/$defs/MenuDefinition"
           },
           "type": "array"
         },

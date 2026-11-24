@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A native menu button and the gameplay function it invokes.",
+  "properties": {
+    "action": {
+      "$ref": "defs-FunctionReference.schema.json",
+      "description": "Function invoked with the choosing player as executor."
+    },
+    "label": {
+      "description": "Label shown on the button.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "label",
+    "action"
+  ],
+  "type": "object"
+}

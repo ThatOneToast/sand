@@ -4806,6 +4806,10 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "open_menu" | "close_menu" => pc::Action::Menu {
+                menu: self.arg_declared(body, bound["menu"], DefKind::Menu, "a menu")?,
+                open: builtin.name == "open_menu",
+            },
             "start_hud" | "cancel_hud" => pc::Action::Hud {
                 hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
                 show: builtin.name == "start_hud",

@@ -246,6 +246,12 @@ pub(super) fn validate(
                 .caps()
                 .supports(sand_version::ComponentFeature::Dialogs)
         }),
+        menus: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.menus)
+            .map(|menu| menu.id.to_string())
+            .collect(),
         huds: program
             .modules
             .iter()
@@ -443,6 +449,16 @@ pub(super) fn validate(
                 ExecutionContext::Player
             };
             validator.call(&tag.function, context, &owner, &format!("{ptr}/function"));
+        }
+        for (index, menu) in module.menus.iter().enumerate() {
+            for (choice_index, choice) in menu.choices.iter().enumerate() {
+                validator.call(
+                    &choice.action,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("/menus/{index}/choices/{choice_index}/action"),
+                );
+            }
         }
         for (index, hud) in module.huds.iter().enumerate() {
             if let Some(HudBossBar {
@@ -749,6 +765,41 @@ pub(super) fn validate(
                     format!("{ptr}/result"),
                     "a recipe result is an item id with a count of 1..=99".into(),
                 );
+            }
+        }
+        for (index, menu) in module.menus.iter().enumerate() {
+            let ptr = format!("/menus/{index}");
+            if !resource_ids.insert(format!("menu {}", menu.id)) {
+                push(format!("{ptr}/id"), format!("duplicate menu `{}`", menu.id));
+            }
+            if !(1..=i32::MAX as u32).contains(&menu.ticks) {
+                push(
+                    format!("{ptr}/ticks"),
+                    "menu timeout must be in 1..=2147483647".into(),
+                );
+            }
+            if menu
+                .page_size
+                .is_some_and(|value| !(1..=64).contains(&value))
+            {
+                push(
+                    format!("{ptr}/page_size"),
+                    "menu page size must be in 1..=64".into(),
+                );
+            }
+            if !(1..=256).contains(&menu.choices.len()) {
+                push(
+                    format!("{ptr}/choices"),
+                    "a menu needs between 1 and 256 choices".into(),
+                );
+            }
+            if let Some(error) = static_text_error(&menu.title, None) {
+                push(format!("{ptr}/title"), error);
+            }
+            for (choice_index, choice) in menu.choices.iter().enumerate() {
+                if let Some(error) = static_text_error(&choice.label, None) {
+                    push(format!("{ptr}/choices/{choice_index}/label"), error);
+                }
             }
         }
         for (index, hud) in module.huds.iter().enumerate() {
@@ -1259,6 +1310,7 @@ struct Validator<'a, 'e> {
     advancements: BTreeMap<String, BTreeSet<String>>,
     transfers: BTreeSet<String>,
     huds: BTreeSet<String>,
+    menus: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
     loot_tables: BTreeSet<String>,
@@ -2353,6 +2405,22 @@ impl Validator<'_, '_> {
                             ));
                         }
                         _ => {}
+                    }
+                }
+                Action::Menu { menu, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "opening or closing the executing player's menu",
+                    );
+                    if !self.menus.contains(&menu.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/menu"),
+                            format!("unknown menu `{menu}`"),
+                        ));
                     }
                 }
                 Action::Hud { hud, .. } => {

@@ -133,6 +133,7 @@ pub(super) fn lower(
         constants: std::collections::BTreeSet::new(),
         custom_items: BTreeMap::new(),
         huds: BTreeMap::new(),
+        menus: BTreeMap::new(),
         advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
         data_states: states
@@ -155,6 +156,11 @@ pub(super) fn lower(
             .collect(),
     };
     for module in &program.modules {
+        for menu in &module.menus {
+            lower
+                .menus
+                .insert(menu.id.to_string(), lower.menu_component(menu));
+        }
         for hud in &module.huds {
             lower
                 .huds
@@ -315,6 +321,19 @@ pub(super) fn lower(
     for module in &program.modules {
         use crate::registration::IntoDatapack;
         let module_id = module.id.to_string();
+        for (index, menu) in module.menus.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.menus[&menu.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("menu {}", menu.id),
+                    &module_id,
+                    &format!("/menus/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
         for (index, hud) in module.huds.iter().enumerate() {
             lower.register_owned_runtime(
                 lower.huds[&hud.id.to_string()].clone().into_datapack(),
@@ -1553,6 +1572,7 @@ struct Lower<'sources> {
     /// Declared custom items by id.
     custom_items: BTreeMap<String, sand_components::CustomItem>,
     huds: BTreeMap<String, crate::gameplay::Hud>,
+    menus: BTreeMap<String, crate::gameplay::Menu>,
     advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
     flags: std::collections::BTreeSet<EntityFlag>,
@@ -1741,6 +1761,29 @@ impl Lower<'_> {
             output.push((owner.to_owned(), index, action.command().into()));
         }
         Ok(())
+    }
+
+    fn menu_component(&self, menu: &MenuDefinition) -> crate::gameplay::Menu {
+        use crate::{condition::Condition, gameplay::Menu};
+        use sand_components::effect::Ticks;
+
+        let mut definition = Menu::new(
+            menu.id.clone(),
+            static_text_component(&menu.title, &self.holders),
+            Ticks::new(menu.ticks),
+        );
+        if let Some(size) = menu.page_size {
+            definition = definition.page_size(size as usize);
+        }
+        for choice in &menu.choices {
+            let function = reference_id(&choice.action);
+            definition = definition.choice(
+                static_text_component(&choice.label, &self.holders),
+                Condition::all([]),
+                move || Cmd::Function(function.clone()),
+            );
+        }
+        definition
     }
 
     fn hud_component(&self, hud: &HudDefinition) -> crate::gameplay::Hud {
@@ -2435,6 +2478,14 @@ impl Lower<'_> {
                         }
                         (Some(item), None) => vec![Cmd::Raw(inventory.clear_item(item))],
                         (None, _) => vec![Cmd::Raw(inventory.clear_all())],
+                    }
+                }
+                Action::Menu { menu, open } => {
+                    let definition = &self.menus[&menu.to_string()];
+                    if *open {
+                        definition.open().0
+                    } else {
+                        definition.close().0
                     }
                 }
                 Action::Hud { hud, show } => {

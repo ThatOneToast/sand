@@ -105,6 +105,13 @@
       },
       "type": "array"
     },
+    "menus": {
+      "description": "Native menus with bounded sessions and ordered choices.",
+      "items": {
+        "$ref": "defs-MenuDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "predicates": {
       "description": "Reusable native world predicates.",
       "items": {

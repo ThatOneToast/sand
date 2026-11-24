@@ -60,6 +60,8 @@ pub enum ParamKind {
     InventoryTransfer,
     /// An authored player-owned HUD.
     Hud,
+    /// An authored player-owned dialog menu.
+    Menu,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -1457,6 +1459,28 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "clear_item(Item::${1:Dirt});",
     },
     Builtin {
+        name: "open_menu",
+        kind: BuiltinKind::Statement,
+        signature: "open_menu(menu)",
+        summary: "Open a new native menu session for the executing player.",
+        details: "Links visible buttons to one-shot input tokens owned by this player.",
+        minecraft: "Opens a paginated native multi-action dialog.",
+        needs_player: true,
+        params: &[p("menu", ParamKind::Menu, true, "The declared menu.")],
+        snippet: "open_menu(${1:Supplies});",
+    },
+    Builtin {
+        name: "close_menu",
+        kind: BuiltinKind::Statement,
+        signature: "close_menu(menu)",
+        summary: "Close this menu's session for the executing player.",
+        details: "Invalidates this menu's outstanding buttons.",
+        minecraft: "Clears the native dialog and ends the player's session.",
+        needs_player: true,
+        params: &[p("menu", ParamKind::Menu, true, "The declared menu.")],
+        snippet: "close_menu(${1:Supplies});",
+    },
+    Builtin {
         name: "start_hud",
         kind: BuiltinKind::Statement,
         signature: "start_hud(hud)",
@@ -1878,6 +1902,8 @@ pub enum FieldKind {
     Callback,
     /// Title, progress and maximum for a private HUD bar.
     HudBossBar,
+    /// An ordered list of rich button labels and their callbacks.
+    MenuChoices,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -2366,6 +2392,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "menu",
+        "title",
+        FieldKind::Text,
+        true,
+        "Rich title over the native buttons.",
+        r#""${1:Supplies}""#,
+    ),
+    f(
+        "menu",
+        "ticks",
+        FieldKind::Int,
+        true,
+        "Positive timeout in online game ticks.",
+        "${1:200}",
+    ),
+    f(
+        "menu",
+        "page_size",
+        FieldKind::Int,
+        false,
+        "Maximum choices on each page, from 1 to 64.",
+        "${1:6}",
+    ),
+    f(
+        "menu",
+        "choices",
+        FieldKind::MenuChoices,
+        true,
+        "Ordered labels and parameterless player callbacks.",
+        r#"[{ label: "${1:Take rations}", action: ${2:take_rations} }]"#,
+    ),
+    f(
         "hud",
         "ticks",
         FieldKind::Int,
@@ -2613,6 +2671,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "menu",
+        "`menu Name { title: ..., ticks: 200, choices: [...] }` declares a native menu for `open_menu`.",
     ),
     (
         "hud",

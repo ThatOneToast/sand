@@ -8,6 +8,24 @@ inventory_transfer PackSupplies {
     rejected: no_room,
 }
 
+menu CampSupplies {
+    title: "{gold}Camp supplies",
+    ticks: 200,
+    page_size: 1,
+    choices: [
+        { label: "Stow two supplies", action: stow },
+        { label: "View slot guide", action: show_slots },
+    ],
+}
+
+pub fn supplies() {
+    open_menu(CampSupplies);
+}
+
+fn show_slots() {
+    chat!("The first hotbar slot is the source. The first main inventory slot is the destination.");
+}
+
 pub fn stow() {
     transfer_inventory(PackSupplies);
 }

@@ -1,5 +1,5 @@
 //! Owned portable data resources: custom items, recipes, and registry tags.
-use super::{ScoreOperand, TextPart, Weather};
+use super::{FunctionReference, ScoreOperand, TextPart, Weather};
 use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -739,4 +739,52 @@ pub struct HudBossBar {
     pub value: ScoreOperand,
     /// Positive bar maximum.
     pub max: u32,
+}
+
+/// An ordered native dialog menu with one-shot callbacks as the owning player.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::MenuDefinition", module = "sand::advanced::compiler",
+ summary = "An ordered native dialog menu with one-shot callbacks as the owning player.",
+ context = "Use Action::Menu to open or close the player’s session. Reopening creates fresh input tokens. The shared Menu runtime validates expiry, ownership, and navigation.",
+ minecraft = "Lowers through the native Menu system to paginated dialog buttons with generation-bound input.",
+ use_when = ["Offering a player a bounded list of gameplay actions"],
+ avoid_when = ["Showing a fixed dismissible message; use NoticeDialog"],
+ fields(id = "Menu identity.", title = "Static rich title.", ticks = "Positive number of online ticks before expiration.", page_size = "Optional number of choices per page, from 1 to 64.", choices = "Ordered actionable buttons, at least one and at most 256."),
+ example = "use sand::advanced::compiler::MenuDefinition;",
+)]
+pub struct MenuDefinition {
+    /// Identity used to open or close a session.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Title of each native dialog page.
+    pub title: Vec<TextPart>,
+    /// Online ticks before the open session expires.
+    pub ticks: u32,
+    /// Optional count of choices per page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page_size: Option<u32>,
+    /// Buttons in authored order.
+    pub choices: Vec<MenuChoice>,
+}
+
+/// A native menu button and the gameplay function it invokes.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::MenuChoice", module = "sand::advanced::compiler",
+ summary = "A native menu button and the gameplay function it invokes.",
+ context = "The menu consumes the player’s session before invoking the parameterless action, which may open new presentation.",
+ minecraft = "Uses a typed Menu choice and the shared one-shot native dialog routing.",
+ use_when = ["Adding one action to a player's menu"],
+ avoid_when = ["Adding a fixed notice's dismiss label"],
+ fields(label = "Static rich button label.", action = "Function invoked as the player after the session is consumed."),
+ example = "use sand::advanced::compiler::MenuChoice;",
+)]
+pub struct MenuChoice {
+    /// Label shown on the button.
+    pub label: Vec<TextPart>,
+    /// Function invoked with the choosing player as executor.
+    pub action: FunctionReference,
 }

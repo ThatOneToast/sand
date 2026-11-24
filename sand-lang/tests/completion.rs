@@ -81,6 +81,7 @@ fn item_level() {
             "structure_template",
             "inventory_transfer",
             "hud",
+            "menu",
             "event",
             "loot",
             "recipe shapeless",
@@ -446,6 +447,15 @@ fn data_declarations_offer_only_remaining_valid_fields() {
     includes_excludes(
         "hud Status { ticks: 100, actionbar: \"Ready\" }\nfn show() { start_hud(|); }",
         &["Status"],
+        &["Block::Stone"],
+    );
+    exactly(
+        "menu Supplies {\n    |\n}",
+        &["title", "ticks", "page_size", "choices"],
+    );
+    includes_excludes(
+        "menu Supplies { title: \"Camp\", ticks: 100, choices: [{ label: \"Leave\", action: leave }] }\nfn f() { open_menu(|); }",
+        &["Supplies"],
         &["Block::Stone"],
     );
     exactly("structure_template Marker {\n    |\n}", &["source"]);

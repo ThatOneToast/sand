@@ -317,10 +317,11 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Ordered completion handlers using the authored advancement's native reward
   function.
 - [x] Native notice dialogs with translated text and player-scoped open and clear.
-- [ ] Broader advancement triggers, worldgen, interactive dialog flows and VFX.
+- [x] Paginated native menus with single-use player-scoped callbacks.
+- [ ] Broader advancement triggers, worldgen, branching dialog views and VFX.
 - [x] Owner-scoped HUDs with bounded lifetime, rich actionbars, private
   State-driven boss bars, and cancellation.
-- [ ] Expose the Rust combat, abilities, encounters, jobs, menus, rosters,
+- [ ] Expose the Rust combat, abilities, encounters, jobs, rosters,
   projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source

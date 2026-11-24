@@ -159,6 +159,8 @@ pub enum DefKind {
     InventoryTransfer,
     /// `hud Name { ... }`.
     Hud,
+    /// `menu Name { ... }`.
+    Menu,
 }
 
 impl DefKind {
@@ -193,6 +195,7 @@ impl DefKind {
             DefKind::StructureTemplate => "structure template",
             DefKind::InventoryTransfer => "inventory transfer",
             DefKind::Hud => "HUD",
+            DefKind::Menu => "menu",
         }
     }
 }
@@ -1106,6 +1109,7 @@ impl Cx {
                     crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                     crate::ast::DataKind::Hud => DefKind::Hud,
+                    crate::ast::DataKind::Menu => DefKind::Menu,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3052,6 +3056,7 @@ impl Cx {
             structure_templates: Vec::new(),
             inventory_transfers: Vec::new(),
             huds: Vec::new(),
+            menus: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

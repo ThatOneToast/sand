@@ -55,6 +55,16 @@ inventory_transfer MoveRations {
     rejected: transfer_denied,
 }
 
+menu FieldMenu {
+    title: "Field supplies",
+    ticks: 200,
+    page_size: 1,
+    choices: [
+        { label: "Choose bread", action: choose_bread },
+        { label: "Choose compass", action: choose_compass },
+    ],
+}
+
 hud FieldStatus {
     ticks: 200,
     every: 2,
@@ -71,6 +81,7 @@ player state Ledger {
     transfers_accepted: number,
     transfers_denied: number,
     hud_progress: number,
+    menu_selection: number,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -150,6 +161,20 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe 9");
     } else if all_bread == 3 && custom_bread == 0 && absent == 0 {
         raw!("scoreboard players set @s numeric_probe 3");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn open_field_menu() { open_menu(FieldMenu); }
+fn close_field_menu() { close_menu(FieldMenu); }
+fn choose_bread() { Ledger.menu_selection += 1; }
+fn choose_compass() { Ledger.menu_selection += 10; }
+fn report_menu() {
+    if Ledger.menu_selection == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else if Ledger.menu_selection == 10 {
+        raw!("scoreboard players set @s numeric_probe 10");
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
     }

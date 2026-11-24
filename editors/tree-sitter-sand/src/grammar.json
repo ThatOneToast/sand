@@ -954,6 +954,10 @@
                 {
                   "type": "STRING",
                   "value": "hud"
+                },
+                {
+                  "type": "STRING",
+                  "value": "menu"
                 }
               ]
             },

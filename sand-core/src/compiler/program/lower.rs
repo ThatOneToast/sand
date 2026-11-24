@@ -1793,6 +1793,37 @@ impl Lower<'_> {
                     }]
                 }
                 Action::Kill => vec![Cmd::Raw("kill @s".into())],
+                Action::Ride { vehicle: None } => vec![Cmd::Raw("ride @s dismount".into())],
+                Action::Ride {
+                    vehicle: Some(vehicle),
+                } => {
+                    let identity = crate::gameplay::identity::objective(
+                        &format!("{}:entities", self.namespace)
+                            .parse()
+                            .expect("valid scope"),
+                    )
+                    .map_err(|error| fail(error.to_string()))?;
+                    let selector = crate::gameplay::identity::non_player_selector(
+                        &identity.to_string(),
+                        "$(vehicle)",
+                    );
+                    let value = Amount::Field(ScaledField {
+                        score: vehicle.clone(),
+                        scale: 1.0,
+                    });
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "mount",
+                        format!("execute if entity {selector} run ride @s mount {selector}"),
+                        &[NumericArgument {
+                            name: "vehicle",
+                            value: &value,
+                            integer: true,
+                            bounds: Some((1.0, 2147483646.0)),
+                        }],
+                        &[],
+                    )?
+                }
                 Action::Teleport { destination } => match destination {
                     TeleportDestination::Position { x, y, z }
                     | TeleportDestination::Offset { x, y, z } => {

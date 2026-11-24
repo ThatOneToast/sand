@@ -110,10 +110,14 @@ pub(crate) fn selectors(kind: &str, objective: &str, value: &str) -> Vec<String>
         "player" => vec![format!("@a[{score}]")],
         "entity" => vec![
             format!("@a[{score}]"),
-            format!("@e[type=!minecraft:player,distance=0..,{score}]"),
+            non_player_selector(objective, value),
         ],
         kind => vec![format!("@e[type=minecraft:{kind},distance=0..,{score}]")],
     }
+}
+
+pub(crate) fn non_player_selector(objective: &str, value: &str) -> String {
+    format!("@e[type=!minecraft:player,distance=0..,scores={{{objective}={value}}},limit=1]")
 }
 
 pub(crate) fn call(scope: &ResourceLocation, suffix: &str) -> Actions {

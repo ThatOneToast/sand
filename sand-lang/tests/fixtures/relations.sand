@@ -11,18 +11,21 @@ fn check(value: bool) {
 fn run() {
     Report.checks = 0;
     Report.failed = 0;
-    raw!("summon minecraft:minecart ~ ~ ~ {Tags:[\"sand_ride_cart\"]}");
-    raw!("summon minecraft:pig ~ ~ ~ {NoAI:1b,Tags:[\"sand_ride_driver\"]}");
-    raw!("summon minecraft:pig ~ ~ ~ {NoAI:1b,Tags:[\"sand_ride_target\"]}");
-    raw!("ride @e[tag=sand_ride_driver,limit=1] mount @e[tag=sand_ride_cart,limit=1]");
+    summon(Entity::Minecart, tag = "sand_ride_cart");
+    summon(Entity::Pig, tag = "sand_ride_driver");
+    summon(Entity::Pig, tag = "sand_ride_target");
     for cart in entities(tag = "sand_ride_cart") { Report.target = entity_ref(); }
     for driver in entities(tag = "sand_ride_driver") {
         Report.driver = entity_ref();
+        mount(Report.target);
         attach_state(Ride);
         Ride.vehicle = entity_ref(relation = Relation::Vehicle);
         check(Ride.vehicle == Report.target);
         check(Ride.vehicle != Report.driver);
         for vehicle in resolve_entity(Ride.vehicle) { add_tag("sand_ride_resolved"); }
+        let empty: EntityRef;
+        mount(empty);
+        check(entity_ref(Relation::Vehicle) == Ride.vehicle);
     }
     check(count_entities(tag = "sand_ride_resolved") == 1);
     for target in entities(tag = "sand_ride_target") {
@@ -31,8 +34,8 @@ fn run() {
         damage(1, by = Report.driver);
         check(entity_ref(Relation::Attacker) == Report.driver);
     }
-    raw!("ride @e[tag=sand_ride_driver,limit=1] dismount");
     for driver in entities(tag = "sand_ride_driver") {
+        dismount();
         check(Ride.vehicle == Report.target);
         Ride.vehicle = entity_ref(Relation::Vehicle);
         let empty: EntityRef;
@@ -41,6 +44,6 @@ fn run() {
     }
     for target in entities(tag = "sand_ride_target") { kill(); }
     for cart in entities(tag = "sand_ride_cart") { kill(); }
-    if Report.checks == 7 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    if Report.checks == 8 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }
 }

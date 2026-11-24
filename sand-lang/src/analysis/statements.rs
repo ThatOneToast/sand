@@ -2943,7 +2943,13 @@ impl Cx {
         }
         if matches!(
             builtin.name,
-            "give_item" | "damage" | "teleport" | "teleport_by" | "play_sound" | "add_experience"
+            "give_item"
+                | "damage"
+                | "mount"
+                | "teleport"
+                | "teleport_by"
+                | "play_sound"
+                | "add_experience"
         ) {
             let depth = body.temp_depth;
             let action = self.numeric_builtin_action(body, builtin.name, args, &bound, span, ops);
@@ -3099,6 +3105,18 @@ impl Cx {
                     return None;
                 }
                 Some(pc::Action::Damage { amount, by })
+            }
+            "mount" => {
+                let arg = bound["vehicle"];
+                let ArgValue::Expr(expr) = &arg.value else {
+                    self.error("type", body.file, arg.span, "expected an `EntityRef` value");
+                    return None;
+                };
+                let vehicle = self.temp(body);
+                self.emit(body, &vehicle, Ty::EntityRef, expr, ops)?;
+                Some(pc::Action::Ride {
+                    vehicle: Some(vehicle),
+                })
             }
             "teleport" | "teleport_by" => {
                 let keys = if name == "teleport" {
@@ -4024,6 +4042,7 @@ impl Cx {
                 },
             },
             "kill" => pc::Action::Kill,
+            "dismount" => pc::Action::Ride { vehicle: None },
             "add_tag" | "remove_tag" => {
                 let (tag, _, tag_span) = self.arg_string(file, bound["tag"], "a tag name")?;
                 if !valid_tag(&tag) {

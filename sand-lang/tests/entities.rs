@@ -38,6 +38,21 @@ fn retained_entity_relationships_are_checked_and_require_an_executor() {
 }
 
 #[test]
+fn ride_calls_require_an_executor_and_a_retained_vehicle() {
+    let analysis = analyze_one(&pack(
+        "fn board(vehicle: EntityRef) { mount(vehicle); dismount(); }",
+    ));
+    compile(&analysis);
+    assert_eq!(context_of(&analysis, "board"), Context::Entity);
+    let invalid = analyze_one(&pack("fn bad() { mount(42); }"));
+    assert!(
+        errors(&invalid)
+            .iter()
+            .any(|error| error.contains("EntityRef"))
+    );
+}
+
+#[test]
 fn entity_loops_select_with_typed_filters_and_run_at_each_entity() {
     let analysis = analyze_one(&pack(
         r#"

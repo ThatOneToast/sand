@@ -983,6 +983,11 @@ also resolve to at most one entity. A missing relationship returns an empty
 reference. Once retained, the reference identifies that entity even if the
 relationship changes.
 
+Use `mount(vehicle)` to ride a retained non-player entity in the current
+dimension. An empty or unavailable vehicle leaves the executor where it is.
+Use `dismount()` to get off the current vehicle.
+See the [minecart shuttle example](../../examples/lang_vehicles/pack.sand).
+
 `resolve_player(reference)` runs a `for` body as an online player, at that player,
 including across dimensions. `resolve_entity(reference)` also resolves loaded
 non-player entities in the current dimension; its body has an entity context.

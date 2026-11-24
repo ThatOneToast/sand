@@ -266,9 +266,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Typed enchantments generated once for Rust and the language; typed time
   values and storable positions. Use existing entity State instead of creating
   a competing checked entity-tag model.
-- [x] Retain individual vanilla entity relationships in `EntityRef` values.
-- [ ] Equipment/inventory properties, richer entity data, motion, vehicle
-  actions, archetypes, and query NBT/score filters.
+- [x] Retain individual vanilla entity relationships in `EntityRef` values,
+  and mount and dismount retained vehicles.
+- [ ] Equipment/inventory properties, richer entity data, motion, archetypes,
+  and query NBT/score filters.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
 - [ ] Suspended function continuations (`wait`) with per-invocation locals,
   executor identity, dimension, cancellation and multiplayer isolation.

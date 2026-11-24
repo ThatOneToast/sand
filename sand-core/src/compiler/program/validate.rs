@@ -1716,6 +1716,12 @@ impl Validator<'_, '_> {
                     );
                 }
                 Action::Kill => self.executor(context, owner, &ptr, "killing the executor"),
+                Action::Ride { vehicle } => {
+                    self.executor(context, owner, &ptr, "changing the executor's vehicle");
+                    if let Some(vehicle) = vehicle {
+                        self.score(vehicle, context, owner, &format!("{ptr}/action/vehicle"));
+                    }
+                }
                 Action::PushFrame { fields } | Action::PopFrame { fields } => {
                     if fields.is_empty() {
                         self.errors.push(Diagnostic::error(

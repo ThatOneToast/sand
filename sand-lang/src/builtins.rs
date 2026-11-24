@@ -151,6 +151,8 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
     "teleport",
     "teleport_by",
     "teleport_to",
+    "mount",
+    "dismount",
     "holding",
     "is_sneaking",
     "is_sprinting",
@@ -160,6 +162,33 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
 
 /// Every builtin, in documentation order.
 pub const BUILTINS: &[Builtin] = &[
+    Builtin {
+        name: "mount",
+        kind: BuiltinKind::Statement,
+        signature: "mount(vehicle)",
+        summary: "Mount the executing entity on a retained vehicle.",
+        details: "The vehicle must be a loaded non-player entity in the current dimension. Missing and empty references do nothing. Vanilla checks whether mounting is possible.",
+        minecraft: "ride @s mount <vehicle>",
+        needs_player: false,
+        params: &[p(
+            "vehicle",
+            ParamKind::EntityRef,
+            true,
+            "Retained reference to the vehicle.",
+        )],
+        snippet: "mount(${1:vehicle})",
+    },
+    Builtin {
+        name: "dismount",
+        kind: BuiltinKind::Statement,
+        signature: "dismount()",
+        summary: "Dismount the executing entity from its current vehicle.",
+        details: "The entity remains at the position chosen by vanilla for dismounting.",
+        minecraft: "ride @s dismount",
+        needs_player: false,
+        params: &[],
+        snippet: "dismount()",
+    },
     Builtin {
         name: "entity_ref",
         kind: BuiltinKind::Expression,

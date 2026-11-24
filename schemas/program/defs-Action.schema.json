@@ -632,6 +632,31 @@
     },
     {
       "additionalProperties": false,
+      "description": "Mount the executor on a retained non-player entity, or dismount it.",
+      "properties": {
+        "op": {
+          "const": "ride",
+          "type": "string"
+        },
+        "vehicle": {
+          "anyOf": [
+            {
+              "$ref": "defs-FieldReference.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Vehicle identity. Absence requests a dismount."
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Add or remove a tag on the executing entity.",
       "properties": {
         "add": {

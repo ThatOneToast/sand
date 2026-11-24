@@ -1077,3 +1077,62 @@ fn bounded_constant_branch_keeps_one_decision_and_owned_return_run_helpers() {
         compiled.resources
     );
 }
+
+#[test]
+fn block_data_copies_checked_values_without_interpolating_authored_paths() {
+    let mut program = counter();
+    let module = &mut program.modules[0];
+    let state = &mut module.states[0];
+    let source = DataReference {
+        field: FieldReference {
+            state: state.id.clone(),
+            field: "items".into(),
+        },
+        path: Vec::new(),
+    };
+    state.data_fields.push(DataField {
+        name: "items".into(),
+        default: sand::data::NbtValue::List(vec![]),
+    });
+    let from = BlockDataAddress {
+        at: BlockPosition::Absolute { x: 1, y: 80, z: 2 },
+        path: "Items".into(),
+    };
+    let to = BlockDataAddress {
+        at: BlockPosition::Absolute { x: 3, y: 80, z: 4 },
+        path: r#""$(literal)""#.into(),
+    };
+    let projection = DataReference {
+        field: source.field.clone(),
+        path: vec![DataProjection::Index {
+            index: ScoreOperand::Field(FieldReference {
+                state: state.id.clone(),
+                field: "value".into(),
+            }),
+        }],
+    };
+    module.functions[1].body = vec![
+        operation(Action::DataModify {
+            target: source,
+            operator: DataModifyOperation::Set,
+            source: DataOperand::Block { value: from },
+        }),
+        operation(Action::WriteBlockData {
+            target: to,
+            value: Some(DataOperand::Reference { value: projection }),
+        }),
+    ];
+    let pack = Compiler::compile(&program).unwrap();
+    let entry =
+        std::str::from_utf8(&pack.resources["data/demo/function/increment.mcfunction"]).unwrap();
+    assert!(entry.contains("input set from block 1 80 2 Items"));
+    assert!(entry.contains(
+        r#"data modify block 3 80 4 "$(literal)" set from storage demo:__program_data output"#
+    ));
+    assert!(pack.resources.iter().any(|(path, source)| {
+        path.ends_with("/data_value.mcfunction")
+            && String::from_utf8_lossy(source)
+                .contains("output set from storage demo:__program_data input[$(i0)]")
+            && !String::from_utf8_lossy(source).contains("$(literal)")
+    }));
+}

@@ -1362,6 +1362,25 @@ impl Validator<'_, '_> {
         }
     }
 
+    fn data_operand(
+        &mut self,
+        value: &DataOperand,
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+    ) {
+        match value {
+            DataOperand::Value { value } => self.data_literal(value, owner, ptr),
+            DataOperand::Reference { value } => {
+                self.data_reference(value, context, owner, ptr, true)
+            }
+            DataOperand::Score {
+                value: ScoreOperand::Field(score),
+            } => self.score(score, context, owner, ptr),
+            DataOperand::Score { .. } | DataOperand::Block { .. } => {}
+        }
+    }
+
     fn data_literal(&mut self, value: &sand_commands::NbtValue, owner: &str, ptr: &str) {
         let profile = sand_commands::CommandProfile::new(self.target, false);
         let command = sand_commands::DataTarget::storage("sand:validate")
@@ -1494,22 +1513,7 @@ impl Validator<'_, '_> {
                         &format!("{ptr}/action/target"),
                         false,
                     );
-                    match source {
-                        DataOperand::Value { value } => {
-                            self.data_literal(value, owner, &format!("{ptr}/action/source"))
-                        }
-                        DataOperand::Reference { value } => self.data_reference(
-                            value,
-                            context,
-                            owner,
-                            &format!("{ptr}/action/source"),
-                            true,
-                        ),
-                        DataOperand::Score {
-                            value: ScoreOperand::Field(score),
-                        } => self.score(score, context, owner, &format!("{ptr}/action/source")),
-                        DataOperand::Score { .. } => {}
-                    }
+                    self.data_operand(source, context, owner, &format!("{ptr}/action/source"));
                 }
                 Action::DataRemove { target } => self.data_reference(
                     target,
@@ -2117,8 +2121,8 @@ impl Validator<'_, '_> {
                     self.score(score, context, owner, &format!("{ptr}/action/score"));
                 }
                 Action::WriteBlockData { value, .. } => {
-                    if let Some(ScoreOperand::Field(score)) = value {
-                        self.score(score, context, owner, &format!("{ptr}/action/value"));
+                    if let Some(value) = value {
+                        self.data_operand(value, context, owner, &format!("{ptr}/action/value"));
                     }
                 }
                 Action::AddExperience { amount, .. } => {

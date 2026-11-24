@@ -14,7 +14,7 @@ fn dimension_scopes_and_clone_emit_native_commands() {
     });
     assert!(output);
     assert!(pack.resources.values().any(|file| {
-        String::from_utf8_lossy(file).contains("execute if biome 1 80 1 minecraft:plains")
+        String::from_utf8_lossy(file).contains("execute if biome 8 80 8 minecraft:plains")
     }));
 }
 
@@ -91,7 +91,7 @@ fn block_data_uses_checked_paths_and_integer_operands() {
 #![pack(namespace = "world_probe", minecraft = "26.2")]
 fn run(amount: number) {
     let old = block_data_number(offset(0, 0, 0), "Items[0].count");
-    set_block_data_number(offset(0, 0, 0), "Items[0].count", old + amount);
+    set_block_data(offset(0, 0, 0), "Items[0].count", old + amount);
     remove_block_data(offset(0, 0, 0), "Items[0]");
 }
 "#;
@@ -108,4 +108,15 @@ fn run(amount: number) {
             .any(|error| error.message.contains("path")),
         "{diagnostics:?}"
     );
+}
+
+#[test]
+fn block_data_supports_typed_values_and_copies_through_checked_paths() {
+    let compiled = compile(&analyze_one(include_str!("fixtures/world_ops.sand")));
+    let run = function(&compiled, "language_probe/function/run");
+    assert!(run.contains(
+        r#"data modify block 14 80 1 Items set value [{Slot:0b,id:"minecraft:bread",count:3}]"#
+    ));
+    assert!(run.contains("data modify block 15 80 1 Items set from block 14 80 1 Items"));
+    assert!(run.contains(r#"data modify block 15 80 1 CustomName set value "Supply cache""#));
 }

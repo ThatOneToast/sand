@@ -1099,7 +1099,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Set an integer value or clear a path in a block entity.",
+          "description": "Set or remove a typed value in a loaded block entity.",
           "properties": {
             "op": {
               "const": "write_block_data",
@@ -1112,13 +1112,13 @@
             "value": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/ScoreOperand"
+                  "$ref": "#/$defs/DataOperand"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Integer to set, or omitted to remove the selection."
+              "description": "Typed value to set, or omitted to remove the selection."
             }
           },
           "required": [
@@ -2032,6 +2032,24 @@
             },
             "value": {
               "$ref": "#/$defs/ScoreOperand"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The selected value in a loaded block entity.",
+          "properties": {
+            "kind": {
+              "const": "block",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/BlockDataAddress"
             }
           },
           "required": [

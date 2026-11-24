@@ -1148,9 +1148,12 @@ the selected Minecraft version. A custom biome can use a namespaced identity.
 `block_data_number(at, path)` reads the vanilla integer result of a block
 entity's data query. For example, `block_data_number(offset(0, 0, 1), "Items")`
 reads the number of entries. A failed read returns zero. Use
-`set_block_data_number(at, path, value)` to write a literal or runtime integer
-and `remove_block_data(at, path)` to remove a selection. Paths use checked NBT
-path syntax, and Minecraft applies each block entity's own data rules.
+`set_block_data(at, path, value)` to write a computed integer or a typed NBT
+literal. String and list literals and `Nbt { ... }` compounds work as values.
+`copy_block_data(from, source_path, to, destination_path)` transfers the
+selected value between loaded block entities. The copy requires a present
+source value. Use `remove_block_data(at, path)` to clear a selection.
+Minecraft applies each block entity's own data rules.
 
 `clone_blocks(from, to, destination)` copies an inclusive region to a destination
 corner. Use `masked = true` to preserve the destination beneath source air, or

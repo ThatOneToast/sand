@@ -22,3 +22,13 @@ pub fn count_barrel_stacks() {
     let stacks = block_data_number(offset(0, 0, -1), "Items");
     broadcast!("The barrel contains ${stacks} occupied slots.");
 }
+
+/// Place two stocked barrels ahead of the caller.
+pub fn stock_supply_barrels() {
+    set_block(Block::Barrel, offset(0, 0, 2));
+    set_block(Block::Barrel, offset(1, 0, 2));
+    set_block_data(offset(0, 0, 2), "Items", [
+        Nbt { Slot: false, id: "minecraft:bread", count: 8 },
+    ]);
+    copy_block_data(offset(0, 0, 2), "Items", offset(1, 0, 2), "Items");
+}

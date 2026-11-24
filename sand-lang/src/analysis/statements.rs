@@ -1000,7 +1000,7 @@ impl Cx {
                     }
                 }
                 "block_data_number" => pc::Action::ReadBlockData {
-                    target: self.arg_block_data(body, &bound)?,
+                    target: self.arg_block_data(body, bound["at"], bound["path"])?,
                     score: dest.clone(),
                 },
                 "count_entities" => pc::Action::CountEntities {
@@ -3024,7 +3024,7 @@ impl Cx {
             "give_item"
                 | "damage"
                 | "mount"
-                | "set_block_data_number"
+                | "set_block_data"
                 | "teleport"
                 | "teleport_by"
                 | "play_sound"
@@ -3193,21 +3193,32 @@ impl Cx {
                     damage_type,
                 })
             }
-            "set_block_data_number" => {
-                let target = self.arg_block_data(body, bound)?;
+            "set_block_data" => {
+                let target = self.arg_block_data(body, bound["at"], bound["path"])?;
                 let arg = bound["value"];
                 let ArgValue::Expr(expr) = &arg.value else {
                     self.error("type", body.file, arg.span, "expected an integer value");
                     return None;
                 };
-                let value = match self.simple(body, expr, Ty::Number).ok()? {
-                    Some(Value::Const(value)) => pc::ScoreOperand::Value(value as i32),
-                    Some(Value::Read(score)) => pc::ScoreOperand::Field(score),
-                    None => {
-                        let score = self.temp(body);
-                        self.emit(body, &score, Ty::Number, expr, ops)?;
-                        pc::ScoreOperand::Field(score)
+                let value = if matches!(
+                    expr,
+                    Expr::Struct { .. } | Expr::Array(..) | Expr::Str { .. }
+                ) || Self::is_const_in(body, expr)
+                {
+                    pc::DataOperand::Value {
+                        value: self.const_nbt_value(body, expr, 0)?,
                     }
+                } else {
+                    let value = match self.simple(body, expr, Ty::Number).ok()? {
+                        Some(Value::Const(value)) => pc::ScoreOperand::Value(value as i32),
+                        Some(Value::Read(score)) => pc::ScoreOperand::Field(score),
+                        None => {
+                            let score = self.temp(body);
+                            self.emit(body, &score, Ty::Number, expr, ops)?;
+                            pc::ScoreOperand::Field(score)
+                        }
+                    };
+                    pc::DataOperand::Score { value }
                 };
                 Some(pc::Action::WriteBlockData {
                     target,
@@ -3540,17 +3551,18 @@ impl Cx {
         id.parse().ok()
     }
 
-    /// A vanilla block, or `#tag` for a declared `Block` tag.
     fn arg_block_data(
         &mut self,
         body: &mut BodyCx,
-        bound: &BTreeMap<&str, &Arg>,
+        position: &Arg,
+        path: &Arg,
     ) -> Option<pc::BlockDataAddress> {
-        let at = self.arg_position(body, bound["at"])?;
-        let (path, _, _) = self.arg_string(body.file, bound["path"], "an NBT path")?;
+        let at = self.arg_position(body, position)?;
+        let (path, _, _) = self.arg_string(body.file, path, "an NBT path")?;
         Some(pc::BlockDataAddress { at, path })
     }
 
+    /// A vanilla block, or `#tag` for a declared `Block` tag.
     fn arg_block_test(&mut self, body: &BodyCx, arg: &Arg) -> Option<String> {
         if let ArgValue::Expr(expr) = &arg.value
             && let Some((def, id)) = self.declared(body.module, body.file, expr, DefKind::Tag)
@@ -3851,7 +3863,7 @@ impl Cx {
                 && path.applications.is_empty()
                 && path.last().name == "Nbt"
             {
-                query.nbt = self.query_nbt_compound(body, fields, 0);
+                query.nbt = self.const_nbt_compound(body, fields, 0);
                 ok &= query.nbt.is_some();
             } else {
                 self.error(
@@ -3955,7 +3967,7 @@ impl Cx {
         })
     }
 
-    fn query_nbt_compound(
+    fn const_nbt_compound(
         &mut self,
         body: &BodyCx,
         fields: &[(Ident, Expr)],
@@ -3973,12 +3985,12 @@ impl Cx {
                 );
                 return None;
             }
-            nbt = nbt.field(&field.name, self.query_nbt_value(body, expr, depth + 1)?);
+            nbt = nbt.field(&field.name, self.const_nbt_value(body, expr, depth + 1)?);
         }
         Some(nbt)
     }
 
-    fn query_nbt_value(
+    fn const_nbt_value(
         &mut self,
         body: &BodyCx,
         expr: &Expr,
@@ -3991,7 +4003,7 @@ impl Cx {
                 "limit",
                 file,
                 expr.span(),
-                "NBT query filters may be nested at most 32 levels",
+                "typed NBT values may be nested at most 32 levels",
             );
             return None;
         }
@@ -4007,7 +4019,7 @@ impl Cx {
             Expr::Array(values, _) => NbtValue::List(
                 values
                     .iter()
-                    .map(|element| self.query_nbt_value(body, element, depth + 1))
+                    .map(|element| self.const_nbt_value(body, element, depth + 1))
                     .collect::<Option<_>>()?,
             ),
             Expr::Struct { path, fields, .. }
@@ -4015,7 +4027,7 @@ impl Cx {
                     && path.applications.is_empty()
                     && path.last().name == "Nbt" =>
             {
-                NbtValue::Compound(self.query_nbt_compound(body, fields, depth)?)
+                NbtValue::Compound(self.const_nbt_compound(body, fields, depth)?)
             }
             _ => {
                 let (value, ty) = self.eval(body.module, file, expr, None)?;
@@ -4461,8 +4473,14 @@ impl Cx {
                     at: at?,
                 }
             }
+            "copy_block_data" => pc::Action::WriteBlockData {
+                target: self.arg_block_data(body, bound["to"], bound["destination_path"])?,
+                value: Some(pc::DataOperand::Block {
+                    value: self.arg_block_data(body, bound["from"], bound["source_path"])?,
+                }),
+            },
             "remove_block_data" => pc::Action::WriteBlockData {
-                target: self.arg_block_data(body, bound)?,
+                target: self.arg_block_data(body, bound["at"], bound["path"])?,
                 value: None,
             },
             "clone_blocks" => {

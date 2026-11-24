@@ -74,12 +74,21 @@ impl Lower<'_> {
         module: &str,
         ptr: &str,
     ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
+        let fail = |message| {
+            vec![Diagnostic::error(
+                "SAND_PROGRAM_COMMAND",
+                module,
+                ptr,
+                message,
+            )]
+        };
         let storage = format!("{}:__program_data", self.namespace);
         let mut commands = vec![format!(
             "data modify storage {storage} args set value {{valid:1b}}"
         )];
         let mut indices = 0;
         let mut body = Vec::new();
+        let mut after = Vec::new();
         let mut result = Vec::new();
         let mut written_score = None;
         match action {
@@ -93,6 +102,17 @@ impl Lower<'_> {
                 let source = match source {
                     DataOperand::Reference { value } => {
                         self.data_selection(value, &storage, "input", &mut commands, &mut indices)
+                    }
+                    DataOperand::Block { value } => {
+                        let input = sand_commands::DataTarget::storage(&storage).path("input");
+                        commands.push(input.remove().try_render(&self.profile).map_err(fail)?);
+                        commands.push(
+                            input
+                                .copy_from(&Self::block_data_address(value))
+                                .try_render(&self.profile)
+                                .map_err(fail)?,
+                        );
+                        "input".into()
                     }
                     DataOperand::Value { value } => {
                         commands.push(format!(
@@ -119,6 +139,37 @@ impl Lower<'_> {
                 };
                 body.push(format!("data modify storage {storage} {target_path} {operator} from storage {storage} {source}"));
                 body.extend(self.copy_data_field(&target.field, &storage, "output", true));
+            }
+            Action::WriteBlockData {
+                target,
+                value: Some(DataOperand::Reference { value }),
+            } => {
+                let source =
+                    self.data_selection(value, &storage, "input", &mut commands, &mut indices);
+                let address = Self::block_data_address(target);
+                if indices == 0 {
+                    let from = sand_commands::DataTarget::storage(&storage).path(source);
+                    body.push(
+                        address
+                            .copy_from(&from)
+                            .try_render(&self.profile)
+                            .map_err(fail)?,
+                    );
+                } else {
+                    // Resolve projections into a plain storage value first.
+                    // The authored block path never enters the macro body.
+                    let output = sand_commands::DataTarget::storage(&storage).path("output");
+                    commands.push(output.remove().try_render(&self.profile).map_err(fail)?);
+                    body.push(format!(
+                        "data modify storage {storage} output set from storage {storage} {source}"
+                    ));
+                    after.push(
+                        address
+                            .copy_from(&output)
+                            .try_render(&self.profile)
+                            .map_err(fail)?,
+                    );
+                }
             }
             Action::DataRemove { target } => {
                 if target.path.is_empty() {
@@ -187,6 +238,7 @@ impl Lower<'_> {
             commands.push(format!("execute if data storage {storage} args{{valid:1b}} run function {name} with storage {storage} args"));
             commands.push(format!("data remove storage {storage} args"));
         }
+        commands.extend(after);
         // Only release scratch actually used by this operation. Reads in a
         // bounded collection search must not pay for unrelated write/equality
         // buffers on every element. Snapshot ordering and alias safety stay the
@@ -195,6 +247,8 @@ impl Lower<'_> {
             Action::DataModify { .. } => &["input", "output"],
             Action::DataRemove { .. } => &["output"],
             Action::DataRead { .. } => &["input"],
+            Action::WriteBlockData { .. } if indices == 0 => &["input"],
+            Action::WriteBlockData { .. } => &["input", "output"],
             Action::DataEqual { .. } => &["left", "right", "compare", "unequal"],
             _ => unreachable!("storage operations only"),
         };

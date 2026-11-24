@@ -55,6 +55,24 @@
         "value"
       ],
       "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The selected value in a loaded block entity.",
+      "properties": {
+        "kind": {
+          "const": "block",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-BlockDataAddress.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
     }
   ]
 }

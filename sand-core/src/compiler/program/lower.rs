@@ -2169,10 +2169,16 @@ impl Lower<'_> {
                         run: Box::new(Cmd::Raw(command)),
                     }]
                 }
+                Action::WriteBlockData {
+                    value: Some(DataOperand::Reference { .. }),
+                    ..
+                } => self.data_operation(&operation.action, owner, &path, module, &ptr)?,
                 Action::WriteBlockData { target, value } => {
                     let address = Self::block_data_address(target);
                     match value {
-                        Some(ScoreOperand::Field(score)) => {
+                        Some(DataOperand::Score {
+                            value: ScoreOperand::Field(score),
+                        }) => {
                             // Check the same path with the typed writable data model.
                             address
                                 .set(sand_commands::NbtValue::Int(0))
@@ -2207,11 +2213,20 @@ impl Lower<'_> {
                         }
                         other => {
                             let command = match other {
-                                Some(ScoreOperand::Value(number)) => {
-                                    address.set(sand_commands::NbtValue::Int(*number))
+                                Some(DataOperand::Value { value }) => address.set(value.clone()),
+                                Some(DataOperand::Block { value }) => {
+                                    address.copy_from(&Self::block_data_address(value))
                                 }
+                                Some(DataOperand::Score {
+                                    value: ScoreOperand::Value(number),
+                                }) => address.set(sand_commands::NbtValue::Int(*number)),
                                 None => address.remove(),
-                                Some(ScoreOperand::Field(_)) => unreachable!(),
+                                Some(
+                                    DataOperand::Score {
+                                        value: ScoreOperand::Field(_),
+                                    }
+                                    | DataOperand::Reference { .. },
+                                ) => unreachable!(),
                             };
                             vec![Cmd::Raw(
                                 command

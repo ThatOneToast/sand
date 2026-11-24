@@ -78,8 +78,8 @@ pub enum DataProjection {
  use_when = ["Lowering runtime strings, lists or record values from a typed frontend"],
  avoid_when = ["An integer score operand is sufficient"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Value = "A typed NBT literal.", Reference = "A stored value selection.", Score = "A scoreboard integer encoded as NBT int."),
- variant_fields(Value(value = "Typed NBT literal; opaque raw SNBT is unsupported."), Reference(value = "Stored value selection."), Score(value = "Integer score operand.")),
+ variants(Value = "A typed NBT literal.", Reference = "A stored value selection.", Score = "A scoreboard integer encoded as NBT int.", Block = "A selection from the native data of a block entity."),
+ variant_fields(Value(value = "Typed NBT literal; opaque raw SNBT is unsupported."), Reference(value = "Stored value selection."), Score(value = "Integer score operand."), Block(value = "Block entity and checked path.")),
 )]
 pub enum DataOperand {
     /// A typed literal, staged outside any macro template.
@@ -88,4 +88,6 @@ pub enum DataOperand {
     Reference { value: DataReference },
     /// A scoreboard integer encoded as NBT int.
     Score { value: ScoreOperand },
+    /// The selected value in a loaded block entity.
+    Block { value: BlockDataAddress },
 }

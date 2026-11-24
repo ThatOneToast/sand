@@ -3,7 +3,7 @@ use super::*;
 use crate::compiler::export::ExportCtx;
 use crate::entity::kind::AnyEntity;
 use crate::gameplay::Lifetime;
-use crate::registration::{DatapackRegistration, IntoDatapack, LifecyclePhase};
+use crate::registration::{DatapackRegistration, IntoDatapack};
 use sand_components::{ResourceLocation, effect::Ticks};
 
 pub(super) struct Continuation {
@@ -126,8 +126,8 @@ impl Lower<'_> {
     pub(super) fn register_continuations(
         &mut self,
         context: &ExportCtx<'_>,
-        load: &mut Vec<(String, usize, String)>,
-        tick: &mut Vec<(String, usize, String)>,
+        load: &mut Vec<LifecycleCommand>,
+        tick: &mut Vec<LifecycleCommand>,
     ) -> Result<(), Vec<Diagnostic>> {
         let mut cancellation = Vec::new();
         for continuation in std::mem::take(&mut self.continuations) {
@@ -138,32 +138,13 @@ impl Lower<'_> {
                 module,
                 pointer,
             } = continuation;
-            let (components, lifecycle, tags) = registration.into_parts();
-            debug_assert!(tags.is_empty());
-            for component in components {
-                let record = records::component_to_record(component.as_ref(), Some(context))
-                    .map_err(|error| {
-                        vec![Diagnostic::error(
-                            "SAND_PROGRAM_COMMAND",
-                            &module,
-                            &pointer,
-                            error.to_string(),
-                        )]
-                    })?;
-                self.runtime.own_function(
-                    format!("{}:{}", record.namespace, record.path),
-                    module.clone(),
-                );
-                self.records.push(record);
-            }
-            for (index, action) in lifecycle.into_iter().enumerate() {
-                let output = match action.phase() {
-                    LifecyclePhase::Load => &mut *load,
-                    LifecyclePhase::Tick => &mut *tick,
-                };
-                // This key is a private lifecycle owner, outside valid resource IDs.
-                output.push((format!("wait {id}"), index, action.command().into()));
-            }
+            self.register_owned_runtime(
+                registration,
+                (&format!("wait {id}"), &module, &pointer),
+                context,
+                load,
+                tick,
+            )?;
             cancellation.extend(
                 identity::call(&id, "cancel")
                     .0

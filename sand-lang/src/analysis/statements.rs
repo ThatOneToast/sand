@@ -4806,6 +4806,14 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "transfer_inventory" => pc::Action::TransferInventory {
+                transfer: self.arg_declared(
+                    body,
+                    bound["transfer"],
+                    DefKind::InventoryTransfer,
+                    "an inventory transfer",
+                )?,
+            },
             "place_template" => {
                 let template = bound["template"];
                 let ArgValue::Expr(expr) = &template.value else {

@@ -654,3 +654,37 @@ pub struct CustomBiome {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub foliage_color: Option<u32>,
 }
+
+/// A reusable native player inventory transfer between two numbered slots.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::InventoryTransferDefinition", module = "sand::advanced::compiler",
+ summary = "A reusable native player inventory transfer between two numbered slots.",
+ context = "Action::TransferInventory attempts the move as the executing player. Use distinct slots. An exact amount splits the source stack, and omitted amount moves the full stack.",
+ minecraft = "Lowers through InventoryTransfer with shared identity, stack capacity, locking, and callback semantics.",
+ use_when = ["Moving whole stacks or exact quantities without dropping overflow"],
+ avoid_when = ["Moving stacks to a block or entity outside the current player's numbered inventory"],
+ fields(id = "The transfer identity.", from = "Numbered source slot.", to = "Numbered destination slot.", amount = "Exact quantity, from 1 to 99. Omit for a whole stack.", success = "Optional function invoked as the player after success.", rejected = "Optional function invoked as the player when an admitted transfer is rejected."),
+ example = "use sand::advanced::compiler::InventoryTransferDefinition;",
+)]
+pub struct InventoryTransferDefinition {
+    /// Identity used by transfer operations.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Numbered source slot, from 0 to 35.
+    #[schemars(with = "u8", range(max = 35))]
+    pub from: crate::item::InventoryIndex,
+    /// Numbered destination slot, from 0 to 35.
+    #[schemars(with = "u8", range(max = 35))]
+    pub to: crate::item::InventoryIndex,
+    /// Exact quantity to move. The default moves the whole source stack.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<u32>,
+    /// Invoked as the player after a completed move.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub success: Option<super::FunctionReference>,
+    /// Invoked as the player after an admitted move is rejected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rejected: Option<super::FunctionReference>,
+}

@@ -483,6 +483,51 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::InventoryTransfer => {
+                use sand::inventory::InventoryIndex;
+                let max = i64::from(InventoryIndex::MAX);
+                let Some(from) =
+                    get("from").and_then(|field| self.data_int(module, file, &field.value, 0, max))
+                else {
+                    return;
+                };
+                let Some(to) =
+                    get("to").and_then(|field| self.data_int(module, file, &field.value, 0, max))
+                else {
+                    return;
+                };
+                if from == to {
+                    self.error(
+                        "inventory transfer",
+                        file,
+                        get("to").expect("checked").value.span(),
+                        "source and destination must be distinct numbered player slots",
+                    );
+                    return;
+                }
+                let amount = get("amount")
+                    .and_then(|field| self.data_int(module, file, &field.value, 1, 99))
+                    .map(|value| value as u32);
+                let success =
+                    get("success").and_then(|field| self.data_callback(module, file, &field.value));
+                let rejected = get("rejected")
+                    .and_then(|field| self.data_callback(module, file, &field.value));
+                self.pointers.push((
+                    module_id,
+                    format!("/inventory_transfers/{}", out.inventory_transfers.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.inventory_transfers
+                    .push(pc::InventoryTransferDefinition {
+                        id: location,
+                        from: InventoryIndex::new(from as u8).expect("checked slot index"),
+                        to: InventoryIndex::new(to as u8).expect("checked slot index"),
+                        amount,
+                        success,
+                        rejected,
+                    });
+            }
             DataKind::StructureTemplate => {
                 use sand::registration::DatapackComponent;
                 let Some(field) = get("source") else {
@@ -1436,6 +1481,45 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_callback(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::FunctionReference> {
+        let expr = self.data_expr(file, value, "a callback function name")?;
+        let Expr::Path(path) = expr else {
+            self.error(
+                "type",
+                file,
+                value.span(),
+                "expected a callback function name",
+            );
+            return None;
+        };
+        let def = self.expect_path(
+            module,
+            path,
+            &[DefKind::Function, DefKind::ExternFunction],
+            "a function",
+        )?;
+        if self.defs[def.0].kind == DefKind::Function
+            && !self
+                .fn_slots
+                .get(&def)
+                .is_some_and(|slots| slots.params.is_empty() && slots.ret.is_none())
+        {
+            self.error(
+                "type",
+                file,
+                path.span,
+                "expected a parameterless function with no return value",
+            );
+            return None;
+        }
+        self.function_reference(def)
     }
 
     fn data_biome_number(

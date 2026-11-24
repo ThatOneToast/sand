@@ -246,6 +246,12 @@ pub(super) fn validate(
                 .caps()
                 .supports(sand_version::ComponentFeature::Dialogs)
         }),
+        transfers: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.inventory_transfers)
+            .map(|transfer| transfer.id.to_string())
+            .collect(),
         advancements: program
             .modules
             .iter()
@@ -431,6 +437,21 @@ pub(super) fn validate(
                 ExecutionContext::Player
             };
             validator.call(&tag.function, context, &owner, &format!("{ptr}/function"));
+        }
+        for (index, transfer) in module.inventory_transfers.iter().enumerate() {
+            for (field, callback) in [
+                ("success", &transfer.success),
+                ("rejected", &transfer.rejected),
+            ] {
+                if let Some(callback) = callback {
+                    validator.call(
+                        callback,
+                        ExecutionContext::Player,
+                        &owner,
+                        &format!("/inventory_transfers/{index}/{field}"),
+                    );
+                }
+            }
         }
         for (index, hook) in module.events.iter().enumerate() {
             let ptr = format!("/events/{index}");
@@ -707,6 +728,30 @@ pub(super) fn validate(
                 push(
                     format!("{ptr}/result"),
                     "a recipe result is an item id with a count of 1..=99".into(),
+                );
+            }
+        }
+        for (index, transfer) in module.inventory_transfers.iter().enumerate() {
+            let ptr = format!("/inventory_transfers/{index}");
+            if !resource_ids.insert(format!("inventory transfer {}", transfer.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate inventory transfer `{}`", transfer.id),
+                );
+            }
+            if transfer.from == transfer.to {
+                push(
+                    format!("{ptr}/to"),
+                    "source and destination must be distinct numbered player slots".into(),
+                );
+            }
+            if transfer
+                .amount
+                .is_some_and(|amount| !(1..=99).contains(&amount))
+            {
+                push(
+                    format!("{ptr}/amount"),
+                    "inventory transfers require 1..=99 items".into(),
                 );
             }
         }
@@ -1159,6 +1204,7 @@ fn static_text_error(text: &[TextPart], book_pages: Option<usize>) -> Option<Str
 struct Validator<'a, 'e> {
     dialogs_supported: bool,
     advancements: BTreeMap<String, BTreeSet<String>>,
+    transfers: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
     loot_tables: BTreeSet<String>,
@@ -2253,6 +2299,17 @@ impl Validator<'_, '_> {
                             ));
                         }
                         _ => {}
+                    }
+                }
+                Action::TransferInventory { transfer } => {
+                    self.player(context, owner, &ptr, "moving the executing player's items");
+                    if !self.transfers.contains(&transfer.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/transfer"),
+                            format!("unknown inventory transfer `{transfer}`"),
+                        ));
                     }
                 }
                 Action::CountItems { item, score } => {

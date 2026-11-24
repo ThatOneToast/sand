@@ -278,8 +278,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Velocity reads and bounded non-player velocity writes.
 - [x] Read-only inventory counts for vanilla and custom items, numeric queries
   for checked entity NBT paths, and bounded item removal with a computed count.
-- [ ] Inventory transfers, broader equipment and entity data operations, motion
-  controls, and archetypes.
+- [x] Numbered player-slot inventory transfers through the shared Rust system
+  with whole stacks, exact amounts, component checks, and callbacks.
+- [ ] Broader equipment and entity data operations, motion controls, and
+  archetypes.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
 - [x] Top-level `wait` statements in entity and player functions, with
   per-invocation locals, original dimension, and owner-scoped cancellation.
@@ -317,7 +319,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Native notice dialogs with translated text and player-scoped open and clear.
 - [ ] Broader advancement triggers, worldgen, interactive dialog flows and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
-  transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
+  rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.

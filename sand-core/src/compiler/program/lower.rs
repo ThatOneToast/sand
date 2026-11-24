@@ -11,6 +11,8 @@ use crate::compiler::export::{
 use crate::ir::{Cmd, NumericWrite};
 use std::collections::BTreeMap;
 
+type LifecycleCommand = (String, usize, String);
+
 /// Portable resource bytes and the same runtime provenance used by Rust export.
 pub(super) struct LoweredProgram {
     pub(super) resources: BTreeMap<String, Vec<u8>>,
@@ -304,6 +306,23 @@ pub(super) fn lower(
         is_fallback: target.is_fallback(),
     };
     lower.register_continuations(&ctx, &mut load, &mut tick)?;
+    for module in &program.modules {
+        let module_id = module.id.to_string();
+        for (index, transfer) in module.inventory_transfers.iter().enumerate() {
+            use crate::registration::IntoDatapack;
+            lower.register_owned_runtime(
+                inventory_transfer(transfer).into_datapack(),
+                (
+                    &format!("inventory transfer {}", transfer.id),
+                    &module_id,
+                    &format!("/inventory_transfers/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+    }
     lifecycle::validate_private_objectives(&automatic, &load, &flow_plan.private_objectives)
         .map_err(error)?;
     for generated in flow_plan.functions {
@@ -992,6 +1011,23 @@ fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
     result
 }
 
+fn inventory_transfer(source: &InventoryTransferDefinition) -> crate::gameplay::InventoryTransfer {
+    let mut definition =
+        crate::gameplay::InventoryTransfer::new(source.id.clone(), source.from, source.to);
+    if let Some(amount) = source.amount {
+        definition = definition.amount(amount);
+    }
+    if let Some(callback) = &source.success {
+        let function = reference_id(callback);
+        definition = definition.on_success(move || Cmd::Function(function.clone()));
+    }
+    if let Some(callback) = &source.rejected {
+        let function = reference_id(callback);
+        definition = definition.on_rejected(move || Cmd::Function(function.clone()));
+    }
+    definition
+}
+
 fn custom_biome_component(source: &CustomBiome) -> sand_components::Biome {
     use sand_components::{Biome, BiomeEffects};
     let mut effects = BiomeEffects::new(
@@ -1643,6 +1679,48 @@ impl Lower<'_> {
             self.function(&dispatch, body, &owner, "/events")?;
         }
         Ok(lines)
+    }
+
+    fn register_owned_runtime(
+        &mut self,
+        registration: crate::registration::DatapackRegistration,
+        origin: (&str, &str, &str),
+        context: &crate::compiler::export::ExportCtx<'_>,
+        load: &mut Vec<LifecycleCommand>,
+        tick: &mut Vec<LifecycleCommand>,
+    ) -> Result<(), Vec<Diagnostic>> {
+        use crate::registration::LifecyclePhase;
+        let (owner, module, pointer) = origin;
+        let (components, lifecycle, tags) = registration.into_parts();
+        debug_assert!(
+            tags.is_empty(),
+            "owned runtime contributes lifecycle commands directly"
+        );
+        for component in components {
+            let record = records::component_to_record(component.as_ref(), Some(context)).map_err(
+                |error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_COMMAND",
+                        module,
+                        pointer,
+                        error.to_string(),
+                    )]
+                },
+            )?;
+            self.runtime.own_function(
+                format!("{}:{}", record.namespace, record.path),
+                module.to_owned(),
+            );
+            self.records.push(record);
+        }
+        for (index, action) in lifecycle.into_iter().enumerate() {
+            let output = match action.phase() {
+                LifecyclePhase::Load => &mut *load,
+                LifecyclePhase::Tick => &mut *tick,
+            };
+            output.push((owner.to_owned(), index, action.command().into()));
+        }
+        Ok(())
     }
 
     fn store_command_result(&self, score: &FieldReference, command: String) -> Cmd {
@@ -2303,6 +2381,9 @@ impl Lower<'_> {
                         (Some(item), None) => vec![Cmd::Raw(inventory.clear_item(item))],
                         (None, _) => vec![Cmd::Raw(inventory.clear_all())],
                     }
+                }
+                Action::TransferInventory { transfer } => {
+                    crate::gameplay::InventoryTransfer::invoke(transfer).0
                 }
                 Action::CountItems { item, score } => {
                     let inventory =

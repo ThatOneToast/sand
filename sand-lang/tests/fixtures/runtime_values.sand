@@ -47,12 +47,22 @@ advancement FirstFind {
 advancement HuntPig {
     criteria: { kill: { kill_entity: Entity::Pig } },
 }
+inventory_transfer MoveRations {
+    from: 0,
+    to: 1,
+    amount: 2,
+    success: transfer_accepted,
+    rejected: transfer_denied,
+}
+
 global state Origin { x: float, spread: float }
 player state Ledger {
     requested: number,
     label: string = "new",
     recent: Vec<string>,
     completion_order: number,
+    transfers_accepted: number,
+    transfers_denied: number,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -132,6 +142,21 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe 9");
     } else if all_bread == 3 && custom_bread == 0 && absent == 0 {
         raw!("scoreboard players set @s numeric_probe 3");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn move_rations() { transfer_inventory(MoveRations); }
+
+fn transfer_accepted() { Ledger.transfers_accepted += 1; }
+fn transfer_denied() { Ledger.transfers_denied += 1; }
+
+fn report_transfers() {
+    if Ledger.transfers_accepted == 2 && Ledger.transfers_denied == 1 {
+        raw!("scoreboard players set @s numeric_probe 21");
+    } else if Ledger.transfers_accepted == 0 && Ledger.transfers_denied == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
     }

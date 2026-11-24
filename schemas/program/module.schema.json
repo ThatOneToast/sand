@@ -557,6 +557,25 @@
         },
         {
           "additionalProperties": false,
+          "description": "Run a named inventory transfer for the executing player.",
+          "properties": {
+            "op": {
+              "const": "transfer_inventory",
+              "type": "string"
+            },
+            "transfer": {
+              "description": "Identity of an inventory transfer declared by this program.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "transfer"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Run a server-context function after a delay, replacing any pending\nschedule of the same function.",
           "properties": {
             "function": {
@@ -3323,6 +3342,67 @@
         }
       ]
     },
+    "InventoryTransferDefinition": {
+      "additionalProperties": false,
+      "description": "A reusable native player inventory transfer between two numbered slots.",
+      "properties": {
+        "amount": {
+          "description": "Exact quantity to move. The default moves the whole source stack.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "from": {
+          "description": "Numbered source slot, from 0 to 35.",
+          "format": "uint8",
+          "maximum": 35,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Identity used by transfer operations.",
+          "type": "string"
+        },
+        "rejected": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoked as the player after an admitted move is rejected."
+        },
+        "success": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoked as the player after a completed move."
+        },
+        "to": {
+          "description": "Numbered destination slot, from 0 to 35.",
+          "format": "uint8",
+          "maximum": 35,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
     "ItemHeld": {
       "additionalProperties": false,
       "description": "A test that the executor holds an item.",
@@ -5130,6 +5210,13 @@
     "id": {
       "description": "Explicit semantic identity, independent of source filename.",
       "type": "string"
+    },
+    "inventory_transfers": {
+      "description": "Named inventory transfer definitions owned by this module.",
+      "items": {
+        "$ref": "#/$defs/InventoryTransferDefinition"
+      },
+      "type": "array"
     },
     "items": {
       "description": "Custom items that operations and recipes refer to by id.",

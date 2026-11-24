@@ -14,12 +14,12 @@ pub use model::{
     CookingMethod, CustomBiome, CustomItem, DataField, DataOperand, DataProjection, DataReference,
     DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
     ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow, FlowHook, FlowHookPhase,
-    FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootPool, LootTable,
-    MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack, PlayerEvent,
-    PlayerGameMode, Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag,
-    ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State,
-    StateAttached, TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle,
-    Weather, WorldPredicate, WrittenBookContent,
+    FlowTransition, Function, FunctionReference, InventoryTransferDefinition, ItemHeld, LootItem,
+    LootPool, LootTable, MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack,
+    PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation,
+    ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
+    ScoreRelation, State, StateAttached, TagKind, TagMembership, TeleportDestination, TextColor,
+    TextPart, TextStyle, Weather, WorldPredicate, WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -83,6 +83,7 @@ const CAPABILITIES: &[&str] = &[
     "entity_data_queries",
     "inventory_counts",
     "runtime_item_removal",
+    "inventory_transfers",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

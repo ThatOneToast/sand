@@ -56,6 +56,8 @@ pub enum ParamKind {
     Dialog,
     /// A declared or external native structure template.
     StructureTemplate,
+    /// An authored inventory transfer definition.
+    InventoryTransfer,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -1453,6 +1455,22 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "clear_item(Item::${1:Dirt});",
     },
     Builtin {
+        name: "transfer_inventory",
+        kind: BuiltinKind::Statement,
+        signature: "transfer_inventory(transfer)",
+        summary: "Attempt a declared move between two slots of the current player's inventory.",
+        details: "Moves a whole stack or exact amount. Native stack limits and complete component identity determine whether the destination can accept it.",
+        minecraft: "A registered native inventory workflow with a shared lock and checked writes.",
+        needs_player: true,
+        params: &[p(
+            "transfer",
+            ParamKind::InventoryTransfer,
+            true,
+            "The declared inventory transfer.",
+        )],
+        snippet: "transfer_inventory(${1:MoveRations});",
+    },
+    Builtin {
         name: "clear_inventory",
         kind: BuiltinKind::Statement,
         signature: "clear_inventory()",
@@ -1827,6 +1845,8 @@ pub enum FieldKind {
     ResourceId,
     /// A quoted path to a binary asset relative to the package root.
     AssetPath,
+    /// Parameterless function that runs after a native operation.
+    Callback,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -2315,6 +2335,46 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "inventory_transfer",
+        "from",
+        FieldKind::Int,
+        true,
+        "Source inventory slot, from 0 to 35.",
+        "${1:0}",
+    ),
+    f(
+        "inventory_transfer",
+        "to",
+        FieldKind::Int,
+        true,
+        "Destination inventory slot, from 0 to 35.",
+        "${1:9}",
+    ),
+    f(
+        "inventory_transfer",
+        "amount",
+        FieldKind::Int,
+        false,
+        "Exact amount to move, from 1 to 99. Omit for the whole stack.",
+        "${1:2}",
+    ),
+    f(
+        "inventory_transfer",
+        "success",
+        FieldKind::Callback,
+        false,
+        "Run as the player after delivery and source debit.",
+        "${1:on_success}",
+    ),
+    f(
+        "inventory_transfer",
+        "rejected",
+        FieldKind::Callback,
+        false,
+        "Run as the player if the move cannot be completed.",
+        "${1:on_rejected}",
+    ),
+    f(
         "structure_template",
         "source",
         FieldKind::AssetPath,
@@ -2490,6 +2550,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "inventory_transfer",
+        "`inventory_transfer Name { from: 0, to: 9 }` declares a checked move for `transfer_inventory`.",
     ),
     (
         "structure_template",

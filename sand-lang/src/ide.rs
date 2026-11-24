@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::InventoryTransfer, _) => (
+                    format!("{vis}inventory_transfer {}", def.name),
+                    format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
+                ),
                 (crate::ast::DataKind::StructureTemplate, _) => (
                     format!("{vis}structure_template {}", def.name),
                     format!("Native template `{id}`. Use it with `place_template`."),
@@ -1158,7 +1162,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Dialog
         | DefKind::Dimension
         | DefKind::Biome
-        | DefKind::StructureTemplate => CompletionKind::Constant,
+        | DefKind::StructureTemplate
+        | DefKind::InventoryTransfer => CompletionKind::Constant,
     }
 }
 
@@ -1833,6 +1838,11 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("InventoryTransfer") => {
+                return scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::InventoryTransfer
+                });
+            }
             Some("StructureTemplate") => {
                 return scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::StructureTemplate
@@ -2334,6 +2344,16 @@ fn data_completions(
             out
         }
         FieldKind::Text | FieldKind::TextList => vec![translation_completion()],
+        FieldKind::Callback => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| {
+                matches!(
+                    analysis.def(*def).kind,
+                    DefKind::Function | DefKind::ExternFunction
+                )
+            })
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
         FieldKind::Registry("Biome") => {
             let mut out = registry("Biome");
             out.extend(
@@ -2422,6 +2442,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot",
             "loot table",
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "inventory_transfer",
+            "checked inventory move",
+            "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
         ),
         Completion::snippet(
             "structure_template",
@@ -2726,6 +2751,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Advancement => "Advancement",
                 ParamKind::Dialog => "Dialog",
                 ParamKind::StructureTemplate => "StructureTemplate",
+                ParamKind::InventoryTransfer => "InventoryTransfer",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

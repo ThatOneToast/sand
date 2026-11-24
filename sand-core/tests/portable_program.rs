@@ -35,6 +35,7 @@ fn counter() -> Program {
             dimensions: vec![],
             biomes: vec![],
             structure_templates: vec![],
+            inventory_transfers: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

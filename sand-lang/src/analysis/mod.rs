@@ -155,6 +155,8 @@ pub enum DefKind {
     Biome,
     /// `structure_template Name { ... }`.
     StructureTemplate,
+    /// `inventory_transfer Name { ... }`.
+    InventoryTransfer,
 }
 
 impl DefKind {
@@ -187,6 +189,7 @@ impl DefKind {
             DefKind::Dimension => "dimension",
             DefKind::Biome => "biome",
             DefKind::StructureTemplate => "structure template",
+            DefKind::InventoryTransfer => "inventory transfer",
         }
     }
 }
@@ -1098,6 +1101,7 @@ impl Cx {
                     crate::ast::DataKind::Dimension => DefKind::Dimension,
                     crate::ast::DataKind::Biome => DefKind::Biome,
                     crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
+                    crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3042,6 +3046,7 @@ impl Cx {
             dimensions: Vec::new(),
             biomes: Vec::new(),
             structure_templates: Vec::new(),
+            inventory_transfers: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

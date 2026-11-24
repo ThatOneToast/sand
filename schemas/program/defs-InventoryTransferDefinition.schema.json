@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A reusable native player inventory transfer between two numbered slots.",
+  "properties": {
+    "amount": {
+      "description": "Exact quantity to move. The default moves the whole source stack.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "from": {
+      "description": "Numbered source slot, from 0 to 35.",
+      "format": "uint8",
+      "maximum": 35,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "id": {
+      "description": "Identity used by transfer operations.",
+      "type": "string"
+    },
+    "rejected": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Invoked as the player after an admitted move is rejected."
+    },
+    "success": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Invoked as the player after a completed move."
+    },
+    "to": {
+      "description": "Numbered destination slot, from 0 to 35.",
+      "format": "uint8",
+      "maximum": 35,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "from",
+    "to"
+  ],
+  "type": "object"
+}

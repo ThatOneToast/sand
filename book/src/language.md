@@ -1312,6 +1312,34 @@ Use `clear_item(item, count = quantity)` with a constant or computed
 `number` to remove up to that many matches. Zero removes nothing. A negative
 runtime count skips removal.
 
+### Moving items between inventory slots
+
+An `inventory_transfer` moves items between two explicit slots of the current
+player's inventory. Slots 0 through 8 are the hotbar. Slots 9 through 35 are the
+main inventory.
+
+```rust,ignore
+inventory_transfer StowRations {
+    from: 0,
+    to: 9,
+    amount: 2,
+    success: packed,
+    rejected: show_rejection,
+}
+
+fn pack_rations() {
+    transfer_inventory(StowRations);
+}
+
+fn packed() { actionbar!("{green}Packed two rations"); }
+fn show_rejection() { actionbar!("{red}The move could not be completed"); }
+```
+
+Use a constant `amount` from 1 to 99 for an exact move. Omit it to move the
+whole stack. An occupied slot accepts items when their identity and components
+match and it has capacity. The optional zero-argument callbacks run as the
+player after the attempt releases the inventory lock.
+
 ### Structure templates
 
 Save a structure as a Minecraft gzip NBT file and put it inside the package.
@@ -1730,7 +1758,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers with exact amounts or whole stacks and callbacks | combat, abilities, encounters, jobs, menus, HUD, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

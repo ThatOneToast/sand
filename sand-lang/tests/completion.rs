@@ -79,6 +79,7 @@ fn item_level() {
             "dimension",
             "biome",
             "structure_template",
+            "inventory_transfer",
             "event",
             "loot",
             "recipe shapeless",
@@ -427,6 +428,15 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "biome Garden {}\nfn check() { if biome_is(|, pos(0, 80, 0)) {} }",
         &["Garden", "Biome::Plains"],
         &["Dimension::Overworld"],
+    );
+    exactly(
+        "inventory_transfer Rations {\n    |\n}",
+        &["from", "to", "amount", "success", "rejected"],
+    );
+    includes_excludes(
+        "inventory_transfer Rations { from: 0, to: 1 }\nfn move() { transfer_inventory(|); }",
+        &["Rations"],
+        &["Block::Stone"],
     );
     exactly("structure_template Marker {\n    |\n}", &["source"]);
     includes_excludes(

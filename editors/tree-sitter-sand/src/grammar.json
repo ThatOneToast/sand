@@ -946,6 +946,10 @@
                 {
                   "type": "STRING",
                   "value": "structure_template"
+                },
+                {
+                  "type": "STRING",
+                  "value": "inventory_transfer"
                 }
               ]
             },

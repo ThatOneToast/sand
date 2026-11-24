@@ -556,6 +556,25 @@
     },
     {
       "additionalProperties": false,
+      "description": "Run a named inventory transfer for the executing player.",
+      "properties": {
+        "op": {
+          "const": "transfer_inventory",
+          "type": "string"
+        },
+        "transfer": {
+          "description": "Identity of an inventory transfer declared by this program.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "transfer"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Run a server-context function after a delay, replacing any pending\nschedule of the same function.",
       "properties": {
         "function": {

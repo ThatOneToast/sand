@@ -1,7 +1,7 @@
 //! Owned portable envelope definitions.
 use super::{
-    Advancement, CustomBiome, EventHook, FlatDimension, Function, NoticeDialog, Operation, State,
-    TagMembership, WorldPredicate,
+    Advancement, CustomBiome, EventHook, FlatDimension, Function, InventoryTransferDefinition,
+    NoticeDialog, Operation, State, TagMembership, WorldPredicate,
 };
 use sand_components::{DamageType, ResourceLocation, StructureTemplate};
 use schemars::JsonSchema;
@@ -118,7 +118,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", inventory_transfers = "Reusable inventory transfers between numbered player slots."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -181,6 +181,9 @@ pub struct Module {
     /// Native templates whose bytes are supplied in the envelope.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub structure_templates: Vec<StructureTemplate>,
+    /// Named inventory transfer definitions owned by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inventory_transfers: Vec<InventoryTransferDefinition>,
 }
 
 mod asset_encoding {

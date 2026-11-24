@@ -222,9 +222,40 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("RUNTIME_ITEM_CLEAR", "if score #safe_clear numeric_probe matches 1")
             self.send("execute as NumericB run function runtime_values:inspect_inventory")
             self.check("RUNTIME_ITEM_CLEAR_ISOLATION", "if score NumericB numeric_probe matches 3")
+            self.check_inventory_transfers()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
+
+
+    def check_inventory_transfers(self):
+        for player, count in (("NumericA", 5), ("NumericB", 7)):
+            self.send(
+                f"item replace entity {player} hotbar.0 with "
+                f"minecraft:bread[minecraft:custom_data={{transfer_probe:9}}] {count}"
+            )
+            self.send(f"item replace entity {player} hotbar.1 with minecraft:air")
+
+        def slot(player, index, count):
+            entry = f'{{Slot:{index}b,id:"minecraft:bread",count:{count},components:'
+            entry += '{"minecraft:custom_data":{transfer_probe:9}}}'
+            return f"if data entity {player} Inventory[{entry}]"
+
+        move = "execute as NumericA run function runtime_values:move_rations"
+        self.send(move)
+        self.check("TRANSFER_SPLIT_SOURCE", slot("NumericA", 0, 3))
+        self.check("TRANSFER_SPLIT_DESTINATION", slot("NumericA", 1, 2))
+        self.send(move)
+        self.check("TRANSFER_MERGE_SOURCE", slot("NumericA", 0, 1))
+        self.check("TRANSFER_MERGE_DESTINATION", slot("NumericA", 1, 4))
+        self.send(move)
+        self.check("TRANSFER_REJECT_SOURCE", slot("NumericA", 0, 1))
+        self.check("TRANSFER_REJECT_DESTINATION", slot("NumericA", 1, 4))
+        self.check("TRANSFER_OTHER_PLAYER_SOURCE", slot("NumericB", 0, 7))
+        self.check("TRANSFER_OTHER_PLAYER_DESTINATION", "unless data entity NumericB Inventory[{Slot:1b}]")
+        for player, state in (("NumericA", 21), ("NumericB", 0)):
+            self.send(f"execute as {player} run function runtime_values:report_transfers")
+            self.check(f"TRANSFER_CALLBACKS_{player}", f"if score {player} numeric_probe matches {state}")
 
 
 def main():

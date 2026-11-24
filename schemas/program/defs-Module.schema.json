@@ -70,6 +70,13 @@
       "description": "Explicit semantic identity, independent of source filename.",
       "type": "string"
     },
+    "inventory_transfers": {
+      "description": "Named inventory transfer definitions owned by this module.",
+      "items": {
+        "$ref": "defs-InventoryTransferDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "items": {
       "description": "Custom items that operations and recipes refer to by id.",
       "items": {

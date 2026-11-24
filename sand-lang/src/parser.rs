@@ -573,6 +573,7 @@ impl Builder<'_> {
                     "dimension" => DataKind::Dimension,
                     "biome" => DataKind::Biome,
                     "structure_template" => DataKind::StructureTemplate,
+                    "inventory_transfer" => DataKind::InventoryTransfer,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

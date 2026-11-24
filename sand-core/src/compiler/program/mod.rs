@@ -9,16 +9,17 @@ mod validate;
 pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
-    Action, Amount, Audience, BiomeMatches, BlockDataAddress, BlockMatches, BlockPosition, BossBar,
-    BossBarColor, BossBarStyle, Condition, CookingMethod, CustomItem, DataField, DataOperand,
-    DataProjection, DataReference, DimensionMatches, EntitiesExist, EntityData, EntityFlag,
-    EntityQuery, EntitySort, EventHook, ExecutionContext, FieldReference, FlagSet, Flow, FlowHook,
-    FlowHookPhase, FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootPool,
-    LootTable, MessageChannel, Module, ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode,
-    Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField,
-    ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached,
-    TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle, Weather,
-    WorldPredicate, WrittenBookContent,
+    Action, Advancement, AdvancementCriterion, AdvancementDisplay, Amount, Audience, BiomeMatches,
+    BlockDataAddress, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle, Condition,
+    CookingMethod, CustomItem, DataField, DataOperand, DataProjection, DataReference,
+    DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
+    ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase, FlowTransition,
+    Function, FunctionReference, ItemHeld, LootItem, LootPool, LootTable, MessageChannel, Module,
+    ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity,
+    Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
+    ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    TeleportDestination, TextColor, TextPart, TextStyle, Weather, WorldPredicate,
+    WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -45,6 +46,7 @@ const CAPABILITIES: &[&str] = &[
     "translated_text",
     "interactive_text",
     "written_books",
+    "advancements",
     "sounds",
     "particles",
     "effects",

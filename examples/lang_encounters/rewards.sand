@@ -20,3 +20,19 @@ recipe GuardTrim {
     addition: Item::AmethystShard,
     trim_pattern: "minecraft:sentry",
 }
+
+/// Recognize a supply find or a successful hunt.
+advancement RaidSupply {
+    display: {
+        icon: Item::AmethystShard,
+        title: "{light_purple}Ready for the raid",
+        description: "Find amethyst or defeat a zombie.",
+        background: "minecraft:gui/advancements/backgrounds/adventure",
+    },
+    criteria: {
+        collect_shard: { inventory_item: Item::AmethystShard },
+        defeat_zombie: { kill_entity: Entity::Zombie },
+    },
+    require_any: true,
+    experience: 5,
+}

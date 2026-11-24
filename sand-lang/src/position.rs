@@ -296,9 +296,10 @@ fn tag_type(header: &str) -> Option<&'static str> {
 }
 
 fn data_keyword(word: &str) -> Option<&'static str> {
-    ["item", "recipe", "tag", "bossbar", "loot"]
-        .into_iter()
-        .find(|k| *k == word)
+    crate::builtins::DATA_KINDS
+        .iter()
+        .map(|(keyword, _)| *keyword)
+        .find(|keyword| *keyword == word)
 }
 
 /// Classify one enclosing delimiter from the text before it.

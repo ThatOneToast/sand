@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla condition that records one piece of player advancement progress.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Have an item on a matching inventory change.",
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "inventory_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Place a block of the given type.",
+      "properties": {
+        "block": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "place_block",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Receive player kill credit for an entity of the given type.",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "kill_entity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "type": "object"
+    }
+  ]
+}

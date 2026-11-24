@@ -74,6 +74,7 @@ fn item_level() {
             "bossbar",
             "damage_type",
             "predicate",
+            "advancement",
             "event",
             "loot",
             "recipe shapeless",
@@ -369,6 +370,10 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "fn f() { title!(|); }",
         &["Text::translate"],
         &["Text::hover", "Text::suggest"],
+    );
+    exactly(
+        "advancement Find {\n    |\n}",
+        &["criteria", "display", "require_any", "experience"],
     );
     exactly("tag T: Block {\n    |\n}", &["values", "replace"]);
     includes_excludes(

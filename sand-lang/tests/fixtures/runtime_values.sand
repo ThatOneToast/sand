@@ -19,6 +19,29 @@ recipe GuardTrim {
     addition: Item::AmethystShard,
     trim_pattern: "minecraft:sentry",
 }
+advancement ReadAndWrite {
+    criteria: {
+        collect_paper: { inventory_item: Item::Paper },
+        collect_book: { inventory_item: Item::WrittenBook },
+    },
+    experience: 1,
+}
+advancement FirstFind {
+    display: {
+        icon: Item::Paper,
+        title: "{gold}First find",
+        description: "Collect paper or amethyst.",
+        background: "minecraft:gui/advancements/backgrounds/adventure",
+    },
+    criteria: {
+        collect_paper: { inventory_item: Item::Paper },
+        collect_amethyst: { inventory_item: Item::AmethystShard },
+    },
+    require_any: true,
+}
+advancement HuntPig {
+    criteria: { kill: { kill_entity: Entity::Pig } },
+}
 global state Origin { x: float, spread: float }
 player state Ledger { requested: number, label: string = "new", recent: Vec<string> }
 impl Ledger {
@@ -45,6 +68,9 @@ fn show_localized() {
     chat!(Text::translate("chat.type.text", "{player}", Text::translate("chat.type.text", label, "Native text")));
     chat!(Text::hover(Text::copy("{aqua}Journal code", "SAND-JOURNAL-PROBE"), "Native text"));
     give_item(LocalizedPaper);
+}
+
+fn give_handbook() {
     give_item(Handbook);
 }
 

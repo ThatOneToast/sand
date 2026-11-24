@@ -55,6 +55,9 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("STATE_IMPL_A", "if score #impl_a numeric_probe matches 1")
             self.check("STATE_IMPL_B", "if score #impl_b numeric_probe matches 1")
             self.check("PLAYER_PROPERTIES", "if score #property numeric_probe matches 1")
+            for name, expected in (("NumericA", 5), ("NumericB", 3)):
+                self.send(f"execute store result score #xp numeric_probe run experience query {name} points")
+                self.check(f"{name}_EXPERIENCE", f"if score #xp numeric_probe matches {expected}")
             self.send("execute as NumericA at @s positioned 10.25 70 20.5 run function runtime_values:show_particles")
             self.send("execute as NumericA run function runtime_values:show_localized")
             self.check(
@@ -63,15 +66,31 @@ class ValuesHarness(WorldGameplayHarness):
                 '"minecraft:custom_name".extra[{translate:"item.minecraft.paper"}]',
             )
             self.check("TRANSLATION_CLEANUP", "unless data storage runtime_values:__program_text p0_1_0_0_0")
+            self.check(
+                "ADVANCEMENT_ANY",
+                "if entity @a[name=NumericA,advancements={runtime_values:first_find=true}]",
+            )
+            self.check(
+                "ADVANCEMENT_ALL_PENDING",
+                "if entity @a[name=NumericA,advancements={runtime_values:read_and_write=false}]",
+            )
+            self.send("execute as NumericA run function runtime_values:give_handbook")
+            self.check(
+                "ADVANCEMENT_ALL_READY",
+                "if entity @a[name=NumericA,advancements={runtime_values:read_and_write=true}]",
+            )
+            self.send("execute store result score #xp numeric_probe run experience query NumericA points")
+            self.check("ADVANCEMENT_EXPERIENCE", "if score #xp numeric_probe matches 6")
+            self.check(
+                "ADVANCEMENT_PLAYER_ISOLATION",
+                "if entity @a[name=NumericB,advancements={runtime_values:first_find=false,runtime_values:read_and_write=false}]",
+            )
             book = 'Inventory[{id:"minecraft:written_book"}].components."minecraft:written_book_content"'
             self.check("WRITTEN_BOOK_PAGES", f"if data entity NumericA {book}.pages[1]")
             self.check(
                 "WRITTEN_BOOK_NAVIGATION",
                 f'if data entity NumericA {book}.pages[0].raw.extra[0].click_event{{action:"change_page",page:2}}',
             )
-            for name, expected in (("NumericA", 5), ("NumericB", 3)):
-                self.send(f"execute store result score #xp numeric_probe run experience query {name} points")
-                self.check(f"{name}_EXPERIENCE", f"if score #xp numeric_probe matches {expected}")
             self.load_test_chunk("minecraft:overworld")
             self.send('summon minecraft:pig 0 70 0 {NoAI:1b,Tags:["numeric_probe"]}')
             self.send("function runtime_values:mob")
@@ -123,6 +142,11 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("function runtime_values:attributed_hit")
             self.check("REFERENCE_KILL_CREDIT_A", "if score NumericA reference_kills matches 1")
             self.check("REFERENCE_KILL_CREDIT_B", "if score NumericB reference_kills matches 0")
+            self.check(
+                "ADVANCEMENT_KILL_CREDIT",
+                "if entity @a[name=NumericA,advancements={runtime_values:hunt_pig=true}] "
+                "if entity @a[name=NumericB,advancements={runtime_values:hunt_pig=false}]",
+            )
             start = len(self.lines)
             self.send("schedule function runtime_values:check_dead_reference 25t")
             self.wait_for(self.marker_pattern("__SAND_REFERENCE_DEAD_OK__"), "dead-reference", start)

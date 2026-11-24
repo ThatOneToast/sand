@@ -424,6 +424,20 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, advancement) in module.advancements.iter().enumerate() {
+            let fail = |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/advancements/{index}"),
+                    message,
+                )]
+            };
+            let component = advancement_component(advancement, &lower.holders).map_err(fail)?;
+            let record = records::component_to_record(&component, Some(&ctx))
+                .map_err(|error| fail(error.to_string()))?;
+            lower.records.push(record);
+        }
         for (index, predicate) in module.predicates.iter().enumerate() {
             let fail = |message| {
                 vec![Diagnostic::error(
@@ -903,6 +917,72 @@ fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
         result = result.pool(pool);
     }
     result
+}
+
+fn advancement_component(
+    advancement: &Advancement,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> Result<sand_components::Advancement, String> {
+    use sand_components::{
+        AdvancementDisplay, AdvancementIcon, AdvancementRewards, AdvancementTrigger, Criterion,
+        EntityPredicate,
+    };
+    let mut built = sand_components::Advancement::new(advancement.id.clone());
+    if let Some(display) = &advancement.display {
+        let icon = display
+            .icon
+            .parse::<sand_components::ItemId>()
+            .map_err(|err| err.to_string())?;
+        let mut visible = AdvancementDisplay::new(
+            AdvancementIcon::new(icon),
+            static_text_component(&display.title, holders),
+            static_text_component(&display.description, holders),
+        );
+        if let Some(background) = &display.background {
+            visible = visible.background(background.clone());
+        }
+        built = built.display(visible);
+    }
+    for (name, criterion) in &advancement.criteria {
+        let trigger = match criterion {
+            AdvancementCriterion::InventoryItem { item } => {
+                let item = item
+                    .parse::<sand_components::ItemId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::inventory_changed(vec![item])
+            }
+            AdvancementCriterion::PlaceBlock { block } => {
+                let block = block
+                    .parse::<sand_components::BlockId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::placed_block(Some(block), None, None, None)
+            }
+            AdvancementCriterion::KillEntity { entity } => {
+                let entity = entity
+                    .parse::<sand_components::EntityTypeId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::PlayerKilledEntity {
+                    entity: Some(EntityPredicate::type_(entity)),
+                    killing_blow: None,
+                }
+            }
+        };
+        built = built.criterion(name, Criterion::new(trigger));
+    }
+    let requirements = if advancement.require_any {
+        vec![advancement.criteria.keys().cloned().collect()]
+    } else {
+        advancement
+            .criteria
+            .keys()
+            .map(|name| vec![name.clone()])
+            .collect()
+    };
+    built = built.requirements(requirements);
+    if advancement.experience > 0 {
+        built = built.rewards(AdvancementRewards::new().experience(advancement.experience));
+    }
+    Ok(built)
 }
 
 fn world_predicate_component(

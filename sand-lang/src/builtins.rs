@@ -1700,6 +1700,10 @@ pub enum FieldKind {
     Ingredients,
     /// Text with style interpolation, such as `"{red}Ruby Sword"`.
     Text,
+    /// Stable criterion names mapped to typed advancement triggers.
+    AdvancementCriteria,
+    /// Icon, title, description and background for an advancement.
+    AdvancementDisplay,
     /// The author, title and pages of a written book.
     WrittenBook,
     /// A quoted namespaced resource location.
@@ -2159,6 +2163,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "Probability from zero to one.",
         "${1:0.5}",
     ),
+    f(
+        "advancement",
+        "criteria",
+        FieldKind::AdvancementCriteria,
+        true,
+        "Named criteria using `inventory_item`, `place_block`, or `kill_entity`.",
+        "{ ${1:collect}: { inventory_item: Item::${2:Diamond} } }",
+    ),
+    f(
+        "advancement",
+        "display",
+        FieldKind::AdvancementDisplay,
+        false,
+        "Visible advancement with a vanilla icon, title, description and optional background.",
+        "{ icon: Item::${1:Diamond}, title: \"${2:Title}\", description: \"${3:Description}\", background: \"${4:minecraft:gui/advancements/backgrounds/stone}\" }",
+    ),
+    f(
+        "advancement",
+        "require_any",
+        FieldKind::Bool,
+        false,
+        "Complete when any criterion is met. By default every criterion must be met.",
+        "true",
+    ),
+    f(
+        "advancement",
+        "experience",
+        FieldKind::Int,
+        false,
+        "Nonnegative experience points awarded at completion.",
+        "${1:5}",
+    ),
 ];
 
 /// Fields of one declaration kind.
@@ -2174,7 +2210,7 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     ),
     (
         "recipe",
-        "`recipe Name { shaped: [...], key: {...}, result: ... }` adds a crafting, cooking, stonecutting, or smithing recipe. Choose the type with exactly one of `shaped`, `shapeless`, `smelting`, `blasting`, `smoking`, `campfire`, `stonecutting`, or `smithing`.",
+        "`recipe Name { shaped: [...], key: {...}, result: ... }` adds a crafting, cooking, stonecutting, or smithing recipe. Choose the type with exactly one of `shaped`, `shapeless`, `smelting`, `blasting`, `smoking`, `campfire`, `stonecutting`, `smithing`, or `smithing_trim`.",
     ),
     (
         "bossbar",
@@ -2187,6 +2223,18 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "tag",
         "`tag Name: Item { values: [...] }` groups values of one type: `Item`, `Block`, or `Entity`. An item tag can be a recipe ingredient; any tag can include other tags of the same type.",
+    ),
+    (
+        "damage_type",
+        "`damage_type Name { ... }` declares a native damage type for `damage(..., type = Name)`.",
+    ),
+    (
+        "predicate",
+        "`predicate Name { ... }` declares a reusable native world condition for functions and loot pools.",
+    ),
+    (
+        "advancement",
+        "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
     ),
 ];
 

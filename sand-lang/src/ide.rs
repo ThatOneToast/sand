@@ -225,6 +225,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Advancement, _) => (
+                    format!("{vis}advancement {}", def.name),
+                    format!(
+                        "Native advancement `{id}`. Minecraft records progress for each player."
+                    ),
+                ),
                 (crate::ast::DataKind::Predicate, _) => (
                     format!("{vis}predicate {}", def.name),
                     format!(
@@ -527,17 +533,10 @@ fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<
         })
         .or_else(|| {
             // On the declaration keyword itself.
-            [
-                "item",
-                "recipe",
-                "tag",
-                "bossbar",
-                "loot",
-                "damage_type",
-                "predicate",
-            ]
-            .into_iter()
-            .find(|k| *k == word && before.trim().is_empty())
+            builtins::DATA_KINDS
+                .iter()
+                .map(|(keyword, _)| *keyword)
+                .find(|keyword| *keyword == word && before.trim().is_empty())
         });
     if let Some(keyword) = data_keyword {
         if let Some(field) = builtins::data_fields(keyword).find(|f| f.name == word)
@@ -1138,7 +1137,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::BossBar
         | DefKind::Loot
         | DefKind::DamageType
-        | DefKind::Predicate => CompletionKind::Constant,
+        | DefKind::Predicate
+        | DefKind::Advancement => CompletionKind::Constant,
     }
 }
 
@@ -2365,6 +2365,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot",
             "loot table",
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "advancement",
+            "native advancement",
+            "advancement ${1:Milestone} { criteria: { ${2:collect}: { inventory_item: Item::${3:Diamond} } } }",
         ),
         Completion::snippet(
             "predicate",

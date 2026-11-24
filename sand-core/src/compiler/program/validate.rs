@@ -687,6 +687,75 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, advancement) in module.advancements.iter().enumerate() {
+            let ptr = format!("/advancements/{index}");
+            if !resource_ids.insert(format!("advancement {}", advancement.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate advancement `{}`", advancement.id),
+                );
+            }
+            if advancement.criteria.is_empty() {
+                push(
+                    format!("{ptr}/criteria"),
+                    "an advancement needs at least one criterion".into(),
+                );
+            }
+            if advancement.experience < 0 {
+                push(
+                    format!("{ptr}/experience"),
+                    "advancement experience must be nonnegative".into(),
+                );
+            }
+            for (name, criterion) in &advancement.criteria {
+                let criteria_path = format!(
+                    "{ptr}/criteria/{}",
+                    name.replace('~', "~0").replace('/', "~1")
+                );
+                if name.trim().is_empty() || name.chars().any(char::is_control) {
+                    push(
+                        criteria_path.clone(),
+                        "criterion names must be nonblank and contain no control characters".into(),
+                    );
+                }
+                let (id, registry, field) = match criterion {
+                    AdvancementCriterion::InventoryItem { item } => {
+                        (item, "minecraft:item", "item")
+                    }
+                    AdvancementCriterion::PlaceBlock { block } => {
+                        (block, "minecraft:block", "block")
+                    }
+                    AdvancementCriterion::KillEntity { entity } => {
+                        (entity, "minecraft:entity_type", "entity")
+                    }
+                };
+                if !syntax_id(id)
+                    || !available(id, registry)
+                    || (field == "item" && custom_items.contains(id))
+                {
+                    push(
+                        format!("{criteria_path}/{field}"),
+                        format!("`{id}` is not a vanilla {field} identity"),
+                    );
+                }
+            }
+            if let Some(display) = &advancement.display {
+                if !item_id(&display.icon) || custom_items.contains(&display.icon) {
+                    push(
+                        format!("{ptr}/display/icon"),
+                        "an advancement icon needs a vanilla item".into(),
+                    );
+                }
+                for (field, text) in [
+                    ("title", &display.title),
+                    ("description", &display.description),
+                ] {
+                    if let Some(error) = static_text_error(text, None) {
+                        push(format!("{ptr}/display/{field}"), error);
+                    }
+                }
+            }
+        }
         for (index, predicate) in module.predicates.iter().enumerate() {
             let ptr = format!("/predicates/{index}");
             if !resource_ids.insert(format!("predicate {}", predicate.id)) {

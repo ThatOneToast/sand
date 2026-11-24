@@ -1394,6 +1394,145 @@
         }
       ]
     },
+    "Advancement": {
+      "additionalProperties": false,
+      "description": "A named native advancement with typed criteria and optional presentation.",
+      "properties": {
+        "criteria": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AdvancementCriterion"
+          },
+          "description": "Nonempty map of stable names to native criteria.",
+          "type": "object"
+        },
+        "display": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdvancementDisplay"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional presentation for a visible milestone."
+        },
+        "experience": {
+          "default": 0,
+          "description": "Experience points awarded at completion, or zero for no reward.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Advancement identity.",
+          "type": "string"
+        },
+        "require_any": {
+          "description": "Whether one criterion is sufficient for completion.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "criteria"
+      ],
+      "type": "object"
+    },
+    "AdvancementCriterion": {
+      "description": "A vanilla condition that records one piece of player advancement progress.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Have an item on a matching inventory change.",
+          "properties": {
+            "item": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "inventory_item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Place a block of the given type.",
+          "properties": {
+            "block": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "place_block",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "block"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Receive player kill credit for an entity of the given type.",
+          "properties": {
+            "entity": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "kill_entity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "entity"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AdvancementDisplay": {
+      "additionalProperties": false,
+      "description": "The optional native presentation of an advancement.",
+      "properties": {
+        "background": {
+          "description": "Root texture identity. Minecraft 26.3 requires one for displayed roots.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "Static rich description.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        },
+        "icon": {
+          "description": "Vanilla item identity used as the icon.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Static rich title.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "icon",
+        "title",
+        "description"
+      ],
+      "type": "object"
+    },
     "Amount": {
       "anyOf": [
         {
@@ -4574,6 +4713,13 @@
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "advancements": {
+      "description": "Native advancements declared by this module.",
+      "items": {
+        "$ref": "#/$defs/Advancement"
+      },
+      "type": "array"
+    },
     "boss_bars": {
       "description": "Boss bars, created at load.",
       "items": {

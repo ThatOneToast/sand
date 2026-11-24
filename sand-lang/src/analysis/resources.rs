@@ -483,6 +483,46 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Advancement => {
+                let Some(criteria) = get("criteria")
+                    .and_then(|field| self.data_advancement_criteria(module, file, &field.value))
+                else {
+                    return;
+                };
+                let display = match get("display") {
+                    Some(field) => {
+                        let Some(display) =
+                            self.data_advancement_display(module, file, &field.value)
+                        else {
+                            return;
+                        };
+                        Some(display)
+                    }
+                    None => None,
+                };
+                let require_any = get("require_any")
+                    .map(|field| self.data_bool(file, &field.value))
+                    .unwrap_or(Some(false));
+                let experience = get("experience")
+                    .map(|field| self.data_int(module, file, &field.value, 0, i32::MAX as i64))
+                    .unwrap_or(Some(0));
+                let (Some(require_any), Some(experience)) = (require_any, experience) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/advancements/{}", out.advancements.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.advancements.push(pc::Advancement {
+                    id: location,
+                    display,
+                    criteria,
+                    require_any,
+                    experience: experience as i32,
+                });
+            }
             DataKind::Predicate => {
                 let option = |cx: &mut Cx, field, registry| match get(field) {
                     Some(field) => {
@@ -1165,45 +1205,181 @@ impl Cx {
         self.vanilla_value(module, file, expr, registry)
     }
 
-    fn data_book(
+    fn data_object_fields<'a>(
         &mut self,
-        module: ModuleId,
         file: FileId,
-        value: &DataValue,
-    ) -> Option<pc::WrittenBookContent> {
+        value: &'a DataValue,
+        kind: &str,
+        required: &[&str],
+        optional: &[&str],
+    ) -> Option<BTreeMap<&'a str, &'a DataValue>> {
         let DataValue::Object(entries, span) = value else {
             self.error(
-                "book",
+                "field",
                 file,
                 value.span(),
-                "expected `{ title, author, pages }`",
+                format!("expected fields in braces for `{kind}`"),
             );
             return None;
         };
         let mut fields = BTreeMap::new();
         for field in entries {
             let name = field.key.name.as_str();
-            if !matches!(name, "title" | "author" | "pages") {
+            if !required.contains(&name) && !optional.contains(&name) {
                 self.error(
-                    "book",
+                    "field",
                     file,
                     field.key.span,
-                    format!("a book has no field `{name}`"),
+                    format!("`{kind}` has no field `{name}`"),
                 );
             } else if fields.insert(name, &field.value).is_some() {
                 self.error(
-                    "book",
+                    "field",
                     file,
                     field.key.span,
-                    format!("duplicate book field `{name}`"),
+                    format!("duplicate `{kind}` field `{name}`"),
                 );
             }
         }
-        for name in ["title", "author", "pages"] {
+        for name in required {
             if !fields.contains_key(name) {
-                self.error("book", file, *span, format!("a book needs `{name}`"));
+                self.error("field", file, *span, format!("`{kind}` needs `{name}`"));
             }
         }
+        Some(fields)
+    }
+
+    fn data_advancement_criteria(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<BTreeMap<String, pc::AdvancementCriterion>> {
+        let DataValue::Object(entries, span) = value else {
+            self.error(
+                "advancement",
+                file,
+                value.span(),
+                "expected a map of named advancement criteria",
+            );
+            return None;
+        };
+        if entries.is_empty() {
+            self.error(
+                "advancement",
+                file,
+                *span,
+                "an advancement needs at least one criterion",
+            );
+            return None;
+        }
+        let mut criteria = BTreeMap::new();
+        for field in entries {
+            let DataValue::Object(triggers, _) = &field.value else {
+                self.error(
+                    "advancement",
+                    file,
+                    field.value.span(),
+                    "expected one typed trigger in braces",
+                );
+                continue;
+            };
+            let [trigger] = triggers.as_slice() else {
+                self.error(
+                    "advancement",
+                    file,
+                    field.value.span(),
+                    "an advancement criterion has exactly one trigger",
+                );
+                continue;
+            };
+            let criterion = match trigger.key.name.as_str() {
+                "inventory_item" => self
+                    .data_item_ref(module, file, &trigger.value, false)
+                    .map(|item| pc::AdvancementCriterion::InventoryItem { item }),
+                "place_block" => self
+                    .data_expr(file, &trigger.value, "a Block value")
+                    .and_then(|expr| self.vanilla_value(module, file, expr, "Block"))
+                    .map(|block| pc::AdvancementCriterion::PlaceBlock { block }),
+                "kill_entity" => self
+                    .data_expr(file, &trigger.value, "an Entity value")
+                    .and_then(|expr| self.vanilla_value(module, file, expr, "Entity"))
+                    .map(|entity| pc::AdvancementCriterion::KillEntity { entity }),
+                _ => {
+                    self.error(
+                        "advancement",
+                        file,
+                        trigger.key.span,
+                        "use `inventory_item`, `place_block`, or `kill_entity`",
+                    );
+                    None
+                }
+            };
+            if let Some(criterion) = criterion
+                && criteria.insert(field.key.name.clone(), criterion).is_some()
+            {
+                self.error(
+                    "advancement",
+                    file,
+                    field.key.span,
+                    format!("duplicate criterion `{}`", field.key.name),
+                );
+            }
+        }
+        Some(criteria)
+    }
+
+    fn data_advancement_display(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::AdvancementDisplay> {
+        let fields = self.data_object_fields(
+            file,
+            value,
+            "display",
+            &["icon", "title", "description"],
+            &["background"],
+        )?;
+        let icon = self.data_item_ref(module, file, fields.get("icon")?, false)?;
+        let title = self.data_text(module, file, fields.get("title")?)?;
+        let description = self.data_text(module, file, fields.get("description")?)?;
+        let background = match fields.get("background") {
+            Some(background) => {
+                let id = match background {
+                    DataValue::Expr(Expr::Str { value, .. }) => value.parse().ok(),
+                    _ => None,
+                };
+                let Some(id) = id else {
+                    self.error(
+                        "advancement",
+                        file,
+                        background.span(),
+                        "expected a quoted namespaced background texture id",
+                    );
+                    return None;
+                };
+                Some(id)
+            }
+            None => None,
+        };
+        Some(pc::AdvancementDisplay {
+            icon,
+            title,
+            description,
+            background,
+        })
+    }
+
+    fn data_book(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::WrittenBookContent> {
+        let fields =
+            self.data_object_fields(file, value, "book", &["title", "author", "pages"], &[])?;
         let plain = |this: &mut Self, key: &str| match fields.get(key)? {
             DataValue::Expr(Expr::Str { value, .. }) => Some(value.clone()),
             other => {

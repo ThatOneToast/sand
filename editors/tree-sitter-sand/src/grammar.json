@@ -926,6 +926,10 @@
                 {
                   "type": "STRING",
                   "value": "predicate"
+                },
+                {
+                  "type": "STRING",
+                  "value": "advancement"
                 }
               ]
             },

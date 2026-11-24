@@ -1380,6 +1380,34 @@ Give the book with `give_item(FieldGuide)` or use it as a recipe result. Sand
 validates the native 32 UTF-16 code-unit title limit and supports up to 100
 pages. Pages use fixed content authored in the item declaration.
 
+### Advancements
+
+Use named criteria to define player milestones tracked by Minecraft. Each
+criterion uses one trigger: `inventory_item`, `place_block`, or `kill_entity`.
+Every criterion is required by default. Set `require_any: true` to require one.
+An advancement can award experience points once per completion.
+
+```rust,ignore
+advancement ReadyForAdventure {
+    display: {
+        icon: Item::Spyglass,
+        title: "{gold}Ready for adventure",
+        description: "Get a spyglass or place a campfire.",
+        background: "minecraft:gui/advancements/backgrounds/adventure",
+    },
+    criteria: {
+        get_spyglass: { inventory_item: Item::Spyglass },
+        place_campfire: { place_block: Block::Campfire },
+    },
+    require_any: true,
+    experience: 5,
+}
+```
+
+An advancement without a `display` still tracks progress and awards experience.
+Minecraft 26.3 requires a background texture for a visible root. Keep criterion
+names stable to preserve progress after a datapack update.
+
 ### Named predicates
 
 ```rust,ignore

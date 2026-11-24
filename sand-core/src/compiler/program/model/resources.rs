@@ -478,3 +478,82 @@ pub struct BossBar {
 fn hundred() -> u32 {
     100
 }
+
+/// A named native advancement with typed criteria and optional presentation.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::Advancement", module = "sand::advanced::compiler",
+ summary = "A named native advancement with typed criteria and optional presentation.",
+ context = "Criteria names retain player progress across reload. Use the display only for a visible milestone, and set require_any when its criteria are alternatives.",
+ minecraft = "Lowers through the canonical Advancement component to a native advancement and optional experience reward.",
+ use_when = ["Declaring a player milestone in a portable program"],
+ avoid_when = ["Polling scoreboard State for native advancement progress"],
+ fields(id = "Advancement identity.", display = "Optional presentation for a visible milestone.", criteria = "Stable authored names and native conditions.", require_any = "Complete on any criterion instead of requiring all.", experience = "Experience awarded at completion."),
+ example = "use sand::advanced::compiler::Advancement;",
+)]
+pub struct Advancement {
+    /// Advancement identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Optional presentation for a visible milestone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display: Option<AdvancementDisplay>,
+    /// Nonempty map of stable names to native criteria.
+    pub criteria: BTreeMap<String, AdvancementCriterion>,
+    /// Whether one criterion is sufficient for completion.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub require_any: bool,
+    /// Experience points awarded at completion, or zero for no reward.
+    #[serde(default)]
+    pub experience: i32,
+}
+
+/// The optional native presentation of an advancement.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::AdvancementDisplay", module = "sand::advanced::compiler",
+ summary = "The optional native presentation of an advancement.",
+ context = "The icon is a vanilla item and the title and description support static rich text. A displayed root needs an explicit background on Minecraft 26.3.",
+ minecraft = "Becomes the advancement menu icon, title, description and root background.",
+ use_when = ["Showing a portable advancement in the vanilla player menu"],
+ avoid_when = ["An internal advancement used as a native signal"],
+ fields(icon = "Vanilla item identity.", title = "Static rich title.", description = "Static rich description.", background = "Optional root texture identity."),
+ example = "use sand::advanced::compiler::AdvancementDisplay;",
+)]
+pub struct AdvancementDisplay {
+    /// Vanilla item identity used as the icon.
+    pub icon: String,
+    /// Static rich title.
+    pub title: Vec<TextPart>,
+    /// Static rich description.
+    pub description: Vec<TextPart>,
+    /// Root texture identity. Minecraft 26.3 requires one for displayed roots.
+    #[schemars(with = "Option<String>")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background: Option<ResourceLocation>,
+}
+
+/// A vanilla condition that records one piece of player advancement progress.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::AdvancementCriterion", module = "sand::advanced::compiler",
+ summary = "A vanilla condition that records one piece of player advancement progress.",
+ context = "Give each condition a stable name in its Advancement. The game tracks each player's completion and persists criterion progress.",
+ minecraft = "Uses inventory_changed, placed_block, or player_killed_entity.",
+ use_when = ["Composing native advancement criteria"],
+ avoid_when = ["Executing an arbitrary script as a criterion"],
+ variants(InventoryItem = "Acquire an item.", PlaceBlock = "Place the selected block.", KillEntity = "Kill an entity of the selected type."),
+ variant_fields(InventoryItem(item = "Vanilla item identity."), PlaceBlock(block = "Vanilla block identity."), KillEntity(entity = "Vanilla entity type identity.")),
+ example = "use sand::advanced::compiler::AdvancementCriterion;",
+)]
+pub enum AdvancementCriterion {
+    /// Have an item on a matching inventory change.
+    InventoryItem { item: String },
+    /// Place a block of the given type.
+    PlaceBlock { block: String },
+    /// Receive player kill credit for an entity of the given type.
+    KillEntity { entity: String },
+}

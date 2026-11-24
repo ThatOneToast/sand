@@ -506,6 +506,8 @@ pub enum DataKind {
     DamageType,
     /// `predicate Name { ... }`.
     Predicate,
+    /// `advancement Name { ... }`.
+    Advancement,
 }
 
 impl DataKind {
@@ -519,6 +521,7 @@ impl DataKind {
             DataKind::Loot => "loot",
             DataKind::DamageType => "damage_type",
             DataKind::Predicate => "predicate",
+            DataKind::Advancement => "advancement",
         }
     }
 }

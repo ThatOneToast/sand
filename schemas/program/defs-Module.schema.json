@@ -3,6 +3,13 @@
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "advancements": {
+      "description": "Native advancements declared by this module.",
+      "items": {
+        "$ref": "defs-Advancement.schema.json"
+      },
+      "type": "array"
+    },
     "boss_bars": {
       "description": "Boss bars, created at load.",
       "items": {

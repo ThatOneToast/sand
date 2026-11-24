@@ -300,7 +300,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Interactive chat with hover text, links, command suggestions and clipboard actions.
 - [x] Fixed written books using canonical item components, rich pages and page navigation.
 - [x] Runtime particle count, spread and speed with atomic range checks.
-- [ ] Advancements, worldgen, dialogs and broader VFX.
+- [x] Native advancement resources with named inventory, placement and kill criteria,
+  all/any requirements, visible presentation and experience rewards.
+- [ ] Broader advancement triggers, worldgen, dialogs and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.

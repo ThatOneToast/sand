@@ -4752,23 +4752,8 @@ impl Cx {
                 ),
             );
         }
-        let text = match &bound["text"].value {
-            ArgValue::Expr(value) if !matches!(value, Expr::Str { .. }) => {
-                let slot = self.temp(body);
-                if self.emit(body, &slot, Ty::String, value, ops).is_none() {
-                    return;
-                }
-                vec![pc::TextPart::Stored {
-                    value: Self::data_field(&slot),
-                    style: pc::TextStyle::default(),
-                }]
-            }
-            _ => {
-                let Some(text) = self.format_text(body, bound["text"]) else {
-                    return;
-                };
-                text
-            }
+        let Some(text) = self.presentation_text(body, bound["text"], Some(ops), 0) else {
+            return;
         };
         let (audience, channel) = match builtin.name {
             "chat" => (pc::Audience::Player, pc::MessageChannel::Chat),
@@ -4804,6 +4789,86 @@ impl Cx {
     ) {
         self.builtin_uses
             .push((file, span, builtin.name, builtin.kind));
+    }
+
+    /// Build a runtime message or a static resource's component text.
+    pub(super) fn presentation_text(
+        &mut self,
+        body: &mut BodyCx,
+        arg: &Arg,
+        mut ops: Option<&mut Vec<pc::Operation>>,
+        depth: usize,
+    ) -> Option<Vec<pc::TextPart>> {
+        if let ArgValue::Expr(Expr::Call { path, args, span }) = &arg.value
+            && path.applications.is_empty()
+            && path.segments.len() == 2
+            && path.segments[0].name == "Text"
+            && path.last().name == "translate"
+        {
+            if depth >= pc::TextPart::MAX_TRANSLATION_DEPTH {
+                self.error(
+                    "text",
+                    body.file,
+                    *span,
+                    "text exceeds the translation nesting limit",
+                );
+                return None;
+            }
+            let Some((key, arguments)) = args.split_first() else {
+                self.error(
+                    "text",
+                    body.file,
+                    *span,
+                    "`Text::translate` needs a quoted translation key",
+                );
+                return None;
+            };
+            if let Some(named) = args.iter().find_map(|arg| arg.name.as_ref()) {
+                self.error(
+                    "text",
+                    body.file,
+                    named.span,
+                    "translation arguments are positional",
+                );
+                return None;
+            }
+            let (key, _, key_span) = self.arg_string(body.file, key, "a translation key")?;
+            if key.trim().is_empty() || key.chars().any(char::is_control) {
+                self.error(
+                    "text",
+                    body.file,
+                    key_span,
+                    "translation keys must be nonblank and contain no control characters",
+                );
+                return None;
+            }
+            let mut rendered = Vec::with_capacity(arguments.len());
+            for argument in arguments {
+                rendered.push(self.presentation_text(
+                    body,
+                    argument,
+                    ops.as_deref_mut(),
+                    depth + 1,
+                )?);
+            }
+            return Some(vec![pc::TextPart::Translation {
+                key,
+                arguments: rendered,
+                style: pc::TextStyle::default(),
+            }]);
+        }
+        if let ArgValue::Expr(value) = &arg.value
+            && !matches!(value, Expr::Str { .. })
+            && let Some(ops) = ops
+        {
+            let slot = self.temp(body);
+            self.emit(body, &slot, Ty::String, value, ops)?;
+            return Some(vec![pc::TextPart::Stored {
+                value: Self::data_field(&slot),
+                style: pc::TextStyle::default(),
+            }]);
+        }
+        self.format_text(body, arg)
     }
 
     /// Parse a format string into styled text parts, resolving `{State.field}`.

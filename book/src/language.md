@@ -820,6 +820,21 @@ title!("{yellow}{bold}Round {World.round}");
 chat!("{gray}Coins: {gold}{Wallet.coins}");
 ```
 
+`Text::translate("key", ...)` sends Minecraft a client translation key and one
+positional text argument per placeholder. Each argument can be a format string,
+a runtime `string` in a message, or another translation. Item names, lore, and
+boss bar titles can use translations with fixed arguments.
+
+```rust,ignore
+fn greeting(label: string) {
+    chat!(Text::translate("chat.type.text", "{player}", label));
+}
+```
+
+Built-in keys come from Minecraft’s language files. Keys supplied by a resource
+pack resolve for players who have that pack. Sand stores runtime strings as
+plain text when it passes them to placeholder arguments.
+
 ### Runtime strings
 
 `string` is an owned value supported in locals, constants, State, record fields,

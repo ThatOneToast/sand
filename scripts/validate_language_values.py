@@ -51,6 +51,13 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("STATE_IMPL_A", "if score #impl_a numeric_probe matches 1")
             self.check("STATE_IMPL_B", "if score #impl_b numeric_probe matches 1")
             self.check("PLAYER_PROPERTIES", "if score #property numeric_probe matches 1")
+            self.send("execute as NumericA run function runtime_values:show_localized")
+            self.check(
+                "TRANSLATED_ITEM",
+                'if data entity NumericA Inventory[{id:"minecraft:paper"}].components.'
+                '"minecraft:custom_name".extra[{translate:"item.minecraft.paper"}]',
+            )
+            self.check("TRANSLATION_CLEANUP", "unless data storage runtime_values:__program_text p0_1_0_0_0")
             for name, expected in (("NumericA", 5), ("NumericB", 3)):
                 self.send(f"execute store result score #xp numeric_probe run experience query {name} points")
                 self.check(f"{name}_EXPERIENCE", f"if score #xp numeric_probe matches {expected}")

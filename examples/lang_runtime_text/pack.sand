@@ -27,13 +27,14 @@ impl Journal {
 }
 item Notebook {
     base: Item::CarrotOnAStick,
-    name: "{gold}Field Journal",
+    name: Text::translate("item.minecraft.writable_book"),
     lore: ["{gray}Right-click to read your saved notes."],
     unbreakable: true
 }
 #[on(first_join)]
 fn welcome() {
     give_item(Notebook);
+    chat!(Text::translate("chat.type.text", "Journal", "The journey begins 🌍"));
     Journal.record("The journey begins 🌍");
 }
 #[on(mine_block = Block::Stone)]

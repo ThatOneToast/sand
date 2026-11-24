@@ -354,6 +354,12 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "recipe R {\n    smithing_trim: Item::SentryArmorTrimSmithingTemplate,\n    |\n}",
         &["trim_pattern", "base", "addition"],
     );
+    includes_excludes(
+        "item Notice { name: | }",
+        &["Text::translate"],
+        &["Item::Diamond"],
+    );
+    includes_excludes("fn f() { chat!(|); }", &["Text::translate"], &[]);
     exactly("tag T: Block {\n    |\n}", &["values", "replace"]);
     includes_excludes(
         "tag T: Block { values: [|] }",

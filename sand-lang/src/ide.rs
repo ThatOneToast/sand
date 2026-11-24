@@ -1768,6 +1768,7 @@ fn expression_completions(
             .and_then(|(start, end, _)| help.label[*start..*end].split_once(": "))
             .map(|(_, ty)| ty);
         match active_type {
+            Some("text") => out.push(translation_completion()),
             Some("BossBar") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }
@@ -2161,6 +2162,14 @@ fn builtin_completion(b: &crate::builtins::Builtin) -> Completion {
     }
 }
 
+fn translation_completion() -> Completion {
+    Completion::snippet(
+        "Text::translate",
+        "a client-localized text component",
+        "Text::translate(\"${1:item.minecraft.paper}\")",
+    )
+}
+
 /// Field names, or values for the field being written, inside a data body.
 fn data_completions(
     analysis: &Analysis,
@@ -2251,6 +2260,7 @@ fn data_completions(
             );
             out
         }
+        FieldKind::Text | FieldKind::TextList => vec![translation_completion()],
         FieldKind::Registry(name) => registry(name),
         FieldKind::Bool => vec![
             Completion::plain("true", CompletionKind::Keyword),

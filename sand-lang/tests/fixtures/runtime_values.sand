@@ -1,6 +1,7 @@
 #![pack(namespace = "runtime_values", minecraft = "26.2")]
 
 item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
+item LocalizedPaper { base: Item::Paper, name: Text::translate("item.minecraft.paper") }
 recipe GuardTrim {
     smithing_trim: Item::SentryArmorTrimSmithingTemplate,
     base: Item::DiamondChestplate,
@@ -15,6 +16,12 @@ impl Ledger {
 
 #[load]
 fn setup() { raw!("scoreboard objectives add numeric_probe dummy"); }
+
+fn show_localized() {
+    let label = Ledger.label;
+    chat!(Text::translate("chat.type.text", "{player}", Text::translate("chat.type.text", label, "Native text")));
+    give_item(LocalizedPaper);
+}
 
 fn reward(count: number) {
     Ledger.give(count);

@@ -13,4 +13,5 @@ The example combines string constants, concatenation, scalar `to_string`,
 string fields in State, arrays of strings, snapshot iteration, borrowed State
 methods, Unicode text, and styled runtime interpolation. Strings copy by value;
 indices and `len` count Unicode scalar characters. Collection size is fixed in
-this example.
+this example. The notebook name and the chat layout use Minecraft translation
+keys.

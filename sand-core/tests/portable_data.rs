@@ -73,6 +73,41 @@ fn owned_storage_exports_safe_macros_frames_and_plain_text_deterministically() {
 }
 
 #[test]
+fn translation_substitutions_use_their_enclosing_executor_and_text_style() {
+    let mut source = document();
+    let message = &mut source["modules"][0]["functions"][0]["body"][6]["action"];
+    message["text"] = json!([{
+        "kind":"translation", "key":"chat.type.text", "style":{"bold":true},
+        "arguments":[
+            [{"kind":"player_name"}],
+            [{"kind":"stored", "value":field("text")}]
+        ]
+    }]);
+    let pack = Compiler::compile(&decode(source.clone())).unwrap();
+    let function =
+        std::str::from_utf8(&pack.resources["data/data/function/run.mcfunction"]).unwrap();
+    assert!(function.contains(r#""translate":"chat.type.text""#));
+    assert!(function.contains(r#""bold":true"#));
+    assert!(function.contains(r#""nbt":"p0_1_0[]""#));
+
+    let functions = &mut source["modules"][0]["functions"];
+    functions[0] = json!({
+        "id":"data:server", "context":"server", "body":[{"action":{
+            "op":"message", "audience":"everyone", "channel":"chat",
+            "text":[{"kind":"translation", "key":"demo.text", "arguments":[[{"kind":"player_name"}]]}]
+        }}]
+    });
+    let Err(errors) = Compiler::compile(&decode(source)) else {
+        panic!("a server message accepted a nested player name");
+    };
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.pointer.contains("/arguments/0/0"))
+    );
+}
+
+#[test]
 fn storage_references_preserve_context_types_and_checked_projections() {
     let mut invalid = Vec::new();
     let mut server = document();

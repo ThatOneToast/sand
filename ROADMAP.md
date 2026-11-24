@@ -293,8 +293,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   available with retained attacker attribution.
 - [x] Named native world predicates shared by function guards and loot pools.
 - [x] Smithing armor trim recipes with a named native pattern.
-- [ ] Advancements, worldgen, books, dialogs, interactive/translated
-  text and VFX.
+- [x] Client-localized component text with positional arguments in messages and
+  static resources.
+- [ ] Advancements, worldgen, books, dialogs, interactive text and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.

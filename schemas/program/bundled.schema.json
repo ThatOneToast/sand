@@ -4376,6 +4376,37 @@
         },
         {
           "additionalProperties": false,
+          "description": "A client language-file key and one text component for each placeholder.",
+          "properties": {
+            "arguments": {
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/TextPart"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "translation",
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/TextStyle",
+              "default": {}
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "The live value of a State field.",
           "properties": {
             "kind": {

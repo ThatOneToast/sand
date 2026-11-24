@@ -103,7 +103,7 @@ const fn p(name: &'static str, kind: ParamKind, required: bool, doc: &'static st
     }
 }
 
-const FORMAT_DOC: &str = "Text with `{...}` interpolation: `{State.field}` shows a live score, `{player}` the player's name, and `{gold}`, `{bold}`, `{italic}`, `{underlined}`, `{reset}` change the style of the text that follows. Write `{{` and `}}` for literal braces.";
+const FORMAT_DOC: &str = "Text with `{...}` interpolation: `{State.field}` shows a live score, `{player}` the player's name, and `{gold}`, `{bold}`, `{italic}`, `{underlined}`, `{reset}` change the style of the text that follows. Write `{{` and `}}` for literal braces. Use `Text::translate(\"key\", ...)` for client-localized text.";
 
 /// Filters shared by `entities(...)` and `count_entities(...)`.
 const QUERY: &[Param] = &[

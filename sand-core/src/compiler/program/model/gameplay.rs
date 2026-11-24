@@ -591,11 +591,11 @@ pub struct TextStyle {
  summary = "One styled piece of a message.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Each part becomes one text component; scores and names resolve when the message is shown.",
- use_when = ["Building Message text from literals, live scores, and player names"],
- avoid_when = ["Static resource text such as item names"],
+ use_when = ["Building component text from literals, translations, live scores, and player names"],
+ avoid_when = ["Interactive click or hover behavior"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters."),
- variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling.")),
+ variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters.", Translation = "A translation key with ordered text substitutions."),
+ variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling."), Translation(key = "Client language-file key.", arguments = "One text component per placeholder.", style = "Styling.")),
 )]
 pub enum TextPart {
     /// A stored list of string characters, joined without separators. Read at
@@ -611,6 +611,14 @@ pub enum TextPart {
         #[serde(default)]
         style: TextStyle,
     },
+    /// A client language-file key and one text component for each placeholder.
+    Translation {
+        key: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        arguments: Vec<Vec<TextPart>>,
+        #[serde(default)]
+        style: TextStyle,
+    },
     /// The live value of a State field.
     Score {
         score: FieldReference,
@@ -622,6 +630,45 @@ pub enum TextPart {
         #[serde(default)]
         style: TextStyle,
     },
+}
+
+impl TextPart {
+    /// Maximum nesting of translation components, including the outermost translation.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::advanced::compiler::TextPart::MAX_TRANSLATION_DEPTH",
+        module = "sand::advanced::compiler", kind = "associated_const",
+        summary = "Maximum nesting of portable text translations.",
+        context = "Each substitution is a component that can itself contain a translation. This limit bounds component depth before Minecraft receives the text.",
+        minecraft = "Portable translation depth leaves room for the wrapper components generated for each substitution.",
+        use_when = ["Validating a portable translation tree in an authoring frontend"],
+        avoid_when = ["Choosing a different limit for the same portable model"],
+        example = "let limit = sand::advanced::compiler::TextPart::MAX_TRANSLATION_DEPTH;",
+    )]
+    pub const MAX_TRANSLATION_DEPTH: usize = 8;
+
+    /// Whether this part and its substitutions can be rendered in a static resource.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::advanced::compiler::TextPart::is_static",
+        module = "sand::advanced::compiler", kind = "method",
+        summary = "Checks whether a text part has any live State or executor references.",
+        context = "Use when validating fixed item names, lore and boss bar titles. Literals and translations with entirely static substitutions can be emitted without an executor.",
+        minecraft = "Translation keys still resolve in the receiving client's language.",
+        use_when = ["Checking whether portable component text belongs in a static resource"],
+        avoid_when = ["Checking that a key exists in a client language file"],
+        returns = "Whether the part is independent of runtime State and executor context.",
+        example = "fn can_export(part: &sand::advanced::compiler::TextPart) -> bool { part.is_static() }",
+    )]
+    pub fn is_static(&self) -> bool {
+        let mut pending = vec![self];
+        while let Some(part) = pending.pop() {
+            match part {
+                Self::Text { .. } => {}
+                Self::Translation { arguments, .. } => pending.extend(arguments.iter().flatten()),
+                _ => return false,
+            }
+        }
+        true
+    }
 }
 
 /// A player occurrence that runs handler functions as that player.

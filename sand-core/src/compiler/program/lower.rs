@@ -659,13 +659,13 @@ fn custom_item(
 ) -> sand_components::CustomItem {
     let mut custom = sand_components::CustomItem::new(&item.base).custom_data(item.id.to_string());
     if !item.name.is_empty() {
-        custom = custom.custom_name(text_component(&item.name, holders, None));
+        custom = custom.custom_name(static_text_component(&item.name, holders));
     }
     if !item.lore.is_empty() {
         custom = custom.lore(
             item.lore
                 .iter()
-                .map(|line| text_component(line, holders, None))
+                .map(|line| static_text_component(line, holders))
                 .collect(),
         );
     }
@@ -1007,10 +1007,20 @@ enum EventLine {
     Tick(String),
 }
 
+fn static_text_component(
+    parts: &[TextPart],
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_commands::TextComponent {
+    text_component(parts, holders, "p", &mut |_, _| {
+        unreachable!("static text was validated before lowering")
+    })
+}
+
 fn text_component(
     parts: &[TextPart],
     holders: &BTreeMap<String, sand_commands::ScoreHolder>,
-    namespace: Option<&str>,
+    path: &str,
+    resolve_stored: &mut impl FnMut(&FieldReference, &str) -> sand_commands::TextComponent,
 ) -> sand_commands::TextComponent {
     use sand_commands::{ChatColor, TextComponent};
     let styled = |mut component: TextComponent, style: &TextStyle| {
@@ -1050,17 +1060,28 @@ fn text_component(
     let mut root = TextComponent::literal("");
     for (index, part) in parts.iter().enumerate() {
         let component = match part {
-            TextPart::Stored { style, .. } => styled(
-                TextComponent::nbt(
-                    sand_commands::DataTarget::storage(format!(
-                        "{}:__program_text",
-                        namespace.expect("stored text only occurs in runtime messages")
-                    ))
-                    .path(format!("p{index}[]")),
-                    TextComponent::literal(""),
-                ),
+            TextPart::Stored { value, style } => {
+                styled(resolve_stored(value, &format!("{path}{index}")), style)
+            }
+            TextPart::Translation {
+                key,
+                arguments,
                 style,
-            ),
+            } => {
+                let with = arguments
+                    .iter()
+                    .enumerate()
+                    .map(|(argument, parts)| {
+                        text_component(
+                            parts,
+                            holders,
+                            &format!("{path}{index}_{argument}_"),
+                            resolve_stored,
+                        )
+                    })
+                    .collect();
+                styled(TextComponent::translate_with(key, with), style)
+            }
             TextPart::Text { text, style } => styled(TextComponent::literal(text.clone()), style),
             TextPart::Score { score, style } => styled(
                 TextComponent::score(
@@ -1363,7 +1384,7 @@ impl Lower<'_> {
     /// Commands that create a boss bar and refresh its display at load.
     fn boss_bar_setup(&self, bar: &BossBar) -> Vec<String> {
         let id = &bar.id;
-        let title = text_component(&bar.title, &self.holders, None);
+        let title = static_text_component(&bar.title, &self.holders);
         let color = match bar.color {
             BossBarColor::Blue => "blue",
             BossBarColor::Green => "green",
@@ -1800,18 +1821,17 @@ impl Lower<'_> {
                     };
                     let storage = format!("{}:__program_text", self.namespace);
                     let mut staged = Vec::new();
-                    for (index, part) in text.iter().enumerate() {
-                        if let TextPart::Stored { value, .. } = part {
-                            staged.push(format!("data remove storage {storage} p{index}"));
-                            staged.extend(self.copy_data_field(
-                                value,
-                                &storage,
-                                &format!("p{index}"),
-                                false,
-                            ));
-                        }
-                    }
-                    let component = text_component(text, &self.holders, Some(&self.namespace));
+                    let mut cleanup = Vec::new();
+                    let component = text_component(text, &self.holders, "p", &mut |value, path| {
+                        let remove = format!("data remove storage {storage} {path}");
+                        staged.push(remove.clone());
+                        cleanup.push(remove);
+                        staged.extend(self.copy_data_field(value, &storage, path, false));
+                        sand_commands::TextComponent::nbt(
+                            sand_commands::DataTarget::storage(&storage).path(format!("{path}[]")),
+                            sand_commands::TextComponent::literal(""),
+                        )
+                    });
                     let lines = match channel {
                         MessageChannel::Chat => vec![crate::cmd::tellraw(target, component)],
                         MessageChannel::Actionbar => {
@@ -1827,11 +1847,7 @@ impl Lower<'_> {
                             .map_err(|e| fail(e.to_string()))?,
                     };
                     staged.extend(lines);
-                    for (index, part) in text.iter().enumerate() {
-                        if matches!(part, TextPart::Stored { .. }) {
-                            staged.push(format!("data remove storage {storage} p{index}"));
-                        }
-                    }
+                    staged.extend(cleanup);
                     staged.into_iter().map(Cmd::Raw).collect()
                 }
                 Action::Sound {

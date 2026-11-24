@@ -489,17 +489,12 @@ pub(super) fn validate(
                     format!("`{}` is not a vanilla base item", item.base),
                 );
             }
-            if item
-                .name
-                .iter()
-                .chain(item.lore.iter().flatten())
-                .any(|part| !matches!(part, TextPart::Text { .. }))
-            {
-                push(
-                    ptr.clone(),
-                    "item names and lore are static text; scores and player names are not allowed"
-                        .into(),
-                );
+            let item_text =
+                std::iter::once(item.name.as_slice()).chain(item.lore.iter().map(Vec::as_slice));
+            for parts in item_text {
+                if let Some(error) = static_text_error(parts) {
+                    push(ptr.clone(), error.into());
+                }
             }
             if item.max_stack.is_some_and(|n| !(1..=99).contains(&n)) {
                 push(
@@ -801,16 +796,8 @@ pub(super) fn validate(
             if bar.max == 0 || bar.max > i32::MAX as u32 {
                 push(format!("{ptr}/max"), "boss bar max must be positive".into());
             }
-            if bar
-                .title
-                .iter()
-                .any(|part| !matches!(part, TextPart::Text { .. }))
-            {
-                push(
-                    format!("{ptr}/title"),
-                    "boss bar titles are static text; scores and player names are not allowed"
-                        .into(),
-                );
+            if let Some(error) = static_text_error(&bar.title) {
+                push(format!("{ptr}/title"), error.into());
             }
         }
         for (index, tag) in module.resource_tags.iter().enumerate() {
@@ -883,6 +870,34 @@ fn valid_id(id: &ResourceLocation) -> bool {
     safe_path(id.namespace()) && safe_path(id.path()) && id.namespace() != "__sand_local"
 }
 
+fn text_shape_error(text: &[TextPart], depth: usize) -> Option<&'static str> {
+    for part in text {
+        if let TextPart::Translation { key, arguments, .. } = part {
+            if key.trim().is_empty() || key.chars().any(char::is_control) {
+                return Some("translation keys must be nonblank and contain no control characters");
+            }
+            if depth >= TextPart::MAX_TRANSLATION_DEPTH {
+                return Some("text exceeds the translation nesting limit");
+            }
+            if let Some(error) = arguments
+                .iter()
+                .find_map(|parts| text_shape_error(parts, depth + 1))
+            {
+                return Some(error);
+            }
+        }
+    }
+    None
+}
+
+fn static_text_error(text: &[TextPart]) -> Option<&'static str> {
+    text_shape_error(text, 0).or_else(|| {
+        text.iter()
+            .any(|part| !part.is_static())
+            .then_some("static text cannot use stored values, scores or player names")
+    })
+}
+
 struct Validator<'a, 'e> {
     target: &'a str,
     boss_bars: BTreeSet<String>,
@@ -898,6 +913,47 @@ struct Validator<'a, 'e> {
     errors: &'e mut Vec<Diagnostic>,
 }
 impl Validator<'_, '_> {
+    fn message_parts(
+        &mut self,
+        text: &[TextPart],
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+    ) {
+        for (index, part) in text.iter().enumerate() {
+            let part_ptr = format!("{ptr}/{index}");
+            match part {
+                TextPart::Stored { value, .. } => self.data_reference(
+                    &DataReference {
+                        field: value.clone(),
+                        path: Vec::new(),
+                    },
+                    context,
+                    owner,
+                    &format!("{part_ptr}/value"),
+                    false,
+                ),
+                TextPart::Score { score, .. } => {
+                    self.score(score, context, owner, &format!("{part_ptr}/score"));
+                }
+                TextPart::PlayerName { .. } => {
+                    self.player(context, owner, &part_ptr, "the executing player's name")
+                }
+                TextPart::Translation { arguments, .. } => {
+                    for (index, parts) in arguments.iter().enumerate() {
+                        self.message_parts(
+                            parts,
+                            context,
+                            owner,
+                            &format!("{part_ptr}/arguments/{index}"),
+                        );
+                    }
+                }
+                TextPart::Text { .. } => {}
+            }
+        }
+    }
+
     // Count copied hook invocations before the shared compiler materializes
     // transition bodies. Input declaration limits alone cannot bound this
     // transition × hook expansion. This is a lower bound on emitted bytes;
@@ -1710,30 +1766,16 @@ impl Validator<'_, '_> {
                             "message text must contain at least one part",
                         ));
                     }
-                    for (index, part) in text.iter().enumerate() {
-                        let part_ptr = format!("{ptr}/action/text/{index}");
-                        match part {
-                            TextPart::Stored { value, .. } => self.data_reference(
-                                &DataReference {
-                                    field: value.clone(),
-                                    path: Vec::new(),
-                                },
-                                context,
-                                owner,
-                                &format!("{ptr}/action/text"),
-                                false,
-                            ),
-                            TextPart::Score { score, .. } => {
-                                self.score(score, context, owner, &format!("{part_ptr}/score"))
-                            }
-                            TextPart::PlayerName { .. } => self.player(
-                                context,
-                                owner,
-                                &part_ptr,
-                                "the executing player's name",
-                            ),
-                            TextPart::Text { .. } => {}
-                        }
+                    let text_ptr = format!("{ptr}/action/text");
+                    if let Some(error) = text_shape_error(text, 0) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_TEXT",
+                            owner,
+                            &text_ptr,
+                            error,
+                        ));
+                    } else {
+                        self.message_parts(text, context, owner, &text_ptr);
                     }
                 }
                 Action::Sound {

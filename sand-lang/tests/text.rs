@@ -89,3 +89,88 @@ const TOO_BIG: string = WHOLE + HALF;
             .any(|message| message.contains("65536 UTF-8 bytes"))
     );
 }
+
+#[test]
+fn translations_preserve_substitution_order_styles_and_runtime_string_paths() {
+    let analysis = analyze_one(
+        r#"#![pack(namespace = "translated", minecraft = "26.2")]
+global state S { score: number = 5 }
+item Notice { base: Item::Paper, name: Text::translate("item.minecraft.paper") }
+fn run() {
+    let mut label = "Alice";
+    let mut other = "Bob";
+    chat!(Text::translate("chat.type.text", label, Text::translate("demo.points", "{gold}Points: {S.score}", other)));
+    give_item(Notice);
+    label = other;
+    other = label;
+    chat!(label + other);
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    let run = function(&pack, "translated/function/run");
+    let line = run
+        .lines()
+        .find(|line| line.starts_with("tellraw @s "))
+        .unwrap();
+    let message: serde_json::Value =
+        serde_json::from_str(line.strip_prefix("tellraw @s ").unwrap()).unwrap();
+    let translation = &message["extra"][0];
+    assert_eq!(translation["translate"], "chat.type.text");
+    let args = &translation["with"];
+    assert_eq!(args[0]["extra"][0]["nbt"], "p0_0_0[]");
+    assert_eq!(args[0]["extra"][0]["interpret"], false);
+    let inner = &args[1]["extra"][0];
+    assert_eq!(inner["translate"], "demo.points");
+    assert_eq!(inner["with"][0]["extra"][0]["color"], "gold");
+    assert_eq!(inner["with"][0]["extra"][0]["text"], "Points: ");
+    assert!(inner["with"][0]["extra"][1].get("score").is_some());
+    assert_eq!(inner["with"][1]["extra"][0]["nbt"], "p0_1_0_1_0[]");
+    assert!(run.contains("item.minecraft.paper"));
+    for path in ["p0_0_0", "p0_1_0_1_0"] {
+        let remove = format!("data remove storage translated:__program_text {path}");
+        let (before, after) = run.split_once(line).unwrap();
+        assert!(before.contains(&remove) && after.contains(&remove), "{run}");
+    }
+}
+
+#[test]
+fn translations_check_keys_execution_context_and_nesting() {
+    let cases = [
+        ("fn f() { chat!(Text::translate(\"\")); }", "nonblank"),
+        (
+            "fn f() { chat!(Text::translate()); }",
+            "needs a quoted translation key",
+        ),
+        (
+            "fn f() { chat!(Text::translate(key = \"demo.x\")); }",
+            "arguments are positional",
+        ),
+        (
+            "item Bad { base: Item::Paper, name: Text::translate(\"demo.x\", \"{player}\") }",
+            "resource text cannot read runtime values",
+        ),
+    ];
+    for (source, expected) in cases {
+        let result = analyze_one(&format!("#![pack(namespace = \"translated\")] {source}"));
+        assert!(
+            errors(&result)
+                .iter()
+                .any(|message| message.contains(expected)),
+            "{:#?}",
+            errors(&result)
+        );
+    }
+    let mut message = "\"leaf\"".to_owned();
+    for _ in 0..=sand::advanced::compiler::TextPart::MAX_TRANSLATION_DEPTH {
+        message = format!("Text::translate(\"demo.key\", {message})");
+    }
+    let too_deep = analyze_one(&format!(
+        "#![pack(namespace = \"translated\")] fn f() {{ broadcast!({message}); }}"
+    ));
+    assert!(
+        errors(&too_deep)
+            .iter()
+            .any(|message| message.contains("translation nesting limit"))
+    );
+}

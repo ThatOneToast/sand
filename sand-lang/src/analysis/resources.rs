@@ -1160,22 +1160,18 @@ impl Cx {
             value: ArgValue::Expr(expr),
             span,
         };
-        let parts = self.format_text(&mut body, &arg)?;
+        let parts = self.presentation_text(&mut body, &arg, None, 0)?;
         self.diagnostics.append(&mut body.pending);
-        if parts
-            .iter()
-            .any(|part| !matches!(part, pc::TextPart::Text { .. }))
-            || body.player_use.is_some()
-        {
+        if parts.iter().any(|part| !part.is_static()) || body.player_use.is_some() {
             self.diagnostics.push(
                 Diagnostic::error(
                     "text",
                     file,
                     span,
-                    "item text is fixed when the item is made",
+                    "resource text cannot read runtime values",
                 )
                 .with_help(
-                    "use plain text and styles here; scores and `{player}` are not available",
+                    "use literals, styles or translations with fixed arguments; scores and `{player}` are not available",
                 ),
             );
             return None;

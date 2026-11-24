@@ -483,6 +483,70 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Progression => {
+                let Some(objectives) = get("objectives")
+                    .and_then(|field| self.data_progression_objectives(module, file, &field.value))
+                else {
+                    return;
+                };
+                let Some(progress) = get("progress").and_then(|field| {
+                    self.data_progress_field(module, file, &field.value, objectives.len())
+                }) else {
+                    return;
+                };
+                let branches = get("branches")
+                    .and_then(|field| {
+                        self.data_progression_branches(module, file, &field.value, objectives.len())
+                    })
+                    .unwrap_or_default();
+                self.pointers.push((
+                    module_id,
+                    format!("/progressions/{}", out.progressions.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.progressions.push(pc::ProgressionDefinition {
+                    id: location,
+                    progress,
+                    objectives,
+                    branches,
+                });
+            }
+            DataKind::Session => {
+                let Some(progression) = get("progression").and_then(|field| {
+                    let expr = self.data_expr(file, &field.value, "a progression")?;
+                    if let Some((_, id)) = self.declared(module, file, expr, DefKind::Progression) {
+                        id.parse().ok()
+                    } else {
+                        self.error("type", file, expr.span(), "expected a declared progression");
+                        None
+                    }
+                }) else {
+                    return;
+                };
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                }) else {
+                    return;
+                };
+                let every = get("every")
+                    .and_then(|field| {
+                        self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                    })
+                    .map(|value| value as u32);
+                self.pointers.push((
+                    module_id,
+                    format!("/sessions/{}", out.sessions.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.sessions.push(pc::SessionDefinition {
+                    id: location,
+                    progression,
+                    ticks: ticks as u32,
+                    every,
+                });
+            }
             DataKind::Projectile => {
                 let Some(ticks) = get("ticks").and_then(|field| {
                     self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
@@ -557,7 +621,7 @@ impl Cx {
                 };
                 let start = get("start").and_then(|field| self.data_menu_name(file, &field.value));
                 let while_open = get("while_open")
-                    .and_then(|field| self.data_menu_guard(module, file, &field.value));
+                    .and_then(|field| self.data_boolean_state(module, file, &field.value));
                 self.pointers.push((
                     module_id,
                     format!("/menus/{}", out.menus.len()),
@@ -1620,6 +1684,161 @@ impl Cx {
         Some(fields)
     }
 
+    fn data_progress_field(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        objectives: usize,
+    ) -> Option<pc::FieldReference> {
+        let expr = self.data_expr(file, value, "a player State number")?;
+        let Expr::Place(place) = expr else {
+            self.error(
+                "state",
+                file,
+                value.span(),
+                "expected a player State number",
+            );
+            return None;
+        };
+        let (state, field, ty) = self.resolve_place(module, file, place)?;
+        if !self.types_agree(file, value.span(), Ty::Number, ty) {
+            return None;
+        }
+        if !matches!(
+            self.defs[state.0].info,
+            DefInfo::State {
+                scope: Scope::Player,
+                ..
+            }
+        ) {
+            self.error(
+                "state",
+                file,
+                value.span(),
+                "progression requires a player State number",
+            );
+            return None;
+        }
+        if let DefInfo::Field {
+            default,
+            bounds,
+            timer,
+            ..
+        } = self.defs[field.0].info
+        {
+            if timer || default.unwrap_or(0) != 0 {
+                self.error(
+                    "state",
+                    file,
+                    value.span(),
+                    "progression requires a non-ticking number with default zero",
+                );
+                return None;
+            }
+            if bounds.is_some_and(|(min, max)| min > 0 || max < objectives as i32) {
+                self.error(
+                    "state",
+                    file,
+                    value.span(),
+                    "progression bounds must include zero through the objective count",
+                );
+                return None;
+            }
+        }
+        self.field_reference(state, field)
+    }
+
+    fn data_progression_objectives(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<pc::ProgressionObjective>> {
+        let DataValue::Array(entries, _) = value else {
+            self.error(
+                "progression",
+                file,
+                value.span(),
+                "expected a list of objectives",
+            );
+            return None;
+        };
+        if !(1..=256).contains(&entries.len()) {
+            self.error(
+                "progression",
+                file,
+                value.span(),
+                "a progression needs between 1 and 256 objectives",
+            );
+            return None;
+        }
+        entries
+            .iter()
+            .map(|entry| {
+                let fields =
+                    self.data_object_fields(file, entry, "objective", &[], &["when", "reward"])?;
+                Some(pc::ProgressionObjective {
+                    when: fields
+                        .get("when")
+                        .and_then(|value| self.data_boolean_state(module, file, value)),
+                    reward: fields
+                        .get("reward")
+                        .and_then(|value| self.data_callback(module, file, value)),
+                })
+            })
+            .collect()
+    }
+
+    fn data_progression_branches(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        objectives: usize,
+    ) -> Option<Vec<pc::ProgressionBranch>> {
+        let DataValue::Array(entries, _) = value else {
+            self.error(
+                "progression",
+                file,
+                value.span(),
+                "expected a list of forward branches",
+            );
+            return None;
+        };
+        if entries.len() > 256 {
+            self.error(
+                "progression",
+                file,
+                value.span(),
+                "a progression supports at most 256 branches",
+            );
+            return None;
+        }
+        entries
+            .iter()
+            .map(|entry| {
+                let fields = self.data_object_fields(
+                    file,
+                    entry,
+                    "progression branch",
+                    &["from", "to", "when"],
+                    &[],
+                )?;
+                let from =
+                    self.data_int(module, file, fields.get("from")?, 0, objectives as i64 - 1)?;
+                let to =
+                    self.data_int(module, file, fields.get("to")?, from + 1, objectives as i64)?;
+                let when = self.data_boolean_state(module, file, fields.get("when")?)?;
+                Some(pc::ProgressionBranch {
+                    from: from as u32,
+                    to: to as u32,
+                    when,
+                })
+            })
+            .collect()
+    }
+
     fn data_menu_choices(
         &mut self,
         module: ModuleId,
@@ -1673,7 +1892,7 @@ impl Cx {
                         .and_then(|value| self.data_menu_name(file, value)),
                     when: fields
                         .get("when")
-                        .and_then(|value| self.data_menu_guard(module, file, value)),
+                        .and_then(|value| self.data_boolean_state(module, file, value)),
                 })
             })
             .collect()
@@ -1721,7 +1940,7 @@ impl Cx {
         None
     }
 
-    fn data_menu_guard(
+    fn data_boolean_state(
         &mut self,
         module: ModuleId,
         file: FileId,

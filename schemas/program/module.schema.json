@@ -581,6 +581,50 @@
         },
         {
           "additionalProperties": false,
+          "description": "Advance once or reset the player's durable progression.",
+          "properties": {
+            "advance": {
+              "type": "boolean"
+            },
+            "op": {
+              "const": "progression",
+              "type": "string"
+            },
+            "progression": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "progression",
+            "advance"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Control this player's named session.",
+          "properties": {
+            "command": {
+              "$ref": "#/$defs/SessionCommand"
+            },
+            "op": {
+              "const": "session",
+              "type": "string"
+            },
+            "session": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "session",
+            "command"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Launch a named projectile or cancel its flights for this player.",
           "properties": {
             "launch": {
@@ -2144,6 +2188,18 @@
           },
           "required": [
             "predicate"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Test the current player's committed completion index.",
+          "properties": {
+            "progression_completed": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "progression_completed"
           ],
           "type": "object"
         },
@@ -4461,6 +4517,97 @@
         }
       ]
     },
+    "ProgressionBranch": {
+      "additionalProperties": false,
+      "description": "A conditional forward successor in a player progression.",
+      "properties": {
+        "from": {
+          "description": "Zero-based source objective.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "to": {
+          "description": "A later index, including the total objective count for completion.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "when": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Score that must equal one to choose this successor."
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "when"
+      ],
+      "type": "object"
+    },
+    "ProgressionDefinition": {
+      "additionalProperties": false,
+      "description": "An ordered player track backed by a canonical State number.",
+      "properties": {
+        "branches": {
+          "description": "Optional forward successors in declaration order.",
+          "items": {
+            "$ref": "#/$defs/ProgressionBranch"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Identity used to advance, reset or test this track.",
+          "type": "string"
+        },
+        "objectives": {
+          "description": "Objectives in their persisted order.",
+          "items": {
+            "$ref": "#/$defs/ProgressionObjective"
+          },
+          "type": "array"
+        },
+        "progress": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The player's durable, non-ticking score initialized to zero."
+        }
+      },
+      "required": [
+        "id",
+        "progress",
+        "objectives"
+      ],
+      "type": "object"
+    },
+    "ProgressionObjective": {
+      "additionalProperties": false,
+      "description": "One optional eligibility flag and committed reward.",
+      "properties": {
+        "reward": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional committed reward, executed as the advancing player."
+        },
+        "when": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional score that must equal one to advance at this objective."
+        }
+      },
+      "type": "object"
+    },
     "ProjectileDefinition": {
       "additionalProperties": false,
       "description": "A player-owned sampled projectile, built through Sand's shared flight runtime.",
@@ -5011,6 +5158,66 @@
         "left",
         "relation",
         "right"
+      ],
+      "type": "object"
+    },
+    "SessionCommand": {
+      "description": "A control action for a player's named session.",
+      "oneOf": [
+        {
+          "const": "start",
+          "description": "Start or replace this player's instance while retaining progress.",
+          "type": "string"
+        },
+        {
+          "const": "restart",
+          "description": "Reset progress and start a fresh instance.",
+          "type": "string"
+        },
+        {
+          "const": "reset",
+          "description": "Cancel the current instance and reset progress.",
+          "type": "string"
+        },
+        {
+          "const": "cancel",
+          "description": "Cancel the current instance and retain progress.",
+          "type": "string"
+        }
+      ]
+    },
+    "SessionDefinition": {
+      "additionalProperties": false,
+      "description": "An owned lifetime that drives a named player progression.",
+      "properties": {
+        "every": {
+          "description": "Positive loaded-tick cadence. Defaults to one.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Identity used to address the player's session.",
+          "type": "string"
+        },
+        "progression": {
+          "description": "Named track advanced by this session.",
+          "type": "string"
+        },
+        "ticks": {
+          "description": "Maximum lifetime in loaded ticks.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "progression",
+        "ticks"
       ],
       "type": "object"
     },
@@ -5684,6 +5891,13 @@
       },
       "type": "array"
     },
+    "progressions": {
+      "description": "Player progression tracks.",
+      "items": {
+        "$ref": "#/$defs/ProgressionDefinition"
+      },
+      "type": "array"
+    },
     "projectiles": {
       "description": "Projectiles launched and cancelled by the owning player.",
       "items": {
@@ -5702,6 +5916,13 @@
       "description": "Item, block, and entity-type tags.",
       "items": {
         "$ref": "#/$defs/ResourceTag"
+      },
+      "type": "array"
+    },
+    "sessions": {
+      "description": "Owned session controllers over named tracks.",
+      "items": {
+        "$ref": "#/$defs/SessionDefinition"
       },
       "type": "array"
     },

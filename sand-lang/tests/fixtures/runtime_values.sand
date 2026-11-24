@@ -74,6 +74,18 @@ menu FieldMenu {
     }],
 }
 
+progression ProbeTrack {
+    progress: Ledger.quest_stage,
+    objectives: [
+        { when: Ledger.quest_ready, reward: quest_first },
+        { reward: quest_optional },
+        { reward: quest_complete },
+    ],
+    branches: [{ from: 0, to: 2, when: Ledger.quest_skip }],
+}
+
+session ProbeSession { progression: ProbeTrack, ticks: 50, every: 4 }
+
 projectile ProbeBolt {
     ticks: 18,
     speed: 2.0,
@@ -104,6 +116,10 @@ player state Ledger {
     menu_allowed: bool,
     bolt_hits: number,
     bolt_blocks: number,
+    quest_stage: number,
+    quest_awards: number,
+    quest_ready: bool,
+    quest_skip: bool,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -183,6 +199,50 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe 9");
     } else if all_bread == 3 && custom_bread == 0 && absent == 0 {
         raw!("scoreboard players set @s numeric_probe 3");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn quest_first() {
+    Ledger.quest_awards += 1;
+    advance_progression(ProbeTrack);
+    raw!("say __SAND_QUEST_FIRST__");
+}
+fn quest_optional() { Ledger.quest_awards += 10; }
+fn quest_complete() {
+    Ledger.quest_awards += 100;
+    raw!("say __SAND_QUEST_COMPLETE__");
+}
+fn prepare_quest_a() {
+    advance_progression(ProbeTrack);
+    if Ledger.quest_stage == 0 { raw!("scoreboard players set #quest_guard numeric_probe 1"); }
+    Ledger.quest_ready = true;
+    Ledger.quest_skip = true;
+    advance_progression(ProbeTrack);
+    if Ledger.quest_stage == 2 && Ledger.quest_awards == 1 {
+        raw!("scoreboard players set #quest_start_a numeric_probe 1");
+    }
+    start_session(ProbeSession);
+}
+fn prepare_quest_b() {
+    Ledger.quest_ready = true;
+    start_session(ProbeSession);
+    cancel_session(ProbeSession);
+}
+fn start_quest() { start_session(ProbeSession); }
+fn restart_quest() { restart_session(ProbeSession); }
+fn cancel_quest() { cancel_session(ProbeSession); }
+fn reset_quest() { reset_session(ProbeSession); }
+fn report_quest() {
+    if progression_completed(ProbeTrack) {
+        if Ledger.quest_awards == 101 { raw!("scoreboard players set @s numeric_probe 101"); }
+        else if Ledger.quest_awards == 111 { raw!("scoreboard players set @s numeric_probe 111"); }
+        else { raw!("scoreboard players set @s numeric_probe -1"); }
+    } else if Ledger.quest_stage == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else if Ledger.quest_stage == 1 && Ledger.quest_awards == 112 {
+        raw!("scoreboard players set @s numeric_probe 1");
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
     }

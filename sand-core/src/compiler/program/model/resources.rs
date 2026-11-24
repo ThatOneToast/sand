@@ -891,3 +891,100 @@ pub struct ProjectileDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hit: Option<FunctionReference>,
 }
+
+/// An ordered player track backed by a canonical State number.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::ProgressionDefinition", module = "sand::advanced::compiler",
+ summary = "An ordered player track backed by State.",
+ context = "The next objective index lives in the supplied player score. Advance consumes at most one objective. Use an explicit reset to replay the track.",
+ minecraft = "Lowers through the shared Progression system, including committed rewards and its shared lock.",
+ use_when = ["Declaring a player quest or phase track"],
+ avoid_when = ["Creating an arbitrary looping State machine"],
+ fields(id = "Progression identity.", progress = "Player State number storing the next objective index.", objectives = "Ordered objectives from zero to the completion index.", branches = "Optional forward branches resolved in declaration order."),
+ example = "use sand::advanced::compiler::ProgressionDefinition;",
+)]
+pub struct ProgressionDefinition {
+    /// Identity used to advance, reset or test this track.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// The player's durable, non-ticking score initialized to zero.
+    pub progress: FieldReference,
+    /// Objectives in their persisted order.
+    pub objectives: Vec<ProgressionObjective>,
+    /// Optional forward successors in declaration order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub branches: Vec<ProgressionBranch>,
+}
+
+/// One optional eligibility flag and committed reward.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::ProgressionObjective", module = "sand::advanced::compiler",
+ summary = "One objective with optional eligibility and a reward.",
+ context = "The shared runtime commits progress before calling the reward as the owner.",
+ minecraft = "Uses the existing State guard and callback command model.",
+ use_when = ["Adding one stage to a player progression"],
+ avoid_when = ["Running work on every tick without advancing progression"],
+ fields(when = "Optional score that must equal one.", reward = "Optional parameterless player function after commitment."),
+ example = "use sand::advanced::compiler::ProgressionObjective;",
+)]
+pub struct ProgressionObjective {
+    /// Optional score that must equal one to advance at this objective.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<FieldReference>,
+    /// Optional committed reward, executed as the advancing player.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reward: Option<FunctionReference>,
+}
+
+/// A conditional forward successor in a player progression.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::ProgressionBranch", module = "sand::advanced::compiler",
+ summary = "A forward successor chosen by an eligibility score.",
+ context = "The first eligible branch at the current objective wins. Skipped objectives issue no reward.",
+ minecraft = "Uses the shared Progression runtime's pre-commit condition checks.",
+ use_when = ["Skipping optional objectives or routing a player based on State"],
+ avoid_when = ["Replaying an already committed objective"],
+ fields(from = "Zero-based source objective.", to = "Later objective index or total objective count.", when = "Score that must equal one."),
+ example = "use sand::advanced::compiler::ProgressionBranch;",
+)]
+pub struct ProgressionBranch {
+    /// Zero-based source objective.
+    pub from: u32,
+    /// A later index, including the total objective count for completion.
+    pub to: u32,
+    /// Score that must equal one to choose this successor.
+    pub when: FieldReference,
+}
+
+/// An owned lifetime that drives a named player progression.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::SessionDefinition", module = "sand::advanced::compiler",
+ summary = "An owned lifetime that drives a player progression.",
+ context = "Each admitted session checks at most one objective on its cadence. Completion ends the session. Cancelling preserves progress.",
+ minecraft = "Lowers through the existing Session, Progression and Lifetime systems.",
+ use_when = ["Starting a bounded player quest or round controller"],
+ avoid_when = ["Selecting teams or participants; author their State separately"],
+ fields(id = "Session identity.", progression = "Track advanced by the session.", ticks = "Positive maximum lifetime in loaded ticks.", every = "Optional positive cadence in loaded ticks."),
+ example = "use sand::advanced::compiler::SessionDefinition;",
+)]
+pub struct SessionDefinition {
+    /// Identity used to address the player's session.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Named track advanced by this session.
+    #[schemars(with = "String")]
+    pub progression: ResourceLocation,
+    /// Maximum lifetime in loaded ticks.
+    pub ticks: u32,
+    /// Positive loaded-tick cadence. Defaults to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub every: Option<u32>,
+}

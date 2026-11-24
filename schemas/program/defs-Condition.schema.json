@@ -50,6 +50,18 @@
       "type": "object"
     },
     {
+      "description": "Test the current player's committed completion index.",
+      "properties": {
+        "progression_completed": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "progression_completed"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Match the current player's advancement or named criterion completion.",
       "properties": {
         "advancement": {

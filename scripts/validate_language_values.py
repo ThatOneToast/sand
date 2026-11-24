@@ -32,7 +32,7 @@ class ValuesHarness(WorldGameplayHarness):
                 logs.append(log)
                 start = len(self.lines)
                 command = [sys.executable, str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
-                           "127.0.0.1", str(self.port), "776", name, "20"]
+                           "127.0.0.1", str(self.port), "776", name, "25"]
                 if name == "NumericA":
                     for token in ("SAND-JOURNAL-PROBE", "click_event", "copy_to_clipboard",
                                   "hover_event", "show_text", "Native text"):
@@ -228,6 +228,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_owner_huds()
             self.check_native_menus()
             self.check_owned_projectiles()
+            self.check_progression_sessions()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
@@ -354,15 +355,7 @@ class ValuesHarness(WorldGameplayHarness):
 
         def select(player, token):
             self.send(f"execute as {player} run trigger {trigger} set {token}")
-            self.send("execute store result score #menu_end numeric_probe run time query gametime")
-            self.send("scoreboard players add #menu_end numeric_probe 3")
-            self.send("tick step 3")
-            for _ in range(20):
-                self.send("execute store result score #menu_now numeric_probe run time query gametime")
-                if self.passed("MENU_TICK", "execute if score #menu_now numeric_probe >= #menu_end numeric_probe run say __SAND_WORLD_MENU_TICK_OK__"):
-                    return
-                time.sleep(0.05)
-            raise ValidationFailure("menu-tick", "native menu dispatch did not receive its ticks")
+            self.step_ticks(3, "MENU_TICK")
 
         def report(player, result, label):
             self.send(f"execute as {player} run function runtime_values:report_menu")
@@ -425,8 +418,20 @@ class ValuesHarness(WorldGameplayHarness):
         report("NumericB", 10, "MENU_PEER_REMAINS_ELIGIBLE")
 
 
+    def step_ticks(self, ticks, label):
+        self.send("execute store result score #probe_end numeric_probe run time query gametime")
+        self.send(f"scoreboard players add #probe_end numeric_probe {ticks}")
+        self.send(f"tick step {ticks}")
+        for _ in range(ticks + 20):
+            self.send("execute store result score #probe_now numeric_probe run time query gametime")
+            if self.passed(label, f"execute if score #probe_now numeric_probe >= #probe_end numeric_probe run say __SAND_WORLD_{label}_OK__"):
+                return
+            time.sleep(0.05)
+        raise ValidationFailure(label, "the native server did not complete the requested ticks")
+
     def check_owned_projectiles(self):
         self.send("scoreboard objectives add bolt_kills totalKillCount")
+        self.send("fill 2 100 3 12 103 10 minecraft:air")
         for player, x in (("NumericA", 3), ("NumericB", 11)):
             self.send(f"scoreboard players set {player} bolt_kills 0")
             self.send(f"execute in minecraft:overworld run setblock {x} 99 3 minecraft:stone")
@@ -439,7 +444,7 @@ class ValuesHarness(WorldGameplayHarness):
         self.send("execute as NumericB at @s run function runtime_values:cancel_bolt")
         start = len(self.lines)
         impact = re.compile(r"\[NumericA\] __SAND_BOLT_IMPACT__$")
-        self.send("tick step 7")
+        self.step_ticks(7, "BOLT_TICKS")
         self.wait_for(impact, "bolt-entity-impact", start)
         self.check("BOLT_OWNER_KILL", "if score NumericA bolt_kills matches 1")
         self.check("BOLT_PEER_KILL", "if score NumericB bolt_kills matches 0")
@@ -449,12 +454,46 @@ class ValuesHarness(WorldGameplayHarness):
         self.send("setblock 3 100 6 minecraft:stone")
         start = len(self.lines)
         self.send("execute as NumericA at @s run function runtime_values:launch_bolt")
-        self.send("tick step 7")
+        self.step_ticks(7, "BOLT_TICKS")
         self.wait_for(impact, "bolt-block-impact", start)
         self.send("execute as NumericA run function runtime_values:report_bolt")
         self.send("execute as NumericB run function runtime_values:report_bolt")
         self.check("BOLT_IMPACT_POSITION", "if score NumericA numeric_probe matches 21")
         self.check("BOLT_PEER_ISOLATION", "if score NumericB numeric_probe matches 0")
+
+
+    def check_progression_sessions(self):
+        def invoke(player, function):
+            self.send(f"execute as {player} at @s run function runtime_values:{function}")
+
+        def report(player, score, label):
+            invoke(player, "report_quest")
+            self.check(label, f"if score {player} numeric_probe matches {score}")
+
+        def wait_for_reward(player, reward, ticks):
+            start = len(self.lines)
+            self.step_ticks(ticks, "QUEST_TICKS")
+            self.wait_for(re.compile(rf"\[{player}\] __SAND_QUEST_{reward}__$"), "quest-reward", start)
+
+        invoke("NumericA", "prepare_quest_a")
+        invoke("NumericB", "prepare_quest_b")
+        self.check("QUEST_GUARD", "if score #quest_guard numeric_probe matches 1")
+        self.check("QUEST_REENTRY_AND_BRANCH", "if score #quest_start_a numeric_probe matches 1")
+        wait_for_reward("NumericA", "COMPLETE", 8)
+        report("NumericA", 101, "QUEST_SKIP_REWARD")
+        report("NumericB", 0, "QUEST_CANCELLED_PEER")
+
+        invoke("NumericB", "start_quest")
+        wait_for_reward("NumericB", "COMPLETE", 16)
+        report("NumericB", 111, "QUEST_NORMAL_REWARDS")
+        report("NumericA", 101, "QUEST_COMPLETED_PEER")
+
+        invoke("NumericB", "restart_quest")
+        wait_for_reward("NumericB", "FIRST", 4)
+        invoke("NumericB", "cancel_quest")
+        report("NumericB", 1, "QUEST_RESTART_AND_CANCEL")
+        invoke("NumericB", "reset_quest")
+        report("NumericB", 0, "QUEST_RESET")
 
 
 def main():

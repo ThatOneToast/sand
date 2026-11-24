@@ -224,6 +224,7 @@ pub struct Lifetime<K: EntityKind = PlayerKind> {
     invocation_position: bool,
     dimensions: Vec<DimensionId>,
     pub(super) step: Option<&'static str>,
+    pub(super) step_on_interval: bool,
     pub(super) start: Option<Callback<K>>,
     tick: Option<Callback<K>>,
     pub(super) stop: Option<Callback<K>>,
@@ -254,6 +255,7 @@ impl<K: EntityKind> Lifetime<K> {
         Self {
             id,
             step: None,
+            step_on_interval: false,
             guard: None,
             commit: Actions::default(),
             status: None,
@@ -831,7 +833,12 @@ impl<K: EntityKind> RuntimeFunction<K> {
             "after_tick"=> {
                 let mut lines=Vec::new();
                 if let Some(step)=d.step {
-                    lines.push(format!("function {}",resource(step)));
+                    let call = resource(step);
+                    if d.step_on_interval && d.interval.get() > 1 {
+                        lines.push(format!("execute if score @s {phase} matches ..0 run function {call}"));
+                    } else {
+                        lines.push(format!("function {call}"));
+                    }
                 }
                 lines.push(format!("function {} with entity @s data",resource("resume_step")));
                 lines

@@ -4114,6 +4114,21 @@ impl Cx {
                     criterion,
                 })
             }
+            "progression_completed" => {
+                body.note_player(
+                    path.span,
+                    "`progression_completed` reads player progress".into(),
+                );
+                let progression_completed = self.arg_declared(
+                    body,
+                    bound["progression"],
+                    DefKind::Progression,
+                    "a progression",
+                )?;
+                Some(pc::Condition::ProgressionCompleted {
+                    progression_completed,
+                })
+            }
             "predicate_matches" => {
                 let arg = bound["predicate"];
                 let ArgValue::Expr(expr) = &arg.value else {
@@ -4872,6 +4887,31 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "advance_progression" | "reset_progression" => pc::Action::Progression {
+                progression: self.arg_declared(
+                    body,
+                    bound["progression"],
+                    DefKind::Progression,
+                    "a progression",
+                )?,
+                advance: builtin.name == "advance_progression",
+            },
+            "start_session" | "restart_session" | "reset_session" | "cancel_session" => {
+                pc::Action::Session {
+                    session: self.arg_declared(
+                        body,
+                        bound["session"],
+                        DefKind::Session,
+                        "a session",
+                    )?,
+                    command: match builtin.name {
+                        "start_session" => pc::SessionCommand::Start,
+                        "restart_session" => pc::SessionCommand::Restart,
+                        "reset_session" => pc::SessionCommand::Reset,
+                        _ => pc::SessionCommand::Cancel,
+                    },
+                }
+            }
             "launch_projectile" | "cancel_projectile" => pc::Action::Projectile {
                 projectile: self.arg_declared(
                     body,

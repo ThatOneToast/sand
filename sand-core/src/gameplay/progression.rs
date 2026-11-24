@@ -2,9 +2,10 @@
 use super::{identity, runtime};
 use crate::{
     IntoCommands,
-    condition::Condition,
+    condition::{Condition, ScoreRange},
     entity::{
-        EntityContext, EntityKind, EntityScore, EntityStateField, PlayerKind, StateFieldKind,
+        EntityContext, EntityKind, EntityScore, EntityScoreAccessor, EntityStateField, PlayerKind,
+        StateFieldKind,
     },
     ir::{Actions, Cmd},
     registration::{DatapackRegistration, IntoDatapack, LifecycleContribution},
@@ -18,6 +19,52 @@ type Objective<K> = (
     Arc<dyn Fn(EntityContext<K>) -> Actions>,
 );
 type Branch<K> = (usize, usize, Arc<dyn Fn(EntityContext<K>) -> Condition>);
+
+#[derive(Clone)]
+enum ProgressField {
+    Declared(EntityScore<i32>),
+    Owned {
+        state: Arc<crate::compiler::program::State>,
+        name: String,
+    },
+}
+
+enum BoundProgressField {
+    Declared(EntityScoreAccessor<i32>),
+    Owned(ObjectiveName),
+}
+
+impl BoundProgressField {
+    fn matches(&self, value: i32) -> CommandResult<Condition> {
+        match self {
+            Self::Declared(field) => field
+                .matches(value..=value)
+                .map_err(|error| CommandError::new("progression", "progress", error.to_string())),
+            Self::Owned(objective) => Ok(Condition::score(
+                "@s".into(),
+                objective.to_string(),
+                ScoreRange::Eq(value),
+            )),
+        }
+    }
+
+    fn set(&self, value: i32) -> Actions {
+        match self {
+            Self::Declared(field) => field.set(value),
+            // Progression validates that every possible write fits the owning
+            // State bounds. Player State needs no entity-archetype dirty mark.
+            Self::Owned(objective) => {
+                format!("scoreboard players set @s {objective} {value}").into_commands()
+            }
+        }
+    }
+}
+
+struct BoundTrack {
+    field: BoundProgressField,
+    presence: ObjectiveName,
+    revision: u32,
+}
 
 /// An ordered quest or phase track over an attached canonical integer State field.
 ///
@@ -45,7 +92,7 @@ type Branch<K> = (usize, usize, Arc<dyn Fn(EntityContext<K>) -> Condition>);
  example = "use sand::systems::Progression;")]
 pub struct Progression<K: EntityKind = PlayerKind> {
     pub(super) id: ResourceLocation,
-    progress: EntityScore<i32>,
+    progress: ProgressField,
     objectives: Vec<Objective<K>>,
     branches: Vec<Branch<K>>,
 }
@@ -61,11 +108,24 @@ impl<K: EntityKind> Progression<K> {
     pub fn new(id: ResourceLocation, progress: EntityScore<i32>) -> Self {
         Self {
             id,
-            progress,
+            progress: ProgressField::Declared(progress),
             objectives: vec![],
             branches: vec![],
         }
     }
+    pub(crate) fn owned(
+        id: ResourceLocation,
+        state: Arc<crate::compiler::program::State>,
+        name: String,
+    ) -> Self {
+        Self {
+            id,
+            progress: ProgressField::Owned { state, name },
+            objectives: vec![],
+            branches: vec![],
+        }
+    }
+
     /// Append an owner-context condition and its once-per-reset reward actions.
     /// One to 256 objectives are supported. Definition order is persisted meaning.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Progression::objective", module = "sand::systems",
@@ -152,24 +212,33 @@ impl<K: EntityKind> Progression<K> {
         let pack_namespace = identity::pack_namespace()?;
         let lock = ObjectiveName::logical(format!(
             "sand progression {pack_namespace} {} lock",
-            self.progress.field_reference().objective
+            self.progress_objective()
         ));
         crate::function::request_numeric_objectives([lock.clone()])?;
         Ok(lock)
     }
+    fn progress_objective(&self) -> String {
+        match &self.progress {
+            ProgressField::Declared(field) => field.field_reference().objective,
+            ProgressField::Owned { state, name } => {
+                ObjectiveName::logical(format!("{}.{name}", state.id)).to_string()
+            }
+        }
+    }
+
     fn schema(&self) -> CommandResult<&'static crate::state::StateDescriptor<'static>> {
         let error = |field, detail| CommandError::new("progression", field, detail);
-        let reference = self.progress.field_reference();
+        let ProgressField::Declared(progress) = &self.progress else {
+            unreachable!("owned progression binds through portable State")
+        };
+        let reference = progress.field_reference();
         let schema = inventory::iter::<crate::state::StateDescriptor>
             .into_iter()
             .find(|s| s.id == reference.component)
             .ok_or_else(|| error("progress", "requires registered canonical State"))?;
         self.validate_schema(schema)
     }
-    fn validate_schema<'a>(
-        &self,
-        schema: &'a crate::state::StateDescriptor<'static>,
-    ) -> CommandResult<&'a crate::state::StateDescriptor<'static>> {
+    fn validate_track(&self) -> CommandResult<()> {
         let error = |field, detail| CommandError::new("progression", field, detail);
         if self.objectives.is_empty() || self.objectives.len() > 256 {
             return Err(error("objectives", "requires 1..=256 objectives"));
@@ -184,7 +253,19 @@ impl<K: EntityKind> Progression<K> {
                 "requires at most 256 forward branches with from < to <= objective count",
             ));
         }
-        let reference = self.progress.field_reference();
+        Ok(())
+    }
+
+    fn validate_schema<'a>(
+        &self,
+        schema: &'a crate::state::StateDescriptor<'static>,
+    ) -> CommandResult<&'a crate::state::StateDescriptor<'static>> {
+        let error = |field, detail| CommandError::new("progression", field, detail);
+        self.validate_track()?;
+        let ProgressField::Declared(progress) = &self.progress else {
+            unreachable!("owned progression binds through portable State")
+        };
+        let reference = progress.field_reference();
         let field = schema
             .fields
             .iter()
@@ -193,26 +274,13 @@ impl<K: EntityKind> Progression<K> {
                     && f.field == reference.descriptor
             })
             .ok_or_else(|| error("progress", "field metadata does not match registered State"))?;
-        if field.field.kind != StateFieldKind::Score
-            || field.auto_tick
-            || field.criterion != "dummy"
-            || field.field.default != 0
-        {
+        if field.field.kind != StateFieldKind::Score || field.criterion != "dummy" {
             return Err(error(
                 "progress",
                 "requires a non-ticking dummy Score with default zero",
             ));
         }
-        if field
-            .field
-            .bounds
-            .is_some_and(|(min, max)| min > 0 || max < self.objectives.len() as i32)
-        {
-            return Err(error(
-                "progress",
-                "bounds must include zero through objective count",
-            ));
-        }
+        self.validate_progress_field(field.auto_tick, field.field.default, field.field.bounds)?;
         match schema.scope {
             crate::state::StateScope::Global(_) => {
                 return Err(error(
@@ -236,8 +304,81 @@ impl<K: EntityKind> Progression<K> {
         }
         Ok(schema)
     }
+    fn validate_progress_field(
+        &self,
+        timer: bool,
+        default: i32,
+        bounds: Option<(i32, i32)>,
+    ) -> CommandResult<()> {
+        if timer || default != 0 {
+            return Err(CommandError::new(
+                "progression",
+                "progress",
+                "requires a non-ticking dummy Score with default zero",
+            ));
+        }
+        if bounds.is_some_and(|(min, max)| min > 0 || max < self.objectives.len() as i32) {
+            return Err(CommandError::new(
+                "progression",
+                "progress",
+                "bounds must include zero through objective count",
+            ));
+        }
+        Ok(())
+    }
+
+    fn bind(&self) -> CommandResult<BoundTrack> {
+        match &self.progress {
+            ProgressField::Declared(field) => {
+                let schema = self.schema()?;
+                let dirty = matches!(
+                    schema.scope,
+                    crate::state::StateScope::Entity | crate::state::StateScope::Living
+                );
+                Ok(BoundTrack {
+                    field: BoundProgressField::Declared(field.bind_to("@s", dirty)),
+                    presence: ObjectiveName::logical(schema.presence_objective),
+                    revision: schema.version,
+                })
+            }
+            ProgressField::Owned { state, name } => {
+                self.validate_track()?;
+                if state.scope != "player" || K::LABEL != "player" {
+                    return Err(CommandError::new(
+                        "progression",
+                        "progress",
+                        "requires player State",
+                    ));
+                }
+                let score = state
+                    .fields
+                    .iter()
+                    .find(|field| &field.name == name)
+                    .ok_or_else(|| {
+                        CommandError::new(
+                            "progression",
+                            "progress",
+                            "requires a canonical State score",
+                        )
+                    })?;
+                self.validate_progress_field(score.timer, score.default, score.bounds)?;
+                Ok(BoundTrack {
+                    field: BoundProgressField::Owned(ObjectiveName::logical(format!(
+                        "{}.{name}",
+                        state.id
+                    ))),
+                    presence: ObjectiveName::logical(format!("{}.presence", state.id)),
+                    revision: state.revision,
+                })
+            }
+        }
+    }
+
     pub(super) fn ready(&self) -> CommandResult<Actions> {
-        let schema = self.schema()?;
+        Ok(Self::require_presence(&self.bind()?))
+    }
+
+    fn require_presence(track: &BoundTrack) -> Actions {
         let mut actions = Actions::default();
         if K::LABEL == "player" {
             actions.extend(["execute unless entity @s[type=minecraft:player] run return 0"]);
@@ -251,36 +392,23 @@ impl<K: EntityKind> Progression<K> {
         }
         actions.extend([format!(
             "execute unless score @s {} matches {} run return 0",
-            ObjectiveName::logical(schema.presence_objective),
-            schema.version
+            track.presence, track.revision,
         )]);
-        Ok(actions)
+        actions
     }
+
     pub(super) fn reset_write(&self) -> CommandResult<Actions> {
-        let schema = self.schema()?;
-        Ok(self
-            .progress
-            .bind_to(
-                "@s",
-                matches!(
-                    schema.scope,
-                    crate::state::StateScope::Entity | crate::state::StateScope::Living
-                ),
-            )
-            .set(0))
+        Ok(self.bind()?.field.set(0))
     }
+
     fn build(&self, part: &str) -> CommandResult<Actions> {
-        let schema = self.schema()?;
-        let dirty = matches!(
-            schema.scope,
-            crate::state::StateScope::Entity | crate::state::StateScope::Living
-        );
-        let progress = self.progress.bind_to("@s", dirty);
+        let track = self.bind()?;
+        let progress = &track.field;
         let lock = self.lock()?;
         if part == "load" {
             return Ok(format!("scoreboard players set #busy {lock} 0").into_commands());
         }
-        let mut body = self.ready()?;
+        let mut body = Self::require_presence(&track);
         if part == "attached" {
             body.extend([Cmd::Return(1)]);
             return Ok(body);
@@ -288,8 +416,7 @@ impl<K: EntityKind> Progression<K> {
         if part == "completed" {
             body.extend([
                 progress
-                    .matches(self.objectives.len() as i32..=self.objectives.len() as i32)
-                    .map_err(|e| CommandError::new("progression", "progress", e.to_string()))?
+                    .matches(self.objectives.len() as i32)?
                     .guard_actions(false, &[], Cmd::Return(1).into_commands()),
                 Cmd::Return(0).into_commands(),
             ]);
@@ -299,7 +426,7 @@ impl<K: EntityKind> Progression<K> {
             "execute if score #busy {lock} matches 1 run return 0"
         )]);
         if part == "reset" {
-            body.extend([self.reset_write()?]);
+            body.extend([progress.set(0)]);
             return Ok(body);
         }
         for (index, (condition, reward)) in self.objectives.iter().enumerate() {
@@ -331,8 +458,7 @@ impl<K: EntityKind> Progression<K> {
             }
             commit.extend([commit_to(index + 1)]);
             let eligible = progress
-                .matches(index as i32..=index as i32)
-                .map_err(|e| CommandError::new("progression", "progress", e.to_string()))?
+                .matches(index as i32)?
                 .and(condition(EntityContext::default()));
             body.extend([eligible.guard_actions(
                 false,

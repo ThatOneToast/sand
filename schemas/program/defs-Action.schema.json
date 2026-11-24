@@ -580,6 +580,50 @@
     },
     {
       "additionalProperties": false,
+      "description": "Advance once or reset the player's durable progression.",
+      "properties": {
+        "advance": {
+          "type": "boolean"
+        },
+        "op": {
+          "const": "progression",
+          "type": "string"
+        },
+        "progression": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "progression",
+        "advance"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Control this player's named session.",
+      "properties": {
+        "command": {
+          "$ref": "defs-SessionCommand.schema.json"
+        },
+        "op": {
+          "const": "session",
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "session",
+        "command"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Launch a named projectile or cancel its flights for this player.",
       "properties": {
         "launch": {

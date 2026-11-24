@@ -83,6 +83,8 @@ fn item_level() {
             "hud",
             "menu",
             "projectile",
+            "progression",
+            "session",
             "event",
             "loot",
             "recipe shapeless",
@@ -451,6 +453,19 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "hud Status { ticks: 100, actionbar: \"Ready\" }\nfn show() { start_hud(|); }",
         &["Status"],
         &["Block::Stone"],
+    );
+    exactly(
+        "progression Trail {\n    |\n}",
+        &["progress", "objectives", "branches"],
+    );
+    exactly(
+        "session TrailRun {\n    |\n}",
+        &["progression", "ticks", "every"],
+    );
+    includes_excludes(
+        "progression Trail {}\n session Run { progression: | }",
+        &["Trail"],
+        &["Run"],
     );
     exactly(
         "projectile Spark {\n    |\n}",

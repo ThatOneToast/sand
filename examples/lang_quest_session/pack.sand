@@ -1,0 +1,44 @@
+#![pack(namespace = "scout_trial", minecraft = "26.2", description = "A player-owned trail quest")]
+
+player state Journal {
+    stage: number,
+    journal_ready: bool,
+    skip_optional: bool,
+}
+
+progression Trail {
+    progress: Journal.stage,
+    objectives: [
+        { when: Journal.journal_ready, reward: issue_rations },
+        { reward: offer_glowstone },
+        { reward: finish_trail },
+    ],
+    branches: [{ from: 0, to: 2, when: Journal.skip_optional }],
+}
+
+session TrailRun {
+    progression: Trail,
+    ticks: 200,
+    every: 20,
+}
+
+fn issue_rations() { give_item(Item::Bread, count = 3); }
+fn offer_glowstone() { give_item(Item::GlowstoneDust); }
+fn finish_trail() { chat!("Your trail quest is complete."); }
+
+pub fn begin() {
+    Journal.journal_ready = true;
+    start_session(TrailRun);
+}
+
+pub fn shortcut() {
+    Journal.skip_optional = true;
+    begin();
+}
+
+pub fn check() {
+    if progression_completed(Trail) { actionbar!("Trail complete"); }
+}
+
+pub fn cancel() { cancel_session(TrailRun); }
+pub fn replay() { restart_session(TrailRun); }

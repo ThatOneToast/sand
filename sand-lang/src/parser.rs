@@ -577,6 +577,8 @@ impl Builder<'_> {
                     "hud" => DataKind::Hud,
                     "menu" => DataKind::Menu,
                     "projectile" => DataKind::Projectile,
+                    "progression" => DataKind::Progression,
+                    "session" => DataKind::Session,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

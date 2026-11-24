@@ -1604,6 +1604,40 @@ The advancement's native reward runs the handlers once per player completion.
 Handlers in the same module run in declaration order. Experience rewards and
 the player's advancement progress use the same vanilla completion.
 
+### Player progression and sessions
+
+A `progression` stores its next objective in a player's State. The field must be
+a non-ticking number with a zero default and, when bounded, it must admit zero
+through the objective count. Objectives are checked in order. Each eligible
+advance commits its successor before running its optional reward function.
+
+```rust,ignore
+player state Journal { stage: number, arrived: bool, skip_optional: bool }
+
+progression Trail {
+    progress: Journal.stage,
+    objectives: [
+        { when: Journal.arrived, reward: grant_rations },
+        { reward: offer_glowstone },
+        { reward: finish_trail },
+    ],
+    branches: [{ from: 0, to: 2, when: Journal.skip_optional }],
+}
+
+session TrailRun { progression: Trail, ticks: 200, every: 20 }
+```
+
+A branch uses zero-based indices. The first eligible forward branch wins, and
+the total number of objectives is the completion index. Skipped objectives
+award nothing. `advance_progression(Trail)` checks one objective, and
+`progression_completed(Trail)` tests completion. `reset_progression(Trail)`
+enables an explicit replay.
+
+Use `start_session(TrailRun)` to advance on the declared cadence until
+completion or expiry. `cancel_session` preserves progress, `reset_session`
+cancels and resets, and `restart_session` resets and starts again. Changes to
+objective order affect saved indices. See the [trail quest example](../../examples/lang_quest_session/).
+
 ### Player-owned projectiles
 
 Declare a sampled projectile, then launch it from a player function.
@@ -1887,7 +1921,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus and projectiles | combat, abilities, encounters, jobs, rosters, progression, scenes, sessions, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression and sessions | combat, abilities, encounters, jobs, rosters, scenes, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

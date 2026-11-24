@@ -225,6 +225,14 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Progression, _) => (
+                    format!("{vis}progression {}", def.name),
+                    format!("Player progression `{id}`. Advance it or run it in a session."),
+                ),
+                (crate::ast::DataKind::Session, _) => (
+                    format!("{vis}session {}", def.name),
+                    format!("Player session `{id}`. Use `start_session` to run its track."),
+                ),
                 (crate::ast::DataKind::Projectile, _) => (
                     format!("{vis}projectile {}", def.name),
                     format!(
@@ -1179,6 +1187,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::StructureTemplate
         | DefKind::InventoryTransfer
         | DefKind::Hud
+        | DefKind::Progression
+        | DefKind::Session
         | DefKind::Projectile
         | DefKind::Menu => CompletionKind::Constant,
     }
@@ -1855,6 +1865,12 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("Progression") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Progression);
+            }
+            Some("Session") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Session);
+            }
             Some("Projectile") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Projectile);
             }
@@ -2380,6 +2396,11 @@ fn data_completions(
             })
             .map(|(name, def)| def_completion(analysis, &name, def))
             .collect(),
+        FieldKind::ProgressionRef => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == DefKind::Progression)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
         FieldKind::Registry("Biome") => {
             let mut out = registry("Biome");
             out.extend(
@@ -2468,6 +2489,16 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot",
             "loot table",
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "progression",
+            "ordered player objectives",
+            "progression ${1:Quest} { progress: ${2:Journal}.${3:stage}, objectives: [{ reward: ${4:award} }] }",
+        ),
+        Completion::snippet(
+            "session",
+            "player-owned progression controller",
+            "session ${1:Run} { progression: ${2:Quest}, ticks: ${3:400} }",
         ),
         Completion::snippet(
             "projectile",
@@ -2796,6 +2827,8 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",
                 ParamKind::Projectile => "Projectile",
+                ParamKind::Progression => "Progression",
+                ParamKind::Session => "Session",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

@@ -17,9 +17,10 @@ pub use model::{
     FlowTransition, Function, FunctionReference, HudBossBar, HudDefinition,
     InventoryTransferDefinition, ItemHeld, LootItem, LootPool, LootTable, MenuChoice,
     MenuDefinition, MenuView, MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack,
-    PlayerEvent, PlayerGameMode, Program, ProgramTarget, ProjectileDefinition, Rarity, Recipe,
-    RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand,
-    ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    PlayerEvent, PlayerGameMode, Program, ProgramTarget, ProgressionBranch, ProgressionDefinition,
+    ProgressionObjective, ProjectileDefinition, Rarity, Recipe, RecipeOutput, Relation,
+    ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
+    ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached, TagKind, TagMembership,
     TeleportDestination, TextColor, TextPart, TextStyle, Weather, WorldPredicate,
     WrittenBookContent,
 };
@@ -89,6 +90,8 @@ const CAPABILITIES: &[&str] = &[
     "owner_huds",
     "native_menus",
     "owned_projectiles",
+    "progressions",
+    "owned_sessions",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

@@ -962,6 +962,14 @@
                 {
                   "type": "STRING",
                   "value": "projectile"
+                },
+                {
+                  "type": "STRING",
+                  "value": "progression"
+                },
+                {
+                  "type": "STRING",
+                  "value": "session"
                 }
               ]
             },

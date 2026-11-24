@@ -134,6 +134,8 @@ pub(super) fn lower(
         custom_items: BTreeMap::new(),
         huds: BTreeMap::new(),
         projectiles: BTreeMap::new(),
+        progressions: BTreeMap::new(),
+        sessions: BTreeMap::new(),
         menus: BTreeMap::new(),
         advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
@@ -156,6 +158,25 @@ pub(super) fn lower(
             })
             .collect(),
     };
+    for progression in program
+        .modules
+        .iter()
+        .flat_map(|module| &module.progressions)
+    {
+        let state = states
+            .iter()
+            .find(|state| state.id == progression.progress.state)
+            .expect("validated progression State");
+        lower.progressions.insert(
+            progression.id.to_string(),
+            lower.progression_component(progression, state),
+        );
+    }
+    for session in program.modules.iter().flat_map(|module| &module.sessions) {
+        lower
+            .sessions
+            .insert(session.id.to_string(), lower.session_component(session));
+    }
     for module in &program.modules {
         for menu in &module.menus {
             lower
@@ -335,6 +356,36 @@ pub(super) fn lower(
                     &format!("menu {}", menu.id),
                     &module_id,
                     &format!("/menus/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, progression) in module.progressions.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.progressions[&progression.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("progression {}", progression.id),
+                    &module_id,
+                    &format!("/progressions/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, session) in module.sessions.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.sessions[&session.id.to_string()]
+                    .clone()
+                    .registration(false),
+                (
+                    &format!("session {}", session.id),
+                    &module_id,
+                    &format!("/sessions/{index}"),
                 ),
                 &ctx,
                 &mut load,
@@ -1604,6 +1655,8 @@ struct Lower<'sources> {
     custom_items: BTreeMap<String, sand_components::CustomItem>,
     huds: BTreeMap<String, crate::gameplay::Hud>,
     projectiles: BTreeMap<String, crate::gameplay::Projectile>,
+    progressions: BTreeMap<String, crate::gameplay::Progression>,
+    sessions: BTreeMap<String, crate::gameplay::Session>,
     menus: BTreeMap<String, crate::gameplay::Menu>,
     advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
@@ -1809,15 +1862,8 @@ impl Lower<'_> {
         if let Some(size) = menu.page_size {
             definition = definition.page_size(size as usize);
         }
-        let flag = |score: &FieldReference| {
-            Condition::flag(
-                self.holders[&score.state.to_string()].to_string(),
-                objective(score),
-                true,
-            )
-        };
         if let Some(score) = &menu.while_open {
-            definition = definition.while_open(flag(score));
+            definition = definition.while_open(self.flag_condition(score));
         }
         if let Some(start) = &menu.start {
             definition = definition.encoded_start(menu.view_index(start).expect("validated view"));
@@ -1838,7 +1884,7 @@ impl Lower<'_> {
                 let allowed = choice
                     .when
                     .as_ref()
-                    .map_or_else(|| Condition::all([]), flag);
+                    .map_or_else(|| Condition::all([]), |score| self.flag_condition(score));
                 definition = definition.encoded_choice(
                     static_text_component(&choice.label, &self.holders),
                     allowed,
@@ -1850,6 +1896,60 @@ impl Lower<'_> {
             }
         }
         definition
+    }
+
+    fn progression_component(
+        &self,
+        source: &ProgressionDefinition,
+        state: &State,
+    ) -> crate::gameplay::Progression {
+        use crate::{condition::Condition, gameplay::Progression};
+        let mut progression = Progression::owned(
+            source.id.clone(),
+            std::sync::Arc::new(state.clone()),
+            source.progress.field.clone(),
+        );
+        for objective in &source.objectives {
+            let guard = objective
+                .when
+                .as_ref()
+                .map_or_else(|| Condition::all([]), |score| self.flag_condition(score));
+            let function = objective.reward.as_ref().map(reference_id);
+            progression = progression.objective(
+                move |_| guard.clone(),
+                move |_| crate::ir::Actions(function.iter().cloned().map(Cmd::Function).collect()),
+            );
+        }
+        for branch in &source.branches {
+            let guard = self.flag_condition(&branch.when);
+            progression = progression.branch(branch.from as usize, branch.to as usize, move |_| {
+                guard.clone()
+            });
+        }
+        progression
+    }
+
+    fn session_component(&self, source: &SessionDefinition) -> crate::gameplay::Session {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Lifetime, Session},
+        };
+        use sand_components::effect::Ticks;
+        let lifetime = Lifetime::<PlayerKind>::new(source.id.clone(), Ticks::new(source.ticks))
+            .include_dimensions(self.dimensions.iter().cloned())
+            .every(Ticks::new(source.every.unwrap_or(1)));
+        Session::new(
+            lifetime,
+            self.progressions[&source.progression.to_string()].clone(),
+        )
+    }
+
+    fn flag_condition(&self, score: &FieldReference) -> crate::condition::Condition {
+        crate::condition::Condition::flag(
+            self.holders[&score.state.to_string()].to_string(),
+            objective(score),
+            true,
+        )
     }
 
     fn projectile_component(
@@ -2161,6 +2261,12 @@ impl Lower<'_> {
                 .map_err(|error| error.to_string())?,
                 item: self.item_argument(&test.holding)?,
             },
+            Condition::ProgressionCompleted {
+                progression_completed,
+            } => sand_commands::ConditionIr::Function(
+                crate::gameplay::identity::resource(progression_completed, "progression_completed")
+                    .to_string(),
+            ),
             Condition::Advancement {
                 advancement,
                 criterion,
@@ -2590,6 +2696,26 @@ impl Lower<'_> {
                         definition.open().0
                     } else {
                         definition.close().0
+                    }
+                }
+                Action::Progression {
+                    progression,
+                    advance,
+                } => {
+                    let definition = &self.progressions[&progression.to_string()];
+                    if *advance {
+                        definition.advance().0
+                    } else {
+                        definition.reset().0
+                    }
+                }
+                Action::Session { session, command } => {
+                    let definition = &self.sessions[&session.to_string()];
+                    match command {
+                        SessionCommand::Start => definition.start().0,
+                        SessionCommand::Restart => definition.restart().0,
+                        SessionCommand::Reset => definition.reset().0,
+                        SessionCommand::Cancel => definition.cancel().0,
                     }
                 }
                 Action::Projectile { projectile, launch } => {

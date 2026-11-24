@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A conditional forward successor in a player progression.",
+  "properties": {
+    "from": {
+      "description": "Zero-based source objective.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "to": {
+      "description": "A later index, including the total objective count for completion.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "when": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Score that must equal one to choose this successor."
+    }
+  },
+  "required": [
+    "from",
+    "to",
+    "when"
+  ],
+  "type": "object"
+}

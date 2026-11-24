@@ -660,6 +660,8 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::StructureTemplate
         | D::InventoryTransfer
         | D::Hud
+        | D::Progression
+        | D::Session
         | D::Projectile
         | D::Menu
         | D::Advancement

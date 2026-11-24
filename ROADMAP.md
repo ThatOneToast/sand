@@ -329,9 +329,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   State-driven boss bars, and cancellation.
 - [x] Player-owned sampled projectiles with impact callbacks, target filters,
   native damage attribution and owner-scoped cancellation.
-- [ ] Expose the Rust combat, abilities, encounters, jobs, rosters,
-  progression, scenes, sessions and checkpoints
-  through canonical shared models.
+- [x] Player progression and sessions, with guarded objectives, forward
+  branches, committed rewards, and per-player lifecycle controls.
+- [ ] Expose the Rust combat, abilities, encounters, jobs, rosters, scenes, and
+  checkpoints through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.

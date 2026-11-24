@@ -116,8 +116,8 @@ pub struct ScoreRelation {
  use_when = ["Choosing between two ordered bodies at runtime"],
  avoid_when = ["Flow transition guards, which accept only ranges"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag.", Predicate = "A native predicate matches at the execution origin.", Advancement = "The executing player completed an advancement or criterion."),
- variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."], Predicate(predicate = "The predicate resource identity."), Advancement(advancement = "The native advancement identity.", criterion = "Optional named criterion.")),
+ variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag.", Predicate = "A native predicate matches at the execution origin.", Advancement = "The executing player completed an advancement or criterion.", ProgressionCompleted = "The executing player completed a named progression."),
+ variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."], Predicate(predicate = "The predicate resource identity."), Advancement(advancement = "The native advancement identity.", criterion = "Optional named criterion."), ProgressionCompleted(progression_completed = "Progression identity.")),
 )]
 pub enum Condition {
     /// The field lies within inclusive constant bounds.
@@ -142,6 +142,11 @@ pub enum Condition {
     Predicate {
         #[schemars(with = "String")]
         predicate: sand_components::ResourceLocation,
+    },
+    /// Test the current player's committed completion index.
+    ProgressionCompleted {
+        #[schemars(with = "String")]
+        progression_completed: sand_components::ResourceLocation,
     },
     /// Match the current player's advancement or named criterion completion.
     Advancement {

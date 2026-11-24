@@ -119,6 +119,13 @@
       },
       "type": "array"
     },
+    "progressions": {
+      "description": "Player progression tracks.",
+      "items": {
+        "$ref": "defs-ProgressionDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "projectiles": {
       "description": "Projectiles launched and cancelled by the owning player.",
       "items": {
@@ -137,6 +144,13 @@
       "description": "Item, block, and entity-type tags.",
       "items": {
         "$ref": "defs-ResourceTag.schema.json"
+      },
+      "type": "array"
+    },
+    "sessions": {
+      "description": "Owned session controllers over named tracks.",
+      "items": {
+        "$ref": "defs-SessionDefinition.schema.json"
       },
       "type": "array"
     },

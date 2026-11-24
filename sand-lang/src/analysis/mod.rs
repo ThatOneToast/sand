@@ -163,6 +163,10 @@ pub enum DefKind {
     Menu,
     /// `projectile Name { ... }`.
     Projectile,
+    /// A named player quest.
+    Progression,
+    /// A loaded-tick controller over a quest.
+    Session,
 }
 
 impl DefKind {
@@ -199,6 +203,8 @@ impl DefKind {
             DefKind::Hud => "HUD",
             DefKind::Menu => "menu",
             DefKind::Projectile => "projectile",
+            DefKind::Progression => "progression",
+            DefKind::Session => "session",
         }
     }
 }
@@ -1114,6 +1120,8 @@ impl Cx {
                     crate::ast::DataKind::Hud => DefKind::Hud,
                     crate::ast::DataKind::Menu => DefKind::Menu,
                     crate::ast::DataKind::Projectile => DefKind::Projectile,
+                    crate::ast::DataKind::Progression => DefKind::Progression,
+                    crate::ast::DataKind::Session => DefKind::Session,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3074,6 +3082,8 @@ impl Cx {
             huds: Vec::new(),
             menus: Vec::new(),
             projectiles: Vec::new(),
+            progressions: Vec::new(),
+            sessions: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

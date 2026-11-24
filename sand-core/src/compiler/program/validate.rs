@@ -252,6 +252,18 @@ pub(super) fn validate(
             .flat_map(|module| &module.menus)
             .map(|menu| menu.id.to_string())
             .collect(),
+        progressions: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.progressions)
+            .map(|progression| progression.id.to_string())
+            .collect(),
+        sessions: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.sessions)
+            .map(|session| session.id.to_string())
+            .collect(),
         projectiles: program
             .modules
             .iter()
@@ -472,6 +484,63 @@ pub(super) fn validate(
                         validator.score(score, context, &owner, &format!("{ptr}/when"));
                     }
                 }
+            }
+        }
+        for (index, progression) in module.progressions.iter().enumerate() {
+            let ptr = format!("/progressions/{index}");
+            let context = ExecutionContext::Player;
+            let score = &progression.progress;
+            validator.score(score, context, &owner, &format!("{ptr}/progress"));
+            if validator
+                .states
+                .get(&score.state.to_string())
+                .is_none_or(|(scope, _)| *scope != "player")
+            {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_STATE",
+                    &owner,
+                    &format!("{ptr}/progress"),
+                    "progression requires a player State number",
+                ));
+            }
+            for (index, objective) in progression.objectives.iter().enumerate() {
+                if let Some(score) = &objective.when {
+                    validator.score(
+                        score,
+                        context,
+                        &owner,
+                        &format!("{ptr}/objectives/{index}/when"),
+                    );
+                }
+                if let Some(reward) = &objective.reward {
+                    validator.call(
+                        reward,
+                        context,
+                        &owner,
+                        &format!("{ptr}/objectives/{index}/reward"),
+                    );
+                }
+            }
+            for (index, branch) in progression.branches.iter().enumerate() {
+                validator.score(
+                    &branch.when,
+                    context,
+                    &owner,
+                    &format!("{ptr}/branches/{index}/when"),
+                );
+            }
+        }
+        for (index, session) in module.sessions.iter().enumerate() {
+            if !validator
+                .progressions
+                .contains(&session.progression.to_string())
+            {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_REFERENCE",
+                    &owner,
+                    &format!("/sessions/{index}/progression"),
+                    format!("unknown progression `{}`", session.progression),
+                ));
             }
         }
         for (index, projectile) in module.projectiles.iter().enumerate() {
@@ -876,6 +945,55 @@ pub(super) fn validate(
                     if let Some(error) = static_text_error(&choice.label, None) {
                         push(format!("{ptr}/label"), error);
                     }
+                }
+            }
+        }
+        for (index, progression) in module.progressions.iter().enumerate() {
+            let ptr = format!("/progressions/{index}");
+            if !resource_ids.insert(format!("progression {}", progression.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate progression `{}`", progression.id),
+                );
+            }
+            let count = progression.objectives.len();
+            if !(1..=256).contains(&count) {
+                push(
+                    format!("{ptr}/objectives"),
+                    "a progression needs between 1 and 256 objectives".into(),
+                );
+            }
+            if progression.branches.len() > 256 {
+                push(
+                    format!("{ptr}/branches"),
+                    "a progression supports at most 256 branches".into(),
+                );
+            }
+            for (index, branch) in progression.branches.iter().enumerate() {
+                if branch.from >= branch.to || branch.to as usize > count {
+                    push(
+                        format!("{ptr}/branches/{index}"),
+                        "branch must move to a later objective or the completion index".into(),
+                    );
+                }
+            }
+        }
+        for (index, session) in module.sessions.iter().enumerate() {
+            let ptr = format!("/sessions/{index}");
+            if !resource_ids.insert(format!("session {}", session.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate session `{}`", session.id),
+                );
+            }
+            for (field, value) in std::iter::once(("ticks", session.ticks))
+                .chain(session.every.map(|every| ("every", every)))
+            {
+                if !(1..=i32::MAX as u32).contains(&value) {
+                    push(
+                        format!("{ptr}/{field}"),
+                        "session ticks must be in 1..=2147483647".into(),
+                    );
                 }
             }
         }
@@ -1447,6 +1565,8 @@ struct Validator<'a, 'e> {
     transfers: BTreeSet<String>,
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
+    progressions: BTreeSet<String>,
+    sessions: BTreeSet<String>,
     menus: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
@@ -1639,6 +1759,27 @@ impl Validator<'_, '_> {
                 }
                 if !self.custom_items.contains(&test.holding) {
                     self.resource(&test.holding, owner, &format!("{ptr}/holding"), "item");
+                }
+            }
+            Condition::ProgressionCompleted {
+                progression_completed,
+            } => {
+                self.player(
+                    context,
+                    owner,
+                    ptr,
+                    "checking the executing player's progression",
+                );
+                if !self
+                    .progressions
+                    .contains(&progression_completed.to_string())
+                {
+                    self.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_REFERENCE",
+                        owner,
+                        ptr,
+                        format!("unknown progression `{progression_completed}`"),
+                    ));
                 }
             }
             Condition::Advancement {
@@ -2557,6 +2698,38 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/menu"),
                             format!("unknown menu `{menu}`"),
+                        ));
+                    }
+                }
+                Action::Progression { progression, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "advancing or resetting the executing player's progression",
+                    );
+                    if !self.progressions.contains(&progression.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/progression"),
+                            format!("unknown progression `{progression}`"),
+                        ));
+                    }
+                }
+                Action::Session { session, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "controlling the executing player's session",
+                    );
+                    if !self.sessions.contains(&session.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/session"),
+                            format!("unknown session `{session}`"),
                         ));
                     }
                 }

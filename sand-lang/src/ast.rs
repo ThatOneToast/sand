@@ -517,6 +517,8 @@ pub enum DataKind {
     Hud,
     Menu,
     Projectile,
+    Progression,
+    Session,
 }
 
 impl DataKind {
@@ -539,6 +541,8 @@ impl DataKind {
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",
             DataKind::Projectile => "projectile",
+            DataKind::Progression => "progression",
+            DataKind::Session => "session",
         }
     }
 }

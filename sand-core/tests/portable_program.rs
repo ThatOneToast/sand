@@ -39,6 +39,8 @@ fn counter() -> Program {
             huds: vec![],
             menus: vec![],
             projectiles: vec![],
+            progressions: vec![],
+            sessions: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

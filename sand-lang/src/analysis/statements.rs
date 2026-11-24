@@ -3275,6 +3275,7 @@ impl Cx {
         if matches!(
             builtin.name,
             "give_item"
+                | "clear_item"
                 | "damage"
                 | "mount"
                 | "set_block_data"
@@ -3348,6 +3349,19 @@ impl Cx {
                     Some(arg) => self.runtime_whole(body, arg, 1, 6400, ops)?,
                 };
                 Some(pc::Action::GiveItem { item, count })
+            }
+            "clear_item" => {
+                let item = self.arg_id(body, bound["item"], "Item")?;
+                let count = match bound.get("count") {
+                    Some(arg) => {
+                        Some(self.runtime_whole(body, arg, 0, i64::from(i32::MAX), ops)?)
+                    }
+                    None => None,
+                };
+                Some(pc::Action::ClearItem {
+                    item: Some(item),
+                    count,
+                })
             }
             "play_sound" => {
                 let sound = self.arg_id(body, bound["sound"], "Sound")?;
@@ -4669,17 +4683,6 @@ impl Cx {
                     None => None,
                 };
                 pc::Action::ClearEffect { effect }
-            }
-            "clear_item" => {
-                let item = self.arg_id(body, bound["item"], "Item");
-                let count = match bound.get("count") {
-                    Some(arg) => self.arg_int(body, arg, 0, i32::MAX as i64).map(Some),
-                    None => Some(None),
-                };
-                pc::Action::ClearItem {
-                    item: Some(item?),
-                    count: count?.map(|c| c as u32),
-                }
             }
             "clear_inventory" => pc::Action::ClearItem {
                 item: None,

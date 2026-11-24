@@ -276,8 +276,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Filter entity queries with a State score range and a typed native NBT
   compound, composed with attachment, distance, sorting, and limits.
 - [x] Velocity reads and bounded non-player velocity writes.
-- [x] Read-only inventory counts for vanilla and custom items, and numeric
-  queries for checked entity NBT paths.
+- [x] Read-only inventory counts for vanilla and custom items, numeric queries
+  for checked entity NBT paths, and bounded item removal with a computed count.
 - [ ] Inventory transfers, broader equipment and entity data operations, motion
   controls, and archetypes.
 - [ ] Broader event triggers, filters, tracked changes and event chains.

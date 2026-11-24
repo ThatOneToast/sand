@@ -1438,7 +1438,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "clear_item(Item::..., count = ..)",
         summary: "Remove matching items from the executing player's inventory.",
-        details: "Omit `count` to remove every matching item.",
+        details: "Omit `count` to remove every matching item. A constant or computed count sets a maximum. A negative runtime count skips removal.",
         minecraft: "clear @s <item> [count]",
         needs_player: true,
         params: &[
@@ -1447,7 +1447,7 @@ pub const BUILTINS: &[Builtin] = &[
                 "count",
                 ParamKind::Int,
                 false,
-                "Most items to remove; omit for all.",
+                "Nonnegative maximum, constant or computed. Omit for all.",
             ),
         ],
         snippet: "clear_item(Item::${1:Dirt});",

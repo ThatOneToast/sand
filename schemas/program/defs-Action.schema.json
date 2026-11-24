@@ -504,12 +504,15 @@
       "description": "Remove matching items, or every item, from the executing player.",
       "properties": {
         "count": {
-          "format": "uint32",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "defs-ScoreOperand.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Constant or runtime maximum. A negative runtime value skips removal."
         },
         "item": {
           "type": [

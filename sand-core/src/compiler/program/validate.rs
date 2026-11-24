@@ -2221,7 +2221,7 @@ impl Validator<'_, '_> {
                         ));
                     }
                 }
-                Action::ClearItem { item, .. } => {
+                Action::ClearItem { item, count } => {
                     self.player(
                         context,
                         owner,
@@ -2230,6 +2230,29 @@ impl Validator<'_, '_> {
                     );
                     if let Some(item) = item {
                         self.resource(item, owner, &format!("{ptr}/action/item"), "item");
+                    }
+                    let pointer = format!("{ptr}/action/count");
+                    if count.is_some() && item.is_none() {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &pointer,
+                            "an item-removal count requires an item",
+                        ));
+                    }
+                    match count {
+                        Some(ScoreOperand::Field(score)) => {
+                            self.score(score, context, owner, &pointer);
+                        }
+                        Some(ScoreOperand::Value(count)) if *count < 0 => {
+                            self.errors.push(Diagnostic::error(
+                                "SAND_PROGRAM_RANGE",
+                                owner,
+                                &pointer,
+                                "item-removal count must be nonnegative",
+                            ));
+                        }
+                        _ => {}
                     }
                 }
                 Action::CountItems { item, score } => {

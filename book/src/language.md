@@ -1308,6 +1308,9 @@ its length. A missing value returns zero.
 A player function can use `inventory_count(Item::Bread)` to count matching
 items without removing them. A vanilla item counts all matching base stacks.
 Pass a declared custom item to count only stacks created with that identity.
+Use `clear_item(item, count = quantity)` with a constant or computed
+`number` to remove up to that many matches. Zero removes nothing. A negative
+runtime count skips removal.
 
 ### Structure templates
 

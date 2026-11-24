@@ -63,3 +63,29 @@ fn inventory_and_entity_queries_reject_a_server_context() {
         assert!(analyze_one(&source).has_errors(), "{expr}");
     }
 }
+
+#[test]
+fn item_removal_accepts_runtime_counts_and_guards_the_native_command() {
+    let source = r#"
+#![pack(namespace = "inspect", minecraft = "26.2")]
+item Ration { base: Item::Bread, name: "Ration" }
+fn take(amount: number) {
+    clear_item(Ration, count = amount);
+    clear_item(Item::Paper, count = 2);
+}
+"#;
+    let analysis = analyze_one(source);
+    let pack = compile(&analysis);
+    let commands = function(&pack, "inspect/function/take");
+    assert!(commands.contains("clear @s minecraft:paper 2"));
+    assert!(commands.contains("matches 0..2147483647"));
+    assert!(commands.contains("inspect:ration"));
+    assert!(
+        pack.resources
+            .values()
+            .any(|bytes| { String::from_utf8_lossy(bytes).contains("$clear @s $(item) $(count)") })
+    );
+
+    let bad = "#![pack(namespace = \"inspect\")] fn take() { clear_item(Item::Paper, -1); }";
+    assert!(analyze_one(bad).has_errors());
+}

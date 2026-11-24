@@ -218,6 +218,10 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("WAIT_B_OWNED_AND_NOT_CANCELLED", "if score #wait_b numeric_probe matches 1")
             self.check("WAIT_A_ORIGINAL_DIMENSION", "if score NumericA wait_origin matches 2")
             self.check("WAIT_B_ORIGINAL_DIMENSION", "if score NumericB wait_origin matches 1")
+            self.send("execute as NumericA run function runtime_values:remove_inventory_sample")
+            self.check("RUNTIME_ITEM_CLEAR", "if score #safe_clear numeric_probe matches 1")
+            self.send("execute as NumericB run function runtime_values:inspect_inventory")
+            self.check("RUNTIME_ITEM_CLEAR_ISOLATION", "if score NumericB numeric_probe matches 3")
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")

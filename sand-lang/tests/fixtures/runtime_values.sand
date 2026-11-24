@@ -137,6 +137,22 @@ fn inspect_inventory() {
     }
 }
 
+fn remove_rations(quantity: number) {
+    clear_item(MacroBread, quantity);
+}
+
+fn remove_inventory_sample() {
+    remove_rations(-1);
+    remove_rations(0);
+    if inventory_count(MacroBread) == 2 {
+        let quantity = inventory_count(MacroBread) - 1;
+        remove_rations(quantity);
+        if inventory_count(MacroBread) == 1 && inventory_count(Item::Bread) == 8 {
+            raw!("scoreboard players set #safe_clear numeric_probe 1");
+        }
+    }
+}
+
 fn player_a() {
     Ledger.label = "A 🌍 $(uuid)";
     Ledger.recent = ["A"]; Ledger.recent.push("🌍");

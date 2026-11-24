@@ -82,6 +82,7 @@ const CAPABILITIES: &[&str] = &[
     "entity_data",
     "entity_data_queries",
     "inventory_counts",
+    "runtime_item_removal",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

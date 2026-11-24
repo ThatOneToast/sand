@@ -2279,11 +2279,30 @@ impl Lower<'_> {
                         Some(item) => Some(self.item_argument(item).map_err(fail)?),
                         None => None,
                     };
-                    vec![Cmd::Raw(match (item, count) {
-                        (Some(item), Some(count)) => inventory.clear_item_count(item, *count),
-                        (Some(item), None) => inventory.clear_item(item),
-                        (None, _) => inventory.clear_all(),
-                    })]
+                    match (item, count) {
+                        (Some(item), Some(ScoreOperand::Value(count))) => {
+                            vec![Cmd::Raw(inventory.clear_item_count(item, *count as u32))]
+                        }
+                        (Some(item), Some(count @ ScoreOperand::Field(_))) => {
+                            inventory
+                                .try_clear_item_count(&item, 0)
+                                .map_err(|error| fail(error.to_string()))?;
+                            self.numeric_command(
+                                (owner, &path, module, &ptr),
+                                "clear_item",
+                                "clear @s $(item) $(count)".to_owned(),
+                                &[NumericArgument {
+                                    name: "count",
+                                    value: &whole_amount(count),
+                                    integer: true,
+                                    bounds: Some((0.0, f64::from(i32::MAX))),
+                                }],
+                                &[("item", item)],
+                            )?
+                        }
+                        (Some(item), None) => vec![Cmd::Raw(inventory.clear_item(item))],
+                        (None, _) => vec![Cmd::Raw(inventory.clear_all())],
+                    }
                 }
                 Action::CountItems { item, score } => {
                     let inventory =

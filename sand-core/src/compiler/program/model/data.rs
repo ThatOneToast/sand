@@ -3,6 +3,26 @@ use super::{FieldReference, ScoreOperand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// A checked NBT path in the block entity at a position.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BlockDataAddress", module = "sand::advanced::compiler",
+ summary = "An addressed block entity value.",
+ context = "Defines a portable block position and checked NBT path shared by reads and writes.",
+ minecraft = "Lowers to the canonical block data target and does not load chunks.",
+ use_when = ["Reading or editing a known block entity field"],
+ avoid_when = ["Storing pack-owned data independently of a block entity"],
+ example = "use sand::advanced::compiler::BlockDataAddress;",
+ fields(at = "Block position.", path = "Checked NBT path within the block entity."),
+)]
+pub struct BlockDataAddress {
+    /// Absolute or relative block position.
+    pub at: super::BlockPosition,
+    /// The NBT path, validated before emission.
+    pub path: String,
+}
+
 /// A State storage field and its checked nested projections.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

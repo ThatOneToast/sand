@@ -84,3 +84,28 @@ fn run() { if biome_is(Biome::DappledForest, pos(0, 80, 0)) { return; } }
             .any(|error| error.contains("not available in Minecraft 26.2"))
     );
 }
+
+#[test]
+fn block_data_uses_checked_paths_and_integer_operands() {
+    let source = r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+fn run(amount: number) {
+    let old = block_data_number(offset(0, 0, 0), "Items[0].count");
+    set_block_data_number(offset(0, 0, 0), "Items[0].count", old + amount);
+    remove_block_data(offset(0, 0, 0), "Items[0]");
+}
+"#;
+    let compiled = compile(&analyze_one(source));
+    let run = function(&compiled, "world_probe/function/run");
+    assert!(run.contains("data get block ~ ~ ~ Items[0].count"));
+    assert!(run.contains("store result block ~ ~ ~ Items[0].count int 1"));
+    assert!(run.contains("data remove block ~ ~ ~ Items[0]"));
+    let invalid = analyze_one(&source.replace("Items[0].count", "Items[0] extra"));
+    let diagnostics = invalid.compile().unwrap_err();
+    assert!(
+        diagnostics
+            .iter()
+            .any(|error| error.message.contains("path")),
+        "{diagnostics:?}"
+    );
+}

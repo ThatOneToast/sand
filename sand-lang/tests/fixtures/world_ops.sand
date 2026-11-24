@@ -37,6 +37,17 @@ fn run() {
     check(block_is(Block::Stone, pos(1, 80, 1)));
     check(block_is(Block::Air, pos(3, 80, 1)));
     check(block_is(Block::GoldBlock, pos(12, 80, 1)));
-    if Report.checks == 13 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    set_block(Block::Barrel, pos(14, 80, 1));
+    raw!("item replace block 14 80 1 container.0 with minecraft:bread 1");
+    let count = block_data_number(pos(14, 80, 1), "Items[0].count");
+    check(count == 1);
+    set_block_data_number(pos(14, 80, 1), "Items[0].count", count + 4);
+    check(block_data_number(pos(14, 80, 1), "Items[0].count") == 5);
+    set_block_data_number(pos(14, 80, 1), "Items[0].count", 9);
+    check(block_data_number(pos(14, 80, 1), "Items[0].count") == 9);
+    remove_block_data(pos(14, 80, 1), "Items[0]");
+    check(block_data_number(pos(14, 80, 1), "Items") == 0);
+    check(block_data_number(pos(14, 80, 1), "Items[0].count") == 0);
+    if Report.checks == 18 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }
 }

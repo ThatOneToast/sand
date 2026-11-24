@@ -416,6 +416,13 @@ impl Cx {
             {
                 Ty::EntityRef
             }
+            Expr::Call { path, .. }
+                if path.segments.len() == 1
+                    && path.last().name == "block_data_number"
+                    && !self.scopes[body.module.0].contains_key("block_data_number") =>
+            {
+                Ty::Number
+            }
             Expr::Call { path, args, .. } => self
                 .resolve_call(body, path, args, None, false)
                 .and_then(|def| self.fn_slots.get(&def))
@@ -992,6 +999,10 @@ impl Cx {
                         relation,
                     }
                 }
+                "block_data_number" => pc::Action::ReadBlockData {
+                    target: self.arg_block_data(body, &bound)?,
+                    score: dest.clone(),
+                },
                 "count_entities" => pc::Action::CountEntities {
                     score: dest.clone(),
                     query: self.query_from(body, &bound)?,
@@ -2993,6 +3004,7 @@ impl Cx {
             "give_item"
                 | "damage"
                 | "mount"
+                | "set_block_data_number"
                 | "teleport"
                 | "teleport_by"
                 | "play_sound"
@@ -3152,6 +3164,27 @@ impl Cx {
                     return None;
                 }
                 Some(pc::Action::Damage { amount, by })
+            }
+            "set_block_data_number" => {
+                let target = self.arg_block_data(body, bound)?;
+                let arg = bound["value"];
+                let ArgValue::Expr(expr) = &arg.value else {
+                    self.error("type", body.file, arg.span, "expected an integer value");
+                    return None;
+                };
+                let value = match self.simple(body, expr, Ty::Number).ok()? {
+                    Some(Value::Const(value)) => pc::ScoreOperand::Value(value as i32),
+                    Some(Value::Read(score)) => pc::ScoreOperand::Field(score),
+                    None => {
+                        let score = self.temp(body);
+                        self.emit(body, &score, Ty::Number, expr, ops)?;
+                        pc::ScoreOperand::Field(score)
+                    }
+                };
+                Some(pc::Action::WriteBlockData {
+                    target,
+                    value: Some(value),
+                })
             }
             "mount" => {
                 let arg = bound["vehicle"];
@@ -3480,6 +3513,16 @@ impl Cx {
     }
 
     /// A vanilla block, or `#tag` for a declared `Block` tag.
+    fn arg_block_data(
+        &mut self,
+        body: &mut BodyCx,
+        bound: &BTreeMap<&str, &Arg>,
+    ) -> Option<pc::BlockDataAddress> {
+        let at = self.arg_position(body, bound["at"])?;
+        let (path, _, _) = self.arg_string(body.file, bound["path"], "an NBT path")?;
+        Some(pc::BlockDataAddress { at, path })
+    }
+
     fn arg_block_test(&mut self, body: &BodyCx, arg: &Arg) -> Option<String> {
         if let ArgValue::Expr(expr) = &arg.value
             && let Some((def, id)) = self.declared(body.module, body.file, expr, DefKind::Tag)
@@ -4154,6 +4197,10 @@ impl Cx {
                     at: at?,
                 }
             }
+            "remove_block_data" => pc::Action::WriteBlockData {
+                target: self.arg_block_data(body, bound)?,
+                value: None,
+            },
             "clone_blocks" => {
                 let masked = match bound.get("masked") {
                     Some(arg) => self.arg_bool(file, arg)?,

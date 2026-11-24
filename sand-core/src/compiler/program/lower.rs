@@ -1418,6 +1418,10 @@ impl Lower<'_> {
         }
     }
 
+    fn block_data_address(address: &BlockDataAddress) -> sand_commands::NbtRef {
+        sand_commands::DataTarget::block(block_position(address.at)).path(address.path.as_str())
+    }
+
     fn condition_test(
         &mut self,
         condition: &Condition,
@@ -2071,6 +2075,73 @@ impl Lower<'_> {
                         operations: vec![sand_commands::ExecuteOp::In(dimension.to_string())],
                         run: Box::new(call_helper(id, returns(body))),
                     }]
+                }
+                Action::ReadBlockData { target, score } => {
+                    let command = Self::block_data_address(target)
+                        .get()
+                        .try_render(&self.profile)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::StoreResult(
+                            sand_commands::ExecuteStoreTarget::Score {
+                                holder: self.holders[&score.state.to_string()].clone(),
+                                objective: objective(score),
+                            },
+                        )],
+                        run: Box::new(Cmd::Raw(command)),
+                    }]
+                }
+                Action::WriteBlockData { target, value } => {
+                    let address = Self::block_data_address(target);
+                    match value {
+                        Some(ScoreOperand::Field(score)) => {
+                            // Check the same path with the typed writable data model.
+                            address
+                                .set(sand_commands::NbtValue::Int(0))
+                                .try_render(&self.profile)
+                                .map_err(|error| fail(error.to_string()))?;
+                            let holder = self.holders[&score.state.to_string()].clone();
+                            let objective = objective(score);
+                            vec![Cmd::Execute {
+                                operations: vec![
+                                    sand_commands::ExecuteOp::If(
+                                        sand_commands::ConditionIr::ScoreMatches {
+                                            holder: holder.clone(),
+                                            objective: objective.clone(),
+                                            range: "-2147483648..2147483647".into(),
+                                        },
+                                    ),
+                                    sand_commands::ExecuteOp::StoreResult(
+                                        sand_commands::ExecuteStoreTarget::Nbt {
+                                            target: sand_commands::DataTarget::block(
+                                                block_position(target.at),
+                                            ),
+                                            path: target.path.clone(),
+                                            kind: sand_commands::NbtStoreKind::Int,
+                                            scale: 1.0,
+                                        },
+                                    ),
+                                ],
+                                run: Box::new(Cmd::Raw(format!(
+                                    "scoreboard players get {holder} {objective}"
+                                ))),
+                            }]
+                        }
+                        other => {
+                            let command = match other {
+                                Some(ScoreOperand::Value(number)) => {
+                                    address.set(sand_commands::NbtValue::Int(*number))
+                                }
+                                None => address.remove(),
+                                Some(ScoreOperand::Field(_)) => unreachable!(),
+                            };
+                            vec![Cmd::Raw(
+                                command
+                                    .try_render(&self.profile)
+                                    .map_err(|error| fail(error.to_string()))?,
+                            )]
+                        }
+                    }
                 }
                 Action::AddExperience { amount, levels } => {
                     let amount = match amount {

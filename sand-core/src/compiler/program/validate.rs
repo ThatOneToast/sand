@@ -1966,6 +1966,14 @@ impl Validator<'_, '_> {
                         depth + 1,
                     );
                 }
+                Action::ReadBlockData { score, .. } => {
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                }
+                Action::WriteBlockData { value, .. } => {
+                    if let Some(ScoreOperand::Field(score)) = value {
+                        self.score(score, context, owner, &format!("{ptr}/action/value"));
+                    }
+                }
                 Action::AddExperience { amount, .. } => {
                     self.player(context, owner, &ptr, "giving experience");
                     if let ScoreOperand::Field(score) = amount {

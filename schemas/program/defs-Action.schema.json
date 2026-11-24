@@ -1038,6 +1038,60 @@
     },
     {
       "additionalProperties": false,
+      "description": "Read a block entity NBT value using vanilla's integer `data get` result.",
+      "properties": {
+        "op": {
+          "const": "read_block_data",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json",
+          "description": "Score receiving the result, with zero on a failed read."
+        },
+        "target": {
+          "$ref": "defs-BlockDataAddress.schema.json",
+          "description": "Block entity and checked path."
+        }
+      },
+      "required": [
+        "op",
+        "target",
+        "score"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Set an integer value or clear a path in a block entity.",
+      "properties": {
+        "op": {
+          "const": "write_block_data",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "defs-BlockDataAddress.schema.json",
+          "description": "Block entity and checked path."
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "defs-ScoreOperand.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Integer to set, or omitted to remove the selection."
+        }
+      },
+      "required": [
+        "op",
+        "target"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Give the executing player experience points or levels.",
       "properties": {
         "amount": {

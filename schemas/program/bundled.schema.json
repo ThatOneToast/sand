@@ -1039,6 +1039,60 @@
         },
         {
           "additionalProperties": false,
+          "description": "Read a block entity NBT value using vanilla's integer `data get` result.",
+          "properties": {
+            "op": {
+              "const": "read_block_data",
+              "type": "string"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference",
+              "description": "Score receiving the result, with zero on a failed read."
+            },
+            "target": {
+              "$ref": "#/$defs/BlockDataAddress",
+              "description": "Block entity and checked path."
+            }
+          },
+          "required": [
+            "op",
+            "target",
+            "score"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set an integer value or clear a path in a block entity.",
+          "properties": {
+            "op": {
+              "const": "write_block_data",
+              "type": "string"
+            },
+            "target": {
+              "$ref": "#/$defs/BlockDataAddress",
+              "description": "Block entity and checked path."
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ScoreOperand"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Integer to set, or omitted to remove the selection."
+            }
+          },
+          "required": [
+            "op",
+            "target"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Give the executing player experience points or levels.",
           "properties": {
             "amount": {
@@ -1327,6 +1381,25 @@
       "required": [
         "biome",
         "at"
+      ],
+      "type": "object"
+    },
+    "BlockDataAddress": {
+      "additionalProperties": false,
+      "description": "A checked NBT path in the block entity at a position.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/BlockPosition",
+          "description": "Absolute or relative block position."
+        },
+        "path": {
+          "description": "The NBT path, validated before emission.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "path"
       ],
       "type": "object"
     },

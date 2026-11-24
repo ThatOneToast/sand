@@ -7,7 +7,7 @@ mod gameplay;
 mod operation;
 mod resources;
 mod state;
-pub use data::{DataOperand, DataProjection, DataReference};
+pub use data::{BlockDataAddress, DataOperand, DataProjection, DataReference};
 pub use envelope::{Module, ModuleSource, Pack, Program, ProgramTarget};
 pub use flow::{Flow, FlowHook, FlowHookPhase, FlowTransition};
 pub use function::{ExecutionContext, Function, FunctionReference, TagMembership};

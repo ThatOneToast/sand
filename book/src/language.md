@@ -1105,6 +1105,13 @@ use namespaced identities such as `"my_pack:arena"`.
 in the current dimension. Biome identifiers and editor suggestions come from
 the selected Minecraft version. A custom biome can use a namespaced identity.
 
+`block_data_number(at, path)` reads the vanilla integer result of a block
+entity's data query. For example, `block_data_number(offset(0, 0, 1), "Items")`
+reads the number of entries. A failed read returns zero. Use
+`set_block_data_number(at, path, value)` to write a literal or runtime integer
+and `remove_block_data(at, path)` to remove a selection. Paths use checked NBT
+path syntax, and Minecraft applies each block entity's own data rules.
+
 `clone_blocks(from, to, destination)` copies an inclusive region to a destination
 corner. Use `masked = true` to preserve the destination beneath source air, or
 `filter = Block::Stone` to copy only one block or a declared block tag.
@@ -1320,7 +1327,7 @@ command and State models as Rust. Today the language covers:
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, experience, and entity flags | selection by NBT or scores, motion controls, equipment edits, archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, typed block data |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, single-pool loot tables | conditional loot, advancements, predicates, trim recipes, worldgen, damage types |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |

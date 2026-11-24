@@ -578,6 +578,7 @@ impl Builder<'_> {
                     "menu" => DataKind::Menu,
                     "projectile" => DataKind::Projectile,
                     "progression" => DataKind::Progression,
+                    "scene" => DataKind::Scene,
                     "job" => DataKind::Job,
                     "session" => DataKind::Session,
                     "ability" => DataKind::Ability,

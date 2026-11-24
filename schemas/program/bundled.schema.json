@@ -764,6 +764,29 @@
         },
         {
           "additionalProperties": false,
+          "description": "Start a display scene or cancel the executing player's instances.",
+          "properties": {
+            "op": {
+              "const": "scene",
+              "type": "string"
+            },
+            "scene": {
+              "type": "string"
+            },
+            "show": {
+              "description": "Start a fresh scene if true, otherwise cancel the owner's scenes.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "scene",
+            "show"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Start a job or cancel the executing player's instances.",
           "properties": {
             "job": {
@@ -4463,6 +4486,13 @@
           },
           "type": "array"
         },
+        "scenes": {
+          "description": "Owned native display scenes.",
+          "items": {
+            "$ref": "#/$defs/SceneDefinition"
+          },
+          "type": "array"
+        },
         "sessions": {
           "description": "Owned session controllers over named tracks.",
           "items": {
@@ -5631,6 +5661,180 @@
       ],
       "type": "object"
     },
+    "SceneContent": {
+      "description": "The three display payloads supported by the shared scene runtime.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Default state of a vanilla block.",
+          "properties": {
+            "block": {
+              "description": "Block to display.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "block",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "block"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One vanilla or custom item with its components.",
+          "properties": {
+            "item": {
+              "description": "Item resource identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Rich text, resolved when the display is created.",
+          "properties": {
+            "kind": {
+              "const": "text",
+              "type": "string"
+            },
+            "text": {
+              "description": "Text parts in display order.",
+              "items": {
+                "$ref": "#/$defs/TextPart"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SceneDefinition": {
+      "additionalProperties": false,
+      "description": "Owned native block, item and text displays with keyframed local poses.",
+      "properties": {
+        "follow": {
+          "description": "Follow the player when true, otherwise remain where started.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "Identity used to start or cancel this scene.",
+          "type": "string"
+        },
+        "keyframes": {
+          "description": "Optional animations for declared parts.",
+          "items": {
+            "$ref": "#/$defs/SceneKeyframe"
+          },
+          "type": "array"
+        },
+        "parts": {
+          "description": "Displays in authored order.",
+          "items": {
+            "$ref": "#/$defs/ScenePart"
+          },
+          "type": "array"
+        },
+        "ticks": {
+          "description": "Maximum number of loaded ticks before cleanup.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "ticks",
+        "parts"
+      ],
+      "type": "object"
+    },
+    "SceneKeyframe": {
+      "additionalProperties": false,
+      "description": "A positive interpolation interval and its target pose.",
+      "properties": {
+        "at": {
+          "description": "Positive start tick, relative to instance creation.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "duration": {
+          "description": "Positive interpolation length.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "part": {
+          "description": "Existing part name within this scene.",
+          "type": "string"
+        },
+        "pose": {
+          "$ref": "#/$defs/Transform",
+          "description": "Complete target pose."
+        }
+      },
+      "required": [
+        "part",
+        "at",
+        "duration",
+        "pose"
+      ],
+      "type": "object"
+    },
+    "ScenePart": {
+      "additionalProperties": false,
+      "description": "A named visual display and its starting local pose.",
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/SceneContent",
+          "description": "Native display payload."
+        },
+        "name": {
+          "description": "Name referenced by keyframes within this scene.",
+          "type": "string"
+        },
+        "pose": {
+          "$ref": "#/$defs/Transform",
+          "default": {
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "yaw": 0.0
+          },
+          "description": "Local pose, defaulting to identity."
+        }
+      },
+      "required": [
+        "name",
+        "content"
+      ],
+      "type": "object"
+    },
     "ScoreComparison": {
       "additionalProperties": false,
       "description": "Inclusive integer comparison bounds for a State score.",
@@ -6309,6 +6513,46 @@
         "underlined": {
           "description": "Underlined text.",
           "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "Transform": {
+      "additionalProperties": false,
+      "description": "Local display pose: translation, scale and rotation about the Y axis.\nMinecraft applies scale, then yaw, then translation. Values describe visual\ngeometry only; display entities have no gameplay collision. Default is identity.",
+      "properties": {
+        "scale": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "translation": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "yaw": {
+          "default": 0.0,
+          "format": "float",
+          "type": "number"
         }
       },
       "type": "object"

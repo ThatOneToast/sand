@@ -270,6 +270,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.abilities)
             .map(|ability| ability.id.to_string())
             .collect(),
+        scenes: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.scenes)
+            .map(|scene| scene.id.to_string())
+            .collect(),
         jobs: program
             .modules
             .iter()
@@ -613,6 +619,25 @@ pub(super) fn validate(
                     &format!("{ptr}/projectile"),
                     format!("unknown projectile `{projectile}`"),
                 ));
+            }
+        }
+        for (index, scene) in module.scenes.iter().enumerate() {
+            for (part_index, part) in scene.parts.iter().enumerate() {
+                let ptr = format!("/scenes/{index}/parts/{part_index}/content");
+                match &part.content {
+                    SceneContent::Block { block } => {
+                        validator.resource(
+                            &block.to_string(),
+                            &owner,
+                            &format!("{ptr}/block"),
+                            "block",
+                        );
+                    }
+                    SceneContent::Item { item } => {
+                        validator.resource(item, &owner, &format!("{ptr}/item"), "item");
+                    }
+                    SceneContent::Text { .. } => {}
+                }
             }
         }
         for (index, job) in module.jobs.iter().enumerate() {
@@ -1194,6 +1219,44 @@ pub(super) fn validate(
                     format!("{ptr}/cooldown/ticks"),
                     "ability cooldown must be in 1..=2147483647".into(),
                 );
+            }
+        }
+        for (index, scene) in module.scenes.iter().enumerate() {
+            let ptr = format!("/scenes/{index}");
+            if !resource_ids.insert(format!("scene {}", scene.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate scene `{}`", scene.id),
+                );
+            }
+            if !(1..=i32::MAX as u32).contains(&scene.ticks) {
+                push(
+                    format!("{ptr}/ticks"),
+                    "scene lifetime must be in 1..=2147483647 ticks".into(),
+                );
+            }
+            if scene.keyframes.len() > 256 {
+                push(
+                    format!("{ptr}/keyframes"),
+                    "a scene supports at most 256 keyframes".into(),
+                );
+            }
+            for (index, part) in scene.parts.iter().enumerate() {
+                let ptr = format!("{ptr}/parts/{index}/content");
+                match &part.content {
+                    SceneContent::Item { item } if !item_id(item) => {
+                        push(
+                            format!("{ptr}/item"),
+                            "expected a plain item identity".into(),
+                        );
+                    }
+                    SceneContent::Text { text } => {
+                        if let Some(error) = static_text_error(text, None) {
+                            push(format!("{ptr}/text"), error);
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
         for (index, job) in module.jobs.iter().enumerate() {
@@ -1827,6 +1890,7 @@ struct Validator<'a, 'e> {
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
     progressions: BTreeSet<String>,
+    scenes: BTreeSet<String>,
     jobs: BTreeSet<String>,
     sessions: BTreeSet<String>,
     abilities: BTreeSet<String>,
@@ -3022,6 +3086,17 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/ability"),
                             format!("unknown ability `{ability}`"),
+                        ));
+                    }
+                }
+                Action::Scene { scene, .. } => {
+                    self.player(context, owner, &ptr, "showing or cancelling an owned scene");
+                    if !self.scenes.contains(&scene.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/scene"),
+                            format!("unknown scene `{scene}`"),
                         ));
                     }
                 }

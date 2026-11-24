@@ -617,6 +617,40 @@ impl Cx {
                     branches,
                 });
             }
+            DataKind::Scene => {
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                }) else {
+                    return;
+                };
+                let Some(parts) = get("parts")
+                    .and_then(|field| self.data_scene_parts(module, file, &field.value))
+                else {
+                    return;
+                };
+                let follow = get("follow")
+                    .map(|field| self.data_bool(file, &field.value))
+                    .unwrap_or(Some(false));
+                let keyframes = get("keyframes")
+                    .map(|field| self.data_scene_keyframes(module, file, &field.value))
+                    .unwrap_or_else(|| Some(Vec::new()));
+                let (Some(follow), Some(keyframes)) = (follow, keyframes) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/scenes/{}", out.scenes.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.scenes.push(pc::SceneDefinition {
+                    id: location,
+                    ticks: ticks as u32,
+                    follow,
+                    parts,
+                    keyframes,
+                });
+            }
             DataKind::Job => {
                 let mut integer = |name, max| {
                     get(name).and_then(|field| {
@@ -763,7 +797,8 @@ impl Cx {
                     }
                     None => Vec::new(),
                 };
-                let start = get("start").and_then(|field| self.data_menu_name(file, &field.value));
+                let start = get("start")
+                    .and_then(|field| self.data_label_name(file, &field.value, "menu", "view"));
                 let while_open = get("while_open")
                     .and_then(|field| self.data_boolean_state(module, file, &field.value));
                 self.pointers.push((
@@ -2081,7 +2116,7 @@ impl Cx {
                         .and_then(|value| self.data_callback(module, file, value)),
                     next: fields
                         .get("next")
-                        .and_then(|value| self.data_menu_name(file, value)),
+                        .and_then(|value| self.data_label_name(file, value, "menu", "view")),
                     when: fields
                         .get("when")
                         .and_then(|value| self.data_boolean_state(module, file, value)),
@@ -2111,7 +2146,7 @@ impl Cx {
                     &[],
                 )?;
                 Some(pc::MenuView {
-                    name: self.data_menu_name(file, fields.get("name")?)?,
+                    name: self.data_label_name(file, fields.get("name")?, "menu", "view")?,
                     title: self.data_text(module, file, fields.get("title")?)?,
                     choices: self.data_menu_choices(module, file, fields.get("choices")?)?,
                 })
@@ -2119,16 +2154,18 @@ impl Cx {
             .collect()
     }
 
-    fn data_menu_name(&mut self, file: FileId, value: &DataValue) -> Option<String> {
-        if let Expr::Str { value, .. } = self.data_expr(file, value, "a quoted menu view name")? {
+    fn data_label_name(
+        &mut self,
+        file: FileId,
+        value: &DataValue,
+        kind: &str,
+        label: &str,
+    ) -> Option<String> {
+        let expected = format!("a quoted {kind} {label} name");
+        if let Expr::Str { value, .. } = self.data_expr(file, value, &expected)? {
             return Some(value.clone());
         }
-        self.error(
-            "menu",
-            file,
-            value.span(),
-            "expected a quoted menu view name",
-        );
+        self.error(kind, file, value.span(), format!("expected {expected}"));
         None
     }
 
@@ -2182,6 +2219,177 @@ impl Cx {
             )? as i32),
         };
         Some(pc::HudBossBar { title, value, max })
+    }
+
+    fn data_scene_parts(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<pc::ScenePart>> {
+        let DataValue::Array(parts, _) = value else {
+            self.error(
+                "scene",
+                file,
+                value.span(),
+                "expected a list of named display parts",
+            );
+            return None;
+        };
+        if !(1..=64).contains(&parts.len()) {
+            self.error(
+                "scene",
+                file,
+                value.span(),
+                "expected one to 64 display parts",
+            );
+            return None;
+        }
+        parts
+            .iter()
+            .map(|part| {
+                let fields = self.data_object_fields(
+                    file,
+                    part,
+                    "scene part",
+                    &["name"],
+                    &["block", "item", "text", "pose"],
+                )?;
+                let name = self.data_label_name(file, fields.get("name")?, "scene", "part")?;
+                let content = match (fields.get("block"), fields.get("item"), fields.get("text")) {
+                    (Some(value), None, None) => {
+                        let expr = self.data_expr(file, value, "a block")?;
+                        let block = self
+                            .vanilla_value(module, file, expr, "Block")?
+                            .parse()
+                            .ok()?;
+                        pc::SceneContent::Block { block }
+                    }
+                    (None, Some(value), None) => pc::SceneContent::Item {
+                        item: self.data_item_ref(module, file, value, true)?,
+                    },
+                    (None, None, Some(value)) => pc::SceneContent::Text {
+                        text: self.data_text(module, file, value)?,
+                    },
+                    _ => {
+                        self.error(
+                            "scene",
+                            file,
+                            part.span(),
+                            "a scene part needs exactly one of block, item, or text",
+                        );
+                        return None;
+                    }
+                };
+                let pose = fields
+                    .get("pose")
+                    .map(|value| self.data_scene_pose(module, file, value))
+                    .unwrap_or_else(|| Some(Default::default()))?;
+                Some(pc::ScenePart {
+                    name,
+                    content,
+                    pose,
+                })
+            })
+            .collect()
+    }
+
+    fn data_scene_keyframes(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<pc::SceneKeyframe>> {
+        let DataValue::Array(frames, _) = value else {
+            self.error(
+                "scene",
+                file,
+                value.span(),
+                "expected a list of interpolation keyframes",
+            );
+            return None;
+        };
+        if frames.len() > 256 {
+            self.error(
+                "scene",
+                file,
+                value.span(),
+                "a scene supports at most 256 keyframes",
+            );
+            return None;
+        }
+        frames
+            .iter()
+            .map(|frame| {
+                let fields = self.data_object_fields(
+                    file,
+                    frame,
+                    "scene keyframe",
+                    &["part", "at", "duration", "pose"],
+                    &[],
+                )?;
+                Some(pc::SceneKeyframe {
+                    part: self.data_label_name(file, fields.get("part")?, "scene", "part")?,
+                    at: self.data_int(module, file, fields.get("at")?, 1, i64::from(i32::MAX))?
+                        as u32,
+                    duration: self.data_int(
+                        module,
+                        file,
+                        fields.get("duration")?,
+                        1,
+                        i64::from(i32::MAX),
+                    )? as u32,
+                    pose: self.data_scene_pose(module, file, fields.get("pose")?)?,
+                })
+            })
+            .collect()
+    }
+
+    fn data_scene_pose(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<sand::systems::Transform> {
+        let fields = self.data_object_fields(
+            file,
+            value,
+            "scene pose",
+            &[],
+            &["translation", "scale", "yaw"],
+        )?;
+        let scalar = |cx: &mut Self, value: &DataValue| {
+            let expr = cx.data_expr(file, value, "a constant numeric pose value")?;
+            let (number, ty) = cx.eval(module, file, expr, None)?;
+            match ty {
+                Ty::Number => Some(number as f32),
+                Ty::Float => Some(number as f32 / FLOAT_SCALE as f32),
+                _ => {
+                    cx.error("scene", file, expr.span(), "a pose value must be numeric");
+                    None
+                }
+            }
+        };
+        let vector = |cx: &mut Self, value: &DataValue| {
+            if let DataValue::Array(values, _) = value
+                && let [x, y, z] = values.as_slice()
+            {
+                return Some([scalar(cx, x)?, scalar(cx, y)?, scalar(cx, z)?]);
+            }
+            cx.error("scene", file, value.span(), "expected a three-axis vector");
+            None
+        };
+        let mut pose = sand::systems::Transform::default();
+        if let Some(value) = fields.get("translation") {
+            pose = pose.translated(vector(self, value)?);
+        }
+        if let Some(value) = fields.get("scale") {
+            pose = pose.scaled(vector(self, value)?);
+        }
+        if let Some(value) = fields.get("yaw") {
+            pose = pose.yaw(scalar(self, value)?);
+        }
+        Some(pose)
     }
 
     fn data_job_step(

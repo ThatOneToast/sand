@@ -982,6 +982,10 @@
                 {
                   "type": "STRING",
                   "value": "job"
+                },
+                {
+                  "type": "STRING",
+                  "value": "scene"
                 }
               ]
             },

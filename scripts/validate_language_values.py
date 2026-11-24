@@ -237,6 +237,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_ability_admission()
             self.check_state_combat()
             self.check_jobs()
+            self.check_scenes()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0.5 80 0.5")
@@ -527,6 +528,39 @@ class ValuesHarness(WorldGameplayHarness):
         report("NumericA", 24, "ABILITY_READY_AGAIN")
         report("NumericB", 4, "ABILITY_PEER_STATE_UNCHANGED")
 
+
+    def check_scenes(self):
+        def invoke(player, function):
+            self.send(f"execute as {player} at @s run function runtime_values:{function}")
+
+        def display(kind, x, state=""):
+            return f"@e[type=minecraft:{kind}_display,x={x}.5,y=105,z=3.5,distance=..1{state}]"
+
+        self.send("fill 2 104 2 14 104 4 minecraft:stone")
+        self.send("fill 2 105 2 14 108 4 minecraft:air")
+        for player, x in (("NumericA", 3), ("NumericB", 11)):
+            self.send(f"execute in minecraft:overworld run teleport {player} {x}.5 105 3.5")
+            invoke(player, "begin_scene")
+        for kind in ("block", "item", "text"):
+            self.check(f"SCENE_START_{kind.upper()}", f"if entity {display(kind, 3)} if entity {display(kind, 11)}")
+        compass = ',nbt={item:{id:"minecraft:compass",components:{"minecraft:enchantment_glint_override":1b}}}'
+        self.check("SCENE_CUSTOM_ITEM", f"if entity {display('item', 3, compass)} "
+                                        f"if entity {display('item', 11, compass)}")
+        self.step_ticks(2, "SCENE_KEYFRAME_TICKS")
+        animated = ",nbt={transformation:{translation:[0.0f,2.5f,0.0f]},interpolation_duration:3}"
+        self.check("SCENE_KEYFRAME", f"if entity {display('block', 3, animated)} "
+                                    f"if entity {display('block', 11, animated)}")
+        invoke("NumericA", "end_scene")
+        self.send("execute in minecraft:overworld run teleport NumericB 13.5 105 3.5")
+        self.step_ticks(1, "SCENE_FOLLOW_TICK")
+        for kind in ("block", "item", "text"):
+            self.check(f"SCENE_CANCEL_AND_FOLLOW_{kind.upper()}",
+                       f"unless entity {display(kind, 3)} unless entity {display(kind, 11)} "
+                       f"if entity {display(kind, 13)}")
+        self.step_ticks(7, "SCENE_EXPIRY_TICKS")
+        self.check("SCENE_EXPIRED", " ".join(
+            f"unless entity {display(kind, 13)}" for kind in ("block", "item", "text")
+        ))
 
     def check_jobs(self):
         self.send("scoreboard objectives add job_complete_probe dummy")

@@ -241,6 +241,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Player ability `{id}`. Use `activate_ability` to attempt its admission."
                     ),
                 ),
+                (crate::ast::DataKind::Scene, _) => (
+                    format!("{vis}scene {}", def.name),
+                    format!("Owned display scene `{id}`. Use `show_scene` or `cancel_scene`."),
+                ),
                 (crate::ast::DataKind::Job, _) => (
                     format!("{vis}job {}", def.name),
                     format!("Player-owned job `{id}`. Use `start_job` or `cancel_job`."),
@@ -1206,6 +1210,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Progression
         | DefKind::Combat
         | DefKind::Ability
+        | DefKind::Scene
         | DefKind::Job
         | DefKind::Session
         | DefKind::Projectile
@@ -1893,6 +1898,9 @@ fn expression_completions(
             Some("Ability") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Ability);
             }
+            Some("Scene") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Scene);
+            }
             Some("Job") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Job);
             }
@@ -2414,6 +2422,7 @@ fn data_completions(
             out
         }
         FieldKind::Text | FieldKind::TextList => vec![translation_completion()],
+        FieldKind::SceneParts | FieldKind::SceneKeyframes => Vec::new(),
         FieldKind::JobStep => scope_names(analysis, module)
             .into_iter()
             .filter(|(_, def)| {
@@ -2554,6 +2563,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "ability",
             "checked player activation",
             "ability ${1:CastSpark} { ticks: ${2:24}, projectile: ${3:Spark} }",
+        ),
+        Completion::snippet(
+            "scene",
+            "player-owned native displays",
+            r#"scene ${1:Beacon} { ticks: ${2:80}, parts: [{ name: "${3:base}", block: Block::${4:GoldBlock} }] }"#,
         ),
         Completion::snippet(
             "job",
@@ -2893,6 +2907,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Menu => "Menu",
                 ParamKind::Projectile => "Projectile",
                 ParamKind::Progression => "Progression",
+                ParamKind::Scene => "Scene",
                 ParamKind::Job => "Job",
                 ParamKind::Session => "Session",
                 ParamKind::Ability => "Ability",

@@ -84,6 +84,7 @@ fn item_level() {
             "menu",
             "projectile",
             "progression",
+            "scene",
             "job",
             "session",
             "ability",

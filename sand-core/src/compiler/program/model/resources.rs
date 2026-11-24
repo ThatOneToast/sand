@@ -962,6 +962,115 @@ pub struct ProgressionBranch {
     pub when: FieldReference,
 }
 
+/// Owned native block, item and text displays with keyframed local poses.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::SceneDefinition", module = "sand::advanced::compiler",
+ summary = "Owned native block, item and text displays with keyframed local poses.",
+ context = "Each player start creates a fresh instance. Displays follow the root at its origin, or follow the owner when enabled. Each part has independent non-overlapping keyframes.",
+ minecraft = "Uses shared Scene and Lifetime registration and native display interpolation.",
+ use_when = ["Authoring bounded world-space visual presentations"],
+ avoid_when = ["Visual geometry must collide with players"],
+ fields(id = "Scene identity.", ticks = "Positive deadline in loaded ticks.", follow = "Follow the owner when enabled.", parts = "Named visual parts in authored order.", keyframes = "Optional interpolation keyframes for those parts."),
+ example = "use sand::advanced::compiler::SceneDefinition;",
+)]
+pub struct SceneDefinition {
+    /// Identity used to start or cancel this scene.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Maximum number of loaded ticks before cleanup.
+    pub ticks: u32,
+    /// Follow the player when true, otherwise remain where started.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub follow: bool,
+    /// Displays in authored order.
+    pub parts: Vec<ScenePart>,
+    /// Optional animations for declared parts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keyframes: Vec<SceneKeyframe>,
+}
+
+/// A named visual display and its starting local pose.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::ScenePart", module = "sand::advanced::compiler",
+ summary = "A named visual display and its starting local pose.",
+ context = "Each name is unique within its scene and can be referenced by its keyframes.",
+ minecraft = "Lowers to a vanilla display entity created by the shared scene runtime.",
+ use_when = ["Defining content and pose for an owned display"],
+ avoid_when = ["The entity needs physical collision"],
+ fields(name = "Unique name used by keyframes.", content = "Display payload.", pose = "Initial local translation, scale and yaw."),
+ example = "use sand::advanced::compiler::ScenePart;",
+)]
+pub struct ScenePart {
+    /// Name referenced by keyframes within this scene.
+    pub name: String,
+    /// Native display payload.
+    pub content: SceneContent,
+    /// Local pose, defaulting to identity.
+    #[serde(default)]
+    pub pose: crate::gameplay::Transform,
+}
+
+/// The three display payloads supported by the shared scene runtime.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::SceneContent", module = "sand::advanced::compiler",
+ summary = "The three display payloads supported by the shared scene runtime.",
+ context = "A display's content stays fixed while keyframes animate its pose. Custom items retain their authored components.",
+ minecraft = "Uses native block, item and text display entities.",
+ use_when = ["Choosing the payload of an owned display"],
+ avoid_when = ["The entity needs physical collision"],
+ variants(Block = "Display the default state of a block.", Item = "Display a vanilla or custom item.", Text = "Display rich text."),
+ variant_fields(Block(block = "Typed default-state block."), Item(item = "Vanilla or custom item identity."), Text(text = "Rich text parts.")),
+ example = "use sand::advanced::compiler::SceneContent;",
+)]
+pub enum SceneContent {
+    /// Default state of a vanilla block.
+    Block {
+        /// Block to display.
+        #[schemars(with = "String")]
+        block: sand_components::BlockId,
+    },
+    /// One vanilla or custom item with its components.
+    Item {
+        /// Item resource identity.
+        item: String,
+    },
+    /// Rich text, resolved when the display is created.
+    Text {
+        /// Text parts in display order.
+        text: Vec<TextPart>,
+    },
+}
+
+/// A positive interpolation interval and its target pose.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::SceneKeyframe", module = "sand::advanced::compiler",
+ summary = "A positive interpolation interval and its target pose.",
+ context = "A part's intervals may touch but must not overlap. A keyframe replaces the complete local pose.",
+ minecraft = "The shared Scene runtime applies vanilla display interpolation at the requested loaded tick.",
+ use_when = ["Animating a named native display"],
+ avoid_when = ["The geometry must affect collision"],
+ fields(part = "Existing part name.", at = "Positive start tick.", duration = "Positive interpolation length in ticks.", pose = "Target local pose."),
+ example = "use sand::advanced::compiler::SceneKeyframe;",
+)]
+pub struct SceneKeyframe {
+    /// Existing part name within this scene.
+    pub part: String,
+    /// Positive start tick, relative to instance creation.
+    pub at: u32,
+    /// Positive interpolation length.
+    pub duration: u32,
+    /// Complete target pose.
+    pub pose: crate::gameplay::Transform,
+}
+
 /// Player-owned indexed work with a bounded number of callbacks per loaded tick.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

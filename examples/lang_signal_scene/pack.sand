@@ -1,0 +1,26 @@
+#![pack(namespace = "signal_scene", minecraft = "26.2", description = "A rising supply beacon")]
+
+item SupplyIcon {
+    base: Item::Compass,
+    name: "Supply Signal",
+    glint: true,
+}
+
+scene SupplyBeacon {
+    ticks: 40,
+    parts: [
+        { name: "base", block: Block::GoldBlock,
+          pose: { translation: [-0.25, 0, -0.25], scale: [0.5, 0.5, 0.5] } },
+        { name: "label", text: "{gold}Supplies",
+          pose: { translation: [0, 0.75, 0] } },
+        { name: "icon", item: SupplyIcon,
+          pose: { translation: [0, 1.2, 0] } },
+    ],
+    keyframes: [
+        { part: "icon", at: 5, duration: 10,
+          pose: { translation: [0, 2.5, 0], yaw: 90 } },
+    ],
+}
+
+pub fn show_signal() { show_scene(SupplyBeacon); }
+pub fn hide_signal() { cancel_scene(SupplyBeacon); }

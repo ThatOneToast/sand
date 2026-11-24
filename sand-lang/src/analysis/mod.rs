@@ -166,6 +166,7 @@ pub enum DefKind {
     /// A named player quest.
     Progression,
     /// A loaded-tick controller over a quest.
+    Scene,
     Job,
     Session,
     /// A checked player activation.
@@ -209,6 +210,7 @@ impl DefKind {
             DefKind::Menu => "menu",
             DefKind::Projectile => "projectile",
             DefKind::Progression => "progression",
+            DefKind::Scene => "scene",
             DefKind::Job => "job",
             DefKind::Session => "session",
             DefKind::Ability => "ability",
@@ -1129,6 +1131,7 @@ impl Cx {
                     crate::ast::DataKind::Menu => DefKind::Menu,
                     crate::ast::DataKind::Projectile => DefKind::Projectile,
                     crate::ast::DataKind::Progression => DefKind::Progression,
+                    crate::ast::DataKind::Scene => DefKind::Scene,
                     crate::ast::DataKind::Job => DefKind::Job,
                     crate::ast::DataKind::Session => DefKind::Session,
                     crate::ast::DataKind::Ability => DefKind::Ability,
@@ -3094,6 +3097,7 @@ impl Cx {
             menus: Vec::new(),
             projectiles: Vec::new(),
             progressions: Vec::new(),
+            scenes: Vec::new(),
             jobs: Vec::new(),
             sessions: Vec::new(),
             abilities: Vec::new(),

@@ -25,7 +25,8 @@ pub use resources::{
     CustomItem, FlatDimension, HudBossBar, HudDefinition, InventoryTransferDefinition,
     JobDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition, MenuView,
     NoticeDialog, ProgressionBranch, ProgressionDefinition, ProgressionObjective,
-    ProjectileDefinition, Rarity, Recipe, RecipeOutput, ResourceTag, SessionDefinition,
-    StateCooldown, TagKind, WorldPredicate, WrittenBookContent,
+    ProjectileDefinition, Rarity, Recipe, RecipeOutput, ResourceTag, SceneContent, SceneDefinition,
+    SceneKeyframe, ScenePart, SessionDefinition, StateCooldown, TagKind, WorldPredicate,
+    WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

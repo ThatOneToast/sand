@@ -66,6 +66,8 @@ pub enum ParamKind {
     Projectile,
     /// An authored progression track.
     Progression,
+    /// An authored native display scene.
+    Scene,
     /// An authored bounded job.
     Job,
     /// An authored session controller.
@@ -1615,6 +1617,28 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "reset_progression(${1:Quest})",
     },
     Builtin {
+        name: "show_scene",
+        kind: BuiltinKind::Statement,
+        signature: "show_scene(scene)",
+        summary: "Start a native display scene for the executing player.",
+        details: "Each instance owns its display entities and loaded-tick animation.",
+        minecraft: "Uses the shared Scene and Lifetime runtimes.",
+        needs_player: true,
+        params: &[p("scene", ParamKind::Scene, true, "The declared scene.")],
+        snippet: "show_scene(${1:Beacon})",
+    },
+    Builtin {
+        name: "cancel_scene",
+        kind: BuiltinKind::Statement,
+        signature: "cancel_scene(scene)",
+        summary: "Remove the executing player's instances of the scene.",
+        details: "Runs the shared display cleanup for all loaded instances of this owner.",
+        minecraft: "Uses the shared Scene and Lifetime runtimes.",
+        needs_player: true,
+        params: &[p("scene", ParamKind::Scene, true, "The declared scene.")],
+        snippet: "cancel_scene(${1:Beacon})",
+    },
+    Builtin {
         name: "start_job",
         kind: BuiltinKind::Statement,
         signature: "start_job(job)",
@@ -2176,6 +2200,8 @@ pub enum FieldKind {
     Callback,
     /// A named function with one numeric index and no return value.
     JobStep,
+    SceneParts,
+    SceneKeyframes,
     /// Title, progress and maximum for a private HUD bar.
     HudBossBar,
     /// An ordered list of rich button labels and their callbacks.
@@ -2825,6 +2851,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "[{ from: ${1:0}, to: ${2:2}, when: ${3:Journal}.${4:skip_optional} }]",
     ),
     f(
+        "scene",
+        "ticks",
+        FieldKind::Int,
+        true,
+        "Maximum duration in loaded ticks.",
+        "${1:80}",
+    ),
+    f(
+        "scene",
+        "follow",
+        FieldKind::Bool,
+        false,
+        "Follow the owner on loaded ticks.",
+        "${1:true}",
+    ),
+    f(
+        "scene",
+        "parts",
+        FieldKind::SceneParts,
+        true,
+        "Named block, item or text displays and starting poses.",
+        "[{ name: \"${1:base}\", block: Block::${2:GoldBlock} }]",
+    ),
+    f(
+        "scene",
+        "keyframes",
+        FieldKind::SceneKeyframes,
+        false,
+        "Positive, non-overlapping interpolation intervals.",
+        "[{ part: \"${1:base}\", at: ${2:5}, duration: ${3:10}, pose: { yaw: ${4:90} } }]",
+    ),
+    f(
         "job",
         "ticks",
         FieldKind::Int,
@@ -3276,6 +3334,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "progression",
         "`progression Name { progress: State.index, objectives: [...] }` declares an ordered player track.",
+    ),
+    (
+        "scene",
+        "`scene Name { ticks: 80, parts: [...] }` declares owned native display parts and optional keyframes.",
     ),
     (
         "job",

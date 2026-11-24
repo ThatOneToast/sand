@@ -20,10 +20,11 @@ pub use model::{
     LootTable, MenuChoice, MenuDefinition, MenuView, MessageChannel, Module, ModuleSource,
     NoticeDialog, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
     ProgressionBranch, ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity,
-    Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
-    ScoreOperand, ScoreOperator, ScoreRelation, SessionCommand, SessionDefinition, State,
-    StateAttached, StateCooldown, TagKind, TagMembership, TeleportDestination, TextColor, TextPart,
-    TextStyle, Weather, WorldPredicate, WrittenBookContent,
+    Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, SceneContent, SceneDefinition,
+    SceneKeyframe, ScenePart, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
+    ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached, StateCooldown, TagKind,
+    TagMembership, TeleportDestination, TextColor, TextPart, TextStyle, Weather, WorldPredicate,
+    WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -94,6 +95,7 @@ const CAPABILITIES: &[&str] = &[
     "progressions",
     "owned_sessions",
     "owned_jobs",
+    "owned_scenes",
     "owned_abilities",
     "state_combat",
 ];

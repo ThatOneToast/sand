@@ -168,6 +168,13 @@
       },
       "type": "array"
     },
+    "scenes": {
+      "description": "Owned native display scenes.",
+      "items": {
+        "$ref": "defs-SceneDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "sessions": {
       "description": "Owned session controllers over named tracks.",
       "items": {

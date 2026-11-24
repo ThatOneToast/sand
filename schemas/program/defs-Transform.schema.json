@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Local display pose: translation, scale and rotation about the Y axis.\nMinecraft applies scale, then yaw, then translation. Values describe visual\ngeometry only; display entities have no gameplay collision. Default is identity.",
+  "properties": {
+    "scale": {
+      "default": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "items": {
+        "format": "float",
+        "type": "number"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "translation": {
+      "default": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "items": {
+        "format": "float",
+        "type": "number"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "yaw": {
+      "default": 0.0,
+      "format": "float",
+      "type": "number"
+    }
+  },
+  "type": "object"
+}

@@ -4921,6 +4921,10 @@ impl Cx {
                 )?,
                 advance: builtin.name == "advance_progression",
             },
+            "show_scene" | "cancel_scene" => pc::Action::Scene {
+                scene: self.arg_declared(body, bound["scene"], DefKind::Scene, "a scene")?,
+                show: builtin.name == "show_scene",
+            },
             "start_job" | "cancel_job" => pc::Action::Job {
                 job: self.arg_declared(body, bound["job"], DefKind::Job, "a job")?,
                 start: builtin.name == "start_job",

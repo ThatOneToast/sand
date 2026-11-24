@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The three display payloads supported by the shared scene runtime.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Default state of a vanilla block.",
+      "properties": {
+        "block": {
+          "description": "Block to display.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "block",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "One vanilla or custom item with its components.",
+      "properties": {
+        "item": {
+          "description": "Item resource identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Rich text, resolved when the display is created.",
+      "properties": {
+        "kind": {
+          "const": "text",
+          "type": "string"
+        },
+        "text": {
+          "description": "Text parts in display order.",
+          "items": {
+            "$ref": "defs-TextPart.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "type": "object"
+    }
+  ]
+}

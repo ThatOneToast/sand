@@ -337,8 +337,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   damage, immunity, healing and committed callbacks.
 - [x] Bounded indexed player jobs with independent loaded-tick batches,
   completion callbacks and owner cancellation.
-- [ ] Expose the Rust encounters, rosters, scenes, and checkpoints through
-  canonical shared models.
+- [x] Owner-scoped native display scenes with block, item and text parts,
+  local poses, interpolation keyframes, follow behavior and cleanup.
+- [ ] Expose the Rust encounters, rosters, and checkpoints through canonical
+  shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.

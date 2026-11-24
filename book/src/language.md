@@ -1604,6 +1604,28 @@ The advancement's native reward runs the handlers once per player completion.
 Handlers in the same module run in declaration order. Experience rewards and
 the player's advancement progress use the same vanilla completion.
 
+### Owned display scenes
+
+A scene groups named block, item and text displays. A part's optional pose
+sets local translation, scale and yaw. Each keyframe replaces the complete
+pose and starts vanilla interpolation at a positive loaded tick. Use
+`follow: true` to keep a scene at its owner's position. Each start creates a
+separate instance, and expiry or cancellation removes its displays.
+
+```sand
+scene SupplyBeacon {
+    ticks: 40,
+    parts: [{ name: "base", block: Block::GoldBlock }],
+    keyframes: [
+        { part: "base", at: 5, duration: 10, pose: { translation: [0, 2.5, 0] } },
+    ],
+}
+```
+
+Run `show_scene(SupplyBeacon)` as the player, or
+`cancel_scene(SupplyBeacon)` to remove their instances. See the
+[supply beacon example](../../examples/lang_signal_scene/).
+
 ### Bounded player jobs
 
 A job processes zero-based indices in order. The step function takes one
@@ -1990,13 +2012,13 @@ command and State models as Rust. Today the language covers:
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
-| Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
+| Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and entity/player waits inside branches, statement matches and local loops | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads, authored advancement completion | broader advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat and bounded jobs | encounters, rosters, scenes, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs and display scenes | encounters, rosters, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

@@ -650,6 +650,29 @@
     },
     {
       "additionalProperties": false,
+      "description": "Start a display scene or cancel the executing player's instances.",
+      "properties": {
+        "op": {
+          "const": "scene",
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "show": {
+          "description": "Start a fresh scene if true, otherwise cancel the owner's scenes.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "scene",
+        "show"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Start a job or cancel the executing player's instances.",
       "properties": {
         "job": {

@@ -135,6 +135,7 @@ pub(super) fn lower(
         huds: BTreeMap::new(),
         projectiles: BTreeMap::new(),
         progressions: BTreeMap::new(),
+        scenes: BTreeMap::new(),
         jobs: BTreeMap::new(),
         sessions: BTreeMap::new(),
         abilities: BTreeMap::new(),
@@ -215,6 +216,19 @@ pub(super) fn lower(
                 })?;
             }
             lower.custom_items.insert(item.id.to_string(), custom);
+        }
+    }
+    for module in &program.modules {
+        for (index, scene) in module.scenes.iter().enumerate() {
+            let definition = lower.scene_component(scene).map_err(|message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &module.id.to_string(),
+                    &format!("/scenes/{index}"),
+                    message,
+                )]
+            })?;
+            lower.scenes.insert(scene.id.to_string(), definition);
         }
     }
     for ability in program.modules.iter().flat_map(|module| &module.abilities) {
@@ -406,6 +420,19 @@ pub(super) fn lower(
                     &format!("ability {}", ability.id),
                     &module_id,
                     &format!("/abilities/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, scene) in module.scenes.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.scenes[&scene.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("scene {}", scene.id),
+                    &module_id,
+                    &format!("/scenes/{index}"),
                 ),
                 &ctx,
                 &mut load,
@@ -1704,6 +1731,7 @@ struct Lower<'sources> {
     huds: BTreeMap<String, crate::gameplay::Hud>,
     projectiles: BTreeMap<String, crate::gameplay::Projectile>,
     progressions: BTreeMap<String, crate::gameplay::Progression>,
+    scenes: BTreeMap<String, crate::gameplay::Scene>,
     jobs: BTreeMap<String, crate::gameplay::Job>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
     abilities: BTreeMap<String, crate::gameplay::Ability>,
@@ -2057,6 +2085,51 @@ impl Lower<'_> {
             });
         }
         progression
+    }
+
+    fn scene_component(&self, scene: &SceneDefinition) -> Result<crate::gameplay::Scene, String> {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Lifetime, Scene},
+        };
+        use sand_components::{IntoItemStack, effect::Ticks};
+
+        let lifetime = Lifetime::<PlayerKind>::new(scene.id.clone(), Ticks::new(scene.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        let mut definition = Scene::new(lifetime).follow_owner(scene.follow);
+        for part in &scene.parts {
+            definition = match &part.content {
+                SceneContent::Block { block } => {
+                    definition.part(&part.name, block.clone(), part.pose)
+                }
+                SceneContent::Item { item } => {
+                    let stack = if let Some(custom) = self.custom_items.get(item) {
+                        custom
+                            .try_into_item_stack()
+                            .map_err(|error| error.to_string())?
+                    } else {
+                        sand_components::ItemStack::new(item.parse().map_err(
+                            |error: sand_components::error::SandError| error.to_string(),
+                        )?)
+                    };
+                    definition.item(&part.name, stack, part.pose)
+                }
+                SceneContent::Text { text } => definition.text(
+                    &part.name,
+                    static_text_component(text, &self.holders),
+                    part.pose,
+                ),
+            };
+        }
+        for frame in &scene.keyframes {
+            definition = definition.keyframe(
+                &frame.part,
+                Ticks::new(frame.at),
+                Ticks::new(frame.duration),
+                frame.pose,
+            );
+        }
+        Ok(definition)
     }
 
     fn job_component(&self, job: &JobDefinition) -> crate::gameplay::Job {
@@ -2930,6 +3003,14 @@ impl Lower<'_> {
                         definition.advance().0
                     } else {
                         definition.reset().0
+                    }
+                }
+                Action::Scene { scene, show } => {
+                    let definition = &self.scenes[&scene.to_string()];
+                    if *show {
+                        definition.start().0
+                    } else {
+                        definition.cancel().0
                     }
                 }
                 Action::Job { job, start } => {

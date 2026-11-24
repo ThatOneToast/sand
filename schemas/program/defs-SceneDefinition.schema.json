@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Owned native block, item and text displays with keyframed local poses.",
+  "properties": {
+    "follow": {
+      "description": "Follow the player when true, otherwise remain where started.",
+      "type": "boolean"
+    },
+    "id": {
+      "description": "Identity used to start or cancel this scene.",
+      "type": "string"
+    },
+    "keyframes": {
+      "description": "Optional animations for declared parts.",
+      "items": {
+        "$ref": "defs-SceneKeyframe.schema.json"
+      },
+      "type": "array"
+    },
+    "parts": {
+      "description": "Displays in authored order.",
+      "items": {
+        "$ref": "defs-ScenePart.schema.json"
+      },
+      "type": "array"
+    },
+    "ticks": {
+      "description": "Maximum number of loaded ticks before cleanup.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "ticks",
+    "parts"
+  ],
+  "type": "object"
+}

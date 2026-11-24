@@ -124,6 +124,21 @@ hud FieldStatus {
 }
 
 global state Origin { x: float, spread: float }
+item SceneCompass { base: Item::Compass, glint: true }
+
+scene ProbeScene {
+    ticks: 9,
+    follow: true,
+    parts: [
+        { name: "box", block: Block::GoldBlock },
+        { name: "label", text: "Probe Label", pose: { translation: [0, 0.5, 0] } },
+        { name: "icon", item: SceneCompass },
+    ],
+    keyframes: [
+        { part: "box", at: 2, duration: 3, pose: { translation: [0, 2.5, 0] } },
+    ],
+}
+
 job ProbeJob {
     ticks: 20,
     count: 5,
@@ -247,6 +262,9 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe -1");
     }
 }
+
+fn begin_scene() { show_scene(ProbeScene); }
+fn end_scene() { cancel_scene(ProbeScene); }
 
 fn job_step(index: number) {
     Ledger.job_trace = Ledger.job_trace * 10 + index + 1;

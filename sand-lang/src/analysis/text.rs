@@ -211,11 +211,14 @@ impl Cx {
             })),
             Ty::Enum(def) => {
                 self.integer_text(body, dest, &source, true, *span, ops);
-                let DefInfo::Enum { variants } = self.defs[def.0].info.clone() else {
+                let DefInfo::Enum { variants, .. } = self.defs[def.0].info.clone() else {
                     unreachable!()
                 };
                 for variant in variants {
-                    let DefInfo::Variant { value: Some(value) } = self.defs[variant.0].info else {
+                    let DefInfo::Variant {
+                        value: Some(value), ..
+                    } = self.defs[variant.0].info
+                    else {
                         continue;
                     };
                     ops.push(at(pc::Action::Branch {

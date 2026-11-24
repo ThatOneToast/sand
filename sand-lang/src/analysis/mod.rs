@@ -46,6 +46,7 @@ mod testing;
 mod text;
 mod traits;
 mod values;
+mod variants;
 
 pub use testing::TestCase;
 
@@ -68,7 +69,7 @@ pub enum Ty {
     List(DefId),
     /// An enum whose variants are integer phases.
     Enum(DefId),
-    /// A named, copyable record layout.
+    /// A copyable aggregate, including records, fixed arrays, and payload enums.
     Struct(DefId),
     /// A retained, pack-owned entity identity; zero is empty.
     EntityRef,
@@ -251,6 +252,8 @@ pub enum DefInfo {
     Enum {
         /// Variants in order.
         variants: Vec<DefId>,
+        /// Flattened owned layout, starting with the tag, for payload enums.
+        layout: Option<Vec<DefId>>,
     },
     /// A named record layout, shared by locals, arguments, returns, and State.
     Struct {
@@ -270,6 +273,8 @@ pub enum DefInfo {
     Variant {
         /// Evaluated discriminant.
         value: Option<i64>,
+        /// Fields occupied by this variant's payload.
+        fields: Vec<DefId>,
     },
     /// A State.
     State {
@@ -694,6 +699,7 @@ struct VariantSrc {
     file: FileId,
     expr: Option<Expr>,
     prev: Option<DefId>,
+    payload: Vec<Type>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -966,8 +972,13 @@ impl Cx {
                     DefKind::Enum,
                     DefInfo::Enum {
                         variants: Vec::new(),
+                        layout: None,
                     },
                 ));
+                let mut layout =
+                    e.variants.iter().any(|v| !v.payload.is_empty()).then(|| {
+                        vec![self.variant_slot(id, name.span, "tag".into(), Ty::Enum(id))]
+                    });
                 let mut variants = Vec::new();
                 let mut members = BTreeMap::new();
                 let mut prev = None;
@@ -982,8 +993,31 @@ impl Cx {
                         docs: variant.docs.clone(),
                         is_pub: item.is_pub,
                         parent: Some(id),
-                        info: DefInfo::Variant { value: None },
+                        info: DefInfo::Variant {
+                            value: None,
+                            fields: Vec::new(),
+                        },
                     });
+                    if let Some(layout) = &mut layout {
+                        let fields: Vec<_> = variant
+                            .payload
+                            .iter()
+                            .enumerate()
+                            .map(|(index, ty)| {
+                                self.variant_slot(
+                                    vid,
+                                    ty.span,
+                                    format!("v{}_{index}", variant.name.name),
+                                    Ty::Unknown,
+                                )
+                            })
+                            .collect();
+                        layout.extend(fields.iter().copied());
+                        self.defs[vid.0].info = DefInfo::Variant {
+                            value: None,
+                            fields,
+                        };
+                    }
                     if members.insert(variant.name.name.clone(), vid).is_some() {
                         self.error(
                             "duplicate",
@@ -999,6 +1033,7 @@ impl Cx {
                             file,
                             expr: variant.value.clone(),
                             prev,
+                            payload: variant.payload.clone(),
                         },
                     );
                     prev = Some(vid);
@@ -1012,7 +1047,7 @@ impl Cx {
                         "an enum needs at least one variant to be stored in State",
                     );
                 }
-                self.defs[id.0].info = DefInfo::Enum { variants };
+                self.defs[id.0].info = DefInfo::Enum { variants, layout };
                 self.members.insert(id, members);
                 id
             }
@@ -1878,7 +1913,7 @@ impl Cx {
                     Ty::Struct(def)
                 }
             }
-            Some(def) => Ty::Enum(def),
+            Some(def) => self.enum_type(def),
             None => Ty::Unknown,
         }
     }
@@ -1941,7 +1976,13 @@ impl Cx {
         let variants: Vec<DefId> = self.variant_src.keys().copied().collect();
         for def in variants {
             let value = self.eval_def(def);
-            self.defs[def.0].info = DefInfo::Variant { value };
+            if let DefInfo::Variant {
+                value: discriminant,
+                ..
+            } = &mut self.defs[def.0].info
+            {
+                *discriminant = value;
+            }
         }
         // Enums must use distinct discriminants to be told apart in State.
         let enums: Vec<DefId> = (0..self.defs.len())
@@ -1949,12 +1990,12 @@ impl Cx {
             .filter(|d| self.defs[d.0].kind == DefKind::Enum)
             .collect();
         for def in enums {
-            let DefInfo::Enum { variants } = self.defs[def.0].info.clone() else {
+            let DefInfo::Enum { variants, .. } = self.defs[def.0].info.clone() else {
                 continue;
             };
             let mut seen: HashMap<i64, DefId> = HashMap::new();
             for variant in variants {
-                let DefInfo::Variant { value: Some(v) } = self.defs[variant.0].info else {
+                let DefInfo::Variant { value: Some(v), .. } = self.defs[variant.0].info else {
                     continue;
                 };
                 if let Some(prior) = seen.insert(v, variant) {
@@ -2031,9 +2072,9 @@ impl Cx {
             match (&field.default, ty) {
                 (Some(expr), _) => self.eval_i32(module, file, expr, Some(ty), None),
                 (None, Ty::Enum(e)) => match &self.defs[e.0].info {
-                    DefInfo::Enum { variants } => {
+                    DefInfo::Enum { variants, .. } => {
                         variants.first().and_then(|v| match self.defs[v.0].info {
-                            DefInfo::Variant { value } => value,
+                            DefInfo::Variant { value, .. } => value,
                             _ => None,
                         })
                     }
@@ -2259,7 +2300,19 @@ impl Cx {
                 )?;
                 let value = self.eval_def(def)?;
                 let ty = match self.defs[def.0].kind {
-                    DefKind::Variant => Ty::Enum(self.defs[def.0].parent.expect("variant owner")),
+                    DefKind::Variant => {
+                        let ty = self.variant_type(def);
+                        if matches!(ty, Ty::Struct(_)) {
+                            self.error(
+                                "const",
+                                file,
+                                path.span,
+                                "a payload enum is an owned value, not a numeric constant",
+                            );
+                            return None;
+                        }
+                        ty
+                    }
                     _ => self
                         .const_src
                         .get(&def)
@@ -2413,7 +2466,7 @@ impl Cx {
                     && from != to
                 {
                     let variants = match &self.defs[def.0].info {
-                        DefInfo::Enum { variants } => variants.clone(),
+                        DefInfo::Enum { variants, .. } => variants.clone(),
                         _ => Vec::new(),
                     };
                     if !variants.iter().any(|v| self.eval_def(*v) == Some(value)) {
@@ -2465,7 +2518,7 @@ impl Cx {
             }
         }
         match self.resolve_path(module, ty) {
-            Ok((def, _)) if self.defs[def.0].kind == DefKind::Enum => Ty::Enum(def),
+            Ok((def, _)) if self.defs[def.0].kind == DefKind::Enum => self.enum_type(def),
             _ => Ty::Unknown,
         }
     }

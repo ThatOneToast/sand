@@ -391,7 +391,7 @@ command compiles in memory and reports ordinary Sand errors if emission fails.
 | `number` | whole numbers | a scoreboard score |
 | `float` | decimals with three places, like `1.5` | a score holding `value * 1000` |
 | `bool` | `true` or `false` | a score holding one or zero |
-| an `enum` | one of its named phases | a score holding the phase's number |
+| an `enum` | one of its named alternatives, optionally with data | a tag score and slots for owned payloads |
 | `string` | owned Unicode text | UUID-owned or global command storage |
 | a `struct` | named fields of existing value types | score or storage slots per leaf |
 | `[T; N]` | N independent values of one type | the same aggregate leaf layout |
@@ -426,6 +426,38 @@ arguments: `accept(n > 0, !ready)`. Predicates such as `has_state(Mana)` can
 be stored or passed as booleans. Text can only show whole numbers, so copy a
 `float` first:
 `let shown = Hero.speed as number;`, then write `{shown}`.
+
+### Payload enums
+
+A variant can carry one or more owned values. Use the variant name with
+positional arguments to construct it, then bind the payload with `match`.
+
+```rust,ignore
+enum Delivery {
+    Waiting,
+    Delivered(number, string),
+    Rejected(string),
+}
+
+global state Desk { latest: Delivery = Delivery::Waiting }
+
+fn summary(value: Delivery) -> string {
+    return match value {
+        Delivery::Waiting => "Waiting",
+        Delivery::Delivered(count, recipient) => recipient + ": " + count.to_string(),
+        Delivery::Rejected(reason) => reason,
+    };
+}
+```
+
+Payloads work in State, collections, function arguments and returns, and
+custom events. A match can bind each value, ignore it with `_`, or
+destructure a record or fixed array. Guards run after the bindings are
+available. An unguarded arm must cover each variant unless the match has
+a catch-all. State defaults choose the first variant with default values
+for its payload, or use an explicit constant constructor. Use explicit
+discriminants when the tags need to stay stable across pack updates.
+Enums with only unit variants retain their numeric casts and score layout.
 
 ## Functions and variables
 

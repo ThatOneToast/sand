@@ -1,0 +1,67 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+struct Reading { units: number }
+enum Delivery {
+    Empty = 3,
+    Ready(Reading, string) = 12,
+    Rejected([number; 2]),
+}
+enum Node { End, Branch(Vec<Node>) }
+
+global state Depot {
+    stored: Delivery = Delivery::Ready(Reading { units: 7 }, "initial"),
+    root: Node,
+    observed: number,
+    failures: number,
+}
+
+event Delivered(value: Delivery);
+
+#[on(Delivered)]
+fn receive(value: Delivery) {
+    Depot.observed = measure(value);
+}
+
+fn measure(value: Delivery) -> number {
+    return match value {
+        Delivery::Ready(Reading { units }, label) if label == "initial" => units,
+        Delivery::Ready(Reading { units }, _) => units * 2,
+        Delivery::Rejected([first, second]) => first + second,
+        Delivery::Empty => 0,
+    };
+}
+
+fn delivered(units: number, label: string) -> Delivery {
+    return Delivery::Ready(Reading { units }, label);
+}
+
+fn count(value: Node) -> number {
+    match value {
+        Node::End => { return 1; }
+        Node::Branch(children) => { return 1 + count(children.get_or(0, Node::End)); }
+    }
+}
+
+fn check(value: bool) {
+    if !value { Depot.failures += 1; }
+}
+
+pub fn run() {
+    Depot.failures = 0;
+    let result = Depot.stored;
+    Depot.stored = Delivery::Rejected([3, 5]);
+    check(measure(result) == 7);
+    check(measure(Depot.stored) == 8);
+    emit Delivered(delivered(9, "fresh"));
+    check(Depot.observed == 18);
+
+    Depot.stored = Delivery::Empty;
+    let values: Vec<Delivery> = [Depot.stored, result];
+    check(values.contains(Delivery::Empty));
+    check(measure(values[1]) == 7);
+    check(count(Depot.root) == 1);
+    check(count(Node::Branch([Node::Branch([Node::End])])) == 3);
+    Depot.stored = result;
+    if Depot.failures == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

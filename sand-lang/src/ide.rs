@@ -33,6 +33,28 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
     }
 }
 
+fn variant_label(analysis: &Analysis, def: &crate::analysis::Def) -> String {
+    let DefInfo::Variant { value, fields } = &def.info else {
+        return def.name.clone();
+    };
+    let mut label = def.name.clone();
+    if !fields.is_empty() {
+        let payload = fields
+            .iter()
+            .filter_map(|field| match analysis.def(*field).info {
+                DefInfo::Field { ty, .. } => Some(ty_name(analysis, ty)),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        label.push_str(&format!("({payload})"));
+    }
+    if let Some(value) = value {
+        label.push_str(&format!(" = {value}"));
+    }
+    label
+}
+
 /// Render the signature line and facts for a definition.
 pub fn describe(analysis: &Analysis, id: DefId) -> String {
     let def = analysis.def(id);
@@ -62,33 +84,28 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
             ),
             Vec::new(),
         ),
-        DefInfo::Enum { variants } => {
+        DefInfo::Enum { variants, layout } => {
             let body = variants
                 .iter()
-                .map(|v| {
-                    let variant = analysis.def(*v);
-                    match variant.info {
-                        DefInfo::Variant { value: Some(n) } => {
-                            format!("    {} = {n},", variant.name)
-                        }
-                        _ => format!("    {},", variant.name),
-                    }
-                })
+                .map(|v| format!("    {},", variant_label(analysis, analysis.def(*v))))
                 .collect::<Vec<_>>()
                 .join("\n");
             (
                 format!("{vis}enum {} {{\n{body}\n}}", def.name),
-                vec!["Stored in State as its integer discriminant.".into()],
+                vec![if layout.is_some() {
+                    "An owned variant with a tag and typed payload.".into()
+                } else {
+                    "Stored in State as its integer discriminant.".into()
+                }],
             )
         }
-        DefInfo::Variant { value } => {
+        DefInfo::Variant { .. } => {
             let owner = def.parent.map(|p| analysis.def(p).name.clone());
             (
                 format!(
-                    "{}::{}{}",
+                    "{}::{}",
                     owner.unwrap_or_default(),
-                    def.name,
-                    value.map(|v| format!(" = {v}")).unwrap_or_default()
+                    variant_label(analysis, def),
                 ),
                 Vec::new(),
             )
@@ -428,11 +445,13 @@ fn value_text(analysis: &Analysis, ty: Ty, value: Option<i64>) -> String {
 }
 
 fn variant_name(analysis: &Analysis, enum_def: DefId, value: i64) -> Option<String> {
-    let DefInfo::Enum { variants } = &analysis.def(enum_def).info else {
+    let DefInfo::Enum { variants, .. } = &analysis.def(enum_def).info else {
         return None;
     };
     variants.iter().find_map(|v| match analysis.def(*v).info {
-        DefInfo::Variant { value: Some(n) } if n == value => Some(analysis.def(*v).name.clone()),
+        DefInfo::Variant { value: Some(n), .. } if n == value => {
+            Some(analysis.def(*v).name.clone())
+        }
         _ => None,
     })
 }
@@ -1272,7 +1291,7 @@ fn resolve_names(analysis: &Analysis, from: ModuleId, names: &[&str]) -> Option<
                 enter(def)
             }
             (name, Target::Def(def)) => {
-                let DefInfo::Enum { variants } = &analysis.def(*def).info else {
+                let DefInfo::Enum { variants, .. } = &analysis.def(*def).info else {
                     return None;
                 };
                 Target::Def(*variants.iter().find(|v| analysis.def(**v).name == name)?)
@@ -1466,7 +1485,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
                 .map(|(name, def)| def_completion(analysis, &name, def))
                 .collect(),
             Some(Target::Def(def)) => match &analysis.def(def).info {
-                DefInfo::Enum { variants } if !types_only => variants
+                DefInfo::Enum { variants, .. } if !types_only => variants
                     .iter()
                     .map(|v| def_completion(analysis, &analysis.def(*v).name, *v))
                     .collect(),
@@ -2297,7 +2316,7 @@ fn flow_phases(analysis: &Analysis, module: ModuleId, field: &str) -> Vec<Comple
     else {
         return Vec::new();
     };
-    let DefInfo::Enum { variants } = &analysis.def(enum_def).info else {
+    let DefInfo::Enum { variants, .. } = &analysis.def(enum_def).info else {
         return Vec::new();
     };
     variants
@@ -3120,7 +3139,7 @@ fn module_def_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Ve
             let children = match &d.info {
                 DefInfo::State { fields: list, .. }
                 | DefInfo::Struct { fields: list }
-                | DefInfo::Enum { variants: list } => list
+                | DefInfo::Enum { variants: list, .. } => list
                     .iter()
                     .map(|child| {
                         let c = analysis.def(*child);

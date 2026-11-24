@@ -123,7 +123,8 @@ use_group  = { "{" ~ (use_tree ~ ("," ~ use_tree)* ~ ","?)? ~ "}" }
 const_item = { kw_const ~ ident ~ ":" ~ ty ~ "=" ~ expr ~ ";" }
 
 enum_item  = { kw_enum ~ ident ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}" }
-variant    = { outer_doc* ~ ident ~ ("=" ~ expr)? }
+variant    = { outer_doc* ~ ident ~ variant_payload? ~ ("=" ~ expr)? }
+variant_payload = { "(" ~ ty ~ ("," ~ ty)* ~ ","? ~ ")" }
 
 struct_item = { kw_struct ~ ident ~ generic_params? ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 trait_item = { kw_trait ~ ident ~ "{" ~ trait_method* ~ "}" }
@@ -185,7 +186,8 @@ match_arm     = { match_pattern ~ match_guard? ~ "=>" ~ block ~ ","? }
 match_expr = { kw_match ~ expr ~ "{" ~ match_value_arm ~ ("," ~ match_value_arm)* ~ ","? ~ "}" }
 match_value_arm = { match_pattern ~ match_guard? ~ "=>" ~ record_value }
 match_guard = { kw_if ~ cond }
-match_pattern = { match_binding | match_wildcard | (expr ~ ("|" ~ !"|" ~ expr)*) }
+match_pattern = { match_binding | match_wildcard | match_variant | (expr ~ ("|" ~ !"|" ~ expr)*) }
+match_variant = { path ~ "(" ~ value_pattern ~ ("," ~ value_pattern)* ~ ","? ~ ")" }
 match_binding = { kw_let ~ value_pattern }
 match_wildcard = @{ "_" ~ !ident_char }
 while_stmt    = { kw_while ~ cond ~ block }

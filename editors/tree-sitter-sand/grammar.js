@@ -26,7 +26,7 @@ module.exports = grammar({
 
   word: ($) => $.identifier,
 
-  conflicts: ($) => [[$.type, $.applied_type], [$._condition, $._expression], [$._expression, $.place], [$.record_expression, $._condition], [$.record_expression, $._expression]],
+  conflicts: ($) => [[$.type, $.applied_type], [$._condition, $._expression], [$._expression, $.place], [$.record_expression, $._condition], [$.record_expression, $._expression], [$.binding_pattern, $._path_segment], [$.array_expression, $.array_pattern], [$.record_field, $.pattern_field]],
 
   rules: {
     source_file: ($) => repeat(choice($.inner_attribute, $._item)),
@@ -147,7 +147,8 @@ module.exports = grammar({
         commaSep($.variant),
         '}',
       ),
-    variant: ($) => seq(field('name', $.identifier), optional(seq('=', field('value', $._expression)))),
+    variant: ($) => seq(field('name', $.identifier), optional($.variant_payload), optional(seq('=', field('value', $._expression)))),
+    variant_payload: ($) => seq('(', $.type, repeat(seq(',', $.type)), optional(','), ')'),
 
     state_item: ($) =>
       seq(
@@ -277,10 +278,12 @@ module.exports = grammar({
     match_statement: ($) =>
       seq('match', field('value', $._expression), '{', repeat($.match_arm), '}'),
     match_expression: ($) => seq('match', field('value', $._expression), '{', $.match_value_arm, repeat(seq(',', $.match_value_arm)), optional(','), '}'),
-    match_value_arm: ($) => seq(field('pattern', choice($.match_binding, '_', seq($._expression, repeat(seq('|', $._expression))))), optional($.match_guard), '=>', field('value', $._value_or_condition)),
+    match_value_arm: ($) => seq(field('pattern', $._match_pattern), optional($.match_guard), '=>', field('value', $._value_or_condition)),
     match_arm: ($) =>
-      seq(field('pattern', choice($.match_binding, '_', seq($._expression, repeat(seq('|', $._expression))))),
+      seq(field('pattern', $._match_pattern),
         optional($.match_guard), '=>', field('body', $.block), optional(',')),
+    _match_pattern: ($) => choice($.match_binding, $.match_variant, '_', seq($._expression, repeat(seq('|', $._expression)))),
+    match_variant: ($) => prec.dynamic(1, seq(field('variant', $.path), '(', $._value_pattern, repeat(seq(',', $._value_pattern)), optional(','), ')')),
     match_binding: ($) => seq('let', field('binding', $._value_pattern)),
     match_guard: ($) => seq('if', field('condition', $._condition)),
     while_statement: ($) =>

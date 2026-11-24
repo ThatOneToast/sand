@@ -248,11 +248,14 @@ impl Cx {
                 let Some(arm) = arms.first() else {
                     return Ty::Unknown;
                 };
-                let MatchPattern::Binding(pattern) = &arm.pattern else {
+                if matches!(
+                    &arm.pattern,
+                    MatchPattern::Constants(_) | MatchPattern::Wildcard
+                ) {
                     return self.type_of(body, &arm.value);
-                };
+                }
                 let ty = self.type_of(body, value);
-                let bindings = self.pattern_locals(body, pattern, ty, arm.span);
+                let bindings = self.match_arm_bindings(body, &arm.pattern, ty, arm.span);
                 let mut scoped = body.clone();
                 scoped.scopes.push(
                     bindings
@@ -268,9 +271,7 @@ impl Cx {
                 }
                 match self.resolve_path(body.module, path) {
                     Ok((def, _)) => match self.defs[def.0].kind {
-                        DefKind::Variant => {
-                            self.defs[def.0].parent.map(Ty::Enum).unwrap_or(Ty::Number)
-                        }
+                        DefKind::Variant => self.variant_type(def),
                         DefKind::Function => self.named_function_type(body.module, def),
                         DefKind::Const => {
                             self.const_src.get(&def).map(|s| s.ty).unwrap_or(Ty::Number)
@@ -463,11 +464,15 @@ impl Cx {
             {
                 Ty::Number
             }
-            Expr::Call { path, args, .. } => self
-                .resolve_call(body, path, args, None, false)
-                .and_then(|def| self.fn_slots.get(&def))
-                .and_then(|slots| slots.ret.as_ref().map(|(_, ty)| *ty))
-                .unwrap_or(Ty::Unknown),
+            Expr::Call { path, args, .. } => {
+                if let Some(variant) = self.variant_path(body.module, path) {
+                    return self.variant_type(variant);
+                }
+                self.resolve_call(body, path, args, None, false)
+                    .and_then(|def| self.fn_slots.get(&def))
+                    .and_then(|slots| slots.ret.as_ref().map(|(_, ty)| *ty))
+                    .unwrap_or(Ty::Unknown)
+            }
             _ => Ty::Number,
         }
     }
@@ -2044,14 +2049,20 @@ impl Cx {
                 )?;
                 Some(LoweredMatchArm {
                     values,
-                    catch_all: !matches!(&arm.pattern, MatchPattern::Constants(_)),
+                    catch_all: matches!(
+                        &arm.pattern,
+                        MatchPattern::Wildcard | MatchPattern::Binding(_)
+                    ),
                     body: branch,
                     span: arm.span,
                 })
             })
             .collect();
         body.wait_slots.pop();
-        self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
+        let tag = self.variant_tag(ty).map_or(snapshot.clone(), |name| {
+            super::values::child(&snapshot, name)
+        });
+        self.match_dispatch(body, &tag, &matched, lowered, span, ops);
         body.temp_depth = depth;
     }
 
@@ -2069,16 +2080,19 @@ impl Cx {
     ) -> Option<Vec<pc::Operation>> {
         body.scopes.push(Vec::new());
         let mut prelude = Vec::new();
-        if let MatchPattern::Binding(pattern) = pattern {
-            let bindings = self.pattern_locals(body, pattern, ty, span);
-            self.apply_pattern(
-                body,
-                &bindings,
-                snapshot,
-                Span::new(pattern.span().end, span.end),
-                &mut prelude,
-            );
-        }
+        let bindings = self.match_arm_bindings(body, pattern, ty, span);
+        let visible_from = match pattern {
+            MatchPattern::Binding(pattern) => pattern.span().end,
+            MatchPattern::Variant { span, .. } => span.end,
+            _ => span.start,
+        };
+        self.apply_pattern(
+            body,
+            &bindings,
+            snapshot,
+            Span::new(visible_from, span.end),
+            &mut prelude,
+        );
 
         let branch = lower(self, body).and_then(|mut branch| {
             branch.insert(
@@ -2102,6 +2116,60 @@ impl Cx {
         Some(prelude)
     }
 
+    fn match_arm_bindings(
+        &mut self,
+        body: &BodyCx,
+        pattern: &MatchPattern,
+        ty: Ty,
+        arm: Span,
+    ) -> Vec<PatternLocal> {
+        let (path, patterns, span) = match pattern {
+            MatchPattern::Binding(pattern) => return self.pattern_locals(body, pattern, ty, arm),
+            MatchPattern::Variant { path, fields, span } => (path, fields, *span),
+            _ => return Vec::new(),
+        };
+        let key = (body.file, span, body.slot.clone());
+        if let Some(bindings) = self.pattern_bindings.get(&key) {
+            return bindings.clone();
+        }
+        let Some(variant) = self.variant_path(body.module, path) else {
+            return Vec::new();
+        };
+        if self.variant_type(variant) != ty {
+            return Vec::new();
+        }
+        let mut bindings = Vec::new();
+        for (field, pattern) in self
+            .variant_fields(variant)
+            .to_vec()
+            .into_iter()
+            .zip(patterns)
+        {
+            let mut projection = vec![self.defs[field.0].name.clone()];
+            self.plan_pattern(
+                body,
+                pattern,
+                self.field_ty(field),
+                arm,
+                &mut projection,
+                &mut bindings,
+            );
+        }
+        self.pattern_bindings.insert(key, bindings.clone());
+        bindings
+    }
+
+    fn match_variant(&mut self, body: &BodyCx, ty: Ty, path: &Path, arity: usize) -> Option<i32> {
+        let variant =
+            self.expect_path(body.module, path, &[DefKind::Variant], "an enum variant")?;
+        if !self.types_agree(body.file, path.span, ty, self.variant_type(variant))
+            || !self.check_variant_arity(body.file, path.span, variant, arity)
+        {
+            return None;
+        }
+        self.variant_discriminant(variant)
+    }
+
     /// Validate shared statement/value-match patterns and exhaustiveness.
     fn match_patterns(
         &mut self,
@@ -2120,8 +2188,42 @@ impl Cx {
             }
             let mut values = Vec::new();
             let mut alternatives = BTreeSet::new();
-            let patterns: &[Expr] = match pattern {
-                MatchPattern::Constants(patterns) => patterns,
+            let candidates = match pattern {
+                MatchPattern::Constants(patterns) => patterns
+                    .iter()
+                    .filter_map(|pattern| {
+                        let location = pattern.span();
+                        if self.variant_tag(ty).is_some() {
+                            let Expr::Path(path) = pattern else {
+                                self.error(
+                                    "match",
+                                    file,
+                                    location,
+                                    "a payload enum match needs variant patterns",
+                                );
+                                return None;
+                            };
+                            self.match_variant(body, ty, path, 0)
+                                .map(|value| (value, location))
+                        } else if Self::is_const_in(body, pattern) {
+                            self.eval_i32(body.module, file, pattern, Some(ty), None)
+                                .map(|value| (value as i32, location))
+                        } else {
+                            self.error(
+                                "match",
+                                file,
+                                location,
+                                "match patterns must be constants or enum variants",
+                            );
+                            None
+                        }
+                    })
+                    .collect(),
+                MatchPattern::Variant { path, fields, span } => self
+                    .match_variant(body, ty, path, fields.len())
+                    .map(|value| (value, *span))
+                    .into_iter()
+                    .collect(),
                 MatchPattern::Wildcard | MatchPattern::Binding(_) => {
                     if !guarded && catch_all.is_none() {
                         catch_all = Some(if matches!(pattern, MatchPattern::Wildcard) {
@@ -2130,48 +2232,36 @@ impl Cx {
                             "unreachable match arm after an unguarded binding pattern"
                         });
                     }
-                    &[]
+                    Vec::new()
                 }
             };
-            for pattern in patterns {
-                if !Self::is_const_in(body, pattern) {
+            for (value, location) in candidates {
+                if covered.contains(&value) || !alternatives.insert(value) {
                     self.error(
                         "match",
                         file,
-                        pattern.span(),
-                        "match patterns must be constants or enum variants",
+                        location,
+                        "this value is already covered by a previous pattern",
                     );
-                    continue;
                 }
-                if let Some(value) = self.eval_i32(body.module, file, pattern, Some(ty), None) {
-                    let value = value as i32;
-                    if covered.contains(&value) || !alternatives.insert(value) {
-                        self.error(
-                            "match",
-                            file,
-                            pattern.span(),
-                            "this value is already covered by a previous pattern",
-                        );
-                    }
-                    if !guarded {
-                        covered.insert(value);
-                    }
-                    values.push(value);
+                if !guarded {
+                    covered.insert(value);
                 }
+                values.push(value);
             }
             lowered.push(values);
         }
         let exhaustive = catch_all.is_some()
             || match ty {
                 Ty::Bool => covered.contains(&0) && covered.contains(&1),
-                Ty::Enum(def) => match &self.defs[def.0].info {
-                    DefInfo::Enum { variants } => {
+                Ty::Enum(def) | Ty::Struct(def) => match &self.defs[def.0].info {
+                    DefInfo::Enum { variants, .. } => {
                         variants
                             .iter()
                             .all(|variant| match self.defs[variant.0].info {
-                                DefInfo::Variant { value: Some(value) } => {
-                                    covered.contains(&(value as i32))
-                                }
+                                DefInfo::Variant {
+                                    value: Some(value), ..
+                                } => covered.contains(&(value as i32)),
                                 _ => false,
                             })
                     }
@@ -2346,12 +2436,20 @@ impl Cx {
             )?;
             lowered.push(LoweredMatchArm {
                 values,
-                catch_all: !matches!(&arm.pattern, MatchPattern::Constants(_)),
+                catch_all: matches!(
+                    &arm.pattern,
+                    MatchPattern::Wildcard | MatchPattern::Binding(_)
+                ),
                 body: branch,
                 span: arm.span,
             });
         }
-        self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
+        let tag = self
+            .variant_tag(scrutinee_ty)
+            .map_or(snapshot.clone(), |name| {
+                super::values::child(&snapshot, name)
+            });
+        self.match_dispatch(body, &tag, &matched, lowered, span, ops);
         body.temp_depth = depth;
         Some(())
     }

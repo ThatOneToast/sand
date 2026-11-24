@@ -295,6 +295,7 @@ impl Cx {
     }
 
     pub(super) fn evaluate_structs(&mut self) {
+        self.evaluate_variant_payloads();
         for index in 0..self.package.modules.len() {
             let module = ModuleId(index);
             let file = self.package.module(module).file;
@@ -335,7 +336,16 @@ impl Cx {
             .defs
             .iter()
             .enumerate()
-            .filter(|(_, d)| d.kind == DefKind::Struct)
+            .filter(|(_, d)| {
+                d.kind == DefKind::Struct
+                    || matches!(
+                        d.info,
+                        DefInfo::Enum {
+                            layout: Some(_),
+                            ..
+                        }
+                    )
+            })
             .map(|(i, _)| DefId(i))
             .collect();
         for def in structs {
@@ -347,7 +357,14 @@ impl Cx {
                     d.name_span,
                     "struct layouts must be finite, at most 32 levels deep and 1024 scalar fields",
                 );
-                self.defs[def.0].info = DefInfo::Struct { fields: Vec::new() };
+                match &mut self.defs[def.0].info {
+                    DefInfo::Struct { fields }
+                    | DefInfo::Enum {
+                        layout: Some(fields),
+                        ..
+                    } => fields.clear(),
+                    _ => {}
+                }
             }
         }
     }
@@ -378,7 +395,12 @@ impl Cx {
 
     pub(super) fn struct_fields(&self, def: DefId) -> Vec<DefId> {
         match &self.defs[def.0].info {
-            DefInfo::Struct { fields } | DefInfo::Array { fields, .. } => fields.clone(),
+            DefInfo::Struct { fields }
+            | DefInfo::Array { fields, .. }
+            | DefInfo::Enum {
+                layout: Some(fields),
+                ..
+            } => fields.clone(),
             _ => Vec::new(),
         }
     }
@@ -862,6 +884,9 @@ impl Cx {
             return Some(leaves);
         }
         if let Ty::Struct(def) = ty {
+            if self.variant_tag(ty).is_some() {
+                return self.variant_constant(module, file, expr, ty, def);
+            }
             let mut supplied = BTreeMap::new();
             if let Some(expr) = expr {
                 let Expr::Struct { path, fields, .. } = expr else {
@@ -952,10 +977,10 @@ impl Cx {
                 Some(expr) => self.eval_i32(module, file, expr, Some(ty), None)?,
                 None => match ty {
                     Ty::Enum(def) => match &self.defs[def.0].info {
-                        DefInfo::Enum { variants } => variants
+                        DefInfo::Enum { variants, .. } => variants
                             .first()
                             .and_then(|v| match self.defs[v.0].info {
-                                DefInfo::Variant { value } => value,
+                                DefInfo::Variant { value, .. } => value,
                                 _ => None,
                             })
                             .unwrap_or(0),
@@ -976,6 +1001,14 @@ impl Cx {
         expr: &Expr,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
+        if let Ty::Struct(def) = ty
+            && self.variant_tag(ty).is_some()
+            && let Expr::Path(path) | Expr::Call { path, .. } = expr
+            && (path.segments.len() > 1 || Self::lookup_local(body, &path.last().name).is_none())
+            && self.variant_path(body.module, path).is_some()
+        {
+            return self.emit_variant(body, dest, def, expr, ops);
+        }
         if matches!(expr, Expr::Array(..) | Expr::ArrayRepeat { .. }) {
             return self.emit_array(body, dest, ty, expr, ops);
         }

@@ -306,7 +306,7 @@ pub struct ConstItem {
     pub value: Expr,
 }
 
-/// An enumeration whose variants are integer phases.
+/// An enumeration of named alternatives.
 #[derive(Debug, Clone)]
 pub struct EnumItem {
     /// Enum name.
@@ -322,6 +322,8 @@ pub struct Variant {
     pub docs: Vec<String>,
     /// Variant name.
     pub name: Ident,
+    /// Owned payload types, in constructor argument order.
+    pub payload: Vec<Type>,
     /// Explicit discriminant.
     pub value: Option<Expr>,
 }
@@ -848,6 +850,12 @@ pub enum MatchPattern {
     Constants(Vec<Expr>),
     /// Copies some or all of the matched value into arm-local bindings.
     Binding(Pattern),
+    /// Matches one variant and copies its payload into arm-local bindings.
+    Variant {
+        path: Path,
+        fields: Vec<Pattern>,
+        span: Span,
+    },
 }
 
 /// One arm of a `match` statement.

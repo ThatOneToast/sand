@@ -455,16 +455,21 @@ impl Builder<'_> {
                         let mut docs = Vec::new();
                         let mut name = None;
                         let mut value = None;
+                        let mut payload = Vec::new();
                         for part in variant.into_inner() {
                             match part.as_rule() {
                                 Rule::outer_doc => docs.push(doc_text(&part, "///")),
                                 Rule::ident => name = Some(ident(part)),
+                                Rule::variant_payload => {
+                                    payload = part.into_inner().map(value_type).collect();
+                                }
                                 _ => value = Some(self.expr(part)),
                             }
                         }
                         Variant {
                             docs,
                             name: name.expect("variant name"),
+                            payload,
                             value,
                         }
                     })
@@ -1162,6 +1167,15 @@ fn match_pattern(pair: P<'_>) -> MatchPattern {
         Rule::match_binding => MatchPattern::Binding(value_pattern(
             children(first).next().expect("binding pattern"),
         )),
+        Rule::match_variant => {
+            let span = span(&first);
+            let mut parts = first.into_inner();
+            MatchPattern::Variant {
+                path: path(parts.next().expect("variant path")),
+                fields: parts.map(value_pattern).collect(),
+                span,
+            }
+        }
         _ => MatchPattern::Constants(std::iter::once(first).chain(parts).map(expr).collect()),
     }
 }

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Equipment slot for the `equippable` item component.\n\n# Context\nEquipment slot for the `equippable` item component. Specifies which equipment slot an item can be equipped into.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::EquipmentSlot;\n```\nEquipment slot for the `equippable` item component.\n\nSpecifies which equipment slot an item can be equipped into.",
+  "oneOf": [
+    {
+      "const": "head",
+      "description": "Head armor slot.\nHead armor slot.",
+      "type": "string"
+    },
+    {
+      "const": "chest",
+      "description": "Chest armor slot.\nChest armor slot.",
+      "type": "string"
+    },
+    {
+      "const": "legs",
+      "description": "Legs armor slot.\nLegs armor slot.",
+      "type": "string"
+    },
+    {
+      "const": "feet",
+      "description": "Feet armor slot.\nFeet armor slot.",
+      "type": "string"
+    },
+    {
+      "const": "body",
+      "description": "Body (all armor slots).\nBody (all armor slots).",
+      "type": "string"
+    },
+    {
+      "const": "mainhand",
+      "description": "Main hand weapon slot.\nMain hand weapon slot.",
+      "type": "string"
+    },
+    {
+      "const": "offhand",
+      "description": "Off hand slot.\nOff hand slot.",
+      "type": "string"
+    }
+  ]
+}

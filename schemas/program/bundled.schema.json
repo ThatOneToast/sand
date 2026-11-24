@@ -454,6 +454,38 @@
         },
         {
           "additionalProperties": false,
+          "description": "Replace a hand or armor slot on the executor. An omitted item clears it.",
+          "properties": {
+            "count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "item": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "op": {
+              "const": "set_equipment",
+              "type": "string"
+            },
+            "slot": {
+              "$ref": "#/$defs/EquipmentSlot"
+            }
+          },
+          "required": [
+            "op",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Remove matching items, or every item, from the executing player.",
           "properties": {
             "count": {
@@ -2266,6 +2298,46 @@
         }
       ]
     },
+    "EquipmentSlot": {
+      "description": "Equipment slot for the `equippable` item component.\n\n# Context\nEquipment slot for the `equippable` item component. Specifies which equipment slot an item can be equipped into.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::EquipmentSlot;\n```\nEquipment slot for the `equippable` item component.\n\nSpecifies which equipment slot an item can be equipped into.",
+      "oneOf": [
+        {
+          "const": "head",
+          "description": "Head armor slot.\nHead armor slot.",
+          "type": "string"
+        },
+        {
+          "const": "chest",
+          "description": "Chest armor slot.\nChest armor slot.",
+          "type": "string"
+        },
+        {
+          "const": "legs",
+          "description": "Legs armor slot.\nLegs armor slot.",
+          "type": "string"
+        },
+        {
+          "const": "feet",
+          "description": "Feet armor slot.\nFeet armor slot.",
+          "type": "string"
+        },
+        {
+          "const": "body",
+          "description": "Body (all armor slots).\nBody (all armor slots).",
+          "type": "string"
+        },
+        {
+          "const": "mainhand",
+          "description": "Main hand weapon slot.\nMain hand weapon slot.",
+          "type": "string"
+        },
+        {
+          "const": "offhand",
+          "description": "Off hand slot.\nOff hand slot.",
+          "type": "string"
+        }
+      ]
+    },
     "EventHook": {
       "additionalProperties": false,
       "description": "A handler for a player event.",
@@ -2549,6 +2621,17 @@
         "offhand": {
           "description": "Test the off hand instead of the main hand.",
           "type": "boolean"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EquipmentSlot"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Explicit hand or armor slot; mutually exclusive with `offhand: true`."
         }
       },
       "required": [

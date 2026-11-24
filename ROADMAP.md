@@ -268,8 +268,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   a competing checked entity-tag model.
 - [x] Retain individual vanilla entity relationships in `EntityRef` values,
   and mount and dismount retained vehicles.
-- [ ] Equipment/inventory properties, richer entity data, motion, archetypes,
-  and query NBT/score filters.
+- [x] Equip, clear, and test hand and armor slots with typed equipment slots and
+  custom item identity.
+- [ ] Broader inventory properties, richer entity data, motion, archetypes, and
+  query NBT/score filters.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
 - [x] Top-level `wait` statements in entity and player functions, with
   per-invocation locals, original dimension, and owner-scoped cancellation.

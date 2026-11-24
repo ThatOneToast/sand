@@ -10,6 +10,17 @@
     "offhand": {
       "description": "Test the off hand instead of the main hand.",
       "type": "boolean"
+    },
+    "slot": {
+      "anyOf": [
+        {
+          "$ref": "defs-EquipmentSlot.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Explicit hand or armor slot; mutually exclusive with `offhand: true`."
     }
   },
   "required": [

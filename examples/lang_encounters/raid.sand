@@ -67,3 +67,12 @@ fn strike() {
         emit Struck(10);
     }
 }
+
+/// Arm nearby raid guards without changing guards already carrying a sword.
+pub fn arm_guards() {
+    for guard in entities(type = Entity::Zombie, tag = "raid_guard", distance = ..=16) {
+        if !holding(Item::IronSword, slot = EquipmentSlot::Mainhand) {
+            equip(Item::IronSword, EquipmentSlot::Mainhand);
+        }
+    }
+}

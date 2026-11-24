@@ -1352,6 +1352,15 @@ impl Lower<'_> {
         Ok(format!("{base}[{}]", lowered.constraints.join(",")))
     }
 
+    fn item_stack_argument(&self, item: &str) -> Result<String, String> {
+        match self.custom_items.get(item) {
+            Some(custom) => sand_components::IntoItemStack::try_into_item_stack(custom.clone())
+                .map(|stack| stack.to_string())
+                .map_err(|error| error.to_string()),
+            None => Ok(item.to_owned()),
+        }
+    }
+
     fn frame_commands(&self, fields: &[FieldReference], push: bool) -> Vec<Cmd> {
         if push {
             let storage = frame_storage(&self.namespace);
@@ -1443,11 +1452,14 @@ impl Lower<'_> {
             }
             Condition::Holding(test) => sand_commands::ConditionIr::ItemsEntity {
                 target: sand_commands::Selector::self_(),
-                slot: if test.offhand {
-                    sand_commands::ItemSlot::OffHand
-                } else {
-                    sand_commands::ItemSlot::MainHand
-                },
+                slot: crate::item::location::equipment_item_slot(test.slot.unwrap_or(
+                    if test.offhand {
+                        sand_components::EquipmentSlot::Offhand
+                    } else {
+                        sand_components::EquipmentSlot::Mainhand
+                    },
+                ))
+                .map_err(|error| error.to_string())?,
                 item: self.item_argument(&test.holding)?,
             },
             Condition::Flag(test) => {
@@ -1751,14 +1763,7 @@ impl Lower<'_> {
                     None => "effect clear @s".to_owned(),
                 })],
                 Action::GiveItem { item, count } => {
-                    let item = match self.custom_items.get(item) {
-                        Some(custom) => {
-                            sand_components::IntoItemStack::try_into_item_stack(custom.clone())
-                                .map_err(|e| fail(e.to_string()))?
-                                .to_string()
-                        }
-                        None => item.clone(),
-                    };
+                    let item = self.item_stack_argument(item).map_err(fail)?;
                     let count = match count {
                         ScoreOperand::Value(value) => Amount::Value(*value as f64),
                         ScoreOperand::Field(score) => Amount::Field(ScaledField {
@@ -1787,6 +1792,30 @@ impl Lower<'_> {
                         }],
                         &strings,
                     )?
+                }
+                Action::SetEquipment { slot, item, count } => {
+                    use sand_commands::inventory::{
+                        ItemCommandLocation, ItemReplaceCommand, ItemReplaceSource,
+                    };
+
+                    let replace = ItemReplaceCommand {
+                        destination: ItemCommandLocation::Entity {
+                            target: sand_commands::Selector::self_(),
+                            slot: crate::item::location::equipment_item_slot(*slot)
+                                .map_err(|error| fail(error.to_string()))?,
+                        },
+                        source: match item {
+                            Some(item) => ItemReplaceSource::Stack {
+                                item: self.item_stack_argument(item).map_err(fail)?,
+                                count: *count,
+                            },
+                            None => ItemReplaceSource::Clear,
+                        },
+                    };
+                    vec![Cmd::Raw(
+                        sand_commands::RenderCommand::render(&replace, &self.profile)
+                            .map_err(|error| fail(error.to_string()))?,
+                    )]
                 }
                 Action::ClearItem { item, count } => {
                     let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());

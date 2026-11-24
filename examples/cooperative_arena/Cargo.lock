@@ -1166,6 +1166,7 @@ dependencies = [
  "sand-commands",
  "sand-macros",
  "sand-version",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

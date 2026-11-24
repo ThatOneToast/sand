@@ -453,6 +453,38 @@
     },
     {
       "additionalProperties": false,
+      "description": "Replace a hand or armor slot on the executor. An omitted item clears it.",
+      "properties": {
+        "count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "item": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "op": {
+          "const": "set_equipment",
+          "type": "string"
+        },
+        "slot": {
+          "$ref": "defs-EquipmentSlot.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "slot"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Remove matching items, or every item, from the executing player.",
       "properties": {
         "count": {

@@ -565,9 +565,18 @@ Conditions can also ask about the world and the executor:
 | `has_state(Mana)` | the executor has this `entity state` attached |
 | `any_entities(type = .., tag = .., distance = ..)` | at least one entity matches |
 | `block_is(Block::Water, offset(0, -1, 0))` | the position holds this block or `Block` tag |
-| `holding(Item::Diamond)`, `holding(Wand, offhand = true)` | the executor holds the item |
+| `holding(Item::Diamond)`, `holding(Wand, offhand = true)`, `holding(Helmet, slot = EquipmentSlot::Head)` | the executor has this item in the selected slot |
 | `is_sneaking()`, `is_sprinting()`, `is_swimming()`, `is_on_fire()` | the executor is doing it |
 | `timer_running(Ability.dash)`, `timer_done(Ability.dash)` | a `timer` field has time left, or none |
+
+
+`equip(item, slot, count = 1)` replaces one equipment stack on the executor.
+`clear_equipment(slot)` discards that stack. Use `EquipmentSlot::Head`, `Chest`,
+`Legs`, `Feet`, `Mainhand`, or `Offhand` for writes and checks. A declared
+custom item carries its components when equipped and matches by identity in
+`holding`. Choose either `slot` or `offhand` when checking equipment. A slot
+must exist on the executing entity, and Minecraft applies its native stack
+limits.
 
 ### Generics
 
@@ -1325,7 +1334,7 @@ command and State models as Rust. Today the language covers:
 | --- | --- | --- |
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
-| Players and entities | loops and queries, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, experience, and entity flags | selection by NBT or scores, motion controls, equipment edits, archetypes |
+| Players and entities | loops and queries, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, experience, and entity flags | selection by NBT or scores, motion controls, archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |

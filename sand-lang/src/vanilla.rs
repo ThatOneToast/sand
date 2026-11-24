@@ -142,6 +142,19 @@ const OPTIONS: &[OptionSet] = &[
         values: &[("Normal", "normal"), ("Force", "force"), ("Move", "move")],
     },
     OptionSet {
+        name: "EquipmentSlot",
+        rust_path: "sand::component::EquipmentSlot",
+        noun: "equipment slot",
+        values: &[
+            ("Head", "head"),
+            ("Chest", "chest"),
+            ("Legs", "legs"),
+            ("Feet", "feet"),
+            ("Mainhand", "mainhand"),
+            ("Offhand", "offhand"),
+        ],
+    },
+    OptionSet {
         name: "Weather",
         rust_path: "sand::advanced::compiler::Weather",
         noun: "weather",

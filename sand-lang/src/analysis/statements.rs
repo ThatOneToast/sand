@@ -2748,6 +2748,15 @@ impl Cx {
         self.vanilla_value(body.module, body.file, expr, registry)
     }
 
+    fn arg_equipment_slot(
+        &mut self,
+        body: &BodyCx,
+        arg: &Arg,
+    ) -> Option<sand::component::EquipmentSlot> {
+        let value = self.arg_id(body, arg, "EquipmentSlot")?;
+        serde_json::from_value(serde_json::Value::String(value)).ok()
+    }
+
     pub(super) fn arg_int(&mut self, body: &BodyCx, arg: &Arg, min: i64, max: i64) -> Option<i64> {
         let ArgValue::Expr(expr) = &arg.value else {
             self.error("type", body.file, arg.value.span(), "expected an integer");
@@ -3668,14 +3677,23 @@ impl Cx {
                     .ok()?,
             })),
             "holding" => {
-                let holding = self.arg_id(body, bound["item"], "Item");
+                let holding = self.arg_id(body, bound["item"], "Item")?;
                 let offhand = match bound.get("offhand") {
-                    Some(arg) => self.arg_bool(file, arg),
-                    None => Some(false),
+                    Some(arg) => self.arg_bool(file, arg)?,
+                    None => false,
+                };
+                let slot = match bound.get("slot") {
+                    Some(arg) if bound.contains_key("offhand") => {
+                        self.error("type", file, arg.span, "choose either slot or offhand");
+                        return None;
+                    }
+                    Some(arg) => Some(self.arg_equipment_slot(body, arg)?),
+                    None => None,
                 };
                 Some(pc::Condition::Holding(pc::ItemHeld {
-                    holding: holding?,
-                    offhand: offhand?,
+                    holding,
+                    offhand,
+                    slot,
                 }))
             }
             "is_sneaking" => flag(pc::EntityFlag::Sneaking),
@@ -4007,6 +4025,18 @@ impl Cx {
     ) -> Option<pc::Action> {
         let file = body.file;
         Some(match builtin.name {
+            "equip" | "clear_equipment" => {
+                let slot = self.arg_equipment_slot(body, bound["slot"])?;
+                let item = match bound.get("item") {
+                    Some(arg) => Some(self.arg_id(body, arg, "Item")?),
+                    None => None,
+                };
+                let count = match bound.get("count") {
+                    Some(arg) => Some(self.arg_int(body, arg, 1, 99)? as u32),
+                    None => None,
+                };
+                pc::Action::SetEquipment { slot, item, count }
+            }
             "spawn_particle" => {
                 let particle = self.arg_id(body, bound["particle"], "Particle");
                 let count = match bound.get("count") {

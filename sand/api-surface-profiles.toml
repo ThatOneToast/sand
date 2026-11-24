@@ -57,6 +57,7 @@
 # Portable clone and dimension scoping add fourteen contracted advanced items.
 # Portable biome predicates add five contracted advanced items.
 # Checked block data reads and writes add nine contracted advanced items.
+# Portable equipment adds five contracted advanced items.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -65,19 +66,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5754
+static_surface_items = 5759
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12023
+static_surface_items = 12028
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12285
+static_surface_items = 12290
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

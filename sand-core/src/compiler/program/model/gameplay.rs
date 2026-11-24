@@ -248,7 +248,7 @@ pub struct BlockMatches {
  use_when = ["Branching on the held item"],
  avoid_when = ["Inventory-wide searches"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(holding = "Vanilla or custom item identity.", offhand = "Test the off hand instead of the main hand."),
+ fields(holding = "Vanilla or custom item identity.", offhand = "Test the off hand instead of the main hand.", slot = "Test an explicitly chosen hand or armor slot."),
 )]
 pub struct ItemHeld {
     /// Vanilla or custom item identity.
@@ -256,6 +256,9 @@ pub struct ItemHeld {
     /// Test the off hand instead of the main hand.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub offhand: bool,
+    /// Explicit hand or armor slot; mutually exclusive with `offhand: true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<sand_components::EquipmentSlot>,
 }
 
 /// A movement or status flag of an entity.

@@ -900,11 +900,33 @@ impl Validator<'_, '_> {
             ),
             Condition::Holding(test) => {
                 self.executor(context, owner, ptr, "testing a held item");
+                if let Some(slot) = test.slot {
+                    self.equipment_slot(slot, owner, &format!("{ptr}/slot"));
+                    if test.offhand {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_OPTION",
+                            owner,
+                            ptr,
+                            "choose either slot or offhand",
+                        ));
+                    }
+                }
                 if !self.custom_items.contains(&test.holding) {
                     self.resource(&test.holding, owner, &format!("{ptr}/holding"), "item");
                 }
             }
             Condition::Flag(_) => self.executor(context, owner, ptr, "testing an entity flag"),
+        }
+    }
+
+    fn equipment_slot(&mut self, slot: sand_components::EquipmentSlot, owner: &str, ptr: &str) {
+        if let Err(error) = crate::item::location::equipment_item_slot(slot) {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_OPTION",
+                owner,
+                ptr,
+                error.to_string(),
+            ));
         }
     }
 
@@ -1626,6 +1648,25 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/count"),
                             "item count must be 1..=6400",
+                        ));
+                    }
+                }
+                Action::SetEquipment { slot, item, count } => {
+                    self.executor(context, owner, &ptr, "changing equipment");
+                    self.equipment_slot(*slot, owner, &format!("{ptr}/action/slot"));
+                    if let Some(item) = item {
+                        if !self.custom_items.contains(item) {
+                            self.resource(item, owner, &format!("{ptr}/action/item"), "item");
+                        }
+                    }
+                    if count.is_some_and(|count| !(1..=99).contains(&count))
+                        || (item.is_none() && count.is_some())
+                    {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/count"),
+                            "equipment stack count requires an item and must be 1..=99",
                         ));
                     }
                 }

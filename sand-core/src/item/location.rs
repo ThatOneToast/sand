@@ -881,7 +881,7 @@ impl EntityInventorySlot {
     }
 }
 
-fn equipment_item_slot(slot: EquipmentSlot) -> Result<ItemSlot, ItemLocationError> {
+pub(crate) fn equipment_item_slot(slot: EquipmentSlot) -> Result<ItemSlot, ItemLocationError> {
     match slot {
         EquipmentSlot::Head => Ok(ItemSlot::Head),
         EquipmentSlot::Chest => Ok(ItemSlot::Chest),

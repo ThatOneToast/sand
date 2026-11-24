@@ -377,11 +377,12 @@ checks the server version and exits unsuccessfully if any test fails. Tests shar
 the disposable world during one suite, so initialize any State a test relies on.
 Normal builds omit test entry points.
 
-Run `sand lang source-map` to print JSON that links portable operation pointers
-and emitted function paths to Sand source ranges. The file table is relative to
-the package root directory. Ranges use UTF-8 byte offsets. The map describes
-portable operations and function declarations. Generated command line mappings
-and breakpoint debugging remain future work.
+Run `sand lang source-map` to print JSON that links portable operation pointers,
+emitted function paths, and generated command lines to Sand source. The file
+table is relative to the package root directory. Source ranges use UTF-8 byte
+offsets. The `commands` index uses pack-relative `.mcfunction` paths and
+inclusive one-based line ranges, including generated branches and macros. This
+command compiles in memory and reports ordinary Sand errors if emission fails.
 
 ## Types
 

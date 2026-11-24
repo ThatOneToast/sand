@@ -98,3 +98,57 @@ fn run(n: number) {
     assert!(nested);
     assert_eq!(analysis.source_map().unwrap(), map);
 }
+
+#[test]
+fn source_map_links_nested_and_macro_commands_to_authored_statements() {
+    let source = r#"
+#![pack(namespace = "source_probe")]
+player state Settings { amount: number = 2 }
+#[player]
+fn run() {
+    if Settings.amount > 0 { give_item(Item::Bread, count = Settings.amount); }
+}
+"#;
+    let analysis = analyze_one(source);
+    let pack = compile(&analysis);
+    let map = analysis.source_map().unwrap();
+    assert_eq!(map["format_version"], 2);
+    let commands = map["commands"].as_object().unwrap();
+    let root = &commands["data/source_probe/function/run.mcfunction"][0];
+    assert!(root["lines"]["start"].as_u64().unwrap() >= 2);
+    let mut macro_mapped = false;
+    let mut nested_mapped = false;
+    for (path, spans) in commands {
+        let content = std::str::from_utf8(&pack.resources[path]).unwrap();
+        let mut previous_end = 0;
+        for span in spans.as_array().unwrap() {
+            let start = span["lines"]["start"].as_u64().unwrap() as usize;
+            let end = span["lines"]["end"].as_u64().unwrap() as usize;
+            assert!(
+                previous_end < start && start <= end && end <= content.lines().count(),
+                "{path}: {span}"
+            );
+            previous_end = end;
+            let begin = span["source"]["start"].as_u64().unwrap() as usize;
+            let finish = span["source"]["end"].as_u64().unwrap() as usize;
+            for command in content.lines().skip(start - 1).take(end - start + 1) {
+                if command == "$give @s $(item) $(count)" {
+                    macro_mapped = true;
+                    assert!(source[begin..finish].starts_with("give_item("));
+                }
+                if path.ends_with("/then.mcfunction") && command.contains("/give with storage ") {
+                    nested_mapped = true;
+                    assert!(source[begin..finish].starts_with("give_item("));
+                }
+            }
+        }
+    }
+    let emitted: Vec<_> = commands
+        .keys()
+        .map(|path| (path, std::str::from_utf8(&pack.resources[path]).unwrap()))
+        .collect();
+    assert!(
+        nested_mapped && macro_mapped,
+        "nested={nested_mapped}, macro={macro_mapped}, emitted={emitted:#?}"
+    );
+}

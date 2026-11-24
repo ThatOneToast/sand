@@ -1,7 +1,7 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
 mod data;
 
-use super::{diagnostic::Diagnostic, limits, model::*};
+use super::{CommandSource, diagnostic::Diagnostic, limits, model::*};
 use crate::compiler::export::{
     functions, identities, lifecycle,
     records::{self, ComponentRecord},
@@ -19,6 +19,7 @@ pub(super) struct LoweredProgram {
 pub(super) fn lower(
     program: &Program,
     target: &crate::version::VersionProfile,
+    sources: Option<&mut BTreeMap<String, Vec<CommandSource>>>,
 ) -> Result<LoweredProgram, Vec<Diagnostic>> {
     let _registry =
         crate::function::ExportFunctionRegistryScope::enter_namespace(&program.pack.namespace);
@@ -111,6 +112,7 @@ pub(super) fn lower(
         helper_keys,
         runtime: crate::compiler::runtime::RuntimePlan::default(),
         records: Vec::new(),
+        sources,
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
@@ -145,6 +147,7 @@ pub(super) fn lower(
     let mut entries = BTreeMap::new();
     let mut load = Vec::new();
     let mut tick = Vec::new();
+    let mut lifecycle_sources = BTreeMap::new();
     let mut memberships = Vec::new();
     let mut modules: Vec<_> = program.modules.iter().collect();
     modules.sort_by_key(|module| module.id.to_string());
@@ -180,8 +183,12 @@ pub(super) fn lower(
                 &owner,
                 &format!("/{phase}"),
             )?;
+            if !body.sources.is_empty() {
+                lifecycle_sources.insert((phase, owner.clone()), body.sources);
+            }
             output.extend(
-                body.into_iter()
+                body.lines
+                    .into_iter()
                     .enumerate()
                     .map(|(index, line)| (owner.clone(), index, line)),
             );
@@ -195,7 +202,14 @@ pub(super) fn lower(
             memberships.push((tag_id, function));
         }
     }
-    let event_owner = format!("{}:__sand_program/events", program.pack.namespace);
+    let mut event_owner = format!("{}:__sand_program/events", program.pack.namespace);
+    while program
+        .modules
+        .iter()
+        .any(|module| module.id.to_string() == event_owner)
+    {
+        event_owner.push('_');
+    }
     let mut event_load = Vec::new();
     for (index, line) in lower.events(program)?.into_iter().enumerate() {
         match line {
@@ -293,6 +307,46 @@ pub(super) fn lower(
         flow_plan.global_tick_commands,
     )
     .map_err(|e| error(e.to_string()))?;
+    if let Some(sources) = lower.sources.as_deref_mut() {
+        for (phase, origins) in [
+            ("load", &lifecycle.load_owners),
+            ("tick", &lifecycle.tick_owners),
+        ] {
+            // Lifecycle assembly emits each module's single-line commands in
+            // order, following the framework's variable-length setup prefix.
+            for (module, commands) in origins
+                .chunk_by(|a, b| a.owner == b.owner)
+                .map(|commands| (&commands[0].owner, commands))
+            {
+                if let Some(ranges) = lifecycle_sources.remove(&(phase, module.clone())) {
+                    let offset = commands[0].first_line - 1;
+                    sources
+                        .entry(function_resource(&format!(
+                            "{}:__sand_lifecycle_{phase}",
+                            program.pack.namespace
+                        )))
+                        .or_default()
+                        .extend(ranges.into_iter().map(|(lines, pointer)| CommandSource {
+                            lines: (lines.start() + offset)..=(lines.end() + offset),
+                            module: module.clone(),
+                            pointer,
+                        }));
+                }
+            }
+        }
+        if lifecycle.player_initializer.is_some() {
+            for (id, _) in entries
+                .iter()
+                .filter(|(_, context)| **context == ExecutionContext::Player)
+            {
+                if let Some(locations) = sources.get_mut(&function_resource(id)) {
+                    for source in locations {
+                        source.lines = (source.lines.start() + 1)..=(source.lines.end() + 1);
+                    }
+                }
+            }
+        }
+    }
     lifecycle.attribute(&program.pack.namespace, &mut lower.runtime);
     if !lifecycle.load_owners.is_empty() {
         lower.runtime.lifecycle_owners.insert(
@@ -993,13 +1047,52 @@ fn query_selector(query: &EntityQuery) -> sand_commands::Selector {
     selector
 }
 
-struct Lower {
+fn function_resource(id: &str) -> String {
+    let (namespace, path) = id.split_once(':').expect("validated/generated identity");
+    format!("data/{namespace}/function/{path}.mcfunction")
+}
+
+#[derive(Default)]
+struct CommandBody {
+    lines: Vec<String>,
+    sources: Vec<(std::ops::RangeInclusive<usize>, String)>,
+    /// Authored bodies carry precise ranges; generated bodies use their owner pointer.
+    authored: bool,
+}
+
+impl From<Vec<String>> for CommandBody {
+    fn from(lines: Vec<String>) -> Self {
+        Self {
+            lines,
+            ..Self::default()
+        }
+    }
+}
+
+impl CommandBody {
+    fn prepend_initializer(&mut self, id: &str) {
+        self.lines.insert(0, Cmd::Function(id.into()).render());
+        for (lines, _) in &mut self.sources {
+            *lines = (lines.start() + 1)..=(lines.end() + 1);
+        }
+    }
+
+    fn record(&mut self, first_line: usize, pointer: &str) {
+        if first_line <= self.lines.len() {
+            self.sources
+                .push((first_line..=self.lines.len(), pointer.into()));
+        }
+    }
+}
+
+struct Lower<'sources> {
     runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
     holders: BTreeMap<String, sand_commands::ScoreHolder>,
     bounds: BTreeMap<String, (i32, i32)>,
     helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
+    sources: Option<&'sources mut BTreeMap<String, Vec<CommandSource>>>,
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
@@ -1021,15 +1114,16 @@ struct NumericArgument<'a> {
     bounds: Option<(f64, f64)>,
 }
 
-impl Lower {
+impl Lower<'_> {
     fn function(
         &mut self,
         id: &str,
-        body: Vec<String>,
+        body: impl Into<CommandBody>,
         module: &str,
         ptr: &str,
     ) -> Result<(), Vec<Diagnostic>> {
-        let content = body.join("\n");
+        let mut body = body.into();
+        let content = body.lines.join("\n");
         if self.records.len() >= limits::RESOURCES
             || content.len() > limits::DOCUMENT_BYTES
             || self.bytes.saturating_add(content.len()) > limits::OUTPUT_BYTES
@@ -1042,6 +1136,24 @@ impl Lower {
             )]);
         }
         self.bytes += content.len();
+        if let Some(sources) = self.sources.as_deref_mut() {
+            if !body.authored && !content.is_empty() {
+                body.sources.push((1..=content.lines().count(), ptr.into()));
+            }
+            if !body.sources.is_empty() {
+                sources.insert(
+                    function_resource(id),
+                    body.sources
+                        .into_iter()
+                        .map(|(lines, pointer)| CommandSource {
+                            lines,
+                            module: module.into(),
+                            pointer,
+                        })
+                        .collect(),
+                );
+            }
+        }
         self.runtime.own_function(id.to_owned(), module.to_owned());
         let (namespace, path) = id.split_once(':').expect("validated/generated identity");
         self.records.push(ComponentRecord {
@@ -1294,8 +1406,11 @@ impl Lower {
         path: &str,
         module: &str,
         ptr: &str,
-    ) -> Result<Vec<String>, Vec<Diagnostic>> {
-        let mut commands = Vec::new();
+    ) -> Result<CommandBody, Vec<Diagnostic>> {
+        let mut commands = CommandBody {
+            authored: true,
+            ..CommandBody::default()
+        };
         for (index, operation) in body.iter().enumerate() {
             let path = if path.is_empty() {
                 index.to_string()
@@ -1365,7 +1480,7 @@ impl Lower {
                             &format!("{ptr}/action/body"),
                         )?;
                         if let Some(init) = &self.init {
-                            lines.insert(0, Cmd::Function(init.clone()).render());
+                            lines.prepend_initializer(init);
                         }
                         self.function(&id, lines, module, &ptr)?;
                         id
@@ -2045,7 +2160,7 @@ impl Lower {
                         &format!("{ptr}/action/body"),
                     )?;
                     if *players && let Some(init) = &self.init {
-                        lines.insert(0, Cmd::Function(init.clone()).render());
+                        lines.prepend_initializer(init);
                     }
                     self.function(&id, lines, module, &ptr)?;
                     let selectors = crate::gameplay::identity::selectors(
@@ -2151,13 +2266,16 @@ impl Lower {
                     let test = self.condition_test(condition).map_err(fail)?;
                     // Tail call: re-check the condition after each pass and
                     // forward an early return from deeper passes.
-                    lines.push(
+                    lines.lines.push(
                         Cmd::Execute {
                             operations: vec![sand_commands::ExecuteOp::If(test.clone())],
                             run: Box::new(Cmd::ReturnRun(Box::new(Cmd::Function(looped.clone())))),
                         }
                         .render(),
                     );
+                    if self.sources.is_some() {
+                        lines.record(lines.lines.len(), &ptr);
+                    }
                     self.function(&looped, lines, module, &ptr)?;
                     let mut operations = vec![sand_commands::ExecuteOp::If(test)];
                     let run = if returns(body) {
@@ -2227,12 +2345,16 @@ impl Lower {
                     }
                 },
             };
+            let first_line = commands.lines.len() + 1;
             for cmd in cmds {
                 let rendered = cmd.try_render().map_err(|e| fail(e.to_string()))?;
                 let rendered =
                     sand_commands::render::validate_standalone_line(&rendered, &self.profile)
                         .map_err(|e| fail(e.to_string()))?;
-                commands.push(rendered);
+                commands.lines.push(rendered);
+            }
+            if self.sources.is_some() {
+                commands.record(first_line, &ptr);
             }
         }
         Ok(commands)

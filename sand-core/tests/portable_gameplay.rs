@@ -410,3 +410,52 @@ fn related_entity_capture_keeps_the_original_executor_as_the_destination() {
             .any(|error| error.message.contains("single-entity relationship"))
     );
 }
+
+#[test]
+fn generated_command_locations_follow_final_lifecycle_and_player_prefixes() {
+    let mut doc = program(
+        serde_json::json!([
+            {"id":"play:reward", "context":"player", "body":[
+                {"action":{"op":"score_operation","score":field("stats", "best"),"operator":"add","operand":2}}
+            ]}
+        ]),
+        serde_json::json!([]),
+    );
+    let module = &mut doc["modules"][0];
+    // Compiler setup has its own lifecycle contribution even when this ID is authored.
+    module["id"] = "play:__sand_program/events".into();
+    for (phase, value) in [("load", 17), ("tick", 29)] {
+        module[phase] = serde_json::json!([
+            {"action":{"op":"score_set","score":field("world", "round"),"value":value}}
+        ]);
+    }
+    let program = decode(doc);
+    let (pack, sources) = Compiler::compile_with_command_sources(&program).unwrap();
+    let sources = sources.functions;
+    assert_eq!(
+        pack.resources,
+        Compiler::compile(&program).unwrap().resources
+    );
+    let reward = function_text(&pack, "reward");
+    assert!(
+        reward
+            .lines()
+            .next()
+            .unwrap()
+            .contains("__sand_lifecycle_init")
+    );
+    let source = &sources["data/play/function/reward.mcfunction"][0];
+    assert_eq!(source.lines, 2..=2);
+    assert_eq!(source.pointer, "/functions/0/body/0");
+    for (phase, value) in [("load", 17), ("tick", 29)] {
+        let path = format!("__sand_lifecycle_{phase}");
+        let content = function_text(&pack, &path);
+        let [source] = sources[&format!("data/play/function/{path}.mcfunction")].as_slice() else {
+            panic!("unexpected sources for {path}: {sources:?}");
+        };
+        assert_eq!(source.module, "play:__sand_program/events");
+        assert_eq!(source.pointer, format!("/{phase}/0"));
+        let command = content.lines().nth(source.lines.start() - 1).unwrap();
+        assert!(command.ends_with(&format!(" {value}")), "{command}");
+    }
+}

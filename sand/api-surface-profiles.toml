@@ -51,6 +51,7 @@
 # 44 contracted source items, reusing canonical NBT and State ownership models.
 # Portable retained entity capture/resolution and attributed damage add seven advanced items.
 # Retaining one related entity adds one portable CaptureEntity field.
+# Opt-in portable command locations add seven contracted advanced items.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -59,19 +60,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5712
+static_surface_items = 5719
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11981
+static_surface_items = 11988
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12243
+static_surface_items = 12250
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

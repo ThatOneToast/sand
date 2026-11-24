@@ -1,7 +1,7 @@
 //! Owned storage lowering. Only integer indices enter macro arguments.
 use super::*;
 
-impl Lower {
+impl Lower<'_> {
     pub(super) fn is_data_field(&self, field: &FieldReference) -> bool {
         self.data_states
             .get(&field.state.to_string())
@@ -173,7 +173,7 @@ impl Lower {
                 path,
                 "data_value",
             );
-            let body = body
+            let body: Vec<_> = body
                 .into_iter()
                 .map(|line| {
                     if line.contains("$(") {

@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use colored::Colorize;
 use sand_lang::library::Library;
-use sand_lang::{Analysis, DiskFiles, Severity};
+use sand_lang::{Analysis, Diagnostic, DiskFiles, Severity};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -80,7 +80,7 @@ enum Command {
     },
     /// Print the portable program JSON the package lowers to
     Emit(Input),
-    /// Print portable operation and function source locations as JSON
+    /// Print source locations for emitted commands and portable operations as JSON
     SourceMap(Input),
     /// Create a new Sand language project in a new directory
     New {
@@ -244,7 +244,7 @@ pub fn run(args: LangArgs) -> Result<()> {
             report(&analysis)?;
             let map = analysis
                 .source_map()
-                .context("the package did not lower to a program")?;
+                .map_err(|errors| report_compilation_errors(&analysis, errors))?;
             println!("{}", serde_json::to_string_pretty(&map)?);
             Ok(())
         }
@@ -300,12 +300,9 @@ pub fn format_package(path: &Path, check: bool) -> Result<()> {
 
 /// Compile a package and publish it; returns its namespace.
 fn build(analysis: &Analysis, output: Option<PathBuf>) -> Result<String> {
-    let pack = analysis.compile().map_err(|errors| {
-        for error in &errors {
-            eprint!("{}", error.render(&analysis.package));
-        }
-        anyhow::anyhow!("compilation failed with {} error(s)", errors.len())
-    })?;
+    let pack = analysis
+        .compile()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
     let namespace = namespace_of(analysis);
     let default_output = output.is_none();
     let root = project_root(analysis);
@@ -479,6 +476,13 @@ fn install_library(path: &Path, library: Library) -> Result<PathBuf> {
         return Err(error);
     }
     Ok(target)
+}
+
+fn report_compilation_errors(analysis: &Analysis, errors: Vec<Diagnostic>) -> anyhow::Error {
+    for error in &errors {
+        eprint!("{}", error.render(&analysis.package));
+    }
+    anyhow::anyhow!("compilation failed with {} error(s)", errors.len())
 }
 
 /// Print diagnostics; fail when any is an error. Returns a summary.

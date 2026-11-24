@@ -90,6 +90,44 @@ pub struct CompiledPack {
     pub runtime_report: RuntimeReport,
 }
 
+/// An inclusive line range in an emitted function and the operation it came from.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::CommandSource", module = "sand::advanced::compiler",
+ summary = "Trace an emitted command range to its portable operation.",
+ context = "A location in the optional command source map of a portable compilation.",
+ minecraft = "Counts lines in the final mcfunction resource after export.",
+ use_when = ["Mapping generated command diagnostics back to a portable producer"],
+ avoid_when = ["Only deterministic datapack files are needed"],
+ example = "use sand::advanced::compiler::CommandSource;",
+ fields(lines = "Inclusive one-based generated command lines.", module = "Portable module identity.", pointer = "JSON pointer within the module."),
+)]
+pub struct CommandSource {
+    /// Inclusive one-based lines in the emitted resource.
+    pub lines: std::ops::RangeInclusive<usize>,
+    /// Portable module identity.
+    pub module: String,
+    /// JSON pointer within the portable module document.
+    pub pointer: String,
+}
+
+/// Generated function paths and their command sources in line order.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::CommandSources", module = "sand::advanced::compiler",
+ summary = "Index emitted function line ranges by final pack-relative path.",
+ context = "Optional provenance index produced by portable compilation.",
+ minecraft = "Refers to the same mcfunction files emitted in CompiledPack.resources.",
+ use_when = ["Looking up source locations for generated commands"],
+ avoid_when = ["The host only needs published pack bytes"],
+ example = "use sand::advanced::compiler::CommandSources;",
+ fields(functions = "Final resource paths and their command source ranges."),
+)]
+pub struct CommandSources {
+    /// Final `.mcfunction` resource paths and their command source ranges.
+    pub functions: BTreeMap<String, Vec<CommandSource>>,
+}
+
 /// Stateless portable compiler; repeated and concurrent calls share no state.
 ///
 /// Rust collection and JSON producers provide the same owned Program. Explicit
@@ -185,8 +223,36 @@ impl Compiler {
  kind = "method", returns = "The validated result or located diagnostics; schema and capability methods return machine-readable JSON.", params(program = "Resolved owned program with an explicit target."),
 )]
     pub fn compile(program: &Program) -> Result<CompiledPack, Vec<Diagnostic>> {
+        Self::compile_inner(program, None)
+    }
+
+    /// Compile the same pack bytes as [`Self::compile`] and trace emitted command
+    /// lines to portable operations. Framework initialization without an
+    /// operation origin is omitted from the index.
+    #[sand_macros::api(
+     registry = sand_api_contract, path = "sand::advanced::compiler::Compiler::compile_with_command_sources", module = "sand::advanced::compiler",
+     summary = "Compile a portable pack and locate emitted command ranges.",
+     context = "Opt-in provenance for hosts that carry portable JSON pointers back to authored source.",
+     minecraft = "Emits the same bytes as ordinary portable compilation.",
+     use_when = ["Displaying source locations for emitted commands"],
+     avoid_when = ["The host only needs published pack bytes"],
+     example = "use sand::advanced::compiler::{Compiler, Program}; fn demo(program: &Program) { let _ = Compiler::compile_with_command_sources(program); }",
+     kind = "method", returns = "Compiled pack and command source index, or validation diagnostics.", params(program = "Resolved owned program with an explicit target."),
+    )]
+    pub fn compile_with_command_sources(
+        program: &Program,
+    ) -> Result<(CompiledPack, CommandSources), Vec<Diagnostic>> {
+        let mut sources = CommandSources::default();
+        let pack = Self::compile_inner(program, Some(&mut sources.functions))?;
+        Ok((pack, sources))
+    }
+
+    fn compile_inner(
+        program: &Program,
+        sources: Option<&mut BTreeMap<String, Vec<CommandSource>>>,
+    ) -> Result<CompiledPack, Vec<Diagnostic>> {
         let target = validate::validate(program)?;
-        let lowered = lower::lower(program, &target)?;
+        let lowered = lower::lower(program, &target, sources)?;
         Ok(CompiledPack {
             target: target.resolved_name().into(),
             resources: lowered.resources,

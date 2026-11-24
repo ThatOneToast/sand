@@ -1,15 +1,29 @@
-//! Map portable function identities and operation pointers to authored source.
+//! Map emitted commands and portable locations to authored source.
 use super::*;
 use serde_json::{Value, json};
 
 impl Analysis {
     /// A versioned source map for the lowered program.
     ///
-    /// Entries identify a portable module and JSON pointer, and functions
-    /// include their emitted resource path. Source ranges are UTF-8 byte offsets.
-    pub fn source_map(&self) -> Option<Value> {
-        let program = self.program.as_ref()?;
-        let directory = self.package.root.parent()?;
+    /// Entries identify portable module pointers and emitted command ranges.
+    /// Source offsets are UTF-8 bytes. Generated line numbers are one-based.
+    /// Build failures report ordinary source diagnostics.
+    pub fn source_map(&self) -> Result<Value, Vec<Diagnostic>> {
+        let Some(program) = &self.program else {
+            return Err(self.diagnostics.clone());
+        };
+        let (_, commands) =
+            pc::Compiler::compile_with_command_sources(program).map_err(|errors| {
+                errors
+                    .iter()
+                    .map(|error| self.map_backend(error))
+                    .collect::<Vec<_>>()
+            })?;
+        let directory = self
+            .package
+            .root
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new(""));
         let files: Vec<_> = self
             .package
             .files
@@ -62,12 +76,42 @@ impl Analysis {
                 );
             }
         }
-        Some(json!({
+        let source_by_pointer: BTreeMap<_, _> = entries
+            .iter()
+            .filter_map(|entry| {
+                Some((
+                    (entry["module"].as_str()?, entry["pointer"].as_str()?),
+                    &entry["source"],
+                ))
+            })
+            .collect();
+        let commands: BTreeMap<_, _> = commands
+            .functions
+            .into_iter()
+            .filter_map(|(resource, locations)| {
+                let ranges: Vec<_> = locations
+                    .into_iter()
+                    .filter_map(|location| {
+                        let source = source_by_pointer
+                            .get(&(location.module.as_str(), location.pointer.as_str()))?;
+                        Some(json!({
+                            "lines": location.lines,
+                            "module": location.module,
+                            "pointer": location.pointer,
+                            "source": source,
+                        }))
+                    })
+                    .collect();
+                (!ranges.is_empty()).then_some((resource, ranges))
+            })
+            .collect();
+        Ok(json!({
             "format": "sand.source_map",
-            "format_version": 1,
+            "format_version": 2,
             "files": files,
             "functions": functions,
             "entries": entries,
+            "commands": commands,
         }))
     }
 }

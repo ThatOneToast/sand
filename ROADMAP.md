@@ -280,7 +280,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
-- [ ] Command line source mappings, breakpoints, and real Zed-session verification.
+- [x] Emitted command-line mappings, including generated helper functions.
+- [ ] Breakpoints and real Zed-session verification.
 
 Acceptance: compiler/export tests prove observable output, runtime features have
 native evidence, and each new public model preserves deterministic export,

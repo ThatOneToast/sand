@@ -229,6 +229,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}progression {}", def.name),
                     format!("Player progression `{id}`. Advance it or run it in a session."),
                 ),
+                (crate::ast::DataKind::Combat, _) => (
+                    format!("{vis}combat {}", def.name),
+                    format!(
+                        "Custom player health policy `{id}`. Use `combat_damage` and `combat_heal`."
+                    ),
+                ),
                 (crate::ast::DataKind::Ability, _) => (
                     format!("{vis}ability {}", def.name),
                     format!(
@@ -1194,6 +1200,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::InventoryTransfer
         | DefKind::Hud
         | DefKind::Progression
+        | DefKind::Combat
         | DefKind::Ability
         | DefKind::Session
         | DefKind::Projectile
@@ -1875,6 +1882,9 @@ fn expression_completions(
             Some("Progression") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Progression);
             }
+            Some("Combat") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Combat);
+            }
             Some("Ability") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Ability);
             }
@@ -2511,6 +2521,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "progression ${1:Quest} { progress: ${2:Journal}.${3:stage}, objectives: [{ reward: ${4:award} }] }",
         ),
         Completion::snippet(
+            "combat",
+            "canonical State health rules",
+            "combat ${1:Vitality} { health: ${2:Stats}.${3:health}, max: ${4:20} }",
+        ),
+        Completion::snippet(
             "ability",
             "checked player activation",
             "ability ${1:CastSpark} { ticks: ${2:24}, projectile: ${3:Spark} }",
@@ -2850,6 +2865,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Progression => "Progression",
                 ParamKind::Session => "Session",
                 ParamKind::Ability => "Ability",
+                ParamKind::Combat => "Combat",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

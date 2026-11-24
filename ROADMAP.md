@@ -333,7 +333,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   branches, committed rewards, and per-player lifecycle controls.
 - [x] Player abilities with checked costs and cooldowns, diagnostics, and
   optional projectile flight under the same admission.
-- [ ] Expose the Rust combat, encounters, jobs, rosters, scenes, and
+- [x] Custom player health using shared Combat mitigation, shields, critical
+  damage, immunity, healing and committed callbacks.
+- [ ] Expose the Rust encounters, jobs, rosters, scenes, and
   checkpoints through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.

@@ -137,6 +137,7 @@ pub(super) fn lower(
         progressions: BTreeMap::new(),
         sessions: BTreeMap::new(),
         abilities: BTreeMap::new(),
+        combats: BTreeMap::new(),
         menus: BTreeMap::new(),
         advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
@@ -214,6 +215,12 @@ pub(super) fn lower(
         lower.abilities.insert(
             ability.id.to_string(),
             lower.ability_component(ability, &states),
+        );
+    }
+    for combat in program.modules.iter().flat_map(|module| &module.combats) {
+        lower.combats.insert(
+            combat.id.to_string(),
+            lower.combat_component(combat, &states),
         );
     }
     let mut entries = BTreeMap::new();
@@ -1680,6 +1687,7 @@ struct Lower<'sources> {
     progressions: BTreeMap<String, crate::gameplay::Progression>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
     abilities: BTreeMap<String, crate::gameplay::Ability>,
+    combats: BTreeMap<String, crate::gameplay::Combat>,
     menus: BTreeMap<String, crate::gameplay::Menu>,
     advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
@@ -1921,6 +1929,47 @@ impl Lower<'_> {
         definition
     }
 
+    fn combat_component(
+        &self,
+        source: &CombatDefinition,
+        states: &[State],
+    ) -> crate::gameplay::Combat {
+        use crate::{entity::StatCurve, gameplay::Combat};
+        use sand_components::effect::Ticks;
+        let bind = |field: &FieldReference| Self::player_score(states, field);
+        let mut policy = Combat::owned(bind(&source.health), StatCurve::from(source.max));
+        if let Some(shield) = &source.shield {
+            policy = policy.owned_shield(bind(shield));
+        }
+        if let Some(resistance) = source.resistance {
+            policy = policy.resistance(resistance);
+        }
+        if let Some(immunity) = &source.immunity {
+            policy = policy.owned_immunity(bind(&immunity.timer), Ticks::new(immunity.ticks));
+        }
+        if let Some(critical) = &source.critical {
+            policy = policy.critical(self.flag_condition(&critical.when), critical.multiplier);
+        }
+        if let Some(hit) = &source.hit {
+            policy = policy.on_hit(Cmd::Function(reference_id(hit)));
+        }
+        if let Some(defeat) = &source.defeat {
+            policy = policy.on_defeat(Cmd::Function(reference_id(defeat)));
+        }
+        if let Some(healed) = &source.healed {
+            policy = policy.on_heal(Cmd::Function(reference_id(healed)));
+        }
+        policy
+    }
+
+    fn player_score(states: &[State], field: &FieldReference) -> crate::state::owned::PlayerScore {
+        states
+            .iter()
+            .find(|state| state.id == field.state)
+            .and_then(|state| crate::state::owned::PlayerScore::from_state(state, &field.field))
+            .expect("validated player score")
+    }
+
     fn ability_component(
         &self,
         source: &AbilityDefinition,
@@ -1929,16 +1978,9 @@ impl Lower<'_> {
         use crate::{
             entity::PlayerKind,
             gameplay::{Ability, Lifetime},
-            state::owned::PlayerScore,
         };
         use sand_components::effect::Ticks;
-        let bind = |field: &FieldReference| {
-            states
-                .iter()
-                .find(|state| state.id == field.state)
-                .and_then(|state| PlayerScore::from_state(state, &field.field))
-                .expect("validated player score")
-        };
+        let bind = |field: &FieldReference| Self::player_score(states, field);
         let mut lifetime = Lifetime::<PlayerKind>::new(source.id.clone(), Ticks::new(source.ticks))
             .include_dimensions(self.dimensions.iter().cloned());
         if let Some(start) = &source.start {
@@ -2765,6 +2807,48 @@ impl Lower<'_> {
                     } else {
                         definition.close().0
                     }
+                }
+                Action::Combat {
+                    combat,
+                    amount,
+                    heal,
+                } => {
+                    use crate::entity::StatCurve;
+                    let policy = &self.combats[&combat.to_string()];
+                    let amount = match amount {
+                        Amount::Value(value) => StatCurve::from(*value),
+                        Amount::Field(field) => StatCurve::runtime_score(
+                            self.holders[&field.score.state.to_string()].clone(),
+                            sand_commands::ObjectiveName::logical(format!(
+                                "{}.{}",
+                                field.score.state, field.score.field
+                            )),
+                            field.scale as i32,
+                        ),
+                    };
+                    let actions = if *heal {
+                        policy.heal(amount)
+                    } else {
+                        policy.damage(amount)
+                    };
+                    let location = if let Some((_, phase)) = owner
+                        .strip_prefix("module/")
+                        .and_then(|owner| owner.rsplit_once('/'))
+                    {
+                        sand_components::ResourceLocation::new(
+                            &self.namespace,
+                            format!("__sand_lifecycle_{phase}"),
+                        )
+                    } else {
+                        owner.parse()
+                    }
+                    .expect("validated function identity");
+                    actions
+                        .lower(&location)
+                        .map_err(|error| fail(error.to_string()))?
+                        .into_iter()
+                        .map(Cmd::Raw)
+                        .collect()
                 }
                 Action::Ability { ability, command } => {
                     let definition = &self.abilities[&ability.to_string()];

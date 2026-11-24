@@ -580,6 +580,32 @@
     },
     {
       "additionalProperties": false,
+      "description": "Apply damage or healing to the actor's authoritative State.",
+      "properties": {
+        "amount": {
+          "$ref": "defs-Amount.schema.json"
+        },
+        "combat": {
+          "type": "string"
+        },
+        "heal": {
+          "type": "boolean"
+        },
+        "op": {
+          "const": "combat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "combat",
+        "amount",
+        "heal"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Activate, cancel, or diagnose the player's ability.",
       "properties": {
         "ability": {

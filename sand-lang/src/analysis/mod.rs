@@ -169,6 +169,8 @@ pub enum DefKind {
     Session,
     /// A checked player activation.
     Ability,
+    /// An authoritative custom health policy.
+    Combat,
 }
 
 impl DefKind {
@@ -208,6 +210,7 @@ impl DefKind {
             DefKind::Progression => "progression",
             DefKind::Session => "session",
             DefKind::Ability => "ability",
+            DefKind::Combat => "combat",
         }
     }
 }
@@ -1126,6 +1129,7 @@ impl Cx {
                     crate::ast::DataKind::Progression => DefKind::Progression,
                     crate::ast::DataKind::Session => DefKind::Session,
                     crate::ast::DataKind::Ability => DefKind::Ability,
+                    crate::ast::DataKind::Combat => DefKind::Combat,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3089,6 +3093,7 @@ impl Cx {
             progressions: Vec::new(),
             sessions: Vec::new(),
             abilities: Vec::new(),
+            combats: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

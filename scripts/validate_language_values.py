@@ -230,6 +230,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_owned_projectiles()
             self.check_progression_sessions()
             self.check_ability_admission()
+            self.check_state_combat()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
@@ -519,6 +520,29 @@ class ValuesHarness(WorldGameplayHarness):
         invoke("NumericA", "activate_spell")
         report("NumericA", 24, "ABILITY_READY_AGAIN")
         report("NumericB", 4, "ABILITY_PEER_STATE_UNCHANGED")
+
+
+    def check_state_combat(self):
+        def invoke(player, function):
+            self.send(f"execute as {player} at @s run function runtime_values:{function}")
+
+        def report(player, score, label):
+            self.send(f"scoreboard players set {player} numeric_probe -1")
+            invoke(player, "report_custom_health")
+            self.check(label, f"if score {player} numeric_probe matches {score}")
+
+        invoke("NumericA", "prepare_combat_a")
+        invoke("NumericB", "prepare_combat_b")
+        report("NumericA", 13, "COMBAT_CRITICAL_SHIELD_AND_IMMUNITY")
+        report("NumericB", 16, "COMBAT_B_MITIGATION")
+        invoke("NumericA", "heal_custom_health")
+        report("NumericA", 18, "COMBAT_HEALED")
+        report("NumericB", 16, "COMBAT_HEAL_PLAYER_ISOLATION")
+        self.step_ticks(4, "COMBAT_TICKS")
+        invoke("NumericA", "finish_custom_combat")
+        report("NumericA", 0, "COMBAT_DEFEATED_STAYS_DEFEATED")
+        invoke("NumericB", "reach_max_health")
+        report("NumericB", 20, "COMBAT_CLAMPS_HEALING")
 
 
 def main():

@@ -86,6 +86,7 @@ fn item_level() {
             "progression",
             "session",
             "ability",
+            "combat",
             "event",
             "loot",
             "recipe shapeless",
@@ -454,6 +455,20 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "hud Status { ticks: 100, actionbar: \"Ready\" }\nfn show() { start_hud(|); }",
         &["Status"],
         &["Block::Stone"],
+    );
+    exactly(
+        "combat Training {\n    |\n}",
+        &[
+            "health",
+            "max",
+            "shield",
+            "resistance",
+            "immunity",
+            "critical",
+            "hit",
+            "defeat",
+            "healed",
+        ],
     );
     exactly(
         "ability CastSpark {\n    |\n}",

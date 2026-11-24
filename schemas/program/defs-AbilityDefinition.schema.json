@@ -6,7 +6,7 @@
     "cooldown": {
       "anyOf": [
         {
-          "$ref": "defs-AbilityCooldown.schema.json"
+          "$ref": "defs-StateCooldown.schema.json"
         },
         {
           "type": "null"

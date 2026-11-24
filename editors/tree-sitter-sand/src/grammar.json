@@ -974,6 +974,10 @@
                 {
                   "type": "STRING",
                   "value": "ability"
+                },
+                {
+                  "type": "STRING",
+                  "value": "combat"
                 }
               ]
             },

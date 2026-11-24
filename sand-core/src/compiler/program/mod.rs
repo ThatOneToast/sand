@@ -9,21 +9,21 @@ mod validate;
 pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
-    AbilityCommand, AbilityCooldown, AbilityCost, AbilityDefinition, Action, Advancement,
-    AdvancementCriterion, AdvancementDisplay, Amount, Audience, BiomeMatches, BlockDataAddress,
-    BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle, Condition, CookingMethod,
-    CustomBiome, CustomItem, DataField, DataOperand, DataProjection, DataReference,
-    DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
-    ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow, FlowHook, FlowHookPhase,
-    FlowTransition, Function, FunctionReference, HudBossBar, HudDefinition,
-    InventoryTransferDefinition, ItemHeld, LootItem, LootPool, LootTable, MenuChoice,
-    MenuDefinition, MenuView, MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack,
-    PlayerEvent, PlayerGameMode, Program, ProgramTarget, ProgressionBranch, ProgressionDefinition,
-    ProgressionObjective, ProjectileDefinition, Rarity, Recipe, RecipeOutput, Relation,
-    ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
-    ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached, TagKind, TagMembership,
-    TeleportDestination, TextColor, TextPart, TextStyle, Weather, WorldPredicate,
-    WrittenBookContent,
+    AbilityCommand, AbilityCost, AbilityDefinition, Action, Advancement, AdvancementCriterion,
+    AdvancementDisplay, Amount, Audience, BiomeMatches, BlockDataAddress, BlockMatches,
+    BlockPosition, BossBar, BossBarColor, BossBarStyle, CombatCritical, CombatDefinition,
+    Condition, CookingMethod, CustomBiome, CustomItem, DataField, DataOperand, DataProjection,
+    DataReference, DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery,
+    EntitySort, EventHook, ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow,
+    FlowHook, FlowHookPhase, FlowTransition, Function, FunctionReference, HudBossBar,
+    HudDefinition, InventoryTransferDefinition, ItemHeld, LootItem, LootPool, LootTable,
+    MenuChoice, MenuDefinition, MenuView, MessageChannel, Module, ModuleSource, NoticeDialog,
+    Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, ProgressionBranch,
+    ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
+    RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand,
+    ScoreOperator, ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached,
+    StateCooldown, TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle,
+    Weather, WorldPredicate, WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -94,6 +94,7 @@ const CAPABILITIES: &[&str] = &[
     "progressions",
     "owned_sessions",
     "owned_abilities",
+    "state_combat",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

@@ -3343,6 +3343,8 @@ impl Cx {
             "give_item"
                 | "clear_item"
                 | "damage"
+                | "combat_damage"
+                | "combat_heal"
                 | "mount"
                 | "set_block_data"
                 | "teleport"
@@ -3408,6 +3410,16 @@ impl Cx {
         ops: &mut Vec<pc::Operation>,
     ) -> Option<pc::Action> {
         match name {
+            "combat_damage" | "combat_heal" => Some(pc::Action::Combat {
+                combat: self.arg_declared(
+                    body,
+                    bound["combat"],
+                    DefKind::Combat,
+                    "a combat policy",
+                )?,
+                amount: self.runtime_amount(body, bound["amount"], ops)?,
+                heal: name == "combat_heal",
+            }),
             "give_item" => {
                 let item = self.arg_id(body, bound["item"], "Item")?;
                 let count = match bound.get("count") {

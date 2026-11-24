@@ -580,6 +580,7 @@ impl Builder<'_> {
                     "progression" => DataKind::Progression,
                     "session" => DataKind::Session,
                     "ability" => DataKind::Ability,
+                    "combat" => DataKind::Combat,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

@@ -95,6 +95,18 @@ projectile ProbeBolt {
     hit: bolt_impact,
 }
 
+combat ProbeCombat {
+    health: Ledger.combat_health,
+    max: 20,
+    shield: Ledger.combat_shield,
+    resistance: 0.25,
+    immunity: { timer: Ledger.combat_immunity, ticks: 4 },
+    critical: { when: Ledger.combat_critical, multiplier: 2 },
+    hit: scored_hit,
+    defeat: scored_defeat,
+    healed: scored_heal,
+}
+
 ability ProbeSpell {
     ticks: 18,
     projectile: ProbeBolt,
@@ -134,6 +146,13 @@ player state Ledger {
     spell_ready: bool,
     casts: number,
     latest_charge: number,
+    combat_health: number = 20,
+    combat_shield: number,
+    combat_immunity: timer,
+    combat_critical: bool,
+    combat_hits: number,
+    combat_defeats: number,
+    combat_heals: number,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -215,6 +234,43 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe 3");
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn scored_hit() { Ledger.combat_hits += 1; }
+fn scored_defeat() { Ledger.combat_defeats += 1; }
+fn scored_heal() { Ledger.combat_heals += 1; }
+fn custom_hit(amount: number) { combat_damage(ProbeCombat, amount); }
+
+fn prepare_combat_a() {
+    Ledger.combat_shield = 5;
+    Ledger.combat_critical = true;
+    custom_hit(8);
+    custom_hit(8);
+}
+fn prepare_combat_b() {
+    Ledger.combat_shield = 2;
+    custom_hit(8);
+}
+fn heal_custom_health() { combat_heal(ProbeCombat, 5); }
+fn reach_max_health() { combat_heal(ProbeCombat, 99); }
+fn finish_custom_combat() {
+    custom_hit(30);
+    combat_heal(ProbeCombat, 99);
+}
+fn report_custom_health() {
+    if Ledger.combat_shield == 0 && Ledger.combat_hits == 1 && Ledger.combat_defeats == 0 {
+        if Ledger.combat_health == 13 && Ledger.combat_immunity == 4 && Ledger.combat_heals == 0 {
+            raw!("scoreboard players set @s numeric_probe 13");
+        } else if Ledger.combat_health == 16 && Ledger.combat_immunity == 4 && Ledger.combat_heals == 0 {
+            raw!("scoreboard players set @s numeric_probe 16");
+        } else if Ledger.combat_health == 18 && Ledger.combat_immunity == 4 && Ledger.combat_heals == 1 {
+            raw!("scoreboard players set @s numeric_probe 18");
+        } else if Ledger.combat_health == 20 && Ledger.combat_heals == 1 {
+            raw!("scoreboard players set @s numeric_probe 20");
+        }
+    } else if Ledger.combat_health == 0 && Ledger.combat_hits == 2 && Ledger.combat_defeats == 1 && Ledger.combat_heals == 1 {
+        raw!("scoreboard players set @s numeric_probe 0");
     }
 }
 

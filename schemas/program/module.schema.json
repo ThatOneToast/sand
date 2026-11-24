@@ -20,27 +20,6 @@
         }
       ]
     },
-    "AbilityCooldown": {
-      "additionalProperties": false,
-      "description": "A cooldown backed by a player's canonical State timer.",
-      "properties": {
-        "ticks": {
-          "description": "Positive ticks written on successful admission.",
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "timer": {
-          "$ref": "#/$defs/FieldReference",
-          "description": "Player timer that counts down through the State lifecycle."
-        }
-      },
-      "required": [
-        "timer",
-        "ticks"
-      ],
-      "type": "object"
-    },
     "AbilityCost": {
       "additionalProperties": false,
       "description": "A charge against a player's non-ticking State score.",
@@ -69,7 +48,7 @@
         "cooldown": {
           "anyOf": [
             {
-              "$ref": "#/$defs/AbilityCooldown"
+              "$ref": "#/$defs/StateCooldown"
             },
             {
               "type": "null"
@@ -710,6 +689,32 @@
             "op",
             "menu",
             "open"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Apply damage or healing to the actor's authoritative State.",
+          "properties": {
+            "amount": {
+              "$ref": "#/$defs/Amount"
+            },
+            "combat": {
+              "type": "string"
+            },
+            "heal": {
+              "type": "boolean"
+            },
+            "op": {
+              "const": "combat",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "combat",
+            "amount",
+            "heal"
           ],
           "type": "object"
         },
@@ -2296,6 +2301,125 @@
           "type": "string"
         }
       ]
+    },
+    "CombatCritical": {
+      "additionalProperties": false,
+      "description": "A conditional critical-hit multiplier.",
+      "properties": {
+        "multiplier": {
+          "description": "Finite damage multiplier of at least one.",
+          "format": "double",
+          "type": "number"
+        },
+        "when": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Optional bonuses apply only while this score equals one."
+        }
+      },
+      "required": [
+        "when",
+        "multiplier"
+      ],
+      "type": "object"
+    },
+    "CombatDefinition": {
+      "additionalProperties": false,
+      "description": "Custom health rules backed by the executing player's State.",
+      "properties": {
+        "critical": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CombatCritical"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional conditional critical-hit multiplier."
+        },
+        "defeat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional callback when a hit reaches zero health."
+        },
+        "healed": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional callback after accepted healing."
+        },
+        "health": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Canonical number holding authoritative health."
+        },
+        "hit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional callback after a committed hit."
+        },
+        "id": {
+          "description": "Identity used to apply this policy.",
+          "type": "string"
+        },
+        "immunity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StateCooldown"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional timer started by committed damage."
+        },
+        "max": {
+          "description": "Positive maximum health.",
+          "format": "double",
+          "type": "number"
+        },
+        "resistance": {
+          "description": "Optional mitigation fraction.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "shield": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional shield used before health."
+        }
+      },
+      "required": [
+        "id",
+        "health",
+        "max"
+      ],
+      "type": "object"
     },
     "Condition": {
       "anyOf": [
@@ -5482,6 +5606,27 @@
       ],
       "type": "object"
     },
+    "StateCooldown": {
+      "additionalProperties": false,
+      "description": "A duration written to a player's canonical State timer.",
+      "properties": {
+        "ticks": {
+          "description": "Positive ticks written on successful admission.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "timer": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Player timer that counts down through the State lifecycle."
+        }
+      },
+      "required": [
+        "timer",
+        "ticks"
+      ],
+      "type": "object"
+    },
     "StructureTemplate": {
       "additionalProperties": false,
       "description": "A datapack structure template copied from an existing `.nbt` file.\n\n# Context\nA datapack structure template copied from an existing `.nbt` file. Structure templates are binary NBT assets. Sand treats them as copy-backed datapack components and writes them under `data/<namespace>/structure/<path>.nbt`.\n\n# Minecraft behavior\nStructure templates are binary NBT assets. Sand treats them as copy-backed datapack components and writes them under `data/<namespace>/structure/<path>.nbt`.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructureTemplate;\n```\nA datapack structure template copied from an existing `.nbt` file.\n\nStructure templates are binary NBT assets. Sand treats them as copy-backed\ndatapack components and writes them under\n`data/<namespace>/structure/<path>.nbt`.",
@@ -5956,6 +6101,13 @@
       "description": "Boss bars, created at load.",
       "items": {
         "$ref": "#/$defs/BossBar"
+      },
+      "type": "array"
+    },
+    "combats": {
+      "description": "Named State combat policies.",
+      "items": {
+        "$ref": "#/$defs/CombatDefinition"
       },
       "type": "array"
     },

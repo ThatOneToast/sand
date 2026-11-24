@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A conditional critical-hit multiplier.",
+  "properties": {
+    "multiplier": {
+      "description": "Finite damage multiplier of at least one.",
+      "format": "double",
+      "type": "number"
+    },
+    "when": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Optional bonuses apply only while this score equals one."
+    }
+  },
+  "required": [
+    "when",
+    "multiplier"
+  ],
+  "type": "object"
+}

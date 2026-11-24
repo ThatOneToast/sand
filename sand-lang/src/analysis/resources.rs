@@ -483,6 +483,59 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Combat => {
+                let Some(health) = get("health")
+                    .and_then(|field| self.data_player_score(module, file, &field.value, false))
+                else {
+                    return;
+                };
+                let Some(max) =
+                    get("max").and_then(|field| self.data_number(module, file, &field.value))
+                else {
+                    return;
+                };
+                let shield = get("shield")
+                    .and_then(|field| self.data_player_score(module, file, &field.value, false));
+                let resistance = get("resistance")
+                    .and_then(|field| self.data_number(module, file, &field.value));
+                let immunity = get("immunity")
+                    .and_then(|field| self.data_state_cooldown(module, file, &field.value));
+                let critical = get("critical").and_then(|field| {
+                    let fields = self.data_object_fields(
+                        file,
+                        &field.value,
+                        "critical hit",
+                        &["when", "multiplier"],
+                        &[],
+                    )?;
+                    let when = self.data_boolean_state(module, file, fields.get("when")?)?;
+                    let multiplier = self.data_number(module, file, fields.get("multiplier")?)?;
+                    Some(pc::CombatCritical { when, multiplier })
+                });
+                let mut callback = |name| {
+                    get(name).and_then(|field| self.data_callback(module, file, &field.value))
+                };
+                let (hit, defeat, healed) =
+                    (callback("hit"), callback("defeat"), callback("healed"));
+                self.pointers.push((
+                    module_id,
+                    format!("/combats/{}", out.combats.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.combats.push(pc::CombatDefinition {
+                    id: location,
+                    health,
+                    max,
+                    shield,
+                    resistance,
+                    immunity,
+                    critical,
+                    hit,
+                    defeat,
+                    healed,
+                });
+            }
             DataKind::Ability => {
                 let Some(ticks) = get("ticks").and_then(|field| {
                     self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
@@ -502,27 +555,14 @@ impl Cx {
                         &[],
                     )?;
                     let balance =
-                        self.data_ability_score(module, file, fields.get("balance")?, false)?;
+                        self.data_player_score(module, file, fields.get("balance")?, false)?;
                     let amount =
                         self.data_int(module, file, fields.get("amount")?, 0, i64::from(i32::MAX))?
                             as u32;
                     Some(pc::AbilityCost { balance, amount })
                 });
-                let cooldown = get("cooldown").and_then(|field| {
-                    let fields = self.data_object_fields(
-                        file,
-                        &field.value,
-                        "ability cooldown",
-                        &["timer", "ticks"],
-                        &[],
-                    )?;
-                    let timer =
-                        self.data_ability_score(module, file, fields.get("timer")?, true)?;
-                    let ticks =
-                        self.data_int(module, file, fields.get("ticks")?, 1, i64::from(i32::MAX))?
-                            as u32;
-                    Some(pc::AbilityCooldown { timer, ticks })
-                });
+                let cooldown = get("cooldown")
+                    .and_then(|field| self.data_state_cooldown(module, file, &field.value));
                 let projectile = get("projectile").and_then(|field| {
                     let expr = self.data_expr(file, &field.value, "a projectile")?;
                     if let Some((_, id)) = self.declared(module, file, expr, DefKind::Projectile) {
@@ -1749,7 +1789,21 @@ impl Cx {
         Some(fields)
     }
 
-    fn data_ability_score(
+    fn data_state_cooldown(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::StateCooldown> {
+        let fields =
+            self.data_object_fields(file, value, "State cooldown", &["timer", "ticks"], &[])?;
+        let timer = self.data_player_score(module, file, fields.get("timer")?, true)?;
+        let ticks =
+            self.data_int(module, file, fields.get("ticks")?, 1, i64::from(i32::MAX))? as u32;
+        Some(pc::StateCooldown { timer, ticks })
+    }
+
+    fn data_player_score(
         &mut self,
         module: ModuleId,
         file: FileId,

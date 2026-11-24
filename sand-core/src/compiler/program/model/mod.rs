@@ -20,11 +20,12 @@ pub use gameplay::{
 };
 pub use operation::{AbilityCommand, Action, Operation, SessionCommand};
 pub use resources::{
-    AbilityCooldown, AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion,
-    AdvancementDisplay, BossBar, BossBarColor, BossBarStyle, CookingMethod, CustomBiome,
+    AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion, AdvancementDisplay, BossBar,
+    BossBarColor, BossBarStyle, CombatCritical, CombatDefinition, CookingMethod, CustomBiome,
     CustomItem, FlatDimension, HudBossBar, HudDefinition, InventoryTransferDefinition, LootItem,
     LootPool, LootTable, MenuChoice, MenuDefinition, MenuView, NoticeDialog, ProgressionBranch,
     ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
-    RecipeOutput, ResourceTag, SessionDefinition, TagKind, WorldPredicate, WrittenBookContent,
+    RecipeOutput, ResourceTag, SessionDefinition, StateCooldown, TagKind, WorldPredicate,
+    WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

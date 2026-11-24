@@ -1013,7 +1013,7 @@ pub struct AbilityDefinition {
     pub cost: Option<AbilityCost>,
     /// Optional countdown started only when admission succeeds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cooldown: Option<AbilityCooldown>,
+    pub cooldown: Option<StateCooldown>,
     /// Optional score that must equal one before admission.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<FieldReference>,
@@ -1046,22 +1046,86 @@ pub struct AbilityCost {
     pub amount: u32,
 }
 
-/// A cooldown backed by a player's canonical State timer.
+/// A duration written to a player's canonical State timer.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
- registry = sand_api_contract, path = "sand::advanced::compiler::AbilityCooldown", module = "sand::advanced::compiler",
- summary = "A cooldown backed by a player State timer.",
- context = "The timer must be at zero to admit the ability and is started on successful admission.",
- minecraft = "Uses Sand's canonical timer lifecycle and shared Ability admission.",
- use_when = ["Preventing activation until a timer is ready"],
+ registry = sand_api_contract, path = "sand::advanced::compiler::StateCooldown", module = "sand::advanced::compiler",
+ summary = "A duration written to a player State timer.",
+ context = "Admission or a committed combat hit starts the timer. The State lifecycle owns its countdown.",
+ minecraft = "Uses the canonical player timer lifecycle.",
+ use_when = ["Setting ability cooldowns and combat invulnerability durations"],
  avoid_when = ["Timing an unrelated global task"],
  fields(timer = "Canonical player timer.", ticks = "Positive cooldown duration."),
- example = "use sand::advanced::compiler::AbilityCooldown;",
+ example = "use sand::advanced::compiler::StateCooldown;",
 )]
-pub struct AbilityCooldown {
+pub struct StateCooldown {
     /// Player timer that counts down through the State lifecycle.
     pub timer: FieldReference,
     /// Positive ticks written on successful admission.
     pub ticks: u32,
+}
+
+/// Custom health rules backed by the executing player's State.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::CombatDefinition", module = "sand::advanced::compiler",
+ summary = "A custom health policy over canonical player State.",
+ context = "Combat damage applies configured mitigation and shields before committing health. Healing stops at the configured maximum and never revives zero health.",
+ minecraft = "Uses the shared Combat transaction and its State guards, numeric writes and isolated callbacks.",
+ use_when = ["Authoring custom player health, shields and recovery"],
+ avoid_when = ["Damaging vanilla health directly"],
+ fields(id = "Combat policy identity.", health = "Player State number storing authoritative health.", max = "Positive maximum health.", shield = "Optional player State number consumed before health.", resistance = "Optional damage fraction removed, from zero to one.", immunity = "Optional player timer and invulnerability duration after a hit.", critical = "Optional guard and multiplier for critical hits.", hit = "Optional callback after a committed hit.", defeat = "Optional callback after health reaches zero.", healed = "Optional callback after committed healing."),
+ example = "use sand::advanced::compiler::CombatDefinition;",
+)]
+pub struct CombatDefinition {
+    /// Identity used to apply this policy.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Canonical number holding authoritative health.
+    pub health: FieldReference,
+    /// Positive maximum health.
+    pub max: f64,
+    /// Optional shield used before health.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shield: Option<FieldReference>,
+    /// Optional mitigation fraction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resistance: Option<f64>,
+    /// Optional timer started by committed damage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub immunity: Option<StateCooldown>,
+    /// Optional conditional critical-hit multiplier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub critical: Option<CombatCritical>,
+    /// Optional callback after a committed hit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit: Option<FunctionReference>,
+    /// Optional callback when a hit reaches zero health.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub defeat: Option<FunctionReference>,
+    /// Optional callback after accepted healing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub healed: Option<FunctionReference>,
+}
+
+/// A conditional critical-hit multiplier.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::CombatCritical", module = "sand::advanced::compiler",
+ summary = "A conditional multiplier for a custom State hit.",
+ context = "The multiplier applies when the target-context score equals one.",
+ minecraft = "Uses the shared Combat calculation before shield absorption.",
+ use_when = ["Authoring a conditional custom critical-hit bonus"],
+ avoid_when = ["Applying native Minecraft weapon criticals"],
+ fields(when = "Score that must equal one.", multiplier = "Finite multiplier of at least one."),
+ example = "use sand::advanced::compiler::CombatCritical;",
+)]
+pub struct CombatCritical {
+    /// Optional bonuses apply only while this score equals one.
+    pub when: FieldReference,
+    /// Finite damage multiplier of at least one.
+    pub multiplier: f64,
 }

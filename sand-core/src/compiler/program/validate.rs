@@ -258,6 +258,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.progressions)
             .map(|progression| progression.id.to_string())
             .collect(),
+        combats: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.combats)
+            .map(|combat| combat.id.to_string())
+            .collect(),
         abilities: program
             .modules
             .iter()
@@ -534,6 +540,27 @@ pub(super) fn validate(
                     &owner,
                     &format!("{ptr}/branches/{index}/when"),
                 );
+            }
+        }
+        for (index, combat) in module.combats.iter().enumerate() {
+            let ptr = format!("/combats/{index}");
+            let context = ExecutionContext::Player;
+            if let Some(critical) = &combat.critical {
+                validator.score(
+                    &critical.when,
+                    context,
+                    &owner,
+                    &format!("{ptr}/critical/when"),
+                );
+            }
+            for (field, callback) in [
+                ("hit", &combat.hit),
+                ("defeat", &combat.defeat),
+                ("healed", &combat.healed),
+            ] {
+                if let Some(callback) = callback {
+                    validator.call(callback, context, &owner, &format!("{ptr}/{field}"));
+                }
             }
         }
         for (index, ability) in module.abilities.iter().enumerate() {
@@ -1027,6 +1054,85 @@ pub(super) fn validate(
                         format!("{ptr}/branches/{index}"),
                         "branch must move to a later objective or the completion index".into(),
                     );
+                }
+            }
+        }
+        for (index, combat) in module.combats.iter().enumerate() {
+            let ptr = format!("/combats/{index}");
+            if !resource_ids.insert(format!("combat {}", combat.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate combat policy `{}`", combat.id),
+                );
+            }
+            if !combat.max.is_finite() || combat.max <= 0.0 {
+                push(
+                    format!("{ptr}/max"),
+                    "combat maximum must be finite and positive".into(),
+                );
+            }
+            if combat
+                .resistance
+                .is_some_and(|value| !(0.0..=1.0).contains(&value))
+            {
+                push(
+                    format!("{ptr}/resistance"),
+                    "combat resistance must be between zero and one".into(),
+                );
+            }
+            if combat.shield.as_ref() == Some(&combat.health) {
+                push(
+                    format!("{ptr}/shield"),
+                    "combat shield and health must use distinct fields".into(),
+                );
+            }
+            if combat.critical.as_ref().is_some_and(|critical| {
+                !critical.multiplier.is_finite() || critical.multiplier < 1.0
+            }) {
+                push(
+                    format!("{ptr}/critical/multiplier"),
+                    "critical multiplier must be finite and at least one".into(),
+                );
+            }
+            if combat
+                .immunity
+                .as_ref()
+                .is_some_and(|immunity| !(1..=i32::MAX as u32).contains(&immunity.ticks))
+            {
+                push(
+                    format!("{ptr}/immunity/ticks"),
+                    "combat immunity must last 1..=2147483647 ticks".into(),
+                );
+            }
+            for (field, score, timer) in [
+                ("health", Some(&combat.health), false),
+                ("shield", combat.shield.as_ref(), false),
+                (
+                    "immunity/timer",
+                    combat.immunity.as_ref().map(|immunity| &immunity.timer),
+                    true,
+                ),
+            ] {
+                if let Some(score) = score {
+                    let valid = program
+                        .modules
+                        .iter()
+                        .flat_map(|module| &module.states)
+                        .find(|state| state.scope == "player" && state.id == score.state)
+                        .and_then(|state| {
+                            state.fields.iter().find(|field| field.name == score.field)
+                        })
+                        .is_some_and(|field| {
+                            field.timer == timer
+                                && field.bounds.is_none_or(|(min, max)| min <= 0 && max > 0)
+                        });
+                    if !valid {
+                        push(format!("{ptr}/{field}"), if timer {
+                            "combat immunity needs a player State timer"
+                        } else {
+                            "combat needs a non-ticking player score with bounds admitting zero and positive values"
+                        }.into());
+                    }
                 }
             }
         }
@@ -1655,6 +1761,7 @@ struct Validator<'a, 'e> {
     progressions: BTreeSet<String>,
     sessions: BTreeSet<String>,
     abilities: BTreeSet<String>,
+    combats: BTreeSet<String>,
     menus: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
@@ -2802,6 +2909,34 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/progression"),
                             format!("unknown progression `{progression}`"),
+                        ));
+                    }
+                }
+                Action::Combat { combat, amount, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "applying custom player health changes",
+                    );
+                    if !self.combats.contains(&combat.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/combat"),
+                            format!("unknown combat policy `{combat}`"),
+                        ));
+                    }
+                    let location = format!("{ptr}/action/amount");
+                    self.amount(amount, context, owner, &location, Some((0.0, f64::MAX)));
+                    if let Amount::Field(field) = amount
+                        && (field.scale.fract() != 0.0 || field.scale > f64::from(i32::MAX))
+                    {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &location,
+                            "combat score scale must be a positive 32-bit integer",
                         ));
                     }
                 }

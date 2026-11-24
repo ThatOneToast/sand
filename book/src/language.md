@@ -1638,6 +1638,32 @@ completion or expiry. `cancel_session` preserves progress, `reset_session`
 cancels and resets, and `restart_session` resets and starts again. Changes to
 objective order affect saved indices. See the [trail quest example](../../examples/lang_quest_session/).
 
+### Custom health and combat
+
+A `combat` policy changes the executing player's authoritative health stored
+in State. It can consume a shield score first, apply a resistance fraction and
+conditional critical multiplier, and start an immunity timer after committing
+a hit. Use `combat_damage(Training, amount)` and `combat_heal(Training, amount)`
+with constants or runtime numbers.
+
+```rust,ignore
+player state Vitals { health: number = 20, shield: number = 5, immunity: timer }
+
+combat Training {
+    health: Vitals.health,
+    max: 20,
+    shield: Vitals.shield,
+    resistance: 0.25,
+    immunity: { timer: Vitals.immunity, ticks: 10 },
+    hit: show_hit,
+}
+```
+
+Optional `hit`, `defeat`, and `healed` callbacks run after their State updates.
+Healing caps at the maximum and keeps a defeated player at zero. Native
+Minecraft damage uses the separate `damage` operation. See the
+[custom health drill](../../examples/lang_state_combat/).
+
 ### Abilities with costs and cooldowns
 
 An `ability` checks admission for the executing player. It can use a number
@@ -1946,7 +1972,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions and abilities | combat, encounters, jobs, rosters, scenes, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities and State combat | encounters, jobs, rosters, scenes, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

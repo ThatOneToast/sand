@@ -139,6 +139,24 @@ const DATA: &[(&str, EntityData, PropertyType, &str)] = &[
         "North-south position.",
     ),
     (
+        "velocity_x",
+        EntityData::VelocityX,
+        PropertyType::Float,
+        "X velocity in blocks per tick.",
+    ),
+    (
+        "velocity_y",
+        EntityData::VelocityY,
+        PropertyType::Float,
+        "Y velocity in blocks per tick.",
+    ),
+    (
+        "velocity_z",
+        EntityData::VelocityZ,
+        PropertyType::Float,
+        "Z velocity in blocks per tick.",
+    ),
+    (
         "food",
         EntityData::Food,
         PropertyType::Number,

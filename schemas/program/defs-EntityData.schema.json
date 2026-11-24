@@ -48,6 +48,21 @@
       "type": "string"
     },
     {
+      "const": "velocity_x",
+      "description": "X velocity in blocks per tick.",
+      "type": "string"
+    },
+    {
+      "const": "velocity_y",
+      "description": "Y velocity in blocks per tick.",
+      "type": "string"
+    },
+    {
+      "const": "velocity_z",
+      "description": "Z velocity in blocks per tick.",
+      "type": "string"
+    },
+    {
       "const": "food",
       "description": "Player hunger, 0 to 20.",
       "type": "string"

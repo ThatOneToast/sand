@@ -316,7 +316,7 @@ pub struct FlagSet {
  use_when = ["Reading health, hunger, experience, air, or position into a State field"],
  avoid_when = ["Attribute base values, which AttributeGet reads"],
  example = "let value = sand::advanced::compiler::EntityData::Health;",
- variants(Health = "Current health in half-hearts.", Absorption = "Absorption health.", Air = "Remaining air in ticks.", Fire = "Burning ticks left; negative when not burning.", FallDistance = "Blocks fallen since last on the ground.", OnGround = "One when standing on the ground.", X = "X coordinate.", Y = "Y coordinate.", Z = "Z coordinate.", Food = "Player hunger, 0 to 20.", Saturation = "Player food saturation.", XpLevel = "Player experience level.", XpTotal = "Player total experience points.", XpProgress = "Progress to the next level, 0 to 1.", SelectedSlot = "Player hotbar slot, 0 to 8."),
+ variants(Health = "Current health in half-hearts.", Absorption = "Absorption health.", Air = "Remaining air in ticks.", Fire = "Burning ticks left; negative when not burning.", FallDistance = "Blocks fallen since last on the ground.", OnGround = "One when standing on the ground.", X = "X coordinate.", Y = "Y coordinate.", Z = "Z coordinate.", VelocityX = "Velocity along X.", VelocityY = "Velocity along Y.", VelocityZ = "Velocity along Z.", Food = "Player hunger, 0 to 20.", Saturation = "Player food saturation.", XpLevel = "Player experience level.", XpTotal = "Player total experience points.", XpProgress = "Progress to the next level, 0 to 1.", SelectedSlot = "Player hotbar slot, 0 to 8."),
 )]
 pub enum EntityData {
     /// Current health in half-hearts.
@@ -337,6 +337,12 @@ pub enum EntityData {
     Y,
     /// Z coordinate.
     Z,
+    /// X velocity in blocks per tick.
+    VelocityX,
+    /// Y velocity in blocks per tick.
+    VelocityY,
+    /// Z velocity in blocks per tick.
+    VelocityZ,
     /// Player hunger, 0 to 20.
     Food,
     /// Player food saturation.
@@ -367,6 +373,9 @@ impl EntityData {
             Self::X => "Pos[0]",
             Self::Y => "Pos[1]",
             Self::Z => "Pos[2]",
+            Self::VelocityX => "Motion[0]",
+            Self::VelocityY => "Motion[1]",
+            Self::VelocityZ => "Motion[2]",
             Self::Food => "foodLevel",
             Self::Saturation => "foodSaturationLevel",
             Self::XpLevel => "XpLevel",

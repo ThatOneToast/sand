@@ -30,3 +30,9 @@ fn toggle_seat() {
     }
     mount(vehicle);
 }
+/// Nudge the nearest shuttle cart east.
+pub fn boost_cart() {
+    for cart in entities(type = Entity::Minecart, tag = "cart_shuttle_vehicle", distance = ..=8, sort = Sort::Nearest, limit = 1) {
+        set_velocity(cart.velocity_x + 0.15, cart.velocity_y, cart.velocity_z);
+    }
+}

@@ -926,6 +926,7 @@ fn sweep() {
 | `add_tag("x")` / `remove_tag("x")` | add or remove a tag |
 | `damage(amount, by = reference)` | damage the executor, optionally credited to a retained attacker |
 | `summon(Entity::..., tag = "x")` | summon at the executor's position |
+| `set_velocity(x, y, z)` | set the executing non-player entity’s velocity in blocks per tick |
 
 `any_entities`, `count_entities`, `entities`, and `teleport_to` share their
 filters. Use `with = Threat` to require attached entity State. Use
@@ -938,6 +939,11 @@ Compounds accept nested `Nbt { ... }`, lists, literal strings, and constant
 numbers and booleans. Integers use NBT ints, decimals use doubles, and bools
 use bytes. NBT numeric tag types must match the native field. The compiler
 applies all filters before sorting and limiting the selection.
+
+Read `entity.velocity_x`, `entity.velocity_y`, and `entity.velocity_z` through
+the entity handle. `set_velocity` writes all three axes together. Every axis
+must be within -10 to 10 blocks per tick. A runtime value outside that range
+skips the write.
 
 An entity may not be a player, so player State and player builtins are errors
 inside an `entities` loop. A function that uses `kill()`, `tag`, or `damage`
@@ -1405,7 +1411,7 @@ command and State models as Rust. Today the language covers:
 | --- | --- | --- |
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
-| Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, experience, and entity flags | motion controls, archetypes |
+| Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |

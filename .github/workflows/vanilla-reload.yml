@@ -264,6 +264,10 @@ jobs:
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/damage_types.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-damage-types"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --fixture sand-lang/tests/fixtures/entity_motion.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-entity-motion"
           mkdir -p "target/vanilla-reload/${{ matrix.version }}/language-authored-tests"
           target/debug/sand lang test sand-lang/tests/fixtures/authored_tests.sand \
             --accept-eula --jar "$SAND_SERVER_JAR" 2>&1 \

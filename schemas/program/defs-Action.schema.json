@@ -917,6 +917,32 @@
     },
     {
       "additionalProperties": false,
+      "description": "Replace a non-player executor's velocity in blocks per tick.\nRuntime operands outside the native range skip the write.",
+      "properties": {
+        "op": {
+          "const": "set_velocity",
+          "type": "string"
+        },
+        "x": {
+          "$ref": "defs-Amount.schema.json"
+        },
+        "y": {
+          "$ref": "defs-Amount.schema.json"
+        },
+        "z": {
+          "$ref": "defs-Amount.schema.json"
+        }
+      },
+      "required": [
+        "op",
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Attach an entity State to the executor: fields without a value take\ntheir defaults, then the State is marked present.",
       "properties": {
         "op": {

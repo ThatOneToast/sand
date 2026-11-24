@@ -1984,6 +1984,22 @@ impl Lower<'_> {
                         &[],
                     )?
                 }
+                Action::SetVelocity { x, y, z } => {
+                    let arguments =
+                        [("x", x), ("y", y), ("z", z)].map(|(name, value)| NumericArgument {
+                            name,
+                            value,
+                            integer: false,
+                            bounds: Some((-10.0, 10.0)),
+                        });
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "set_velocity",
+                        "execute if entity @s[type=!minecraft:player] run data modify entity @s Motion set value [$(x)d,$(y)d,$(z)d]".into(),
+                        &arguments,
+                        &[],
+                    )?
+                }
                 Action::Teleport { destination } => match destination {
                     TeleportDestination::Position { x, y, z }
                     | TeleportDestination::Offset { x, y, z } => {

@@ -2041,6 +2041,18 @@ impl Validator<'_, '_> {
                     self.score(score, context, owner, &format!("{ptr}/action/score"));
                     self.query(query, owner, &format!("{ptr}/action/query"));
                 }
+                Action::SetVelocity { x, y, z } => {
+                    self.executor(context, owner, &ptr, "setting entity velocity");
+                    for (axis, value) in [("x", x), ("y", y), ("z", z)] {
+                        self.amount(
+                            value,
+                            context,
+                            owner,
+                            &format!("{ptr}/action/{axis}"),
+                            Some((-10.0, 10.0)),
+                        );
+                    }
+                }
                 Action::Teleport { destination } => {
                     self.executor(context, owner, &ptr, "teleporting the executor");
                     let finite = match destination {

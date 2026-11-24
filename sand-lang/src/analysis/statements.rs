@@ -3027,6 +3027,7 @@ impl Cx {
                 | "set_block_data"
                 | "teleport"
                 | "teleport_by"
+                | "set_velocity"
                 | "play_sound"
                 | "add_experience"
         ) {
@@ -3237,27 +3238,41 @@ impl Cx {
                     vehicle: Some(vehicle),
                 })
             }
-            "teleport" | "teleport_by" => {
-                let keys = if name == "teleport" {
-                    ["x", "y", "z"]
-                } else {
+            "teleport" | "teleport_by" | "set_velocity" => {
+                let keys = if name == "teleport_by" {
                     ["dx", "dy", "dz"]
+                } else {
+                    ["x", "y", "z"]
                 };
                 let mut values = BTreeMap::new();
                 for arg in args {
                     let (key, _) = bound.iter().find(|(_, value)| std::ptr::eq(**value, arg))?;
                     if keys.contains(key) {
-                        values.insert(*key, self.runtime_amount(body, arg, ops)?);
+                        let amount = self.runtime_amount(body, arg, ops)?;
+                        if name == "set_velocity"
+                            && matches!(amount, pc::Amount::Value(value) if !(-10.0..=10.0).contains(&value))
+                        {
+                            self.error(
+                                "range",
+                                body.file,
+                                arg.span,
+                                "velocity must be from -10 to 10 blocks per tick",
+                            );
+                            return None;
+                        }
+                        values.insert(*key, amount);
                     }
                 }
                 let x = values.remove(keys[0])?;
                 let y = values.remove(keys[1])?;
                 let z = values.remove(keys[2])?;
-                Some(pc::Action::Teleport {
-                    destination: if name == "teleport" {
-                        pc::TeleportDestination::Position { x, y, z }
-                    } else {
-                        pc::TeleportDestination::Offset { x, y, z }
+                Some(match name {
+                    "set_velocity" => pc::Action::SetVelocity { x, y, z },
+                    "teleport" => pc::Action::Teleport {
+                        destination: pc::TeleportDestination::Position { x, y, z },
+                    },
+                    _ => pc::Action::Teleport {
+                        destination: pc::TeleportDestination::Offset { x, y, z },
                     },
                 })
             }

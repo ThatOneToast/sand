@@ -918,6 +918,32 @@
         },
         {
           "additionalProperties": false,
+          "description": "Replace a non-player executor's velocity in blocks per tick.\nRuntime operands outside the native range skip the write.",
+          "properties": {
+            "op": {
+              "const": "set_velocity",
+              "type": "string"
+            },
+            "x": {
+              "$ref": "#/$defs/Amount"
+            },
+            "y": {
+              "$ref": "#/$defs/Amount"
+            },
+            "z": {
+              "$ref": "#/$defs/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Attach an entity State to the executor: fields without a value take\ntheir defaults, then the State is marked present.",
           "properties": {
             "op": {
@@ -2219,6 +2245,21 @@
         {
           "const": "z",
           "description": "Z coordinate.",
+          "type": "string"
+        },
+        {
+          "const": "velocity_x",
+          "description": "X velocity in blocks per tick.",
+          "type": "string"
+        },
+        {
+          "const": "velocity_y",
+          "description": "Y velocity in blocks per tick.",
+          "type": "string"
+        },
+        {
+          "const": "velocity_z",
+          "description": "Z velocity in blocks per tick.",
           "type": "string"
         },
         {

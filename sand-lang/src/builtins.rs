@@ -1700,6 +1700,8 @@ pub enum FieldKind {
     Ingredients,
     /// Text with style interpolation, such as `"{red}Ruby Sword"`.
     Text,
+    /// A quoted namespaced resource location.
+    ResourceId,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -1767,7 +1769,23 @@ pub const RECIPE_TYPES: &[&str] = &[
     "campfire",
     "stonecutting",
     "smithing",
+    "smithing_trim",
 ];
+
+/// Whether a recipe type accepts a field, shared by validation and completion.
+pub fn recipe_accepts_field(kind: Option<&str>, field: &str) -> bool {
+    match field {
+        name if RECIPE_TYPES.contains(&name) => kind.is_none(),
+        "key" => kind == Some("shaped"),
+        "base" | "addition" => matches!(kind, Some("smithing" | "smithing_trim")),
+        "trim_pattern" => kind == Some("smithing_trim"),
+        "result" | "count" => kind != Some("smithing_trim"),
+        "experience" | "time" => {
+            matches!(kind, Some("smelting" | "blasting" | "smoking" | "campfire"))
+        }
+        _ => true,
+    }
+}
 
 /// Every data-declaration field.
 pub const DATA_FIELDS: &[DataFieldDoc] = &[
@@ -1917,10 +1935,26 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
     ),
     f(
         "recipe",
+        "smithing_trim",
+        FieldKind::Ingredient,
+        false,
+        "The template of an armor trim recipe. Needs `base`, `addition`, and `trim_pattern`.",
+        "Item::${1:SentryArmorTrimSmithingTemplate}",
+    ),
+    f(
+        "recipe",
+        "trim_pattern",
+        FieldKind::ResourceId,
+        false,
+        "The namespaced trim pattern applied to the input armor.",
+        "\"${1:minecraft:sentry}\"",
+    ),
+    f(
+        "recipe",
         "base",
         FieldKind::Ingredient,
         false,
-        "The item a `smithing` recipe upgrades.",
+        "The item to upgrade or trim at a smithing table.",
         "Item::${1:DiamondSword}",
     ),
     f(
@@ -1928,14 +1962,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "addition",
         FieldKind::Ingredient,
         false,
-        "The material a `smithing` recipe consumes.",
+        "The material consumed to upgrade or trim an item.",
         "Item::${1:NetheriteIngot}",
     ),
     f(
         "recipe",
         "result",
         FieldKind::Item,
-        true,
+        false,
         "The item produced: a vanilla item or one of your custom items.",
         "Item::${1:Diamond}",
     ),

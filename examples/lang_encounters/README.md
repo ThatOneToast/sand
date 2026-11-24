@@ -3,7 +3,8 @@
 A two-module pack written in the [Sand language](../../book/src/language.md)
 instead of Rust: per-player encounter phases driven by a flow, a shared world
 clock, and rewards granted from another module. The raid module also shows
-how to select and equip nearby guards.
+how to select and equip nearby guards. The rewards module defines an amethyst
+Sentry trim for armor at the smithing table.
 
 ```sh
 sand lang check

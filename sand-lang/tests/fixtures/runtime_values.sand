@@ -1,6 +1,12 @@
 #![pack(namespace = "runtime_values", minecraft = "26.2")]
 
 item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
+recipe GuardTrim {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: Item::DiamondChestplate,
+    addition: Item::AmethystShard,
+    trim_pattern: "minecraft:sentry",
+}
 global state Origin { x: float }
 player state Ledger { requested: number, label: string = "new", recent: Vec<string> }
 impl Ledger {

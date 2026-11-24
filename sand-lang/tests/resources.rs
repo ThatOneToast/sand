@@ -92,6 +92,70 @@ fn declarations_lower_to_the_same_resources_as_rust() {
 }
 
 #[test]
+fn smithing_trim_uses_the_native_pattern_and_preserves_ingredients() {
+    let analysis = analyze_one(&pack(
+        r##"
+recipe SentryTrim {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: "#minecraft:trimmable_armor",
+    addition: Item::AmethystShard,
+    trim_pattern: "minecraft:sentry",
+}
+"##,
+    ));
+    let pack = compile(&analysis);
+    assert_eq!(
+        json(&pack, "data/forge/recipe/sentry_trim.json"),
+        serde_json::json!({
+            "type": "minecraft:smithing_trim",
+            "template": "minecraft:sentry_armor_trim_smithing_template",
+            "base": "#minecraft:trimmable_armor",
+            "addition": "minecraft:amethyst_shard",
+            "pattern": "minecraft:sentry",
+        })
+    );
+}
+
+#[test]
+fn smithing_trim_rejects_result_overrides_and_invalid_pattern_ids() {
+    let analysis = analyze_one(&pack(
+        r#"
+recipe InvalidPattern {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: Item::DiamondChestplate,
+    addition: Item::AmethystShard,
+    trim_pattern: "NotNamespaced",
+    result: Item::Diamond,
+    count: 2,
+}
+recipe MissingPattern {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: Item::DiamondChestplate,
+    addition: Item::AmethystShard,
+}
+recipe Transform {
+    smithing: Item::NetheriteUpgradeSmithingTemplate,
+    base: Item::DiamondChestplate,
+    addition: Item::NetheriteIngot,
+}
+"#,
+    ));
+    for message in [
+        "`result` does not apply to a `smithing_trim` recipe",
+        "`count` does not apply to a `smithing_trim` recipe",
+        "expected a quoted trim pattern id",
+        "a smithing trim recipe needs `trim_pattern`",
+        "`recipe` needs `result`",
+    ] {
+        assert!(
+            errors(&analysis)
+                .iter()
+                .any(|error| error.contains(message))
+        );
+    }
+}
+
+#[test]
 fn declaration_mistakes_are_explained() {
     let analysis = analyze_one(&pack(
         r#"

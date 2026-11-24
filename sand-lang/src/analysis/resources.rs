@@ -131,7 +131,7 @@ impl Cx {
                     [] => {
                         self.diagnostics.push(
                             Diagnostic::error("recipe", file, data.name.span, "a recipe needs a type")
-                                .with_help("add one of `shaped`, `shapeless`, `smelting`, `blasting`, `smoking`, `campfire`, `stonecutting`, or `smithing`"),
+                                .with_help("add one of `shaped`, `shapeless`, `smelting`, `blasting`, `smoking`, `campfire`, `stonecutting`, `smithing`, or `smithing_trim`"),
                         );
                         return;
                     }
@@ -141,21 +141,18 @@ impl Cx {
                         return;
                     }
                 };
-                for (field, allowed) in [
-                    ("key", kind == "shaped"),
-                    ("base", kind == "smithing"),
-                    ("addition", kind == "smithing"),
-                    (
-                        "experience",
-                        matches!(kind, "smelting" | "blasting" | "smoking" | "campfire"),
-                    ),
-                    (
-                        "time",
-                        matches!(kind, "smelting" | "blasting" | "smoking" | "campfire"),
-                    ),
+                for field in [
+                    "key",
+                    "base",
+                    "addition",
+                    "experience",
+                    "time",
+                    "trim_pattern",
+                    "result",
+                    "count",
                 ] {
                     if let Some(f) = get(field)
-                        && !allowed
+                        && !builtins::recipe_accepts_field(Some(kind), field)
                     {
                         self.error(
                             "recipe",
@@ -165,7 +162,59 @@ impl Cx {
                         );
                     }
                 }
+                let register_recipe = |this: &mut Self, recipe| {
+                    this.pointers.push((
+                        module_id,
+                        format!("/recipes/{}", out.recipes.len()),
+                        file,
+                        data.name.span,
+                    ));
+                    out.recipes.push(recipe);
+                };
+                if kind == "smithing_trim" {
+                    let Some((template, base, addition)) = self.data_smithing_ingredients(
+                        module,
+                        file,
+                        fields[kind],
+                        get("base"),
+                        get("addition"),
+                    ) else {
+                        return;
+                    };
+                    let Some(pattern) = get("trim_pattern") else {
+                        self.error(
+                            "recipe",
+                            file,
+                            data.name.span,
+                            "a smithing trim recipe needs `trim_pattern`",
+                        );
+                        return;
+                    };
+                    let parsed = match &pattern.value {
+                        DataValue::Expr(Expr::Str { value, .. }) => value.parse().ok(),
+                        _ => None,
+                    };
+                    let Some(pattern_id) = parsed else {
+                        self.error(
+                            "recipe",
+                            file,
+                            pattern.value.span(),
+                            "expected a quoted trim pattern id such as `\"minecraft:sentry\"`",
+                        );
+                        return;
+                    };
+                    let recipe = pc::Recipe::SmithingTrim {
+                        id: location,
+                        template,
+                        base,
+                        addition,
+                        pattern: pattern_id,
+                    };
+                    register_recipe(self, recipe);
+                    return;
+                }
                 let Some(result_field) = get("result") else {
+                    self.error("field", file, data.name.span, "`recipe` needs `result`");
                     return;
                 };
                 let result_item = self.data_item_ref(module, file, &result_field.value, true);
@@ -286,21 +335,13 @@ impl Cx {
                         }
                     }
                     "smithing" => {
-                        let (Some(base), Some(addition)) = (get("base"), get("addition")) else {
-                            self.error(
-                                "recipe",
-                                file,
-                                type_field.key.span,
-                                "a smithing recipe needs `base` and `addition`",
-                            );
-                            return;
-                        };
-                        let template = self.data_ingredient(module, file, &type_field.value);
-                        let base = self.data_ingredient(module, file, &base.value);
-                        let addition = self.data_ingredient(module, file, &addition.value);
-                        let (Some(template), Some(base), Some(addition)) =
-                            (template, base, addition)
-                        else {
+                        let Some((template, base, addition)) = self.data_smithing_ingredients(
+                            module,
+                            file,
+                            fields[kind],
+                            get("base"),
+                            get("addition"),
+                        ) else {
                             return;
                         };
                         pc::Recipe::Smithing {
@@ -356,13 +397,7 @@ impl Cx {
                         }
                     }
                 };
-                self.pointers.push((
-                    module_id,
-                    format!("/recipes/{}", out.recipes.len()),
-                    file,
-                    data.name.span,
-                ));
-                out.recipes.push(recipe);
+                register_recipe(self, recipe);
             }
             DataKind::BossBar => {
                 let Some(title) = get("title").and_then(|f| self.data_text(module, file, &f.value))
@@ -1001,6 +1036,29 @@ impl Cx {
             def,
         });
         Some((def, id))
+    }
+
+    fn data_smithing_ingredients(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        template: &DataField,
+        base: Option<&DataField>,
+        addition: Option<&DataField>,
+    ) -> Option<(String, String, String)> {
+        let (Some(base), Some(addition)) = (base, addition) else {
+            self.error(
+                "recipe",
+                file,
+                template.key.span,
+                "a smithing recipe needs `base` and `addition`",
+            );
+            return None;
+        };
+        let template = self.data_ingredient(module, file, &template.value);
+        let base = self.data_ingredient(module, file, &base.value);
+        let addition = self.data_ingredient(module, file, &addition.value);
+        Some((template?, base?, addition?))
     }
 
     fn data_ingredient(

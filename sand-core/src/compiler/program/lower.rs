@@ -762,6 +762,18 @@ fn recipe_component(
                 .addition(ingredient(addition))
                 .result(recipe_output(result, custom_items)?),
         ),
+        Recipe::SmithingTrim {
+            id,
+            template,
+            base,
+            addition,
+            pattern,
+        } => Box::new(
+            SmithingTrimRecipe::new(id.clone(), pattern.clone())
+                .template(ingredient(template))
+                .base(ingredient(base))
+                .addition(ingredient(addition)),
+        ),
         Recipe::Cooking {
             id,
             method,

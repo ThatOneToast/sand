@@ -37,6 +37,11 @@ class ValuesHarness(WorldGameplayHarness):
                 clients.append(client)
                 self.wait_for(re.compile(re.escape(name) + r" joined the game"), "player-join", start)
                 self.send(f"gamemode creative {name}")
+            self.send(
+                "execute store result score #trim numeric_probe "
+                "run recipe give NumericA runtime_values:guard_trim"
+            )
+            self.check("SMITHING_TRIM_RECIPE", "if score #trim numeric_probe matches 1")
             self.send("execute as NumericA run function runtime_values:player_a")
             self.send("execute as NumericB run function runtime_values:player_b")
             self.send("execute store result score #a numeric_probe run clear NumericA minecraft:bread 0")

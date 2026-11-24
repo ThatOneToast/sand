@@ -132,10 +132,10 @@ pub enum CookingMethod {
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Lowers through Sand's typed recipe builders to `data/<ns>/recipe/<path>.json`. Ingredients are item ids or `#tag` ids.",
  use_when = ["Adding a recipe to a portable program"],
- avoid_when = ["Trim or special recipes, which need the Rust API"],
+ avoid_when = ["Special recipes, which need the Rust API"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Shaped = "A crafting-table pattern.", Shapeless = "Crafting ingredients in any arrangement.", Cooking = "A furnace-like recipe.", Stonecutting = "A stonecutter recipe.", Smithing = "A smithing-table upgrade."),
- variant_fields(Shaped(id = "Identity.", pattern = "One to three equal-width rows.", key = "Pattern character to ingredient.", result = "Produced item."), Shapeless(id = "Identity.", ingredients = "One to nine ingredients.", result = "Produced item."), Cooking(id = "Identity.", method = "Cooking block.", ingredient = "Cooked ingredient.", result = "Produced item.", experience = "Experience awarded.", time = "Cooking time in ticks."), Stonecutting(id = "Identity.", ingredient = "Cut ingredient.", result = "Produced item."), Smithing(id = "Identity.", template = "Smithing template.", base = "Upgraded item.", addition = "Upgrade material.", result = "Produced item.")),
+ variants(Shaped = "A crafting-table pattern.", Shapeless = "Crafting ingredients in any arrangement.", Cooking = "A furnace-like recipe.", Stonecutting = "A stonecutter recipe.", Smithing = "A smithing-table upgrade.", SmithingTrim = "A smithing-table armor trim."),
+ variant_fields(Shaped(id = "Identity.", pattern = "One to three equal-width rows.", key = "Pattern character to ingredient.", result = "Produced item."), Shapeless(id = "Identity.", ingredients = "One to nine ingredients.", result = "Produced item."), Cooking(id = "Identity.", method = "Cooking block.", ingredient = "Cooked ingredient.", result = "Produced item.", experience = "Experience awarded.", time = "Cooking time in ticks."), Stonecutting(id = "Identity.", ingredient = "Cut ingredient.", result = "Produced item."), Smithing(id = "Identity.", template = "Smithing template.", base = "Upgraded item.", addition = "Upgrade material.", result = "Produced item."), SmithingTrim(id = "Identity.", template = "Trim template ingredient.", base = "Armor ingredient.", addition = "Trim material ingredient.", pattern = "Registry identity of the applied trim pattern.")),
 )]
 pub enum Recipe {
     /// A crafting-table pattern.
@@ -181,6 +181,16 @@ pub enum Recipe {
         addition: String,
         result: RecipeOutput,
     },
+    /// Apply an armor trim while preserving the input armor and its components.
+    SmithingTrim {
+        #[schemars(with = "String")]
+        id: ResourceLocation,
+        template: String,
+        base: String,
+        addition: String,
+        #[schemars(with = "String")]
+        pattern: ResourceLocation,
+    },
 }
 
 impl Recipe {
@@ -191,7 +201,8 @@ impl Recipe {
             | Recipe::Shapeless { id, .. }
             | Recipe::Cooking { id, .. }
             | Recipe::Stonecutting { id, .. }
-            | Recipe::Smithing { id, .. } => id,
+            | Recipe::Smithing { id, .. }
+            | Recipe::SmithingTrim { id, .. } => id,
         }
     }
 }

@@ -2198,24 +2198,9 @@ fn data_completions(
     let Some(field) = field else {
         let used = |name: &str| used.iter().any(|u| u == name);
         let recipe_type = builtins::RECIPE_TYPES.iter().find(|t| used(t)).copied();
-        let cooking = matches!(
-            recipe_type,
-            Some("smelting" | "blasting" | "smoking" | "campfire")
-        );
         return builtins::data_fields(keyword)
             .filter(|f| !used(f.name))
-            .filter(|f| {
-                // Only the fields the chosen recipe type accepts.
-                match (keyword, f.name) {
-                    ("recipe", name) if builtins::RECIPE_TYPES.contains(&name) => {
-                        recipe_type.is_none()
-                    }
-                    ("recipe", "key") => recipe_type == Some("shaped"),
-                    ("recipe", "base" | "addition") => recipe_type == Some("smithing"),
-                    ("recipe", "experience" | "time") => cooking,
-                    _ => true,
-                }
-            })
+            .filter(|f| keyword != "recipe" || builtins::recipe_accepts_field(recipe_type, f.name))
             .map(|f| Completion {
                 detail: Some(f.doc.split(". ").next().unwrap_or(f.doc).to_string()),
                 documentation: Some(f.doc.into()),

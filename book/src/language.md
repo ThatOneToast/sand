@@ -1266,6 +1266,19 @@ recipe Upgrade {
 }
 ```
 
+Smithing trims apply a named pattern to the armor in the base slot, preserving
+its item and components. Use a quoted namespaced trim pattern ID. Omit
+`result` and `count` for trim recipes.
+
+```rust,ignore
+recipe GuardTrim {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: "#minecraft:trimmable_armor",
+    addition: Item::AmethystShard,
+    trim_pattern: "minecraft:sentry",
+}
+```
+
 ### Named predicates
 
 ```rust,ignore
@@ -1447,7 +1460,7 @@ command and State models as Rust. Today the language covers:
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
-| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, conditional multi-pool loot, damage types and native world predicates | advancements, trim recipes, worldgen |
+| Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types and native world predicates | advancements, worldgen |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.

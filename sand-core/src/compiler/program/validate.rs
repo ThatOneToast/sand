@@ -578,7 +578,7 @@ pub(super) fn validate(
                         }
                         inputs.push((format!("{ptr}/key/{symbol}"), item));
                     }
-                    result
+                    Some(result)
                 }
                 Recipe::Shapeless {
                     ingredients,
@@ -597,7 +597,7 @@ pub(super) fn validate(
                             .enumerate()
                             .map(|(i, item)| (format!("{ptr}/ingredients/{i}"), item)),
                     );
-                    result
+                    Some(result)
                 }
                 Recipe::Cooking {
                     ingredient,
@@ -613,13 +613,13 @@ pub(super) fn validate(
                         );
                     }
                     inputs.push((format!("{ptr}/ingredient"), ingredient));
-                    result
+                    Some(result)
                 }
                 Recipe::Stonecutting {
                     ingredient, result, ..
                 } => {
                     inputs.push((format!("{ptr}/ingredient"), ingredient));
-                    result
+                    Some(result)
                 }
                 Recipe::Smithing {
                     template,
@@ -631,7 +631,28 @@ pub(super) fn validate(
                     inputs.push((format!("{ptr}/template"), template));
                     inputs.push((format!("{ptr}/base"), base));
                     inputs.push((format!("{ptr}/addition"), addition));
-                    result
+                    Some(result)
+                }
+                Recipe::SmithingTrim {
+                    template,
+                    base,
+                    addition,
+                    pattern,
+                    ..
+                } => {
+                    inputs.push((format!("{ptr}/template"), template));
+                    inputs.push((format!("{ptr}/base"), base));
+                    inputs.push((format!("{ptr}/addition"), addition));
+                    if !available(&pattern.to_string(), "minecraft:trim_pattern") {
+                        push(
+                            format!("{ptr}/pattern"),
+                            format!(
+                                "no trim pattern `{pattern}` in Minecraft {}",
+                                program.target.minecraft
+                            ),
+                        );
+                    }
+                    None
                 }
             };
             for (input_ptr, item) in inputs {
@@ -648,7 +669,9 @@ pub(super) fn validate(
                     push(input_ptr, format!("`{item}` is not an item id or `#tag`"));
                 }
             }
-            if !(item_id(&result.item)) || !(1..=99).contains(&result.count) {
+            if let Some(result) = result
+                && (!item_id(&result.item) || !(1..=99).contains(&result.count))
+            {
                 push(
                     format!("{ptr}/result"),
                     "a recipe result is an item id with a count of 1..=99".into(),

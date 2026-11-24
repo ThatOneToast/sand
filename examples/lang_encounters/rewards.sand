@@ -10,3 +10,11 @@ pub fn grant() {
         Hero.phase = crate::Phase::Idle;
     }
 }
+
+/// An amethyst Sentry trim for any trimmable armor.
+recipe GuardTrim {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: "#minecraft:trimmable_armor",
+    addition: Item::AmethystShard,
+    trim_pattern: "minecraft:sentry",
+}

@@ -169,6 +169,40 @@
         "result"
       ],
       "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Apply an armor trim while preserving the input armor and its components.",
+      "properties": {
+        "addition": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "smithing_trim",
+          "type": "string"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "template",
+        "base",
+        "addition",
+        "pattern"
+      ],
+      "type": "object"
     }
   ]
 }

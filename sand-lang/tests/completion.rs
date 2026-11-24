@@ -345,9 +345,14 @@ fn data_declarations_offer_only_remaining_valid_fields() {
             "campfire",
             "stonecutting",
             "smithing",
+            "smithing_trim",
             "result",
             "count",
         ],
+    );
+    exactly(
+        "recipe R {\n    smithing_trim: Item::SentryArmorTrimSmithingTemplate,\n    |\n}",
+        &["trim_pattern", "base", "addition"],
     );
     exactly("tag T: Block {\n    |\n}", &["values", "replace"]);
     includes_excludes(

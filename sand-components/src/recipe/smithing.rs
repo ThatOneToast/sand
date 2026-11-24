@@ -177,7 +177,7 @@ impl SmithingTransformRecipe {
                 ("base", &self.base),
                 ("addition", &self.addition),
             ],
-            Some(&self.result),
+            ("result", serde_json::to_value(&self.result)?),
         )
     }
 }
@@ -242,28 +242,30 @@ pub struct SmithingTrimRecipe {
     template: Ingredient,
     base: Ingredient,
     addition: Ingredient,
+    pattern: ResourceLocation,
 }
 
 impl SmithingTrimRecipe {
-    /// Creates a new smithing trim recipe with the given resource location.
+    /// Creates a smithing trim recipe for the given armor trim pattern.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::SmithingTrimRecipe::new",
         aliases = ["sand::prelude::SmithingTrimRecipe::new"],
         module = "sand::component",
         kind = "method",
-        summary = "Creates a new smithing trim recipe with the given resource location.",
-        context = "Creates a new smithing trim recipe with the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        summary = "Creates a smithing trim recipe for the given armor trim pattern.",
+        context = "Creates a smithing trim recipe for the given armor trim pattern. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a new smithing trim recipe with the given resource location."),
+        params(location = "The recipe identifier.", pattern = "The trim pattern applied to the input armor."),
         returns = "A `SmithingTrimRecipe` representing a new smithing trim recipe with the given resource location.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let smithing_trim_recipe = sand::component::SmithingTrimRecipe::new(location);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, pattern: sand::ResourceLocation) {\n    let smithing_trim_recipe = sand::component::SmithingTrimRecipe::new(location, pattern);\n}",
     )]
-    pub fn new(location: ResourceLocation) -> Self {
+    pub fn new(location: ResourceLocation, pattern: ResourceLocation) -> Self {
         Self {
             location,
+            pattern,
             group: None,
             template: Ingredient::empty(),
             base: Ingredient::empty(),
@@ -364,7 +366,7 @@ impl SmithingTrimRecipe {
                 ("base", &self.base),
                 ("addition", &self.addition),
             ],
-            None,
+            ("pattern", serde_json::to_value(&self.pattern)?),
         )
     }
 }
@@ -401,7 +403,7 @@ fn build_smithing_json<'a>(
     kind: &str,
     group: Option<&String>,
     ingredients: impl IntoIterator<Item = (&'a str, &'a Ingredient)>,
-    result: Option<&RecipeResult>,
+    output: (&str, Value),
 ) -> SandResult<Value> {
     let mut map = serde_json::Map::new();
     map.insert("type".into(), Value::String(kind.into()));
@@ -414,11 +416,6 @@ fn build_smithing_json<'a>(
             serde_json::to_value(ingredient).map_err(SandError::from)?,
         );
     }
-    if let Some(result) = result {
-        map.insert(
-            "result".into(),
-            serde_json::to_value(result).map_err(SandError::from)?,
-        );
-    }
+    map.insert(output.0.into(), output.1);
     Ok(Value::Object(map))
 }

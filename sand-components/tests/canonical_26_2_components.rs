@@ -478,15 +478,19 @@ fn canonical_26_2_recipe_smithing_transform() {
 /// Smithing trim recipe (no `result` field — trims are applied in-place).
 #[test]
 fn canonical_26_2_recipe_smithing_trim() {
-    let trim = SmithingTrimRecipe::new(id("smithing/sentry_trim"))
-        .template(Ingredient::item(
-            "minecraft:sentry_armor_trim_smithing_template",
-        ))
-        .base(Ingredient::item("minecraft:diamond_chestplate"))
-        .addition(Ingredient::item("minecraft:amethyst_shard"));
+    let trim = SmithingTrimRecipe::new(
+        id("smithing/sentry_trim"),
+        "minecraft:sentry".parse().unwrap(),
+    )
+    .template(Ingredient::item(
+        "minecraft:sentry_armor_trim_smithing_template",
+    ))
+    .base(Ingredient::item("minecraft:diamond_chestplate"))
+    .addition(Ingredient::item("minecraft:amethyst_shard"));
 
     let expected = serde_json::json!({
         "type": "minecraft:smithing_trim",
+        "pattern": "minecraft:sentry",
         "template": "minecraft:sentry_armor_trim_smithing_template",
         "base": "minecraft:diamond_chestplate",
         "addition": "minecraft:amethyst_shard"

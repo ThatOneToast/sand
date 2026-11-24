@@ -1408,6 +1408,10 @@ An advancement without a `display` still tracks progress and awards experience.
 Minecraft 26.3 requires a background texture for a visible root. Keep criterion
 names stable to preserve progress after a datapack update.
 
+Use `advancement_done(ReadyForAdventure)` in a player function to read the
+whole advancement. Pass `criterion = "get_spyglass"` to check one named
+criterion. A quoted namespaced ID also lets you read another pack’s advancement.
+
 ### Named predicates
 
 ```rust,ignore

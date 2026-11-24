@@ -241,6 +241,12 @@ pub(super) fn validate(
         })
         .collect();
     let mut validator = Validator {
+        advancements: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.advancements)
+            .map(|item| (item.id.to_string(), item.criteria.keys().cloned().collect()))
+            .collect(),
         target: &program.target.minecraft,
         boss_bars: program
             .modules
@@ -1041,6 +1047,7 @@ fn static_text_error(text: &[TextPart], book_pages: Option<usize>) -> Option<Str
 }
 
 struct Validator<'a, 'e> {
+    advancements: BTreeMap<String, BTreeSet<String>>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
     loot_tables: BTreeSet<String>,
@@ -1232,6 +1239,39 @@ impl Validator<'_, '_> {
                 }
                 if !self.custom_items.contains(&test.holding) {
                     self.resource(&test.holding, owner, &format!("{ptr}/holding"), "item");
+                }
+            }
+            Condition::Advancement {
+                advancement,
+                criterion,
+            } => {
+                self.player(context, owner, ptr, "advancement progress");
+                let id = advancement.to_string();
+                self.resource(&id, owner, &format!("{ptr}/advancement"), "advancement");
+                if let Some(criterion) = criterion {
+                    let error =
+                        if criterion.trim().is_empty() || criterion.chars().any(char::is_control) {
+                            Some(
+                            "criterion names must be nonblank and contain no control characters"
+                                .into(),
+                        )
+                        } else if self
+                            .advancements
+                            .get(&id)
+                            .is_some_and(|names| !names.contains(criterion))
+                        {
+                            Some(format!("advancement `{id}` has no criterion `{criterion}`"))
+                        } else {
+                            None
+                        };
+                    if let Some(error) = error {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/criterion"),
+                            error,
+                        ));
+                    }
                 }
             }
             Condition::Predicate { predicate } => {

@@ -70,6 +70,15 @@ fn show_localized() {
     give_item(LocalizedPaper);
 }
 
+fn read_advancement_progress() {
+    raw!("scoreboard players set @s numeric_probe 0");
+    if advancement_done(ReadAndWrite) {
+        raw!("scoreboard players set @s numeric_probe 2");
+    } else if advancement_done(ReadAndWrite, criterion = "collect_paper") {
+        raw!("scoreboard players set @s numeric_probe 1");
+    }
+}
+
 fn give_handbook() {
     give_item(Handbook);
 }

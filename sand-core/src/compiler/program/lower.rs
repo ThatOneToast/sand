@@ -1737,6 +1737,18 @@ impl Lower<'_> {
                 .map_err(|error| error.to_string())?,
                 item: self.item_argument(&test.holding)?,
             },
+            Condition::Advancement {
+                advancement,
+                criterion,
+            } => sand_commands::ConditionIr::Entity(
+                sand_commands::TargetArgument::into_target_selector(
+                    sand_commands::Target::self_().advancement(
+                        advancement.to_string(),
+                        criterion.as_deref(),
+                        true,
+                    ),
+                ),
+            ),
             Condition::Predicate { predicate } => {
                 sand_commands::ConditionIr::Predicate(predicate.to_string())
             }

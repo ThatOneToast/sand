@@ -50,6 +50,8 @@ pub enum ParamKind {
     BossBar,
     /// A declared or external native predicate resource.
     Predicate,
+    /// A declared or external native advancement.
+    Advancement,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -970,6 +972,30 @@ pub const BUILTINS: &[Builtin] = &[
             "The `entity state` to detach.",
         )],
         snippet: "detach_state(${1:State});",
+    },
+    Builtin {
+        name: "advancement_done",
+        kind: BuiltinKind::Condition,
+        signature: "advancement_done(advancement, criterion = \"name\")",
+        summary: "Check the executing player's advancement progress.",
+        details: "Omit `criterion` to check completion of the whole advancement. A quoted criterion checks only that criterion.",
+        minecraft: "execute if entity @s[advancements={...}]",
+        needs_player: true,
+        params: &[
+            p(
+                "advancement",
+                ParamKind::Advancement,
+                true,
+                "A declared advancement or quoted namespaced id.",
+            ),
+            p(
+                "criterion",
+                ParamKind::Text,
+                false,
+                "A named criterion on the selected advancement.",
+            ),
+        ],
+        snippet: "advancement_done(${1:Milestone})",
     },
     Builtin {
         name: "predicate_matches",

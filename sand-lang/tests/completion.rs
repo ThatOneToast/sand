@@ -371,6 +371,11 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         &["Text::translate"],
         &["Text::hover", "Text::suggest"],
     );
+    includes_excludes(
+        "advancement Find { criteria: { collect: { inventory_item: Item::Paper } } }\nfn f() { if advancement_done(|) {} }",
+        &["Find"],
+        &["MAX"],
+    );
     exactly(
         "advancement Find {\n    |\n}",
         &["criteria", "display", "require_any", "experience"],

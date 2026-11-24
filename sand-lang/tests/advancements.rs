@@ -102,3 +102,53 @@ fn advancement_declarations_validate_trigger_names_types_and_display() {
         );
     }
 }
+
+#[test]
+fn advancement_progress_compiles_to_the_current_players_selector() {
+    let source = format!(
+        r#"#![pack(namespace = "milestone", minecraft = "26.2")]
+{MILESTONE}
+fn inspect() {{
+    if advancement_done(Scout, criterion = "find_paper") && !advancement_done(Scout) {{
+        chat!("Paper collected");
+    }}
+}}
+"#
+    );
+    let pack = compile(&analyze_one(&source));
+    let generated = pack
+        .resources
+        .values()
+        .map(|bytes| String::from_utf8_lossy(bytes))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(generated.contains("@s[advancements={milestone:scout={find_paper=true}}]"));
+    assert!(generated.contains("@s[advancements={milestone:scout=true}]"));
+}
+
+#[test]
+fn advancement_progress_rejects_unknown_criteria_and_server_hooks() {
+    let source = format!(
+        r#"#![pack(namespace = "milestone")]
+{MILESTONE}
+fn inspect() {{ if advancement_done(Scout, criterion = "bad") {{ chat!("invalid"); }} }}
+"#
+    );
+    let Err(errors) = analyze_one(&source).compile() else {
+        panic!("accepted a criterion absent from the declared advancement");
+    };
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.contains("has no criterion `bad`"))
+    );
+
+    let source = format!(
+        r#"#![pack(namespace = "milestone")]
+{MILESTONE}
+#[tick]
+fn from_server() {{ if advancement_done(Scout) {{ broadcast!("invalid"); }} }}
+"#
+    );
+    assert!(analyze_one(&source).has_errors());
+}

@@ -8,6 +8,9 @@ pub fn grant() {
     play_sound(Sound::EntityExperienceOrbPickup);
     let sparks = Hero.energy / 10;
     spawn_particle(Particle::HappyVillager, count = sparks, spread = 0.25);
+    if advancement_done(RaidSupply) {
+        actionbar!("{green}Raid supplies ready");
+    }
     if Hero.phase == crate::Phase::Resting {
         Hero.phase = crate::Phase::Idle;
     }

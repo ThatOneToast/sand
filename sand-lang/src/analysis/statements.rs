@@ -3998,6 +3998,27 @@ impl Cx {
                 biome: self.arg_id(body, bound["biome"], "Biome")?,
                 at: self.arg_position(body, bound["at"])?,
             })),
+            "advancement_done" => {
+                body.note_player(
+                    path.span,
+                    "`advancement_done` reads the executing player's progress".into(),
+                );
+                let arg = bound["advancement"];
+                let ArgValue::Expr(expr) = &arg.value else {
+                    self.error("type", file, arg.span, "expected an advancement resource");
+                    return None;
+                };
+                let advancement =
+                    self.native_data_id(body.module, file, expr, DefKind::Advancement)?;
+                let criterion = match bound.get("criterion") {
+                    Some(arg) => Some(self.arg_string(file, arg, "a criterion name")?.0),
+                    None => None,
+                };
+                Some(pc::Condition::Advancement {
+                    advancement,
+                    criterion,
+                })
+            }
             "predicate_matches" => {
                 let arg = bound["predicate"];
                 let ArgValue::Expr(expr) = &arg.value else {
@@ -4005,7 +4026,7 @@ impl Cx {
                     return None;
                 };
                 Some(pc::Condition::Predicate {
-                    predicate: self.predicate_id(body.module, file, expr)?,
+                    predicate: self.native_data_id(body.module, file, expr, DefKind::Predicate)?,
                 })
             }
             "dimension_is" => Some(pc::Condition::Dimension(pc::DimensionMatches {

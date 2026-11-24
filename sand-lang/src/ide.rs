@@ -1799,6 +1799,9 @@ fn expression_completions(
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }
             Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
+            Some("Advancement") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Advancement);
+            }
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
@@ -2646,6 +2649,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::BossBar => "BossBar",
                 ParamKind::Loot => "Loot",
                 ParamKind::Predicate => "Predicate",
+                ParamKind::Advancement => "Advancement",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

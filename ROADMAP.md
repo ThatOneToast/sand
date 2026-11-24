@@ -302,6 +302,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Runtime particle count, spread and speed with atomic range checks.
 - [x] Native advancement resources with named inventory, placement and kill criteria,
   all/any requirements, visible presentation and experience rewards.
+- [x] Player-scoped advancement completion and named criterion queries.
 - [ ] Broader advancement triggers, worldgen, dialogs and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints

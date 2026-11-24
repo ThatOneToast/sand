@@ -743,12 +743,14 @@ impl Cx {
         }
     }
 
-    pub(super) fn predicate_id(
+    pub(super) fn native_data_id(
         &mut self,
         module: ModuleId,
         file: FileId,
         expr: &Expr,
+        kind: DefKind,
     ) -> Option<sand::ResourceLocation> {
+        let label = kind.describe();
         if let Expr::Str { value, span, .. } = expr {
             if value.contains(':')
                 && let Ok(id) = value.parse()
@@ -759,15 +761,25 @@ impl Cx {
                 "id",
                 file,
                 *span,
-                "expected a namespaced predicate identity",
+                format!("expected a namespaced {label} identity"),
             );
             return None;
         }
         let Expr::Path(path) = expr else {
-            self.error("type", file, expr.span(), "expected a declared predicate");
+            self.error(
+                "type",
+                file,
+                expr.span(),
+                format!("expected a declared {label}"),
+            );
             return None;
         };
-        let def = self.expect_path(module, path, &[DefKind::Predicate], "a predicate")?;
+        let def = self.expect_path(
+            module,
+            path,
+            &[kind],
+            &format!("{} {label}", super::article(label)),
+        )?;
         let DefInfo::Data { id, .. } = &self.defs[def.0].info else {
             return None;
         };
@@ -898,7 +910,8 @@ impl Cx {
                 "weather" => pool.weather = Some(self.data_weather(module, file, &field.value)?),
                 "when" => {
                     let expr = self.data_expr(file, &field.value, "a native predicate")?;
-                    pool.predicate = Some(self.predicate_id(module, file, expr)?);
+                    pool.predicate =
+                        Some(self.native_data_id(module, file, expr, DefKind::Predicate)?);
                 }
                 _ => {
                     self.error(

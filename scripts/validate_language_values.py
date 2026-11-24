@@ -74,6 +74,8 @@ class ValuesHarness(WorldGameplayHarness):
                 "ADVANCEMENT_ALL_PENDING",
                 "if entity @a[name=NumericA,advancements={runtime_values:read_and_write=false}]",
             )
+            self.send("execute as NumericA run function runtime_values:read_advancement_progress")
+            self.check("ADVANCEMENT_CRITERION_QUERY", "if score NumericA numeric_probe matches 1")
             self.send("execute as NumericA run function runtime_values:give_handbook")
             self.check(
                 "ADVANCEMENT_ALL_READY",
@@ -85,6 +87,9 @@ class ValuesHarness(WorldGameplayHarness):
                 "ADVANCEMENT_PLAYER_ISOLATION",
                 "if entity @a[name=NumericB,advancements={runtime_values:first_find=false,runtime_values:read_and_write=false}]",
             )
+            for player, progress in (("NumericA", 2), ("NumericB", 0)):
+                self.send(f"execute as {player} run function runtime_values:read_advancement_progress")
+                self.check(f"ADVANCEMENT_QUERY_{player}", f"if score {player} numeric_probe matches {progress}")
             book = 'Inventory[{id:"minecraft:written_book"}].components."minecraft:written_book_content"'
             self.check("WRITTEN_BOOK_PAGES", f"if data entity NumericA {book}.pages[1]")
             self.check(

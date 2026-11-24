@@ -105,19 +105,19 @@ pub struct ScoreRelation {
     pub right: FieldReference,
 }
 
-/// A branch condition: a constant range test or a field-to-field relation.
+/// A portable condition evaluated with the current executor and position.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::Condition", module = "sand::advanced::compiler",
- summary = "A branch condition: a constant range test or a field-to-field relation.",
+ summary = "A portable condition evaluated with the current executor and position.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
- minecraft = "Evaluated once by `execute if score` before exactly one branch body runs.",
+ minecraft = "Evaluated once using a native execute condition before one branch body runs.",
  use_when = ["Choosing between two ordered bodies at runtime"],
  avoid_when = ["Flow transition guards, which accept only ranges"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag.", Predicate = "A native predicate matches at the execution origin."),
- variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."], Predicate(predicate = "The predicate resource identity.")),
+ variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag.", Predicate = "A native predicate matches at the execution origin.", Advancement = "The executing player completed an advancement or criterion."),
+ variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."], Predicate(predicate = "The predicate resource identity."), Advancement(advancement = "The native advancement identity.", criterion = "Optional named criterion.")),
 )]
 pub enum Condition {
     /// The field lies within inclusive constant bounds.
@@ -142,6 +142,13 @@ pub enum Condition {
     Predicate {
         #[schemars(with = "String")]
         predicate: sand_components::ResourceLocation,
+    },
+    /// Match the current player's advancement or named criterion completion.
+    Advancement {
+        #[schemars(with = "String")]
+        advancement: sand_components::ResourceLocation,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        criterion: Option<String>,
     },
 }
 

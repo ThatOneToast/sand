@@ -1962,9 +1962,27 @@
             "predicate"
           ],
           "type": "object"
+        },
+        {
+          "description": "Match the current player's advancement or named criterion completion.",
+          "properties": {
+            "advancement": {
+              "type": "string"
+            },
+            "criterion": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "advancement"
+          ],
+          "type": "object"
         }
       ],
-      "description": "A branch condition: a constant range test or a field-to-field relation."
+      "description": "A portable condition evaluated with the current executor and position."
     },
     "CookingMethod": {
       "description": "Which furnace-like block cooks a recipe.",

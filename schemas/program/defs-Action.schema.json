@@ -707,11 +707,22 @@
     },
     {
       "additionalProperties": false,
-      "description": "Capture the executing entity's pack-owned, persistent numeric identity.\nZero denotes no entity; identity allocation never wraps or reuses IDs.",
+      "description": "Retain the executor or one related entity in an unbounded score field.\nZero denotes no entity; identity allocation never wraps or reuses IDs.",
       "properties": {
         "op": {
           "const": "capture_entity",
           "type": "string"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "$ref": "defs-EntityRelation.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional single-entity relationship to traverse from the executor."
         },
         "score": {
           "$ref": "defs-FieldReference.schema.json"

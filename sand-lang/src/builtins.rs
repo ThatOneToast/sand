@@ -163,12 +163,17 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin {
         name: "entity_ref",
         kind: BuiltinKind::Expression,
-        signature: "entity_ref() -> EntityRef",
-        summary: "Retain the executing entity's identity.",
-        details: "The identity survives reload and can be stored in State or records. It is pack-owned and never reused. Allocation exhaustion returns an empty reference. Resolve players across dimensions; other entities resolve while loaded in the current dimension.",
+        signature: "entity_ref(relation?) -> EntityRef",
+        summary: "Retain the executing entity or one related entity.",
+        details: "The identity survives reload and can be stored in State or records. It is pack-owned and never reused. A missing relation or exhausted identity allocation returns an empty reference. Resolve players across dimensions; other entities resolve while loaded in the current dimension.",
         minecraft: "Capture the canonical Sand runtime owner identity.",
         needs_player: false,
-        params: &[],
+        params: &[p(
+            "relation",
+            ParamKind::Registry("Relation"),
+            false,
+            "Read one related entity, such as `Relation::Owner` or `Relation::Vehicle`. Omit this argument to retain the executor.",
+        )],
         snippet: "entity_ref()",
     },
     Builtin {

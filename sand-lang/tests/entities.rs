@@ -20,6 +20,24 @@ fn context_of(analysis: &sand_lang::Analysis, name: &str) -> Context {
 }
 
 #[test]
+fn retained_entity_relationships_are_checked_and_require_an_executor() {
+    compile(&analyze_one(include_str!("fixtures/relations.sand")));
+    let analysis = analyze_one(&pack(
+        "fn owner() -> EntityRef { return entity_ref(Relation::Owner); }",
+    ));
+    compile(&analysis);
+    assert_eq!(context_of(&analysis, "owner"), Context::Entity);
+    let invalid = analyze_one(&pack(
+        "fn bad() -> EntityRef { return entity_ref(Relation::Passengers); }",
+    ));
+    assert!(
+        errors(&invalid)
+            .iter()
+            .any(|error| error.contains("Passengers"))
+    );
+}
+
+#[test]
 fn entity_loops_select_with_typed_filters_and_run_at_each_entity() {
     let analysis = analyze_one(&pack(
         r#"

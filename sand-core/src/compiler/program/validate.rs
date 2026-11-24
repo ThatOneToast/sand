@@ -1669,7 +1669,15 @@ impl Validator<'_, '_> {
                         depth + 1,
                     );
                 }
-                Action::CaptureEntity { score } => {
+                Action::CaptureEntity { score, relation } => {
+                    if *relation == Some(crate::entity::Relation::Passengers) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_TARGET",
+                            owner,
+                            &format!("{ptr}/action/relation"),
+                            "retaining an entity requires a single-entity relationship",
+                        ));
+                    }
                     if self
                         .identity_unsafe
                         .contains(&format!("{}.{}", score.state, score.field))

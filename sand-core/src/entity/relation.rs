@@ -24,7 +24,11 @@ use sand_commands::Selector;
     variants(Attacker = "The entity that last damaged this entity.", Controller = "The entity steering this entity's vehicle (e.g. a boat's rower).", Leasher = "The entity leashing this entity.", Origin = "The entity that fired/summoned this entity (e.g. a projectile's shooter).", Owner = "The entity that owns this entity (e.g. a tamed wolf's owner).", Passengers = "The entities riding this entity. Many-cardinality.", Target = "This entity's current attack/follow target (mobs only).", Vehicle = "The vehicle this entity is riding."),
 )]
 /// A vanilla entity relationship reachable via `execute on <relation>`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "EntityRelation")]
 pub enum Relation {
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
     Owner,

@@ -383,3 +383,30 @@ fn retained_entity_capture_rejects_bounded_identity_storage() {
         "{errors:?}"
     );
 }
+
+#[test]
+fn related_entity_capture_keeps_the_original_executor_as_the_destination() {
+    let doc = |relation: &str| {
+        program(
+            serde_json::json!([
+                {"id":"play:capture", "context":"player", "body":[{"action":{"op":"capture_entity","score":field("stats", "best"),"relation":relation}}]}
+            ]),
+            serde_json::json!([]),
+        )
+    };
+    let pack = Compiler::compile(&decode(doc("vehicle"))).unwrap();
+    let capture = function_text(&pack, "capture");
+    assert!(
+        capture.lines().any(|line| {
+            line.starts_with("execute store result score @s ")
+                && line.contains(" on vehicle run function ")
+        }),
+        "{capture}"
+    );
+    let errors = Compiler::check(&decode(doc("passengers"))).unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.contains("single-entity relationship"))
+    );
+}

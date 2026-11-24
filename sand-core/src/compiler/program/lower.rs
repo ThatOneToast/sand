@@ -1983,7 +1983,7 @@ impl Lower {
                     Some(tag) => format!("summon {entity_type} ~ ~ ~ {{Tags:[\"{tag}\"]}}"),
                     None => format!("summon {entity_type} ~ ~ ~"),
                 })],
-                Action::CaptureEntity { score } => {
+                Action::CaptureEntity { score, relation } => {
                     let identity = crate::gameplay::identity::objective(
                         &format!("{}:entities", self.namespace)
                             .parse()
@@ -1997,22 +1997,25 @@ impl Lower {
                         "capture_entity",
                     );
                     self.function(&id, vec![
-                        format!("execute if score @s {identity} matches 1.. run return 1"),
+                        format!("execute if score @s {identity} matches 1.. run return run scoreboard players get @s {identity}"),
                         format!("scoreboard players add #next {identity} 0"),
                         format!("execute unless score #next {identity} matches 0..2147483645 run return 0"),
                         format!("scoreboard players add #next {identity} 1"),
                         format!("scoreboard players operation @s {identity} = #next {identity}"),
-                        "return 1".into(),
+                        format!("return run scoreboard players get @s {identity}"),
                     ], module, &ptr)?;
+                    let holder = &self.holders[&score.state.to_string()];
+                    // Resolve the destination holder before traversal changes @s.
+                    let on = relation.map_or_else(String::new, |relation| {
+                        format!(" on {}", relation.keyword())
+                    });
                     vec![
                         Cmd::Raw(format!(
-                            "scoreboard players set {} {} 0",
-                            self.holders[&score.state.to_string()],
+                            "scoreboard players set {holder} {} 0",
                             objective(score)
                         )),
                         Cmd::Raw(format!(
-                            "execute if function {id} run scoreboard players operation {} {} = @s {identity}",
-                            self.holders[&score.state.to_string()],
+                            "execute store result score {holder} {}{on} run function {id}",
                             objective(score)
                         )),
                     ]

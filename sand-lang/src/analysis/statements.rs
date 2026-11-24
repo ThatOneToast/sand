@@ -969,12 +969,27 @@ impl Cx {
                     }
                 }
                 "entity_ref" => {
-                    if !self.types_agree(file, span, ty, Ty::EntityRef) {
-                        return None;
-                    }
-                    body.note_executor(span, "captures the executing entity".into());
+                    let relation = if let Some(arg) = bound.get("relation") {
+                        let keyword = self.arg_id(body, arg, "Relation")?;
+                        match serde_json::from_value(serde_json::Value::String(keyword)) {
+                            Ok(relation) => Some(relation),
+                            Err(_) => {
+                                self.error(
+                                    "type",
+                                    file,
+                                    arg.span,
+                                    "expected a `Relation::...` value",
+                                );
+                                return None;
+                            }
+                        }
+                    } else {
+                        None
+                    };
+                    body.note_executor(span, "retains an entity identity".into());
                     pc::Action::CaptureEntity {
                         score: dest.clone(),
+                        relation,
                     }
                 }
                 "count_entities" => pc::Action::CountEntities {

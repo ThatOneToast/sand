@@ -976,6 +976,12 @@ fn hurt_marked() {
 }
 ```
 
+Pass `relation = Relation::Vehicle` to retain the executor's current vehicle.
+`Relation::Owner`, `Leasher`, `Target`, `Controller`, `Attacker`, and `Origin`
+also resolve to at most one entity. A missing relationship returns an empty
+reference. Once retained, the reference identifies that entity even if the
+relationship changes.
+
 `resolve_player(reference)` runs a `for` body as an online player, at that player,
 including across dimensions. `resolve_entity(reference)` also resolves loaded
 non-player entities in the current dimension; its body has an entity context.

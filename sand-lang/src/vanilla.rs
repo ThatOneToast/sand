@@ -11,6 +11,8 @@
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
+use sand::entity::Relation;
+
 /// One typed registry, such as `Item`.
 #[derive(Debug, Clone)]
 pub struct Registry {
@@ -106,6 +108,20 @@ const OPTIONS: &[OptionSet] = &[
             ("Creative", "creative"),
             ("Adventure", "adventure"),
             ("Spectator", "spectator"),
+        ],
+    },
+    OptionSet {
+        name: "Relation",
+        rust_path: "sand::entity::Relation",
+        noun: "entity relationship",
+        values: &[
+            ("Owner", Relation::Owner.keyword()),
+            ("Leasher", Relation::Leasher.keyword()),
+            ("Target", Relation::Target.keyword()),
+            ("Vehicle", Relation::Vehicle.keyword()),
+            ("Controller", Relation::Controller.keyword()),
+            ("Attacker", Relation::Attacker.keyword()),
+            ("Origin", Relation::Origin.keyword()),
         ],
     },
     OptionSet {

@@ -94,6 +94,77 @@ pub(crate) fn holder(state: &State) -> sand_commands::ScoreHolder {
     }
 }
 
+/// A canonical player score and its owning State metadata, retained by
+/// runtime systems without interning any of the portable input.
+#[derive(Debug, Clone)]
+pub(crate) struct PlayerScore {
+    pub(crate) objective: sand_commands::ObjectiveName,
+    pub(crate) presence: sand_commands::ObjectiveName,
+    pub(crate) revision: u32,
+    pub(crate) default: i32,
+    pub(crate) bounds: Option<(i32, i32)>,
+    pub(crate) timer: bool,
+}
+
+impl PlayerScore {
+    pub(crate) fn from_state(state: &State, name: &str) -> Option<Self> {
+        let field = state.fields.iter().find(|field| field.name == name)?;
+        (state.scope == "player").then(|| Self {
+            objective: sand_commands::ObjectiveName::logical(format!("{}.{name}", state.id)),
+            presence: sand_commands::ObjectiveName::logical(format!("{}.presence", state.id)),
+            revision: state.revision,
+            default: field.default,
+            bounds: field.bounds,
+            timer: field.timer,
+        })
+    }
+
+    pub(crate) fn matches(
+        &self,
+        range: crate::condition::ScoreRange,
+    ) -> crate::condition::Condition {
+        use crate::condition::{Condition, ScoreRange};
+        Condition::all([
+            Condition::score(
+                "@s".into(),
+                self.presence.to_string(),
+                ScoreRange::Eq(self.revision as i32),
+            ),
+            self.value_matches(range),
+        ])
+    }
+
+    pub(crate) fn value_matches(
+        &self,
+        range: crate::condition::ScoreRange,
+    ) -> crate::condition::Condition {
+        crate::condition::Condition::score("@s".into(), self.objective.to_string(), range)
+    }
+
+    pub(crate) fn remove(&self, amount: i32) -> crate::ir::Actions {
+        use crate::{IntoCommands, ir::Cmd};
+        let objective = &self.objective;
+        let mut actions =
+            Cmd::Raw(format!("scoreboard players remove @s {objective} {amount}")).into_commands();
+        if let Some((_, max)) = self.bounds
+            && max < i32::MAX
+        {
+            actions.extend([Cmd::Raw(format!(
+                "execute if score @s {objective} matches {}.. run scoreboard players set @s {objective} {max}",
+                max + 1,
+            ))]);
+        }
+        actions
+    }
+
+    pub(crate) fn set(&self, value: i32) -> crate::ir::Cmd {
+        crate::ir::Cmd::Raw(format!(
+            "scoreboard players set @s {} {value}",
+            self.objective
+        ))
+    }
+}
+
 /// Borrow one portable field through the same canonical storage identity used
 /// by derived Rust State components.
 pub(crate) fn with_data_field<R>(

@@ -73,6 +73,11 @@ impl<K: EntityKind> Projectile<K> {
             hit: Arc::new(|_| Actions::default()),
         }
     }
+    pub(crate) fn with_lifetime(mut self, lifetime: Lifetime<K>) -> Self {
+        self.lifetime = lifetime;
+        self
+    }
+
     /// Set speed in blocks per tick, finite and in (0, 16].
     #[sand_macros::api(
     registry = sand_api_contract,

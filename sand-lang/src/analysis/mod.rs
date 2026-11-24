@@ -38,10 +38,14 @@ mod generics;
 mod resources;
 mod sequence_methods;
 mod sequences;
+mod source_map;
 mod statements;
+mod testing;
 mod text;
 mod traits;
 mod values;
+
+pub use testing::TestCase;
 
 /// Index of a definition within an [`Analysis`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -339,6 +343,8 @@ pub struct Analysis {
     pub origins: BTreeMap<DefId, DefId>,
     /// Concrete signatures shared by compiler and editor value inference.
     pub function_types: BTreeMap<DefId, FunctionType>,
+    /// Sand-authored tests, in discovery order.
+    pub tests: Vec<TestCase>,
     /// Every resolved reference.
     pub references: Vec<Reference>,
     /// Syntax, resolution, and type diagnostics.
@@ -514,6 +520,15 @@ pub fn snake_case(name: &str) -> String {
 
 /// Analyse a loaded package.
 pub fn analyze(package: Package) -> Analysis {
+    analyze_mode(package, false)
+}
+
+/// Lower a package with its discovered test entry points enabled.
+pub fn analyze_tests(package: Package) -> Analysis {
+    analyze_mode(package, true)
+}
+
+fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
     let mut cx = Cx {
         diagnostics: package.diagnostics.clone(),
         package,
@@ -539,6 +554,9 @@ pub fn analyze(package: Package) -> Analysis {
         fn_slots: BTreeMap::new(),
         generics: generics::Generics::default(),
         traits: traits::Traits::default(),
+        test_mode,
+        tests: BTreeMap::new(),
+        test_functions: Default::default(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
@@ -565,6 +583,7 @@ pub fn analyze(package: Package) -> Analysis {
         package: cx.package,
         defs: cx.defs,
         origins: cx.generics.origins,
+        tests: cx.tests.into_values().collect(),
         function_types: cx
             .fn_slots
             .into_iter()
@@ -650,6 +669,9 @@ struct Cx {
     fn_slots: BTreeMap<DefId, FnSlots>,
     generics: generics::Generics,
     traits: traits::Traits,
+    test_mode: bool,
+    tests: BTreeMap<DefId, TestCase>,
+    test_functions: std::collections::BTreeSet<DefId>,
     /// Handlers of each custom event, in declaration order.
     event_handlers: BTreeMap<DefId, Vec<(DefId, Span)>>,
     /// `#[on(Event)]` attributes that name a custom event.
@@ -2408,6 +2430,7 @@ impl Cx {
         }
         self.lower_generic_instances(&mut modules, &mut lowerer);
         self.infer_contexts(&mut lowerer);
+        self.discover_tests(&lowerer);
         self.resolve_frames(&mut lowerer);
         if (!self.local_fields.is_empty() || !self.local_data_fields.is_empty())
             && let Some(root) = modules.first_mut()
@@ -2442,6 +2465,13 @@ impl Cx {
         // Contexts are known; finalise function declarations.
         for (index, module) in modules.iter_mut().enumerate() {
             for pending in lowerer.functions.iter().filter(|f| f.module.0 == index) {
+                if !self.test_mode
+                    && pending
+                        .def
+                        .is_some_and(|def| self.test_functions.contains(&def))
+                {
+                    continue;
+                }
                 let context = match pending.def {
                     Some(def) => match &self.defs[def.0].info {
                         DefInfo::Function { context, .. } => *context,
@@ -2470,6 +2500,18 @@ impl Cx {
                     },
                     body: pending.body.clone(),
                 });
+            }
+        }
+        if self.test_mode {
+            for (index, (def, test)) in self.tests.iter().enumerate() {
+                let module = self.defs[def.0].module.0;
+                if let Some(function) = self.test_wrapper(*def, test, index) {
+                    let ptr = format!("/functions/{}", modules[module].functions.len());
+                    self.pointers
+                        .push((modules[module].id.to_string(), ptr, test.file, test.span));
+                    modules[module].functions.push(function);
+                    lowerer.raw = true;
+                }
             }
         }
         let mut requires = Vec::new();
@@ -2525,6 +2567,7 @@ impl Cx {
                                 &function.params,
                                 function.ret.as_ref(),
                             );
+                            self.declare_test(def, &item, function);
                         }
                     }
                     ItemKind::Event(event) => {
@@ -3408,6 +3451,14 @@ impl Cx {
         let DefInfo::Function { id, .. } = self.defs[def.0].info.clone() else {
             return;
         };
+        if self.generics.origins.contains_key(&def) && item.attr("test").is_some() {
+            self.error(
+                "test",
+                file,
+                function.name.span,
+                "a test cannot be a specialized method",
+            );
+        }
         let id_text = out.id.to_string();
         let reference = || pc::FunctionReference::Internal {
             id: id.parse().expect("validated below"),
@@ -3417,6 +3468,7 @@ impl Cx {
         let mut entry = Vec::new();
         for attr in &item.attrs {
             match attr.name() {
+                "test" => {}
                 "player" => forced = Some(attr.span),
                 "tick" | "load" => {
                     if !attr.args.is_empty() {
@@ -3514,7 +3566,7 @@ impl Cx {
                     file,
                     attr.path.span,
                     format!(
-                        "unknown function attribute `{other}`; expected `tick`, `load`, `tag`, `on`, or `player`"
+                        "unknown function attribute `{other}`; expected `tick`, `load`, `tag`, `on`, `player`, or `test`"
                     ),
                 ),
             }
@@ -3594,7 +3646,7 @@ impl Cx {
             );
         }
         self.local_lints(&body);
-        lowerer.raw |= body.raw;
+        lowerer.raw |= body.raw && (self.test_mode || !self.test_functions.contains(&def));
         lowerer.facts.insert(
             def,
             Facts {
@@ -3751,6 +3803,15 @@ impl Cx {
                             );
                             return None;
                         }
+                        if self.test_functions.contains(&target) {
+                            self.error(
+                                "test",
+                                file,
+                                path.span,
+                                "a test function cannot be a flow hook",
+                            );
+                            return None;
+                        }
                         if scope == Scope::Global {
                             lowerer.global_hooks.push((target, file, path.span));
                         }
@@ -3775,6 +3836,11 @@ impl Cx {
                     let mut body = BodyCx::new(module, file, scope == Scope::Player);
                     body.slot = format!("h{}_{}", def.0, hooks.len() + generated.len());
                     let ops = self.lower_block(&mut body, block);
+                    for (target, span) in body.all_calls.iter().chain(&body.schedules) {
+                        if self.test_functions.contains(target) {
+                            self.error("test", file, *span, "a flow cannot call a test function");
+                        }
+                    }
                     self.local_lints(&body);
                     lowerer.raw |= body.raw;
                     if let Some((span, reason)) = &body.player_use {

@@ -1964,7 +1964,7 @@ fn attribute_completions(inner: bool, target: crate::position::AttrTarget) -> Ve
         &["pack"]
     } else {
         match target {
-            AttrTarget::Function => &["tick", "load", "on", "tag", "player"],
+            AttrTarget::Function => &["tick", "load", "on", "tag", "player", "test"],
             AttrTarget::ExternFunction => &["player"],
             AttrTarget::Field => &["clamp"],
             AttrTarget::Other => &[],

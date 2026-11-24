@@ -4115,6 +4115,58 @@ impl Cx {
         let Some(bound) = self.bind_args(body, builtin, args, span) else {
             return;
         };
+        if builtin.name == "assert" {
+            let Some(owner) = body.owner else {
+                self.error(
+                    "test",
+                    file,
+                    span,
+                    "`assert!` is only available inside a Sand test",
+                );
+                return;
+            };
+            if !self.test_functions.contains(&owner) {
+                self.error(
+                    "test",
+                    file,
+                    span,
+                    "`assert!` is only available inside a Sand test",
+                );
+                return;
+            }
+            let ArgValue::Expr(condition) = &bound["condition"].value else {
+                self.error("test", file, span, "`assert!` needs a boolean condition");
+                return;
+            };
+            let depth = body.temp_depth;
+            let score = self.temp(body);
+            if self.emit(body, &score, Ty::Bool, condition, ops).is_some() {
+                let mut fail = vec![op_at(
+                    pc::Action::Raw {
+                        command: format!("say __SAND_ASSERT_{}_{}__", file.0, span.start),
+                    },
+                    file,
+                    span,
+                )];
+                self.lower_return(body, Some(&Expr::Bool(false, span)), span, &mut fail);
+                body.raw = true;
+                ops.push(op_at(
+                    pc::Action::Branch {
+                        condition: pc::Condition::Range(pc::ScoreComparison {
+                            score,
+                            min: Some(1),
+                            max: Some(1),
+                        }),
+                        then: Vec::new(),
+                        otherwise: fail,
+                    },
+                    file,
+                    span,
+                ));
+            }
+            body.temp_depth = depth;
+            return;
+        }
         if builtin.name == "raw" {
             let Some((command, _, string_span)) =
                 self.arg_string(file, bound["command"], "a command")

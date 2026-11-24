@@ -227,6 +227,10 @@ jobs:
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/traits.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-traits"
+          mkdir -p "target/vanilla-reload/${{ matrix.version }}/language-authored-tests"
+          target/debug/sand lang test sand-lang/tests/fixtures/authored_tests.sand \
+            --accept-eula --jar "$SAND_SERVER_JAR" 2>&1 \
+            | tee "target/vanilla-reload/${{ matrix.version }}/language-authored-tests/results.log"
           python3 scripts/validate_language_collections.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/language-collections-library"
@@ -494,6 +498,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/language-vectors
             target/vanilla-reload/${{ matrix.version }}/language-collections-library
             target/vanilla-reload/${{ matrix.version }}/language-traits
+            target/vanilla-reload/${{ matrix.version }}/language-authored-tests
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/compute

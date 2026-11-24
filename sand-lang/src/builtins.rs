@@ -796,6 +796,22 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "subtitle!(\"$0\");",
     },
     Builtin {
+        name: "assert",
+        kind: BuiltinKind::Macro,
+        signature: "assert!(condition)",
+        summary: "Fail the current Sand test if the condition is false.",
+        details: "Use inside a function marked `#[test]`. The runner reports the source of a failed assertion.",
+        minecraft: "A scored condition and early return from the test.",
+        needs_player: false,
+        params: &[p(
+            "condition",
+            ParamKind::Bool,
+            true,
+            "The tested condition.",
+        )],
+        snippet: "assert!(${1:condition});",
+    },
+    Builtin {
         name: "raw",
         kind: BuiltinKind::Macro,
         signature: "raw!(\"command\")",
@@ -1123,6 +1139,11 @@ pub const STYLES: &[&str] = &[
 
 /// Attribute documentation.
 pub const ATTRIBUTES: &[(&str, &str, &str)] = &[
+    (
+        "test",
+        "#[test]",
+        "A server-context test with no parameters and a bool return.",
+    ),
     (
         "pack",
         "#![pack(namespace = \"...\", minecraft = \"...\", description = \"...\")]",

@@ -354,6 +354,35 @@ Returned entries and vectors are independent copies.
 
 See the [ore journal example](../../examples/lang_maps/pack.sand).
 
+### Tests and source maps
+
+Mark a parameterless server-context function returning `bool` with `#[test]`.
+Use `assert!` to fail at a specific source line. A test can also return
+`false` directly.
+
+```rust,ignore
+fn doubled(value: number) -> number { return value * 2; }
+
+#[test]
+fn doubles_numbers() -> bool {
+    assert!(doubled(7) == 14);
+    return true;
+}
+```
+
+Run `sand lang test --list` to discover tests or
+`sand lang test --accept-eula` to run them in a disposable vanilla world.
+Provide `--jar path/to/server.jar` for an existing server artifact. The runner
+checks the server version and exits unsuccessfully if any test fails. Tests share
+the disposable world during one suite, so initialize any State a test relies on.
+Normal builds omit test entry points.
+
+Run `sand lang source-map` to print JSON that links portable operation pointers
+and emitted function paths to Sand source ranges. The file table is relative to
+the package root directory. Ranges use UTF-8 byte offsets. The map describes
+portable operations and function declarations. Generated command line mappings
+and breakpoint debugging remain future work.
+
 ## Types
 
 | Type | Holds | Stored as |

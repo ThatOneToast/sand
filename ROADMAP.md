@@ -276,8 +276,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.
-- [ ] Language-authored tests, additional diagnostic fixes, source maps and
-  debugging; real connected-player and Zed-session verification.
+- [x] Sand-authored tests with assertions, disposable vanilla runs, and source
+  maps for portable operations and emitted function identities.
+- [ ] Command line source mappings, breakpoints, and real Zed-session verification.
 
 Acceptance: compiler/export tests prove observable output, runtime features have
 native evidence, and each new public model preserves deterministic export,

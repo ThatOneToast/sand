@@ -19,6 +19,23 @@ pub struct LangArgs {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Run Sand-authored tests in a disposable Minecraft world
+    Test {
+        #[command(flatten)]
+        input: Input,
+        /// Discover tests without launching Minecraft
+        #[arg(long)]
+        list: bool,
+        /// Use a specific server JAR instead of the verified version cache
+        #[arg(long)]
+        jar: Option<PathBuf>,
+        /// Accept the Minecraft EULA for this test server
+        #[arg(long)]
+        accept_eula: bool,
+        /// Maximum seconds for startup, each test, and shutdown
+        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=3600))]
+        timeout: u64,
+    },
     /// Vendor a bundled Sand library into an existing package
     Add {
         /// Library to install (collections)
@@ -63,6 +80,8 @@ enum Command {
     },
     /// Print the portable program JSON the package lowers to
     Emit(Input),
+    /// Print portable operation and function source locations as JSON
+    SourceMap(Input),
     /// Create a new Sand language project in a new directory
     New {
         /// Project directory (its name becomes the namespace)
@@ -89,6 +108,30 @@ struct Input {
 /// Run a `sand lang` subcommand.
 pub fn run(args: LangArgs) -> Result<()> {
     match args.command {
+        Command::Test {
+            input,
+            list,
+            jar,
+            accept_eula,
+            timeout,
+        } => {
+            let root = package_root(&input.path)?;
+            let analysis = sand_lang::analyze_tests(sand_lang::load(&root, &DiskFiles));
+            report(&analysis)?;
+            if list || analysis.tests.is_empty() {
+                for test in &analysis.tests {
+                    println!("{}", test.name);
+                }
+                println!("{} test(s)", analysis.tests.len());
+                return Ok(());
+            }
+            crate::lang_test::run(
+                &analysis,
+                jar,
+                accept_eula,
+                std::time::Duration::from_secs(timeout),
+            )
+        }
         Command::Add { library, input } => {
             let installed = install_library(&input.path, library)?;
             println!("{} {}", "Added".green().bold(), installed.display());
@@ -194,6 +237,15 @@ pub fn run(args: LangArgs) -> Result<()> {
             println!(
                 "After upgrading Sand, run `sand lang zed` again and choose `Rebuild` on the Sand extension."
             );
+            Ok(())
+        }
+        Command::SourceMap(input) => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let map = analysis
+                .source_map()
+                .context("the package did not lower to a program")?;
+            println!("{}", serde_json::to_string_pretty(&map)?);
             Ok(())
         }
         Command::Emit(input) => {

@@ -57,7 +57,8 @@ pub mod source;
 pub mod vanilla;
 
 pub use analysis::{
-    Analysis, Context, Def, DefId, DefInfo, DefKind, FunctionType, Reference, Ty, analyze,
+    Analysis, Context, Def, DefId, DefInfo, DefKind, FunctionType, Reference, TestCase, Ty,
+    analyze, analyze_tests,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use package::{Package, ROOT_FILE, find_root, load};

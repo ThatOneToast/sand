@@ -5,6 +5,7 @@ cd "$program_repo_root"
 cargo build -p sand-cli --bin sand
 program_binary="$program_repo_root/target/debug/sand"
 program_examples="$(mktemp -d)"
+program_examples="$(cd -- "$program_examples" && pwd -P)"
 trap 'rm -rf "$program_examples"' EXIT
 for program_source in "$program_repo_root"/examples/*/pack.sand; do
     program_example_dir="$(dirname "$program_source")"

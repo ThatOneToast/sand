@@ -47,6 +47,7 @@ const CAPABILITIES: &[&str] = &[
     "interactive_text",
     "written_books",
     "advancements",
+    "advancement_completion_events",
     "notice_dialogs",
     "flat_dimensions",
     "custom_biomes",

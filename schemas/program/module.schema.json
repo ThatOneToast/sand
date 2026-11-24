@@ -3972,6 +3972,25 @@
             "entity"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Runs when the player completes a native advancement declared by the program.",
+          "properties": {
+            "advancement": {
+              "description": "Advancement whose native reward function dispatches the handlers.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "advancement_completed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "advancement"
+          ],
+          "type": "object"
         }
       ]
     },

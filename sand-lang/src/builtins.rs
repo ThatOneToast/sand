@@ -1536,6 +1536,11 @@ pub const EVENTS: &[(&str, Option<&str>, &str)] = &[
     ),
     ("kill_player", None, "The player killed another player."),
     (
+        "advancement",
+        Some("Advancement"),
+        "The player completed an authored advancement, as in `#[on(advancement = Milestone)]`.",
+    ),
+    (
         "killed_by",
         Some("Entity"),
         "An entity of one type killed the player: `#[on(killed_by = Entity::Creeper)]`.",
@@ -1631,7 +1636,7 @@ pub const ATTRIBUTES: &[(&str, &str, &str)] = &[
     (
         "on",
         "#[on(event)]",
-        "Run this function as the player whenever a player event happens, or whenever a custom `event` is emitted (`#[on(Payday)]`). Player events: `join`, `first_join`, `death`, `kill`, `kill_player`, `killed_by`, `use_item`, `craft_item`, `pick_up_item`, `mine_block`, `jump`, `drop_item`, `sleep`, `take_damage`, `deal_damage`.",
+        "Run this function as the player whenever a player event happens, or whenever a custom `event` is emitted (`#[on(Payday)]`). Player events: `join`, `first_join`, `advancement`, `death`, `kill`, `kill_player`, `killed_by`, `use_item`, `craft_item`, `pick_up_item`, `mine_block`, `jump`, `drop_item`, `sleep`, `take_damage`, `deal_damage`.",
     ),
 ];
 

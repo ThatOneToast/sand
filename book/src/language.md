@@ -1495,6 +1495,20 @@ Use `advancement_done(ReadyForAdventure)` in a player function to read the
 whole advancement. Pass `criterion = "get_spyglass"` to check one named
 criterion. A quoted namespaced ID also lets you read another pack’s advancement.
 
+Use `#[on(advancement = ReadyForAdventure)]` to run a function as the player
+when they complete this pack's advancement.
+
+```rust,ignore
+#[on(advancement = ReadyForAdventure)]
+fn celebrate() {
+    chat!("{gold}Ready for adventure!");
+}
+```
+
+The advancement's native reward runs the handlers once per player completion.
+Handlers in the same module run in declaration order. Experience rewards and
+the player's advancement progress use the same vanilla completion.
+
 ### Notice dialogs
 
 A named `dialog` displays a native notice with fixed rich text and a dismiss
@@ -1698,7 +1712,7 @@ command and State models as Rust. Today the language covers:
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, non-player velocity, experience, and entity flags | archetypes |
-| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
+| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads, authored advancement completion | broader advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |

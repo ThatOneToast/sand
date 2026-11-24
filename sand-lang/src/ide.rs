@@ -1261,11 +1261,16 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
         Position::Attribute { inner, target } => return attribute_completions(*inner, *target),
         Position::AttributeArg { attr, key } => {
             let mut out = attribute_arg_completions(analysis, attr, key.as_deref());
-            if attr == "on" && key.is_none() {
+            let definition = match (attr.as_str(), key.as_deref()) {
+                ("on", None) => Some(DefKind::Event),
+                ("on", Some("advancement")) => Some(DefKind::Advancement),
+                _ => None,
+            };
+            if let Some(kind) = definition {
                 out.extend(
                     scope_names(analysis, module)
                         .into_iter()
-                        .filter(|(_, def)| analysis.def(*def).kind == DefKind::Event)
+                        .filter(|(_, def)| analysis.def(*def).kind == kind)
                         .map(|(name, def)| def_completion(analysis, &name, def)),
                 );
             }
@@ -2094,9 +2099,10 @@ fn attribute_arg_completions(
             .map(|(label, set, doc)| Completion {
                 documentation: Some((*doc).into()),
                 // `kill` works bare or filtered; the bare form is offered.
-                insert: set
-                    .filter(|_| *label != "kill")
-                    .map(|set| format!("{label} = {set}::${{1}}")),
+                insert: set.filter(|_| *label != "kill").map(|set| match set {
+                    "Advancement" => format!("{label} = ${{1:Milestone}}"),
+                    _ => format!("{label} = {set}::${{1}}"),
+                }),
                 snippet: set.is_some() && *label != "kill",
                 ..Completion::plain(label, CompletionKind::Attribute)
             })

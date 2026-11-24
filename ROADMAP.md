@@ -309,6 +309,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Native advancement resources with named inventory, placement and kill criteria,
   all/any requirements, visible presentation and experience rewards.
 - [x] Player-scoped advancement completion and named criterion queries.
+- [x] Ordered completion handlers using the authored advancement's native reward
+  function.
 - [x] Native notice dialogs with translated text and player-scoped open and clear.
 - [ ] Broader advancement triggers, worldgen, interactive dialog flows and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory

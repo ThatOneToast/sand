@@ -141,6 +141,7 @@ fn attributes_fit_what_they_are_attached_to() {
             "death",
             "kill",
             "kill_player",
+            "advancement",
             "killed_by",
             "use_item",
             "craft_item",
@@ -152,6 +153,11 @@ fn attributes_fit_what_they_are_attached_to() {
             "take_damage",
             "deal_damage",
         ],
+    );
+    includes_excludes(
+        "advancement Scout { criteria: { found: { inventory_item: Item::Paper } } }\n#[on(advancement = |)]\nfn later() {}",
+        &["Scout"],
+        &["Item::Paper", "later"],
     );
     includes_excludes(
         "#[on(use_item = |)]\nfn later() {}",

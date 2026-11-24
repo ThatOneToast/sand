@@ -130,6 +130,7 @@ pub(super) fn lower(
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
         constants: std::collections::BTreeSet::new(),
         custom_items: BTreeMap::new(),
+        advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
         data_states: states
             .iter()
@@ -492,7 +493,11 @@ pub(super) fn lower(
                     message,
                 )]
             };
-            let component = advancement_component(advancement, &lower.holders).map_err(fail)?;
+            let reward_function = lower
+                .advancement_dispatchers
+                .get(&advancement.id.to_string());
+            let component = advancement_component(advancement, &lower.holders, reward_function)
+                .map_err(fail)?;
             let record = records::component_to_record(&component, Some(&ctx))
                 .map_err(|error| fail(error.to_string()))?;
             lower.records.push(record);
@@ -1035,6 +1040,7 @@ fn notice_dialog_component(
 fn advancement_component(
     advancement: &Advancement,
     holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+    reward_function: Option<&sand_components::FunctionId>,
 ) -> Result<sand_components::Advancement, String> {
     use sand_components::{
         AdvancementDisplay, AdvancementIcon, AdvancementRewards, AdvancementTrigger, Criterion,
@@ -1092,8 +1098,12 @@ fn advancement_component(
             .collect()
     };
     built = built.requirements(requirements);
-    if advancement.experience > 0 {
-        built = built.rewards(AdvancementRewards::new().experience(advancement.experience));
+    if advancement.experience > 0 || reward_function.is_some() {
+        let mut rewards = AdvancementRewards::new().experience(advancement.experience);
+        if let Some(function) = reward_function {
+            rewards = rewards.function(function.clone());
+        }
+        built = built.rewards(rewards);
     }
     Ok(built)
 }
@@ -1487,6 +1497,7 @@ struct Lower<'sources> {
     constants: std::collections::BTreeSet<i32>,
     /// Declared custom items by id.
     custom_items: BTreeMap<String, sand_components::CustomItem>,
+    advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
     flags: std::collections::BTreeSet<EntityFlag>,
     /// Owned backing storage for canonical data-field descriptors.
@@ -1563,9 +1574,8 @@ impl Lower<'_> {
         });
         Ok(())
     }
-    /// Lower player event observation: one namespace-owned objective or tag per
-    /// distinct event, a tick probe that runs a dispatcher as each observed
-    /// player, and a dispatcher that consumes the observation before handlers.
+    /// Lower player observations and native advancement rewards to shared dispatchers.
+    /// A polled dispatcher consumes its observation before running its handlers.
     fn events(&mut self, program: &Program) -> Result<Vec<EventLine>, Vec<Diagnostic>> {
         let mut groups: BTreeMap<String, (PlayerEvent, Vec<(String, String)>)> = BTreeMap::new();
         let mut modules: Vec<_> = program.modules.iter().collect();
@@ -1586,6 +1596,14 @@ impl Lower<'_> {
         for (key, (event, handlers)) in groups {
             let base = format!("{}.__sand_event.{key}", self.namespace);
             let dispatch = format!("{}:__sand_program/event/{key}", self.namespace);
+            if let PlayerEvent::AdvancementCompleted { advancement } = &event {
+                self.advancement_dispatchers.insert(
+                    advancement.to_string(),
+                    dispatch
+                        .parse()
+                        .expect("validated advancement dispatcher identity"),
+                );
+            }
             let objective = sand_commands::ObjectiveName::logical(base.clone())
                 .as_str()
                 .to_owned();

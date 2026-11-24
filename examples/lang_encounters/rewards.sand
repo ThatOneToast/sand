@@ -39,3 +39,8 @@ advancement RaidSupply {
     require_any: true,
     experience: 5,
 }
+
+#[on(advancement = RaidSupply)]
+fn celebrate_supplies() {
+    chat!("{light_purple}Raid supply milestone unlocked.");
+}

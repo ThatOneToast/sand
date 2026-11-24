@@ -152,3 +152,60 @@ fn from_server() {{ if advancement_done(Scout) {{ broadcast!("invalid"); }} }}
     );
     assert!(analyze_one(&source).has_errors());
 }
+
+#[test]
+fn completion_handlers_share_one_native_reward_and_keep_declaration_order() {
+    let source = format!(
+        r#"#![pack(namespace = "milestone", minecraft = "26.2")]
+{MILESTONE}
+#[on(advancement = Scout)]
+fn give_reward() {{ give_item(Item::Bread); }}
+#[on(advancement = Scout)]
+fn mark_complete() {{ chat!("Scouting complete"); }}
+"#
+    );
+    let analysis = analyze_one(&source);
+    let pack = compile(&analysis);
+    let id = "milestone:__sand_program/event/advancement/milestone/scout";
+    let advancement: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/milestone/advancement/scout.json"]).unwrap();
+    assert_eq!(advancement["rewards"]["function"], id);
+    assert_eq!(advancement["rewards"]["experience"], 5);
+
+    let dispatch = function(
+        &pack,
+        "milestone/function/__sand_program/event/advancement/milestone/scout",
+    );
+    assert!(dispatch.lines().rev().take(2).eq([
+        "function milestone:mark_complete",
+        "function milestone:give_reward",
+    ]));
+    assert!(!pack.resources.iter().any(|(path, bytes)| {
+        path.ends_with(".mcfunction")
+            && path != "data/milestone/function/__sand_program/event/advancement/milestone/scout.mcfunction"
+            && String::from_utf8_lossy(bytes).contains(id)
+    }));
+
+    let mut missing = analysis.program.unwrap();
+    missing.modules[0].advancements.clear();
+    let errors = sand::advanced::compiler::Compiler::compile(&missing).unwrap_err();
+    assert!(errors.iter().any(|error| {
+        error.pointer == "/events/0/event/advancement"
+            && error.message.contains("requires an authored advancement")
+    }));
+}
+
+#[test]
+fn completion_handlers_require_a_visible_advancement_declaration() {
+    for attribute in [
+        "advancement",
+        "advancement = \"minecraft:story/root\"",
+        "advancement = Unknown",
+    ] {
+        let source = format!(
+            "#![pack(namespace = \"milestone\")]\n#[on({attribute})]\nfn completion() {{}}"
+        );
+        let analysis = analyze_one(&source);
+        assert!(analysis.has_errors(), "{attribute}");
+    }
+}

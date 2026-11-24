@@ -699,12 +699,12 @@ impl TextPart {
  registry = sand_api_contract, path = "sand::advanced::compiler::PlayerEvent", module = "sand::advanced::compiler",
  summary = "A player occurrence that runs handler functions as that player.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
- minecraft = "Observed each tick through namespace-owned scoreboard criteria or tags, so other packs cannot consume the observation.",
+ minecraft = "Runs through namespace-owned observations or a native advancement reward function.",
  use_when = ["Reacting to joins, deaths, kills, or item use in a portable program"],
  avoid_when = ["Occurrences not listed here, which use the Rust event API"],
  example = "let event = sand::advanced::compiler::PlayerEvent::Death;",
- variants(Join = "Every join, including the first.", FirstJoin = "Only the first join ever.", Death = "The player died.", KillEntity = "The player killed any entity.", KillPlayer = "The player killed another player.", UseItem = "The player used an item.", Jump = "The player jumped.", DropItem = "The player dropped an item.", Sleep = "The player slept in a bed.", TakeDamage = "The player took damage.", DealDamage = "The player dealt damage.", CraftItem = "The player crafted an item.", PickUpItem = "The player picked up an item.", MineBlock = "The player mined a block.", KillEntityType = "The player killed an entity of one type.", KilledBy = "An entity of one type killed the player."),
- variant_fields(UseItem(item = "Used item identity, such as `minecraft:carrot_on_a_stick`."), CraftItem(item = "Crafted item identity."), PickUpItem(item = "Picked-up item identity."), MineBlock(block = "Mined block identity."), KillEntityType(entity = "Killed entity type identity."), KilledBy(entity = "Killer entity type identity.")),
+ variants(Join = "Every join, including the first.", FirstJoin = "Only the first join ever.", Death = "The player died.", KillEntity = "The player killed any entity.", KillPlayer = "The player killed another player.", UseItem = "The player used an item.", Jump = "The player jumped.", DropItem = "The player dropped an item.", Sleep = "The player slept in a bed.", TakeDamage = "The player took damage.", DealDamage = "The player dealt damage.", CraftItem = "The player crafted an item.", PickUpItem = "The player picked up an item.", MineBlock = "The player mined a block.", KillEntityType = "The player killed an entity of one type.", KilledBy = "An entity of one type killed the player.", AdvancementCompleted = "The player completed one advancement authored by this program."),
+ variant_fields(UseItem(item = "Used item identity, such as `minecraft:carrot_on_a_stick`."), CraftItem(item = "Crafted item identity."), PickUpItem(item = "Picked-up item identity."), MineBlock(block = "Mined block identity."), KillEntityType(entity = "Killed entity type identity."), KilledBy(entity = "Killer entity type identity."), AdvancementCompleted(advancement = "The authored advancement identity.")),
 )]
 pub enum PlayerEvent {
     /// Every join, including the first; observed on the next tick.
@@ -757,6 +757,12 @@ pub enum PlayerEvent {
         /// Killer entity type identity.
         entity: String,
     },
+    /// Runs when the player completes a native advancement declared by the program.
+    AdvancementCompleted {
+        /// Advancement whose native reward function dispatches the handlers.
+        #[schemars(with = "String")]
+        advancement: sand_components::ResourceLocation,
+    },
 }
 
 impl PlayerEvent {
@@ -793,6 +799,13 @@ impl PlayerEvent {
             PlayerEvent::MineBlock { .. } => "mine_block",
             PlayerEvent::KillEntityType { .. } => "kill_entity_type",
             PlayerEvent::KilledBy { .. } => "killed_by",
+            PlayerEvent::AdvancementCompleted { advancement } => {
+                return format!(
+                    "advancement/{}/{}",
+                    advancement.namespace(),
+                    advancement.path()
+                );
+            }
         };
         match self.filter() {
             Some((id, _)) => format!("{base}/{}", id.replace(':', "/")),
@@ -805,7 +818,7 @@ impl PlayerEvent {
         let stat = |kind: &str, id: &str| format!("minecraft.{kind}:{}", id.replace(':', "."));
         Some(match self {
             PlayerEvent::Join => "minecraft.custom:minecraft.leave_game".into(),
-            PlayerEvent::FirstJoin => return None,
+            PlayerEvent::FirstJoin | PlayerEvent::AdvancementCompleted { .. } => return None,
             PlayerEvent::Death => "deathCount".into(),
             PlayerEvent::KillEntity => "totalKillCount".into(),
             PlayerEvent::KillPlayer => "playerKillCount".into(),

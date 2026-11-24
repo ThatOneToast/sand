@@ -3192,7 +3192,7 @@ impl Cx {
         out
     }
 
-    /// Parse `#[on(event)]` or `#[on(use_item = "minecraft:item")]`.
+    /// Parse a bare player event, a vanilla filter, or an authored advancement.
     fn event_attr(
         &mut self,
         module: ModuleId,
@@ -3252,6 +3252,18 @@ impl Cx {
                     "sleep" => pc::PlayerEvent::Sleep,
                     "take_damage" => pc::PlayerEvent::TakeDamage,
                     "deal_damage" => pc::PlayerEvent::DealDamage,
+                    "advancement" => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                "attribute",
+                                file,
+                                arg.span,
+                                "expected an authored advancement",
+                            )
+                            .with_help("write `#[on(advancement = Milestone)]`"),
+                        );
+                        return None;
+                    }
                     filtered => {
                         let diagnostic = match FILTERED.iter().find(|(key, _, _)| *key == filtered)
                         {
@@ -3275,6 +3287,20 @@ impl Cx {
                     }
                 };
                 Some((event, name.to_string()))
+            }
+            (Some(key), value) if key.name == "advancement" => {
+                let AttrValue::Expr(expr @ Expr::Path(path)) = value else {
+                    self.error(
+                        "attribute",
+                        file,
+                        arg.span,
+                        "expected an authored advancement",
+                    );
+                    return None;
+                };
+                let advancement = self.native_data_id(module, file, expr, DefKind::Advancement)?;
+                let label = format!("advancement = {}", path.display());
+                Some((pc::PlayerEvent::AdvancementCompleted { advancement }, label))
             }
             (Some(key), value) if FILTERED.iter().any(|(k, _, _)| *k == key.name) => {
                 let (_, set, build) = FILTERED

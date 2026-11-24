@@ -437,6 +437,18 @@ pub(super) fn validate(
             if let Some((id, kind)) = hook.event.filter() {
                 validator.resource(id, &owner, &format!("{ptr}/event"), kind);
             }
+            if let PlayerEvent::AdvancementCompleted { advancement } = &hook.event
+                && !validator
+                    .advancements
+                    .contains_key(&advancement.to_string())
+            {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("{ptr}/event/advancement"),
+                    format!("advancement completion requires an authored advancement, found `{advancement}`"),
+                ));
+            }
             // Handlers run as the observed player.
             validator.call(
                 &hook.function,

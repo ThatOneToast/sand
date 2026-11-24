@@ -1190,8 +1190,8 @@ per player and uses a typed cooldown for returning to it.
 
 ### Waiting within a function
 
-Use `wait(20)` or `wait(seconds = 1)` in a function body or an `if` or `else`
-branch with an entity or player executor. When the delay ends, the rest of the function runs
+Use `wait(20)` or `wait(seconds = 1)` in a function body, conditional branch,
+or statement `match` arm with an entity or player executor. When the delay ends, the rest of the function runs
 with its own saved parameters and locals. It runs as the original executor at
 the saved position and dimension. State fields are read live when the function
 resumes. A caller can continue as soon as the called function suspends.
@@ -1225,7 +1225,7 @@ pending instances at each wait statement.
 After a branch finishes, execution continues with the statements that follow
 it. A `return;` within a resumed branch ends that invocation. Use waits in
 functions with no return value or mutable borrowed receiver. For delayed work
-from a loop or match arm, call a function that contains the wait. See the
+from a loop, call a function that contains the wait. See the
 [bakery example](../../examples/lang_waits/pack.sand).
 
 ## The world

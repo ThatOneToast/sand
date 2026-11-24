@@ -2022,6 +2022,7 @@ impl Cx {
         }
         // Reserve the dispatch flag before lowering arm scratch storage.
         let matched = self.temp(body);
+        body.wait_slots.push(matched.clone());
         let patterns: Vec<_> = arms
             .iter()
             .map(|arm| (&arm.pattern, arm.guard.is_some(), arm.span))
@@ -2039,7 +2040,7 @@ impl Cx {
                     &arm.pattern,
                     arm.guard.as_ref(),
                     arm.span,
-                    |this, body| Some(this.lower_block(body, &arm.body)),
+                    |this, body| Some(this.lower_waitable_block(body, &arm.body)),
                 )?;
                 Some(LoweredMatchArm {
                     values,
@@ -2049,6 +2050,7 @@ impl Cx {
                 })
             })
             .collect();
+        body.wait_slots.pop();
         self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
         body.temp_depth = depth;
     }
@@ -2091,7 +2093,7 @@ impl Cx {
                 ),
             );
             match guard {
-                Some(guard) => self.lower_cond(body, guard, branch, Vec::new()),
+                Some(guard) => self.lower_branch_condition(body, guard, branch, Vec::new(), span),
                 None => Some(branch),
             }
         });
@@ -2215,6 +2217,8 @@ impl Cx {
             let branch = arm.body;
             let selected = if arm.catch_all {
                 branch
+            } else if arm.values.len() > 1 && continuations::may_suspend(&branch) {
+                self.match_wait_alternatives(body, snapshot, arm.values, branch, arm_span)
             } else {
                 arm.values
                     .into_iter()
@@ -2249,6 +2253,57 @@ impl Cx {
                 arm_span,
             ));
         }
+    }
+
+    fn match_wait_alternatives(
+        &mut self,
+        body: &mut BodyCx,
+        snapshot: &pc::FieldReference,
+        alternatives: Vec<i32>,
+        branch: Vec<pc::Operation>,
+        span: Span,
+    ) -> Vec<pc::Operation> {
+        // Reserve a scratch slot only for the initial selection. Multiple
+        // alternatives converge before entering the single authored wait site.
+        let depth = body.temp_depth;
+        let selected = self.temp(body);
+        body.temp_depth = depth;
+        let set = |value| {
+            op_at(
+                pc::Action::ScoreSet {
+                    score: selected.clone(),
+                    value,
+                },
+                body.file,
+                span,
+            )
+        };
+        let matches = |score: pc::FieldReference, value| {
+            pc::Condition::Range(pc::ScoreComparison {
+                score,
+                min: Some(value),
+                max: Some(value),
+            })
+        };
+        let branch_at = |condition, then| {
+            op_at(
+                pc::Action::Branch {
+                    condition,
+                    then,
+                    otherwise: Vec::new(),
+                },
+                body.file,
+                span,
+            )
+        };
+        let mut operations = vec![set(0)];
+        operations.extend(
+            alternatives
+                .into_iter()
+                .map(|value| branch_at(matches(snapshot.clone(), value), vec![set(1)])),
+        );
+        operations.push(branch_at(matches(selected, 1), branch));
+        operations
     }
 
     #[allow(clippy::too_many_arguments)]

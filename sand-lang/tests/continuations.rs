@@ -154,3 +154,32 @@ fn branch(a: bool, b: bool, c: bool) {
             .resources
     );
 }
+
+#[test]
+fn match_alternatives_and_short_circuit_guards_keep_single_wait_sites() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+player state Ledger { sum: number }
+fn choose(mode: number) {
+    match mode {
+        1 | 3 => { wait(3); Ledger.sum += 1; },
+        let candidate if candidate == 2 || candidate == 99 => {
+            wait(4);
+            Ledger.sum += candidate;
+        },
+        _ => { Ledger.sum += 100; },
+    }
+    Ledger.sum += 10;
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    assert_eq!(
+        pack.resources
+            .keys()
+            .filter(|name| name.ends_with("/continuation.mcfunction"))
+            .count(),
+        2,
+    );
+}

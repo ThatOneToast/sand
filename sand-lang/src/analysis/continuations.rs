@@ -48,7 +48,7 @@ impl Cx {
             || body.ret.is_some()
             || body.receiver_out.is_some()
         {
-            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch, with no return value or mutable borrowed receiver");
+            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch or a match arm, with no return value or mutable borrowed receiver");
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
@@ -138,7 +138,7 @@ impl Cx {
                     .filter_map(|(name, def)| seen.insert(name).then_some(*def)),
             );
         }
-        let mut fields = Vec::new();
+        let mut fields = body.wait_slots.clone();
         for def in definitions {
             let root = self.local_ref(def);
             let ty = self.local_ty(def);

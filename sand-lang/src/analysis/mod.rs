@@ -4482,16 +4482,26 @@ impl Cx {
     }
 
     fn lower_if(&mut self, body: &mut BodyCx, stmt: &IfStmt) -> Vec<pc::Operation> {
-        let then = self.lower_if_block(body, &stmt.then);
+        let then = self.lower_waitable_block(body, &stmt.then);
         let otherwise = match &stmt.otherwise {
             None => Vec::new(),
-            Some(Else::Block(block)) => self.lower_if_block(body, block),
+            Some(Else::Block(block)) => self.lower_waitable_block(body, block),
             Some(Else::If(nested)) => self.lower_if(body, nested),
         };
+        self.lower_branch_condition(body, &stmt.cond, then, otherwise, stmt.span)
+            .unwrap_or_default()
+    }
+
+    fn lower_branch_condition(
+        &mut self,
+        body: &mut BodyCx,
+        condition: &Cond,
+        then: Vec<pc::Operation>,
+        otherwise: Vec<pc::Operation>,
+        span: Span,
+    ) -> Option<Vec<pc::Operation>> {
         if !continuations::may_suspend(&then) && !continuations::may_suspend(&otherwise) {
-            return self
-                .lower_cond(body, &stmt.cond, then, otherwise)
-                .unwrap_or_default();
+            return self.lower_cond(body, condition, then, otherwise);
         }
         // Evaluate short-circuit conditions once and put each suspending arm
         // in a single branch, keeping the number of wait sites linear.
@@ -4504,16 +4514,14 @@ impl Cx {
                     value,
                 },
                 body.file,
-                stmt.span,
+                span,
             )]
         };
         let yes = test(1);
         let no = test(0);
-        let evaluated = self.lower_cond(body, &stmt.cond, yes, no);
+        let evaluated = self.lower_cond(body, condition, yes, no);
         body.temp_depth = depth;
-        let Some(mut operations) = evaluated else {
-            return Vec::new();
-        };
+        let mut operations = evaluated?;
         operations.push(op_at(
             pc::Action::Branch {
                 condition: pc::Condition::Range(pc::ScoreComparison {
@@ -4525,12 +4533,12 @@ impl Cx {
                 otherwise,
             },
             body.file,
-            stmt.span,
+            span,
         ));
-        operations
+        Some(operations)
     }
 
-    fn lower_if_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
+    fn lower_waitable_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
         let saved = body.wait_block_depth;
         let depth = body.block_ends.len();
         if saved == depth {
@@ -5411,6 +5419,8 @@ struct BodyCx {
     block_ends: Vec<usize>,
     /// The innermost block where a wait may suspend this function frame.
     wait_block_depth: usize,
+    /// Compiler State needed to finish dispatch after a resumed arm.
+    wait_slots: Vec<pc::FieldReference>,
     in_players: bool,
     player_use: Option<(Span, String)>,
     calls: Vec<(DefId, Span)>,
@@ -5444,6 +5454,7 @@ impl BodyCx {
             pending: Vec::new(),
             block_ends: Vec::new(),
             wait_block_depth: 1,
+            wait_slots: Vec::new(),
             player_use: None,
             calls: Vec::new(),
             schedules: Vec::new(),

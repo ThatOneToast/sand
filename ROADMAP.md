@@ -288,7 +288,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Runtime wait durations in ticks and seconds, captured for each invocation.
 - [x] Waits in nested conditional branches with one shared continuation and
   per-invocation locals.
-- [ ] Waits inside loops and matches, and server continuations.
+- [x] Waits inside statement match arms with guards, alternatives, and captures.
+- [ ] Waits inside loops and server continuations.
 - [x] Dimension checks and scoped calls, and block cloning with mask, filter,
   overlap, and move modes.
 - [x] Biome predicates validated against the target version’s shared catalog.

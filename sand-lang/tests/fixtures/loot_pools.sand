@@ -1,0 +1,64 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+global state Report { checks: number, failed: number }
+
+loot Supply {
+    pools: [
+        { items: [Item::Bread] },
+        { chance: 0, items: [Item::Emerald] },
+        { chance: 1, weather: Weather::Clear, items: [{ item: Item::Diamond, count: 3 }] },
+        { weather: Weather::Rain, items: [Item::GoldIngot] },
+        { weather: Weather::Thunder, items: [Item::IronIngot] },
+    ],
+}
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    set_weather(Weather::Clear, seconds = 60);
+    schedule(check_clear, ticks = 120);
+}
+
+fn check_clear() {
+    raw!("execute positioned 0 80 0 run function language_probe:clear_drops");
+    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:bread" } }));
+    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:diamond", count: 3 } }));
+    check(!any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:emerald" } }));
+    set_weather(Weather::Rain, seconds = 60);
+    schedule(check_rain, ticks = 120);
+}
+
+fn check_rain() {
+    raw!("execute positioned 0 80 0 run function language_probe:clear_drops");
+    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:gold_ingot" } }));
+    check(!any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:iron_ingot" } }));
+    set_weather(Weather::Thunder, seconds = 60);
+    schedule(check_thunder, ticks = 120);
+}
+
+fn check_thunder() {
+    raw!("execute positioned 0 80 0 run function language_probe:clear_drops");
+    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:iron_ingot" } }));
+    check(!any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:gold_ingot" } }));
+    raw!("execute positioned 0 80 0 run function language_probe:cleanup");
+    set_weather(Weather::Clear);
+
+    if Report.checks == 7 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}
+
+fn clear_drops() {
+    cleanup();
+    drop_loot(Supply);
+}
+
+fn cleanup() {
+    for stack in entities(type = Entity::Item, distance = ..=3) {
+        kill();
+    }
+}

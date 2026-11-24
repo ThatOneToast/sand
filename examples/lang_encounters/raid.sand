@@ -21,8 +21,10 @@ bossbar Raid {
 
 /// What a landed strike can drop.
 loot Spoils {
-    rolls: 2,
-    items: [Item::GoldIngot, { item: Item::Diamond, weight: 1, count: 2 }],
+    pools: [
+        { rolls: 2, items: [Item::GoldIngot, { item: Item::Diamond, weight: 1, count: 2 }] },
+        { chance: 0.25, weather: Weather::Thunder, items: [Item::Emerald] },
+    ],
 }
 
 /// Raised whenever a player lands a strike.

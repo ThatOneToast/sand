@@ -2754,7 +2754,18 @@ impl Cx {
         arg: &Arg,
     ) -> Option<sand::component::EquipmentSlot> {
         let value = self.arg_id(body, arg, "EquipmentSlot")?;
-        serde_json::from_value(serde_json::Value::String(value)).ok()
+        match serde_json::from_value(serde_json::Value::String(value)) {
+            Ok(slot) => Some(slot),
+            Err(_) => {
+                self.error(
+                    "type",
+                    body.file,
+                    arg.span,
+                    "expected an `EquipmentSlot::...` value",
+                );
+                None
+            }
+        }
     }
 
     pub(super) fn arg_int(&mut self, body: &BodyCx, arg: &Arg, min: i64, max: i64) -> Option<i64> {

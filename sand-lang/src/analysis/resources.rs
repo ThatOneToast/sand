@@ -3,6 +3,7 @@
 use super::*;
 use crate::ast::{DataField, DataItem, DataKind, DataValue};
 use crate::builtins;
+use std::collections::BTreeSet;
 
 impl Cx {
     pub(super) fn lower_data(
@@ -429,30 +430,7 @@ impl Cx {
                 });
             }
             DataKind::Loot => {
-                let Some(items_field) = get("items") else {
-                    return;
-                };
-                let DataValue::Array(values, span) = &items_field.value else {
-                    self.error(
-                        "type",
-                        file,
-                        items_field.value.span(),
-                        "expected a list of items",
-                    );
-                    return;
-                };
-                if values.is_empty() {
-                    self.error("loot", file, *span, "a loot table needs at least one item");
-                    return;
-                }
-                let items: Option<Vec<pc::LootItem>> = values
-                    .iter()
-                    .map(|value| self.data_loot_item(module, file, value))
-                    .collect();
-                let rolls = get("rolls")
-                    .map(|f| self.data_int(module, file, &f.value, 1, 1_000))
-                    .unwrap_or(Some(1));
-                let (Some(items), Some(rolls)) = (items, rolls) else {
+                let Some(pools) = self.data_loot_pools(module, file, data, &fields) else {
                     return;
                 };
                 self.pointers.push((
@@ -463,8 +441,7 @@ impl Cx {
                 ));
                 out.loot_tables.push(pc::LootTable {
                     id: location,
-                    rolls: rolls as u32,
-                    items,
+                    pools,
                 });
             }
             DataKind::Tag => {
@@ -513,6 +490,128 @@ impl Cx {
                 });
             }
         }
+    }
+
+    fn data_loot_pools(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        data: &DataItem,
+        fields: &BTreeMap<&str, &DataField>,
+    ) -> Option<Vec<pc::LootPool>> {
+        if let Some(pools) = fields.get("pools") {
+            if fields.len() > 1 {
+                self.error(
+                    "loot",
+                    file,
+                    pools.span,
+                    "use either pools or top-level items and rolls",
+                );
+                return None;
+            }
+            let DataValue::Array(values, span) = &pools.value else {
+                self.error(
+                    "type",
+                    file,
+                    pools.value.span(),
+                    "expected a list of loot pools",
+                );
+                return None;
+            };
+            if values.is_empty() {
+                self.error("loot", file, *span, "a loot table needs at least one pool");
+                return None;
+            }
+            return values
+                .iter()
+                .map(|value| {
+                    let DataValue::Object(fields, span) = value else {
+                        self.error("type", file, value.span(), "expected a loot pool object");
+                        return None;
+                    };
+                    self.data_loot_pool(module, file, fields, *span)
+                })
+                .collect();
+        }
+        self.data_loot_pool(module, file, &data.fields, data.name.span)
+            .map(|pool| vec![pool])
+    }
+
+    fn data_loot_pool(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        fields: &[DataField],
+        span: Span,
+    ) -> Option<pc::LootPool> {
+        let mut pool = pc::LootPool {
+            items: Vec::new(),
+            rolls: 1,
+            chance: None,
+            weather: None,
+        };
+        let mut seen = BTreeSet::new();
+        for field in fields {
+            if !seen.insert(&field.key.name) {
+                self.error(
+                    "loot",
+                    file,
+                    field.key.span,
+                    format!("duplicate loot pool field `{}`", field.key.name),
+                );
+                return None;
+            }
+            match field.key.name.as_str() {
+                "items" => {
+                    let DataValue::Array(values, _) = &field.value else {
+                        self.error("type", file, field.value.span(), "expected a list of items");
+                        return None;
+                    };
+                    pool.items = values
+                        .iter()
+                        .map(|item| self.data_loot_item(module, file, item))
+                        .collect::<Option<_>>()?;
+                }
+                "rolls" => pool.rolls = self.data_int(module, file, &field.value, 1, 1000)? as u32,
+                "chance" => {
+                    let chance = self.data_number(module, file, &field.value)?;
+                    if !(0.0..=1.0).contains(&chance) {
+                        self.error(
+                            "range",
+                            file,
+                            field.value.span(),
+                            "loot pool chance must be between zero and one",
+                        );
+                        return None;
+                    }
+                    pool.chance = Some(chance);
+                }
+                "weather" => {
+                    let expr = self.data_expr(file, &field.value, "a Weather value")?;
+                    let value = self.vanilla_value(module, file, expr, "Weather")?;
+                    let Ok(weather) = serde_json::from_value(serde_json::Value::String(value))
+                    else {
+                        self.error("type", file, expr.span(), "expected a `Weather::...` value");
+                        return None;
+                    };
+                    pool.weather = Some(weather);
+                }
+                _ => {
+                    self.error(
+                        "field",
+                        file,
+                        field.key.span,
+                        format!("unknown loot pool field `{}`", field.key.name),
+                    );
+                    return None;
+                }
+            }
+        }
+        if pool.items.is_empty() {
+            self.error("loot", file, span, "a loot table needs at least one item");
+            return None;
+        }
+        Some(pool)
     }
 
     /// A vanilla item, or `{ item: ..., weight: ..., count: ... }`.

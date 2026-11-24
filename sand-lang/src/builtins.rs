@@ -1949,7 +1949,7 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "loot",
         "items",
         FieldKind::LootItems,
-        true,
+        false,
         "What can be drawn: vanilla items, or `{ item: Item::Diamond, weight: 2, count: 3 }`.",
         "[Item::${1:Diamond}]",
     ),
@@ -1960,6 +1960,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         false,
         "How many choices are drawn each time; 1 by default.",
         "${1:1}",
+    ),
+    f(
+        "loot",
+        "pools",
+        FieldKind::LootItems,
+        false,
+        "Independent loot pools. Each has items, optional rolls, chance, and weather.",
+        "[{ items: [Item::${1:Diamond}] }]",
     ),
 ];
 
@@ -1984,7 +1992,7 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     ),
     (
         "loot",
-        "`loot Name { items: [...] }` declares a loot table drawn from weighted item choices. Use it with `give_loot` or `drop_loot`.",
+        "`loot Name { items: [...] }` declares a loot table drawn from weighted item choices. Use `pools: [...]` for independent and conditional pools. Use it with `give_loot` or `drop_loot`.",
     ),
     (
         "tag",

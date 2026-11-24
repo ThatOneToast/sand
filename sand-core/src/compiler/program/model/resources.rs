@@ -1,5 +1,5 @@
 //! Owned portable data resources: custom items, recipes, and registry tags.
-use super::TextPart;
+use super::{TextPart, Weather};
 use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -268,28 +268,52 @@ pub struct LootItem {
     pub count: u32,
 }
 
-/// A loot table: rolls drawn from weighted item choices.
+/// One independently rolled group of weighted loot choices.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::LootPool", module = "sand::advanced::compiler",
+ summary = "One independently rolled group of weighted loot choices.",
+ context = "The portable program model retains author-defined pool order and optional conditions.",
+ minecraft = "Lowers into Sand's typed loot pool with vanilla random chance and weather conditions.",
+ use_when = ["Combining fixed and conditional loot in the same resource"],
+ avoid_when = ["Using a function that requires a custom loot context"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(rolls = "Choices drawn from this pool.", items = "Weighted item choices.", chance = "Probability that this pool runs.", weather = "Required weather in the loot context."),
+)]
+pub struct LootPool {
+    /// Choices drawn from this pool.
+    #[serde(default = "one")]
+    pub rolls: u32,
+    /// Weighted item choices.
+    pub items: Vec<LootItem>,
+    /// Probability that this pool runs, from zero to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chance: Option<f64>,
+    /// Required weather in the loot context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weather: Option<Weather>,
+}
+
+/// A loot table containing one or more independently rolled pools.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::LootTable", module = "sand::advanced::compiler",
- summary = "A loot table: rolls drawn from weighted item choices.",
+ summary = "A loot table containing one or more independently rolled pools.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Lowers through Sand's typed loot builder to `data/<ns>/loot_table/<path>.json`.",
  use_when = ["Handing out or dropping randomized rewards"],
- avoid_when = ["Conditional pools and loot functions, which need the Rust API"],
+ avoid_when = ["Using custom loot functions that require the Rust API"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(id = "Identity.", rolls = "Choices drawn each time.", items = "Weighted item choices."),
+ fields(id = "Identity.", pools = "Ordered independent, optionally conditional pools."),
 )]
 pub struct LootTable {
     /// Identity.
     #[schemars(with = "String")]
     pub id: ResourceLocation,
-    /// Choices drawn each time.
-    #[serde(default = "one")]
-    pub rolls: u32,
-    /// Weighted item choices.
-    pub items: Vec<LootItem>,
+    /// Ordered independent, optionally conditional pools.
+    pub pools: Vec<LootPool>,
 }
 
 /// The colour of a boss bar.

@@ -283,8 +283,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Biome predicates validated against the target version’s shared catalog.
 - [x] Checked block entity paths, numeric reads and writes, and field removal.
 - [ ] Structure resources, dimension and biome declarations, and general block data.
-- [ ] Multi-pool conditional loot, advancements, predicates, worldgen, damage
-  types, trim recipes, books, dialogs, interactive/translated text and VFX.
+- [x] Independent loot pools with weighted entries, random chance, and
+  weather conditions.
+- [ ] Advancements, predicates, worldgen, damage types, trim recipes, books,
+  dialogs, interactive/translated text and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.

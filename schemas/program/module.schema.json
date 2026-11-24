@@ -2687,13 +2687,17 @@
       ],
       "type": "object"
     },
-    "LootTable": {
+    "LootPool": {
       "additionalProperties": false,
-      "description": "A loot table: rolls drawn from weighted item choices.",
+      "description": "One independently rolled group of weighted loot choices.",
       "properties": {
-        "id": {
-          "description": "Identity.",
-          "type": "string"
+        "chance": {
+          "description": "Probability that this pool runs, from zero to one.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
         },
         "items": {
           "description": "Weighted item choices.",
@@ -2704,15 +2708,47 @@
         },
         "rolls": {
           "default": 1,
-          "description": "Choices drawn each time.",
+          "description": "Choices drawn from this pool.",
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Weather"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Required weather in the loot context."
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
+    "LootTable": {
+      "additionalProperties": false,
+      "description": "A loot table containing one or more independently rolled pools.",
+      "properties": {
+        "id": {
+          "description": "Identity.",
+          "type": "string"
+        },
+        "pools": {
+          "description": "Ordered independent, optionally conditional pools.",
+          "items": {
+            "$ref": "#/$defs/LootPool"
+          },
+          "type": "array"
         }
       },
       "required": [
         "id",
-        "items"
+        "pools"
       ],
       "type": "object"
     },

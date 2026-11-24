@@ -1238,6 +1238,20 @@ loot Crate {
 fn open_crate() { give_loot(Crate); }   // or drop_loot(Crate) at the executor
 ```
 
+Use `pools` for independent groups of loot. Each pool rolls its own weighted
+items, and its optional `chance` and `weather` conditions must both pass.
+`Weather::Rain` matches rain without thunder. `Weather::Thunder` matches
+thunderstorms. Chance runs from zero to one and is checked once per pool.
+
+```rust,ignore
+loot RaidSupplies {
+    pools: [
+        { items: [Item::Bread] },
+        { weather: Weather::Thunder, chance: 0.25, items: [Item::Diamond] },
+    ],
+}
+```
+
 ## Flows
 
 A flow drives a State field through phases. Inside a flow over an enum field,
@@ -1353,7 +1367,7 @@ command and State models as Rust. Today the language covers:
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
-| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, single-pool loot tables | conditional loot, advancements, predicates, trim recipes, worldgen, damage types |
+| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, conditional multi-pool loot | advancements, predicates, trim recipes, worldgen, damage types |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.

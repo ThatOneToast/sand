@@ -654,24 +654,46 @@ pub(super) fn validate(
                     format!("duplicate loot table `{}`", table.id),
                 );
             }
-            if table.rolls == 0 || table.items.is_empty() {
+            if table.pools.is_empty() {
                 push(
-                    ptr.clone(),
-                    "a loot table needs at least one roll and one item".into(),
+                    format!("{ptr}/pools"),
+                    "a loot table needs at least one pool".into(),
                 );
             }
-            for (i, item) in table.items.iter().enumerate() {
-                if !item_id(&item.item) || custom_items.contains(&item.item) {
+            for (index, pool) in table.pools.iter().enumerate() {
+                let ptr = format!("{ptr}/pools/{index}");
+                if !(1..=1000).contains(&pool.rolls) || pool.items.is_empty() {
                     push(
-                        format!("{ptr}/items/{i}/item"),
-                        format!("`{}` is not a vanilla item id", item.item),
+                        ptr.clone(),
+                        "a loot pool needs 1..=1000 rolls and at least one item".into(),
                     );
                 }
-                if item.weight == 0 || !(1..=99).contains(&item.count) {
+                if pool
+                    .chance
+                    .is_some_and(|chance| !(0.0..=1.0).contains(&chance))
+                {
                     push(
-                        format!("{ptr}/items/{i}"),
-                        "loot weight must be positive and count 1..=99".into(),
+                        format!("{ptr}/chance"),
+                        "loot pool chance must be between zero and one".into(),
                     );
+                }
+                for (index, item) in pool.items.iter().enumerate() {
+                    let ptr = format!("{ptr}/items/{index}");
+                    if !item_id(&item.item) || custom_items.contains(&item.item) {
+                        push(
+                            format!("{ptr}/item"),
+                            format!("`{}` is not a vanilla item id", item.item),
+                        );
+                    }
+                    if !(1..=i32::MAX as u32).contains(&item.weight)
+                        || !(1..=99).contains(&item.count)
+                    {
+                        push(
+                            ptr,
+                            "loot weight must be a positive scoreboard integer and count 1..=99"
+                                .into(),
+                        );
+                    }
                 }
             }
         }

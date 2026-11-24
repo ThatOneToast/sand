@@ -1,30 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "A loot table: rolls drawn from weighted item choices.",
+  "description": "A loot table containing one or more independently rolled pools.",
   "properties": {
     "id": {
       "description": "Identity.",
       "type": "string"
     },
-    "items": {
-      "description": "Weighted item choices.",
+    "pools": {
+      "description": "Ordered independent, optionally conditional pools.",
       "items": {
-        "$ref": "defs-LootItem.schema.json"
+        "$ref": "defs-LootPool.schema.json"
       },
       "type": "array"
-    },
-    "rolls": {
-      "default": 1,
-      "description": "Choices drawn each time.",
-      "format": "uint32",
-      "minimum": 0,
-      "type": "integer"
     }
   },
   "required": [
     "id",
-    "items"
+    "pools"
   ],
   "type": "object"
 }

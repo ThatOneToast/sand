@@ -802,34 +802,47 @@ fn tag_component(tag: &ResourceTag) -> Result<Box<dyn sand_components::DatapackC
 
 /// Build the typed loot table that Rust authors would write.
 fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
-    use sand_components::{LootEntry, LootFunction, LootPool};
-    let mut pool = LootPool::new().rolls(table.rolls as i32);
-    for item in &table.items {
-        let LootEntry::Item {
-            name,
-            quality,
-            conditions,
-            ..
-        } = LootEntry::item_raw(&item.item)
-        else {
-            unreachable!("item_raw builds an item entry");
-        };
-        pool = pool.entry(LootEntry::Item {
-            name,
-            weight: Some(item.weight as i32),
-            quality,
-            functions: if item.count > 1 {
-                vec![LootFunction::SetCount {
-                    count: (item.count as i32).into(),
-                    add: false,
-                }]
-            } else {
-                Vec::new()
-            },
-            conditions,
-        });
+    use sand_components::{LootCondition, LootEntry, LootFunction, LootPool};
+    let mut result = sand_components::LootTable::new(table.id.clone());
+    for source in &table.pools {
+        let mut pool = LootPool::new().rolls(source.rolls as i32);
+        if let Some(chance) = source.chance {
+            pool = pool.condition(LootCondition::RandomChance { chance });
+        }
+        if let Some(weather) = source.weather {
+            pool = pool.condition(LootCondition::WeatherCheck {
+                raining: Some(weather != Weather::Clear),
+                thundering: Some(weather == Weather::Thunder),
+            });
+        }
+        for item in &source.items {
+            let LootEntry::Item {
+                name,
+                quality,
+                conditions,
+                ..
+            } = LootEntry::item_raw(&item.item)
+            else {
+                unreachable!("item_raw builds an item entry");
+            };
+            pool = pool.entry(LootEntry::Item {
+                name,
+                weight: Some(item.weight as i32),
+                quality,
+                functions: if item.count > 1 {
+                    vec![LootFunction::SetCount {
+                        count: (item.count as i32).into(),
+                        add: false,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                conditions,
+            });
+        }
+        result = result.pool(pool);
     }
-    sand_components::LootTable::new(table.id.clone()).pool(pool)
+    result
 }
 
 /// The generated predicate that tests one entity flag.

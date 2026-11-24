@@ -20,7 +20,7 @@ pub use gameplay::{
 };
 pub use operation::{Action, Operation};
 pub use resources::{
-    BossBar, BossBarColor, BossBarStyle, CookingMethod, CustomItem, LootItem, LootTable, Rarity,
-    Recipe, RecipeOutput, ResourceTag, TagKind,
+    BossBar, BossBarColor, BossBarStyle, CookingMethod, CustomItem, LootItem, LootPool, LootTable,
+    Rarity, Recipe, RecipeOutput, ResourceTag, TagKind,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

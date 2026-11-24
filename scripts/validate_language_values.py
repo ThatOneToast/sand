@@ -229,6 +229,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_native_menus()
             self.check_owned_projectiles()
             self.check_progression_sessions()
+            self.check_ability_admission()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
@@ -494,6 +495,30 @@ class ValuesHarness(WorldGameplayHarness):
         report("NumericB", 1, "QUEST_RESTART_AND_CANCEL")
         invoke("NumericB", "reset_quest")
         report("NumericB", 0, "QUEST_RESET")
+
+
+    def check_ability_admission(self):
+        def invoke(player, function):
+            self.send(f"execute as {player} at @s run function runtime_values:{function}")
+
+        def report(player, score, label):
+            self.send(f"scoreboard players set {player} numeric_probe -1")
+            invoke(player, "report_spell")
+            self.check(label, f"if score {player} numeric_probe matches {score}")
+
+        invoke("NumericA", "prepare_spell_a")
+        invoke("NumericB", "prepare_spell_b")
+        self.check("ABILITY_FALSE_GUARD", "if score #spell_guard numeric_probe matches 1")
+        self.check("ABILITY_INSUFFICIENT_COST", "if score #spell_cost numeric_probe matches 1")
+        report("NumericA", 16, "ABILITY_A_COMMITTED_ONCE")
+        report("NumericB", 14, "ABILITY_B_PRIVATE_COOLDOWN")
+        invoke("NumericA", "stop_spell")
+        invoke("NumericB", "stop_spell")
+        report("NumericA", 16, "ABILITY_CANCEL_PRESERVES_COST")
+        self.step_ticks(8, "ABILITY_TICKS")
+        invoke("NumericA", "activate_spell")
+        report("NumericA", 24, "ABILITY_READY_AGAIN")
+        report("NumericB", 4, "ABILITY_PEER_STATE_UNCHANGED")
 
 
 def main():

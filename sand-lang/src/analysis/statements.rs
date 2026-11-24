@@ -4887,6 +4887,19 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "activate_ability" | "cancel_ability" | "diagnose_ability" => pc::Action::Ability {
+                ability: self.arg_declared(
+                    body,
+                    bound["ability"],
+                    DefKind::Ability,
+                    "an ability",
+                )?,
+                command: match builtin.name {
+                    "activate_ability" => pc::AbilityCommand::Activate,
+                    "cancel_ability" => pc::AbilityCommand::Cancel,
+                    _ => pc::AbilityCommand::Diagnose,
+                },
+            },
             "advance_progression" | "reset_progression" => pc::Action::Progression {
                 progression: self.arg_declared(
                     body,

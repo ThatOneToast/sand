@@ -167,6 +167,8 @@ pub enum DefKind {
     Progression,
     /// A loaded-tick controller over a quest.
     Session,
+    /// A checked player activation.
+    Ability,
 }
 
 impl DefKind {
@@ -205,6 +207,7 @@ impl DefKind {
             DefKind::Projectile => "projectile",
             DefKind::Progression => "progression",
             DefKind::Session => "session",
+            DefKind::Ability => "ability",
         }
     }
 }
@@ -1122,6 +1125,7 @@ impl Cx {
                     crate::ast::DataKind::Projectile => DefKind::Projectile,
                     crate::ast::DataKind::Progression => DefKind::Progression,
                     crate::ast::DataKind::Session => DefKind::Session,
+                    crate::ast::DataKind::Ability => DefKind::Ability,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3084,6 +3088,7 @@ impl Cx {
             projectiles: Vec::new(),
             progressions: Vec::new(),
             sessions: Vec::new(),
+            abilities: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

@@ -1638,6 +1638,31 @@ completion or expiry. `cancel_session` preserves progress, `reset_session`
 cancels and resets, and `restart_session` resets and starts again. Changes to
 objective order affect saved indices. See the [trail quest example](../../examples/lang_quest_session/).
 
+### Abilities with costs and cooldowns
+
+An `ability` checks admission for the executing player. It can use a number
+as its balance, a timer as its cooldown, and a boolean State field as an
+additional requirement. Add an optional projectile to use its flight and
+impact behavior with the ability's own lifetime.
+
+```rust,ignore
+player state Focus { mana: number = 8, cooldown: timer, ready: bool = true }
+
+ability CastSpark {
+    ticks: 24,
+    projectile: Spark,
+    cost: { balance: Focus.mana, amount: 2 },
+    cooldown: { timer: Focus.cooldown, ticks: 20 },
+    when: Focus.ready,
+}
+```
+
+Use `activate_ability(CastSpark)` to attempt admission. The runtime commits the
+charge and cooldown before running the optional `start` callback.
+`diagnose_ability(CastSpark)` reports failed requirements without activation.
+`cancel_ability(CastSpark)` stops that player's instances and preserves the
+committed State. See the [mana-powered spark example](../../examples/lang_abilities/).
+
 ### Player-owned projectiles
 
 Declare a sampled projectile, then launch it from a player function.
@@ -1921,7 +1946,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression and sessions | combat, abilities, encounters, jobs, rosters, scenes, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions and abilities | combat, encounters, jobs, rosters, scenes, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

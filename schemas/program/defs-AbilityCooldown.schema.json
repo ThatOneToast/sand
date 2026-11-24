@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A cooldown backed by a player's canonical State timer.",
+  "properties": {
+    "ticks": {
+      "description": "Positive ticks written on successful admission.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "timer": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Player timer that counts down through the State lifecycle."
+    }
+  },
+  "required": [
+    "timer",
+    "ticks"
+  ],
+  "type": "object"
+}

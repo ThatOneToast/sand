@@ -95,6 +95,15 @@ projectile ProbeBolt {
     hit: bolt_impact,
 }
 
+ability ProbeSpell {
+    ticks: 18,
+    projectile: ProbeBolt,
+    cost: { balance: Ledger.mana, amount: 2 },
+    cooldown: { timer: Ledger.spell_timer, ticks: 8 },
+    when: Ledger.spell_ready,
+    start: spell_started,
+}
+
 hud FieldStatus {
     ticks: 200,
     every: 2,
@@ -120,6 +129,11 @@ player state Ledger {
     quest_awards: number,
     quest_ready: bool,
     quest_skip: bool,
+    mana: number,
+    spell_timer: timer,
+    spell_ready: bool,
+    casts: number,
+    latest_charge: number,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -199,6 +213,51 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe 9");
     } else if all_bread == 3 && custom_bread == 0 && absent == 0 {
         raw!("scoreboard players set @s numeric_probe 3");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn spell_started() {
+    Ledger.casts += 1;
+    Ledger.latest_charge = Ledger.mana;
+    activate_ability(ProbeSpell);
+}
+fn prepare_spell_a() {
+    Ledger.mana = 8;
+    activate_ability(ProbeSpell);
+    diagnose_ability(ProbeSpell);
+    if Ledger.mana == 8 && Ledger.casts == 0 && Ledger.spell_timer == 0 {
+        raw!("scoreboard players set #spell_guard numeric_probe 1");
+    }
+    Ledger.spell_ready = true;
+    activate_ability(ProbeSpell);
+    activate_ability(ProbeSpell);
+}
+fn prepare_spell_b() {
+    Ledger.mana = 1;
+    Ledger.spell_ready = true;
+    activate_ability(ProbeSpell);
+    diagnose_ability(ProbeSpell);
+    if Ledger.mana == 1 && Ledger.casts == 0 && Ledger.spell_timer == 0 {
+        raw!("scoreboard players set #spell_cost numeric_probe 1");
+    }
+    Ledger.mana = 6;
+    activate_ability(ProbeSpell);
+}
+fn activate_spell() { activate_ability(ProbeSpell); }
+fn stop_spell() { cancel_ability(ProbeSpell); }
+fn report_spell() {
+    if Ledger.mana == Ledger.latest_charge && Ledger.spell_timer == 8 {
+        if Ledger.casts == 1 && Ledger.mana == 6 {
+            raw!("scoreboard players set @s numeric_probe 16");
+        } else if Ledger.casts == 1 && Ledger.mana == 4 {
+            raw!("scoreboard players set @s numeric_probe 14");
+        } else if Ledger.casts == 2 && Ledger.mana == 4 {
+            raw!("scoreboard players set @s numeric_probe 24");
+        }
+    } else if Ledger.casts == 1 && Ledger.mana == 4 && Ledger.spell_timer == 0 {
+        raw!("scoreboard players set @s numeric_probe 4");
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
     }

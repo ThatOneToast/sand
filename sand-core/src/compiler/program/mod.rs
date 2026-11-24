@@ -9,9 +9,10 @@ mod validate;
 pub use crate::compiler::runtime::{RuntimeAdvice, RuntimeReport};
 pub use diagnostic::Diagnostic;
 pub use model::{
-    Action, Advancement, AdvancementCriterion, AdvancementDisplay, Amount, Audience, BiomeMatches,
-    BlockDataAddress, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle, Condition,
-    CookingMethod, CustomBiome, CustomItem, DataField, DataOperand, DataProjection, DataReference,
+    AbilityCommand, AbilityCooldown, AbilityCost, AbilityDefinition, Action, Advancement,
+    AdvancementCriterion, AdvancementDisplay, Amount, Audience, BiomeMatches, BlockDataAddress,
+    BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle, Condition, CookingMethod,
+    CustomBiome, CustomItem, DataField, DataOperand, DataProjection, DataReference,
     DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
     ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow, FlowHook, FlowHookPhase,
     FlowTransition, Function, FunctionReference, HudBossBar, HudDefinition,
@@ -92,6 +93,7 @@ const CAPABILITIES: &[&str] = &[
     "owned_projectiles",
     "progressions",
     "owned_sessions",
+    "owned_abilities",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

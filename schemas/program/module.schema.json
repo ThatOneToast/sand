@@ -1,5 +1,139 @@
 {
   "$defs": {
+    "AbilityCommand": {
+      "description": "A control action for one player-owned ability.",
+      "oneOf": [
+        {
+          "const": "activate",
+          "description": "Attempt checked admission and commit associated State.",
+          "type": "string"
+        },
+        {
+          "const": "cancel",
+          "description": "Stop this owner's instances without refunding costs.",
+          "type": "string"
+        },
+        {
+          "const": "diagnose",
+          "description": "Show failed admission checks without mutating State.",
+          "type": "string"
+        }
+      ]
+    },
+    "AbilityCooldown": {
+      "additionalProperties": false,
+      "description": "A cooldown backed by a player's canonical State timer.",
+      "properties": {
+        "ticks": {
+          "description": "Positive ticks written on successful admission.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "timer": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Player timer that counts down through the State lifecycle."
+        }
+      },
+      "required": [
+        "timer",
+        "ticks"
+      ],
+      "type": "object"
+    },
+    "AbilityCost": {
+      "additionalProperties": false,
+      "description": "A charge against a player's non-ticking State score.",
+      "properties": {
+        "amount": {
+          "description": "Amount removed on admission.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "balance": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Resource balance charged by this activation."
+        }
+      },
+      "required": [
+        "balance",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "AbilityDefinition": {
+      "additionalProperties": false,
+      "description": "A player-owned activation with optional State cost, cooldown, and projectile.",
+      "properties": {
+        "cooldown": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AbilityCooldown"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional countdown started only when admission succeeds."
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AbilityCost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional cost charged only when admission succeeds."
+        },
+        "id": {
+          "description": "Ability identity used by typed control operations.",
+          "type": "string"
+        },
+        "projectile": {
+          "description": "Optional flight and hit behavior, using this ability's lifetime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Player callback after the canonical activation commits."
+        },
+        "ticks": {
+          "description": "Maximum loaded duration of an admitted instance.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional score that must equal one before admission."
+        }
+      },
+      "required": [
+        "id",
+        "ticks"
+      ],
+      "type": "object"
+    },
     "Action": {
       "description": "Supported typed gameplay operations. Raw commands require explicit opt-in.",
       "oneOf": [
@@ -576,6 +710,28 @@
             "op",
             "menu",
             "open"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Activate, cancel, or diagnose the player's ability.",
+          "properties": {
+            "ability": {
+              "type": "string"
+            },
+            "command": {
+              "$ref": "#/$defs/AbilityCommand"
+            },
+            "op": {
+              "const": "ability",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "ability",
+            "command"
           ],
           "type": "object"
         },
@@ -5775,6 +5931,13 @@
   "additionalProperties": false,
   "description": "One named owner of declarations and ordered lifecycle contributions.",
   "properties": {
+    "abilities": {
+      "description": "Owned activations and their State-backed admission policies.",
+      "items": {
+        "$ref": "#/$defs/AbilityDefinition"
+      },
+      "type": "array"
+    },
     "advancements": {
       "description": "Native advancements declared by this module.",
       "items": {

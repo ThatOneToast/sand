@@ -483,6 +483,71 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Ability => {
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                }) else {
+                    return;
+                };
+                let when = get("when")
+                    .and_then(|field| self.data_boolean_state(module, file, &field.value));
+                let start =
+                    get("start").and_then(|field| self.data_callback(module, file, &field.value));
+                let cost = get("cost").and_then(|field| {
+                    let fields = self.data_object_fields(
+                        file,
+                        &field.value,
+                        "ability cost",
+                        &["balance", "amount"],
+                        &[],
+                    )?;
+                    let balance =
+                        self.data_ability_score(module, file, fields.get("balance")?, false)?;
+                    let amount =
+                        self.data_int(module, file, fields.get("amount")?, 0, i64::from(i32::MAX))?
+                            as u32;
+                    Some(pc::AbilityCost { balance, amount })
+                });
+                let cooldown = get("cooldown").and_then(|field| {
+                    let fields = self.data_object_fields(
+                        file,
+                        &field.value,
+                        "ability cooldown",
+                        &["timer", "ticks"],
+                        &[],
+                    )?;
+                    let timer =
+                        self.data_ability_score(module, file, fields.get("timer")?, true)?;
+                    let ticks =
+                        self.data_int(module, file, fields.get("ticks")?, 1, i64::from(i32::MAX))?
+                            as u32;
+                    Some(pc::AbilityCooldown { timer, ticks })
+                });
+                let projectile = get("projectile").and_then(|field| {
+                    let expr = self.data_expr(file, &field.value, "a projectile")?;
+                    if let Some((_, id)) = self.declared(module, file, expr, DefKind::Projectile) {
+                        id.parse().ok()
+                    } else {
+                        self.error("type", file, expr.span(), "expected a declared projectile");
+                        None
+                    }
+                });
+                self.pointers.push((
+                    module_id,
+                    format!("/abilities/{}", out.abilities.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.abilities.push(pc::AbilityDefinition {
+                    id: location,
+                    ticks: ticks as u32,
+                    when,
+                    start,
+                    cost,
+                    cooldown,
+                    projectile,
+                });
+            }
             DataKind::Progression => {
                 let Some(objectives) = get("objectives")
                     .and_then(|field| self.data_progression_objectives(module, file, &field.value))
@@ -1682,6 +1747,40 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_ability_score(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        timer: bool,
+    ) -> Option<pc::FieldReference> {
+        let expected = if timer {
+            "a player State timer"
+        } else {
+            "a non-ticking player State number"
+        };
+        let expr = self.data_expr(file, value, expected)?;
+        let Expr::Place(place) = expr else {
+            self.error("state", file, value.span(), format!("expected {expected}"));
+            return None;
+        };
+        let (state, field, ty) = self.resolve_place(module, file, place)?;
+        if ty != Ty::Number
+            || !matches!(
+                self.defs[state.0].info,
+                DefInfo::State {
+                    scope: Scope::Player,
+                    ..
+                }
+            )
+            || !matches!(self.defs[field.0].info, DefInfo::Field { timer: found, .. } if found == timer)
+        {
+            self.error("state", file, value.span(), format!("expected {expected}"));
+            return None;
+        }
+        self.field_reference(state, field)
     }
 
     fn data_progress_field(

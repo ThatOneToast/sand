@@ -18,13 +18,13 @@ pub use gameplay::{
     ScoreOperator, ScoreRelation, StateAttached, TeleportDestination, TextColor, TextPart,
     TextStyle, Weather,
 };
-pub use operation::{Action, Operation, SessionCommand};
+pub use operation::{AbilityCommand, Action, Operation, SessionCommand};
 pub use resources::{
-    Advancement, AdvancementCriterion, AdvancementDisplay, BossBar, BossBarColor, BossBarStyle,
-    CookingMethod, CustomBiome, CustomItem, FlatDimension, HudBossBar, HudDefinition,
-    InventoryTransferDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition,
-    MenuView, NoticeDialog, ProgressionBranch, ProgressionDefinition, ProgressionObjective,
-    ProjectileDefinition, Rarity, Recipe, RecipeOutput, ResourceTag, SessionDefinition, TagKind,
-    WorldPredicate, WrittenBookContent,
+    AbilityCooldown, AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion,
+    AdvancementDisplay, BossBar, BossBarColor, BossBarStyle, CookingMethod, CustomBiome,
+    CustomItem, FlatDimension, HudBossBar, HudDefinition, InventoryTransferDefinition, LootItem,
+    LootPool, LootTable, MenuChoice, MenuDefinition, MenuView, NoticeDialog, ProgressionBranch,
+    ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
+    RecipeOutput, ResourceTag, SessionDefinition, TagKind, WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

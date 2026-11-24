@@ -331,7 +331,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   native damage attribution and owner-scoped cancellation.
 - [x] Player progression and sessions, with guarded objectives, forward
   branches, committed rewards, and per-player lifecycle controls.
-- [ ] Expose the Rust combat, abilities, encounters, jobs, rosters, scenes, and
+- [x] Player abilities with checked costs and cooldowns, diagnostics, and
+  optional projectile flight under the same admission.
+- [ ] Expose the Rust combat, encounters, jobs, rosters, scenes, and
   checkpoints through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.

@@ -519,6 +519,7 @@ pub enum DataKind {
     Projectile,
     Progression,
     Session,
+    Ability,
 }
 
 impl DataKind {
@@ -543,6 +544,7 @@ impl DataKind {
             DataKind::Projectile => "projectile",
             DataKind::Progression => "progression",
             DataKind::Session => "session",
+            DataKind::Ability => "ability",
         }
     }
 }

@@ -258,6 +258,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.progressions)
             .map(|progression| progression.id.to_string())
             .collect(),
+        abilities: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.abilities)
+            .map(|ability| ability.id.to_string())
+            .collect(),
         sessions: program
             .modules
             .iter()
@@ -528,6 +534,52 @@ pub(super) fn validate(
                     &owner,
                     &format!("{ptr}/branches/{index}/when"),
                 );
+            }
+        }
+        for (index, ability) in module.abilities.iter().enumerate() {
+            let ptr = format!("/abilities/{index}");
+            let context = ExecutionContext::Player;
+            for (field, score) in [
+                (
+                    "cost/balance",
+                    ability.cost.as_ref().map(|cost| &cost.balance),
+                ),
+                (
+                    "cooldown/timer",
+                    ability.cooldown.as_ref().map(|cooldown| &cooldown.timer),
+                ),
+                ("when", ability.when.as_ref()),
+            ] {
+                if let Some(score) = score {
+                    let location = format!("{ptr}/{field}");
+                    validator.score(score, context, &owner, &location);
+                    if field != "when"
+                        && validator
+                            .states
+                            .get(&score.state.to_string())
+                            .is_none_or(|(scope, _)| *scope != "player")
+                    {
+                        validator.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_STATE",
+                            &owner,
+                            &location,
+                            "ability requires a player State field",
+                        ));
+                    }
+                }
+            }
+            if let Some(start) = &ability.start {
+                validator.call(start, context, &owner, &format!("{ptr}/start"));
+            }
+            if let Some(projectile) = &ability.projectile
+                && !validator.projectiles.contains(&projectile.to_string())
+            {
+                validator.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_REFERENCE",
+                    &owner,
+                    &format!("{ptr}/projectile"),
+                    format!("unknown projectile `{projectile}`"),
+                ));
             }
         }
         for (index, session) in module.sessions.iter().enumerate() {
@@ -976,6 +1028,41 @@ pub(super) fn validate(
                         "branch must move to a later objective or the completion index".into(),
                     );
                 }
+            }
+        }
+        for (index, ability) in module.abilities.iter().enumerate() {
+            let ptr = format!("/abilities/{index}");
+            if !resource_ids.insert(format!("ability {}", ability.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate ability `{}`", ability.id),
+                );
+            }
+            if !(1..=i32::MAX as u32).contains(&ability.ticks) {
+                push(
+                    format!("{ptr}/ticks"),
+                    "ability duration must be in 1..=2147483647".into(),
+                );
+            }
+            if ability
+                .cost
+                .as_ref()
+                .is_some_and(|cost| cost.amount > i32::MAX as u32)
+            {
+                push(
+                    format!("{ptr}/cost/amount"),
+                    "ability cost must not exceed 2147483647".into(),
+                );
+            }
+            if ability
+                .cooldown
+                .as_ref()
+                .is_some_and(|cooldown| !(1..=i32::MAX as u32).contains(&cooldown.ticks))
+            {
+                push(
+                    format!("{ptr}/cooldown/ticks"),
+                    "ability cooldown must be in 1..=2147483647".into(),
+                );
             }
         }
         for (index, session) in module.sessions.iter().enumerate() {
@@ -1567,6 +1654,7 @@ struct Validator<'a, 'e> {
     projectiles: BTreeSet<String>,
     progressions: BTreeSet<String>,
     sessions: BTreeSet<String>,
+    abilities: BTreeSet<String>,
     menus: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
@@ -2714,6 +2802,22 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/progression"),
                             format!("unknown progression `{progression}`"),
+                        ));
+                    }
+                }
+                Action::Ability { ability, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "controlling the executing player's ability",
+                    );
+                    if !self.abilities.contains(&ability.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/ability"),
+                            format!("unknown ability `{ability}`"),
                         ));
                     }
                 }

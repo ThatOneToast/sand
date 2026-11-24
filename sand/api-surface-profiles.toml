@@ -84,6 +84,7 @@
 # Biome spawn tables add two portable fields and a SpawnEntry accessor.
 # Projectiles add one type, one action variant, and ten fields.
 # Progression and sessions add five types, seven variants, and twenty fields.
+# Player abilities add four types, four variants, and fourteen fields.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -92,19 +93,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5989
+static_surface_items = 6011
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12303
+static_surface_items = 12325
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12565
+static_surface_items = 12587
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

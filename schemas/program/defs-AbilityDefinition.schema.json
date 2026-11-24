@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A player-owned activation with optional State cost, cooldown, and projectile.",
+  "properties": {
+    "cooldown": {
+      "anyOf": [
+        {
+          "$ref": "defs-AbilityCooldown.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional countdown started only when admission succeeds."
+    },
+    "cost": {
+      "anyOf": [
+        {
+          "$ref": "defs-AbilityCost.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional cost charged only when admission succeeds."
+    },
+    "id": {
+      "description": "Ability identity used by typed control operations.",
+      "type": "string"
+    },
+    "projectile": {
+      "description": "Optional flight and hit behavior, using this ability's lifetime.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "start": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Player callback after the canonical activation commits."
+    },
+    "ticks": {
+      "description": "Maximum loaded duration of an admitted instance.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "when": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional score that must equal one before admission."
+    }
+  },
+  "required": [
+    "id",
+    "ticks"
+  ],
+  "type": "object"
+}

@@ -580,6 +580,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Activate, cancel, or diagnose the player's ability.",
+      "properties": {
+        "ability": {
+          "type": "string"
+        },
+        "command": {
+          "$ref": "defs-AbilityCommand.schema.json"
+        },
+        "op": {
+          "const": "ability",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "ability",
+        "command"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Advance once or reset the player's durable progression.",
       "properties": {
         "advance": {

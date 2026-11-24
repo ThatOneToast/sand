@@ -229,6 +229,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}progression {}", def.name),
                     format!("Player progression `{id}`. Advance it or run it in a session."),
                 ),
+                (crate::ast::DataKind::Ability, _) => (
+                    format!("{vis}ability {}", def.name),
+                    format!(
+                        "Player ability `{id}`. Use `activate_ability` to attempt its admission."
+                    ),
+                ),
                 (crate::ast::DataKind::Session, _) => (
                     format!("{vis}session {}", def.name),
                     format!("Player session `{id}`. Use `start_session` to run its track."),
@@ -1188,6 +1194,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::InventoryTransfer
         | DefKind::Hud
         | DefKind::Progression
+        | DefKind::Ability
         | DefKind::Session
         | DefKind::Projectile
         | DefKind::Menu => CompletionKind::Constant,
@@ -1868,6 +1875,9 @@ fn expression_completions(
             Some("Progression") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Progression);
             }
+            Some("Ability") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Ability);
+            }
             Some("Session") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Session);
             }
@@ -2396,6 +2406,11 @@ fn data_completions(
             })
             .map(|(name, def)| def_completion(analysis, &name, def))
             .collect(),
+        FieldKind::ProjectileRef => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == DefKind::Projectile)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
         FieldKind::ProgressionRef => scope_names(analysis, module)
             .into_iter()
             .filter(|(_, def)| analysis.def(*def).kind == DefKind::Progression)
@@ -2494,6 +2509,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "progression",
             "ordered player objectives",
             "progression ${1:Quest} { progress: ${2:Journal}.${3:stage}, objectives: [{ reward: ${4:award} }] }",
+        ),
+        Completion::snippet(
+            "ability",
+            "checked player activation",
+            "ability ${1:CastSpark} { ticks: ${2:24}, projectile: ${3:Spark} }",
         ),
         Completion::snippet(
             "session",
@@ -2829,6 +2849,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Projectile => "Projectile",
                 ParamKind::Progression => "Progression",
                 ParamKind::Session => "Session",
+                ParamKind::Ability => "Ability",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

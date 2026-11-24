@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A charge against a player's non-ticking State score.",
+  "properties": {
+    "amount": {
+      "description": "Amount removed on admission.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "balance": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Resource balance charged by this activation."
+    }
+  },
+  "required": [
+    "balance",
+    "amount"
+  ],
+  "type": "object"
+}

@@ -9,6 +9,7 @@ use crate::{
     },
     ir::{Actions, Cmd},
     registration::{DatapackRegistration, IntoDatapack, LifecycleContribution},
+    state::owned::PlayerScore,
 };
 use sand_commands::{CommandError, CommandResult, ObjectiveName};
 use sand_components::ResourceLocation;
@@ -23,15 +24,12 @@ type Branch<K> = (usize, usize, Arc<dyn Fn(EntityContext<K>) -> Condition>);
 #[derive(Clone)]
 enum ProgressField {
     Declared(EntityScore<i32>),
-    Owned {
-        state: Arc<crate::compiler::program::State>,
-        name: String,
-    },
+    Owned(PlayerScore),
 }
 
 enum BoundProgressField {
     Declared(EntityScoreAccessor<i32>),
-    Owned(ObjectiveName),
+    Owned(PlayerScore),
 }
 
 impl BoundProgressField {
@@ -40,22 +38,15 @@ impl BoundProgressField {
             Self::Declared(field) => field
                 .matches(value..=value)
                 .map_err(|error| CommandError::new("progression", "progress", error.to_string())),
-            Self::Owned(objective) => Ok(Condition::score(
-                "@s".into(),
-                objective.to_string(),
-                ScoreRange::Eq(value),
-            )),
+            Self::Owned(field) => Ok(field.value_matches(ScoreRange::Eq(value))),
         }
     }
 
     fn set(&self, value: i32) -> Actions {
         match self {
             Self::Declared(field) => field.set(value),
-            // Progression validates that every possible write fits the owning
-            // State bounds. Player State needs no entity-archetype dirty mark.
-            Self::Owned(objective) => {
-                format!("scoreboard players set @s {objective} {value}").into_commands()
-            }
+
+            Self::Owned(field) => field.set(value).into_commands(),
         }
     }
 }
@@ -113,14 +104,10 @@ impl<K: EntityKind> Progression<K> {
             branches: vec![],
         }
     }
-    pub(crate) fn owned(
-        id: ResourceLocation,
-        state: Arc<crate::compiler::program::State>,
-        name: String,
-    ) -> Self {
+    pub(crate) fn owned(id: ResourceLocation, progress: PlayerScore) -> Self {
         Self {
             id,
-            progress: ProgressField::Owned { state, name },
+            progress: ProgressField::Owned(progress),
             objectives: vec![],
             branches: vec![],
         }
@@ -220,9 +207,7 @@ impl<K: EntityKind> Progression<K> {
     fn progress_objective(&self) -> String {
         match &self.progress {
             ProgressField::Declared(field) => field.field_reference().objective,
-            ProgressField::Owned { state, name } => {
-                ObjectiveName::logical(format!("{}.{name}", state.id)).to_string()
-            }
+            ProgressField::Owned(field) => field.objective.to_string(),
         }
     }
 
@@ -341,34 +326,20 @@ impl<K: EntityKind> Progression<K> {
                     revision: schema.version,
                 })
             }
-            ProgressField::Owned { state, name } => {
+            ProgressField::Owned(field) => {
                 self.validate_track()?;
-                if state.scope != "player" || K::LABEL != "player" {
+                if K::LABEL != "player" {
                     return Err(CommandError::new(
                         "progression",
                         "progress",
                         "requires player State",
                     ));
                 }
-                let score = state
-                    .fields
-                    .iter()
-                    .find(|field| &field.name == name)
-                    .ok_or_else(|| {
-                        CommandError::new(
-                            "progression",
-                            "progress",
-                            "requires a canonical State score",
-                        )
-                    })?;
-                self.validate_progress_field(score.timer, score.default, score.bounds)?;
+                self.validate_progress_field(field.timer, field.default, field.bounds)?;
                 Ok(BoundTrack {
-                    field: BoundProgressField::Owned(ObjectiveName::logical(format!(
-                        "{}.{name}",
-                        state.id
-                    ))),
-                    presence: ObjectiveName::logical(format!("{}.presence", state.id)),
-                    revision: state.revision,
+                    field: BoundProgressField::Owned(field.clone()),
+                    presence: field.presence.clone(),
+                    revision: field.revision,
                 })
             }
         }

@@ -136,6 +136,7 @@ pub(super) fn lower(
         projectiles: BTreeMap::new(),
         progressions: BTreeMap::new(),
         sessions: BTreeMap::new(),
+        abilities: BTreeMap::new(),
         menus: BTreeMap::new(),
         advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
@@ -208,6 +209,12 @@ pub(super) fn lower(
             }
             lower.custom_items.insert(item.id.to_string(), custom);
         }
+    }
+    for ability in program.modules.iter().flat_map(|module| &module.abilities) {
+        lower.abilities.insert(
+            ability.id.to_string(),
+            lower.ability_component(ability, &states),
+        );
     }
     let mut entries = BTreeMap::new();
     let mut load = Vec::new();
@@ -371,6 +378,21 @@ pub(super) fn lower(
                     &format!("progression {}", progression.id),
                     &module_id,
                     &format!("/progressions/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, ability) in module.abilities.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.abilities[&ability.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("ability {}", ability.id),
+                    &module_id,
+                    &format!("/abilities/{index}"),
                 ),
                 &ctx,
                 &mut load,
@@ -1657,6 +1679,7 @@ struct Lower<'sources> {
     projectiles: BTreeMap<String, crate::gameplay::Projectile>,
     progressions: BTreeMap<String, crate::gameplay::Progression>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
+    abilities: BTreeMap<String, crate::gameplay::Ability>,
     menus: BTreeMap<String, crate::gameplay::Menu>,
     advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
@@ -1898,17 +1921,62 @@ impl Lower<'_> {
         definition
     }
 
+    fn ability_component(
+        &self,
+        source: &AbilityDefinition,
+        states: &[State],
+    ) -> crate::gameplay::Ability {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Ability, Lifetime},
+            state::owned::PlayerScore,
+        };
+        use sand_components::effect::Ticks;
+        let bind = |field: &FieldReference| {
+            states
+                .iter()
+                .find(|state| state.id == field.state)
+                .and_then(|state| PlayerScore::from_state(state, &field.field))
+                .expect("validated player score")
+        };
+        let mut lifetime = Lifetime::<PlayerKind>::new(source.id.clone(), Ticks::new(source.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        if let Some(start) = &source.start {
+            let function = reference_id(start);
+            lifetime = lifetime.on_start(move |context| {
+                context.owner_at_instance(Cmd::Function(function.clone()))
+            });
+        }
+        let mut ability = if let Some(projectile) = &source.projectile {
+            Ability::projectile(
+                self.projectiles[&projectile.to_string()]
+                    .clone()
+                    .with_lifetime(lifetime),
+            )
+        } else {
+            Ability::new(lifetime)
+        };
+        if let Some(cost) = &source.cost {
+            ability = ability.owned_cost(bind(&cost.balance), cost.amount);
+        }
+        if let Some(cooldown) = &source.cooldown {
+            ability = ability.owned_cooldown(bind(&cooldown.timer), Ticks::new(cooldown.ticks));
+        }
+        if let Some(guard) = &source.when {
+            ability = ability.when(self.flag_condition(guard));
+        }
+        ability
+    }
+
     fn progression_component(
         &self,
         source: &ProgressionDefinition,
         state: &State,
     ) -> crate::gameplay::Progression {
         use crate::{condition::Condition, gameplay::Progression};
-        let mut progression = Progression::owned(
-            source.id.clone(),
-            std::sync::Arc::new(state.clone()),
-            source.progress.field.clone(),
-        );
+        let progress = crate::state::owned::PlayerScore::from_state(state, &source.progress.field)
+            .expect("validated player progression State");
+        let mut progression = Progression::owned(source.id.clone(), progress);
         for objective in &source.objectives {
             let guard = objective
                 .when
@@ -2696,6 +2764,14 @@ impl Lower<'_> {
                         definition.open().0
                     } else {
                         definition.close().0
+                    }
+                }
+                Action::Ability { ability, command } => {
+                    let definition = &self.abilities[&ability.to_string()];
+                    match command {
+                        AbilityCommand::Activate => definition.activate().0,
+                        AbilityCommand::Cancel => definition.cancel().0,
+                        AbilityCommand::Diagnose => definition.diagnose().0,
                     }
                 }
                 Action::Progression {

@@ -988,3 +988,80 @@ pub struct SessionDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub every: Option<u32>,
 }
+
+/// A player-owned activation with optional State cost, cooldown, and projectile.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::AbilityDefinition", module = "sand::advanced::compiler",
+ summary = "A player-owned activation with optional cost, cooldown and projectile.",
+ context = "Admission checks canonical State and capacity before committing cost or cooldown. A start callback runs after both writes.",
+ minecraft = "Uses the Sand Ability and Lifetime runtime, with optional shared projectile motion.",
+ use_when = ["Building player spells or temporary abilities"],
+ avoid_when = ["Charging a one-off inventory purchase"],
+ fields(id = "Ability identity.", ticks = "Positive maximum loaded duration.", cost = "Optional State balance and amount.", cooldown = "Optional timer field and duration.", when = "Optional State score that must equal one.", start = "Optional parameterless player function called after admission.", projectile = "Optional projectile definition supplying flight and hit behavior."),
+ example = "use sand::advanced::compiler::AbilityDefinition;",
+)]
+pub struct AbilityDefinition {
+    /// Ability identity used by typed control operations.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Maximum loaded duration of an admitted instance.
+    pub ticks: u32,
+    /// Optional cost charged only when admission succeeds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost: Option<AbilityCost>,
+    /// Optional countdown started only when admission succeeds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cooldown: Option<AbilityCooldown>,
+    /// Optional score that must equal one before admission.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<FieldReference>,
+    /// Player callback after the canonical activation commits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<FunctionReference>,
+    /// Optional flight and hit behavior, using this ability's lifetime.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub projectile: Option<ResourceLocation>,
+}
+
+/// A charge against a player's non-ticking State score.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::AbilityCost", module = "sand::advanced::compiler",
+ summary = "A charge against a non-ticking player State score.",
+ context = "The charge is conditional on successful admission and preserves the field's minimum.",
+ minecraft = "Uses the shared Ability admission and State commit.",
+ use_when = ["Charging resources for an activated ability"],
+ avoid_when = ["Writing an unconditional State mutation"],
+ fields(balance = "Player State number holding the available resource.", amount = "Nonnegative resource amount charged."),
+ example = "use sand::advanced::compiler::AbilityCost;",
+)]
+pub struct AbilityCost {
+    /// Resource balance charged by this activation.
+    pub balance: FieldReference,
+    /// Amount removed on admission.
+    pub amount: u32,
+}
+
+/// A cooldown backed by a player's canonical State timer.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::AbilityCooldown", module = "sand::advanced::compiler",
+ summary = "A cooldown backed by a player State timer.",
+ context = "The timer must be at zero to admit the ability and is started on successful admission.",
+ minecraft = "Uses Sand's canonical timer lifecycle and shared Ability admission.",
+ use_when = ["Preventing activation until a timer is ready"],
+ avoid_when = ["Timing an unrelated global task"],
+ fields(timer = "Canonical player timer.", ticks = "Positive cooldown duration."),
+ example = "use sand::advanced::compiler::AbilityCooldown;",
+)]
+pub struct AbilityCooldown {
+    /// Player timer that counts down through the State lifecycle.
+    pub timer: FieldReference,
+    /// Positive ticks written on successful admission.
+    pub ticks: u32,
+}

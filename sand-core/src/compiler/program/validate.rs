@@ -1098,11 +1098,13 @@ impl Validator<'_, '_> {
             }
         }
         if let Some(nbt) = &query.nbt {
+            use sand_commands::Validate;
+            let profile = sand_commands::CommandProfile::unprofiled();
             let selector = sand_commands::Selector::all_entities().nbt_raw(nbt.to_string());
-            if let Err(error) = sand_commands::Validate::validate(
-                &selector,
-                &sand_commands::CommandProfile::unprofiled(),
-            ) {
+            if let Err(error) = nbt
+                .validate(&profile)
+                .and_then(|()| selector.validate(&profile))
+            {
                 self.errors.push(Diagnostic::error(
                     "SAND_PROGRAM_VALUE",
                     owner,
@@ -1698,10 +1700,10 @@ impl Validator<'_, '_> {
                 Action::SetEquipment { slot, item, count } => {
                     self.executor(context, owner, &ptr, "changing equipment");
                     self.equipment_slot(*slot, owner, &format!("{ptr}/action/slot"));
-                    if let Some(item) = item {
-                        if !self.custom_items.contains(item) {
-                            self.resource(item, owner, &format!("{ptr}/action/item"), "item");
-                        }
+                    if let Some(item) = item
+                        && !self.custom_items.contains(item)
+                    {
+                        self.resource(item, owner, &format!("{ptr}/action/item"), "item");
                     }
                     if count.is_some_and(|count| !(1..=99).contains(&count))
                         || (item.is_none() && count.is_some())

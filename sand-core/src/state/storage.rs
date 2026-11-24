@@ -1408,32 +1408,33 @@ mod tests {
     }
 
     #[test]
-    fn typed_snbt_controls_report_structured_errors() {
-        for value in ["line1\nline2", "col1\tcol2", "a\rb", "nul\0byte"] {
+    fn typed_snbt_controls_escape_values_and_reject_compound_keys() {
+        let profile = sand_commands::CommandProfile::unprofiled();
+        for (value, escaped) in [
+            ("line1\nline2", r#"line1\u000aline2"#),
+            ("col1\tcol2", r#"col1\u0009col2"#),
+            ("a\rb", r#"a\u000db"#),
+            ("nul\0byte", r#"nul\u0000byte"#),
+        ] {
             let command = Nbt::storage_raw("sand:data").path("value").set(value);
             assert_eq!(
-                command
-                    .try_render(&sand_commands::CommandProfile::unprofiled())
-                    .unwrap_err()
-                    .code,
-                "SAND-DATA-TARGET"
+                command.try_render(&profile).unwrap(),
+                format!(r#"data modify storage sand:data value set value "{escaped}""#),
             );
         }
         let compound = Nbt::storage_raw("sand:data")
             .path("value")
             .set(NbtCompound::new().field("key\nwith\nnewline", 1_i32));
-        assert!(
-            compound
-                .try_render(&sand_commands::CommandProfile::unprofiled())
-                .is_err()
+        assert_eq!(
+            compound.try_render(&profile).unwrap_err().code,
+            "SAND-DATA-TARGET"
         );
         let string = Nbt::storage_raw("sand:data")
             .path("player.name")
             .set_string("line1\nline2");
-        assert!(
-            string
-                .try_render(&sand_commands::CommandProfile::unprofiled())
-                .is_err()
+        assert_eq!(
+            string.try_render(&profile).unwrap(),
+            r#"data modify storage sand:data player.name set value "line1\u000aline2""#,
         );
     }
 }

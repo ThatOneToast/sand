@@ -303,6 +303,12 @@ impl NbtCompound {
     }
 }
 
+impl Validate for NbtCompound {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        validate_compound(self)
+    }
+}
+
 impl fmt::Display for NbtCompound {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let entries = self

@@ -104,3 +104,21 @@ fn storage_references_preserve_context_types_and_checked_projections() {
     };
     assert!(Compiler::compile(&raw).is_err());
 }
+
+#[test]
+fn literal_storage_reads_fit_a_small_vanilla_command_budget() {
+    let mut source = document();
+    source["modules"][0]["states"][0]["scope"] = json!("global");
+    source["modules"][0]["functions"][0]["context"] = json!("server");
+    source["modules"][0]["functions"][0]["body"] = json!([
+        {"action":{"op":"data_read", "score":field("result"), "source":stored("text")}},
+        {"action":{"op":"data_read", "score":field("result"), "source":stored("other")}},
+        {"action":{"op":"data_read", "score":field("result"), "source":{"field":field("text"), "path":[{"kind":"index", "index":0}]}}}
+    ]);
+    let pack = Compiler::compile(&decode(source)).unwrap();
+    let body = std::str::from_utf8(&pack.resources["data/data/function/run.mcfunction"]).unwrap();
+    assert!(
+        body.lines().count() <= 24,
+        "three reads exceed their command budget:\n{body}"
+    );
+}

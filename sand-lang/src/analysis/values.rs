@@ -1055,6 +1055,22 @@ impl Cx {
         }
     }
 
+    fn direct_projection(body: &BodyCx, value: &Expr) -> bool {
+        match value {
+            Expr::Path(path) => {
+                path.segments.len() == 1
+                    && path.applications.is_empty()
+                    && Self::lookup_local(body, &path.last().name).is_some()
+            }
+            Expr::Place(_) => true,
+            Expr::Project(value, ..) => Self::direct_projection(body, value),
+            Expr::Index(value, index, _) => {
+                Self::direct_projection(body, value) && !super::statements::contains_call(index)
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn emit_projection(
         &mut self,
         body: &mut BodyCx,
@@ -1095,6 +1111,18 @@ impl Cx {
         let found = self.field_ty(member);
         if !self.types_agree(body.file, span, ty, found) {
             return None;
+        }
+        if Self::direct_projection(body, value) {
+            // Reading one stored member should not unpack every sibling field.
+            // Called indices retain the full snapshot path below: they may
+            // mutate the original collection while computing the index.
+            let depth = body.temp_depth;
+            let projected = Expr::Project(Box::new(value.clone()), field.clone(), span);
+            let address = self.value_address_access(body, &projected, false, ops);
+            let result =
+                address.and_then(|address| self.read_address(body, dest, &address, span, ops));
+            body.temp_depth = depth;
+            return result;
         }
         let depth = body.temp_depth;
         let temp = self.temp(body);

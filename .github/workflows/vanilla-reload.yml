@@ -223,6 +223,9 @@ jobs:
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/generics.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-generics"
+          python3 scripts/validate_language_collections.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-collections-library"
           python3 scripts/validate_language_values.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}/language-values"
@@ -485,6 +488,7 @@ jobs:
             target/vanilla-reload/${{ matrix.version }}/language-collections
             target/vanilla-reload/${{ matrix.version }}/language-text
             target/vanilla-reload/${{ matrix.version }}/language-vectors
+            target/vanilla-reload/${{ matrix.version }}/language-collections-library
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/compute

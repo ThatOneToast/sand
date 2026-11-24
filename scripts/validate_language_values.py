@@ -8,6 +8,7 @@ it does not test rendered UI or interactive controls.
 import argparse
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 
@@ -67,7 +68,13 @@ class ValuesHarness(WorldGameplayHarness):
                 raise
             self.send("execute as NumericA run function runtime_values:store_first")
             self.send("execute as NumericB run function runtime_values:store_second")
+            self.send("execute as NumericA run function runtime_values:player_maps/store_a")
+            self.send("execute as NumericB run function runtime_values:player_maps/store_b")
             self.send("reload")
+            self.send("execute as NumericA run function runtime_values:player_maps/check_a")
+            self.send("execute as NumericB run function runtime_values:player_maps/check_b")
+            self.check("PLAYER_COLLECTIONS_RELOAD_A", "if score #maps_a numeric_probe matches 1")
+            self.check("PLAYER_COLLECTIONS_RELOAD_B", "if score #maps_b numeric_probe matches 1")
             self.send("execute as NumericA run function runtime_values:check_player_text_a")
             self.send("execute as NumericB run function runtime_values:check_player_text_b")
             self.check("PLAYER_TEXT_RELOAD_A", "if score #text_a numeric_probe matches 1")
@@ -117,7 +124,13 @@ def main():
     root = options.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
     fixture = Path(__file__).resolve().parents[1] / "sand-lang/tests/fixtures/runtime_values.sand"
-    subprocess.run([str(options.binary.resolve()), "lang", "build", str(fixture), "--output", str(root / "pack")], check=True, timeout=60)
+    source = root / "source"
+    source.mkdir()
+    (source / "pack.sand").write_text(fixture.read_text() + "\nmod player_maps;\n")
+    shutil.copyfile(fixture.with_name("player_maps.sand"), source / "player_maps.sand")
+    binary = str(options.binary.resolve())
+    subprocess.run([binary, "lang", "add", "collections", str(source)], check=True, timeout=60)
+    subprocess.run([binary, "lang", "build", str(source), "--output", str(root / "pack")], check=True, timeout=60)
     args = argparse.Namespace(version="26.2", pack=str(root / "pack"), jar=options.jar,
         java=options.java, timeout=120, output=str(root / "evidence"), op_player=None, client_command=None)
     harness = ValuesHarness(args)

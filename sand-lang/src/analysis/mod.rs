@@ -4438,12 +4438,16 @@ impl Cx {
             Cond::Compare { lhs, op, rhs, span } => {
                 let left_value_ty = self.type_of(body, lhs);
                 let right_value_ty = self.type_of(body, rhs);
-                if matches!(left_value_ty, Ty::String | Ty::List(_))
-                    || matches!(right_value_ty, Ty::String | Ty::List(_))
+                if matches!(left_value_ty, Ty::String | Ty::List(_) | Ty::Struct(_))
+                    || matches!(right_value_ty, Ty::String | Ty::List(_) | Ty::Struct(_))
                 {
                     let value_ty = if matches!(left_value_ty, Ty::List(_)) {
                         left_value_ty
                     } else if matches!(right_value_ty, Ty::List(_)) {
+                        right_value_ty
+                    } else if matches!(left_value_ty, Ty::Struct(_)) {
+                        left_value_ty
+                    } else if matches!(right_value_ty, Ty::Struct(_)) {
                         right_value_ty
                     } else {
                         Ty::String
@@ -4461,6 +4465,37 @@ impl Cx {
                     self.emit(body, &left, value_ty, lhs, pre)?;
                     let right = self.temp(body);
                     self.emit(body, &right, value_ty, rhs, pre)?;
+                    let (left, right) = if matches!(value_ty, Ty::Struct(_)) {
+                        let packed_left = self.temp(body);
+                        let packed_right = self.temp(body);
+                        self.register_data_slot(
+                            &packed_left,
+                            sand::data::NbtValue::List(Vec::new()),
+                        );
+                        self.register_data_slot(
+                            &packed_right,
+                            sand::data::NbtValue::List(Vec::new()),
+                        );
+                        self.pack_value(
+                            body,
+                            Self::data_reference(&packed_left),
+                            &left,
+                            value_ty,
+                            *span,
+                            pre,
+                        );
+                        self.pack_value(
+                            body,
+                            Self::data_reference(&packed_right),
+                            &right,
+                            value_ty,
+                            *span,
+                            pre,
+                        );
+                        (packed_left, packed_right)
+                    } else {
+                        (left, right)
+                    };
                     let score = self.temp(body);
                     pre.push(op_at(
                         pc::Action::DataEqual {
@@ -4479,17 +4514,6 @@ impl Cx {
                         }),
                         *op == CmpOp::Ne,
                     ));
-                }
-                if matches!(self.type_of(body, lhs), Ty::Struct(_))
-                    || matches!(self.type_of(body, rhs), Ty::Struct(_))
-                {
-                    self.error(
-                        "type",
-                        file,
-                        *span,
-                        "compare struct fields rather than whole struct values",
-                    );
-                    return None;
                 }
                 let left_ty = self.type_of(body, lhs);
                 let ty = if Self::is_const_in(body, lhs) && !matches!(left_ty, Ty::Enum(_)) {

@@ -265,9 +265,38 @@ impl Cx {
         expr: &Expr,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<ValueAddress> {
+        self.value_address_access(body, expr, true, ops)
+    }
+
+    pub(super) fn value_address_access(
+        &mut self,
+        body: &mut BodyCx,
+        expr: &Expr,
+        write: bool,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<ValueAddress> {
         match expr {
             Expr::Path(_) | Expr::Place(_) => {
-                let reference = self.receiver_destination(body, expr)?;
+                let reference = if write {
+                    self.receiver_destination(body, expr)?
+                } else {
+                    match expr {
+                        Expr::Path(path)
+                            if path.segments.len() == 1 && path.applications.is_empty() =>
+                        {
+                            let local = Self::lookup_local(body, &path.last().name)?;
+                            body.used.insert(local);
+                            self.references.push(Reference {
+                                file: body.file,
+                                span: path.last().span,
+                                def: local,
+                            });
+                            self.local_ref(local)
+                        }
+                        Expr::Place(place) => self.place_value(body, place, false)?.reference,
+                        _ => return None,
+                    }
+                };
                 let ty = self.type_of(body, expr);
                 Some(ValueAddress {
                     ty,
@@ -280,7 +309,7 @@ impl Cx {
                 })
             }
             Expr::Project(value, field, _) => {
-                let mut address = self.value_address(body, value, ops)?;
+                let mut address = self.value_address_access(body, value, write, ops)?;
                 let Some(member) = self.record_member(address.ty, &field.name) else {
                     self.error(
                         "field",
@@ -325,7 +354,7 @@ impl Cx {
                 address.ty = self.field_ty(member);
                 Some(address)
             }
-            Expr::Index(value, index, _) => self.index_address(body, value, index, ops),
+            Expr::Index(value, index, _) => self.index_address(body, value, index, write, ops),
             _ => {
                 self.error(
                     "mutability",
@@ -343,9 +372,10 @@ impl Cx {
         body: &mut BodyCx,
         value: &Expr,
         index: &Expr,
+        write: bool,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<ValueAddress> {
-        let address = self.value_address(body, value, ops)?;
+        let address = self.value_address_access(body, value, write, ops)?;
         if let Some(element) = self.list_element(address.ty) {
             if Self::is_const_in(body, index)
                 && self.eval_i32(body.module, body.file, index, Some(Ty::Number), None)? < 0

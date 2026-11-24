@@ -203,7 +203,7 @@ assign it back to keep a change. They can also take `&self` to read a value or
 `&mut self` to update a mutable local or State field. Mutable receiver changes
 commit when the call returns, including early returns and recursive calls; these
 are scoped method receivers rather than general reference values. Mutable calls
-on immutable variables or temporary expressions are errors. User-defined traits, maps, and whole-record arithmetic/comparison remain future work.
+on immutable variables or temporary expressions are errors. Use `==` and `!=` to compare records of the same type field by field.
 Empty records and direct recursive layouts are rejected. A vector breaks layout
 recursion, allowing records such as `Node { children: Vec<Node> }`. Each record has at
 most 32 levels and 1,024 scalar leaves. Struct declarations have no field defaults
@@ -314,12 +314,45 @@ an operation that cannot add an element. `==` and `!=` compare entire vectors.
 Each vector supports up to 1,024 elements. A full vector rejects `push` and
 `insert`; `extend` adds as many elements as fit. Expanded State defaults have a
 1 MiB budget checked before repeat expansion; build larger values at runtime.
-Maps, sets, general borrowed slices and user-defined generic declarations remain
-separate expansion work. `Vec<T>` uses generic type application syntax, with
-built-in vector behavior.
+General borrowed slices remain future work.
 
 See the [exploration-log example](../../examples/lang_vectors/pack.sand), which
 stores a separate growable vector of coordinate records for each player.
+
+### Maps and sets
+
+Run `sand lang add collections` from your project directory to install an
+editable `collections.sand` module. It works offline and preserves any existing
+file at that path. Import its types as normal Sand definitions:
+
+```rust,ignore
+use collections::{Map, Set};
+
+player state Journal {
+    counts: Map<string, number>,
+    discoveries: Set<string>
+}
+
+fn record(ore: string) {
+    let total = Journal.counts.get_or(ore, 0) + 1;
+    Journal.counts.insert(ore, total);
+    Journal.discoveries.insert(ore);
+}
+```
+
+Maps preserve insertion order and compare keys by value. `insert` replaces an
+existing value in place and returns true. It returns false when adding a new
+key would exceed capacity. Sets keep distinct values in insertion order.
+Their `insert` returns false for a duplicate or a full set. Each collection
+holds up to 1,024 elements and uses linear lookup. Large collections and complex
+keys can consume much of Minecraft's command budget.
+
+`Map` provides `get_or`, `contains_key`, `insert`, `remove`, `remove_or`,
+`keys`, `values`, and `entries`. `Set` provides `contains`, `insert`,
+`remove`, and `values`. Both have `new`, `len`, `is_empty`, and `clear`.
+Returned entries and vectors are independent copies.
+
+See the [ore journal example](../../examples/lang_maps/pack.sand).
 
 ## Types
 

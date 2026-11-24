@@ -48,6 +48,7 @@ pub mod builtins;
 pub mod diagnostic;
 pub mod format;
 pub mod ide;
+pub mod library;
 pub mod package;
 pub mod parser;
 mod position;

@@ -162,41 +162,47 @@ impl Lower {
             }
             _ => unreachable!("only storage operations use storage lowering"),
         }
-        let name = helper(
-            &self.namespace,
-            &self.helper_keys[owner],
-            path,
-            "data_value",
-        );
-        let body = body
-            .into_iter()
-            .map(|line| {
-                if line.contains("$(") {
-                    format!("${line}")
-                } else {
-                    line
-                }
-            })
-            .collect();
-        self.function(&name, body, module, ptr)?;
-        let call = if indices == 0 {
-            format!("function {name}")
+        if indices == 0 {
+            // Literal projections need neither a macro call nor argument storage.
+            commands.remove(0);
+            commands.extend(body);
         } else {
-            format!("function {name} with storage {storage} args")
+            let name = helper(
+                &self.namespace,
+                &self.helper_keys[owner],
+                path,
+                "data_value",
+            );
+            let body = body
+                .into_iter()
+                .map(|line| {
+                    if line.contains("$(") {
+                        format!("${line}")
+                    } else {
+                        line
+                    }
+                })
+                .collect();
+            self.function(&name, body, module, ptr)?;
+            commands.push(format!("execute if data storage {storage} args{{valid:1b}} run function {name} with storage {storage} args"));
+            commands.push(format!("data remove storage {storage} args"));
+        }
+        // Only release scratch actually used by this operation. Reads in a
+        // bounded collection search must not pay for unrelated write/equality
+        // buffers on every element. Snapshot ordering and alias safety stay the
+        // same; no callback or user code runs during these operations.
+        let scratch: &[&str] = match action {
+            Action::DataModify { .. } => &["input", "output"],
+            Action::DataRemove { .. } => &["output"],
+            Action::DataRead { .. } => &["input"],
+            Action::DataEqual { .. } => &["left", "right", "compare", "unequal"],
+            _ => unreachable!("storage operations only"),
         };
-        commands.push(if indices == 0 {
-            call
-        } else {
-            format!("execute if data storage {storage} args{{valid:1b}} run {call}")
-        });
-        // No callback or user code can run between staging and the final copy.
-        // Keep the scratch bounded and free arbitrary previous authored values.
-        commands.push(format!("data remove storage {storage} input"));
-        commands.push(format!("data remove storage {storage} output"));
-        commands.push(format!("data remove storage {storage} left"));
-        commands.push(format!("data remove storage {storage} right"));
-        commands.push(format!("data remove storage {storage} compare"));
-        commands.push(format!("data remove storage {storage} args"));
+        commands.extend(
+            scratch
+                .iter()
+                .map(|field| format!("data remove storage {storage} {field}")),
+        );
         result.extend(commands.into_iter().map(Cmd::Raw));
         if let Some(score) = written_score
             && let Some(bounds) = self

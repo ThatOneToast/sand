@@ -6,7 +6,9 @@
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use colored::Colorize;
+use sand_lang::library::Library;
 use sand_lang::{Analysis, DiskFiles, Severity};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Args)]
@@ -17,6 +19,13 @@ pub struct LangArgs {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Vendor a bundled Sand library into an existing package
+    Add {
+        /// Library to install (collections)
+        library: Library,
+        #[command(flatten)]
+        input: Input,
+    },
     /// Format every source file in a Sand package
     Fmt {
         #[command(flatten)]
@@ -80,6 +89,12 @@ struct Input {
 /// Run a `sand lang` subcommand.
 pub fn run(args: LangArgs) -> Result<()> {
     match args.command {
+        Command::Add { library, input } => {
+            let installed = install_library(&input.path, library)?;
+            println!("{} {}", "Added".green().bold(), installed.display());
+            println!("  Import with use {}::{{Map, Set}};", library.name());
+            Ok(())
+        }
         Command::Fmt { input, check } => format_package(&input.path, check),
         Command::Check(input) => {
             let analysis = analyze(&input.path)?;
@@ -309,7 +324,7 @@ pub fn run_lsp() -> Result<()> {
     sand_lsp::run_stdio().map_err(|error| anyhow::anyhow!("language server failed: {error}"))
 }
 
-fn analyze(path: &Path) -> Result<Analysis> {
+fn package_root(path: &Path) -> Result<PathBuf> {
     let path =
         std::fs::canonicalize(path).with_context(|| format!("cannot open {}", path.display()))?;
     let root = if path.is_dir() {
@@ -325,7 +340,93 @@ fn analyze(path: &Path) -> Result<Analysis> {
     } else {
         sand_lang::find_root(&path, &DiskFiles)
     };
-    Ok(sand_lang::analyze_path(&root, &DiskFiles))
+    Ok(root)
+}
+
+fn analyze(path: &Path) -> Result<Analysis> {
+    Ok(sand_lang::analyze_path(&package_root(path)?, &DiskFiles))
+}
+
+fn imported_name(tree: &sand_lang::ast::UseTree, name: &str) -> bool {
+    if let Some(group) = &tree.group {
+        return group.iter().any(|tree| imported_name(tree, name));
+    }
+    tree.alias.as_ref().unwrap_or_else(|| tree.path.last()).name == name
+}
+
+/// Install a normal, editable source module without replacing existing code.
+fn install_library(path: &Path, library: Library) -> Result<PathBuf> {
+    use sand_lang::ast::ItemKind;
+    let root = package_root(path)?;
+    let parent = root
+        .parent()
+        .context("package root has no parent directory")?;
+    let original = std::fs::read_to_string(&root)?;
+    let (source, errors) = sand_lang::parser::parse(&original);
+    anyhow::ensure!(
+        errors.is_empty(),
+        "fix package-root syntax errors before adding a library"
+    );
+    let name = library.name();
+    let target = parent.join(format!("{name}.sand"));
+    anyhow::ensure!(
+        !target.exists() && !parent.join(name).exists(),
+        "{} already exists; no files were changed",
+        target.display()
+    );
+    let mut declared = false;
+    for item in &source.items {
+        if item.name().is_some_and(|item| item.name == name) {
+            match &item.kind {
+                ItemKind::Mod(module) if module.inline.is_none() => declared = true,
+                _ => bail!(
+                    "`{name}` is already declared in {}; no files were changed",
+                    root.display()
+                ),
+            }
+        }
+        if let ItemKind::Use(import) = &item.kind {
+            anyhow::ensure!(
+                !imported_name(&import.tree, name),
+                "`{name}` is already imported in {}; no files were changed",
+                root.display()
+            );
+        }
+    }
+    let mut contents = original.clone();
+    if !declared {
+        if !contents.ends_with('\n') {
+            contents.push('\n');
+        }
+        contents.push_str(&format!("\nmod {name};\n"));
+    }
+    let mut module = tempfile::NamedTempFile::new_in(parent)?;
+    module.write_all(library.source().as_bytes())?;
+    module
+        .persist_noclobber(&target)
+        .with_context(|| format!("install {}", target.display()))?;
+    let result = (|| -> Result<()> {
+        anyhow::ensure!(
+            std::fs::read_to_string(&root)? == original,
+            "package root changed during library installation; retry with the latest source"
+        );
+        if !declared {
+            let mut staged = tempfile::NamedTempFile::new_in(parent)?;
+            staged.write_all(contents.as_bytes())?;
+            staged
+                .as_file()
+                .set_permissions(std::fs::metadata(&root)?.permissions())?;
+            staged
+                .persist(&root)
+                .context("install library module declaration")?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        let _ = std::fs::remove_file(&target);
+        return Err(error);
+    }
+    Ok(target)
 }
 
 /// Print diagnostics; fail when any is an error. Returns a summary.
@@ -373,5 +474,51 @@ mod tests {
         std::fs::create_dir_all(&installed).unwrap();
         build(&analysis, Some(base.join("elsewhere"))).unwrap();
         assert!(!installed.join("pack.mcmeta").exists());
+    }
+}
+
+#[cfg(test)]
+mod library_tests {
+    use super::*;
+
+    #[test]
+    fn installing_collections_adds_a_normal_module_and_compiles_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("pack.sand");
+        std::fs::write(&root, "#![pack(namespace = \"maps\", minecraft = \"26.2\")]\nuse collections::{Map, Set};\nfn run() { let mut map = Map::<string, number>::new(); map.insert(\"a\", 1); let set = Set::<number>::new(); }\n").unwrap();
+        let library = install_library(dir.path(), Library::Collections).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&library).unwrap(),
+            Library::Collections.source()
+        );
+        let source = std::fs::read_to_string(&root).unwrap();
+        assert_eq!(source.matches("mod collections;").count(), 1);
+        let analysis = analyze(dir.path()).unwrap();
+        assert!(!analysis.has_errors(), "{:?}", analysis.diagnostics);
+        analysis.compile().unwrap();
+        assert!(install_library(dir.path(), Library::Collections).is_err());
+        assert_eq!(std::fs::read_to_string(&root).unwrap(), source);
+    }
+
+    #[test]
+    fn installation_preserves_existing_source_and_accepts_a_missing_declared_module() {
+        for source in [
+            "#![pack(namespace = \"maps\")] struct collections { x: number }",
+            "#![pack(namespace = \"maps\")] use other as collections;",
+            "#![pack(namespace = \"maps\")] mod collections {}",
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path().join("pack.sand");
+            std::fs::write(&root, source).unwrap();
+            assert!(install_library(dir.path(), Library::Collections).is_err());
+            assert_eq!(std::fs::read_to_string(&root).unwrap(), source);
+            assert!(!dir.path().join("collections.sand").exists());
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("pack.sand");
+        let source = "#![pack(namespace = \"maps\")] mod collections;\n";
+        std::fs::write(&root, source).unwrap();
+        install_library(&root, Library::Collections).unwrap();
+        assert_eq!(std::fs::read_to_string(root).unwrap(), source);
     }
 }

@@ -257,7 +257,7 @@ fn ok() {
         errors,
         vec![
             "expected `&`, `)` or `mut`; found `{`",
-            "expected `[`, `match`, `move` or expression; found `;`"
+            "expected `[`, `match`, `move`, `{` or expression; found `;`"
         ]
     );
     // Hover and definition still work on the healthy statement.

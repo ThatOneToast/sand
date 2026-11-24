@@ -229,6 +229,10 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/language-match-bindings"
           python3 scripts/validate_language.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/block_expressions.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-block-expressions"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/generics.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-generics"
           python3 scripts/validate_language.py \

@@ -1075,6 +1075,15 @@ pub enum Expr {
         length: Box<Expr>,
         span: Span,
     },
+    /// Scoped statements followed by a value expression.
+    Block {
+        /// Statements evaluated before the result.
+        body: Block,
+        /// The result expression, without a terminating semicolon.
+        value: Box<Expr>,
+        /// Whole expression.
+        span: Span,
+    },
     /// An exhaustive match that evaluates only the selected arm's value.
     Match {
         value: Box<Expr>,
@@ -1145,6 +1154,7 @@ impl Expr {
             | Expr::Project(_, _, span)
             | Expr::Array(_, span)
             | Expr::Match { span, .. }
+            | Expr::Block { span, .. }
             | Expr::ArrayRepeat { span, .. }
             | Expr::Index(_, _, span)
             | Expr::Cond(_, span)

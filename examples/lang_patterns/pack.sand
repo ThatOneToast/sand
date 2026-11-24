@@ -6,7 +6,10 @@ player state Progress { mined: number }
 fn reward(rank: Rank) -> Reward {
     return match rank {
         Rank::Beginner => Reward { title: "First steps", amounts: [1, 0] },
-        Rank::Explorer => Reward { title: "Explorer", amounts: [2, 1] },
+        Rank::Explorer => {
+            let iron = 2;
+            Reward { title: "Explorer", amounts: [iron, 1] }
+        },
         Rank::Veteran => Reward { title: "Veteran", amounts: [4, 2] },
     };
 }

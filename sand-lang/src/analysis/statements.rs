@@ -139,6 +139,8 @@ pub(super) fn contains_call(expr: &Expr) -> bool {
                     contains_call(&arm.value) || arm.guard.as_ref().is_some_and(cond_contains_call)
                 })
         }
+        // A value block can contain arbitrary statements before its tail.
+        Expr::Block { .. } => true,
         Expr::Call { .. } => true,
         Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => contains_call(inner),
         Expr::Binary(lhs, _, rhs, _) => contains_call(lhs) || contains_call(rhs),
@@ -229,6 +231,7 @@ impl Cx {
             | Expr::ArrayRepeat { .. }
             | Expr::Index(..)
             | Expr::Match { .. }
+            | Expr::Block { .. }
             | Expr::Closure(_) => false,
             Expr::Float(..) | Expr::Bool(..) => true,
         }
@@ -238,6 +241,9 @@ impl Cx {
     pub(super) fn type_of(&mut self, body: &BodyCx, expr: &Expr) -> Ty {
         match expr {
             Expr::Closure(closure) => self.closure_type(body.module, closure),
+            Expr::Block {
+                body: block, value, ..
+            } => self.block_tail_type(body, block, value),
             Expr::Match { value, arms, .. } => {
                 let Some(arm) = arms.first() else {
                     return Ty::Unknown;
@@ -246,7 +252,7 @@ impl Cx {
                     return self.type_of(body, &arm.value);
                 };
                 let ty = self.type_of(body, value);
-                let bindings = self.match_locals(body, pattern, ty, arm.span);
+                let bindings = self.pattern_locals(body, pattern, ty, arm.span);
                 let mut scoped = body.clone();
                 scoped.scopes.push(
                     bindings
@@ -627,6 +633,17 @@ impl Cx {
         let file = body.file;
         let span = expr.span();
         self.value_slots(dest, ty);
+        if let Expr::Block {
+            body: block, value, ..
+        } = expr
+        {
+            let depth = body.temp_depth;
+            body.value_blocks.push((body.loops.len(), body.jumps.len()));
+            ops.extend(self.lower_block_with_tail(body, block, Some((dest, ty, value))));
+            body.value_blocks.pop();
+            body.temp_depth = depth;
+            return Some(());
+        }
         if let Expr::Match { value, arms, span } = expr {
             return self.emit_match(body, dest, ty, value, arms, *span, ops);
         }
@@ -1544,12 +1561,15 @@ impl Cx {
         ops: &mut Vec<pc::Operation>,
     ) {
         let (module, file) = (body.module, body.file);
-        let ty = match (ty, value) {
-            (Some(ty), _) => self.resolve_type(module, ty),
-            (None, Some(value)) => self.type_of(body, value),
-            (None, None) => Ty::Number,
+        let key = (body.file, name.span, body.slot.clone());
+        let local = match self.inferred_block_locals.get(&key) {
+            Some(local) => *local,
+            None => {
+                let ty = self.local_declaration_type(body, ty, value);
+                self.new_local(body, name, ty, mutable, span)
+            }
         };
-        let local = self.new_local(body, name, ty, mutable, span);
+        let ty = self.local_ty(local);
         let reference = self.local_ref(local);
         match value {
             Some(value) => {
@@ -1587,8 +1607,7 @@ impl Cx {
         };
         let snapshot = self.temp(body);
         if self.emit(body, &snapshot, ty, value, ops).is_some() {
-            let mut bindings = Vec::new();
-            self.plan_pattern(body, pattern, ty, span, &mut Vec::new(), &mut bindings);
+            let bindings = self.pattern_locals(body, pattern, ty, span);
             let end = body.block_ends.last().copied().unwrap_or(span.end);
             self.apply_pattern(body, &bindings, &snapshot, Span::new(span.end, end), ops);
         }
@@ -1773,23 +1792,95 @@ impl Cx {
         }
     }
 
-    fn match_locals(
+    fn pattern_locals(
         &mut self,
         body: &BodyCx,
         pattern: &Pattern,
         ty: Ty,
-        arm_span: Span,
+        statement_span: Span,
     ) -> Vec<PatternLocal> {
         let key = (body.file, pattern.span(), body.slot.clone());
-        if let Some(bindings) = self.match_bindings.get(&key) {
+        if let Some(bindings) = self.pattern_bindings.get(&key) {
             return bindings.clone();
         }
         let mut bindings = Vec::new();
-        // Keep the definitions allocated during value type inference so the
-        // emitted arm and the editor resolve each name to the same binding.
-        self.plan_pattern(body, pattern, ty, arm_span, &mut Vec::new(), &mut bindings);
-        self.match_bindings.insert(key, bindings.clone());
+        // Keep definitions allocated during type inference so lowering and
+        // editor references resolve each name to the same binding.
+        self.plan_pattern(
+            body,
+            pattern,
+            ty,
+            statement_span,
+            &mut Vec::new(),
+            &mut bindings,
+        );
+        self.pattern_bindings.insert(key, bindings.clone());
         bindings
+    }
+
+    fn local_declaration_type(
+        &mut self,
+        body: &BodyCx,
+        ty: Option<&Type>,
+        value: Option<&Expr>,
+    ) -> Ty {
+        match (ty, value) {
+            (Some(ty), _) => self.resolve_type(body.module, ty),
+            (None, Some(value)) => self.type_of(body, value),
+            (None, None) => Ty::Number,
+        }
+    }
+
+    /// Infer the value with the declarations in its lexical scope. Other
+    /// statements can change values and control flow but cannot declare locals
+    /// visible to the tail.
+    fn block_tail_type(&mut self, body: &BodyCx, block: &Block, tail: &Expr) -> Ty {
+        let mut scoped = body.clone();
+        scoped.scopes.push(Vec::new());
+        for statement in &block.stmts {
+            match statement {
+                Stmt::Let {
+                    mutable,
+                    name,
+                    ty,
+                    value,
+                    span,
+                } => {
+                    let key = (scoped.file, name.span, scoped.slot.clone());
+                    let local = match self.inferred_block_locals.get(&key) {
+                        Some(local) => *local,
+                        None => {
+                            let ty =
+                                self.local_declaration_type(&scoped, ty.as_ref(), value.as_ref());
+                            let local = self.new_local(&scoped, name, ty, *mutable, *span);
+                            self.inferred_block_locals.insert(key, local);
+                            local
+                        }
+                    };
+                    scoped
+                        .scopes
+                        .last_mut()
+                        .expect("value block scope")
+                        .push((name.name.clone(), local));
+                }
+                Stmt::Destructure {
+                    pattern,
+                    ty,
+                    value,
+                    span,
+                } => {
+                    let ty = self.local_declaration_type(&scoped, ty.as_ref(), Some(value));
+                    let bindings = self.pattern_locals(&scoped, pattern, ty, *span);
+                    scoped.scopes.last_mut().expect("value block scope").extend(
+                        bindings
+                            .into_iter()
+                            .map(|binding| (binding.name.name, binding.def)),
+                    );
+                }
+                _ => {}
+            }
+        }
+        self.type_of(&scoped, tail)
     }
 
     /// A new local owned by the function being lowered; not yet visible.
@@ -1837,6 +1928,10 @@ impl Cx {
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
+        if !body.value_blocks.is_empty() {
+            self.error("control", body.file, span, "use a tail expression for the value of a block; `return` cannot leave a value block");
+            return;
+        }
         let file = body.file;
         if !body.loops.is_empty() {
             self.diagnostics.push(
@@ -1958,7 +2053,7 @@ impl Cx {
         body.scopes.push(Vec::new());
         let mut prelude = Vec::new();
         if let MatchPattern::Binding(pattern) = pattern {
-            let bindings = self.match_locals(body, pattern, ty, span);
+            let bindings = self.pattern_locals(body, pattern, ty, span);
             self.apply_pattern(
                 body,
                 &bindings,
@@ -2763,6 +2858,15 @@ impl Cx {
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
+        if body.value_blocks.last() == Some(&(body.loops.len(), body.jumps.len())) {
+            self.error(
+                "control",
+                body.file,
+                span,
+                "a loop jump cannot leave a value block",
+            );
+            return;
+        }
         let file = body.file;
         let word = if is_break { "break" } else { "continue" };
         let repeat = body

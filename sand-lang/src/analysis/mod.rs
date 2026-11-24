@@ -564,7 +564,8 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         pointers: Vec::new(),
         builtin_uses: Vec::new(),
         local_scopes: Vec::new(),
-        match_bindings: BTreeMap::new(),
+        pattern_bindings: BTreeMap::new(),
+        inferred_block_locals: BTreeMap::new(),
         vanilla_uses: Vec::new(),
         local_fields: Vec::new(),
         local_data_fields: BTreeMap::new(),
@@ -679,7 +680,8 @@ struct Cx {
     pointers: Vec<(String, String, FileId, Span)>,
     builtin_uses: Vec<(FileId, Span, &'static str, crate::builtins::BuiltinKind)>,
     local_scopes: Vec<(FileId, Span, DefId)>,
-    match_bindings: BTreeMap<(FileId, Span, String), Vec<statements::PatternLocal>>,
+    pattern_bindings: BTreeMap<(FileId, Span, String), Vec<statements::PatternLocal>>,
+    inferred_block_locals: BTreeMap<(FileId, Span, String), DefId>,
     vanilla_uses: Vec<VanillaUse>,
     /// Fields of the compiler-owned locals State, in allocation order.
     local_fields: Vec<String>,
@@ -2317,6 +2319,7 @@ impl Cx {
             | Expr::Project(_, _, span)
             | Expr::Array(_, span)
             | Expr::Match { span, .. }
+            | Expr::Block { span, .. }
             | Expr::ArrayRepeat { span, .. }
             | Expr::Index(_, _, span) => {
                 self.error(
@@ -4094,6 +4097,15 @@ impl Cx {
     }
 
     fn lower_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
+        self.lower_block_with_tail(body, block, None)
+    }
+
+    fn lower_block_with_tail(
+        &mut self,
+        body: &mut BodyCx,
+        block: &Block,
+        tail: Option<(&pc::FieldReference, Ty, &Expr)>,
+    ) -> Vec<pc::Operation> {
         enum Segment {
             Actions(Vec<pc::Operation>, Option<pc::FieldReference>),
             Wait(continuations::WaitSite),
@@ -4140,6 +4152,9 @@ impl Cx {
             segments.push(Segment::Actions(lowered, guard));
         }
         let mut ops = Vec::new();
+        if let Some((dest, ty, tail)) = tail {
+            self.emit(body, dest, ty, tail, &mut ops);
+        }
         for segment in segments.into_iter().rev() {
             let (lowered, guard) = match segment {
                 Segment::Actions(lowered, guard) => (lowered, guard),
@@ -5243,6 +5258,8 @@ struct BodyCx {
     loop_bindings: Vec<String>,
     /// Enclosing `while`, `loop`, and counting `for` loops, innermost last.
     jumps: Vec<Jump>,
+    /// Where a block expression prevents jumps into surrounding loops.
+    value_blocks: Vec<(usize, usize)>,
     /// Calls made as entities inside `entities(..)` loops.
     entity_loop_calls: Vec<(DefId, Span)>,
     /// First use that needs an entity executor outside any loop.
@@ -5278,6 +5295,7 @@ impl BodyCx {
             loops: Vec::new(),
             loop_bindings: Vec::new(),
             jumps: Vec::new(),
+            value_blocks: Vec::new(),
             entity_loop_calls: Vec::new(),
             entity_use: None,
             pending: Vec::new(),

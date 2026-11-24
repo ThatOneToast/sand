@@ -9,5 +9,5 @@ sand lang build examples/lang_patterns
 sand lang run examples/lang_patterns --offline
 ```
 
-The example combines enum alternatives, owned record returns, nested array
-patterns, runtime item counts, and formatted runtime strings.
+The example combines enum alternatives, block expressions, guarded destructuring
+arms, nested array patterns, runtime item counts, and formatted strings.

@@ -334,8 +334,11 @@ module.exports = grammar({
 
     // ── Expressions ────────────────────────────────────────────────────────
     closure_expression: ($) => seq('move', '|', commaSep($.parameter), '|', optional(seq('->', $.type)), field('body', $.block)),
+    block_expression: ($) =>
+      seq('{', repeat($._statement), field('value', $._value_or_condition), '}'),
     _expression: ($) =>
       choice(
+        $.block_expression,
         $.match_expression,
         $.closure_expression,
         $.integer,

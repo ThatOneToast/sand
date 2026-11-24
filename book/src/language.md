@@ -712,7 +712,6 @@ let rewards: Vec<number> = match won { true => [5, 10], false => [] };
 ```
 
 Value arms are comma-separated expressions. Statement arms use scoped blocks.
-Block expressions and enum payloads remain future work.
 
 Use `if` after a pattern to add a guard in either form of `match`. Sand tests
 the guard only after the pattern matches. If it evaluates to false, matching
@@ -738,6 +737,28 @@ let rank = match mined {
     _ => Rank::Veteran,
 };
 ```
+
+### Block expressions
+
+A block can produce a value after executing scoped statements. Leave off the
+semicolon on the last expression. Locals declared inside the block are visible
+through its final expression. Use a block anywhere an expression fits,
+including a function argument or a value match arm.
+
+```rust,ignore
+let label = match active {
+    true => {
+        let score = Progress.mined.to_string();
+        "Mined " + score + " blocks"
+    },
+    false => "Waiting",
+};
+```
+
+Use the final expression to yield a result. Loops inside the block can use
+`break` and `continue` locally. Function `return`, suspension and jumps to
+surrounding loops are unavailable inside value blocks.
+
 
 ### Destructuring
 

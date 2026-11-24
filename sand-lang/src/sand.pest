@@ -242,7 +242,8 @@ array_expr = { "[" ~ (array_repeat | (array_value ~ ("," ~ array_value)* ~ ","?)
 array_repeat = { expr ~ ";" ~ (int | path) }
 array_value = { (expr ~ &( "," | "]" )) | cond }
 closure_expr = { kw_move ~ "|" ~ params? ~ "|" ~ ret_ty? ~ block }
-primary = _{ closure_expr | match_expr | array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
+block_expr = { "{" ~ stmt* ~ record_value ~ "}" }
+primary = _{ closure_expr | match_expr | block_expr | array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
 call_expr = { path ~ "(" ~ args? ~ ")" }
 
 // ── Strict entry points used to explain recovered nodes ─────────────────────

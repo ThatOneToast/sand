@@ -1106,6 +1106,24 @@ impl Builder<'_> {
     }
 }
 
+fn record_value(pair: P<'_>) -> Expr {
+    let value = pair.into_inner().next().expect("value");
+    if value.as_rule() == Rule::cond {
+        let location = span(&value);
+        Expr::Cond(
+            Box::new(
+                Builder {
+                    errors: &mut Vec::new(),
+                }
+                .cond(value),
+            ),
+            location,
+        )
+    } else {
+        expr(value)
+    }
+}
+
 fn match_pattern(pair: P<'_>) -> MatchPattern {
     let mut parts = pair.into_inner();
     let first = parts.next().expect("match pattern");
@@ -1200,6 +1218,27 @@ fn expr(pair: P<'_>) -> Expr {
                     span: location,
                 }))
             }
+            Rule::block_expr => {
+                let location = span(&primary);
+                let mut parts = primary.into_inner().peekable();
+                let mut builder = Builder {
+                    errors: &mut Vec::new(),
+                };
+                let mut stmts = Vec::new();
+                while let Some(stmt) = parts.next_if(|part| part.as_rule() == Rule::stmt) {
+                    stmts.push(builder.stmt(stmt));
+                }
+                let tail = parts.next().expect("value block tail");
+                let value = Box::new(record_value(tail));
+                Expr::Block {
+                    body: Block {
+                        stmts,
+                        span: location,
+                    },
+                    value,
+                    span: location,
+                }
+            }
             Rule::match_expr => {
                 let location = span(&primary);
                 let mut parts = children(primary);
@@ -1217,26 +1256,7 @@ fn expr(pair: P<'_>) -> Expr {
                                 }
                                 .cond(children(guard).next().expect("guard condition"))
                             });
-                        let value = parts
-                            .next()
-                            .expect("arm value")
-                            .into_inner()
-                            .next()
-                            .expect("value");
-                        let value = if value.as_rule() == Rule::cond {
-                            let location = span(&value);
-                            Expr::Cond(
-                                Box::new(
-                                    Builder {
-                                        errors: &mut Vec::new(),
-                                    }
-                                    .cond(value),
-                                ),
-                                location,
-                            )
-                        } else {
-                            expr(value)
-                        };
+                        let value = record_value(parts.next().expect("arm value"));
                         MatchValueArm {
                             pattern,
                             guard,

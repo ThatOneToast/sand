@@ -47,3 +47,7 @@ fn use_checkpoint() {
     Camp.checkpoint.teleport();
     start_hud(Recovery);
 }
+
+mod spatial;
+
+mod time;

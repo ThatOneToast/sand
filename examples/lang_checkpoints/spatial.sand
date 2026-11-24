@@ -1,0 +1,29 @@
+//! Reusable absolute coordinates with Sand's fixed-point float precision.
+
+/// A snapshot of three coordinates in blocks.
+pub struct Position {
+    pub x: float,
+    pub y: float,
+    pub z: float,
+}
+
+impl Position {
+    pub fn new(x: float, y: float, z: float) -> Self {
+        return Self { x, y, z };
+    }
+
+    /// Snapshot the executing player's current coordinates.
+    pub fn player() -> Self {
+        return Self::new(Player.x, Player.y, Player.z);
+    }
+
+    /// Return a translated copy of this position.
+    pub fn translated(&self, dx: float, dy: float, dz: float) -> Self {
+        return Self::new(self.x + dx, self.y + dy, self.z + dz);
+    }
+
+    /// Move the executor to these coordinates in its current dimension.
+    pub fn teleport(&self) {
+        teleport(self.x, self.y, self.z);
+    }
+}

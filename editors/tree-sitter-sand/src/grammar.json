@@ -3237,6 +3237,10 @@
             "type": "CHOICE",
             "members": [
               {
+                "type": "SYMBOL",
+                "name": "match_binding"
+              },
+              {
                 "type": "STRING",
                 "value": "_"
               },
@@ -3304,6 +3308,10 @@
             "type": "CHOICE",
             "members": [
               {
+                "type": "SYMBOL",
+                "name": "match_binding"
+              },
+              {
                 "type": "STRING",
                 "value": "_"
               },
@@ -3370,6 +3378,23 @@
               "type": "BLANK"
             }
           ]
+        }
+      ]
+    },
+    "match_binding": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "let"
+        },
+        {
+          "type": "FIELD",
+          "name": "binding",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_value_pattern"
+          }
         }
       ]
     },

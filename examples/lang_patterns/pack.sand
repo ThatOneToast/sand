@@ -19,9 +19,16 @@ fn mine() {
             _ if Progress.mined <= 40 => Rank::Explorer,
             _ => Rank::Veteran,
         };
-        let Reward { title, amounts: [iron, gold] } = reward(rank);
-        give_item(Item::IronIngot, count = iron);
-        if gold > 0 { give_item(Item::GoldIngot, count = gold); }
-        chat!("{gold}{title}{reset}: mined {Progress.mined} stone!");
+        match reward(rank) {
+            let Reward { title, amounts: [iron, gold] } if gold > 0 => {
+                give_item(Item::IronIngot, count = iron);
+                give_item(Item::GoldIngot, count = gold);
+                chat!("{gold}{title}{reset}: mined {Progress.mined} stone!");
+            }
+            let Reward { title, amounts: [iron, _] } => {
+                give_item(Item::IronIngot, count = iron);
+                chat!("{gold}{title}{reset}: mined {Progress.mined} stone!");
+            }
+        }
     }
 }

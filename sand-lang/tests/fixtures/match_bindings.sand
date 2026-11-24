@@ -1,0 +1,62 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+struct Parcel { label: string, samples: [number; 2], trail: Vec<string> }
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn classify(parcel: Parcel) -> string {
+    return match parcel {
+        let Parcel { label, samples: [first, second], .. } if first < second => label + " rises",
+        let Parcel { label, .. } => label + " flat",
+    };
+}
+
+fn recurse(values: [number; 2], depth: number) -> number {
+    return match values {
+        let [first, second] if depth == 0 => first + second,
+        let [first, second] if recurse([first + 1, second + 1], depth - 1) > first + second =>
+            first * 100 + second,
+        _ => -1,
+    };
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    let parcel = Parcel { label: "Stone", samples: [3, 5], trail: ["start"] };
+    check(classify(parcel) == "Stone rises");
+    check(classify(Parcel { label: "Sand", samples: [3, 1], trail: [] }) == "Sand flat");
+    check(recurse([3, 5], 2) == 305);
+
+    let first = 90;
+    let sum = match [2, 4] { let [first, second] => first + second };
+    check(sum == 6);
+    check(first == 90);
+
+    match parcel {
+        let Parcel { trail: mut copy, .. } if copy.push("branch") => {
+            check(copy.len() == 2);
+            check(copy[1] == "branch");
+        }
+        _ => { check(false); }
+    }
+    check(parcel.trail.len() == 1);
+
+    match 5 {
+        let selected if selected < 5 => { check(false); }
+        let mut selected => {
+            selected += 2;
+            check(selected == 7);
+        }
+    }
+
+    if Report.checks == 9 && Report.failed == 0 {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

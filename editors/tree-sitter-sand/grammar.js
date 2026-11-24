@@ -277,10 +277,11 @@ module.exports = grammar({
     match_statement: ($) =>
       seq('match', field('value', $._expression), '{', repeat($.match_arm), '}'),
     match_expression: ($) => seq('match', field('value', $._expression), '{', $.match_value_arm, repeat(seq(',', $.match_value_arm)), optional(','), '}'),
-    match_value_arm: ($) => seq(field('pattern', choice('_', seq($._expression, repeat(seq('|', $._expression))))), optional($.match_guard), '=>', field('value', $._value_or_condition)),
+    match_value_arm: ($) => seq(field('pattern', choice($.match_binding, '_', seq($._expression, repeat(seq('|', $._expression))))), optional($.match_guard), '=>', field('value', $._value_or_condition)),
     match_arm: ($) =>
-      seq(field('pattern', choice('_', seq($._expression, repeat(seq('|', $._expression))))),
+      seq(field('pattern', choice($.match_binding, '_', seq($._expression, repeat(seq('|', $._expression))))),
         optional($.match_guard), '=>', field('body', $.block), optional(',')),
+    match_binding: ($) => seq('let', field('binding', $._value_pattern)),
     match_guard: ($) => seq('if', field('condition', $._condition)),
     while_statement: ($) =>
       seq('while', field('condition', $._condition), field('body', $.block)),

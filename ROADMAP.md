@@ -251,7 +251,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Value-producing matches for owned values, flat dispatch for large matches,
   nested record/fixed-array destructuring and shorthand-safe editor renames.
 - [x] Match guards for statement and value forms, with ordered fallthrough.
-- [ ] Block expressions, match binding patterns and enum payloads.
+- [x] Arm-local match bindings and nested record and array destructuring.
+- [ ] Block expressions and enum payloads.
 - [x] Bundled generic maps and sets with owned values, whole-record and array
   equality, an offline installer, and vanilla capacity and persistence checks.
 - [x] Read-only and mutable struct receivers, with write-back on early return and

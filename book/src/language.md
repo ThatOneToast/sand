@@ -694,10 +694,10 @@ fn price(phase: Phase) -> number {
 ```
 
 Patterns are typed constants or enum variants, with `|` joining alternatives.
-Cover every enum variant, both booleans, or add `_ => { ... }` for all remaining
-values. Numeric matches require a wildcard. Duplicate patterns, missing cases,
-and arms following an unguarded wildcard are errors. Dispatch depth does not grow with the
-number of arms.
+Cover every enum variant, both booleans, or add a catch-all arm such as
+`_ => { ... }` or `let name => { ... }`. Duplicate unguarded patterns, missing
+cases, and arms following an unguarded catch-all are errors. Dispatch depth
+does not grow with the number of arms.
 
 A value match evaluates only the selected arm's expression. It works in local
 initializers, assignments, returns, arguments, and larger expressions. All arms
@@ -711,13 +711,25 @@ let label = match phase {
 let rewards: Vec<number> = match won { true => [5, 10], false => [] };
 ```
 
-Value arms are comma-separated expressions. Statement arms use scoped blocks;
-block expressions, binding patterns in matches and enum payloads
-remain future work.
+Value arms are comma-separated expressions. Statement arms use scoped blocks.
+Block expressions and enum payloads remain future work.
 
 Use `if` after a pattern to add a guard in either form of `match`. Sand tests
 the guard only after the pattern matches. If it evaluates to false, matching
 continues with the next arm. Only unguarded arms contribute to exhaustiveness.
+
+Write `let` in an arm to bind the matched value or destructure a record or
+fixed array. The bindings are owned copies visible in that arm's guard and body
+or expression. An unguarded binding pattern covers every remaining value of the
+matched type.
+
+```rust,ignore
+let amount = match reward {
+    let Reward { amounts: [iron, gold], .. } if gold > 0 => iron + gold,
+    let Reward { amounts: [iron, _], .. } => iron,
+};
+```
+
 
 ```rust,ignore
 let rank = match mined {

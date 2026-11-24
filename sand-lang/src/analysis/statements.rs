@@ -22,12 +22,20 @@ struct Dest {
     name: String,
 }
 
-struct LoweredMatchArm<'a> {
+struct LoweredMatchArm {
     values: Vec<i32>,
-    wildcard: bool,
-    guard: Option<&'a Cond>,
+    catch_all: bool,
     body: Vec<pc::Operation>,
     span: Span,
+}
+
+/// One local and its path inside an already evaluated pattern subject.
+#[derive(Clone)]
+pub(super) struct PatternLocal {
+    name: Ident,
+    def: DefId,
+    ty: Ty,
+    projection: Vec<String>,
 }
 
 /// What a `while`-shaped loop repeats on.
@@ -230,9 +238,24 @@ impl Cx {
     pub(super) fn type_of(&mut self, body: &BodyCx, expr: &Expr) -> Ty {
         match expr {
             Expr::Closure(closure) => self.closure_type(body.module, closure),
-            Expr::Match { arms, .. } => arms
-                .first()
-                .map_or(Ty::Unknown, |arm| self.type_of(body, &arm.value)),
+            Expr::Match { value, arms, .. } => {
+                let Some(arm) = arms.first() else {
+                    return Ty::Unknown;
+                };
+                let MatchPattern::Binding(pattern) = &arm.pattern else {
+                    return self.type_of(body, &arm.value);
+                };
+                let ty = self.type_of(body, value);
+                let bindings = self.match_locals(body, pattern, ty, arm.span);
+                let mut scoped = body.clone();
+                scoped.scopes.push(
+                    bindings
+                        .iter()
+                        .map(|binding| (binding.name.name.clone(), binding.def))
+                        .collect(),
+                );
+                self.type_of(&scoped, &arm.value)
+            }
             Expr::Path(path) => {
                 if let Some(local) = Self::local_of(body, expr) {
                     return self.local_ty(local);
@@ -1565,30 +1588,30 @@ impl Cx {
         let snapshot = self.temp(body);
         if self.emit(body, &snapshot, ty, value, ops).is_some() {
             let mut bindings = Vec::new();
-            self.bind_pattern(body, pattern, &snapshot, ty, span, &mut bindings, ops);
+            self.plan_pattern(body, pattern, ty, span, &mut Vec::new(), &mut bindings);
             let end = body.block_ends.last().copied().unwrap_or(span.end);
-            for (name, local) in bindings {
-                self.bring_into_scope(body, &name, local, Span::new(span.end, end));
-            }
+            self.apply_pattern(body, &bindings, &snapshot, Span::new(span.end, end), ops);
         }
         body.temp_depth = depth;
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn bind_pattern(
+    fn plan_pattern(
         &mut self,
-        body: &mut BodyCx,
+        body: &BodyCx,
         pattern: &Pattern,
-        source: &pc::FieldReference,
         ty: Ty,
         span: Span,
-        bindings: &mut Vec<(Ident, DefId)>,
-        ops: &mut Vec<pc::Operation>,
+        projection: &mut Vec<String>,
+        bindings: &mut Vec<PatternLocal>,
     ) {
         match pattern {
             Pattern::Ignore(_) => {}
             Pattern::Bind { name, mutable } => {
-                if bindings.iter().any(|(bound, _)| bound.name == name.name) {
+                if bindings
+                    .iter()
+                    .any(|binding| binding.name.name == name.name)
+                {
                     self.error(
                         "pattern",
                         body.file,
@@ -1597,10 +1620,12 @@ impl Cx {
                     );
                     return;
                 }
-                let local = self.new_local(body, name, ty, *mutable, span);
-                let dest = self.local_ref(local);
-                self.copy_value(&dest, source, ty, body.file, name.span, ops);
-                bindings.push((name.clone(), local));
+                bindings.push(PatternLocal {
+                    name: name.clone(),
+                    def: self.new_local(body, name, ty, *mutable, span),
+                    ty,
+                    projection: projection.clone(),
+                });
             }
             Pattern::Array(patterns, location) => {
                 let Some((element, length)) = self.array_shape(ty) else {
@@ -1622,15 +1647,9 @@ impl Cx {
                     return;
                 }
                 for (index, pattern) in patterns.iter().enumerate() {
-                    self.bind_pattern(
-                        body,
-                        pattern,
-                        &super::values::child(source, &format!("i{index}")),
-                        element,
-                        span,
-                        bindings,
-                        ops,
-                    );
+                    projection.push(format!("i{index}"));
+                    self.plan_pattern(body, pattern, element, span, projection, bindings);
+                    projection.pop();
                 }
             }
             Pattern::Record {
@@ -1703,15 +1722,16 @@ impl Cx {
                         span: name.span,
                         def: field,
                     });
-                    self.bind_pattern(
+                    projection.push(name.name.clone());
+                    self.plan_pattern(
                         body,
                         pattern,
-                        &super::values::child(source, &name.name),
                         self.field_ty(field),
                         span,
+                        projection,
                         bindings,
-                        ops,
                     );
+                    projection.pop();
                 }
                 if !rest {
                     for field in self.struct_fields(def) {
@@ -1723,6 +1743,53 @@ impl Cx {
                 }
             }
         }
+    }
+
+    fn apply_pattern(
+        &mut self,
+        body: &mut BodyCx,
+        bindings: &[PatternLocal],
+        snapshot: &pc::FieldReference,
+        visibility: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        for binding in bindings {
+            let source = binding
+                .projection
+                .iter()
+                .fold(snapshot.clone(), |part, field| {
+                    super::values::child(&part, field)
+                });
+            let dest = self.local_ref(binding.def);
+            self.copy_value(
+                &dest,
+                &source,
+                binding.ty,
+                body.file,
+                binding.name.span,
+                ops,
+            );
+            self.bring_into_scope(body, &binding.name, binding.def, visibility);
+        }
+    }
+
+    fn match_locals(
+        &mut self,
+        body: &BodyCx,
+        pattern: &Pattern,
+        ty: Ty,
+        arm_span: Span,
+    ) -> Vec<PatternLocal> {
+        let key = (body.file, pattern.span(), body.slot.clone());
+        if let Some(bindings) = self.match_bindings.get(&key) {
+            return bindings.clone();
+        }
+        let mut bindings = Vec::new();
+        // Keep the definitions allocated during value type inference so the
+        // emitted arm and the editor resolve each name to the same binding.
+        self.plan_pattern(body, pattern, ty, arm_span, &mut Vec::new(), &mut bindings);
+        self.match_bindings.insert(key, bindings.clone());
+        bindings
     }
 
     /// A new local owned by the function being lowered; not yet visible.
@@ -1847,22 +1914,80 @@ impl Cx {
         let matched = self.temp(body);
         let patterns: Vec<_> = arms
             .iter()
-            .map(|arm| (arm.patterns.as_slice(), arm.guard.is_some(), arm.span))
+            .map(|arm| (&arm.pattern, arm.guard.is_some(), arm.span))
             .collect();
         let values = self.match_patterns(body, ty, &patterns, span);
         let lowered = arms
             .iter()
             .zip(values)
-            .map(|(arm, values)| LoweredMatchArm {
-                values,
-                wildcard: arm.patterns.is_empty(),
-                guard: arm.guard.as_ref(),
-                body: self.lower_block(body, &arm.body),
-                span: arm.span,
+            .filter_map(|(arm, values)| {
+                let branch = self.lower_match_arm(
+                    body,
+                    &snapshot,
+                    ty,
+                    &matched,
+                    &arm.pattern,
+                    arm.guard.as_ref(),
+                    arm.span,
+                    |this, body| Some(this.lower_block(body, &arm.body)),
+                )?;
+                Some(LoweredMatchArm {
+                    values,
+                    catch_all: !matches!(&arm.pattern, MatchPattern::Constants(_)),
+                    body: branch,
+                    span: arm.span,
+                })
             })
             .collect();
         self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
         body.temp_depth = depth;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn lower_match_arm(
+        &mut self,
+        body: &mut BodyCx,
+        snapshot: &pc::FieldReference,
+        ty: Ty,
+        matched: &pc::FieldReference,
+        pattern: &MatchPattern,
+        guard: Option<&Cond>,
+        span: Span,
+        lower: impl FnOnce(&mut Self, &mut BodyCx) -> Option<Vec<pc::Operation>>,
+    ) -> Option<Vec<pc::Operation>> {
+        body.scopes.push(Vec::new());
+        let mut prelude = Vec::new();
+        if let MatchPattern::Binding(pattern) = pattern {
+            let bindings = self.match_locals(body, pattern, ty, span);
+            self.apply_pattern(
+                body,
+                &bindings,
+                snapshot,
+                Span::new(pattern.span().end, span.end),
+                &mut prelude,
+            );
+        }
+
+        let branch = lower(self, body).and_then(|mut branch| {
+            branch.insert(
+                0,
+                op_at(
+                    pc::Action::ScoreSet {
+                        score: matched.clone(),
+                        value: 1,
+                    },
+                    body.file,
+                    span,
+                ),
+            );
+            match guard {
+                Some(guard) => self.lower_cond(body, guard, branch, Vec::new()),
+                None => Some(branch),
+            }
+        });
+        body.scopes.pop();
+        prelude.extend(branch?);
+        Some(prelude)
     }
 
     /// Validate shared statement/value-match patterns and exhaustiveness.
@@ -1870,23 +1995,33 @@ impl Cx {
         &mut self,
         body: &BodyCx,
         ty: Ty,
-        arms: &[(&[Expr], bool, Span)],
+        arms: &[(&MatchPattern, bool, Span)],
         span: Span,
     ) -> Vec<Vec<i32>> {
         let file = body.file;
         let mut covered = BTreeSet::new();
-        let mut wildcard = false;
+        let mut catch_all = None;
         let mut lowered = Vec::new();
-        for (patterns, guarded, arm_span) in arms {
-            if wildcard {
-                self.error("match", file, *arm_span, "unreachable match arm after `_`");
+        for (pattern, guarded, arm_span) in arms {
+            if let Some(message) = catch_all {
+                self.error("match", file, *arm_span, message);
             }
             let mut values = Vec::new();
             let mut alternatives = BTreeSet::new();
-            if patterns.is_empty() && !guarded {
-                wildcard = true;
-            }
-            for pattern in patterns.iter() {
+            let patterns: &[Expr] = match pattern {
+                MatchPattern::Constants(patterns) => patterns,
+                MatchPattern::Wildcard | MatchPattern::Binding(_) => {
+                    if !guarded && catch_all.is_none() {
+                        catch_all = Some(if matches!(pattern, MatchPattern::Wildcard) {
+                            "unreachable match arm after `_`"
+                        } else {
+                            "unreachable match arm after an unguarded binding pattern"
+                        });
+                    }
+                    &[]
+                }
+            };
+            for pattern in patterns {
                 if !Self::is_const_in(body, pattern) {
                     self.error(
                         "match",
@@ -1914,7 +2049,7 @@ impl Cx {
             }
             lowered.push(values);
         }
-        let exhaustive = wildcard
+        let exhaustive = catch_all.is_some()
             || match ty {
                 Ty::Bool => covered.contains(&0) && covered.contains(&1),
                 Ty::Enum(def) => match &self.defs[def.0].info {
@@ -1953,7 +2088,7 @@ impl Cx {
         body: &mut BodyCx,
         snapshot: &pc::FieldReference,
         matched: &pc::FieldReference,
-        arms: Vec<LoweredMatchArm<'_>>,
+        arms: Vec<LoweredMatchArm>,
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
@@ -1967,25 +2102,8 @@ impl Cx {
         ));
         for arm in arms {
             let arm_span = arm.span;
-            let mut branch = arm.body;
-            branch.insert(
-                0,
-                op_at(
-                    pc::Action::ScoreSet {
-                        score: matched.clone(),
-                        value: 1,
-                    },
-                    body.file,
-                    arm_span,
-                ),
-            );
-            if let Some(guard) = arm.guard {
-                let Some(guarded) = self.lower_cond(body, guard, branch, Vec::new()) else {
-                    continue;
-                };
-                branch = guarded;
-            }
-            let selected = if arm.wildcard {
+            let branch = arm.body;
+            let selected = if arm.catch_all {
                 branch
             } else {
                 arm.values
@@ -2042,17 +2160,28 @@ impl Cx {
         let matched = self.temp(body);
         let patterns: Vec<_> = arms
             .iter()
-            .map(|arm| (arm.patterns.as_slice(), arm.guard.is_some(), arm.span))
+            .map(|arm| (&arm.pattern, arm.guard.is_some(), arm.span))
             .collect();
         let values = self.match_patterns(body, scrutinee_ty, &patterns, span);
         let mut lowered = Vec::new();
         for (arm, values) in arms.iter().zip(values) {
-            let mut branch = Vec::new();
-            self.emit(body, dest, ty, &arm.value, &mut branch)?;
+            let branch = self.lower_match_arm(
+                body,
+                &snapshot,
+                scrutinee_ty,
+                &matched,
+                &arm.pattern,
+                arm.guard.as_ref(),
+                arm.span,
+                |this, body| {
+                    let mut branch = Vec::new();
+                    this.emit(body, dest, ty, &arm.value, &mut branch)?;
+                    Some(branch)
+                },
+            )?;
             lowered.push(LoweredMatchArm {
                 values,
-                wildcard: arm.patterns.is_empty(),
-                guard: arm.guard.as_ref(),
+                catch_all: !matches!(&arm.pattern, MatchPattern::Constants(_)),
                 body: branch,
                 span: arm.span,
             });

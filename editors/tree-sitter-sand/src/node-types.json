@@ -3132,6 +3132,10 @@
             "named": true
           },
           {
+            "type": "match_binding",
+            "named": true
+          },
+          {
             "type": "match_expression",
             "named": true
           },
@@ -3179,6 +3183,34 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "match_binding",
+    "named": true,
+    "fields": {
+      "binding": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_",
+            "named": false
+          },
+          {
+            "type": "array_pattern",
+            "named": true
+          },
+          {
+            "type": "binding_pattern",
+            "named": true
+          },
+          {
+            "type": "record_pattern",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -3479,6 +3511,10 @@
           },
           {
             "type": "integer",
+            "named": true
+          },
+          {
+            "type": "match_binding",
             "named": true
           },
           {

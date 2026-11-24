@@ -564,6 +564,7 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         pointers: Vec::new(),
         builtin_uses: Vec::new(),
         local_scopes: Vec::new(),
+        match_bindings: BTreeMap::new(),
         vanilla_uses: Vec::new(),
         local_fields: Vec::new(),
         local_data_fields: BTreeMap::new(),
@@ -678,6 +679,7 @@ struct Cx {
     pointers: Vec<(String, String, FileId, Span)>,
     builtin_uses: Vec<(FileId, Span, &'static str, crate::builtins::BuiltinKind)>,
     local_scopes: Vec<(FileId, Span, DefId)>,
+    match_bindings: BTreeMap<(FileId, Span, String), Vec<statements::PatternLocal>>,
     vanilla_uses: Vec<VanillaUse>,
     /// Fields of the compiler-owned locals State, in allocation order.
     local_fields: Vec<String>,
@@ -5193,6 +5195,7 @@ struct Facts {
 }
 
 /// A `while`, `loop`, or counting `for` that `break` and `continue` target.
+#[derive(Clone)]
 struct Jump {
     /// 0 during a pass, 1 after `continue`, 2 after `break`; present when
     /// the body jumps.
@@ -5209,6 +5212,7 @@ enum LoopKind {
     Entities,
 }
 
+#[derive(Clone)]
 struct BodyCx {
     module: ModuleId,
     file: FileId,

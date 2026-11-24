@@ -794,12 +794,22 @@ impl Pattern {
     }
 }
 
-/// One arm of a `match` statement. Patterns are constants separated by `|`,
-/// or a wildcard `_` that handles every remaining value.
+/// A selector for one match arm.
+#[derive(Debug, Clone)]
+pub enum MatchPattern {
+    /// Covers every remaining value without introducing bindings.
+    Wildcard,
+    /// Constant alternatives separated by `|`.
+    Constants(Vec<Expr>),
+    /// Copies some or all of the matched value into arm-local bindings.
+    Binding(Pattern),
+}
+
+/// One arm of a `match` statement.
 #[derive(Debug, Clone)]
 pub struct MatchArm {
-    /// Constant alternatives; empty for `_`.
-    pub patterns: Vec<Expr>,
+    /// Selector and any local bindings.
+    pub pattern: MatchPattern,
     /// Optional condition evaluated after the pattern matches.
     pub guard: Option<Cond>,
     /// Body scoped to this arm.
@@ -811,8 +821,8 @@ pub struct MatchArm {
 /// One value-producing match arm. Only the selected expression is evaluated.
 #[derive(Debug, Clone)]
 pub struct MatchValueArm {
-    /// Constant alternatives; empty for the wildcard.
-    pub patterns: Vec<Expr>,
+    /// Selector and any local bindings.
+    pub pattern: MatchPattern,
     /// Optional condition evaluated after the pattern matches.
     pub guard: Option<Cond>,
     /// Value produced by this arm.

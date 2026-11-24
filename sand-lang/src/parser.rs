@@ -754,13 +754,7 @@ impl Builder<'_> {
                     .map(|arm| {
                         let arm_span = span(&arm);
                         let mut parts = arm.into_inner().peekable();
-                        let patterns = parts
-                            .next()
-                            .expect("patterns")
-                            .into_inner()
-                            .filter(|part| part.as_rule() != Rule::match_wildcard)
-                            .map(expr)
-                            .collect();
+                        let pattern = match_pattern(parts.next().expect("pattern"));
                         let guard = parts
                             .next_if(|part| part.as_rule() == Rule::match_guard)
                             .map(|guard| {
@@ -768,7 +762,7 @@ impl Builder<'_> {
                             });
                         let body = self.block(parts.next().expect("arm body"));
                         MatchArm {
-                            patterns,
+                            pattern,
                             guard,
                             body,
                             span: arm_span,
@@ -1112,6 +1106,18 @@ impl Builder<'_> {
     }
 }
 
+fn match_pattern(pair: P<'_>) -> MatchPattern {
+    let mut parts = pair.into_inner();
+    let first = parts.next().expect("match pattern");
+    match first.as_rule() {
+        Rule::match_wildcard => MatchPattern::Wildcard,
+        Rule::match_binding => MatchPattern::Binding(value_pattern(
+            children(first).next().expect("binding pattern"),
+        )),
+        _ => MatchPattern::Constants(std::iter::once(first).chain(parts).map(expr).collect()),
+    }
+}
+
 fn value_pattern(pair: P<'_>) -> Pattern {
     let location = span(&pair);
     match pair.as_rule() {
@@ -1202,13 +1208,7 @@ fn expr(pair: P<'_>) -> Expr {
                     .map(|arm| {
                         let location = span(&arm);
                         let mut parts = arm.into_inner().peekable();
-                        let patterns = parts
-                            .next()
-                            .expect("patterns")
-                            .into_inner()
-                            .filter(|part| part.as_rule() != Rule::match_wildcard)
-                            .map(expr)
-                            .collect();
+                        let pattern = match_pattern(parts.next().expect("pattern"));
                         let guard = parts
                             .next_if(|part| part.as_rule() == Rule::match_guard)
                             .map(|guard| {
@@ -1238,7 +1238,7 @@ fn expr(pair: P<'_>) -> Expr {
                             expr(value)
                         };
                         MatchValueArm {
-                            patterns,
+                            pattern,
                             guard,
                             value,
                             span: location,

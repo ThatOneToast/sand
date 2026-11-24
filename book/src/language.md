@@ -1298,6 +1298,17 @@ Use quoted `"#rrggbb"` colors for `fog_color`, `water_color`, `water_fog_color`,
 terrain feature and natural mob spawn tables. Install the pack before the
 world starts to register the biome and any dimension that uses it.
 
+### Reading entity data and inventories
+
+`entity_data_number("Health")` reads the vanilla integer result of a checked
+NBT path on the executing entity. Use this for fields beyond Sand's named
+entity properties. A list query such as `entity_data_number("Pos")` returns
+its length. A missing value returns zero.
+
+A player function can use `inventory_count(Item::Bread)` to count matching
+items without removing them. A vanilla item counts all matching base stacks.
+Pass a declared custom item to count only stacks created with that identity.
+
 ### Structure templates
 
 Save a structure as a Minecraft gzip NBT file and put it inside the package.
@@ -1711,7 +1722,7 @@ command and State models as Rust. Today the language covers:
 | --- | --- | --- |
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
-| Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, non-player velocity, experience, and entity flags | archetypes |
+| Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads, authored advancement completion | broader advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |

@@ -2232,6 +2232,16 @@ impl Validator<'_, '_> {
                         self.resource(item, owner, &format!("{ptr}/action/item"), "item");
                     }
                 }
+                Action::CountItems { item, score } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "counting the executing player's items",
+                    );
+                    self.resource(item, owner, &format!("{ptr}/action/item"), "item");
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
+                }
                 Action::Schedule { function, ticks } => {
                     // Scheduled functions run later on the server, without an executor.
                     self.call(
@@ -2595,6 +2605,10 @@ impl Validator<'_, '_> {
                         &format!("{ptr}/action/body"),
                         depth + 1,
                     );
+                }
+                Action::ReadEntityData { score, .. } => {
+                    self.executor(context, owner, &ptr, "reading entity data");
+                    self.score(score, context, owner, &format!("{ptr}/action/score"));
                 }
                 Action::ReadBlockData { score, .. } => {
                     self.score(score, context, owner, &format!("{ptr}/action/score"));

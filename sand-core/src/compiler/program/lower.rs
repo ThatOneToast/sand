@@ -1645,6 +1645,18 @@ impl Lower<'_> {
         Ok(lines)
     }
 
+    fn store_command_result(&self, score: &FieldReference, command: String) -> Cmd {
+        Cmd::Execute {
+            operations: vec![sand_commands::ExecuteOp::StoreResult(
+                sand_commands::ExecuteStoreTarget::Score {
+                    holder: self.holders[&score.state.to_string()].clone(),
+                    objective: objective(score),
+                },
+            )],
+            run: Box::new(Cmd::Raw(command)),
+        }
+    }
+
     /// Commands that create a boss bar and refresh its display at load.
     fn boss_bar_setup(&self, bar: &BossBar) -> Vec<String> {
         let id = &bar.id;
@@ -2273,6 +2285,15 @@ impl Lower<'_> {
                         (None, _) => inventory.clear_all(),
                     })]
                 }
+                Action::CountItems { item, score } => {
+                    let inventory =
+                        sand_commands::Inventory::of(sand_commands::Target::current_player());
+                    let predicate = self.item_argument(item).map_err(fail)?;
+                    let command = inventory
+                        .try_clear_item_count(predicate, 0)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![self.store_command_result(score, command)]
+                }
                 Action::Schedule { function, ticks } => {
                     vec![Cmd::Raw(sand_commands::builtins::schedule_replace_raw(
                         reference_id(function),
@@ -2578,20 +2599,20 @@ impl Lower<'_> {
                         run: Box::new(call_helper(id, returns(body))),
                     }]
                 }
+                Action::ReadEntityData { path, score } => {
+                    let command = sand_commands::Nbt::entity(sand_commands::Selector::self_())
+                        .typed_path::<i32>(sand_commands::NbtPath::new(path))
+                        .get()
+                        .try_render(&self.profile)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![self.store_command_result(score, command)]
+                }
                 Action::ReadBlockData { target, score } => {
                     let command = Self::block_data_address(target)
                         .get()
                         .try_render(&self.profile)
                         .map_err(|error| fail(error.to_string()))?;
-                    vec![Cmd::Execute {
-                        operations: vec![sand_commands::ExecuteOp::StoreResult(
-                            sand_commands::ExecuteStoreTarget::Score {
-                                holder: self.holders[&score.state.to_string()].clone(),
-                                objective: objective(score),
-                            },
-                        )],
-                        run: Box::new(Cmd::Raw(command)),
-                    }]
+                    vec![self.store_command_result(score, command)]
                 }
                 Action::WriteBlockData {
                     value: Some(DataOperand::Reference { .. }),

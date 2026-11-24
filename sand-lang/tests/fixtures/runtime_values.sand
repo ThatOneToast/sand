@@ -124,6 +124,19 @@ fn reward(count: number) {
     Ledger.give(count);
 }
 fn experience(count: number) { add_experience(points = count); }
+fn inspect_inventory() {
+    let all_bread = inventory_count(Item::Bread);
+    let custom_bread = inventory_count(MacroBread);
+    let absent = inventory_count(Item::Emerald);
+    if all_bread == 9 && custom_bread == 2 && absent == 0 {
+        raw!("scoreboard players set @s numeric_probe 9");
+    } else if all_bread == 3 && custom_bread == 0 && absent == 0 {
+        raw!("scoreboard players set @s numeric_probe 3");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
 fn player_a() {
     Ledger.label = "A 🌍 $(uuid)";
     Ledger.recent = ["A"]; Ledger.recent.push("🌍");
@@ -152,8 +165,13 @@ fn select(a: bool, b: bool) -> bool { return a && b; }
 fn mob() {
     for pig in entities(type = Entity::Pig, tag = "numeric_probe", limit = 1) {
         let before = pig.health;
+        let nbt_before = entity_data_number("Health");
         let hit = 2.5;
         damage(hit);
+        if nbt_before == 10 && entity_data_number("Health") == 7
+            && entity_data_number("Pos") == 3 && entity_data_number("SandMissing") == 0 {
+            raw!("scoreboard players set #entity_nbt numeric_probe 1");
+        }
         let invalid = -1.0;
         damage(invalid);
         Origin.x = 2.0;

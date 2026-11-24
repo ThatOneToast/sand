@@ -1050,6 +1050,21 @@ impl Cx {
                         relation,
                     }
                 }
+                "inventory_count" => {
+                    body.note_player(span, "counts the executing player's inventory".into());
+                    pc::Action::CountItems {
+                        item: self.arg_id(body, bound["item"], "Item")?,
+                        score: dest.clone(),
+                    }
+                }
+                "entity_data_number" => {
+                    body.note_executor(span, "reads data from the executing entity".into());
+                    let (path, _, _) = self.arg_string(file, bound["path"], "an NBT path")?;
+                    pc::Action::ReadEntityData {
+                        path,
+                        score: dest.clone(),
+                    }
+                }
                 "block_data_number" => pc::Action::ReadBlockData {
                     target: self.arg_block_data(body, bound["at"], bound["path"])?,
                     score: dest.clone(),

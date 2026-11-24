@@ -529,6 +529,30 @@
     },
     {
       "additionalProperties": false,
+      "description": "Count matching items in the executing player's inventory.",
+      "properties": {
+        "item": {
+          "description": "Vanilla item identity or name of a custom item defined by the pack.",
+          "type": "string"
+        },
+        "op": {
+          "const": "count_items",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json",
+          "description": "Score receiving Minecraft's quantity without changing the player's inventory."
+        }
+      },
+      "required": [
+        "op",
+        "item",
+        "score"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Run a server-context function after a delay, replacing any pending\nschedule of the same function.",
       "properties": {
         "function": {
@@ -1135,6 +1159,30 @@
         "op",
         "dimension",
         "body"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Read a path on the executing entity using vanilla's integer data result.",
+      "properties": {
+        "op": {
+          "const": "read_entity_data",
+          "type": "string"
+        },
+        "path": {
+          "description": "NBT path validated by the native data command builder.",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json",
+          "description": "Score receiving the result, with zero on a failed read."
+        }
+      },
+      "required": [
+        "op",
+        "path",
+        "score"
       ],
       "type": "object"
     },

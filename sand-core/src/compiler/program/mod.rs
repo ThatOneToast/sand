@@ -80,6 +80,8 @@ const CAPABILITIES: &[&str] = &[
     "smithing_recipes",
     "recursion",
     "entity_data",
+    "entity_data_queries",
+    "inventory_counts",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

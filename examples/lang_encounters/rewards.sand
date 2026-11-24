@@ -42,5 +42,6 @@ advancement RaidSupply {
 
 #[on(advancement = RaidSupply)]
 fn celebrate_supplies() {
-    chat!("{light_purple}Raid supply milestone unlocked.");
+    let supplies = inventory_count(Item::AmethystShard);
+    chat!("{light_purple}Raid supply milestone unlocked. Amethyst shards: {supplies}");
 }

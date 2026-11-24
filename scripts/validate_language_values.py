@@ -53,6 +53,14 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute store result score #b numeric_probe run clear NumericB minecraft:bread 0")
             self.check("PLAYER_A_ITEMS", "if score #a numeric_probe matches 9")
             self.check("PLAYER_B_ITEMS", "if score #b numeric_probe matches 3")
+            for player, count in (("NumericA", 9), ("NumericB", 3)):
+                self.send(f"execute as {player} run function runtime_values:inspect_inventory")
+                self.check(f"INVENTORY_QUERY_{player}", f"if score {player} numeric_probe matches {count}")
+                self.send(
+                    f"execute store result score #remaining numeric_probe "
+                    f"run clear {player} minecraft:bread 0"
+                )
+                self.check(f"INVENTORY_QUERY_KEEPS_ITEMS_{player}", f"if score #remaining numeric_probe matches {count}")
             self.check("STATE_IMPL_A", "if score #impl_a numeric_probe matches 1")
             self.check("STATE_IMPL_B", "if score #impl_b numeric_probe matches 1")
             self.check("PLAYER_PROPERTIES", "if score #property numeric_probe matches 1")
@@ -107,6 +115,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.load_test_chunk("minecraft:overworld")
             self.send('summon minecraft:pig 0 70 0 {NoAI:1b,Tags:["numeric_probe"]}')
             self.send("function runtime_values:mob")
+            self.check("ENTITY_NBT_PATH", "if score #entity_nbt numeric_probe matches 1")
             try:
                 self.check("MOB_VALUES", "if score #mob numeric_probe matches 1")
             except ValidationFailure:

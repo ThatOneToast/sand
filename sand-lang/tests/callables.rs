@@ -145,3 +145,94 @@ fn render(callback: fn(number, string) -> string) -> string {
     assert_eq!(help.label, "callback(arg1: number, arg2: string) -> string");
     assert_eq!(help.active, 1);
 }
+
+#[test]
+fn executor_scoped_callables_dispatch_as_the_invoking_owner() {
+    use sand::advanced::compiler::ExecutionContext;
+
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "callbacks", minecraft = "26.2")]
+player state Journal { total: number, pending: player fn(number) }
+fn deposit(n: number) { Journal.total += n; }
+fn add_tagged() { add_tag("visited"); }
+fn pure(n: number) -> number { return n + 1; }
+fn with_player<T>(work: player fn(T), value: T) { work(value); }
+fn saved(delta: number) -> player fn(number) {
+    return move |n: number| { deposit(n + delta); };
+}
+#[load]
+fn install() {
+    for player in players() { Journal.pending = saved(2); }
+}
+#[tick]
+fn tick() {
+    for player in players() {
+        let callback = Journal.pending;
+        with_player(callback, 3);
+        with_player(deposit, 1);
+        let read: player fn(number) -> number = pure;
+        deposit(read(4));
+    }
+    for zombie in entities(type = Entity::Zombie) {
+        let visit: entity fn() = add_tagged;
+        visit();
+    }
+}
+"#,
+    );
+    compile(&analysis);
+    let functions = analysis
+        .program
+        .as_ref()
+        .unwrap()
+        .modules
+        .iter()
+        .flat_map(|m| &m.functions);
+    let dispatchers: Vec<_> = functions
+        .filter(|f| f.id.path().starts_with("sand.lang_call/"))
+        .map(|f| f.context)
+        .collect();
+    assert!(dispatchers.contains(&ExecutionContext::Player));
+    assert!(dispatchers.contains(&ExecutionContext::Entity));
+}
+
+#[test]
+fn executor_contracts_validate_targets_and_invocation_separately() {
+    for (source, cause) in [
+        (
+            "fn install() { let callback: entity fn() = player_only; }",
+            "an entity callback cannot require a player executor",
+        ),
+        (
+            "#[load] fn run() { let callback: player fn() = pure; callback(); }",
+            "without a player",
+        ),
+        (
+            "#[tick] fn run() { let callback: entity fn() = pure; callback(); }",
+            "on the server",
+        ),
+        (
+            "fn run() { for zombie in entities(type = Entity::Zombie) { let callback: player fn() = player_only; callback(); } }",
+            "loops run as entities that may not be players",
+        ),
+        (
+            "fn install() { let callback: entity fn() = move || { player_only(); }; }",
+            "an entity callback cannot require a player executor",
+        ),
+    ] {
+        let analysis = analyze_one(&format!(
+            r#"
+#![pack(namespace = "callbacks", minecraft = "26.2")]
+#[player] fn player_only() {{ chat!("hello"); }}
+fn pure() {{}}
+{source}
+"#
+        ));
+        let messages = errors(&analysis);
+        assert!(
+            messages.iter().any(|e| e.contains(cause)),
+            "{source}: {messages:?}"
+        );
+    }
+}

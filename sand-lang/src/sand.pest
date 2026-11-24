@@ -135,7 +135,8 @@ state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)?
 scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
 field      = { (outer_doc | attr)* ~ vis? ~ ident ~ ":" ~ ty ~ ("=" ~ expr)? }
 ty         = { function_ty | array_ty | applied_ty | path }
-function_ty = { kw_fn ~ "(" ~ (ty ~ ("," ~ ty)* ~ ","?)? ~ ")" ~ ret_ty? }
+callable_executor = @{ ("player" | "entity") ~ !ident_char }
+function_ty = { callable_executor? ~ kw_fn ~ "(" ~ (ty ~ ("," ~ ty)* ~ ","?)? ~ ")" ~ ret_ty? }
 applied_ty = { path ~ "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
 array_ty = { "[" ~ ty ~ ";" ~ (int | path) ~ "]" }
 

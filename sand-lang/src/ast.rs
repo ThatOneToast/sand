@@ -48,6 +48,8 @@ pub enum TypeKind {
     Named(Path),
     /// A concrete callable signature.
     Function {
+        /// Required executor, when declared.
+        executor: Option<CallableExecutor>,
         /// Argument types in call order.
         parameters: Vec<Type>,
         /// Return type, or no value for a statement function.
@@ -60,6 +62,15 @@ pub enum TypeKind {
         element: Box<Type>,
         length: Box<Expr>,
     },
+}
+
+/// An explicitly required executor for a callable type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableExecutor {
+    /// Requires a player.
+    Player,
+    /// Accepts any entity, including a player.
+    Entity,
 }
 
 impl Type {

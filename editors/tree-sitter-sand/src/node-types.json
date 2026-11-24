@@ -5933,6 +5933,10 @@
     "named": false
   },
   {
+    "type": "entity",
+    "named": false
+  },
+  {
     "type": "enum",
     "named": false
   },
@@ -6039,6 +6043,10 @@
   },
   {
     "type": "on",
+    "named": false
+  },
+  {
+    "type": "player",
     "named": false
   },
   {

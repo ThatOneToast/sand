@@ -265,7 +265,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Static traits, required signatures, and generic function and method bounds.
 - [x] Typed function values, owned move closures, generic call signatures,
   recursive indirect calls and player-State persistence.
-- [ ] Executor-specific callable signatures and general borrowed slices.
+- [x] Player- and entity-scoped callable signatures with context checks at assignment and invocation.
+- [ ] General borrowed slices.
 - [x] Typed enchantments generated from one verified catalog for Rust and Sand.
 - [x] Bundled typed durations and storable positions through ordinary Sand
   records and impl methods. Use existing entity State for checked membership.

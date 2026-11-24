@@ -79,7 +79,7 @@ pub enum Ty {
 }
 
 /// Where a function runs: on the server, or as a player.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Context {
     /// No player executor; callable from anywhere.
     Server,
@@ -224,6 +224,8 @@ impl DefKind {
 pub enum DefInfo {
     /// An interned callable signature.
     Callable {
+        /// Minimum executor required at invocation.
+        context: Context,
         /// Argument types in call order.
         parameters: Vec<Ty>,
         /// Return type when the callable produces a value.
@@ -1719,6 +1721,7 @@ impl Cx {
     fn resolve_type(&mut self, module: ModuleId, annotation: &Type) -> Ty {
         match &annotation.kind {
             TypeKind::Function {
+                executor,
                 parameters,
                 returns,
             } => {
@@ -1730,6 +1733,11 @@ impl Cx {
                 self.callable_type(
                     module,
                     callables::Signature {
+                        context: match executor {
+                            Some(CallableExecutor::Player) => Context::Player,
+                            Some(CallableExecutor::Entity) => Context::Entity,
+                            None => Context::Server,
+                        },
                         parameters,
                         returns,
                     },

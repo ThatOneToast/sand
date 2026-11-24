@@ -2848,6 +2848,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         _ => None,
     };
     if let Some(DefInfo::Callable {
+        context,
         parameters,
         returns,
     }) = callable
@@ -2866,7 +2867,11 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
         if let Some(ty) = returns {
             label.push_str(&format!(" -> {}", ty_name(analysis, *ty)));
         }
-        documentation = Some("Call a function or closure with this signature.".into());
+        documentation = Some(match context {
+            Context::Server => "Call a function or closure from any execution context.".into(),
+            Context::Player => "Invoke this callback as a player.".into(),
+            Context::Entity => "Invoke this callback as an entity or player.".into(),
+        });
     } else if let Some(builtin) = builtin {
         label.push_str(
             builtin

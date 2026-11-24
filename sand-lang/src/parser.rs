@@ -1556,17 +1556,27 @@ fn value_type(pair: P<'_>) -> Type {
     let location = span(&pair);
     let inner = pair.into_inner().next().expect("type form");
     if inner.as_rule() == Rule::function_ty {
+        let mut executor = None;
         let mut parameters = Vec::new();
         let mut returns = None;
         for part in children(inner) {
-            if part.as_rule() == Rule::ret_ty {
-                returns = part.into_inner().next().map(value_type).map(Box::new);
-            } else {
-                parameters.push(value_type(part));
+            match part.as_rule() {
+                Rule::callable_executor => {
+                    executor = Some(match part.as_str() {
+                        "player" => CallableExecutor::Player,
+                        "entity" => CallableExecutor::Entity,
+                        _ => unreachable!("callable executor grammar"),
+                    });
+                }
+                Rule::ret_ty => {
+                    returns = part.into_inner().next().map(value_type).map(Box::new);
+                }
+                _ => parameters.push(value_type(part)),
             }
         }
         Type {
             kind: TypeKind::Function {
+                executor,
                 parameters,
                 returns,
             },

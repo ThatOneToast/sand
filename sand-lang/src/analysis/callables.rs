@@ -6,6 +6,7 @@ use sand::data::{NbtCompound, NbtValue};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct Signature {
+    pub context: Context,
     pub parameters: Vec<Ty>,
     pub returns: Option<Ty>,
 }
@@ -15,7 +16,7 @@ pub(super) struct Callables {
     types: BTreeMap<Signature, DefId>,
     targets: BTreeMap<DefId, BTreeMap<String, CallableTarget>>,
     dispatchers: BTreeMap<DefId, DefId>,
-    closures: BTreeMap<(ModuleId, Span, String), String>,
+    closures: BTreeMap<(ModuleId, Span, String, DefId), String>,
 }
 
 #[derive(Clone)]
@@ -31,8 +32,13 @@ impl Cx {
         if let Some(def) = self.callables.types.get(&signature) {
             return Ty::Callable(*def);
         }
+        let prefix = match signature.context {
+            Context::Server => "",
+            Context::Player => "player ",
+            Context::Entity => "entity ",
+        };
         let mut name = format!(
-            "fn({})",
+            "{prefix}fn({})",
             signature
                 .parameters
                 .iter()
@@ -54,6 +60,7 @@ impl Cx {
             is_pub: false,
             parent: Some(DefId(self.defs.len())),
             info: DefInfo::Callable {
+                context: signature.context,
                 parameters: signature.parameters.clone(),
                 returns: signature.returns,
             },
@@ -65,6 +72,7 @@ impl Cx {
     pub(super) fn callable_signature(&self, ty: Ty) -> Option<Signature> {
         let Ty::Callable(def) = ty else { return None };
         let DefInfo::Callable {
+            context,
             parameters,
             returns,
         } = &self.defs[def.0].info
@@ -72,18 +80,24 @@ impl Cx {
             return None;
         };
         Some(Signature {
+            context: *context,
             parameters: parameters.clone(),
             returns: *returns,
         })
     }
 
     pub(super) fn named_function_type(&mut self, module: ModuleId, def: DefId) -> Ty {
+        self.named_function_type_in(module, def, Context::Server)
+    }
+
+    fn named_function_type_in(&mut self, module: ModuleId, def: DefId, context: Context) -> Ty {
         let Some(slots) = self.fn_slots.get(&def) else {
             return Ty::Unknown;
         };
         self.callable_type(
             module,
             Signature {
+                context,
                 parameters: slots.params.iter().map(|(_, _, ty)| *ty).collect(),
                 returns: slots.ret.as_ref().map(|(_, ty)| *ty),
             },
@@ -116,7 +130,8 @@ impl Cx {
             self.error("callable", body.file, path.span, "a function value must name an ordinary non-generic function or associated function");
             return None;
         }
-        let found = self.named_function_type(body.module, function);
+        let context = self.callable_signature(expected)?.context;
+        let found = self.named_function_type_in(body.module, function, context);
         let Ty::Callable(signature) = found else {
             return None;
         };
@@ -511,15 +526,21 @@ impl Cx {
                     d.span,
                 ));
             }
+            let context = self
+                .callable_signature(Ty::Callable(signature))
+                .unwrap()
+                .context;
             lowerer.facts.insert(
                 def,
                 Facts {
-                    entity_direct: None,
+                    entity_direct: (context == Context::Entity)
+                        .then(|| (d.span, "invokes an entity callback".into())),
                     entity_loop_calls: Vec::new(),
                     all_calls: body.all_calls,
                     schedules: Vec::new(),
                     forced: None,
-                    direct: None,
+                    direct: (context == Context::Player)
+                        .then(|| (d.span, "invokes a player callback".into())),
                     calls: body.calls,
                     entry: Vec::new(),
                     file: d.file,
@@ -585,6 +606,10 @@ impl Cx {
     }
 
     pub(super) fn closure_type(&mut self, module: ModuleId, closure: &ClosureExpr) -> Ty {
+        self.closure_type_in(module, closure, Context::Server)
+    }
+
+    fn closure_type_in(&mut self, module: ModuleId, closure: &ClosureExpr, context: Context) -> Ty {
         let parameters = closure
             .parameters
             .iter()
@@ -597,6 +622,7 @@ impl Cx {
         self.callable_type(
             module,
             Signature {
+                context,
                 parameters,
                 returns,
             },
@@ -611,7 +637,8 @@ impl Cx {
         closure: &ClosureExpr,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
-        let Ty::Callable(signature) = self.closure_type(body.module, closure) else {
+        let context = self.callable_signature(expected)?.context;
+        let Ty::Callable(signature) = self.closure_type_in(body.module, closure, context) else {
             return None;
         };
         if !self.types_agree(body.file, closure.span, expected, Ty::Callable(signature)) {
@@ -649,7 +676,7 @@ impl Cx {
             return None;
         }
 
-        let site = (body.module, closure.span, body.slot.clone());
+        let site = (body.module, closure.span, body.slot.clone(), signature);
         let target = if let Some(target) = self.callables.closures.get(&site) {
             target.clone()
         } else {
@@ -798,22 +825,37 @@ impl Cx {
     }
 
     pub(super) fn validate_callable_contexts(&mut self) {
-        for targets in self.callables.targets.values() {
+        for (signature, targets) in &self.callables.targets {
+            let expected = self
+                .callable_signature(Ty::Callable(*signature))
+                .unwrap()
+                .context;
             for target in targets.values() {
-                if !matches!(
-                    self.defs[target.def.0].info,
-                    DefInfo::Function {
-                        context: Context::Server,
-                        ..
+                let def = &self.defs[target.def.0];
+                let DefInfo::Function {
+                    context: actual, ..
+                } = def.info
+                else {
+                    unreachable!("registered callable target is a function");
+                };
+                let message = match (expected, actual) {
+                    (_, Context::Server)
+                    | (Context::Player, _)
+                    | (Context::Entity, Context::Entity) => continue,
+                    (Context::Server, _) => {
+                        "a function value must be callable without a player or entity executor"
                     }
-                ) {
-                    self.diagnostics.push(Diagnostic::error(
-                        "callable",
-                        target.file,
-                        target.span,
-                        "a function value must be callable without a player or entity executor",
-                    ));
-                }
+                    (Context::Entity, Context::Player) => {
+                        "an entity callback cannot require a player executor"
+                    }
+                };
+                self.diagnostics.push(
+                    Diagnostic::error("callable", target.file, target.span, message).with_note(
+                        def.file,
+                        def.span,
+                        format!("this function runs as {}", actual.name()),
+                    ),
+                );
             }
         }
     }

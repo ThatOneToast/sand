@@ -650,6 +650,36 @@ of the same compiled pack. Recompiling a changed source can invalidate stored
 closure identities, so initialize persistent callbacks as part of pack setup.
 See the [reward notes example](../../examples/lang_callbacks/pack.sand).
 
+#### Executor-scoped callbacks
+
+Use `player fn(...)` when a callback can read player State or use player
+actions. Use `entity fn(...)` for callbacks callable as any entity, including
+players. A plain `fn(...)` can be invoked from the server and accepts targets
+that need neither a player nor an entity.
+
+```rust,ignore
+player state Journal { score: number, reward: player fn(number) }
+
+fn make_reward(bonus: number) -> player fn(number) {
+    return move |points: number| { Journal.score += points + bonus; };
+}
+
+#[player]
+fn collect() {
+    Journal.reward = make_reward(2);
+    let reward = Journal.reward;
+    reward(5);
+}
+```
+
+A function name or closure literal takes its executor contract from the expected
+type. Without an annotation or expected callable type, its type defaults to
+plain `fn(...)`. A server-safe named function can be assigned directly to an
+entity or player callback. An entity function can also be assigned directly to
+a player callback. Stored callable values require the same signature, including
+its executor contract. Invoking a callback uses the caller's current executor.
+Creating or storing one captures only its ordinary local values.
+
 ### Traits
 
 A trait declares required method signatures. Use `impl Trait for Type` to supply

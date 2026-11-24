@@ -170,7 +170,7 @@ module.exports = grammar({
         optional(seq('=', field('default', $._expression))),
       ),
     type: ($) => choice($.function_type, $.array_type, $.applied_type, $.path),
-    function_type: ($) => prec.right(seq("fn", "(", commaSep($.type), ")", optional(seq("->", $.type)))),
+    function_type: ($) => prec.right(seq(optional(choice("player", "entity")), "fn", "(", commaSep($.type), ")", optional(seq("->", $.type)))),
     applied_type: ($) => seq(field('name', $.path), '<', $.type, repeat(seq(',', $.type)), optional(','), '>'),
     array_type: ($) => seq('[', field('element', $.type), ';', field('length', choice($.integer, $.path)), ']'),
     array_expression: ($) => seq('[', choice(commaSep(choice($.data_object, $._value_or_condition)), seq($._expression, ';', choice($.integer, $.path))), ']'),

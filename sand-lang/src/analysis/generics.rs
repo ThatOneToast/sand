@@ -762,6 +762,7 @@ impl Cx {
             TypeKind::Function {
                 parameters: types,
                 returns,
+                ..
             } => {
                 if let Some(signature) = self.callable_signature(ty) {
                     for (annotation, actual) in types.iter().zip(signature.parameters) {
@@ -832,6 +833,7 @@ fn mentions_parameter(ty: &Type, name: &str) -> bool {
         TypeKind::Function {
             parameters,
             returns,
+            ..
         } => {
             parameters.iter().any(|ty| mentions_parameter(ty, name))
                 || returns

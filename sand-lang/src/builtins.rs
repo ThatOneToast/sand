@@ -348,6 +348,30 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "block_is(Block::${1:Stone}, offset(${2:0}, ${3:-1}, ${4:0}))",
     },
     Builtin {
+        name: "biome_is",
+        kind: BuiltinKind::Condition,
+        signature: "biome_is(biome, at)",
+        summary: "Whether a block position is in the given biome.",
+        details: "Uses the biome registry for the pack's Minecraft target. Use `pos(...)` or `offset(...)` for the position and a namespaced identity for a custom biome.",
+        minecraft: "execute if biome <position> <biome>",
+        needs_player: false,
+        params: &[
+            p(
+                "biome",
+                ParamKind::Registry("Biome"),
+                true,
+                "Biome to test, such as `Biome::Plains`.",
+            ),
+            p(
+                "at",
+                ParamKind::Position,
+                true,
+                "Position whose biome is tested.",
+            ),
+        ],
+        snippet: "biome_is(Biome::${1:Plains}, offset(0, 0, 0))",
+    },
+    Builtin {
         name: "dimension_is",
         kind: BuiltinKind::Condition,
         signature: "dimension_is(dimension)",

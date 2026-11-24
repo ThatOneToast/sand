@@ -98,6 +98,7 @@ mod tests {
                 "attribute",
                 "mob_effect",
                 "potion",
+                "worldgen/biome",
             ] {
                 assert!(
                     !variants(version, &format!("minecraft:{registry}"))

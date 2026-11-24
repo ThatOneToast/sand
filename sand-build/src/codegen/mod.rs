@@ -1,4 +1,4 @@
-mod biomes;
+pub(crate) mod biomes;
 mod blocks;
 pub mod cache;
 mod commands;

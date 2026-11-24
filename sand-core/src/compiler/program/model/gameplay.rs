@@ -115,8 +115,8 @@ pub struct ScoreRelation {
  use_when = ["Choosing between two ordered bodies at runtime"],
  avoid_when = ["Flow transition guards, which accept only ranges"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag."),
- variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Holding = ["The held-item test."], Flag = ["The flag test."]),
+ variants(Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag."),
+ variant_fields(Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."]),
 )]
 pub enum Condition {
     /// The field lies within inclusive constant bounds.
@@ -131,10 +131,32 @@ pub enum Condition {
     Block(BlockMatches),
     /// The current command execution dimension matches.
     Dimension(DimensionMatches),
+    /// A biome matches at a block position.
+    Biome(BiomeMatches),
     /// The executor holds an item.
     Holding(ItemHeld),
     /// The executor has an entity flag.
     Flag(FlagSet),
+}
+
+/// A test of the biome at a block position.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::BiomeMatches", module = "sand::advanced::compiler",
+ summary = "Tests the biome at a block position.",
+ context = "A portable world predicate using the selected Minecraft target's registry.",
+ minecraft = "Lowers to `execute if biome <position> <biome>`.",
+ use_when = ["Making a rule depend on the local biome"],
+ avoid_when = ["Looking for the nearest biome without an exact position"],
+ example = "use sand::advanced::compiler::BiomeMatches;",
+ fields(biome = "Namespaced biome identity.", at = "Position to test."),
+)]
+pub struct BiomeMatches {
+    /// Namespaced biome identity.
+    pub biome: String,
+    /// Absolute or relative position whose biome is tested.
+    pub at: BlockPosition,
 }
 
 /// A test of the current execution dimension.

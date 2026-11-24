@@ -12,10 +12,11 @@ pub use envelope::{Module, ModuleSource, Pack, Program, ProgramTarget};
 pub use flow::{Flow, FlowHook, FlowHookPhase, FlowTransition};
 pub use function::{ExecutionContext, Function, FunctionReference, TagMembership};
 pub use gameplay::{
-    Amount, Audience, BlockMatches, BlockPosition, Condition, DimensionMatches, EntitiesExist,
-    EntityData, EntityFlag, EntityQuery, EntitySort, EventHook, FlagSet, ItemHeld, MessageChannel,
-    PlayerEvent, PlayerGameMode, Relation, ScaledField, ScoreOperand, ScoreOperator, ScoreRelation,
-    StateAttached, TeleportDestination, TextColor, TextPart, TextStyle, Weather,
+    Amount, Audience, BiomeMatches, BlockMatches, BlockPosition, Condition, DimensionMatches,
+    EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook, FlagSet, ItemHeld,
+    MessageChannel, PlayerEvent, PlayerGameMode, Relation, ScaledField, ScoreOperand,
+    ScoreOperator, ScoreRelation, StateAttached, TeleportDestination, TextColor, TextPart,
+    TextStyle, Weather,
 };
 pub use operation::{Action, Operation};
 pub use resources::{

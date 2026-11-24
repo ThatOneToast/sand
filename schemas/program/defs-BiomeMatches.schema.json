@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A test of the biome at a block position.",
+  "properties": {
+    "at": {
+      "$ref": "defs-BlockPosition.schema.json",
+      "description": "Absolute or relative position whose biome is tested."
+    },
+    "biome": {
+      "description": "Namespaced biome identity.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "biome",
+    "at"
+  ],
+  "type": "object"
+}

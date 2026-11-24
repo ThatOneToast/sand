@@ -1430,6 +1430,10 @@ impl Lower<'_> {
                 position: block_position(test.at),
                 block: test.block.clone(),
             },
+            Condition::Biome(test) => sand_commands::ConditionIr::Biome {
+                position: block_position(test.at),
+                biome: test.biome.clone(),
+            },
             Condition::Dimension(test) => {
                 sand_commands::ConditionIr::Dimension(test.dimension.to_string())
             }

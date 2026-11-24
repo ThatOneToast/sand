@@ -58,6 +58,7 @@ impl Registry {
 const SOURCES: &[(&str, &str, &str)] = &[
     ("Item", "sand::vanilla::Item", "item"),
     ("Block", "sand::vanilla::Block", "block"),
+    ("Biome", "sand::registry::BiomeId", "biome"),
     ("Entity", "sand::vanilla::EntityType", "entity type"),
     ("Sound", "sand::vanilla::SoundEvent", "sound"),
     ("Particle", "sand::vanilla::ParticleType", "particle"),
@@ -196,6 +197,7 @@ pub(crate) fn registry_key(name: &str) -> Option<&'static str> {
     Some(match name {
         "Item" => "minecraft:item",
         "Block" => "minecraft:block",
+        "Biome" => "minecraft:worldgen/biome",
         "Entity" => "minecraft:entity_type",
         "Sound" => "minecraft:sound_event",
         "Particle" => "minecraft:particle_type",

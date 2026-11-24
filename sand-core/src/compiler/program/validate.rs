@@ -889,6 +889,9 @@ impl Validator<'_, '_> {
             Condition::Block(test) => {
                 self.block_selector(&test.block, owner, &format!("{ptr}/block"));
             }
+            Condition::Biome(test) => {
+                self.resource(&test.biome, owner, &format!("{ptr}/biome"), "biome");
+            }
             Condition::Dimension(test) => self.resource(
                 &test.dimension.to_string(),
                 owner,
@@ -1088,6 +1091,7 @@ impl Validator<'_, '_> {
         let registry = match kind {
             "item" => Some("minecraft:item"),
             "block" => Some("minecraft:block"),
+            "biome" => Some("minecraft:worldgen/biome"),
             "entity type" => Some("minecraft:entity_type"),
             "sound" => Some("minecraft:sound_event"),
             "particle" => Some("minecraft:particle_type"),

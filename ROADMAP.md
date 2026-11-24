@@ -276,7 +276,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Waits inside control flow, runtime durations, and server continuations.
 - [x] Dimension checks and scoped calls, and block cloning with mask, filter,
   overlap, and move modes.
-- [ ] Structure resources, dimension declarations, biomes, and typed block data.
+- [x] Biome predicates validated against the target version’s shared catalog.
+- [ ] Structure resources, dimension and biome declarations, and typed block data.
 - [ ] Multi-pool conditional loot, advancements, predicates, worldgen, damage
   types, trim recipes, books, dialogs, interactive/translated text and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory

@@ -3614,6 +3614,10 @@ impl Cx {
                     at: at?,
                 }))
             }
+            "biome_is" => Some(pc::Condition::Biome(pc::BiomeMatches {
+                biome: self.arg_id(body, bound["biome"], "Biome")?,
+                at: self.arg_position(body, bound["at"])?,
+            })),
             "dimension_is" => Some(pc::Condition::Dimension(pc::DimensionMatches {
                 dimension: self
                     .arg_id(body, bound["dimension"], "Dimension")?

@@ -20,6 +20,9 @@ fn run() {
     in_dimension(Dimension::TheNether, check_nether);
     check(dimension_is(Dimension::Overworld));
 
+    raw!("fillbiome 0 80 0 3 83 3 minecraft:plains");
+    check(biome_is(Biome::Plains, pos(1, 80, 1)));
+    check(!biome_is(Biome::Desert, pos(1, 80, 1)));
     set_block(Block::Stone, pos(1, 80, 1));
     set_block(Block::Air, pos(2, 80, 1));
     set_block(Block::GoldBlock, pos(3, 80, 1));
@@ -34,6 +37,6 @@ fn run() {
     check(block_is(Block::Stone, pos(1, 80, 1)));
     check(block_is(Block::Air, pos(3, 80, 1)));
     check(block_is(Block::GoldBlock, pos(12, 80, 1)));
-    if Report.checks == 11 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    if Report.checks == 13 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }
 }

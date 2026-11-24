@@ -26,6 +26,10 @@
       "description": "The current command execution dimension matches."
     },
     {
+      "$ref": "defs-BiomeMatches.schema.json",
+      "description": "A biome matches at a block position."
+    },
+    {
       "$ref": "defs-ItemHeld.schema.json",
       "description": "The executor holds an item."
     },

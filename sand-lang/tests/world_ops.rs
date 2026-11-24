@@ -13,6 +13,9 @@ fn dimension_scopes_and_clone_emit_native_commands() {
         String::from_utf8_lossy(file).contains("execute if dimension minecraft:the_end")
     });
     assert!(output);
+    assert!(pack.resources.values().any(|file| {
+        String::from_utf8_lossy(file).contains("execute if biome 1 80 1 minecraft:plains")
+    }));
 }
 
 #[test]
@@ -33,6 +36,10 @@ fn calling() { in_dimension(Dimension::TheEnd, target); }
     assert_eq!(calling["context"], "player");
     for (body, expected) in [
         (
+            "fn run() { if biome_is(Biome::UnknownBiome, pos(0, 0, 0)) { return; } }",
+            "no biome named",
+        ),
+        (
             "fn run() { in_dimension(Dimension::End, missing); }",
             "no dimension named",
         ),
@@ -52,4 +59,28 @@ fn calling() { in_dimension(Dimension::TheEnd, target); }
             "{diagnostics:?}"
         );
     }
+}
+
+#[test]
+fn biome_identifiers_follow_the_package_target_at_both_boundaries() {
+    let source = r#"
+#![pack(namespace = "world_probe", minecraft = "26.3")]
+fn run() { if biome_is(Biome::DappledForest, pos(0, 80, 0)) { return; } }
+"#;
+    let analysis = analyze_one(source);
+    compile(&analysis);
+    let mut program = analysis.program.unwrap();
+    program.target.minecraft = "26.2".into();
+    let backend = sand::advanced::compiler::Compiler::compile(&program).unwrap_err();
+    assert!(backend.iter().any(|error| {
+        error
+            .message
+            .contains("no biome `minecraft:dappled_forest`")
+    }));
+    let analysis = analyze_one(&source.replace("26.3", "26.2"));
+    assert!(
+        errors(&analysis)
+            .iter()
+            .any(|error| error.contains("not available in Minecraft 26.2"))
+    );
 }

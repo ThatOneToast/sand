@@ -8,6 +8,7 @@ use sand_components::{ResourceLocation, effect::Ticks};
 
 pub(super) struct Continuation {
     id: ResourceLocation,
+    group: Option<String>,
     registration: DatapackRegistration,
     module: String,
     pointer: String,
@@ -20,6 +21,7 @@ impl Lower<'_> {
         ticks: &ScoreOperand,
         fields: &[FieldReference],
         body: &[Operation],
+        group: Option<&str>,
     ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
         let (owner, path, module, pointer) = location;
         self.continuation_count += 1;
@@ -116,6 +118,7 @@ impl Lower<'_> {
         commands.push(Cmd::Raw(discard_payload));
         self.continuations.push(Continuation {
             id,
+            group: group.map(str::to_owned),
             registration: lifetime.into_datapack(),
             module: module.into(),
             pointer: pointer.into(),
@@ -129,11 +132,16 @@ impl Lower<'_> {
         load: &mut Vec<LifecycleCommand>,
         tick: &mut Vec<LifecycleCommand>,
     ) -> Result<(), Vec<Diagnostic>> {
-        let mut cancellation = Vec::new();
+        let mut cancellation = BTreeMap::<_, Vec<_>>::from_iter(
+            std::mem::take(&mut self.wait_cancellations)
+                .into_iter()
+                .map(|group| (group, Vec::new())),
+        );
         for continuation in std::mem::take(&mut self.continuations) {
             use crate::gameplay::identity;
             let Continuation {
                 id,
+                group,
                 registration,
                 module,
                 pointer,
@@ -145,21 +153,28 @@ impl Lower<'_> {
                 load,
                 tick,
             )?;
-            cancellation.extend(
-                identity::call(&id, "cancel")
-                    .0
-                    .into_iter()
-                    .map(|command| command.render()),
-            );
+            let commands = identity::call(&id, "cancel");
+            if let Some(all) = cancellation.get_mut(&None) {
+                all.extend(commands.0.iter().map(Cmd::render));
+            }
+            if group.is_some()
+                && let Some(matching) = cancellation.get_mut(&group)
+            {
+                matching.extend(commands.0.iter().map(Cmd::render));
+            }
         }
-        if self.cancel_waits {
-            let id = self.cancellation_function();
-            self.function(&id, cancellation, "", "")?;
+        for (group, commands) in cancellation {
+            let id = self.cancellation_function(group.as_deref());
+            self.function(&id, commands, "", "")?;
         }
         Ok(())
     }
 
-    pub(super) fn cancellation_function(&self) -> String {
-        format!("{}:__sand_program/cancel_waits", self.namespace)
+    pub(super) fn cancellation_function(&self, group: Option<&str>) -> String {
+        let base = format!("{}:__sand_program/cancel_waits", self.namespace);
+        match group {
+            Some(group) => format!("{base}/{group}"),
+            None => base,
+        }
     }
 }

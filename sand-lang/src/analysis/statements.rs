@@ -3060,7 +3060,7 @@ impl Cx {
         ok.then_some(bound)
     }
 
-    fn arg_string(
+    pub(super) fn arg_string(
         &mut self,
         file: FileId,
         arg: &Arg,
@@ -4853,7 +4853,9 @@ impl Cx {
             },
             "kill" => pc::Action::Kill,
             "dismount" => pc::Action::Ride { vehicle: None },
-            "cancel_waits" => pc::Action::CancelWaits,
+            "cancel_waits" => pc::Action::CancelWaits {
+                group: self.wait_group(file, bound.get("group").copied())?,
+            },
             "add_tag" | "remove_tag" => {
                 let (tag, _, tag_span) = self.arg_string(file, bound["tag"], "a tag name")?;
                 if !valid_tag(&tag) {

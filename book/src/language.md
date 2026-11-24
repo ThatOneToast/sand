@@ -1254,6 +1254,12 @@ A player can move to another dimension while the saved chunk is still loaded. A 
 invalidates outstanding waits. Use `cancel_waits()` as the original executor
 to cancel that entity's pending waits in this pack.
 
+Use `wait(seconds = 2, group = "bakery")` and
+`cancel_waits(group = "bakery")` to cancel just one system's waits for the
+executing entity. Group names are shared across the pack. Write 1 to 32
+lowercase letters, digits, or underscores in quotes. Cancelling a group with no
+pending waits has no effect.
+
 Waits keep up to 64 local fields including record fields and admit up to 128
 pending instances at each wait statement.
 After a branch finishes, execution continues with the statements that follow

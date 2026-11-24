@@ -823,6 +823,13 @@
           },
           "type": "array"
         },
+        "group": {
+          "description": "Optional pack-wide name for selecting waits to cancel for an owner.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "op": {
           "const": "suspend",
           "type": "string"
@@ -844,6 +851,13 @@
       "additionalProperties": false,
       "description": "Cancel this executor's outstanding continuations for this pack.",
       "properties": {
+        "group": {
+          "description": "Group to cancel, or all groups and ungrouped waits when omitted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "op": {
           "const": "cancel_waits",
           "type": "string"

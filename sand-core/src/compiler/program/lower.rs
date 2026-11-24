@@ -9,7 +9,7 @@ use crate::compiler::export::{
     tags,
 };
 use crate::ir::{Cmd, NumericWrite};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 type LifecycleCommand = (String, usize, String);
 
@@ -126,7 +126,7 @@ pub(super) fn lower(
         continuations: Vec::new(),
         dimensions,
         continuation_count: 0,
-        cancel_waits: false,
+        wait_cancellations: BTreeSet::new(),
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
@@ -1720,7 +1720,7 @@ struct Lower<'sources> {
     continuations: Vec<continuations::Continuation>,
     dimensions: Vec<sand_components::DimensionId>,
     continuation_count: usize,
-    cancel_waits: bool,
+    wait_cancellations: BTreeSet<Option<String>>,
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
@@ -3539,10 +3539,17 @@ impl Lower<'_> {
                     ticks,
                     fields,
                     body,
-                } => self.suspend((owner, &path, module, &ptr), ticks, fields, body)?,
-                Action::CancelWaits => {
-                    self.cancel_waits = true;
-                    vec![Cmd::Function(self.cancellation_function())]
+                    group,
+                } => self.suspend(
+                    (owner, &path, module, &ptr),
+                    ticks,
+                    fields,
+                    body,
+                    group.as_deref(),
+                )?,
+                Action::CancelWaits { group } => {
+                    self.wait_cancellations.insert(group.clone());
+                    vec![Cmd::Function(self.cancellation_function(group.as_deref()))]
                 }
                 Action::DataGet {
                     score,

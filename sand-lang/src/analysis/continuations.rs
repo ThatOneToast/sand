@@ -7,6 +7,7 @@ pub(super) struct WaitSite {
     setup: Vec<pc::Operation>,
     ticks: pc::ScoreOperand,
     fields: Vec<pc::FieldReference>,
+    group: Option<String>,
     span: Span,
 }
 
@@ -17,6 +18,7 @@ impl WaitSite {
                 ticks: self.ticks,
                 fields: self.fields,
                 body,
+                group: self.group,
             },
             file,
             self.span,
@@ -52,6 +54,7 @@ impl Cx {
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
+        let group = self.wait_group(file, bound.get("group").copied())?;
         let (duration, scale) = match (bound.get("ticks"), bound.get("seconds")) {
             (Some(arg), None) => (*arg, 1),
             (None, Some(arg)) => (*arg, 20),
@@ -157,8 +160,22 @@ impl Cx {
             setup,
             ticks,
             fields,
+            group,
             span,
         })
+    }
+
+    pub(super) fn wait_group(
+        &mut self,
+        file: FileId,
+        group: Option<&Arg>,
+    ) -> Option<Option<String>> {
+        match group {
+            Some(group) => self
+                .arg_string(file, group, "a wait group name")
+                .map(|(name, _, _)| Some(name)),
+            None => Some(None),
+        }
     }
 
     pub(super) fn retained_slots(

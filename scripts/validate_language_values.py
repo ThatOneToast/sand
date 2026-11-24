@@ -204,6 +204,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute as NumericB at @s run function runtime_values:player_waits/queue_seconds")
             for name in ("NumericA", "NumericB"):
                 self.send(f"execute as {name} at @s run function runtime_values:player_waits/queue_cancellable")
+            self.send("execute as NumericA at @s run function runtime_values:player_waits/queue_retained")
             self.send("execute as NumericA at @s run function runtime_values:player_waits/cancel")
             self.send("execute as NumericA at @s run function runtime_values:player_waits/queue_a")
             self.send("execute as NumericB at @s run function runtime_values:player_waits/queue_b")

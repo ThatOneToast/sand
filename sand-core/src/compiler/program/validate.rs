@@ -2281,6 +2281,22 @@ impl Validator<'_, '_> {
         }
     }
 
+    fn wait_group(&mut self, group: Option<&str>, owner: &str, ptr: &str) {
+        if let Some(group) = group
+            && (!(1..=32).contains(&group.len())
+                || !group
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'))
+        {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_ID",
+                owner,
+                &format!("{ptr}/action/group"),
+                "a wait group needs 1 to 32 lowercase letters, digits, or underscores",
+            ));
+        }
+    }
+
     fn query(&mut self, query: &EntityQuery, owner: &str, ptr: &str) {
         if let Some(state) = &query.with_state
             && !self.is_attachable_state(state)
@@ -3202,8 +3218,10 @@ impl Validator<'_, '_> {
                     ticks,
                     fields,
                     body,
+                    group,
                 } => {
                     self.executor(context, owner, &ptr, "suspending a function");
+                    self.wait_group(group.as_deref(), owner, &ptr);
                     match ticks {
                         ScoreOperand::Field(score) => {
                             self.score(score, context, owner, &format!("{ptr}/action/ticks"))
@@ -3241,7 +3259,10 @@ impl Validator<'_, '_> {
                         depth + 1,
                     );
                 }
-                Action::CancelWaits => self.executor(context, owner, &ptr, "cancelling a wait"),
+                Action::CancelWaits { group } => {
+                    self.executor(context, owner, &ptr, "cancelling a wait");
+                    self.wait_group(group.as_deref(), owner, &ptr);
+                }
                 Action::While { condition, body } => {
                     let condition_ptr = format!("{ptr}/action/condition");
                     self.condition(condition, context, owner, &condition_ptr);

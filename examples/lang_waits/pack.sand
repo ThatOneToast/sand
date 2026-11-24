@@ -20,9 +20,9 @@ fn bake(batch: number) {
     let baking_ticks = quantity * 12;
     if batch % 3 == 0 {
         actionbar!("Batch {batch} is getting an extra-crisp crust.");
-        wait(baking_ticks + 12);
+        wait(baking_ticks + 12, group = "bakery");
     } else {
-        wait(baking_ticks);
+        wait(baking_ticks, group = "bakery");
     }
     give_item(Item::Bread, count = quantity);
     chat!("Batch {batch} is ready. Here are your {quantity} loaves.");
@@ -30,6 +30,6 @@ fn bake(batch: number) {
 
 #[player]
 pub fn cancel_order() {
-    cancel_waits();
+    cancel_waits(group = "bakery");
     actionbar!("Your pending bakery orders were cancelled.");
 }

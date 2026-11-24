@@ -73,6 +73,74 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
 }
 
 #[test]
+fn cancellation_groups_select_wait_sites_and_allow_missing_groups() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+fn first() { wait(1, group = "cooking"); }
+fn second() { wait(seconds = 1, group = "cooking"); }
+fn third() { wait(1, group = "deliveries"); }
+fn fourth() { wait(1); }
+fn cancel() {
+    cancel_waits(group = "never_started");
+    cancel_waits(group = "cooking");
+    cancel_waits();
+}
+"#,
+    );
+    let encoded = serde_json::to_vec(analysis.program.as_ref().unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&encoded, &Default::default()).unwrap();
+    let pack = compile(&analysis);
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+    let cooking = function(
+        &pack,
+        "wait_probe/function/__sand_program/cancel_waits/cooking",
+    );
+    let all = function(&pack, "wait_probe/function/__sand_program/cancel_waits");
+    assert_eq!(cooking.lines().count(), 2);
+    assert_eq!(all.lines().count(), 4);
+    for command in cooking.lines() {
+        assert!(all.lines().any(|line| line == command));
+    }
+    assert!(
+        function(
+            &pack,
+            "wait_probe/function/__sand_program/cancel_waits/never_started",
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn cancellation_group_names_are_checked_by_the_portable_compiler() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+fn invalid() {
+    cancel_waits(group = "Wrong/name");
+    wait(1, group = "");
+}
+"#,
+    );
+    let Err(diagnostics) = analysis.compile() else {
+        panic!("invalid wait group names built successfully");
+    };
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|d| d.message.contains("a wait group needs"))
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn computed_wait_durations_are_read_once_and_stored_on_the_lifetime() {
     let source = r#"
 #![pack(namespace = "wait_probe", minecraft = "26.2")]

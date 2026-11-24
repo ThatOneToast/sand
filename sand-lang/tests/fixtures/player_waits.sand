@@ -4,6 +4,7 @@ player state Ledger {
     stage_one: number,
     stage_two: number,
     cancelled: number,
+    retained: number,
     immediate: number,
     branch_sum: number,
     branch_shadow: number,
@@ -39,16 +40,31 @@ pub fn queue_b() {
     run(Plan { label: "B🌍", boost: 4, delay: 19, steps: [1, 6] });
 }
 
-pub fn cancel() { cancel_waits(); }
+pub fn cancel() { cancel_waits(group = "orders"); }
 
 pub fn queue_cancellable() {
-    wait(12);
+    wait(12, group = "orders");
     Ledger.cancelled += 1;
     raw!("say __SAND_WAIT_CANCELLABLE_DONE__");
 }
 
+fn journal_wait() {
+    wait(5, group = "journal");
+    Ledger.retained += 1;
+}
+
+fn ungrouped_wait() {
+    wait(4);
+    Ledger.retained += 1;
+}
+
+pub fn queue_retained() {
+    journal_wait();
+    ungrouped_wait();
+}
+
 pub fn check_a() {
-    if Ledger.stage_one == 10 && Ledger.stage_two == 25 && Ledger.cancelled == 0 {
+    if Ledger.stage_one == 10 && Ledger.stage_two == 25 && Ledger.cancelled == 0 && Ledger.retained == 2 {
         raw!("scoreboard players set #wait_a numeric_probe 1");
     }
 }

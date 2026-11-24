@@ -50,8 +50,7 @@ fn projectile_diagnostics_guard_bounds_callbacks_and_player_context() {
         let analysis = analyze_one(&PROJECTILE.replace(from, to));
         let messages: Vec<_> = analysis
             .compile()
-            .err()
-            .expect("invalid projectile compiled")
+            .expect_err("invalid projectile compiled")
             .into_iter()
             .map(|diagnostic| diagnostic.message)
             .collect();

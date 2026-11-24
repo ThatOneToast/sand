@@ -1,6 +1,6 @@
 //! Owned portable data resources: custom items, recipes, and registry tags.
 use super::{FieldReference, FunctionReference, ScoreOperand, TextPart, Weather};
-use sand_components::{MobCategory, ResourceLocation, SpawnCost, SpawnEntry};
+use sand_components::{EntityTypeId, MobCategory, ResourceLocation, SpawnCost, SpawnEntry};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -853,4 +853,41 @@ pub struct MenuChoice {
     /// When present, the referenced score must equal one to authorize the choice.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<FieldReference>,
+}
+
+/// A player-owned sampled projectile, built through Sand's shared flight runtime.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::ProjectileDefinition", module = "sand::advanced::compiler",
+ summary = "A player-owned sampled projectile.",
+ context = "Flight ends on collision, expiry, cancellation, or entry into an unloaded chunk. The hit callback runs as the original player at the impact position.",
+ minecraft = "Reuses the Rust Projectile system and its per-owner lifecycle, capped sampling, and native damage attribution.",
+ use_when = ["Launching a player-owned projectile from a portable gameplay function"],
+ avoid_when = ["Moving a native arrow or simulating swept hitboxes"],
+ fields(id = "Projectile identity.", ticks = "Maximum flight in loaded ticks.", speed = "Blocks traveled each loaded tick; defaults to one.", radius = "Entity collision radius; defaults to half a block.", target = "Optional vanilla entity type filter.", damage = "Optional native damage in hit points attributed to the owner.", hit = "Optional player function invoked at entity or block impact."),
+ example = "use sand::advanced::compiler::ProjectileDefinition;",
+)]
+pub struct ProjectileDefinition {
+    /// Identity used to launch or cancel flight.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Maximum flight in loaded ticks.
+    pub ticks: u32,
+    /// Speed in blocks per tick. Defaults to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed: Option<f64>,
+    /// Entity collision radius. Defaults to half a block.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radius: Option<f64>,
+    /// Filter potential hits to this entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub target: Option<EntityTypeId>,
+    /// Native damage in hit points, attributed to the launching player.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub damage: Option<f64>,
+    /// Player function run at the first block or entity impact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit: Option<FunctionReference>,
 }

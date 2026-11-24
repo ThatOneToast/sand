@@ -82,6 +82,7 @@
 # Menus add two types, one action variant, and ten fields.
 # Named menu views and guards add one type and eight fields.
 # Biome spawn tables add two portable fields and a SpawnEntry accessor.
+# Projectiles add one type, one action variant, and ten fields.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -90,19 +91,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5945
+static_surface_items = 5957
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12259
+static_surface_items = 12271
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12521
+static_surface_items = 12533
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

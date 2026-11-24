@@ -38,6 +38,7 @@ fn counter() -> Program {
             inventory_transfers: vec![],
             huds: vec![],
             menus: vec![],
+            projectiles: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

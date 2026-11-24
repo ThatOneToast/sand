@@ -227,6 +227,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_inventory_transfers()
             self.check_owner_huds()
             self.check_native_menus()
+            self.check_owned_projectiles()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
@@ -422,6 +423,38 @@ class ValuesHarness(WorldGameplayHarness):
         select("NumericB", read_token("NumericB", next_page))
         select("NumericB", read_token("NumericB", second))
         report("NumericB", 10, "MENU_PEER_REMAINS_ELIGIBLE")
+
+
+    def check_owned_projectiles(self):
+        self.send("scoreboard objectives add bolt_kills totalKillCount")
+        for player, x in (("NumericA", 3), ("NumericB", 11)):
+            self.send(f"scoreboard players set {player} bolt_kills 0")
+            self.send(f"execute in minecraft:overworld run setblock {x} 99 3 minecraft:stone")
+            self.send(f"execute in minecraft:overworld run teleport {player} {x}.5 100 3.5 0 0")
+        self.send('summon minecraft:pig 3.5 100 8.5 {Tags:["bolt_target_a"],NoAI:1b,NoGravity:1b}')
+        self.send('summon minecraft:pig 11.5 100 8.5 {Tags:["bolt_target_b"],NoAI:1b,NoGravity:1b}')
+        self.send('summon minecraft:cow 3.5 100 5.0 {Tags:["bolt_filter"],NoAI:1b,NoGravity:1b}')
+        self.send("execute as NumericA at @s run function runtime_values:launch_bolt")
+        self.send("execute as NumericB at @s run function runtime_values:launch_bolt")
+        self.send("execute as NumericB at @s run function runtime_values:cancel_bolt")
+        start = len(self.lines)
+        impact = re.compile(r"\[NumericA\] __SAND_BOLT_IMPACT__$")
+        self.send("tick step 7")
+        self.wait_for(impact, "bolt-entity-impact", start)
+        self.check("BOLT_OWNER_KILL", "if score NumericA bolt_kills matches 1")
+        self.check("BOLT_PEER_KILL", "if score NumericB bolt_kills matches 0")
+        self.check("BOLT_CANCELLED", "if entity @e[tag=bolt_target_b,nbt={Health:10.0f}]")
+        self.check("BOLT_TARGET_FILTER", "if entity @e[tag=bolt_filter,nbt={Health:10.0f}]")
+
+        self.send("setblock 3 100 6 minecraft:stone")
+        start = len(self.lines)
+        self.send("execute as NumericA at @s run function runtime_values:launch_bolt")
+        self.send("tick step 7")
+        self.wait_for(impact, "bolt-block-impact", start)
+        self.send("execute as NumericA run function runtime_values:report_bolt")
+        self.send("execute as NumericB run function runtime_values:report_bolt")
+        self.check("BOLT_IMPACT_POSITION", "if score NumericA numeric_probe matches 21")
+        self.check("BOLT_PEER_ISOLATION", "if score NumericB numeric_probe matches 0")
 
 
 def main():

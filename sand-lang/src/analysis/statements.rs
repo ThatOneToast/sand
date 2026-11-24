@@ -4872,6 +4872,15 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "launch_projectile" | "cancel_projectile" => pc::Action::Projectile {
+                projectile: self.arg_declared(
+                    body,
+                    bound["projectile"],
+                    DefKind::Projectile,
+                    "a projectile",
+                )?,
+                launch: builtin.name == "launch_projectile",
+            },
             "open_menu" | "close_menu" => pc::Action::Menu {
                 menu: self.arg_declared(body, bound["menu"], DefKind::Menu, "a menu")?,
                 open: builtin.name == "open_menu",

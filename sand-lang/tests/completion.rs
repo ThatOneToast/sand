@@ -82,6 +82,7 @@ fn item_level() {
             "inventory_transfer",
             "hud",
             "menu",
+            "projectile",
             "event",
             "loot",
             "recipe shapeless",
@@ -450,6 +451,15 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "hud Status { ticks: 100, actionbar: \"Ready\" }\nfn show() { start_hud(|); }",
         &["Status"],
         &["Block::Stone"],
+    );
+    exactly(
+        "projectile Spark {\n    |\n}",
+        &["ticks", "speed", "radius", "target", "damage", "hit"],
+    );
+    includes_excludes(
+        "projectile Spark { ticks: 20 }\nfn fire() { launch_projectile(|); }",
+        &["Spark"],
+        &["Entity::Zombie"],
     );
     exactly(
         "menu Supplies {\n    |\n}",

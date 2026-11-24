@@ -958,6 +958,10 @@
                 {
                   "type": "STRING",
                   "value": "menu"
+                },
+                {
+                  "type": "STRING",
+                  "value": "projectile"
                 }
               ]
             },

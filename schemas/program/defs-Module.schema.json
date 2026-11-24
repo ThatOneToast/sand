@@ -119,6 +119,13 @@
       },
       "type": "array"
     },
+    "projectiles": {
+      "description": "Projectiles launched and cancelled by the owning player.",
+      "items": {
+        "$ref": "defs-ProjectileDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "recipes": {
       "description": "Crafting, cooking, and stonecutting recipes.",
       "items": {

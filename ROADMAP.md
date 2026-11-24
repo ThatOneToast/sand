@@ -327,8 +327,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Broader advancement triggers, worldgen and VFX.
 - [x] Owner-scoped HUDs with bounded lifetime, rich actionbars, private
   State-driven boss bars, and cancellation.
+- [x] Player-owned sampled projectiles with impact callbacks, target filters,
+  native damage attribution and owner-scoped cancellation.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, rosters,
-  projectiles, progression, scenes, sessions and checkpoints
+  progression, scenes, sessions and checkpoints
   through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.

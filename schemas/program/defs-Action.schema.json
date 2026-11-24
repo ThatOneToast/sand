@@ -580,6 +580,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Launch a named projectile or cancel its flights for this player.",
+      "properties": {
+        "launch": {
+          "type": "boolean"
+        },
+        "op": {
+          "const": "projectile",
+          "type": "string"
+        },
+        "projectile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "projectile",
+        "launch"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Start or cancel named presentation for the executing player.",
       "properties": {
         "hud": {

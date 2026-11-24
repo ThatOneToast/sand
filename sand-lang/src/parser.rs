@@ -576,6 +576,7 @@ impl Builder<'_> {
                     "inventory_transfer" => DataKind::InventoryTransfer,
                     "hud" => DataKind::Hud,
                     "menu" => DataKind::Menu,
+                    "projectile" => DataKind::Projectile,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

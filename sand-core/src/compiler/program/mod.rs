@@ -17,10 +17,11 @@ pub use model::{
     FlowTransition, Function, FunctionReference, HudBossBar, HudDefinition,
     InventoryTransferDefinition, ItemHeld, LootItem, LootPool, LootTable, MenuChoice,
     MenuDefinition, MenuView, MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack,
-    PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation,
-    ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
-    ScoreRelation, State, StateAttached, TagKind, TagMembership, TeleportDestination, TextColor,
-    TextPart, TextStyle, Weather, WorldPredicate, WrittenBookContent,
+    PlayerEvent, PlayerGameMode, Program, ProgramTarget, ProjectileDefinition, Rarity, Recipe,
+    RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand,
+    ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    TeleportDestination, TextColor, TextPart, TextStyle, Weather, WorldPredicate,
+    WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -87,6 +88,7 @@ const CAPABILITIES: &[&str] = &[
     "inventory_transfers",
     "owner_huds",
     "native_menus",
+    "owned_projectiles",
 ];
 
 /// Complete deterministic pack output, ready for a host's publication adapter.

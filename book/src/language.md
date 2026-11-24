@@ -1604,6 +1604,38 @@ The advancement's native reward runs the handlers once per player completion.
 Handlers in the same module run in declaration order. Experience rewards and
 the player's advancement progress use the same vanilla completion.
 
+### Player-owned projectiles
+
+Declare a sampled projectile, then launch it from a player function.
+`ticks` limits its loaded flight time, `speed` controls travel per tick, and
+`radius` controls its entity collision samples. Omit `target` to consider all
+eligible entities. A projectile can hit a non-air block regardless of the
+entity filter.
+
+```rust,ignore
+projectile Spark {
+    ticks: 24,
+    speed: 1.5,
+    radius: 0.75,
+    target: Entity::Zombie,
+    damage: 6,
+    hit: show_impact,
+}
+
+fn show_impact() {
+    spawn_particle(Particle::Flame, count = 8);
+}
+
+fn cast() { launch_projectile(Spark); }
+fn stop_casting() { cancel_projectile(Spark); }
+```
+
+`damage` uses native damage in hit points and awards kill credit to the
+launching player. The optional `hit` function runs as that player at the
+collision position for block and entity hits. Cancellation affects only
+the executing player's active flights of that projectile. Flight stops in
+unloaded chunks. See the [training sparks example](../../examples/lang_projectiles/).
+
 ### Native menus
 
 Use `menu` for a native dialog with gameplay choices. A button can call a
@@ -1855,7 +1887,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs and native menus | combat, abilities, encounters, jobs, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus and projectiles | combat, abilities, encounters, jobs, rosters, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

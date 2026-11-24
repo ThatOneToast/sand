@@ -62,6 +62,8 @@ pub enum ParamKind {
     Hud,
     /// An authored player-owned dialog menu.
     Menu,
+    /// An authored player-owned projectile.
+    Projectile,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -1459,6 +1461,38 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "clear_item(Item::${1:Dirt});",
     },
     Builtin {
+        name: "launch_projectile",
+        kind: BuiltinKind::Statement,
+        signature: "launch_projectile(projectile)",
+        summary: "Launch a named projectile in the player's facing direction.",
+        details: "Starts bounded sampled flight owned by the executing player.",
+        minecraft: "Starts the shared Projectile lifetime.",
+        needs_player: true,
+        params: &[p(
+            "projectile",
+            ParamKind::Projectile,
+            true,
+            "The declared projectile.",
+        )],
+        snippet: "launch_projectile(${1:Spark})",
+    },
+    Builtin {
+        name: "cancel_projectile",
+        kind: BuiltinKind::Statement,
+        signature: "cancel_projectile(projectile)",
+        summary: "Cancel the player's flights of a named projectile.",
+        details: "Other players keep their own active flights.",
+        minecraft: "Cancels this projectile lifetime for the executing player.",
+        needs_player: true,
+        params: &[p(
+            "projectile",
+            ParamKind::Projectile,
+            true,
+            "The declared projectile.",
+        )],
+        snippet: "cancel_projectile(${1:Spark})",
+    },
+    Builtin {
         name: "open_menu",
         kind: BuiltinKind::Statement,
         signature: "open_menu(menu)",
@@ -2397,6 +2431,54 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "projectile",
+        "ticks",
+        FieldKind::Int,
+        true,
+        "Positive maximum flight duration in loaded ticks.",
+        "${1:20}",
+    ),
+    f(
+        "projectile",
+        "speed",
+        FieldKind::Number,
+        false,
+        "Travel per loaded tick in blocks, greater than zero and at most sixteen.",
+        "${1:1.5}",
+    ),
+    f(
+        "projectile",
+        "radius",
+        FieldKind::Number,
+        false,
+        "Entity sampling radius, greater than zero and at most eight.",
+        "${1:0.5}",
+    ),
+    f(
+        "projectile",
+        "target",
+        FieldKind::Registry("Entity"),
+        false,
+        "Limit entity hits to a vanilla entity type.",
+        "Entity::${1:Zombie}",
+    ),
+    f(
+        "projectile",
+        "damage",
+        FieldKind::Number,
+        false,
+        "Native hit-point damage attributed to the owner.",
+        "${1:2}",
+    ),
+    f(
+        "projectile",
+        "hit",
+        FieldKind::Callback,
+        false,
+        "Parameterless player function run at impact.",
+        "${1:on_impact}",
+    ),
+    f(
         "menu",
         "title",
         FieldKind::Text,
@@ -2716,6 +2798,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "projectile",
+        "`projectile Name { ticks: 20, speed: 1.5 }` declares player-owned sampled flight.",
     ),
     (
         "menu",

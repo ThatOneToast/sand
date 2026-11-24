@@ -133,6 +133,7 @@ pub(super) fn lower(
         constants: std::collections::BTreeSet::new(),
         custom_items: BTreeMap::new(),
         huds: BTreeMap::new(),
+        projectiles: BTreeMap::new(),
         menus: BTreeMap::new(),
         advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
@@ -160,6 +161,12 @@ pub(super) fn lower(
             lower
                 .menus
                 .insert(menu.id.to_string(), lower.menu_component(menu));
+        }
+        for projectile in &module.projectiles {
+            lower.projectiles.insert(
+                projectile.id.to_string(),
+                lower.projectile_component(projectile),
+            );
         }
         for hud in &module.huds {
             lower
@@ -328,6 +335,21 @@ pub(super) fn lower(
                     &format!("menu {}", menu.id),
                     &module_id,
                     &format!("/menus/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, projectile) in module.projectiles.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.projectiles[&projectile.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("projectile {}", projectile.id),
+                    &module_id,
+                    &format!("/projectiles/{index}"),
                 ),
                 &ctx,
                 &mut load,
@@ -1581,6 +1603,7 @@ struct Lower<'sources> {
     /// Declared custom items by id.
     custom_items: BTreeMap<String, sand_components::CustomItem>,
     huds: BTreeMap<String, crate::gameplay::Hud>,
+    projectiles: BTreeMap<String, crate::gameplay::Projectile>,
     menus: BTreeMap<String, crate::gameplay::Menu>,
     advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
@@ -1756,10 +1779,12 @@ impl Lower<'_> {
                     )]
                 },
             )?;
-            self.runtime.own_function(
-                format!("{}:{}", record.namespace, record.path),
-                module.to_owned(),
-            );
+            if record.dir == "function" {
+                self.runtime.own_function(
+                    format!("{}:{}", record.namespace, record.path),
+                    module.to_owned(),
+                );
+            }
             self.records.push(record);
         }
         for (index, action) in lifecycle.into_iter().enumerate() {
@@ -1825,6 +1850,44 @@ impl Lower<'_> {
             }
         }
         definition
+    }
+
+    fn projectile_component(
+        &self,
+        projectile: &ProjectileDefinition,
+    ) -> crate::gameplay::Projectile {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Lifetime, Projectile},
+        };
+        use sand_components::effect::Ticks;
+
+        let lifetime =
+            Lifetime::<PlayerKind>::new(projectile.id.clone(), Ticks::new(projectile.ticks))
+                .include_dimensions(self.dimensions.iter().cloned());
+        let mut definition = Projectile::new(lifetime);
+        if let Some(speed) = projectile.speed {
+            definition = definition.speed(speed);
+        }
+        if let Some(radius) = projectile.radius {
+            definition = definition.radius(radius);
+        }
+        if let Some(target) = &projectile.target {
+            definition = definition
+                .targets(sand_commands::Selector::all_entities().entity_type(target.clone()));
+        }
+        let hit = projectile.hit.as_ref().map(reference_id);
+        let damage = projectile.damage;
+        definition.on_hit(move |context| {
+            let mut actions = crate::ir::Actions::default();
+            if let Some(damage) = damage {
+                actions.extend([context.damage_target(damage, sand_commands::DamageKind::Generic)]);
+            }
+            if let Some(function) = &hit {
+                actions.extend([context.owner_at_instance(Cmd::Function(function.clone()))]);
+            }
+            actions
+        })
     }
 
     fn hud_component(&self, hud: &HudDefinition) -> crate::gameplay::Hud {
@@ -2527,6 +2590,14 @@ impl Lower<'_> {
                         definition.open().0
                     } else {
                         definition.close().0
+                    }
+                }
+                Action::Projectile { projectile, launch } => {
+                    let definition = &self.projectiles[&projectile.to_string()];
+                    if *launch {
+                        definition.launch().0
+                    } else {
+                        definition.cancel().0
                     }
                 }
                 Action::Hud { hud, show } => {

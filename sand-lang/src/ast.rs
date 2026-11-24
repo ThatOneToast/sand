@@ -516,6 +516,7 @@ pub enum DataKind {
     InventoryTransfer,
     Hud,
     Menu,
+    Projectile,
 }
 
 impl DataKind {
@@ -537,6 +538,7 @@ impl DataKind {
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",
+            DataKind::Projectile => "projectile",
         }
     }
 }

@@ -225,6 +225,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Projectile, _) => (
+                    format!("{vis}projectile {}", def.name),
+                    format!(
+                        "Player-owned projectile `{id}`. Use `launch_projectile` or `cancel_projectile`."
+                    ),
+                ),
                 (crate::ast::DataKind::Menu, _) => (
                     format!("{vis}menu {}", def.name),
                     format!("Native menu `{id}`. Use `open_menu` or `close_menu`."),
@@ -1173,6 +1179,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::StructureTemplate
         | DefKind::InventoryTransfer
         | DefKind::Hud
+        | DefKind::Projectile
         | DefKind::Menu => CompletionKind::Constant,
     }
 }
@@ -1848,6 +1855,9 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("Projectile") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Projectile);
+            }
             Some("Menu") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Menu);
             }
@@ -2460,6 +2470,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
         ),
         Completion::snippet(
+            "projectile",
+            "player-owned projectile",
+            r#"projectile ${1:Spark} { ticks: ${2:20}, speed: ${3:1.5}, damage: ${4:2}, target: Entity::${5:Zombie} }"#,
+        ),
+        Completion::snippet(
             "menu",
             "native player menu",
             r#"menu ${1:Supplies} { title: "${2:Supplies}", ticks: ${3:200}, choices: [{ label: "${4:Take rations}", action: ${5:take_rations} }] }"#,
@@ -2780,6 +2795,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::InventoryTransfer => "InventoryTransfer",
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",
+                ParamKind::Projectile => "Projectile",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

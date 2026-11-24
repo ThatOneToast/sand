@@ -483,6 +483,50 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Projectile => {
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                }) else {
+                    return;
+                };
+                let mut number = |name, max: f64| {
+                    let field = get(name)?;
+                    let value = self.data_number(module, file, &field.value)?;
+                    let min = if name == "damage" { 0.0 } else { 0.001 };
+                    if !(min..=max).contains(&value) {
+                        self.error(
+                            "range",
+                            file,
+                            field.value.span(),
+                            format!("`{name}` must be in {min}..={max}"),
+                        );
+                        return None;
+                    }
+                    Some(value)
+                };
+                let speed = number("speed", 16.0);
+                let radius = number("radius", 8.0);
+                let damage = number("damage", f64::from(f32::MAX));
+                let target = get("target")
+                    .and_then(|field| self.data_entity_type(module, file, &field.value));
+                let hit =
+                    get("hit").and_then(|field| self.data_callback(module, file, &field.value));
+                self.pointers.push((
+                    module_id,
+                    format!("/projectiles/{}", out.projectiles.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.projectiles.push(pc::ProjectileDefinition {
+                    id: location,
+                    ticks: ticks as u32,
+                    speed,
+                    radius,
+                    target,
+                    damage,
+                    hit,
+                });
+            }
             DataKind::Menu => {
                 let Some(title) =
                     get("title").and_then(|field| self.data_text(module, file, &field.value))
@@ -1815,7 +1859,7 @@ impl Cx {
                         &["entity"],
                         &["weight", "min_count", "max_count"],
                     )?;
-                    let entity = self.data_spawn_entity(module, file, fields.get("entity")?)?;
+                    let entity = self.data_entity_type(module, file, fields.get("entity")?)?;
                     let mut number = |key, default, min| {
                         fields.get(key).map_or(Some(default), |value| {
                             self.data_int(module, file, value, min, i64::from(i32::MAX))
@@ -1868,7 +1912,7 @@ impl Cx {
                 &["entity", "energy_budget", "charge"],
                 &[],
             )?;
-            let entity = self.data_spawn_entity(module, file, fields.get("entity")?)?;
+            let entity = self.data_entity_type(module, file, fields.get("entity")?)?;
             let budget = self.data_number(module, file, fields.get("energy_budget")?)?;
             let charge = self.data_number(module, file, fields.get("charge")?)?;
             if costs
@@ -1889,7 +1933,7 @@ impl Cx {
         Some(costs)
     }
 
-    fn data_spawn_entity(
+    fn data_entity_type(
         &mut self,
         module: ModuleId,
         file: FileId,

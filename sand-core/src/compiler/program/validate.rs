@@ -252,6 +252,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.menus)
             .map(|menu| menu.id.to_string())
             .collect(),
+        projectiles: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.projectiles)
+            .map(|projectile| projectile.id.to_string())
+            .collect(),
         huds: program
             .modules
             .iter()
@@ -466,6 +472,16 @@ pub(super) fn validate(
                         validator.score(score, context, &owner, &format!("{ptr}/when"));
                     }
                 }
+            }
+        }
+        for (index, projectile) in module.projectiles.iter().enumerate() {
+            if let Some(hit) = &projectile.hit {
+                validator.call(
+                    hit,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("/projectiles/{index}/hit"),
+                );
             }
         }
         for (index, hud) in module.huds.iter().enumerate() {
@@ -861,6 +877,38 @@ pub(super) fn validate(
                         push(format!("{ptr}/label"), error);
                     }
                 }
+            }
+        }
+        for (index, projectile) in module.projectiles.iter().enumerate() {
+            let ptr = format!("/projectiles/{index}");
+            if !resource_ids.insert(format!("projectile {}", projectile.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate projectile `{}`", projectile.id),
+                );
+            }
+            if !(1..=i32::MAX as u32).contains(&projectile.ticks) {
+                push(
+                    format!("{ptr}/ticks"),
+                    "projectile ticks must be in 1..=2147483647".into(),
+                );
+            }
+            if let Some(damage) = projectile.damage
+                && let Err(error) = sand_commands::DamageAmount::try_fixed(damage)
+            {
+                push(format!("{ptr}/damage"), error.to_string());
+            }
+            if let Some(target) = &projectile.target
+                && sand_version::registry::contains(
+                    &program.target.minecraft,
+                    "minecraft:entity_type",
+                    &target.to_string(),
+                ) == Some(false)
+            {
+                push(
+                    format!("{ptr}/target"),
+                    format!("unknown entity type `{target}`"),
+                );
             }
         }
         for (index, hud) in module.huds.iter().enumerate() {
@@ -1398,6 +1446,7 @@ struct Validator<'a, 'e> {
     advancements: BTreeMap<String, BTreeSet<String>>,
     transfers: BTreeSet<String>,
     huds: BTreeSet<String>,
+    projectiles: BTreeSet<String>,
     menus: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
@@ -2508,6 +2557,22 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/menu"),
                             format!("unknown menu `{menu}`"),
+                        ));
+                    }
+                }
+                Action::Projectile { projectile, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "launching or cancelling the executing player's projectile",
+                    );
+                    if !self.projectiles.contains(&projectile.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/projectile"),
+                            format!("unknown projectile `{projectile}`"),
                         ));
                     }
                 }

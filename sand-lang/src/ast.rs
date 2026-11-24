@@ -511,6 +511,7 @@ pub enum DataKind {
     /// `dialog Name { ... }`.
     Dialog,
     Dimension,
+    Biome,
 }
 
 impl DataKind {
@@ -527,6 +528,7 @@ impl DataKind {
             DataKind::Advancement => "advancement",
             DataKind::Dialog => "dialog",
             DataKind::Dimension => "dimension",
+            DataKind::Biome => "biome",
         }
     }
 }

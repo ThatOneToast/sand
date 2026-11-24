@@ -1756,6 +1756,8 @@ pub enum FieldKind {
     AdvancementDisplay,
     /// The author, title and pages of a written book.
     WrittenBook,
+    /// A quoted RGB color such as `"#3f76e4"`.
+    Color,
     /// Ordered block and height pairs for a flat dimension.
     FlatLayers,
     /// A quoted namespaced resource location.
@@ -2248,6 +2250,78 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "biome",
+        "precipitation",
+        FieldKind::Bool,
+        false,
+        "Whether this biome has rain or snow. Defaults to true.",
+        "true",
+    ),
+    f(
+        "biome",
+        "temperature",
+        FieldKind::Number,
+        false,
+        "Climate temperature. Defaults to 0.5.",
+        "${1:0.7}",
+    ),
+    f(
+        "biome",
+        "downfall",
+        FieldKind::Number,
+        false,
+        "Humidity from zero to one. Defaults to 0.5.",
+        "${1:0.5}",
+    ),
+    f(
+        "biome",
+        "fog_color",
+        FieldKind::Color,
+        false,
+        "Air fog color. Use a quoted RGB value.",
+        r##""#${1:c0d8ff}""##,
+    ),
+    f(
+        "biome",
+        "water_color",
+        FieldKind::Color,
+        false,
+        "Water surface color. Use a quoted RGB value.",
+        r##""#${1:3f76e4}""##,
+    ),
+    f(
+        "biome",
+        "water_fog_color",
+        FieldKind::Color,
+        false,
+        "Underwater fog color. Use a quoted RGB value.",
+        r##""#${1:050533}""##,
+    ),
+    f(
+        "biome",
+        "sky_color",
+        FieldKind::Color,
+        false,
+        "Sky color. Use a quoted RGB value.",
+        r##""#${1:78a7ff}""##,
+    ),
+    f(
+        "biome",
+        "grass_color",
+        FieldKind::Color,
+        false,
+        "Optional grass color override. Use a quoted RGB value.",
+        r##""#${1:639341}""##,
+    ),
+    f(
+        "biome",
+        "foliage_color",
+        FieldKind::Color,
+        false,
+        "Optional foliage color override. Use a quoted RGB value.",
+        r##""#${1:54a63d}""##,
+    ),
+    f(
         "dimension",
         "layers",
         FieldKind::FlatLayers,
@@ -2343,6 +2417,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "biome",
+        "`biome Name { ... }` declares climate and colors for a custom worldgen biome.",
     ),
     (
         "dimension",

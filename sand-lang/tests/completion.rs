@@ -77,6 +77,7 @@ fn item_level() {
             "advancement",
             "dialog",
             "dimension",
+            "biome",
             "event",
             "loot",
             "recipe shapeless",
@@ -395,6 +396,30 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "dimension Workshop { layers: [{ block: Block::Bedrock, height: 1 }] }\nfn f() { in_dimension(|, setup); }",
         &["Workshop", "Dimension::Overworld"],
         &["Biome::Plains"],
+    );
+    exactly(
+        "biome Garden {\n    |\n}",
+        &[
+            "precipitation",
+            "temperature",
+            "downfall",
+            "fog_color",
+            "water_color",
+            "water_fog_color",
+            "sky_color",
+            "grass_color",
+            "foliage_color",
+        ],
+    );
+    includes_excludes(
+        "biome Garden {}\ndimension Greenhouse { biome: | }",
+        &["Garden", "Biome::Plains"],
+        &["Greenhouse"],
+    );
+    includes_excludes(
+        "biome Garden {}\nfn check() { if biome_is(|, pos(0, 80, 0)) {} }",
+        &["Garden", "Biome::Plains"],
+        &["Dimension::Overworld"],
     );
     exactly("dialog Notice {\n    |\n}", &["title", "body", "button"]);
     includes_excludes(

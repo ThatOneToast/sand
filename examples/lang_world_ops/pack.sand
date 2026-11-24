@@ -1,6 +1,14 @@
 #![pack(namespace = "checkpoint_rooms", minecraft = "26.2", description = "Repeatable checkpoint rooms")]
+biome WorkshopClimate {
+    precipitation: false,
+    temperature: 1.1,
+    downfall: 0.0,
+    sky_color: "#e6b88a",
+    water_color: "#4b8fa3",
+}
+
 dimension Workshop {
-    biome: Biome::Desert,
+    biome: WorkshopClimate,
     layers: [
         { block: Block::Bedrock, height: 1 },
         { block: Block::Sandstone, height: 2 },

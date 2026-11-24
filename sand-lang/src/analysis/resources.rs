@@ -483,6 +483,46 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Biome => {
+                let precipitation =
+                    get("precipitation").and_then(|field| self.data_bool(file, &field.value));
+                let temperature = get("temperature")
+                    .and_then(|field| self.data_biome_number(module, file, &field.value));
+                let downfall = get("downfall").and_then(|field| {
+                    let value = self.data_biome_number(module, file, &field.value)?;
+                    if !(0.0..=1.0).contains(&value) {
+                        self.error(
+                            "range",
+                            file,
+                            field.value.span(),
+                            "downfall must be between zero and one",
+                        );
+                        return None;
+                    }
+                    Some(value)
+                });
+                let mut color =
+                    |name| get(name).and_then(|field| self.data_biome_color(file, &field.value));
+                let biome = pc::CustomBiome {
+                    id: location,
+                    precipitation,
+                    temperature,
+                    downfall,
+                    fog_color: color("fog_color"),
+                    water_color: color("water_color"),
+                    water_fog_color: color("water_fog_color"),
+                    sky_color: color("sky_color"),
+                    grass_color: color("grass_color"),
+                    foliage_color: color("foliage_color"),
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/biomes/{}", out.biomes.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.biomes.push(biome);
+            }
             DataKind::Dimension => {
                 let Some(layers) = get("layers")
                     .and_then(|field| self.data_flat_layers(module, file, &field.value))
@@ -1355,6 +1395,41 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_biome_number(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<f32> {
+        let expr = self.data_expr(file, value, "a constant number")?;
+        match self.eval(module, file, expr, None)? {
+            (value, Ty::Number) => Some(value as f32),
+            (value, Ty::Float) => Some((value as f64 / FLOAT_SCALE as f64) as f32),
+            _ => {
+                self.error("type", file, expr.span(), "expected a constant number");
+                None
+            }
+        }
+    }
+
+    fn data_biome_color(&mut self, file: FileId, value: &DataValue) -> Option<u32> {
+        let expr = self.data_expr(file, value, "an RGB color")?;
+        if let Expr::Str { value, .. } = expr
+            && let Some(hex) = value.strip_prefix('#')
+            && hex.len() == 6
+            && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return u32::from_str_radix(hex, 16).ok();
+        }
+        self.error(
+            "color",
+            file,
+            expr.span(),
+            "expected an RGB color such as `\"#3f76e4\"`",
+        );
+        None
     }
 
     fn data_flat_layers(

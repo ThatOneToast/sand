@@ -416,6 +416,10 @@ pub struct BiomeEffects {
     music: Option<Value>,
 }
 
+fn rgb_json(color: u32) -> Value {
+    Value::String(format!("#{color:06x}"))
+}
+
 impl BiomeEffects {
     /// Creates effects with the minimum required colors.
     #[sand_macros::api(
@@ -527,29 +531,25 @@ impl BiomeEffects {
         self
     }
 
+    fn visual_attributes(&self) -> serde_json::Map<String, Value> {
+        [
+            ("minecraft:visual/fog_color", self.fog_color),
+            ("minecraft:visual/water_fog_color", self.water_fog_color),
+            ("minecraft:visual/sky_color", self.sky_color),
+        ]
+        .into_iter()
+        .map(|(name, color)| (name.to_owned(), rgb_json(color)))
+        .collect()
+    }
+
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert(
-            "fog_color".to_string(),
-            Value::Number(self.fog_color.into()),
-        );
-        map.insert(
-            "water_color".to_string(),
-            Value::Number(self.water_color.into()),
-        );
-        map.insert(
-            "water_fog_color".to_string(),
-            Value::Number(self.water_fog_color.into()),
-        );
-        map.insert(
-            "sky_color".to_string(),
-            Value::Number(self.sky_color.into()),
-        );
-        if let Some(gc) = self.grass_color {
-            map.insert("grass_color".to_string(), Value::Number(gc.into()));
+        map.insert("water_color".to_owned(), rgb_json(self.water_color));
+        if let Some(color) = self.grass_color {
+            map.insert("grass_color".to_owned(), rgb_json(color));
         }
-        if let Some(fc) = self.foliage_color {
-            map.insert("foliage_color".to_string(), Value::Number(fc.into()));
+        if let Some(color) = self.foliage_color {
+            map.insert("foliage_color".to_owned(), rgb_json(color));
         }
         if let Some(ref p) = self.particle {
             map.insert("particle".to_string(), p.clone());
@@ -684,7 +684,7 @@ impl CarvingStep {
 )]
 pub struct Biome {
     location: ResourceLocation,
-    /// Whether it rains (false = snows if cold enough).
+    /// Whether the biome has rain or snow. Temperature selects the form.
     has_precipitation: bool,
     /// Temperature used for mob spawning and weather (typical range -0.5–2.0).
     temperature: f32,
@@ -1079,12 +1079,11 @@ impl DatapackComponent for Biome {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
+        let mut attributes = self.effects.visual_attributes();
         if let Some(sounds) = &self.ambient_sounds {
-            map.insert(
-                "attributes".into(),
-                serde_json::json!({AMBIENT_SOUNDS_ATTRIBUTE: sounds.to_json()}),
-            );
+            attributes.insert(AMBIENT_SOUNDS_ATTRIBUTE.into(), sounds.to_json());
         }
+        map.insert("attributes".into(), Value::Object(attributes));
 
         map.insert(
             "has_precipitation".to_string(),
@@ -1279,6 +1278,33 @@ mod tests {
         assert_eq!(
             json["features"],
             serde_json::json!([[], [], [], [], [], [], [], [], [], [], []])
+        );
+    }
+
+    #[test]
+    fn visual_environment_attributes_share_the_attributes_map_with_ambient_audio() {
+        let sound = SoundEventDefinition::reference(
+            crate::SoundEventId::minecraft("ambient.cave").unwrap(),
+        );
+        let biome = Biome::new(location(), effects().grass_color(0x001010))
+            .ambient_sounds(BiomeAmbientSounds::new().loop_sound(sound));
+        let json = biome.to_json();
+        assert_eq!(json["attributes"]["minecraft:visual/fog_color"], "#c0d8ff");
+        assert_eq!(
+            json["attributes"]["minecraft:visual/water_fog_color"],
+            "#050533"
+        );
+        assert_eq!(json["attributes"]["minecraft:visual/sky_color"], "#78a7ff");
+        assert_eq!(
+            json["attributes"][AMBIENT_SOUNDS_ATTRIBUTE],
+            serde_json::json!({"loop": "minecraft:ambient.cave", "additions": []})
+        );
+        assert_eq!(
+            json["effects"],
+            serde_json::json!({
+                "water_color": "#3f76e4",
+                "grass_color": "#001010",
+            })
         );
     }
 

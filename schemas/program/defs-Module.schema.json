@@ -10,6 +10,13 @@
       },
       "type": "array"
     },
+    "biomes": {
+      "description": "Native custom biomes declared by this module.",
+      "items": {
+        "$ref": "defs-CustomBiome.schema.json"
+      },
+      "type": "array"
+    },
     "boss_bars": {
       "description": "Boss bars, created at load.",
       "items": {

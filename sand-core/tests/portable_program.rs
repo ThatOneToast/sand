@@ -32,6 +32,7 @@ fn counter() -> Program {
             advancements: vec![],
             dialogs: vec![],
             dimensions: vec![],
+            biomes: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

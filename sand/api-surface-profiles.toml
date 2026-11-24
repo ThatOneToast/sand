@@ -73,6 +73,7 @@
 # Advancement progress adds one selector method and three portable items.
 # Native notices add one resource type, one action variant and six fields.
 # Flat dimensions add one resource type and four fields.
+# Custom biomes add one resource type and eleven fields.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -81,19 +82,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5871
+static_surface_items = 5883
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12185
+static_surface_items = 12197
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12447
+static_surface_items = 12459
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

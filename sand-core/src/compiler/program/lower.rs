@@ -432,6 +432,18 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, biome) in module.biomes.iter().enumerate() {
+            let component = custom_biome_component(biome);
+            let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/biomes/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
         for (index, dimension) in module.dimensions.iter().enumerate() {
             let component = sand_components::Dimension::flat_generator(
                 dimension.id.clone(),
@@ -953,6 +965,33 @@ fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
         result = result.pool(pool);
     }
     result
+}
+
+fn custom_biome_component(source: &CustomBiome) -> sand_components::Biome {
+    use sand_components::{Biome, BiomeEffects};
+    let mut effects = BiomeEffects::new(
+        source.fog_color.unwrap_or(0xc0d8ff),
+        source.water_color.unwrap_or(0x3f76e4),
+        source.water_fog_color.unwrap_or(0x050533),
+        source.sky_color.unwrap_or(0x78a7ff),
+    );
+    if let Some(color) = source.grass_color {
+        effects = effects.grass_color(color);
+    }
+    if let Some(color) = source.foliage_color {
+        effects = effects.foliage_color(color);
+    }
+    let mut biome = Biome::new(source.id.clone(), effects);
+    if let Some(precipitation) = source.precipitation {
+        biome = biome.has_precipitation(precipitation);
+    }
+    if let Some(temperature) = source.temperature {
+        biome = biome.temperature(temperature);
+    }
+    if let Some(downfall) = source.downfall {
+        biome = biome.downfall(downfall);
+    }
+    biome
 }
 
 fn notice_dialog_component(

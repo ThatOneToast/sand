@@ -1211,8 +1211,8 @@ fn prepare() {
 ```
 
 Delays count ticks while the continuation's chunk is loaded in a vanilla
-dimension or a dimension declared in the pack. A missing owner ends the wait. A player can move to
-another dimension while the saved chunk is still loaded. A datapack reload
+dimension or a dimension declared in the pack. A missing owner ends the wait.
+A player can move to another dimension while the saved chunk is still loaded. A datapack reload
 invalidates outstanding waits. Use `cancel_waits()` as the original executor
 to cancel that entity's pending waits in this pack.
 
@@ -1238,7 +1238,8 @@ a dimension declared by the pack, or a namespaced identity such as
 
 `biome_is(Biome::Plains, pos(0, 80, 0))` checks the biome at a block position
 in the current dimension. Biome identifiers and editor suggestions come from
-the selected Minecraft version. A custom biome can use a namespaced identity.
+the selected Minecraft version. Use a declared biome by name or a namespaced
+identity for a biome from another pack.
 
 ### Flat dimensions
 
@@ -1270,6 +1271,32 @@ Each layer needs a block and a positive height. The defaults are
 the pack before starting the world so Minecraft registers the dimension.
 As in vanilla dimensions, scheduled entity work counts ticks only while its
 chunk is loaded.
+
+### Custom biomes
+
+A `biome` declaration adds climate and colors that a dimension or predicate
+can reference by name.
+
+```rust,ignore
+biome LanternGrove {
+    temperature: 0.65,
+    downfall: 0.5,
+    water_color: "#246a73",
+    foliage_color: "#436a55",
+}
+
+dimension Grove {
+    biome: LanternGrove,
+    layers: [{ block: Block::GrassBlock, height: 1 }],
+}
+```
+
+`temperature` and `downfall` default to 0.5. Downfall ranges from zero to one.
+`precipitation` defaults to true and enables rain or snow according to temperature.
+Use quoted `"#rrggbb"` colors for `fog_color`, `water_color`, `water_fog_color`,
+`sky_color`, `grass_color`, and `foliage_color`. The biome starts with empty
+terrain feature and natural mob spawn tables. Install the pack before the
+world starts to register the biome and any dimension that uses it.
 
 ### Block data and regions
 
@@ -1650,8 +1677,8 @@ command and State models as Rust. Today the language covers:
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, typed block data literals and copies | structure resources, custom biomes, other dimension generators and types |
-| Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, typed block data literals and copies | structure resources, biome generation and spawn tables, other dimension generators and types |
+| Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 

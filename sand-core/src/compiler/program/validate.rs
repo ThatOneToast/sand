@@ -698,6 +698,24 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, biome) in module.biomes.iter().enumerate() {
+            let ptr = format!("/biomes/{index}");
+            if !resource_ids.insert(format!("biome {}", biome.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate biome `{}`", biome.id),
+                );
+            }
+            if biome
+                .downfall
+                .is_some_and(|value| !(0.0..=1.0).contains(&value))
+            {
+                push(
+                    format!("{ptr}/downfall"),
+                    "downfall must be between zero and one".into(),
+                );
+            }
+        }
         for (index, dimension) in module.dimensions.iter().enumerate() {
             let ptr = format!("/dimensions/{index}");
             if !resource_ids.insert(format!("dimension {}", dimension.id)) {

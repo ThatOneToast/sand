@@ -2029,6 +2029,97 @@
         }
       ]
     },
+    "CustomBiome": {
+      "additionalProperties": false,
+      "description": "Climate and visual settings for a native custom biome.",
+      "properties": {
+        "downfall": {
+          "description": "Humidity from zero to one. Defaults to 0.5.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fog_color": {
+          "description": "Fog color, as an RGB integer.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "foliage_color": {
+          "description": "Optional foliage color override, as an RGB integer.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "grass_color": {
+          "description": "Optional grass color override, as an RGB integer.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Identity used in world generators and biome conditions.",
+          "type": "string"
+        },
+        "precipitation": {
+          "description": "Whether the biome has rain or snow. Defaults to true.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sky_color": {
+          "description": "Sky color, as an RGB integer.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "temperature": {
+          "description": "Climate temperature. Defaults to 0.5.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "water_color": {
+          "description": "Water surface color, as an RGB integer.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "water_fog_color": {
+          "description": "Underwater fog color, as an RGB integer.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "CustomItem": {
       "additionalProperties": false,
       "description": "A custom item: a vanilla base item with identity and display components.",
@@ -4866,6 +4957,13 @@
       "description": "Native advancements declared by this module.",
       "items": {
         "$ref": "#/$defs/Advancement"
+      },
+      "type": "array"
+    },
+    "biomes": {
+      "description": "Native custom biomes declared by this module.",
+      "items": {
+        "$ref": "#/$defs/CustomBiome"
       },
       "type": "array"
     },

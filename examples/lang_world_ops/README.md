@@ -11,6 +11,6 @@ Nether from a scoped function call. The call keeps the same executor and the
 invoker stays in their original dimension.
 
 Install the pack before starting the world to register its flat Workshop
-dimension. Run `/function checkpoint_rooms:inspect_workshop` to check it from
+dimension and warm, dry custom biome. Run `/function checkpoint_rooms:inspect_workshop` to check it from
 another dimension. An operator can enter it using
 `/execute in checkpoint_rooms:workshop run tp @s 0 -61 0`.

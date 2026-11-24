@@ -151,6 +151,8 @@ pub enum DefKind {
     Dialog,
     /// `dimension Name { ... }`.
     Dimension,
+    /// `biome Name { ... }`.
+    Biome,
 }
 
 impl DefKind {
@@ -181,6 +183,7 @@ impl DefKind {
             DefKind::Advancement => "advancement",
             DefKind::Dialog => "dialog",
             DefKind::Dimension => "dimension",
+            DefKind::Biome => "biome",
         }
     }
 }
@@ -1090,6 +1093,7 @@ impl Cx {
                     crate::ast::DataKind::Advancement => DefKind::Advancement,
                     crate::ast::DataKind::Dialog => DefKind::Dialog,
                     crate::ast::DataKind::Dimension => DefKind::Dimension,
+                    crate::ast::DataKind::Biome => DefKind::Biome,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3020,6 +3024,7 @@ impl Cx {
             advancements: Vec::new(),
             dialogs: Vec::new(),
             dimensions: Vec::new(),
+            biomes: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));
@@ -3360,6 +3365,7 @@ impl Cx {
             "Item" => Some(DefKind::CustomItem),
             "DamageType" => Some(DefKind::DamageType),
             "Dimension" => Some(DefKind::Dimension),
+            "Biome" => Some(DefKind::Biome),
             _ => None,
         };
         if let Some(declaration) = declaration

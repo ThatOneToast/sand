@@ -608,3 +608,49 @@ pub struct FlatDimension {
     /// Canonical bottom-to-top layers and flat-world settings.
     pub flat: sand_components::FlatGenerator,
 }
+
+/// Climate and visual settings for a native custom biome.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::CustomBiome", module = "sand::advanced::compiler",
+ summary = "Climate and visual settings for a native custom biome.",
+ context = "Reference the biome from FlatDimension or a block-position biome condition. Install the pack before starting the world to register the biome.",
+ minecraft = "Lowers through Biome and BiomeEffects to a native worldgen biome, with no placed features, carvers or spawn tables.",
+ use_when = ["Giving an authored dimension its own climate and colors"],
+ avoid_when = ["Declaring placed features or natural mob spawn tables"],
+ fields(id = "Biome identity.", precipitation = "Whether rain or snow occurs.", temperature = "Climate temperature.", downfall = "Humidity from zero to one.", fog_color = "Fog RGB.", water_color = "Water surface RGB.", water_fog_color = "Underwater fog RGB.", sky_color = "Sky RGB.", grass_color = "Grass RGB override.", foliage_color = "Foliage RGB override."),
+ example = "use sand::advanced::compiler::CustomBiome;",
+)]
+pub struct CustomBiome {
+    /// Identity used in world generators and biome conditions.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Whether the biome has rain or snow. Defaults to true.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub precipitation: Option<bool>,
+    /// Climate temperature. Defaults to 0.5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    /// Humidity from zero to one. Defaults to 0.5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub downfall: Option<f32>,
+    /// Fog color, as an RGB integer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fog_color: Option<u32>,
+    /// Water surface color, as an RGB integer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub water_color: Option<u32>,
+    /// Underwater fog color, as an RGB integer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub water_fog_color: Option<u32>,
+    /// Sky color, as an RGB integer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sky_color: Option<u32>,
+    /// Optional grass color override, as an RGB integer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grass_color: Option<u32>,
+    /// Optional foliage color override, as an RGB integer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub foliage_color: Option<u32>,
+}

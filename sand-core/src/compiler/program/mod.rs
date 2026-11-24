@@ -11,7 +11,7 @@ pub use diagnostic::Diagnostic;
 pub use model::{
     Action, Advancement, AdvancementCriterion, AdvancementDisplay, Amount, Audience, BiomeMatches,
     BlockDataAddress, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle, Condition,
-    CookingMethod, CustomItem, DataField, DataOperand, DataProjection, DataReference,
+    CookingMethod, CustomBiome, CustomItem, DataField, DataOperand, DataProjection, DataReference,
     DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
     ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow, FlowHook, FlowHookPhase,
     FlowTransition, Function, FunctionReference, ItemHeld, LootItem, LootPool, LootTable,
@@ -49,6 +49,7 @@ const CAPABILITIES: &[&str] = &[
     "advancements",
     "notice_dialogs",
     "flat_dimensions",
+    "custom_biomes",
     "sounds",
     "particles",
     "effects",

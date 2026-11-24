@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Biome, _) => (
+                    format!("{vis}biome {}", def.name),
+                    format!("Custom biome `{id}`. Use it in a dimension or with `biome_is`."),
+                ),
                 (crate::ast::DataKind::Dimension, _) => (
                     format!("{vis}dimension {}", def.name),
                     format!("Flat dimension `{id}`. Use it with `in_dimension` or `dimension_is`."),
@@ -1148,7 +1152,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Predicate
         | DefKind::Advancement
         | DefKind::Dialog
-        | DefKind::Dimension => CompletionKind::Constant,
+        | DefKind::Dimension
+        | DefKind::Biome => CompletionKind::Constant,
     }
 }
 
@@ -1818,6 +1823,11 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("Biome") => {
+                out.extend(scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::Biome
+                }));
+            }
             Some("Dimension") => {
                 out.extend(scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::Dimension
@@ -2308,6 +2318,16 @@ fn data_completions(
             out
         }
         FieldKind::Text | FieldKind::TextList => vec![translation_completion()],
+        FieldKind::Registry("Biome") => {
+            let mut out = registry("Biome");
+            out.extend(
+                scope_names(analysis, module)
+                    .into_iter()
+                    .filter(|(_, def)| analysis.def(*def).kind == DefKind::Biome)
+                    .map(|(name, def)| def_completion(analysis, &name, def)),
+            );
+            out
+        }
         FieldKind::Registry(name) => registry(name),
         FieldKind::Bool => vec![
             Completion::plain("true", CompletionKind::Keyword),
@@ -2386,6 +2406,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot",
             "loot table",
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "biome",
+            "custom biome",
+            r##"biome ${1:Grove} { temperature: ${2:0.7}, water_color: "#${3:3f76e4}" }"##,
         ),
         Completion::snippet(
             "dimension",

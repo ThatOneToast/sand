@@ -938,6 +938,10 @@
                 {
                   "type": "STRING",
                   "value": "dimension"
+                },
+                {
+                  "type": "STRING",
+                  "value": "biome"
                 }
               ]
             },

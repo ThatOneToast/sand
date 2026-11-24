@@ -21,7 +21,8 @@ pub use gameplay::{
 pub use operation::{Action, Operation};
 pub use resources::{
     Advancement, AdvancementCriterion, AdvancementDisplay, BossBar, BossBarColor, BossBarStyle,
-    CookingMethod, CustomItem, FlatDimension, LootItem, LootPool, LootTable, NoticeDialog, Rarity,
-    Recipe, RecipeOutput, ResourceTag, TagKind, WorldPredicate, WrittenBookContent,
+    CookingMethod, CustomBiome, CustomItem, FlatDimension, LootItem, LootPool, LootTable,
+    NoticeDialog, Rarity, Recipe, RecipeOutput, ResourceTag, TagKind, WorldPredicate,
+    WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

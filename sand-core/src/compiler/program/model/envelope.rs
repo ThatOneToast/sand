@@ -1,7 +1,7 @@
 //! Owned portable envelope definitions.
 use super::{
-    Advancement, EventHook, FlatDimension, Function, NoticeDialog, Operation, State, TagMembership,
-    WorldPredicate,
+    Advancement, CustomBiome, EventHook, FlatDimension, Function, NoticeDialog, Operation, State,
+    TagMembership, WorldPredicate,
 };
 use sand_components::{DamageType, ResourceLocation};
 use schemars::JsonSchema;
@@ -106,7 +106,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources.", biomes = "Native custom biome resources."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -163,4 +163,7 @@ pub struct Module {
     /// Native flat dimensions declared by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dimensions: Vec<FlatDimension>,
+    /// Native custom biomes declared by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub biomes: Vec<CustomBiome>,
 }

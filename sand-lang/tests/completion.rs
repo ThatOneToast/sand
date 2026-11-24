@@ -73,6 +73,7 @@ fn item_level() {
             "recipe shaped",
             "bossbar",
             "damage_type",
+            "predicate",
             "event",
             "loot",
             "recipe shapeless",

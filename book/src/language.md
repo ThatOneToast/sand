@@ -1254,6 +1254,26 @@ recipe Upgrade {
 }
 ```
 
+### Named predicates
+
+```rust,ignore
+predicate Camp {
+    block: Block::Stone,
+    biome: Biome::Plains,
+    dimension: Dimension::Overworld,
+}
+fn welcome() {
+    if predicate_matches(Camp) {
+        broadcast!("The camp is ready.");
+    }
+}
+```
+
+A declaration exports a native predicate. Include at least one constraint.
+All listed constraints must pass. `block`, `biome`, and `dimension` read the
+current execution location. `weather` and `chance` add optional native checks.
+A loot pool can share it with `{ when: Camp, items: [Item::Bread] }`.
+
 ### Damage types
 
 ```rust,ignore
@@ -1415,7 +1435,7 @@ command and State models as Rust. Today the language covers:
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
-| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, conditional multi-pool loot, damage types | advancements, predicates, trim recipes, worldgen |
+| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, conditional multi-pool loot, damage types and native world predicates | advancements, trim recipes, worldgen |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.

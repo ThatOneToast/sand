@@ -1,5 +1,5 @@
 //! Owned portable envelope definitions.
-use super::{EventHook, Function, Operation, State, TagMembership};
+use super::{EventHook, Function, Operation, State, TagMembership, WorldPredicate};
 use sand_components::{DamageType, ResourceLocation};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -103,7 +103,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -148,4 +148,7 @@ pub struct Module {
     /// Native damage type definitions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub damage_types: Vec<DamageType>,
+    /// Reusable native world predicates.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub predicates: Vec<WorldPredicate>,
 }

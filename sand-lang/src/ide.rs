@@ -225,6 +225,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Predicate, _) => (
+                    format!("{vis}predicate {}", def.name),
+                    format!(
+                        "Native predicate `{id}`. Use it in `predicate_matches` or a loot pool."
+                    ),
+                ),
                 (crate::ast::DataKind::DamageType, _) => (
                     format!("{vis}damage_type {}", def.name),
                     format!("Damage type `{id}`. Pass it to `damage(..., type = ...)`."),
@@ -521,9 +527,17 @@ fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<
         })
         .or_else(|| {
             // On the declaration keyword itself.
-            ["item", "recipe", "tag", "bossbar", "loot", "damage_type"]
-                .into_iter()
-                .find(|k| *k == word && before.trim().is_empty())
+            [
+                "item",
+                "recipe",
+                "tag",
+                "bossbar",
+                "loot",
+                "damage_type",
+                "predicate",
+            ]
+            .into_iter()
+            .find(|k| *k == word && before.trim().is_empty())
         });
     if let Some(keyword) = data_keyword {
         if let Some(field) = builtins::data_fields(keyword).find(|f| f.name == word)
@@ -1123,7 +1137,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Tag
         | DefKind::BossBar
         | DefKind::Loot
-        | DefKind::DamageType => CompletionKind::Constant,
+        | DefKind::DamageType
+        | DefKind::Predicate => CompletionKind::Constant,
     }
 }
 
@@ -1757,6 +1772,9 @@ fn expression_completions(
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }
             Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
+            Some("Predicate") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
+            }
             Some("DamageType") => {
                 out.extend(scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::DamageType
@@ -2328,6 +2346,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
         ),
         Completion::snippet(
+            "predicate",
+            "world predicate",
+            "predicate ${1:Rule} { block: Block::${2:Stone} }",
+        ),
+        Completion::snippet(
             "damage_type",
             "damage type",
             r#"damage_type ${1:Spikes} { message_id: "${2:spikes}" }"#,
@@ -2596,6 +2619,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Position => "Position",
                 ParamKind::BossBar => "BossBar",
                 ParamKind::Loot => "Loot",
+                ParamKind::Predicate => "Predicate",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

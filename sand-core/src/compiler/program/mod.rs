@@ -18,6 +18,7 @@ pub use model::{
     Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField,
     ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached,
     TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle, Weather,
+    WorldPredicate,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -65,6 +66,7 @@ const CAPABILITIES: &[&str] = &[
     "boss_bars",
     "loot_tables",
     "damage_types",
+    "predicates",
     "smithing_recipes",
     "recursion",
     "entity_data",

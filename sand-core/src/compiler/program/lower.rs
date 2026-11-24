@@ -414,6 +414,20 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, predicate) in module.predicates.iter().enumerate() {
+            let fail = |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/predicates/{index}"),
+                    message,
+                )]
+            };
+            let component = world_predicate_component(predicate).map_err(fail)?;
+            let record = records::component_to_record(&component, Some(&ctx))
+                .map_err(|error| fail(error.to_string()))?;
+            lower.records.push(record);
+        }
         for (index, damage_type) in module.damage_types.iter().enumerate() {
             let record =
                 records::component_to_record(damage_type, Some(&ctx)).map_err(|error| {
@@ -827,6 +841,11 @@ fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
                 thundering: Some(weather == Weather::Thunder),
             });
         }
+        if let Some(predicate) = &source.predicate {
+            pool = pool.condition(LootCondition::Reference {
+                name: predicate.to_string(),
+            });
+        }
         for item in &source.items {
             let LootEntry::Item {
                 name,
@@ -855,6 +874,51 @@ fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
         result = result.pool(pool);
     }
     result
+}
+
+fn world_predicate_component(
+    source: &WorldPredicate,
+) -> Result<sand_components::Predicate, String> {
+    use sand_components::{
+        BlockPredicate, LocationPredicate, Predicate, PredicateId, PredicateRoot, WeatherPredicate,
+    };
+    let mut terms = Vec::new();
+    if source.biome.is_some() || source.dimension.is_some() || source.block.is_some() {
+        let mut location = LocationPredicate::new();
+        if let Some(biome) = &source.biome {
+            location = location.biome(
+                biome
+                    .parse::<sand_components::BiomeId>()
+                    .map_err(|error| error.to_string())?,
+            );
+        }
+        if let Some(dimension) = &source.dimension {
+            location = location.dimension(sand_components::DimensionId::custom(dimension.clone()));
+        }
+        if let Some(block) = &source.block {
+            let block = block
+                .parse::<sand_components::BlockId>()
+                .map_err(|error| error.to_string())?;
+            location = location.block(BlockPredicate::new().blocks(vec![block]));
+        }
+        terms.push(PredicateRoot::location(location));
+    }
+    if let Some(weather) = source.weather {
+        terms.push(PredicateRoot::weather(
+            WeatherPredicate::new()
+                .raining(weather != Weather::Clear)
+                .thundering(weather == Weather::Thunder),
+        ));
+    }
+    if let Some(chance) = source.chance {
+        terms.push(PredicateRoot::random_chance(chance));
+    }
+    let root = if terms.len() == 1 {
+        terms.pop().expect("one predicate term")
+    } else {
+        PredicateRoot::all_of(terms)
+    };
+    Ok(Predicate::new(PredicateId::custom(source.id.clone()), root))
 }
 
 /// The generated predicate that tests one entity flag.
@@ -1508,6 +1572,9 @@ impl Lower<'_> {
                 .map_err(|error| error.to_string())?,
                 item: self.item_argument(&test.holding)?,
             },
+            Condition::Predicate { predicate } => {
+                sand_commands::ConditionIr::Predicate(predicate.to_string())
+            }
             Condition::Flag(test) => {
                 self.flags.insert(test.flag);
                 sand_commands::ConditionIr::Predicate(flag_predicate_id(&self.namespace, test.flag))

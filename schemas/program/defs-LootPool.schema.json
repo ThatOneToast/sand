@@ -18,6 +18,13 @@
       },
       "type": "array"
     },
+    "predicate": {
+      "description": "Optional reusable predicate that this pool requires.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "rolls": {
       "default": 1,
       "description": "Choices drawn from this pool.",

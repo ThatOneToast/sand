@@ -36,6 +36,18 @@
     {
       "$ref": "defs-FlagSet.schema.json",
       "description": "The executor has an entity flag."
+    },
+    {
+      "description": "A native predicate evaluated in the current execution context.",
+      "properties": {
+        "predicate": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "predicate"
+      ],
+      "type": "object"
     }
   ],
   "description": "A branch condition: a constant range test or a field-to-field relation."

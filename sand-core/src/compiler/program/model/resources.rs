@@ -279,7 +279,7 @@ pub struct LootItem {
  use_when = ["Combining fixed and conditional loot in the same resource"],
  avoid_when = ["Using a function that requires a custom loot context"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(rolls = "Choices drawn from this pool.", items = "Weighted item choices.", chance = "Probability that this pool runs.", weather = "Required weather in the loot context."),
+ fields(rolls = "Choices drawn from this pool.", items = "Weighted item choices.", chance = "Probability that this pool runs.", weather = "Required weather in the loot context.", predicate = "A reusable predicate file checked in the loot context."),
 )]
 pub struct LootPool {
     /// Choices drawn from this pool.
@@ -293,6 +293,10 @@ pub struct LootPool {
     /// Required weather in the loot context.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weather: Option<Weather>,
+    /// Optional reusable predicate that this pool requires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub predicate: Option<ResourceLocation>,
 }
 
 /// A loot table containing one or more independently rolled pools.
@@ -314,6 +318,41 @@ pub struct LootTable {
     pub id: ResourceLocation,
     /// Ordered independent, optionally conditional pools.
     pub pools: Vec<LootPool>,
+}
+
+/// A reusable native test of location or weather, optionally gated by chance.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::WorldPredicate", module = "sand::advanced::compiler",
+ summary = "A reusable native test of location or weather.",
+ context = "All selected constraints must pass at the predicate execution origin.",
+ minecraft = "Exports a named predicate using Sand's typed PredicateRoot model.",
+ use_when = ["Sharing a native world condition between functions and loot pools"],
+ avoid_when = ["Testing a mutable scoreboard value without compiling a predicate resource"],
+ example = "let schema = sand::advanced::compiler::Compiler::schema();",
+ fields(id = "Predicate identity.", biome = "Biome identity.", dimension = "Required dimension.", block = "Required block.", weather = "Required weather.", chance = "Probability the predicate passes."),
+)]
+pub struct WorldPredicate {
+    /// Predicate identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Biome at the execution origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub biome: Option<String>,
+    /// Dimension of the execution origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub dimension: Option<ResourceLocation>,
+    /// Block at the execution origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub block: Option<String>,
+    /// Current weather.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weather: Option<Weather>,
+    /// Probability between zero and one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chance: Option<f64>,
 }
 
 /// The colour of a boss bar.

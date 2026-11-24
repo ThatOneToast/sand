@@ -461,6 +461,7 @@ pub(super) fn validate(
                     != Some(false)
         };
         let item_id = |id: &str| syntax_id(id) && available(id, "minecraft:item");
+        let block_id = |id: &str| syntax_id(id) && available(id, "minecraft:block");
         let ingredient = |id: &str| {
             id.strip_prefix('#')
                 .unwrap_or(id)
@@ -651,6 +652,56 @@ pub(super) fn validate(
                 push(
                     format!("{ptr}/result"),
                     "a recipe result is an item id with a count of 1..=99".into(),
+                );
+            }
+        }
+        for (index, predicate) in module.predicates.iter().enumerate() {
+            let ptr = format!("/predicates/{index}");
+            if !resource_ids.insert(format!("predicate {}", predicate.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate predicate `{}`", predicate.id),
+                );
+            }
+            if predicate.biome.is_none()
+                && predicate.dimension.is_none()
+                && predicate.block.is_none()
+                && predicate.weather.is_none()
+                && predicate.chance.is_none()
+            {
+                push(
+                    ptr.clone(),
+                    "a world predicate needs at least one condition".into(),
+                );
+            }
+            if let Some(biome) = &predicate.biome
+                && !(syntax_id(biome) && available(biome, "minecraft:worldgen/biome"))
+            {
+                push(
+                    format!("{ptr}/biome"),
+                    format!(
+                        "`{biome}` is not a biome in Minecraft {}",
+                        program.target.minecraft
+                    ),
+                );
+            }
+            if predicate
+                .block
+                .as_ref()
+                .is_some_and(|block| !block_id(block))
+            {
+                push(
+                    format!("{ptr}/block"),
+                    "predicate block must exist in the selected target".into(),
+                );
+            }
+            if predicate
+                .chance
+                .is_some_and(|chance| !(0.0..=1.0).contains(&chance))
+            {
+                push(
+                    format!("{ptr}/chance"),
+                    "predicate chance must be between zero and one".into(),
                 );
             }
         }
@@ -955,6 +1006,14 @@ impl Validator<'_, '_> {
                 if !self.custom_items.contains(&test.holding) {
                     self.resource(&test.holding, owner, &format!("{ptr}/holding"), "item");
                 }
+            }
+            Condition::Predicate { predicate } => {
+                self.resource(
+                    &predicate.to_string(),
+                    owner,
+                    &format!("{ptr}/predicate"),
+                    "predicate",
+                );
             }
             Condition::Flag(_) => self.executor(context, owner, ptr, "testing an entity flag"),
         }

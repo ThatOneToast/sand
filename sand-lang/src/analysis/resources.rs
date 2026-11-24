@@ -429,6 +429,70 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Predicate => {
+                let option = |cx: &mut Cx, field, registry| match get(field) {
+                    Some(field) => {
+                        let expr = cx.data_expr(file, &field.value, "a typed predicate value")?;
+                        cx.vanilla_value(module, file, expr, registry).map(Some)
+                    }
+                    None => Some(None),
+                };
+                let (Some(block), Some(biome), Some(dimension)) = (
+                    option(self, "block", "Block"),
+                    option(self, "biome", "Biome"),
+                    option(self, "dimension", "Dimension"),
+                ) else {
+                    return;
+                };
+                let weather = match get("weather") {
+                    Some(field) => {
+                        let Some(weather) = self.data_weather(module, file, &field.value) else {
+                            return;
+                        };
+                        Some(weather)
+                    }
+                    None => None,
+                };
+                let chance = match get("chance") {
+                    Some(field) => {
+                        let Some(chance) =
+                            self.data_probability(module, file, &field.value, "predicate")
+                        else {
+                            return;
+                        };
+                        Some(chance)
+                    }
+                    None => None,
+                };
+                if block.is_none()
+                    && biome.is_none()
+                    && dimension.is_none()
+                    && weather.is_none()
+                    && chance.is_none()
+                {
+                    self.error(
+                        "predicate",
+                        file,
+                        data.name.span,
+                        "a world predicate needs at least one condition",
+                    );
+                    return;
+                }
+                self.pointers.push((
+                    module_id,
+                    format!("/predicates/{}", out.predicates.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.predicates.push(pc::WorldPredicate {
+                    id: location,
+                    biome,
+                    block,
+                    dimension: dimension.and_then(|id| id.parse().ok()),
+                    weather,
+                    chance,
+                });
+            }
             DataKind::DamageType => {
                 let Some(message) = get("message_id") else {
                     return;
@@ -585,6 +649,72 @@ impl Cx {
         }
     }
 
+    pub(super) fn predicate_id(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        expr: &Expr,
+    ) -> Option<sand::ResourceLocation> {
+        if let Expr::Str { value, span, .. } = expr {
+            if value.contains(':')
+                && let Ok(id) = value.parse()
+            {
+                return Some(id);
+            }
+            self.error(
+                "id",
+                file,
+                *span,
+                "expected a namespaced predicate identity",
+            );
+            return None;
+        }
+        let Expr::Path(path) = expr else {
+            self.error("type", file, expr.span(), "expected a declared predicate");
+            return None;
+        };
+        let def = self.expect_path(module, path, &[DefKind::Predicate], "a predicate")?;
+        let DefInfo::Data { id, .. } = &self.defs[def.0].info else {
+            return None;
+        };
+        id.parse().ok()
+    }
+
+    fn data_weather(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::Weather> {
+        let expr = self.data_expr(file, value, "a Weather value")?;
+        let value = self.vanilla_value(module, file, expr, "Weather")?;
+        let Ok(weather) = serde_json::from_value(serde_json::Value::String(value)) else {
+            self.error("type", file, expr.span(), "expected a `Weather::...` value");
+            return None;
+        };
+        Some(weather)
+    }
+
+    fn data_probability(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        owner: &str,
+    ) -> Option<f64> {
+        let chance = self.data_number(module, file, value)?;
+        if !(0.0..=1.0).contains(&chance) {
+            self.error(
+                "range",
+                file,
+                value.span(),
+                format!("{owner} chance must be between zero and one"),
+            );
+            return None;
+        }
+        Some(chance)
+    }
+
     fn data_loot_pools(
         &mut self,
         module: ModuleId,
@@ -642,6 +772,7 @@ impl Cx {
             rolls: 1,
             chance: None,
             weather: None,
+            predicate: None,
         };
         let mut seen = BTreeSet::new();
         for field in fields {
@@ -667,27 +798,13 @@ impl Cx {
                 }
                 "rolls" => pool.rolls = self.data_int(module, file, &field.value, 1, 1000)? as u32,
                 "chance" => {
-                    let chance = self.data_number(module, file, &field.value)?;
-                    if !(0.0..=1.0).contains(&chance) {
-                        self.error(
-                            "range",
-                            file,
-                            field.value.span(),
-                            "loot pool chance must be between zero and one",
-                        );
-                        return None;
-                    }
-                    pool.chance = Some(chance);
+                    pool.chance =
+                        Some(self.data_probability(module, file, &field.value, "loot pool")?)
                 }
-                "weather" => {
-                    let expr = self.data_expr(file, &field.value, "a Weather value")?;
-                    let value = self.vanilla_value(module, file, expr, "Weather")?;
-                    let Ok(weather) = serde_json::from_value(serde_json::Value::String(value))
-                    else {
-                        self.error("type", file, expr.span(), "expected a `Weather::...` value");
-                        return None;
-                    };
-                    pool.weather = Some(weather);
+                "weather" => pool.weather = Some(self.data_weather(module, file, &field.value)?),
+                "when" => {
+                    let expr = self.data_expr(file, &field.value, "a native predicate")?;
+                    pool.predicate = Some(self.predicate_id(module, file, expr)?);
                 }
                 _ => {
                     self.error(

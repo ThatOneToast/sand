@@ -3716,6 +3716,16 @@ impl Cx {
                 biome: self.arg_id(body, bound["biome"], "Biome")?,
                 at: self.arg_position(body, bound["at"])?,
             })),
+            "predicate_matches" => {
+                let arg = bound["predicate"];
+                let ArgValue::Expr(expr) = &arg.value else {
+                    self.error("type", file, arg.span, "expected a predicate resource");
+                    return None;
+                };
+                Some(pc::Condition::Predicate {
+                    predicate: self.predicate_id(body.module, file, expr)?,
+                })
+            }
             "dimension_is" => Some(pc::Condition::Dimension(pc::DimensionMatches {
                 dimension: self
                     .arg_id(body, bound["dimension"], "Dimension")?

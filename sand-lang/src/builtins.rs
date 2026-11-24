@@ -48,6 +48,8 @@ pub enum ParamKind {
     Position,
     /// A declared `bossbar`.
     BossBar,
+    /// A declared or external native predicate resource.
+    Predicate,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -968,6 +970,22 @@ pub const BUILTINS: &[Builtin] = &[
             "The `entity state` to detach.",
         )],
         snippet: "detach_state(${1:State});",
+    },
+    Builtin {
+        name: "predicate_matches",
+        kind: BuiltinKind::Condition,
+        signature: "predicate_matches(predicate)",
+        summary: "Test a named native predicate in this execution context.",
+        details: "Use a declaration or an external namespaced identifier. Native location predicates read the execution position.",
+        minecraft: "execute if predicate <id>",
+        needs_player: false,
+        params: &[p(
+            "predicate",
+            ParamKind::Predicate,
+            true,
+            "Predicate resource.",
+        )],
+        snippet: "predicate_matches(${1:Rule})",
     },
     Builtin {
         name: "has_state",
@@ -2014,7 +2032,7 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "pools",
         FieldKind::LootItems,
         false,
-        "Independent loot pools. Each has items, optional rolls, chance, and weather.",
+        "Independent loot pools. Each has items and optional rolls, chance, weather, and when.",
         "[{ items: [Item::${1:Diamond}] }]",
     ),
     f(
@@ -2056,6 +2074,46 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         false,
         "Death message format.",
         "DeathMessageType::${1:Default}",
+    ),
+    f(
+        "predicate",
+        "block",
+        FieldKind::Registry("Block"),
+        false,
+        "Block at the execution position.",
+        "Block::${1:Stone}",
+    ),
+    f(
+        "predicate",
+        "biome",
+        FieldKind::Registry("Biome"),
+        false,
+        "Biome at the execution position.",
+        "Biome::${1:Plains}",
+    ),
+    f(
+        "predicate",
+        "dimension",
+        FieldKind::Registry("Dimension"),
+        false,
+        "Current execution dimension.",
+        "Dimension::${1:Overworld}",
+    ),
+    f(
+        "predicate",
+        "weather",
+        FieldKind::Registry("Weather"),
+        false,
+        "Required weather.",
+        "Weather::${1:Clear}",
+    ),
+    f(
+        "predicate",
+        "chance",
+        FieldKind::Number,
+        false,
+        "Probability from zero to one.",
+        "${1:0.5}",
     ),
 ];
 

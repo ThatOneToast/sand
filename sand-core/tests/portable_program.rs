@@ -28,6 +28,7 @@ fn counter() -> Program {
             loot_tables: vec![],
             boss_bars: vec![],
             damage_types: vec![],
+            predicates: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

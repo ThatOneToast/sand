@@ -63,6 +63,13 @@
       },
       "type": "array"
     },
+    "predicates": {
+      "description": "Reusable native world predicates.",
+      "items": {
+        "$ref": "defs-WorldPredicate.schema.json"
+      },
+      "type": "array"
+    },
     "recipes": {
       "description": "Crafting, cooking, and stonecutting recipes.",
       "items": {

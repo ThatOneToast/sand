@@ -1713,6 +1713,18 @@
         {
           "$ref": "#/$defs/FlagSet",
           "description": "The executor has an entity flag."
+        },
+        {
+          "description": "A native predicate evaluated in the current execution context.",
+          "properties": {
+            "predicate": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "predicate"
+          ],
+          "type": "object"
         }
       ],
       "description": "A branch condition: a constant range test or a field-to-field relation."
@@ -2862,6 +2874,13 @@
             "$ref": "#/$defs/LootItem"
           },
           "type": "array"
+        },
+        "predicate": {
+          "description": "Optional reusable predicate that this pool requires.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "rolls": {
           "default": 1,
@@ -4254,6 +4273,60 @@
           "type": "string"
         }
       ]
+    },
+    "WorldPredicate": {
+      "additionalProperties": false,
+      "description": "A reusable native test of location or weather, optionally gated by chance.",
+      "properties": {
+        "biome": {
+          "description": "Biome at the execution origin.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "block": {
+          "description": "Block at the execution origin.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chance": {
+          "description": "Probability between zero and one.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dimension": {
+          "description": "Dimension of the execution origin.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Predicate identity.",
+          "type": "string"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Weather"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Current weather."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4317,6 +4390,13 @@
       "description": "Loot tables.",
       "items": {
         "$ref": "#/$defs/LootTable"
+      },
+      "type": "array"
+    },
+    "predicates": {
+      "description": "Reusable native world predicates.",
+      "items": {
+        "$ref": "#/$defs/WorldPredicate"
       },
       "type": "array"
     },

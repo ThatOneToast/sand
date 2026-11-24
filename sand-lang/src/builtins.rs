@@ -1648,7 +1648,7 @@ pub enum FieldKind {
     Number,
     /// A value from a typed set, such as `Rarity::Epic`.
     Registry(&'static str),
-    /// `{ "minecraft:sharpness": 5, ... }`.
+    /// A list of typed enchantment and level pairs.
     Enchantments,
     /// A list of tag values for the declaration's registry.
     TagValues,
@@ -1766,8 +1766,8 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "enchantments",
         FieldKind::Enchantments,
         false,
-        "Enchantments and levels: `{ \"minecraft:sharpness\": 5 }`.",
-        "{ \"minecraft:${1:sharpness}\": ${2:1} }",
+        "Enchantments and levels: `[{ enchantment: Enchantment::Sharpness, level: 5 }]`.",
+        "[{ enchantment: Enchantment::${1:Sharpness}, level: ${2:1} }]",
     ),
     f(
         "item",

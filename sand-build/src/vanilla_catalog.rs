@@ -44,18 +44,58 @@ pub fn refresh_vanilla_catalog(versions: &[String], output: &Path) -> Result<()>
         let name = "minecraft:worldgen/biome";
         let biomes = crate::codegen::biomes::read_biomes(&reports)?;
         registries.insert(name.into(), named_variants(version, name, biomes)?);
+        let staged = tempfile::tempdir()?;
+        report::run_data_generator(staged.path(), &jar, "--server")?;
+        let name = "minecraft:enchantment";
+        let enchantments = server_resource_ids(staged.path(), "enchantment")?;
+        if enchantments.is_empty() {
+            return Err(cache::invalid(format!(
+                "{version}: missing registry {name}"
+            )));
+        }
+        registries.insert(name.into(), named_variants(version, name, enchantments)?);
         targets.insert(
             entry.id.clone(),
             json!({"registries": registries, "report_sha1": hash_bytes(&bytes)}),
         );
     }
     let result = json!({"format": "sand.vanilla_catalog", "format_version": 1,
-        "provenance": "Verified Mojang server data generator registry and biome parameter reports", "targets": targets});
+        "provenance": "Verified Mojang server data generator registry and biome reports and built-in data", "targets": targets});
     std::fs::write(
         output,
         format!("{}\n", serde_json::to_string_pretty(&result)?),
     )?;
     Ok(())
+}
+
+fn server_resource_ids(root: &Path, kind: &str) -> Result<Vec<String>> {
+    let directory = root.join("generated/data/minecraft").join(kind);
+    let mut pending = vec![directory.clone()];
+    let mut ids = Vec::new();
+    while let Some(subdirectory) = pending.pop() {
+        for entry in std::fs::read_dir(subdirectory)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            let path = entry.path();
+            if kind.is_dir() {
+                pending.push(path);
+            } else if kind.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension == "json")
+            {
+                let key = path
+                    .strip_prefix(&directory)
+                    .expect("generated resource directory");
+                let key = key
+                    .with_extension("")
+                    .to_string_lossy()
+                    .replace(std::path::MAIN_SEPARATOR, "/");
+                ids.push(format!("minecraft:{key}"));
+            }
+        }
+    }
+    Ok(ids)
 }
 
 fn named_variants(

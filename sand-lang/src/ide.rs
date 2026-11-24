@@ -2204,6 +2204,7 @@ fn data_completions(
             out
         }
         FieldKind::LootItems => registry("Item"),
+        FieldKind::Enchantments => registry("Enchantment"),
         FieldKind::Ingredient | FieldKind::Ingredients | FieldKind::Key => {
             let mut out = registry("Item");
             out.extend(

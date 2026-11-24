@@ -263,9 +263,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Typed function values, owned move closures, generic call signatures,
   recursive indirect calls and player-State persistence.
 - [ ] Executor-specific callable signatures and general borrowed slices.
-- [ ] Typed enchantments generated once for Rust and the language; typed time
-  values and storable positions. Use existing entity State instead of creating
-  a competing checked entity-tag model.
+- [x] Typed enchantments generated from one verified catalog for Rust and Sand.
+- [ ] Typed time values and storable positions. Use existing entity State instead
+  of creating a competing checked entity-tag model.
 - [x] Retain individual vanilla entity relationships in `EntityRef` values,
   and mount and dismount retained vehicles.
 - [x] Equip, clear, and test hand and armor slots with typed equipment slots and

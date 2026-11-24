@@ -65,6 +65,7 @@ const SOURCES: &[(&str, &str, &str)] = &[
     ("Attribute", "sand::vanilla::Attribute", "attribute"),
     ("Effect", "sand::registry::EffectId", "status effect"),
     ("Potion", "sand::registry::PotionId", "potion"),
+    ("Enchantment", "sand::vanilla::Enchantment", "enchantment"),
 ];
 
 /// One of Sand's own option sets.
@@ -217,6 +218,7 @@ pub(crate) fn registry_key(name: &str) -> Option<&'static str> {
         "Attribute" => "minecraft:attribute",
         "Effect" => "minecraft:mob_effect",
         "Potion" => "minecraft:potion",
+        "Enchantment" => "minecraft:enchantment",
         _ => return None,
     })
 }

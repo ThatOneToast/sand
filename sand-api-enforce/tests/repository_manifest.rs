@@ -93,10 +93,10 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
                 0,
                 "api-surface-baseline-placeholder.txt".to_owned(),
             ),
-            ("26.2", 12_034, 0, "api-surface-baseline.txt".to_owned(),),
+            ("26.2", 12_079, 0, "api-surface-baseline.txt".to_owned(),),
             (
                 "26.3",
-                12_296,
+                12_341,
                 0,
                 "api-surface-baseline-26.3.txt".to_owned(),
             ),

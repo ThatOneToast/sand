@@ -1004,30 +1004,126 @@ impl Cx {
         file: FileId,
         value: &DataValue,
     ) -> Option<BTreeMap<String, u32>> {
-        let DataValue::Object(entries, _) = value else {
+        let mut out = BTreeMap::new();
+        match value {
+            DataValue::Array(entries, _) => {
+                for entry in entries {
+                    let (id, level, span) = self.data_enchantment_entry(module, file, entry)?;
+                    if out.insert(id.clone(), level).is_some() {
+                        self.error(
+                            "duplicate",
+                            file,
+                            span,
+                            format!("enchantment `{id}` is listed twice"),
+                        );
+                        return None;
+                    }
+                }
+            }
+            DataValue::Object(entries, _) => {
+                let target = self
+                    .pack
+                    .as_ref()
+                    .map_or(sand_version::LATEST_KNOWN, |pack| &pack.minecraft)
+                    .to_owned();
+                for entry in entries {
+                    let id = &entry.key.name;
+                    if !id.contains(':') || id.parse::<sand::ResourceLocation>().is_err() {
+                        self.error(
+                            "id",
+                            file,
+                            entry.key.span,
+                            format!("invalid enchantment identity `{id}`"),
+                        );
+                        return None;
+                    }
+                    if id.starts_with("minecraft:")
+                        && sand_version::registry::contains(&target, "minecraft:enchantment", id)
+                            == Some(false)
+                    {
+                        self.error(
+                            "id",
+                            file,
+                            entry.key.span,
+                            format!("no enchantment `{id}` in Minecraft {target}"),
+                        );
+                        return None;
+                    }
+                    let level = self.data_int(module, file, &entry.value, 1, 255)?;
+                    if out.insert(id.clone(), level as u32).is_some() {
+                        self.error(
+                            "duplicate",
+                            file,
+                            entry.key.span,
+                            format!("enchantment `{id}` is listed twice"),
+                        );
+                        return None;
+                    }
+                }
+            }
+            _ => {
+                self.error("type", file, value.span(), "expected a list of `{ enchantment: Enchantment::Sharpness, level: 5 }` entries");
+                return None;
+            }
+        }
+        Some(out)
+    }
+
+    fn data_enchantment_entry(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<(String, u32, Span)> {
+        let DataValue::Object(fields, span) = value else {
             self.error(
                 "type",
                 file,
                 value.span(),
-                "expected `{ \"minecraft:sharpness\": 5 }`",
+                "expected an enchantment and level pair",
             );
             return None;
         };
-        let mut out = BTreeMap::new();
-        for entry in entries {
-            let id = &entry.key.name;
-            if id.parse::<sand::ResourceLocation>().is_err() || !id.contains(':') {
-                self.error(
-                    "id",
-                    file,
-                    entry.key.span,
-                    format!("`{id}` is not an enchantment id such as `\"minecraft:sharpness\"`"),
-                );
-                return None;
+        let mut enchantment = None;
+        let mut level = None;
+        for field in fields {
+            match field.key.name.as_str() {
+                "enchantment" if enchantment.is_none() => {
+                    let expr = self.data_expr(file, &field.value, "a typed enchantment")?;
+                    enchantment = Some(self.vanilla_value(module, file, expr, "Enchantment")?);
+                }
+                "level" if level.is_none() => {
+                    level = Some(self.data_int(module, file, &field.value, 1, 255)? as u32);
+                }
+                "enchantment" | "level" => {
+                    self.error(
+                        "duplicate",
+                        file,
+                        field.key.span,
+                        format!("duplicate enchantment entry field `{}`", field.key.name),
+                    );
+                    return None;
+                }
+                _ => {
+                    self.error(
+                        "field",
+                        file,
+                        field.key.span,
+                        "an enchantment entry has only enchantment and level fields",
+                    );
+                    return None;
+                }
             }
-            let level = self.data_int(module, file, &entry.value, 1, 255)?;
-            out.insert(id.clone(), level as u32);
         }
-        Some(out)
+        let (Some(id), Some(level)) = (enchantment, level) else {
+            self.error(
+                "field",
+                file,
+                *span,
+                "an enchantment entry needs both enchantment and level",
+            );
+            return None;
+        };
+        Some((id, level, *span))
     }
 }

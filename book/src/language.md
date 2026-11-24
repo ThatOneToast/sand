@@ -1184,7 +1184,7 @@ item RubySword {
     lore: ["{gray}Forged in fire."],
     rarity: Rarity::Epic,
     unbreakable: true,
-    enchantments: { "minecraft:sharpness": 5 },
+    enchantments: [{ enchantment: Enchantment::Sharpness, level: 5 }],
 }
 
 tag Ores: Item { values: [Item::IronOre, "#minecraft:coal_ores"] }
@@ -1200,7 +1200,9 @@ recipe RedDye { shapeless: [Item::Poppy, Item::Poppy], result: Item::RedDye, cou
 ```
 
 - `item` fields: `base`, `name`, `lore`, `rarity`, `glint`, `unbreakable`,
-  `max_stack`, `enchantments`, `custom_model_data`. `give_item(RubySword)` and
+  `max_stack`, `enchantments`, `custom_model_data`. Enchantment variants use the
+  same target catalog as Rust. Use a namespaced string for an external
+  enchantment. `give_item(RubySword)` and
   `clear_item(RubySword)` use its identity, a `custom_data` marker, exactly
   like Rust's `CustomItem::custom_data`.
 - `recipe` takes exactly one of `shaped` (with `key`), `shapeless`,

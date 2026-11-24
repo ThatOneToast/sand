@@ -145,6 +145,16 @@ pub fn fingerprint(reports_dir: &Path, minecraft_version: &str) -> Result<String
         parts.push(format!("report:{report}"));
         parts.push(hash_bytes(&bytes));
     }
+    if let Some(entries) =
+        sand_version::registry::variants(minecraft_version, "minecraft:enchantment")
+    {
+        parts.push("catalog:enchantment".into());
+        parts.push(combine(
+            entries
+                .iter()
+                .flat_map(|(name, id)| [name.as_str(), id.as_str()]),
+        ));
+    }
     Ok(combine(parts.iter().map(String::as_str)))
 }
 

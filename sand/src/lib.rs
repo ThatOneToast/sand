@@ -631,15 +631,9 @@ pub mod data {
 /// the typed `*Id` wrappers instead (`ItemId::minecraft`/`::custom`,
 /// `BlockId`, `EntityTypeId`, ...) — see [`prelude`].
 ///
-/// Not every generated Minecraft registry is exposed here: `sand-build`'s
-/// codegen also lists `minecraft:worldgen/biome` and `minecraft:enchantment`
-/// as candidate registries, but Mojang's data generator report does not
-/// currently include either as a plain registry (biome and enchantment data
-/// moved to datapack-authorable JSON), so no `Biome`/`Enchantment` enum is
-/// actually generated — only `Item`, `Block`, `EntityType`, and `SoundEvent`
-/// exist today. Effects, particles, and other registries without generated
-/// data still require typed ID wrappers (e.g. `EffectId`) or raw resource
-/// locations.
+/// `Enchantment` uses the same verified vanilla catalog as the Sand language.
+/// Biomes and other registries with no generated enum use typed ID wrappers
+/// such as `BiomeId` or `EffectId`.
 ///
 /// # Example
 /// ```
@@ -662,7 +656,9 @@ pub mod data {
 )]
 pub mod vanilla {
     #[cfg(not(sand_placeholder_codegen))]
-    pub use sand_core::generated::{Attribute, Block, EntityType, Item, ParticleType, SoundEvent};
+    pub use sand_core::generated::{
+        Attribute, Block, Enchantment, EntityType, Item, ParticleType, SoundEvent,
+    };
 }
 
 /// Supported low-level hook for framework integrators that need to drive the

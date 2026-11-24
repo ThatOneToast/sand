@@ -507,7 +507,15 @@ pub(super) fn validate(
                 );
             }
             for (enchantment, level) in &item.enchantments {
-                if !syntax_id(enchantment) || !(1..=255).contains(level) {
+                if !available(enchantment, "minecraft:enchantment") {
+                    push(
+                        format!("{ptr}/enchantments"),
+                        format!(
+                            "no enchantment `{enchantment}` in Minecraft {}",
+                            program.target.minecraft
+                        ),
+                    );
+                } else if !syntax_id(enchantment) || !(1..=255).contains(level) {
                     push(
                         format!("{ptr}/enchantments"),
                         format!("enchantment `{enchantment}` needs an id and a level of 1..=255"),

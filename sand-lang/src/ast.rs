@@ -508,6 +508,8 @@ pub enum DataKind {
     Predicate,
     /// `advancement Name { ... }`.
     Advancement,
+    /// `dialog Name { ... }`.
+    Dialog,
 }
 
 impl DataKind {
@@ -522,6 +524,7 @@ impl DataKind {
             DataKind::DamageType => "damage_type",
             DataKind::Predicate => "predicate",
             DataKind::Advancement => "advancement",
+            DataKind::Dialog => "dialog",
         }
     }
 }

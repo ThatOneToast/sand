@@ -1412,6 +1412,31 @@ Use `advancement_done(ReadyForAdventure)` in a player function to read the
 whole advancement. Pass `criterion = "get_spyglass"` to check one named
 criterion. A quoted namespaced ID also lets you read another pack’s advancement.
 
+### Notice dialogs
+
+A named `dialog` displays a native notice with fixed rich text and a dismiss
+button. Use `show_dialog` and `clear_dialog` in a player function.
+
+```rust,ignore
+dialog Guide {
+    title: "{gold}Field journal",
+    body: [
+        "Mine stone or defeat zombies to record entries.",
+        "Right-click the notebook to read your notes.",
+    ],
+    button: "Start exploring",
+}
+
+#[on(first_join)]
+fn welcome() {
+    show_dialog(Guide);
+}
+```
+
+The body and button are optional. Omit the button label to use the client's
+localized Done label. The title, body and button can use `Text::translate`.
+A quoted namespaced ID can refer to a dialog in another pack.
+
 ### Named predicates
 
 ```rust,ignore
@@ -1593,7 +1618,7 @@ command and State models as Rust. Today the language covers:
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
-| Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types and native world predicates | advancements, worldgen |
+| Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.

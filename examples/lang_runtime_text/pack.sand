@@ -42,10 +42,19 @@ item FieldGuide {
         ],
     },
 }
+dialog JournalNotice {
+    title: "{gold}Field journal",
+    body: [
+        "Mine stone or defeat zombies to record entries.",
+        "Right-click the notebook to read your notes.",
+    ],
+    button: "Start exploring",
+}
 #[on(first_join)]
 fn welcome() {
     give_item(Notebook);
     give_item(FieldGuide);
+    show_dialog(JournalNotice);
     chat!(Text::translate("chat.type.text", "Journal", "The journey begins 🌍"));
     chat!(Text::hover(
         Text::copy("{aqua}Copy the journal code", "field-journal"),

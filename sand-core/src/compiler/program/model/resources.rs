@@ -557,3 +557,30 @@ pub enum AdvancementCriterion {
     /// Receive player kill credit for an entity of the given type.
     KillEntity { entity: String },
 }
+
+/// A native notice dialog with static rich text and a dismiss button.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::NoticeDialog", module = "sand::advanced::compiler",
+ summary = "A native notice dialog with static rich text and a dismiss button.",
+ context = "Use Action::Dialog to display the resource for the executing player. Translated text resolves in the player's client language.",
+ minecraft = "Lowers through the canonical Dialog builder to a minecraft:notice resource.",
+ use_when = ["Showing a tutorial or information panel"],
+ avoid_when = ["Capturing form submissions or executing custom button actions"],
+ fields(id = "Dialog identity.", title = "Static rich title.", body = "Ordered static text blocks.", button = "Optional dismiss label, defaulting to the localized Done label."),
+ example = "use sand::advanced::compiler::NoticeDialog;",
+)]
+pub struct NoticeDialog {
+    /// Dialog identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Static rich title.
+    pub title: Vec<TextPart>,
+    /// Ordered static text blocks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub body: Vec<Vec<TextPart>>,
+    /// Optional dismiss label. An empty list uses the client's Done label.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub button: Vec<TextPart>,
+}

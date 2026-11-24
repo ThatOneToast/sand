@@ -160,6 +160,8 @@ def main():
     parser.add_argument("--expect-particles", nargs=6, type=float,
                         metavar=("X", "Y", "Z", "SPREAD", "SPEED", "COUNT"),
                         help="require a particle packet with these position and numeric options")
+    parser.add_argument("--expect-dialog-cycle", action="store_true",
+                        help="require a show-dialog packet followed by a clear-dialog packet")
     parser.add_argument("--auto-respawn", action="store_true")
     parser.add_argument("--control-dir", help="existing private directory for atomic JSON commands/status")
     args = parser.parse_args()
@@ -180,17 +182,20 @@ def main():
         return run_session(conn, host, port, protocol_version, username, run_seconds, on_join,
                            auto_respawn=args.auto_respawn, controls=controls,
                            expected_system_chat=tuple(text.encode() for text in args.expect_system_chat),
-                           expected_particles=args.expect_particles)
+                           expected_particles=args.expect_particles,
+                           expect_dialog_cycle=args.expect_dialog_cycle)
 
 
 def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *,
-                auto_respawn=False, controls=None, expected_system_chat=(), expected_particles=None):
+                auto_respawn=False, controls=None, expected_system_chat=(), expected_particles=None,
+                expect_dialog_cycle=False):
     profile = profile_for_protocol(protocol_version)
     packets = profile["packets"]
     login_in, login_out = packets["login"]["clientbound"], packets["login"]["serverbound"]
     config_out = packets["configuration"]["serverbound"]
     config_in = {packet_id: name for name, packet_id in packets["configuration"]["clientbound"].items()}
     play_in, play_out = packets["play"]["clientbound"], packets["play"]["serverbound"]
+    dialog_packets = [play_in["show_dialog"], play_in["clear_dialog"]] if expect_dialog_cycle else []
     payload = write_varint(protocol_version) + write_string(host) + struct.pack(">H", port) + write_varint(2)
     conn.send_packet(0x00, payload)
 
@@ -309,6 +314,10 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                             px, py, pz, spread, spread, spread, expected_speed, expected_count):
                         expected_particles = None
                         print("[play] observed the requested particle packet")
+            elif dialog_packets and pid == dialog_packets[0]:
+                dialog_packets.pop(0)
+                if not dialog_packets:
+                    print("[play] observed the requested dialog open and clear packets")
             elif pid == play_in["player_position"]:
                 # ClientboundPlayerPositionPacket starts with the teleport
                 # ID. Acknowledging it clears the server's changing-dimension
@@ -354,6 +363,9 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
         return False
     if expected_particles is not None:
         print(f"[play] no particle packet matched {expected_particles!r}")
+        return False
+    if dialog_packets:
+        print(f"[play] missing dialog packets {dialog_packets!r}")
         return False
     return joined
 

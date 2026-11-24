@@ -241,6 +241,11 @@ pub(super) fn validate(
         })
         .collect();
     let mut validator = Validator {
+        dialogs_supported: target.as_ref().is_some_and(|profile| {
+            profile
+                .caps()
+                .supports(sand_version::ComponentFeature::Dialogs)
+        }),
         advancements: program
             .modules
             .iter()
@@ -693,6 +698,29 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, dialog) in module.dialogs.iter().enumerate() {
+            let ptr = format!("/dialogs/{index}");
+            if !resource_ids.insert(format!("dialog {}", dialog.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate dialog `{}`", dialog.id),
+                );
+            }
+            let text_blocks = std::iter::once(("title".to_owned(), &dialog.title))
+                .chain(
+                    dialog
+                        .body
+                        .iter()
+                        .enumerate()
+                        .map(|(i, text)| (format!("body/{i}"), text)),
+                )
+                .chain(std::iter::once(("button".to_owned(), &dialog.button)));
+            for (field, text) in text_blocks {
+                if let Some(error) = static_text_error(text, None) {
+                    push(format!("{ptr}/{field}"), error);
+                }
+            }
+        }
         for (index, advancement) in module.advancements.iter().enumerate() {
             let ptr = format!("/advancements/{index}");
             if !resource_ids.insert(format!("advancement {}", advancement.id)) {
@@ -1047,6 +1075,7 @@ fn static_text_error(text: &[TextPart], book_pages: Option<usize>) -> Option<Str
 }
 
 struct Validator<'a, 'e> {
+    dialogs_supported: bool,
     advancements: BTreeMap<String, BTreeSet<String>>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
@@ -1966,6 +1995,25 @@ impl Validator<'_, '_> {
                         ));
                     } else {
                         self.message_parts(text, context, owner, &text_ptr);
+                    }
+                }
+                Action::Dialog { dialog } => {
+                    self.player(context, owner, &ptr, "showing or clearing a dialog");
+                    if !self.dialogs_supported {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_TARGET",
+                            owner,
+                            &ptr,
+                            format!("Minecraft {} does not support native dialogs", self.target),
+                        ));
+                    }
+                    if let Some(dialog) = dialog {
+                        self.resource(
+                            &dialog.to_string(),
+                            owner,
+                            &format!("{ptr}/action/dialog"),
+                            "dialog",
+                        );
                     }
                 }
                 Action::Sound {

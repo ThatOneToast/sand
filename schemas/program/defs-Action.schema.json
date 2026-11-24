@@ -314,6 +314,26 @@
     },
     {
       "additionalProperties": false,
+      "description": "Show a native dialog to the player, or clear their open dialog.",
+      "properties": {
+        "dialog": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "op": {
+          "const": "dialog",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Play a sound to the executing player at their position.",
       "properties": {
         "op": {

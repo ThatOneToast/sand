@@ -315,6 +315,26 @@
         },
         {
           "additionalProperties": false,
+          "description": "Show a native dialog to the player, or clear their open dialog.",
+          "properties": {
+            "dialog": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "op": {
+              "const": "dialog",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Play a sound to the executing player at their position.",
           "properties": {
             "op": {
@@ -3453,6 +3473,45 @@
         }
       ]
     },
+    "NoticeDialog": {
+      "additionalProperties": false,
+      "description": "A native notice dialog with static rich text and a dismiss button.",
+      "properties": {
+        "body": {
+          "description": "Ordered static text blocks.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/TextPart"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "button": {
+          "description": "Optional dismiss label. An empty list uses the client's Done label.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Dialog identity.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Static rich title.",
+          "items": {
+            "$ref": "#/$defs/TextPart"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "type": "object"
+    },
     "Operation": {
       "additionalProperties": false,
       "description": "A gameplay operation with optional host-provided source provenance.",
@@ -4749,6 +4808,13 @@
       "description": "Native damage type definitions.",
       "items": {
         "$ref": "#/$defs/DamageType"
+      },
+      "type": "array"
+    },
+    "dialogs": {
+      "description": "Native notice dialogs declared by this module.",
+      "items": {
+        "$ref": "#/$defs/NoticeDialog"
       },
       "type": "array"
     },

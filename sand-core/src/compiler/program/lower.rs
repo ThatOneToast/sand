@@ -424,6 +424,18 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, dialog) in module.dialogs.iter().enumerate() {
+            let component = notice_dialog_component(dialog, &lower.holders);
+            let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/dialogs/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
         for (index, advancement) in module.advancements.iter().enumerate() {
             let fail = |message| {
                 vec![Diagnostic::error(
@@ -917,6 +929,24 @@ fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
         result = result.pool(pool);
     }
     result
+}
+
+fn notice_dialog_component(
+    source: &NoticeDialog,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_components::Dialog {
+    use sand_components::{Dialog, DialogBody, DialogButton, DialogId};
+    let mut dialog = Dialog::notice(DialogId::custom(source.id.clone()))
+        .title(static_text_component(&source.title, holders));
+    for text in &source.body {
+        dialog = dialog.body(DialogBody::text(static_text_component(text, holders)));
+    }
+    let button = if source.button.is_empty() {
+        sand_commands::TextComponent::translate("gui.done")
+    } else {
+        static_text_component(&source.button, holders)
+    };
+    dialog.button(DialogButton::new(button))
 }
 
 fn advancement_component(
@@ -1994,6 +2024,13 @@ impl Lower<'_> {
                     staged.extend(cleanup);
                     staged.into_iter().map(Cmd::Raw).collect()
                 }
+                Action::Dialog { dialog } => vec![Cmd::Raw(match dialog {
+                    Some(dialog) => crate::cmd::show_dialog(
+                        sand_commands::Target::self_(),
+                        sand_components::DialogId::custom(dialog.clone()),
+                    ),
+                    None => "dialog clear @s".into(),
+                })],
                 Action::Sound {
                     sound,
                     volume,

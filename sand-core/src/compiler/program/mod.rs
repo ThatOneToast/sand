@@ -15,11 +15,11 @@ pub use model::{
     DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
     ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase, FlowTransition,
     Function, FunctionReference, ItemHeld, LootItem, LootPool, LootTable, MessageChannel, Module,
-    ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity,
-    Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
-    ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
-    TeleportDestination, TextColor, TextPart, TextStyle, Weather, WorldPredicate,
-    WrittenBookContent,
+    ModuleSource, NoticeDialog, Operation, Pack, PlayerEvent, PlayerGameMode, Program,
+    ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField,
+    ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached,
+    TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle, Weather,
+    WorldPredicate, WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -47,6 +47,7 @@ const CAPABILITIES: &[&str] = &[
     "interactive_text",
     "written_books",
     "advancements",
+    "notice_dialogs",
     "sounds",
     "particles",
     "effects",

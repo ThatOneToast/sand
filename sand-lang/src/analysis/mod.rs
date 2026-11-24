@@ -147,6 +147,8 @@ pub enum DefKind {
     Predicate,
     /// `advancement Name { ... }`.
     Advancement,
+    /// `dialog Name { ... }`.
+    Dialog,
 }
 
 impl DefKind {
@@ -175,6 +177,7 @@ impl DefKind {
             DefKind::DamageType => "damage type",
             DefKind::Predicate => "predicate",
             DefKind::Advancement => "advancement",
+            DefKind::Dialog => "dialog",
         }
     }
 }
@@ -1082,6 +1085,7 @@ impl Cx {
                     crate::ast::DataKind::DamageType => DefKind::DamageType,
                     crate::ast::DataKind::Predicate => DefKind::Predicate,
                     crate::ast::DataKind::Advancement => DefKind::Advancement,
+                    crate::ast::DataKind::Dialog => DefKind::Dialog,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3010,6 +3014,7 @@ impl Cx {
             damage_types: Vec::new(),
             predicates: Vec::new(),
             advancements: Vec::new(),
+            dialogs: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

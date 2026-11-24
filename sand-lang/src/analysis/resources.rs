@@ -483,6 +483,53 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Dialog => {
+                let Some(title) =
+                    get("title").and_then(|field| self.data_text(module, file, &field.value))
+                else {
+                    return;
+                };
+                let body = match get("body").map(|field| &field.value) {
+                    Some(DataValue::Array(lines, _)) => {
+                        let Some(lines) = lines
+                            .iter()
+                            .map(|line| self.data_text(module, file, line))
+                            .collect::<Option<Vec<_>>>()
+                        else {
+                            return;
+                        };
+                        lines
+                    }
+                    Some(other) => {
+                        self.error(
+                            "dialog",
+                            file,
+                            other.span(),
+                            "dialog body must be a list of text blocks",
+                        );
+                        return;
+                    }
+                    None => Vec::new(),
+                };
+                let Some(button) = get("button")
+                    .map(|field| self.data_text(module, file, &field.value))
+                    .unwrap_or_else(|| Some(Vec::new()))
+                else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/dialogs/{}", out.dialogs.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.dialogs.push(pc::NoticeDialog {
+                    id: location,
+                    title,
+                    body,
+                    button,
+                });
+            }
             DataKind::Advancement => {
                 let Some(criteria) = get("criteria")
                     .and_then(|field| self.data_advancement_criteria(module, file, &field.value))

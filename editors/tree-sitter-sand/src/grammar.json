@@ -930,6 +930,10 @@
                 {
                   "type": "STRING",
                   "value": "advancement"
+                },
+                {
+                  "type": "STRING",
+                  "value": "dialog"
                 }
               ]
             },

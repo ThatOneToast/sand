@@ -4611,6 +4611,22 @@ impl Cx {
                 };
                 pc::Action::SetEquipment { slot, item, count }
             }
+            "show_dialog" => {
+                let arg = bound["dialog"];
+                let ArgValue::Expr(expr) = &arg.value else {
+                    self.error("type", body.file, arg.span, "expected a dialog resource");
+                    return None;
+                };
+                pc::Action::Dialog {
+                    dialog: Some(self.native_data_id(
+                        body.module,
+                        body.file,
+                        expr,
+                        DefKind::Dialog,
+                    )?),
+                }
+            }
+            "clear_dialog" => pc::Action::Dialog { dialog: None },
             "add_effect" => {
                 let effect = self.arg_id(body, bound["effect"], "Effect");
                 let seconds = match bound.get("seconds") {

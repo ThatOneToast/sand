@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Dialog, _) => (
+                    format!("{vis}dialog {}", def.name),
+                    format!("Native notice `{id}`. Open it with `show_dialog`."),
+                ),
                 (crate::ast::DataKind::Advancement, _) => (
                     format!("{vis}advancement {}", def.name),
                     format!(
@@ -1138,7 +1142,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Loot
         | DefKind::DamageType
         | DefKind::Predicate
-        | DefKind::Advancement => CompletionKind::Constant,
+        | DefKind::Advancement
+        | DefKind::Dialog => CompletionKind::Constant,
     }
 }
 
@@ -1799,6 +1804,9 @@ fn expression_completions(
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }
             Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
+            Some("Dialog") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Dialog);
+            }
             Some("Advancement") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Advancement);
             }
@@ -2370,6 +2378,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
         ),
         Completion::snippet(
+            "dialog",
+            "native notice dialog",
+            "dialog ${1:Notice} { title: \"${2:Notice}\", body: [\"${3:Text}\"] }",
+        ),
+        Completion::snippet(
             "advancement",
             "native advancement",
             "advancement ${1:Milestone} { criteria: { ${2:collect}: { inventory_item: Item::${3:Diamond} } } }",
@@ -2650,6 +2663,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Loot => "Loot",
                 ParamKind::Predicate => "Predicate",
                 ParamKind::Advancement => "Advancement",
+                ParamKind::Dialog => "Dialog",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

@@ -15,4 +15,5 @@ methods, Unicode text, and styled runtime interpolation. Strings copy by value;
 indices and `len` count Unicode scalar characters. Collection size is fixed in
 this example. The notebook name and the chat layout use Minecraft translation
 keys. The welcome message includes a chat tooltip and a copy action, and the
-written field guide includes a link to its second page.
+written field guide includes a link to its second page. A native notice
+explains how to record and read journal entries at first join.

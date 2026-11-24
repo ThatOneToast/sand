@@ -569,6 +569,7 @@ impl Builder<'_> {
                     "damage_type" => DataKind::DamageType,
                     "predicate" => DataKind::Predicate,
                     "advancement" => DataKind::Advancement,
+                    "dialog" => DataKind::Dialog,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

@@ -52,6 +52,8 @@ pub enum ParamKind {
     Predicate,
     /// A declared or external native advancement.
     Advancement,
+    /// A declared or external native dialog.
+    Dialog,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -1229,6 +1231,28 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "raw!(\"$0\");",
     },
     Builtin {
+        name: "show_dialog",
+        kind: BuiltinKind::Statement,
+        signature: "show_dialog(dialog)",
+        summary: "Open a native dialog for the executing player.",
+        details: "Use a declared dialog or a quoted namespaced ID.",
+        minecraft: "dialog show @s <dialog>",
+        needs_player: true,
+        params: &[p("dialog", ParamKind::Dialog, true, "The dialog to show.")],
+        snippet: "show_dialog(${1:Notice});",
+    },
+    Builtin {
+        name: "clear_dialog",
+        kind: BuiltinKind::Statement,
+        signature: "clear_dialog()",
+        summary: "Close the executing player's open native dialog.",
+        details: "",
+        minecraft: "dialog clear @s",
+        needs_player: true,
+        params: &[],
+        snippet: "clear_dialog();",
+    },
+    Builtin {
         name: "play_sound",
         kind: BuiltinKind::Statement,
         signature: "play_sound(Sound::..., volume = 1.0, pitch = 1.0)",
@@ -2221,6 +2245,30 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "Nonnegative experience points awarded at completion.",
         "${1:5}",
     ),
+    f(
+        "dialog",
+        "title",
+        FieldKind::Text,
+        true,
+        "Text at the top of the notice dialog.",
+        "\"${1:Notice}\"",
+    ),
+    f(
+        "dialog",
+        "body",
+        FieldKind::TextList,
+        false,
+        "Text blocks shown underneath the title.",
+        "[\"${1:Instructions}\"]",
+    ),
+    f(
+        "dialog",
+        "button",
+        FieldKind::Text,
+        false,
+        "Dismiss button label. The default is the client's localized Done.",
+        "\"${1:Done}\"",
+    ),
 ];
 
 /// Fields of one declaration kind.
@@ -2261,6 +2309,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "dialog",
+        "`dialog Name { title: \"...\", body: [...] }` declares a native notice. Open it for the current player with `show_dialog(Name)`.",
     ),
 ];
 

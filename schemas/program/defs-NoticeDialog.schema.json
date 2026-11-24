@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A native notice dialog with static rich text and a dismiss button.",
+  "properties": {
+    "body": {
+      "description": "Ordered static text blocks.",
+      "items": {
+        "items": {
+          "$ref": "defs-TextPart.schema.json"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "button": {
+      "description": "Optional dismiss label. An empty list uses the client's Done label.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Dialog identity.",
+      "type": "string"
+    },
+    "title": {
+      "description": "Static rich title.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "title"
+  ],
+  "type": "object"
+}

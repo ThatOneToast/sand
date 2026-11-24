@@ -75,6 +75,7 @@ fn item_level() {
             "damage_type",
             "predicate",
             "advancement",
+            "dialog",
             "event",
             "loot",
             "recipe shapeless",
@@ -379,6 +380,12 @@ fn data_declarations_offer_only_remaining_valid_fields() {
     exactly(
         "advancement Find {\n    |\n}",
         &["criteria", "display", "require_any", "experience"],
+    );
+    exactly("dialog Notice {\n    |\n}", &["title", "body", "button"]);
+    includes_excludes(
+        "dialog Notice { title: \"Hello\" }\nfn f() { show_dialog(|); }",
+        &["Notice"],
+        &["MAX"],
     );
     exactly("tag T: Block {\n    |\n}", &["values", "replace"]);
     includes_excludes(

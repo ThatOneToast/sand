@@ -37,6 +37,7 @@ class ValuesHarness(WorldGameplayHarness):
                                   "hover_event", "show_text", "Native text"):
                         command.extend(["--expect-system-chat", token])
                     command.extend(["--expect-particles", "10.25", "71", "20.5", "0.25", "0.5", "7"])
+                    command.append("--expect-dialog-cycle")
                 client = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
                 clients.append(client)
                 self.wait_for(re.compile(re.escape(name) + r" joined the game"), "player-join", start)
@@ -59,6 +60,7 @@ class ValuesHarness(WorldGameplayHarness):
                 self.send(f"execute store result score #xp numeric_probe run experience query {name} points")
                 self.check(f"{name}_EXPERIENCE", f"if score #xp numeric_probe matches {expected}")
             self.send("execute as NumericA at @s positioned 10.25 70 20.5 run function runtime_values:show_particles")
+            self.send("execute as NumericA run function runtime_values:show_notice")
             self.send("execute as NumericA run function runtime_values:show_localized")
             self.check(
                 "TRANSLATED_ITEM",

@@ -10,6 +10,8 @@ player state Ledger {
     branch_count: number,
     match_sum: number,
     match_count: number,
+    loop_sum: number,
+    loop_count: number,
 }
 
 fn run(plan: Plan) {
@@ -180,5 +182,51 @@ pub fn check_matches_a() {
 pub fn check_matches_b() {
     if Ledger.match_sum == 130 && Ledger.match_count == 2 {
         raw!("scoreboard players set #match_after_b numeric_probe 1");
+    }
+}
+
+fn loop_wait(initial: number, values: Vec<number>) {
+    let mut total = initial;
+    let mut pass = 0;
+    while pass < 2 {
+        wait(2);
+        pass += 1;
+        total += pass;
+    }
+    for entry in values {
+        wait(2);
+        if entry == 2 { continue; }
+        if entry == 9 { break; }
+        total += entry;
+    }
+    Ledger.loop_sum += total;
+    Ledger.loop_count += 1;
+    raw!("say __SAND_LOOP_WAIT_DONE__");
+}
+
+pub fn queue_loops_a() {
+    loop_wait(10, [1, 2, 3]);
+    loop_wait(20, [4, 9, 7]);
+    if Ledger.loop_count == 0 {
+        raw!("scoreboard players set #loop_eager_a numeric_probe 1");
+    }
+}
+
+pub fn queue_loops_b() {
+    loop_wait(100, [5, 2, 6, 7]);
+    if Ledger.loop_count == 0 {
+        raw!("scoreboard players set #loop_eager_b numeric_probe 1");
+    }
+}
+
+pub fn check_loops_a() {
+    if Ledger.loop_sum == 44 && Ledger.loop_count == 2 {
+        raw!("scoreboard players set #loop_after_a numeric_probe 1");
+    }
+}
+
+pub fn check_loops_b() {
+    if Ledger.loop_sum == 121 && Ledger.loop_count == 1 {
+        raw!("scoreboard players set #loop_after_b numeric_probe 1");
     }
 }

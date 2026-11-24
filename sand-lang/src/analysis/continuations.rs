@@ -48,7 +48,7 @@ impl Cx {
             || body.ret.is_some()
             || body.receiver_out.is_some()
         {
-            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch or a match arm, with no return value or mutable borrowed receiver");
+            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch, match arm, or local loop, with no return value or mutable borrowed receiver");
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
@@ -142,13 +142,7 @@ impl Cx {
         for def in definitions {
             let root = self.local_ref(def);
             let ty = self.local_ty(def);
-            fields.extend(self.value_slots(&root, ty).into_iter().map(|(field, ty)| {
-                if matches!(ty, Ty::String | Ty::List(_) | Ty::Callable(_)) {
-                    Self::data_reference(&field).field
-                } else {
-                    field
-                }
-            }));
+            fields.extend(self.retained_slots(&root, ty));
         }
         if fields.len() > 64 {
             self.error(
@@ -166,13 +160,31 @@ impl Cx {
             span,
         })
     }
+
+    pub(super) fn retained_slots(
+        &mut self,
+        root: &pc::FieldReference,
+        ty: Ty,
+    ) -> Vec<pc::FieldReference> {
+        self.value_slots(root, ty)
+            .into_iter()
+            .map(|(field, ty)| {
+                if matches!(ty, Ty::String | Ty::List(_) | Ty::Callable(_)) {
+                    Self::data_reference(&field).field
+                } else {
+                    field
+                }
+            })
+            .collect()
+    }
 }
 
-/// Whether control flow in this function frame can suspend. Selector bodies,
-/// loops and value blocks are lowered independently and cannot suspend here.
+/// Whether control flow in this function frame can suspend. Selector bodies
+/// and value blocks are separate frames.
 pub(super) fn may_suspend(operations: &[pc::Operation]) -> bool {
     operations.iter().any(|operation| match &operation.action {
         pc::Action::Suspend { .. } => true,
+        pc::Action::While { body, .. } => may_suspend(body),
         pc::Action::Branch {
             then, otherwise, ..
         } => may_suspend(then) || may_suspend(otherwise),
@@ -216,38 +228,28 @@ impl WaitJoins<'_> {
         for mut operation in std::mem::take(operations).into_iter().rev() {
             match &mut operation.action {
                 pc::Action::Suspend { body, .. } => {
-                    // The frontend embeds all following statements in this
-                    // body, so only an enclosing branch contributes a suffix.
-                    debug_assert!(suffix.len() <= 1);
-                    self.rewrite(body, suffix.pop());
+                    let fallthrough = self.take_suffix(&mut suffix);
+                    self.rewrite(body, fallthrough);
+                }
+                pc::Action::While { condition, body } if may_suspend(body) => {
+                    let fallthrough = self.take_suffix(&mut suffix);
+                    let index = self.outline(Vec::new());
+                    let repeat = self.call(index, operation.origin.clone());
+                    self.rewrite(body, Some(repeat.clone()));
+                    self.functions[index].body = vec![pc::Operation {
+                        action: pc::Action::Branch {
+                            condition: condition.clone(),
+                            then: std::mem::take(body),
+                            otherwise: fallthrough.into_iter().collect(),
+                        },
+                        origin: operation.origin,
+                    }];
+                    operation = repeat;
                 }
                 pc::Action::Branch {
                     then, otherwise, ..
                 } if may_suspend(then) || may_suspend(otherwise) => {
-                    let fallthrough = match suffix.len() {
-                        0 => None,
-                        1 if matches!(suffix[0].action, pc::Action::Call { .. }) => suffix.pop(),
-                        _ => {
-                            suffix.reverse();
-                            let id = sand::ResourceLocation::new(
-                                self.id.namespace(),
-                                format!("__wait/{}/{}", self.functions.len(), self.id.path()),
-                            )
-                            .expect("validated continuation identity");
-                            let origin = suffix.first().and_then(|op| op.origin.clone());
-                            self.functions.push(pc::Function {
-                                id: id.clone(),
-                                context: self.context,
-                                body: std::mem::take(&mut suffix),
-                            });
-                            Some(pc::Operation {
-                                action: pc::Action::Call {
-                                    function: pc::FunctionReference::Internal { id },
-                                },
-                                origin,
-                            })
-                        }
-                    };
+                    let fallthrough = self.take_suffix(&mut suffix);
                     self.rewrite(then, fallthrough.clone());
                     self.rewrite(otherwise, fallthrough);
                 }
@@ -257,5 +259,46 @@ impl WaitJoins<'_> {
         }
         suffix.reverse();
         *operations = suffix;
+    }
+
+    fn take_suffix(&mut self, reversed: &mut Vec<pc::Operation>) -> Option<pc::Operation> {
+        match reversed.len() {
+            0 => None,
+            1 if matches!(reversed[0].action, pc::Action::Call { .. }) => reversed.pop(),
+            _ => {
+                reversed.reverse();
+                let origin = reversed
+                    .first()
+                    .and_then(|operation| operation.origin.clone());
+                let index = self.outline(std::mem::take(reversed));
+                Some(self.call(index, origin))
+            }
+        }
+    }
+
+    fn outline(&mut self, body: Vec<pc::Operation>) -> usize {
+        let index = self.functions.len();
+        let id = sand::ResourceLocation::new(
+            self.id.namespace(),
+            format!("__wait/{index}/{}", self.id.path()),
+        )
+        .expect("validated continuation identity");
+        self.functions.push(pc::Function {
+            id,
+            context: self.context,
+            body,
+        });
+        index
+    }
+
+    fn call(&self, index: usize, origin: Option<serde_json::Value>) -> pc::Operation {
+        pc::Operation {
+            action: pc::Action::Call {
+                function: pc::FunctionReference::Internal {
+                    id: self.functions[index].id.clone(),
+                },
+            },
+            origin,
+        }
     }
 }

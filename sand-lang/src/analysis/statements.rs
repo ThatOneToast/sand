@@ -2400,6 +2400,7 @@ impl Cx {
         let mut setup = Vec::new();
         let mut step = Vec::new();
         let mut pre_body = Vec::new();
+        let mut retained = Vec::new();
         body.scopes.push(Vec::new());
         // The plain condition, when the test is a single comparison.
         let mut direct = None;
@@ -2553,6 +2554,7 @@ impl Cx {
                         body.temp_depth = depth;
                         return;
                     }
+                    retained.extend(self.retained_slots(&array, ty));
                     Some((array, element, length, ty == Ty::String))
                 } else {
                     None
@@ -2575,7 +2577,9 @@ impl Cx {
                 let binding_slot = self.local_ref(local);
                 self.value_slots(&binding_slot, binding_ty);
                 let counter = if snapshot.is_some() {
-                    self.temp(body)
+                    let counter = self.temp(body);
+                    retained.push(counter.clone());
+                    counter
                 } else {
                     binding_slot.clone()
                 };
@@ -2719,16 +2723,19 @@ impl Cx {
                             max: Some(max),
                         })
                     }
-                    Value::Read(limit) => pc::Condition::Relation(pc::ScoreRelation {
-                        left: counter.clone(),
-                        relation: match (reverse, range.inclusive) {
-                            (true, true) => pc::Relation::Ge,
-                            (true, false) => pc::Relation::Gt,
-                            (false, true) => pc::Relation::Le,
-                            (false, false) => pc::Relation::Lt,
-                        },
-                        right: limit,
-                    }),
+                    Value::Read(limit) => {
+                        retained.push(limit.clone());
+                        pc::Condition::Relation(pc::ScoreRelation {
+                            left: counter.clone(),
+                            relation: match (reverse, range.inclusive) {
+                                (true, true) => pc::Relation::Ge,
+                                (true, false) => pc::Relation::Gt,
+                                (false, true) => pc::Relation::Le,
+                                (false, false) => pc::Relation::Lt,
+                            },
+                            right: limit,
+                        })
+                    }
                 };
                 // A reversed exclusive range decrements before the body;
                 // its strict lower-bound test proves this cannot underflow.
@@ -2824,7 +2831,11 @@ impl Cx {
             flag: jump.clone(),
             executor_loops: body.loops.len(),
         });
-        let lowered = self.lower_block(body, block);
+        let retained_depth = body.wait_slots.len();
+        body.wait_slots.extend(retained);
+        body.wait_slots.extend(jump.iter().chain(&keep).cloned());
+        let lowered = self.lower_waitable_block(body, block);
+        body.wait_slots.truncate(retained_depth);
         body.jumps.pop();
         body.scopes.pop();
         let mut inner = Vec::new();

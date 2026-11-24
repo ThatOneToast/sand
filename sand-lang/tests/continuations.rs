@@ -56,7 +56,7 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
             "no return value",
         ),
         (
-            "fn eager() { loop { wait(1); break; } }",
+            "fn eager() { for p in players() { wait(1); } }",
             "directly in a function body",
         ),
         ("fn eager() { wait(0); }", "expected a value from 1"),
@@ -181,5 +181,53 @@ fn choose(mode: number) {
             .filter(|name| name.ends_with("/continuation.mcfunction"))
             .count(),
         2,
+    );
+}
+
+#[test]
+fn local_loops_outline_resumable_steps_and_preserve_collection_snapshots() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+player state Ledger { sum: number }
+fn wait_loop(values: Vec<number>) {
+    let mut total = 0;
+    while total < 2 { wait(2); total += 1; }
+    for value in values {
+        if value < 0 { continue; }
+        wait(3);
+        if value == 10 { break; }
+        total += value;
+    }
+    loop { wait(1); break; }
+    Ledger.sum += total;
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    assert_eq!(
+        pack.resources
+            .keys()
+            .filter(|name| name.ends_with("/continuation.mcfunction"))
+            .count(),
+        3,
+    );
+    let program = analysis.program.unwrap();
+    assert!(
+        program.modules[0]
+            .functions
+            .iter()
+            .filter(|function| function.id.path().starts_with("__wait/"))
+            .count()
+            >= 3
+    );
+    let document = serde_json::to_vec(&program).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&document, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
     );
 }

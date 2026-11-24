@@ -233,12 +233,12 @@ class ValuesHarness(WorldGameplayHarness):
 
 
     def check_control_waits(self):
-        for case, functions in (("branch", "branches"), ("match", "matches")):
+        for case, functions, ticks in (("branch", "branches", 10), ("match", "matches", 10), ("loop", "loops", 16)):
             for player, suffix in (("NumericA", "a"), ("NumericB", "b")):
                 self.send(f"execute as {player} at @s run function runtime_values:player_waits/queue_{functions}_{suffix}")
                 self.check(f"{case.upper()}_EAGER_{suffix.upper()}", f"if score #{case}_eager_{suffix} numeric_probe matches 1")
             start = len(self.lines)
-            self.send("tick step 10")
+            self.send(f"tick step {ticks}")
             pattern = re.compile(rf"\[(Numeric[AB])\] __SAND_{case.upper()}_WAIT_DONE__$")
             completions = []
             for _ in range(3):

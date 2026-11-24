@@ -753,16 +753,23 @@ impl Builder<'_> {
                 let arms = parts
                     .map(|arm| {
                         let arm_span = span(&arm);
-                        let mut parts = arm.into_inner();
+                        let mut parts = arm.into_inner().peekable();
                         let patterns = parts
                             .next()
                             .expect("patterns")
                             .into_inner()
+                            .filter(|part| part.as_rule() != Rule::match_wildcard)
                             .map(expr)
                             .collect();
+                        let guard = parts
+                            .next_if(|part| part.as_rule() == Rule::match_guard)
+                            .map(|guard| {
+                                self.cond(children(guard).next().expect("guard condition"))
+                            });
                         let body = self.block(parts.next().expect("arm body"));
                         MatchArm {
                             patterns,
+                            guard,
                             body,
                             span: arm_span,
                         }
@@ -1194,13 +1201,22 @@ fn expr(pair: P<'_>) -> Expr {
                 let arms = parts
                     .map(|arm| {
                         let location = span(&arm);
-                        let mut parts = arm.into_inner();
+                        let mut parts = arm.into_inner().peekable();
                         let patterns = parts
                             .next()
                             .expect("patterns")
                             .into_inner()
+                            .filter(|part| part.as_rule() != Rule::match_wildcard)
                             .map(expr)
                             .collect();
+                        let guard = parts
+                            .next_if(|part| part.as_rule() == Rule::match_guard)
+                            .map(|guard| {
+                                Builder {
+                                    errors: &mut Vec::new(),
+                                }
+                                .cond(children(guard).next().expect("guard condition"))
+                            });
                         let value = parts
                             .next()
                             .expect("arm value")
@@ -1223,6 +1239,7 @@ fn expr(pair: P<'_>) -> Expr {
                         };
                         MatchValueArm {
                             patterns,
+                            guard,
                             value,
                             span: location,
                         }

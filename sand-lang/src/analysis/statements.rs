@@ -22,6 +22,14 @@ struct Dest {
     name: String,
 }
 
+struct LoweredMatchArm<'a> {
+    values: Vec<i32>,
+    wildcard: bool,
+    guard: Option<&'a Cond>,
+    body: Vec<pc::Operation>,
+    span: Span,
+}
+
 /// What a `while`-shaped loop repeats on.
 pub(super) enum Repeat<'a> {
     /// `while cond { }`.
@@ -118,7 +126,10 @@ pub(super) const FRAME_MARKER: &str = "__frame";
 pub(super) fn contains_call(expr: &Expr) -> bool {
     match expr {
         Expr::Match { value, arms, .. } => {
-            contains_call(value) || arms.iter().any(|arm| contains_call(&arm.value))
+            contains_call(value)
+                || arms.iter().any(|arm| {
+                    contains_call(&arm.value) || arm.guard.as_ref().is_some_and(cond_contains_call)
+                })
         }
         Expr::Call { .. } => true,
         Expr::Neg(inner, _) | Expr::Cast(inner, _, _) => contains_call(inner),
@@ -1834,18 +1845,20 @@ impl Cx {
         }
         // Reserve the dispatch flag before lowering arm scratch storage.
         let matched = self.temp(body);
-        let patterns: Vec<_> = arms.iter().map(|arm| (&arm.patterns, arm.span)).collect();
+        let patterns: Vec<_> = arms
+            .iter()
+            .map(|arm| (arm.patterns.as_slice(), arm.guard.is_some(), arm.span))
+            .collect();
         let values = self.match_patterns(body, ty, &patterns, span);
         let lowered = arms
             .iter()
             .zip(values)
-            .map(|(arm, values)| {
-                (
-                    values,
-                    arm.patterns.is_empty(),
-                    self.lower_block(body, &arm.body),
-                    arm.span,
-                )
+            .map(|(arm, values)| LoweredMatchArm {
+                values,
+                wildcard: arm.patterns.is_empty(),
+                guard: arm.guard.as_ref(),
+                body: self.lower_block(body, &arm.body),
+                span: arm.span,
             })
             .collect();
         self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
@@ -1857,19 +1870,20 @@ impl Cx {
         &mut self,
         body: &BodyCx,
         ty: Ty,
-        arms: &[(&Vec<Expr>, Span)],
+        arms: &[(&[Expr], bool, Span)],
         span: Span,
     ) -> Vec<Vec<i32>> {
         let file = body.file;
         let mut covered = BTreeSet::new();
         let mut wildcard = false;
         let mut lowered = Vec::new();
-        for (patterns, arm_span) in arms {
+        for (patterns, guarded, arm_span) in arms {
             if wildcard {
                 self.error("match", file, *arm_span, "unreachable match arm after `_`");
             }
             let mut values = Vec::new();
-            if patterns.is_empty() {
+            let mut alternatives = BTreeSet::new();
+            if patterns.is_empty() && !guarded {
                 wildcard = true;
             }
             for pattern in patterns.iter() {
@@ -1884,13 +1898,16 @@ impl Cx {
                 }
                 if let Some(value) = self.eval_i32(body.module, file, pattern, Some(ty), None) {
                     let value = value as i32;
-                    if !covered.insert(value) {
+                    if covered.contains(&value) || !alternatives.insert(value) {
                         self.error(
                             "match",
                             file,
                             pattern.span(),
                             "this value is already covered by a previous pattern",
                         );
+                    }
+                    if !guarded {
+                        covered.insert(value);
                     }
                     values.push(value);
                 }
@@ -1936,7 +1953,7 @@ impl Cx {
         body: &mut BodyCx,
         snapshot: &pc::FieldReference,
         matched: &pc::FieldReference,
-        arms: Vec<(Vec<i32>, bool, Vec<pc::Operation>, Span)>,
+        arms: Vec<LoweredMatchArm<'_>>,
         span: Span,
         ops: &mut Vec<pc::Operation>,
     ) {
@@ -1948,8 +1965,9 @@ impl Cx {
             body.file,
             span,
         ));
-        for (values, wildcard, branch, arm_span) in arms {
-            let mut branch = branch;
+        for arm in arms {
+            let arm_span = arm.span;
+            let mut branch = arm.body;
             branch.insert(
                 0,
                 op_at(
@@ -1961,10 +1979,16 @@ impl Cx {
                     arm_span,
                 ),
             );
-            let selected = if wildcard {
+            if let Some(guard) = arm.guard {
+                let Some(guarded) = self.lower_cond(body, guard, branch, Vec::new()) else {
+                    continue;
+                };
+                branch = guarded;
+            }
+            let selected = if arm.wildcard {
                 branch
             } else {
-                values
+                arm.values
                     .into_iter()
                     .map(|value| {
                         op_at(
@@ -2016,13 +2040,22 @@ impl Cx {
         self.emit(body, &snapshot, scrutinee_ty, value, ops)?;
         // Reserve the dispatch flag before lowering arm scratch storage.
         let matched = self.temp(body);
-        let patterns: Vec<_> = arms.iter().map(|arm| (&arm.patterns, arm.span)).collect();
+        let patterns: Vec<_> = arms
+            .iter()
+            .map(|arm| (arm.patterns.as_slice(), arm.guard.is_some(), arm.span))
+            .collect();
         let values = self.match_patterns(body, scrutinee_ty, &patterns, span);
         let mut lowered = Vec::new();
         for (arm, values) in arms.iter().zip(values) {
             let mut branch = Vec::new();
             self.emit(body, dest, ty, &arm.value, &mut branch)?;
-            lowered.push((values, arm.patterns.is_empty(), branch, arm.span));
+            lowered.push(LoweredMatchArm {
+                values,
+                wildcard: arm.patterns.is_empty(),
+                guard: arm.guard.as_ref(),
+                body: branch,
+                span: arm.span,
+            });
         }
         self.match_dispatch(body, &snapshot, &matched, lowered, span, ops);
         body.temp_depth = depth;

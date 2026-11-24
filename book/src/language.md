@@ -696,7 +696,7 @@ fn price(phase: Phase) -> number {
 Patterns are typed constants or enum variants, with `|` joining alternatives.
 Cover every enum variant, both booleans, or add `_ => { ... }` for all remaining
 values. Numeric matches require a wildcard. Duplicate patterns, missing cases,
-and arms following a wildcard are errors. Dispatch depth does not grow with the
+and arms following an unguarded wildcard are errors. Dispatch depth does not grow with the
 number of arms.
 
 A value match evaluates only the selected arm's expression. It works in local
@@ -712,8 +712,20 @@ let rewards: Vec<number> = match won { true => [5, 10], false => [] };
 ```
 
 Value arms are comma-separated expressions. Statement arms use scoped blocks;
-block expressions, match guards, binding patterns in matches and enum payloads
+block expressions, binding patterns in matches and enum payloads
 remain future work.
+
+Use `if` after a pattern to add a guard in either form of `match`. Sand tests
+the guard only after the pattern matches. If it evaluates to false, matching
+continues with the next arm. Only unguarded arms contribute to exhaustiveness.
+
+```rust,ignore
+let rank = match mined {
+    10 | 20 => Rank::Beginner,
+    _ if mined <= 40 => Rank::Explorer,
+    _ => Rank::Veteran,
+};
+```
 
 ### Destructuring
 

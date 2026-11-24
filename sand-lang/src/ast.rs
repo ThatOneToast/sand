@@ -800,6 +800,8 @@ impl Pattern {
 pub struct MatchArm {
     /// Constant alternatives; empty for `_`.
     pub patterns: Vec<Expr>,
+    /// Optional condition evaluated after the pattern matches.
+    pub guard: Option<Cond>,
     /// Body scoped to this arm.
     pub body: Block,
     /// Whole arm.
@@ -811,6 +813,8 @@ pub struct MatchArm {
 pub struct MatchValueArm {
     /// Constant alternatives; empty for the wildcard.
     pub patterns: Vec<Expr>,
+    /// Optional condition evaluated after the pattern matches.
+    pub guard: Option<Cond>,
     /// Value produced by this arm.
     pub value: Expr,
     /// Whole arm.

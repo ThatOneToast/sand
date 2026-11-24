@@ -16,7 +16,7 @@ fn mine() {
     if Progress.mined % 10 == 0 {
         let rank = match Progress.mined {
             10 | 20 => Rank::Beginner,
-            30 | 40 => Rank::Explorer,
+            _ if Progress.mined <= 40 => Rank::Explorer,
             _ => Rank::Veteran,
         };
         let Reward { title, amounts: [iron, gold] } = reward(rank);

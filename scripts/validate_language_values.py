@@ -36,6 +36,7 @@ class ValuesHarness(WorldGameplayHarness):
                     for token in ("SAND-JOURNAL-PROBE", "click_event", "copy_to_clipboard",
                                   "hover_event", "show_text", "Native text"):
                         command.extend(["--expect-system-chat", token])
+                    command.extend(["--expect-particles", "10.25", "71", "20.5", "0.25", "0.5", "7"])
                 client = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
                 clients.append(client)
                 self.wait_for(re.compile(re.escape(name) + r" joined the game"), "player-join", start)
@@ -54,6 +55,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("STATE_IMPL_A", "if score #impl_a numeric_probe matches 1")
             self.check("STATE_IMPL_B", "if score #impl_b numeric_probe matches 1")
             self.check("PLAYER_PROPERTIES", "if score #property numeric_probe matches 1")
+            self.send("execute as NumericA at @s positioned 10.25 70 20.5 run function runtime_values:show_particles")
             self.send("execute as NumericA run function runtime_values:show_localized")
             self.check(
                 "TRANSLATED_ITEM",

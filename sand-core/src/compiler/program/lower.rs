@@ -1300,6 +1300,16 @@ struct Lower<'sources> {
     /// Entity States by id, with their field defaults.
     entity_states: BTreeMap<String, Vec<(String, i32)>>,
 }
+fn whole_amount(operand: &ScoreOperand) -> Amount {
+    match operand {
+        ScoreOperand::Value(value) => Amount::Value(*value as f64),
+        ScoreOperand::Field(score) => Amount::Field(ScaledField {
+            score: score.clone(),
+            scale: 1.0,
+        }),
+    }
+}
+
 struct NumericArgument<'a> {
     name: &'a str,
     value: &'a Amount,
@@ -1921,9 +1931,34 @@ impl Lower<'_> {
                     count,
                     spread,
                     speed,
-                } => vec![Cmd::Raw(format!(
-                    "particle {particle} ~ ~1 ~ {spread} {spread} {spread} {speed} {count}"
-                ))],
+                } => self.numeric_command(
+                    (owner, &path, module, &ptr),
+                    "particle",
+                    format!(
+                        "particle {particle} ~ ~1 ~ $(spread) $(spread) $(spread) $(speed) $(count)"
+                    ),
+                    &[
+                        NumericArgument {
+                            name: "spread",
+                            value: spread,
+                            integer: false,
+                            bounds: Some((0.0, 1000.0)),
+                        },
+                        NumericArgument {
+                            name: "speed",
+                            value: speed,
+                            integer: false,
+                            bounds: Some((0.0, 1000.0)),
+                        },
+                        NumericArgument {
+                            name: "count",
+                            value: &whole_amount(count),
+                            integer: true,
+                            bounds: Some((0.0, 100_000.0)),
+                        },
+                    ],
+                    &[],
+                )?,
                 Action::Effect {
                     effect,
                     seconds,
@@ -1947,13 +1982,7 @@ impl Lower<'_> {
                 })],
                 Action::GiveItem { item, count } => {
                     let item = self.item_stack_argument(item).map_err(fail)?;
-                    let count = match count {
-                        ScoreOperand::Value(value) => Amount::Value(*value as f64),
-                        ScoreOperand::Field(score) => Amount::Field(ScaledField {
-                            score: score.clone(),
-                            scale: 1.0,
-                        }),
-                    };
+                    let count = whole_amount(count);
                     let dynamic = matches!(count, Amount::Field(_));
                     let strings = if dynamic {
                         vec![("item", item.clone())]

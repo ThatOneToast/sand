@@ -1883,9 +1883,9 @@ impl Validator<'_, '_> {
                 }
                 Action::Particle {
                     particle,
+                    count,
                     spread,
                     speed,
-                    ..
                 } => {
                     self.resource(
                         particle,
@@ -1893,14 +1893,29 @@ impl Validator<'_, '_> {
                         &format!("{ptr}/action/particle"),
                         "particle",
                     );
-                    if !(spread.is_finite() && *spread >= 0.0 && speed.is_finite() && *speed >= 0.0)
-                    {
-                        self.errors.push(Diagnostic::error(
-                            "SAND_PROGRAM_RANGE",
+                    for (name, value) in [("spread", spread), ("speed", speed)] {
+                        self.amount(
+                            value,
+                            context,
                             owner,
-                            &format!("{ptr}/action"),
-                            "particle spread and speed must be finite and non-negative",
-                        ));
+                            &format!("{ptr}/action/{name}"),
+                            Some((0.0, 1000.0)),
+                        );
+                    }
+                    let count_path = format!("{ptr}/action/count");
+                    match count {
+                        ScoreOperand::Value(value) if !(0..=100_000).contains(value) => {
+                            self.errors.push(Diagnostic::error(
+                                "SAND_PROGRAM_RANGE",
+                                owner,
+                                &count_path,
+                                "particle count must be from 0 to 100000",
+                            ));
+                        }
+                        ScoreOperand::Field(score) => {
+                            self.score(score, context, owner, &count_path)
+                        }
+                        _ => {}
                     }
                 }
                 Action::Effect {

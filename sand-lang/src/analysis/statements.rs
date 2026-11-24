@@ -3059,34 +3059,6 @@ impl Cx {
         Some(value)
     }
 
-    fn arg_number(&mut self, body: &BodyCx, arg: &Arg, min: f64, max: f64) -> Option<f32> {
-        let value = match &arg.value {
-            ArgValue::Expr(Expr::Float(value, _)) => *value,
-            ArgValue::Expr(expr) if Self::is_const_in(body, expr) => {
-                self.eval_i32(body.module, body.file, expr, Some(Ty::Number), None)? as f64
-            }
-            other => {
-                self.error(
-                    "type",
-                    body.file,
-                    other.span(),
-                    "expected a number such as `0.5`",
-                );
-                return None;
-            }
-        };
-        if !(min..=max).contains(&value) {
-            self.error(
-                "range",
-                body.file,
-                arg.value.span(),
-                format!("expected a number from {min} to {max}"),
-            );
-            return None;
-        }
-        Some(value as f32)
-    }
-
     fn arg_bool(&mut self, file: FileId, arg: &Arg) -> Option<bool> {
         match &arg.value {
             ArgValue::Expr(Expr::Bool(value, _)) => Some(*value),
@@ -3295,6 +3267,7 @@ impl Cx {
                 | "teleport_by"
                 | "set_velocity"
                 | "play_sound"
+                | "spawn_particle"
                 | "add_experience"
         ) {
             let depth = body.temp_depth;
@@ -3308,6 +3281,37 @@ impl Cx {
         if let Some(action) = self.builtin_action(body, builtin, &bound, span) {
             ops.push(op_at(action, file, span));
         }
+    }
+
+    fn runtime_whole(
+        &mut self,
+        body: &mut BodyCx,
+        arg: &Arg,
+        min: i64,
+        max: i64,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<pc::ScoreOperand> {
+        let ArgValue::Expr(expr) = &arg.value else {
+            self.error(
+                "type",
+                body.file,
+                arg.span,
+                "expected a number value, found a range",
+            );
+            return None;
+        };
+        if Self::is_const_in(body, expr) {
+            return Some(pc::ScoreOperand::Value(
+                self.arg_int(body, arg, min, max)? as i32
+            ));
+        }
+        let found = self.type_of(body, expr);
+        if !self.types_agree(body.file, expr.span(), Ty::Number, found) {
+            return None;
+        }
+        let score = self.temp(body);
+        self.emit(body, &score, Ty::Number, expr, ops)?;
+        Some(pc::ScoreOperand::Field(score))
     }
 
     // Numeric command arguments are frozen in authored argument order. A later
@@ -3326,28 +3330,7 @@ impl Cx {
                 let item = self.arg_id(body, bound["item"], "Item")?;
                 let count = match bound.get("count") {
                     None => pc::ScoreOperand::Value(1),
-                    Some(arg) => {
-                        let ArgValue::Expr(expr) = &arg.value else {
-                            self.error(
-                                "type",
-                                body.file,
-                                arg.span,
-                                "expected a number value, found a range",
-                            );
-                            return None;
-                        };
-                        if Self::is_const_in(body, expr) {
-                            pc::ScoreOperand::Value(self.arg_int(body, arg, 1, 6400)? as i32)
-                        } else {
-                            let found = self.type_of(body, expr);
-                            if !self.types_agree(body.file, expr.span(), Ty::Number, found) {
-                                return None;
-                            }
-                            let score = self.temp(body);
-                            self.emit(body, &score, Ty::Number, expr, ops)?;
-                            pc::ScoreOperand::Field(score)
-                        }
-                    }
+                    Some(arg) => self.runtime_whole(body, arg, 1, 6400, ops)?,
                 };
                 Some(pc::Action::GiveItem { item, count })
             }
@@ -3380,6 +3363,39 @@ impl Cx {
                     sound,
                     volume,
                     pitch,
+                })
+            }
+            "spawn_particle" => {
+                let particle = self.arg_id(body, bound["particle"], "Particle")?;
+                let mut count = pc::ScoreOperand::Value(1);
+                let mut spread = pc::Amount::Value(0.0);
+                let mut speed = pc::Amount::Value(0.0);
+                for arg in args {
+                    let (key, _) = bound.iter().find(|(_, value)| std::ptr::eq(**value, arg))?;
+                    match *key {
+                        "count" => count = self.runtime_whole(body, arg, 0, 100_000, ops)?,
+                        "spread" => spread = self.runtime_amount(body, arg, ops)?,
+                        "speed" => speed = self.runtime_amount(body, arg, ops)?,
+                        _ => {}
+                    }
+                }
+                for (key, amount) in [("spread", &spread), ("speed", &speed)] {
+                    if matches!(amount, pc::Amount::Value(value) if !(0.0..=1000.0).contains(value))
+                    {
+                        self.error(
+                            "range",
+                            body.file,
+                            bound.get(key).map_or(span, |arg| arg.span),
+                            format!("particle {key} must be from 0 to 1000"),
+                        );
+                        return None;
+                    }
+                }
+                Some(pc::Action::Particle {
+                    particle,
+                    count,
+                    spread,
+                    speed,
                 })
             }
             "add_experience" => {
@@ -4573,27 +4589,6 @@ impl Cx {
                     None => None,
                 };
                 pc::Action::SetEquipment { slot, item, count }
-            }
-            "spawn_particle" => {
-                let particle = self.arg_id(body, bound["particle"], "Particle");
-                let count = match bound.get("count") {
-                    Some(arg) => self.arg_int(body, arg, 0, 100_000),
-                    None => Some(1),
-                };
-                let spread = match bound.get("spread") {
-                    Some(arg) => self.arg_number(body, arg, 0.0, 1000.0),
-                    None => Some(0.0),
-                };
-                let speed = match bound.get("speed") {
-                    Some(arg) => self.arg_number(body, arg, 0.0, 1000.0),
-                    None => Some(0.0),
-                };
-                pc::Action::Particle {
-                    particle: particle?,
-                    count: count? as u32,
-                    spread: spread?,
-                    speed: speed?,
-                }
             }
             "add_effect" => {
                 let effect = self.arg_id(body, bound["effect"], "Effect");

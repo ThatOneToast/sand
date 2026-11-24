@@ -157,6 +157,9 @@ def main():
     parser.add_argument("on_join", nargs="?")
     parser.add_argument("--expect-system-chat", action="append", default=[], metavar="TEXT",
                         help="require one system chat packet containing every supplied UTF-8 token")
+    parser.add_argument("--expect-particles", nargs=6, type=float,
+                        metavar=("X", "Y", "Z", "SPREAD", "SPEED", "COUNT"),
+                        help="require a particle packet with these position and numeric options")
     parser.add_argument("--auto-respawn", action="store_true")
     parser.add_argument("--control-dir", help="existing private directory for atomic JSON commands/status")
     args = parser.parse_args()
@@ -176,11 +179,12 @@ def main():
     with closing(conn.sock):
         return run_session(conn, host, port, protocol_version, username, run_seconds, on_join,
                            auto_respawn=args.auto_respawn, controls=controls,
-                           expected_system_chat=tuple(text.encode() for text in args.expect_system_chat))
+                           expected_system_chat=tuple(text.encode() for text in args.expect_system_chat),
+                           expected_particles=args.expect_particles)
 
 
 def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *,
-                auto_respawn=False, controls=None, expected_system_chat=()):
+                auto_respawn=False, controls=None, expected_system_chat=(), expected_particles=None):
     profile = profile_for_protocol(protocol_version)
     packets = profile["packets"]
     login_in, login_out = packets["login"]["clientbound"], packets["login"]["serverbound"]
@@ -294,6 +298,17 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                 if all(token in data for token in expected_system_chat):
                     expected_system_chat = ()
                     print("[play] observed the requested system chat component")
+            elif pid == play_in["level_particles"] and expected_particles is not None:
+                # ClientboundLevelParticlesPacket starts with two flags, then
+                # three coordinates, three deltas, speed, and integer count.
+                particle_header = struct.Struct(">??dddffffi")
+                if len(data) >= particle_header.size:
+                    _, _, x, y, z, dx, dy, dz, speed, count = particle_header.unpack_from(data)
+                    px, py, pz, spread, expected_speed, expected_count = expected_particles
+                    if (x, y, z, dx, dy, dz, speed, count) == (
+                            px, py, pz, spread, spread, spread, expected_speed, expected_count):
+                        expected_particles = None
+                        print("[play] observed the requested particle packet")
             elif pid == play_in["player_position"]:
                 # ClientboundPlayerPositionPacket starts with the teleport
                 # ID. Acknowledging it clears the server's changing-dimension
@@ -336,6 +351,9 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
     print(f"final state={state} joined_play={joined}")
     if expected_system_chat:
         print(f"[play] no system chat packet contained {expected_system_chat!r}")
+        return False
+    if expected_particles is not None:
+        print(f"[play] no particle packet matched {expected_particles!r}")
         return False
     return joined
 

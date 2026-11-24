@@ -975,6 +975,19 @@ vanilla identity as a string gets a warning pointing at the typed value.
 Hover any builtin in the editor to see its arguments and the Minecraft command
 it becomes.
 
+### Particle effects
+
+`spawn_particle` places particles one block above the current execution
+position. The count, spread and speed accept runtime values. Count must be a
+`number` from 0 to 100,000. Spread and speed accept numbers or floats from 0 to
+1,000. Sand evaluates arguments in source order and skips the command when a
+runtime value is out of range.
+
+```rust,ignore
+let sparks = Hero.energy / 10;
+spawn_particle(Particle::HappyVillager, count = sparks, spread = 0.25);
+```
+
 ## Entities
 
 `for name in entities(..)` runs its body as each matching entity, positioned

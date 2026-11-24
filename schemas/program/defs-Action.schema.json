@@ -340,13 +340,11 @@
     },
     {
       "additionalProperties": false,
-      "description": "Spawn particles at the executor's position.",
+      "description": "Spawn particles one block above the executor, with checked numeric options.",
       "properties": {
         "count": {
-          "default": 1,
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
+          "$ref": "defs-ScoreOperand.schema.json",
+          "default": 1
         },
         "op": {
           "const": "particle",
@@ -356,14 +354,12 @@
           "type": "string"
         },
         "speed": {
-          "default": 0.0,
-          "format": "float",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json",
+          "default": 0.0
         },
         "spread": {
-          "default": 0.0,
-          "format": "float",
-          "type": "number"
+          "$ref": "defs-Amount.schema.json",
+          "default": 0.0
         }
       },
       "required": [

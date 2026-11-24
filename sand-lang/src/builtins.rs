@@ -1237,7 +1237,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "spawn_particle(Particle::..., count = 1, spread = 0.0, speed = 0.0)",
         summary: "Spawn particles one block above the executor.",
-        details: "`spread` is the random offset in blocks on each axis.",
+        details: "Count, spread and speed accept runtime numeric values. Spread is the random offset in blocks on each axis. An out-of-range runtime value skips the particle command.",
         minecraft: "particle <particle> ~ ~1 ~ <spread> <spread> <spread> <speed> <count>",
         needs_player: false,
         params: &[

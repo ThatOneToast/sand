@@ -19,7 +19,7 @@ recipe GuardTrim {
     addition: Item::AmethystShard,
     trim_pattern: "minecraft:sentry",
 }
-global state Origin { x: float }
+global state Origin { x: float, spread: float }
 player state Ledger { requested: number, label: string = "new", recent: Vec<string> }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -27,6 +27,18 @@ impl Ledger {
 
 #[load]
 fn setup() { raw!("scoreboard objectives add numeric_probe dummy"); }
+
+fn particle_speed() -> float {
+    Origin.spread = 0.75;
+    return 0.5;
+}
+fn show_particles() {
+    Origin.spread = 0.25;
+    let count = 7;
+    spawn_particle(Particle::Heart, spread = Origin.spread, speed = particle_speed(), count = count);
+    let invalid = -1;
+    spawn_particle(Particle::Heart, count = invalid);
+}
 
 fn show_localized() {
     let label = Ledger.label;

@@ -2885,6 +2885,78 @@
       ],
       "type": "object"
     },
+    "FlatDimension": {
+      "additionalProperties": false,
+      "description": "A native dimension with an ordered stack of flat terrain layers.",
+      "properties": {
+        "dimension_type": {
+          "description": "Existing dimension type, which defines height and environmental rules.",
+          "type": "string"
+        },
+        "flat": {
+          "$ref": "#/$defs/FlatGenerator",
+          "description": "Canonical bottom-to-top layers and flat-world settings."
+        },
+        "id": {
+          "description": "Identity used by dimension-scoped operations.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "dimension_type",
+        "flat"
+      ],
+      "type": "object"
+    },
+    "FlatGenerator": {
+      "additionalProperties": false,
+      "description": "Superflat (\"flat\") world generator settings.\n\nTotal layer height is limited to Minecraft's absolute codec bound of 4064\nblocks. The referenced dimension type determines the usable world height.\n\n\ud83c\udf0d World (datapack) \u2014 lowers to a `minecraft:flat` chunk generator.",
+      "properties": {
+        "biome_id": {
+          "description": "The biome used for every column.",
+          "type": "string"
+        },
+        "layers": {
+          "description": "Bottom-to-top layer stack, validated on dimension export.",
+          "items": {
+            "$ref": "#/$defs/FlatLayer"
+          },
+          "type": "array"
+        },
+        "structures": {
+          "description": "Whether to allow Minecraft's default structure sets.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "layers",
+        "biome_id",
+        "structures"
+      ],
+      "type": "object"
+    },
+    "FlatLayer": {
+      "additionalProperties": false,
+      "description": "A single horizontal layer in a [`Generator::Flat`] world, from the\nbottom of the column upward.\n\n\ud83c\udf0d World (datapack).",
+      "properties": {
+        "block": {
+          "description": "Block resource location, e.g. `\"minecraft:stone\"`.",
+          "type": "string"
+        },
+        "height": {
+          "description": "Number of blocks this layer occupies (must be `> 0`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "block",
+        "height"
+      ],
+      "type": "object"
+    },
     "Flow": {
       "additionalProperties": false,
       "description": "A state machine bound to one player or global integer State field.\n\nThe shared Rust/portable lifecycle runs automatic State maintenance, then\nflows, then authored module tick actions. Writes from a module's tick body\ntherefore affect flow selection on the following cycle. Within a flow,\ntransitions run before tick hooks, and later hooks observe earlier writes.",
@@ -4815,6 +4887,13 @@
       "description": "Native notice dialogs declared by this module.",
       "items": {
         "$ref": "#/$defs/NoticeDialog"
+      },
+      "type": "array"
+    },
+    "dimensions": {
+      "description": "Native flat dimensions declared by this module.",
+      "items": {
+        "$ref": "#/$defs/FlatDimension"
       },
       "type": "array"
     },

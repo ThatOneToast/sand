@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Dimension, _) => (
+                    format!("{vis}dimension {}", def.name),
+                    format!("Flat dimension `{id}`. Use it with `in_dimension` or `dimension_is`."),
+                ),
                 (crate::ast::DataKind::Dialog, _) => (
                     format!("{vis}dialog {}", def.name),
                     format!("Native notice `{id}`. Open it with `show_dialog`."),
@@ -1143,7 +1147,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::DamageType
         | DefKind::Predicate
         | DefKind::Advancement
-        | DefKind::Dialog => CompletionKind::Constant,
+        | DefKind::Dialog
+        | DefKind::Dimension => CompletionKind::Constant,
     }
 }
 
@@ -1813,6 +1818,11 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("Dimension") => {
+                out.extend(scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::Dimension
+                }));
+            }
             Some("DamageType") => {
                 out.extend(scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::DamageType
@@ -2376,6 +2386,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot",
             "loot table",
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "dimension",
+            "flat dimension",
+            "dimension ${1:Workshop} { layers: [{ block: Block::${2:Bedrock}, height: ${3:1} }] }",
         ),
         Completion::snippet(
             "dialog",

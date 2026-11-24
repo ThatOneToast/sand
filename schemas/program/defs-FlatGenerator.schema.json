@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Superflat (\"flat\") world generator settings.\n\nTotal layer height is limited to Minecraft's absolute codec bound of 4064\nblocks. The referenced dimension type determines the usable world height.\n\n\ud83c\udf0d World (datapack) \u2014 lowers to a `minecraft:flat` chunk generator.",
+  "properties": {
+    "biome_id": {
+      "description": "The biome used for every column.",
+      "type": "string"
+    },
+    "layers": {
+      "description": "Bottom-to-top layer stack, validated on dimension export.",
+      "items": {
+        "$ref": "defs-FlatLayer.schema.json"
+      },
+      "type": "array"
+    },
+    "structures": {
+      "description": "Whether to allow Minecraft's default structure sets.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "layers",
+    "biome_id",
+    "structures"
+  ],
+  "type": "object"
+}

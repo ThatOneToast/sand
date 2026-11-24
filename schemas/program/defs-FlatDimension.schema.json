@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A native dimension with an ordered stack of flat terrain layers.",
+  "properties": {
+    "dimension_type": {
+      "description": "Existing dimension type, which defines height and environmental rules.",
+      "type": "string"
+    },
+    "flat": {
+      "$ref": "defs-FlatGenerator.schema.json",
+      "description": "Canonical bottom-to-top layers and flat-world settings."
+    },
+    "id": {
+      "description": "Identity used by dimension-scoped operations.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "dimension_type",
+    "flat"
+  ],
+  "type": "object"
+}

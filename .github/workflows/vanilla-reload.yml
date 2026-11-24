@@ -253,6 +253,11 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/language-world-ops"
           python3 scripts/validate_language.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --load-dimension language_probe:workshop \
+            --fixture sand-lang/tests/fixtures/flat_dimensions.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-flat-dimensions"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/equipment.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-equipment"
           python3 scripts/validate_language.py \

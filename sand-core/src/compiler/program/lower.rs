@@ -94,6 +94,13 @@ pub(super) fn lower(
             )]
         },
     )?;
+    let mut dimensions: Vec<_> = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.dimensions)
+        .map(|dimension| sand_components::DimensionId::custom(dimension.id.clone()))
+        .collect();
+    dimensions.sort_by_cached_key(ToString::to_string);
     let mut lower = Lower {
         namespace: program.pack.namespace.clone(),
         holders: states
@@ -115,6 +122,7 @@ pub(super) fn lower(
         records: Vec::new(),
         sources,
         continuations: Vec::new(),
+        dimensions,
         continuation_count: 0,
         cancel_waits: false,
         init,
@@ -422,6 +430,22 @@ pub(super) fn lower(
             let component = recipe_component(recipe, &lower.custom_items).map_err(fail)?;
             let record = records::component_to_record(component.as_ref(), Some(&ctx))
                 .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
+        for (index, dimension) in module.dimensions.iter().enumerate() {
+            let component = sand_components::Dimension::flat_generator(
+                dimension.id.clone(),
+                dimension.dimension_type.clone(),
+                dimension.flat.clone(),
+            );
+            let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/dimensions/{index}"),
+                    error.to_string(),
+                )]
+            })?;
             lower.records.push(record);
         }
         for (index, dialog) in module.dialogs.iter().enumerate() {
@@ -1394,6 +1418,7 @@ struct Lower<'sources> {
     records: Vec<ComponentRecord>,
     sources: Option<&'sources mut BTreeMap<String, Vec<CommandSource>>>,
     continuations: Vec<continuations::Continuation>,
+    dimensions: Vec<sand_components::DimensionId>,
     continuation_count: usize,
     cancel_waits: bool,
     init: Option<String>,

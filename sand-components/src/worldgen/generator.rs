@@ -10,6 +10,8 @@ use crate::registry::{BiomeId, BlockId, NoiseSettingsId};
 use crate::resource_location::ResourceLocation;
 use crate::{error::Result as SandResult, validation};
 use sand_macros::api;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 // FlatLevelGeneratorSettings validates the sum against DimensionType.Y_SIZE.
@@ -20,7 +22,8 @@ const MAX_FLAT_HEIGHT: u64 = 4064;
 /// bottom of the column upward.
 ///
 /// 🌍 World (datapack).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 #[api(
     registry = sand_api_contract,
     path = "sand::build::FlatLayer",
@@ -36,6 +39,7 @@ const MAX_FLAT_HEIGHT: u64 = 4064;
 )]
 pub struct FlatLayer {
     /// Block resource location, e.g. `"minecraft:stone"`.
+    #[schemars(with = "String")]
     pub block: BlockId,
     /// Number of blocks this layer occupies (must be `> 0`).
     pub height: u32,
@@ -70,7 +74,8 @@ impl FlatLayer {
 /// blocks. The referenced dimension type determines the usable world height.
 ///
 /// 🌍 World (datapack) — lowers to a `minecraft:flat` chunk generator.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 #[api(
     registry = sand_api_contract,
     path = "sand::build::FlatGenerator",
@@ -88,6 +93,7 @@ pub struct FlatGenerator {
     /// Bottom-to-top layer stack, validated on dimension export.
     pub layers: Vec<FlatLayer>,
     /// The biome used for every column.
+    #[schemars(with = "String")]
     pub biome_id: BiomeId,
     /// Whether to allow Minecraft's default structure sets.
     pub structures: bool,

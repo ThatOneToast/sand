@@ -1210,14 +1210,14 @@ fn prepare() {
 }
 ```
 
-Delays count ticks while the continuation's chunk is loaded in one of the
-three vanilla dimensions. A missing owner ends the wait. A player can move to
+Delays count ticks while the continuation's chunk is loaded in a vanilla
+dimension or a dimension declared in the pack. A missing owner ends the wait. A player can move to
 another dimension while the saved chunk is still loaded. A datapack reload
 invalidates outstanding waits. Use `cancel_waits()` as the original executor
 to cancel that entity's pending waits in this pack.
 
-Waits take positive constant durations, keep up to 64 local fields including
-record fields, and admit up to 128 pending instances at each wait statement.
+Waits keep up to 64 local fields including record fields and admit up to 128
+pending instances at each wait statement.
 Put a wait directly in a function with no return value or mutable borrowed
 receiver. To start delayed work from a branch or loop, call a function that
 contains the wait. See the [bakery example](../../examples/lang_waits/pack.sand).
@@ -1232,12 +1232,46 @@ relative to the executor. Both take constants.
 in that dimension with the same executor. Subsequent statements return to the
 original context. Minecraft scales horizontal coordinates when crossing between
 the Overworld and Nether. Use an absolute `pos(...)` for specific block locations.
-The vanilla choices are `Overworld`, `TheNether`, and `TheEnd`. Custom dimensions
-use namespaced identities such as `"my_pack:arena"`.
+The vanilla choices are `Overworld`, `TheNether`, and `TheEnd`. Pass the name of
+a dimension declared by the pack, or a namespaced identity such as
+`"another_pack:arena"` when the dimension comes from another pack.
 
 `biome_is(Biome::Plains, pos(0, 80, 0))` checks the biome at a block position
 in the current dimension. Biome identifiers and editor suggestions come from
 the selected Minecraft version. A custom biome can use a namespaced identity.
+
+### Flat dimensions
+
+Declare a flat dimension with a stack of terrain layers in bottom-to-top order.
+
+```rust,ignore
+dimension Workshop {
+    type: DimensionType::Overworld,
+    biome: Biome::Desert,
+    layers: [
+        { block: Block::Bedrock, height: 1 },
+        { block: Block::Sandstone, height: 2 },
+    ],
+}
+
+fn inspect_workshop() {
+    in_dimension(Workshop, report_workshop);
+}
+
+fn report_workshop() {
+    if dimension_is(Workshop) {
+        broadcast!("The workshop is available.");
+    }
+}
+```
+
+Each layer needs a block and a positive height. The defaults are
+`DimensionType::Overworld`, `Biome::Plains`, and `structures: false`. Install
+the pack before starting the world so Minecraft registers the dimension.
+As in vanilla dimensions, scheduled entity work counts ticks only while its
+chunk is loaded.
+
+### Block data and regions
 
 `block_data_number(at, path)` reads the vanilla integer result of a block
 entity's data query. For example, `block_data_number(offset(0, 0, 1), "Items")`
@@ -1616,7 +1650,7 @@ command and State models as Rust. Today the language covers:
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, typed block data literals and copies | structure resources, custom biomes, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |

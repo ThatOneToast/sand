@@ -76,6 +76,7 @@ fn item_level() {
             "predicate",
             "advancement",
             "dialog",
+            "dimension",
             "event",
             "loot",
             "recipe shapeless",
@@ -380,6 +381,20 @@ fn data_declarations_offer_only_remaining_valid_fields() {
     exactly(
         "advancement Find {\n    |\n}",
         &["criteria", "display", "require_any", "experience"],
+    );
+    exactly(
+        "dimension Workshop {\n    |\n}",
+        &["layers", "biome", "type", "structures"],
+    );
+    includes_excludes(
+        "dimension Workshop { type: | }",
+        &["DimensionType::Overworld"],
+        &["Dimension::Overworld"],
+    );
+    includes_excludes(
+        "dimension Workshop { layers: [{ block: Block::Bedrock, height: 1 }] }\nfn f() { in_dimension(|, setup); }",
+        &["Workshop", "Dimension::Overworld"],
+        &["Biome::Plains"],
     );
     exactly("dialog Notice {\n    |\n}", &["title", "body", "button"]);
     includes_excludes(

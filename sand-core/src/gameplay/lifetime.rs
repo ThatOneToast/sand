@@ -365,6 +365,18 @@ impl<K: EntityKind> Lifetime<K> {
         self
     }
 
+    pub(crate) fn include_dimensions(
+        mut self,
+        dimensions: impl IntoIterator<Item = DimensionId>,
+    ) -> Self {
+        for dimension in dimensions {
+            if !self.dimensions.contains(&dimension) {
+                self.dimensions.push(dimension);
+            }
+        }
+        self
+    }
+
     pub(crate) fn at_invocation_position(mut self) -> Self {
         self.invocation_position = true;
         self

@@ -97,6 +97,7 @@ impl Lower<'_> {
             }
         };
         let lifetime = lifetime
+            .include_dimensions(self.dimensions.iter().cloned())
             .at_invocation_position()
             .on_start(move |_| Cmd::Raw(store.clone()))
             .on_tick(move |ctx| {

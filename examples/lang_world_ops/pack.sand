@@ -1,7 +1,15 @@
 #![pack(namespace = "checkpoint_rooms", minecraft = "26.2", description = "Repeatable checkpoint rooms")]
-/// Call near the test area in either supported dimension.
+dimension Workshop {
+    biome: Biome::Desert,
+    layers: [
+        { block: Block::Bedrock, height: 1 },
+        { block: Block::Sandstone, height: 2 },
+    ],
+}
+
+/// Call near the test area in the Overworld, Nether, or Workshop.
 pub fn place() {
-    if dimension_is(Dimension::Overworld) || dimension_is(Dimension::TheNether) {
+    if dimension_is(Dimension::Overworld) || dimension_is(Dimension::TheNether) || dimension_is(Workshop) {
         // Build a three-block marker and place a second copy four blocks away.
         set_block(Block::StoneBricks, offset(0, 0, 2));
         set_block(Block::Lantern, offset(0, 1, 2));
@@ -17,6 +25,16 @@ fn report_dimension() {
         broadcast!("The Nether checkpoint dimension is available.");
     }
 }
+/// Inspect the pack's flat workshop from the caller's current world.
+pub fn inspect_workshop() {
+    in_dimension(Workshop, report_workshop);
+}
+fn report_workshop() {
+    if dimension_is(Workshop) {
+        broadcast!("The sandstone workshop is available.");
+    }
+}
+
 /// Call while standing one block south of a barrel.
 pub fn count_barrel_stacks() {
     let stacks = block_data_number(offset(0, 0, -1), "Items");

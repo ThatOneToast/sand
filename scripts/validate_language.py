@@ -17,6 +17,8 @@ class LanguageHarness(WorldGameplayHarness):
     def run_client(self):
         # Entity fixtures need a loaded origin before a server-context summon.
         self.load_test_chunk("minecraft:overworld")
+        for dimension in self.args.load_dimension:
+            self.load_test_chunk(dimension)
         marker = "__SAND_LANGUAGE_OK__"
         for invocation in range(2):
             command = "execute positioned 0 80 0 run function language_probe:run"
@@ -43,6 +45,8 @@ def main():
     parser.add_argument("--fixture", type=Path, help="Source with language_probe:run and the standard assertion marker")
     parser.add_argument("--wait-for-result", action="store_true",
                         help="Wait for the fixture to report results after scheduled work")
+    parser.add_argument("--load-dimension", action="append", default=[],
+                        help="Load the origin chunk of an additional dimension before running assertions")
     options = parser.parse_args()
     root = options.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
@@ -51,7 +55,8 @@ def main():
                     "--output", str(root / "pack")], check=True, timeout=60)
     args = argparse.Namespace(version="26.2", pack=str(root / "pack"), jar=options.jar,
                               java=options.java, timeout=120, output=str(root / "logs"),
-                              op_player=None, client_command=None, wait_for_result=options.wait_for_result)
+                              op_player=None, client_command=None, wait_for_result=options.wait_for_result,
+                              load_dimension=options.load_dimension)
     harness = LanguageHarness(args)
     harness.run()
     print(f"PASSED: language fixture on vanilla 26.2; log: {harness.log_path}")

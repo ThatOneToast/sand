@@ -287,8 +287,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Biome predicates validated against the target version’s shared catalog.
 - [x] Checked block entity paths, numeric reads and writes, and field removal.
 - [x] Typed NBT literal writes and native data copies between block entities.
-- [ ] Structure resources, dimension and biome declarations, and native block
-  data as first-class Sand runtime values.
+- [x] Flat dimension declarations, typed references and loaded waits in the
+  declared dimension.
+- [ ] Structure resources, custom biomes, other world generators and dimension
+  types, and native block data as first-class Sand runtime values.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.
 - [x] Native damage type declarations and typed vanilla damage types, both

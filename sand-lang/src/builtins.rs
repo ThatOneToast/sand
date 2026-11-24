@@ -1756,6 +1756,8 @@ pub enum FieldKind {
     AdvancementDisplay,
     /// The author, title and pages of a written book.
     WrittenBook,
+    /// Ordered block and height pairs for a flat dimension.
+    FlatLayers,
     /// A quoted namespaced resource location.
     ResourceId,
     /// A list of text lines.
@@ -2246,6 +2248,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "dimension",
+        "layers",
+        FieldKind::FlatLayers,
+        true,
+        "Bottom-to-top terrain layers with a block and positive height.",
+        "[{ block: Block::${1:Bedrock}, height: ${2:1} }]",
+    ),
+    f(
+        "dimension",
+        "biome",
+        FieldKind::Registry("Biome"),
+        false,
+        "The biome used for every column. Defaults to Plains.",
+        "Biome::${1:Plains}",
+    ),
+    f(
+        "dimension",
+        "type",
+        FieldKind::Registry("DimensionType"),
+        false,
+        "The dimension type that controls height and environmental rules. Defaults to Overworld.",
+        "DimensionType::${1:Overworld}",
+    ),
+    f(
+        "dimension",
+        "structures",
+        FieldKind::Bool,
+        false,
+        "Use Minecraft's default structure sets for the biome. Defaults to false.",
+        "${1:false}",
+    ),
+    f(
         "dialog",
         "title",
         FieldKind::Text,
@@ -2309,6 +2343,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "dimension",
+        "`dimension Name { layers: [...] }` declares a flat dimension. Use the name with `in_dimension` or `dimension_is`.",
     ),
     (
         "dialog",

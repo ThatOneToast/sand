@@ -934,6 +934,10 @@
                 {
                   "type": "STRING",
                   "value": "dialog"
+                },
+                {
+                  "type": "STRING",
+                  "value": "dimension"
                 }
               ]
             },

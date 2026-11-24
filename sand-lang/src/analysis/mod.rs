@@ -149,6 +149,8 @@ pub enum DefKind {
     Advancement,
     /// `dialog Name { ... }`.
     Dialog,
+    /// `dimension Name { ... }`.
+    Dimension,
 }
 
 impl DefKind {
@@ -178,6 +180,7 @@ impl DefKind {
             DefKind::Predicate => "predicate",
             DefKind::Advancement => "advancement",
             DefKind::Dialog => "dialog",
+            DefKind::Dimension => "dimension",
         }
     }
 }
@@ -1086,6 +1089,7 @@ impl Cx {
                     crate::ast::DataKind::Predicate => DefKind::Predicate,
                     crate::ast::DataKind::Advancement => DefKind::Advancement,
                     crate::ast::DataKind::Dialog => DefKind::Dialog,
+                    crate::ast::DataKind::Dimension => DefKind::Dimension,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -3015,6 +3019,7 @@ impl Cx {
             predicates: Vec::new(),
             advancements: Vec::new(),
             dialogs: Vec::new(),
+            dimensions: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));
@@ -3354,6 +3359,7 @@ impl Cx {
         let declaration = match registry {
             "Item" => Some(DefKind::CustomItem),
             "DamageType" => Some(DefKind::DamageType),
+            "Dimension" => Some(DefKind::Dimension),
             _ => None,
         };
         if let Some(declaration) = declaration

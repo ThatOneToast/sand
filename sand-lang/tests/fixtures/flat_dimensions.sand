@@ -1,0 +1,65 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+dimension Workshop {
+    type: DimensionType::Overworld,
+    biome: Biome::Desert,
+    layers: [
+        { block: Block::Bedrock, height: 1 },
+        { block: Block::Sandstone, height: 2 },
+    ],
+    structures: false,
+}
+
+global state Report { checks: number, failed: number, resumed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value {
+        Report.failed += 1;
+        broadcast!("Flat dimension assertion {Report.checks} failed.");
+    }
+}
+
+fn resume_here(amount: number) {
+    wait(3);
+    check(dimension_is(Workshop));
+    check(block_is(Block::GoldBlock, offset(0, 0, 1)));
+    Report.resumed += amount;
+    wait(4);
+    check(dimension_is(Workshop));
+    check(block_is(Block::GoldBlock, offset(0, 0, 1)));
+    Report.resumed += amount;
+    kill();
+}
+
+fn inspect() {
+    check(dimension_is(Workshop));
+    check(biome_is(Biome::Desert, pos(0, 80, 0)));
+    check(block_is(Block::Bedrock, pos(0, -64, 0)));
+    check(block_is(Block::Sandstone, pos(0, -62, 0)));
+    check(block_is(Block::Air, pos(0, -61, 0)));
+    set_block(Block::GoldBlock, offset(0, 0, 1));
+    summon(Entity::Marker, tag = "flat_wait_probe");
+    for actor in entities(type = Entity::Marker, tag = "flat_wait_probe", distance = ..=2) {
+        resume_here(7);
+    }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    Report.resumed = 0;
+    check(dimension_is(Dimension::Overworld));
+    in_dimension(Workshop, inspect);
+    check(dimension_is(Dimension::Overworld));
+    schedule(finish, ticks = 20);
+}
+
+fn finish() {
+    if Report.checks == 11 && Report.failed == 0 && Report.resumed == 14 {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        broadcast!("Flat dimension checks {Report.checks}, failed {Report.failed}, resumed {Report.resumed}.");
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

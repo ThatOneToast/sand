@@ -483,6 +483,54 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Dimension => {
+                let Some(layers) = get("layers")
+                    .and_then(|field| self.data_flat_layers(module, file, &field.value))
+                else {
+                    return;
+                };
+                let mut flat = sand::component::FlatGenerator::new(layers);
+                if let Some(field) = get("biome") {
+                    let Some(biome) = self
+                        .data_expr(file, &field.value, "a biome")
+                        .and_then(|expr| self.vanilla_value(module, file, expr, "Biome"))
+                        .and_then(|id| id.parse::<sand::ResourceLocation>().ok())
+                    else {
+                        return;
+                    };
+                    flat = flat.biome(biome);
+                }
+                if let Some(field) = get("structures") {
+                    let Some(structures) = self.data_bool(file, &field.value) else {
+                        return;
+                    };
+                    flat = flat.with_structures(structures);
+                }
+                let dimension_type = if let Some(field) = get("type") {
+                    let Some(id) = self
+                        .data_expr(file, &field.value, "a dimension type")
+                        .and_then(|expr| self.vanilla_value(module, file, expr, "DimensionType"))
+                        .and_then(|id| id.parse::<sand::ResourceLocation>().ok())
+                    else {
+                        return;
+                    };
+                    id.into()
+                } else {
+                    sand::registry::DimensionTypeId::minecraft("overworld")
+                        .expect("valid built-in id")
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/dimensions/{}", out.dimensions.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.dimensions.push(pc::FlatDimension {
+                    id: location,
+                    dimension_type,
+                    flat,
+                });
+            }
             DataKind::Dialog => {
                 let Some(title) =
                     get("title").and_then(|field| self.data_text(module, file, &field.value))
@@ -1307,6 +1355,38 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_flat_layers(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<sand::component::FlatLayer>> {
+        let DataValue::Array(entries, _) = value else {
+            self.error(
+                "dimension",
+                file,
+                value.span(),
+                "expected a list of terrain layers",
+            );
+            return None;
+        };
+        entries
+            .iter()
+            .map(|entry| {
+                let fields =
+                    self.data_object_fields(file, entry, "flat layer", &["block", "height"], &[])?;
+                let block = self.data_expr(file, fields.get("block")?, "a block")?;
+                let block = self
+                    .vanilla_value(module, file, block, "Block")?
+                    .parse::<sand::ResourceLocation>()
+                    .ok()?;
+                let height =
+                    self.data_int(module, file, fields.get("height")?, 1, i64::from(u32::MAX))?;
+                Some(sand::component::FlatLayer::new(block, height as u32))
+            })
+            .collect()
     }
 
     fn data_advancement_criteria(

@@ -698,6 +698,31 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, dimension) in module.dimensions.iter().enumerate() {
+            let ptr = format!("/dimensions/{index}");
+            if !resource_ids.insert(format!("dimension {}", dimension.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate dimension `{}`", dimension.id),
+                );
+            }
+            let biome = dimension.flat.biome_id.to_string();
+            if !available(&biome, "minecraft:worldgen/biome") {
+                push(
+                    format!("{ptr}/flat/biome_id"),
+                    format!("unknown biome `{biome}`"),
+                );
+            }
+            for (layer_index, layer) in dimension.flat.layers.iter().enumerate() {
+                let block = layer.block.to_string();
+                if !block_id(&block) {
+                    push(
+                        format!("{ptr}/flat/layers/{layer_index}/block"),
+                        format!("unknown block `{block}`"),
+                    );
+                }
+            }
+        }
         for (index, dialog) in module.dialogs.iter().enumerate() {
             let ptr = format!("/dialogs/{index}");
             if !resource_ids.insert(format!("dialog {}", dialog.id)) {

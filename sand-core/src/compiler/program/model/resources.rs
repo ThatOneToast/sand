@@ -584,3 +584,27 @@ pub struct NoticeDialog {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub button: Vec<TextPart>,
 }
+
+/// A native dimension with an ordered stack of flat terrain layers.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::FlatDimension", module = "sand::advanced::compiler",
+ summary = "A native dimension with an ordered stack of flat terrain layers.",
+ context = "Declare the dimension before starting the world. Portable entity continuations can resume in this dimension while its chunks are loaded.",
+ minecraft = "Lowers through the canonical Dimension and FlatGenerator to a minecraft:flat dimension resource.",
+ use_when = ["Defining a dedicated gameplay or test world"],
+ avoid_when = ["Configuring a noise generator or defining a new dimension type"],
+ fields(id = "Dimension identity.", dimension_type = "Existing dimension type identity.", flat = "Bottom-to-top layers and shared flat generator settings."),
+ example = "use sand::advanced::compiler::FlatDimension;",
+)]
+pub struct FlatDimension {
+    /// Identity used by dimension-scoped operations.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Existing dimension type, which defines height and environmental rules.
+    #[schemars(with = "String")]
+    pub dimension_type: sand_components::DimensionTypeId,
+    /// Canonical bottom-to-top layers and flat-world settings.
+    pub flat: sand_components::FlatGenerator,
+}

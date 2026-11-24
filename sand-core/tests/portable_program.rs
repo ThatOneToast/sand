@@ -31,6 +31,7 @@ fn counter() -> Program {
             predicates: vec![],
             advancements: vec![],
             dialogs: vec![],
+            dimensions: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

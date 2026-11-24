@@ -152,6 +152,12 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
             }
         }
 
+        impl<'de> serde::Deserialize<'de> for #name {
+            fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {
+                ResourceLocation::deserialize(d).map(Self)
+            }
+        }
+
         impl std::str::FromStr for #name {
             type Err = crate::error::SandError;
             fn from_str(s: &str) -> Result<Self> { Ok(Self(s.parse()?)) }

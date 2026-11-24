@@ -13,9 +13,17 @@ menu CampSupplies {
     ticks: 200,
     page_size: 1,
     choices: [
-        { label: "Stow two supplies", action: stow },
+        { label: "Stow two supplies", next: "confirm" },
         { label: "View slot guide", action: show_slots },
     ],
+    views: [{
+        name: "confirm",
+        title: "{gold}Pack two items?",
+        choices: [
+            { label: "Pack supplies", action: stow },
+            { label: "Back to supplies", next: "main" },
+        ],
+    }],
 }
 
 pub fn supplies() {

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A named view within a native conversation.",
+  "properties": {
+    "choices": {
+      "description": "Buttons in authored order.",
+      "items": {
+        "$ref": "defs-MenuChoice.schema.json"
+      },
+      "type": "array"
+    },
+    "name": {
+      "description": "Identifier used for transitions into the view.",
+      "type": "string"
+    },
+    "title": {
+      "description": "Heading displayed on each page of this view.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "title",
+    "choices"
+  ],
+  "type": "object"
+}

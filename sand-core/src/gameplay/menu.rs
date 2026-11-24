@@ -105,12 +105,12 @@ example = "use sand::systems::Menu;")]
     /// title and appends choices; gameplay state belongs in ordinary State.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Menu::view", module = "sand::systems",
 summary = "Author a typed conversation view within one menu session.", context = "Subsequent choices belong to this enum encoding. Views share session ownership and exact object binding; gameplay progression remains canonical State.", minecraft = "Exports paginated native dialogs with bounded per-player routing and fresh action tokens.", use_when = ["Branching conversations and confirmations"], avoid_when = ["Persisting gameplay progress in menu navigation"], params(view = "Canonical State enum key for this view.", title = "Title shown on this view's pages."), returns = "The configured menu.", example = "use sand::systems::Menu;")]
-    pub fn view<T: crate::entity::EntityEnumValue>(
-        mut self,
-        view: T,
-        title: TextComponent,
-    ) -> Self {
-        self.authoring_view = view.encode();
+    pub fn view<T: crate::entity::EntityEnumValue>(self, view: T, title: TextComponent) -> Self {
+        self.encoded_view(view.encode(), title)
+    }
+
+    pub(crate) fn encoded_view(mut self, view: i32, title: TextComponent) -> Self {
+        self.authoring_view = view;
         if self.authoring_view == 0 {
             self.title = title;
         } else {
@@ -123,8 +123,12 @@ summary = "Author a typed conversation view within one menu session.", context =
     /// resumes an old ephemeral conversation session.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::Menu::start_at", module = "sand::systems",
 summary = "Choose the entry view of a conversation.", context = "The selected view must have choices. Every new opening starts there; persistent progression is authored through State guards and callbacks.", minecraft = "Initializes the private page routing score before session admission.", use_when = ["Choosing a typed entry point"], avoid_when = ["Resuming an expired native dialog"], params(view = "Canonical State enum key of the entry view."), returns = "The configured menu.", example = "use sand::systems::Menu;")]
-    pub fn start_at<T: crate::entity::EntityEnumValue>(mut self, view: T) -> Self {
-        self.entry_view = view.encode();
+    pub fn start_at<T: crate::entity::EntityEnumValue>(self, view: T) -> Self {
+        self.encoded_start(view.encode())
+    }
+
+    pub(crate) fn encoded_start(mut self, view: i32) -> Self {
+        self.entry_view = view;
         self
     }
 
@@ -142,11 +146,21 @@ summary = "Transition between conversation views after a guarded callback.", con
         destination: T,
         action: impl Fn() -> R + 'static,
     ) -> Self {
+        self.encoded_choice(label, allowed, Some(destination.encode()), action)
+    }
+
+    pub(crate) fn encoded_choice<R: IntoCommands>(
+        self,
+        label: TextComponent,
+        allowed: Condition,
+        destination: Option<i32>,
+        action: impl Fn() -> R + 'static,
+    ) -> Self {
         let mut menu = self.choice(label, allowed, action);
         menu.choices
             .last_mut()
             .expect("appended choice")
-            .destination = Some(destination.encode());
+            .destination = destination;
         menu
     }
 

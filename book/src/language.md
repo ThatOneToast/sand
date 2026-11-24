@@ -1581,18 +1581,27 @@ the player's advancement progress use the same vanilla completion.
 
 ### Native menus
 
-Use `menu` for a native dialog with gameplay choices. Each button calls a
-parameterless function as the player who selected it.
+Use `menu` for a native dialog with gameplay choices. A button can call a
+parameterless function as the selecting player, enter another view, or do both.
 
 ```rust,ignore
 menu CampSupplies {
     title: "{gold}Camp supplies",
     ticks: 200,
     page_size: 1,
+    while_open: Camp.active,
     choices: [
-        { label: "Stow rations", action: pack_rations },
+        { label: "Stow rations", next: "confirm" },
         { label: "Show instructions", action: show_slots },
     ],
+    views: [{
+        name: "confirm",
+        title: "Pack two rations?",
+        choices: [
+            { label: "Pack rations", action: pack_rations, when: Camp.can_pack },
+            { label: "Back", next: "main" },
+        ],
+    }],
 }
 
 fn open_supplies() {
@@ -1603,8 +1612,16 @@ fn open_supplies() {
 The engine gives each player a new set of button tokens on opening or changing
 pages. A valid choice consumes that player's session before calling its
 function. Use `close_menu(CampSupplies)` to invalidate its session early.
-`ticks` sets the online timeout. Choose from 1 to 256 buttons and optionally
-set `page_size` from 1 to 64 for automatic Previous and Next controls.
+`ticks` sets the online timeout. A menu supports up to 256 buttons across all
+views, and each view needs at least one button. Set `page_size` from 1 to 64 for
+automatic Previous and Next controls within each view. The menu opens at
+`"main"` unless `start` names another view. A transition gives the destination
+fresh tokens. If the callback opens another menu itself, that menu takes priority.
+
+`when` checks a boolean State field immediately before a choice runs. The
+button stays visible when the field is false. `while_open` checks a boolean
+State field when opening, on each online tick, and again during dispatch. A
+false or unavailable field closes or rejects that player's session.
 
 ### Notice dialogs
 

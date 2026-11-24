@@ -4,7 +4,14 @@
   "description": "A native menu button and the gameplay function it invokes.",
   "properties": {
     "action": {
-      "$ref": "defs-FunctionReference.schema.json",
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Function invoked with the choosing player as executor."
     },
     "label": {
@@ -13,11 +20,28 @@
         "$ref": "defs-TextPart.schema.json"
       },
       "type": "array"
+    },
+    "next": {
+      "description": "View to open after the optional callback completes.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "when": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "When present, the referenced score must equal one to authorize the choice."
     }
   },
   "required": [
-    "label",
-    "action"
+    "label"
   ],
   "type": "object"
 }

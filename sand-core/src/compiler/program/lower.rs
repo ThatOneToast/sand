@@ -1775,13 +1775,45 @@ impl Lower<'_> {
         if let Some(size) = menu.page_size {
             definition = definition.page_size(size as usize);
         }
-        for choice in &menu.choices {
-            let function = reference_id(&choice.action);
-            definition = definition.choice(
-                static_text_component(&choice.label, &self.holders),
-                Condition::all([]),
-                move || Cmd::Function(function.clone()),
-            );
+        let flag = |score: &FieldReference| {
+            Condition::flag(
+                self.holders[&score.state.to_string()].to_string(),
+                objective(score),
+                true,
+            )
+        };
+        if let Some(score) = &menu.while_open {
+            definition = definition.while_open(flag(score));
+        }
+        if let Some(start) = &menu.start {
+            definition = definition.encoded_start(menu.view_index(start).expect("validated view"));
+        }
+        for (index, (choices, _)) in menu.choice_lists().enumerate() {
+            if let Some(view) = index.checked_sub(1).and_then(|index| menu.views.get(index)) {
+                definition = definition.encoded_view(
+                    index as i32,
+                    static_text_component(&view.title, &self.holders),
+                );
+            }
+            for choice in choices {
+                let function = choice.action.as_ref().map(reference_id);
+                let next = choice
+                    .next
+                    .as_deref()
+                    .and_then(|name| menu.view_index(name));
+                let allowed = choice
+                    .when
+                    .as_ref()
+                    .map_or_else(|| Condition::all([]), flag);
+                definition = definition.encoded_choice(
+                    static_text_component(&choice.label, &self.holders),
+                    allowed,
+                    next,
+                    move || {
+                        crate::ir::Actions(function.iter().cloned().map(Cmd::Function).collect())
+                    },
+                );
+            }
         }
         definition
     }

@@ -451,13 +451,21 @@ pub(super) fn validate(
             validator.call(&tag.function, context, &owner, &format!("{ptr}/function"));
         }
         for (index, menu) in module.menus.iter().enumerate() {
-            for (choice_index, choice) in menu.choices.iter().enumerate() {
-                validator.call(
-                    &choice.action,
-                    ExecutionContext::Player,
-                    &owner,
-                    &format!("/menus/{index}/choices/{choice_index}/action"),
-                );
+            let ptr = format!("/menus/{index}");
+            let context = ExecutionContext::Player;
+            if let Some(score) = &menu.while_open {
+                validator.score(score, context, &owner, &format!("{ptr}/while_open"));
+            }
+            for (choices, path) in menu.choice_lists() {
+                for (choice_index, choice) in choices.iter().enumerate() {
+                    let ptr = format!("{ptr}/{path}/{choice_index}");
+                    if let Some(action) = &choice.action {
+                        validator.call(action, context, &owner, &format!("{ptr}/action"));
+                    }
+                    if let Some(score) = &choice.when {
+                        validator.score(score, context, &owner, &format!("{ptr}/when"));
+                    }
+                }
             }
         }
         for (index, hud) in module.huds.iter().enumerate() {
@@ -787,18 +795,71 @@ pub(super) fn validate(
                     "menu page size must be in 1..=64".into(),
                 );
             }
-            if !(1..=256).contains(&menu.choices.len()) {
+            let mut names = BTreeSet::from(["main"]);
+            for (index, view) in menu.views.iter().enumerate() {
+                let ptr = format!("{ptr}/views/{index}");
+                if view.name.is_empty()
+                    || !view
+                        .name
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+                    || !names.insert(&view.name)
+                {
+                    push(format!("{ptr}/name"), "expected a unique menu view name using letters, digits, or underscores; main is reserved".into());
+                }
+                if let Some(error) = static_text_error(&view.title, None) {
+                    push(format!("{ptr}/title"), error);
+                }
+            }
+            if menu
+                .start
+                .as_deref()
+                .is_some_and(|name| !names.contains(name))
+            {
+                push(format!("{ptr}/start"), "unknown starting menu view".into());
+            }
+            if menu
+                .choice_lists()
+                .map(|(choices, _)| choices.len())
+                .sum::<usize>()
+                > 256
+            {
                 push(
                     format!("{ptr}/choices"),
-                    "a menu needs between 1 and 256 choices".into(),
+                    "a menu supports at most 256 choices across all views".into(),
                 );
             }
             if let Some(error) = static_text_error(&menu.title, None) {
                 push(format!("{ptr}/title"), error);
             }
-            for (choice_index, choice) in menu.choices.iter().enumerate() {
-                if let Some(error) = static_text_error(&choice.label, None) {
-                    push(format!("{ptr}/choices/{choice_index}/label"), error);
+            for (choices, path) in menu.choice_lists() {
+                if choices.is_empty() {
+                    push(
+                        format!("{ptr}/{path}"),
+                        "each menu view needs between 1 and 256 choices".into(),
+                    );
+                }
+                for (choice_index, choice) in choices.iter().enumerate() {
+                    let ptr = format!("{ptr}/{path}/{choice_index}");
+                    if choice.action.is_none() && choice.next.is_none() {
+                        push(
+                            ptr.clone(),
+                            "a menu choice needs an action or destination".into(),
+                        );
+                    }
+                    if choice
+                        .next
+                        .as_deref()
+                        .is_some_and(|name| !names.contains(name))
+                    {
+                        push(
+                            format!("{ptr}/next"),
+                            "unknown destination menu view".into(),
+                        );
+                    }
+                    if let Some(error) = static_text_error(&choice.label, None) {
+                        push(format!("{ptr}/label"), error);
+                    }
                 }
             }
         }

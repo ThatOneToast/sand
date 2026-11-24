@@ -1,5 +1,5 @@
 //! Owned portable data resources: custom items, recipes, and registry tags.
-use super::{FunctionReference, ScoreOperand, TextPart, Weather};
+use super::{FieldReference, FunctionReference, ScoreOperand, TextPart, Weather};
 use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -751,7 +751,7 @@ pub struct HudBossBar {
  minecraft = "Lowers through the native Menu system to paginated dialog buttons with generation-bound input.",
  use_when = ["Offering a player a bounded list of gameplay actions"],
  avoid_when = ["Showing a fixed dismissible message; use NoticeDialog"],
- fields(id = "Menu identity.", title = "Static rich title.", ticks = "Positive number of online ticks before expiration.", page_size = "Optional number of choices per page, from 1 to 64.", choices = "Ordered actionable buttons, at least one and at most 256."),
+ fields(id = "Menu identity.", title = "Static rich title.", ticks = "Positive number of online ticks before expiration.", page_size = "Optional number of choices per page, from 1 to 64.", choices = "Ordered buttons in the main view.", views = "Named secondary views.", start = "Initial view, which defaults to main.", while_open = "Optional score that must equal one throughout a session."),
  example = "use sand::advanced::compiler::MenuDefinition;",
 )]
 pub struct MenuDefinition {
@@ -767,6 +767,59 @@ pub struct MenuDefinition {
     pub page_size: Option<u32>,
     /// Buttons in authored order.
     pub choices: Vec<MenuChoice>,
+    /// Additional views in declaration order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<MenuView>,
+    /// Initial view name. Omission selects the main view.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    /// When present, the referenced score must equal one while the session is open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub while_open: Option<FieldReference>,
+}
+
+impl MenuDefinition {
+    pub(crate) fn view_index(&self, name: &str) -> Option<i32> {
+        if name == "main" {
+            Some(0)
+        } else {
+            self.views
+                .iter()
+                .position(|view| view.name == name)
+                .map(|index| (index + 1) as i32)
+        }
+    }
+
+    pub(crate) fn choice_lists(&self) -> impl Iterator<Item = (&[MenuChoice], String)> {
+        std::iter::once((&self.choices[..], "choices".into())).chain(
+            self.views
+                .iter()
+                .enumerate()
+                .map(|(index, view)| (&view.choices[..], format!("views/{index}/choices"))),
+        )
+    }
+}
+
+/// A named view within a native conversation.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::MenuView", module = "sand::advanced::compiler",
+ summary = "A named view in a native menu.",
+ context = "The menu may start here or enter it through a choice. An entered view receives newly issued player tokens.",
+ minecraft = "Uses the shared native Menu pagination and navigation.",
+ use_when = ["Building a conversation or confirmation screen"],
+ avoid_when = ["Persisting progress; store durable decisions in State"],
+ fields(name = "Name referenced by choices or the opening view.", title = "Rich heading on this view.", choices = "Ordered buttons for this view."),
+ example = "use sand::advanced::compiler::MenuView;",
+)]
+pub struct MenuView {
+    /// Identifier used for transitions into the view.
+    pub name: String,
+    /// Heading displayed on each page of this view.
+    pub title: Vec<TextPart>,
+    /// Buttons in authored order.
+    pub choices: Vec<MenuChoice>,
 }
 
 /// A native menu button and the gameplay function it invokes.
@@ -779,12 +832,19 @@ pub struct MenuDefinition {
  minecraft = "Uses a typed Menu choice and the shared one-shot native dialog routing.",
  use_when = ["Adding one action to a player's menu"],
  avoid_when = ["Adding a fixed notice's dismiss label"],
- fields(label = "Static rich button label.", action = "Function invoked as the player after the session is consumed."),
+ fields(label = "Static rich button label.", action = "Optional function invoked as the player after the session is consumed.", next = "Optional destination view entered after the callback.", when = "Optional score that must equal one at dispatch."),
  example = "use sand::advanced::compiler::MenuChoice;",
 )]
 pub struct MenuChoice {
     /// Label shown on the button.
     pub label: Vec<TextPart>,
     /// Function invoked with the choosing player as executor.
-    pub action: FunctionReference,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<FunctionReference>,
+    /// View to open after the optional callback completes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next: Option<String>,
+    /// When present, the referenced score must equal one to authorize the choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<FieldReference>,
 }

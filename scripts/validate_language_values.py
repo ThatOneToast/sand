@@ -322,6 +322,7 @@ class ValuesHarness(WorldGameplayHarness):
 
         first, next_page = token_objectives(0)
         second, _previous_page = token_objectives(1)
+        confirm, _confirm_next_page = token_objectives(2)
 
         def read_token(player, objective):
             start = len(self.lines)
@@ -376,6 +377,31 @@ class ValuesHarness(WorldGameplayHarness):
         self.send("execute as NumericA run function runtime_values:close_field_menu")
         select("NumericA", live_choice)
         report("NumericA", 10, "MENU_CLOSED_TOKEN")
+
+        self.send(open_a)
+        select("NumericA", read_token("NumericA", first))
+        denied_choice = read_token("NumericA", confirm)
+        select("NumericA", denied_choice)
+        report("NumericA", 10, "MENU_GUARD_DENIED")
+        self.send("execute as NumericA run function runtime_values:allow_bread")
+        self.send(open_a)
+        select("NumericA", read_token("NumericA", first))
+        fresh_choice = read_token("NumericA", confirm)
+        if fresh_choice == denied_choice:
+            raise ValidationFailure("menu-view-token", "the confirmation view reused an earlier token")
+        select("NumericA", fresh_choice)
+        report("NumericA", 11, "MENU_GUARDED_CONFIRMATION")
+        report("NumericB", 0, "MENU_GUARD_PLAYER_ISOLATION")
+
+        self.send(open_a)
+        live_choice = read_token("NumericA", first)
+        self.send("execute as NumericA run function runtime_values:invalidate_field_menu")
+        select("NumericA", live_choice)
+        report("NumericA", 11, "MENU_INVALIDATED_BY_STATE")
+        self.send("execute as NumericB at @s run function runtime_values:open_field_menu")
+        select("NumericB", read_token("NumericB", next_page))
+        select("NumericB", read_token("NumericB", second))
+        report("NumericB", 10, "MENU_PEER_REMAINS_ELIGIBLE")
 
 
 def main():

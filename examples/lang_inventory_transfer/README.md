@@ -9,5 +9,5 @@ another two into the destination.
 Try with fewer than two items in the source or with a different item in the
 destination to see the rejection callback.
 
-Run `/function camp_supplies:supplies` to open the native menu. Select the move
-directly or use Next to find the slot guide.
+Run `/function camp_supplies:supplies` to open the native menu. Select
+**Stow two supplies** and confirm the move, or use **Next** to find the slot guide.

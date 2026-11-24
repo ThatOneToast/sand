@@ -451,7 +451,15 @@ fn data_declarations_offer_only_remaining_valid_fields() {
     );
     exactly(
         "menu Supplies {\n    |\n}",
-        &["title", "ticks", "page_size", "choices"],
+        &[
+            "title",
+            "ticks",
+            "page_size",
+            "choices",
+            "views",
+            "start",
+            "while_open",
+        ],
     );
     includes_excludes(
         "menu Supplies { title: \"Camp\", ticks: 100, choices: [{ label: \"Leave\", action: leave }] }\nfn f() { open_menu(|); }",

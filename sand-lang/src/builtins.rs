@@ -1904,6 +1904,9 @@ pub enum FieldKind {
     HudBossBar,
     /// An ordered list of rich button labels and their callbacks.
     MenuChoices,
+    MenuViews,
+    MenuGuard,
+    MenuViewName,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -2422,6 +2425,30 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         true,
         "Ordered labels and parameterless player callbacks.",
         r#"[{ label: "${1:Take rations}", action: ${2:take_rations} }]"#,
+    ),
+    f(
+        "menu",
+        "views",
+        FieldKind::MenuViews,
+        false,
+        "Additional named views with a title and choices.",
+        r#"[{ name: "${1:confirm}", title: "${2:Confirm}", choices: [{ label: "${3:Back}", next: "main" }] }]"#,
+    ),
+    f(
+        "menu",
+        "start",
+        FieldKind::MenuViewName,
+        false,
+        "Name of the view on a fresh opening. Defaults to main.",
+        r#""${1:confirm}""#,
+    ),
+    f(
+        "menu",
+        "while_open",
+        FieldKind::MenuGuard,
+        false,
+        "Boolean State field that must stay true throughout the session.",
+        "${1:PlayerData}.${2:can_trade}",
     ),
     f(
         "hud",

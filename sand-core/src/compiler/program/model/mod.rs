@@ -23,7 +23,7 @@ pub use resources::{
     Advancement, AdvancementCriterion, AdvancementDisplay, BossBar, BossBarColor, BossBarStyle,
     CookingMethod, CustomBiome, CustomItem, FlatDimension, HudBossBar, HudDefinition,
     InventoryTransferDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition,
-    NoticeDialog, Rarity, Recipe, RecipeOutput, ResourceTag, TagKind, WorldPredicate,
+    MenuView, NoticeDialog, Rarity, Recipe, RecipeOutput, ResourceTag, TagKind, WorldPredicate,
     WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

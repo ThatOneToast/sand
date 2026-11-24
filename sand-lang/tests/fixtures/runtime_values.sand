@@ -59,10 +59,19 @@ menu FieldMenu {
     title: "Field supplies",
     ticks: 200,
     page_size: 1,
+    while_open: Ledger.menu_open,
     choices: [
-        { label: "Choose bread", action: choose_bread },
+        { label: "Choose bread", next: "confirm" },
         { label: "Choose compass", action: choose_compass },
     ],
+    views: [{
+        name: "confirm",
+        title: "Confirm bread",
+        choices: [
+            { label: "Take bread", action: choose_bread, when: Ledger.menu_allowed },
+            { label: "Back", next: "main" },
+        ],
+    }],
 }
 
 hud FieldStatus {
@@ -82,6 +91,8 @@ player state Ledger {
     transfers_denied: number,
     hud_progress: number,
     menu_selection: number,
+    menu_open: bool = true,
+    menu_allowed: bool,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -168,6 +179,8 @@ fn inspect_inventory() {
 
 fn open_field_menu() { open_menu(FieldMenu); }
 fn close_field_menu() { close_menu(FieldMenu); }
+fn allow_bread() { Ledger.menu_allowed = true; }
+fn invalidate_field_menu() { Ledger.menu_open = false; }
 fn choose_bread() { Ledger.menu_selection += 1; }
 fn choose_compass() { Ledger.menu_selection += 10; }
 fn report_menu() {
@@ -175,6 +188,8 @@ fn report_menu() {
         raw!("scoreboard players set @s numeric_probe 0");
     } else if Ledger.menu_selection == 10 {
         raw!("scoreboard players set @s numeric_probe 10");
+    } else if Ledger.menu_selection == 11 {
+        raw!("scoreboard players set @s numeric_probe 11");
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
     }

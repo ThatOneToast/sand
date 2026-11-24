@@ -502,6 +502,18 @@ impl Cx {
                 else {
                     return;
                 };
+                let views = match get("views") {
+                    Some(field) => {
+                        let Some(views) = self.data_menu_views(module, file, &field.value) else {
+                            return;
+                        };
+                        views
+                    }
+                    None => Vec::new(),
+                };
+                let start = get("start").and_then(|field| self.data_menu_name(file, &field.value));
+                let while_open = get("while_open")
+                    .and_then(|field| self.data_menu_guard(module, file, &field.value));
                 self.pointers.push((
                     module_id,
                     format!("/menus/{}", out.menus.len()),
@@ -514,6 +526,9 @@ impl Cx {
                     ticks: ticks as u32,
                     page_size,
                     choices,
+                    views,
+                    start,
+                    while_open,
                 });
             }
             DataKind::Hud => {
@@ -1586,15 +1601,92 @@ impl Cx {
                     file,
                     choice,
                     "menu choice",
-                    &["label", "action"],
-                    &[],
+                    &["label"],
+                    &["action", "next", "when"],
                 )?;
+                if !fields.contains_key("action") && !fields.contains_key("next") {
+                    self.error(
+                        "menu",
+                        file,
+                        choice.span(),
+                        "a menu choice needs an action or destination",
+                    );
+                    return None;
+                }
                 Some(pc::MenuChoice {
                     label: self.data_text(module, file, fields.get("label")?)?,
-                    action: self.data_callback(module, file, fields.get("action")?)?,
+                    action: fields
+                        .get("action")
+                        .and_then(|value| self.data_callback(module, file, value)),
+                    next: fields
+                        .get("next")
+                        .and_then(|value| self.data_menu_name(file, value)),
+                    when: fields
+                        .get("when")
+                        .and_then(|value| self.data_menu_guard(module, file, value)),
                 })
             })
             .collect()
+    }
+
+    fn data_menu_views(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<pc::MenuView>> {
+        let DataValue::Array(views, _) = value else {
+            self.error("menu", file, value.span(), "expected a list of menu views");
+            return None;
+        };
+        views
+            .iter()
+            .map(|view| {
+                let fields = self.data_object_fields(
+                    file,
+                    view,
+                    "menu view",
+                    &["name", "title", "choices"],
+                    &[],
+                )?;
+                Some(pc::MenuView {
+                    name: self.data_menu_name(file, fields.get("name")?)?,
+                    title: self.data_text(module, file, fields.get("title")?)?,
+                    choices: self.data_menu_choices(module, file, fields.get("choices")?)?,
+                })
+            })
+            .collect()
+    }
+
+    fn data_menu_name(&mut self, file: FileId, value: &DataValue) -> Option<String> {
+        if let Expr::Str { value, .. } = self.data_expr(file, value, "a quoted menu view name")? {
+            return Some(value.clone());
+        }
+        self.error(
+            "menu",
+            file,
+            value.span(),
+            "expected a quoted menu view name",
+        );
+        None
+    }
+
+    fn data_menu_guard(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::FieldReference> {
+        let expr = self.data_expr(file, value, "a boolean State field")?;
+        let Expr::Place(place) = expr else {
+            self.error("menu", file, value.span(), "expected a boolean State field");
+            return None;
+        };
+        let (state, field, ty) = self.resolve_place(module, file, place)?;
+        if !self.types_agree(file, value.span(), Ty::Bool, ty) {
+            return None;
+        }
+        self.field_reference(state, field)
     }
 
     fn data_hud_bossbar(

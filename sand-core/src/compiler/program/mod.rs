@@ -16,7 +16,7 @@ pub use model::{
     ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow, FlowHook, FlowHookPhase,
     FlowTransition, Function, FunctionReference, HudBossBar, HudDefinition,
     InventoryTransferDefinition, ItemHeld, LootItem, LootPool, LootTable, MenuChoice,
-    MenuDefinition, MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack,
+    MenuDefinition, MenuView, MessageChannel, Module, ModuleSource, NoticeDialog, Operation, Pack,
     PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation,
     ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
     ScoreRelation, State, StateAttached, TagKind, TagMembership, TeleportDestination, TextColor,

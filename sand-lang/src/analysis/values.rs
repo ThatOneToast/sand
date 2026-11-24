@@ -350,22 +350,26 @@ impl Cx {
             .collect();
         for def in structs {
             if self.layout_leaves(Ty::Struct(def)).is_none() {
-                let d = self.defs[def.0].clone();
-                self.error(
-                    "struct",
-                    d.file,
-                    d.name_span,
-                    "struct layouts must be finite, at most 32 levels deep and 1024 scalar fields",
-                );
-                match &mut self.defs[def.0].info {
-                    DefInfo::Struct { fields }
-                    | DefInfo::Enum {
-                        layout: Some(fields),
-                        ..
-                    } => fields.clear(),
-                    _ => {}
-                }
+                let d = &self.defs[def.0];
+                self.invalid_layout(def, d.file, d.name_span);
             }
+        }
+    }
+
+    pub(super) fn invalid_layout(&mut self, def: DefId, file: FileId, span: Span) {
+        self.error(
+            "type",
+            file,
+            span,
+            "owned layouts must be finite, at most 32 levels deep and 1024 scalar fields",
+        );
+        match &mut self.defs[def.0].info {
+            DefInfo::Struct { fields }
+            | DefInfo::Enum {
+                layout: Some(fields),
+                ..
+            } => fields.clear(),
+            _ => {}
         }
     }
 

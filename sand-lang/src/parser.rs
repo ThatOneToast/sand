@@ -450,6 +450,11 @@ impl Builder<'_> {
             }
             Rule::enum_item => {
                 let name = ident(inner.next().expect("enum name"));
+                let mut inner = inner.peekable();
+                let generics = inner
+                    .next_if(|part| part.as_rule() == Rule::generic_params)
+                    .map(|params| params.into_inner().map(ident).collect())
+                    .unwrap_or_default();
                 let variants = inner
                     .map(|variant| {
                         let mut docs = Vec::new();
@@ -474,7 +479,11 @@ impl Builder<'_> {
                         }
                     })
                     .collect();
-                ItemKind::Enum(EnumItem { name, variants })
+                ItemKind::Enum(EnumItem {
+                    name,
+                    generics,
+                    variants,
+                })
             }
             Rule::state_item => {
                 let scope_pair = inner.next().expect("scope");

@@ -25,6 +25,7 @@ pub(super) struct PendingBody {
 #[derive(Default)]
 pub(super) struct Generics {
     pub records: BTreeMap<DefId, (StructItem, Vec<DefId>)>,
+    pub enums: BTreeMap<DefId, (Vec<Ident>, Vec<DefId>)>,
     pub record_instances: BTreeMap<(DefId, Vec<Ty>), DefId>,
     pub record_arguments: BTreeMap<DefId, (DefId, Vec<Ty>)>,
     pub record_depth: usize,
@@ -520,15 +521,20 @@ impl Cx {
         }
     }
 
-    /// Instantiate a record using the existing nominal field/layout model.
-    pub(super) fn instantiate_record(
+    /// Intern a concrete specialization before resolving its owned layout.
+    pub(super) fn instantiate_aggregate(
         &mut self,
         template: DefId,
         types: Vec<Ty>,
         file: FileId,
         span: Span,
     ) -> Option<Ty> {
-        let Some((record, parameters)) = self.generics.records.get(&template).cloned() else {
+        let record = self.generics.records.get(&template).cloned();
+        let parameters = record
+            .as_ref()
+            .map(|(record, parameters)| (record.generics.clone(), parameters.clone()))
+            .or_else(|| self.generics.enums.get(&template).cloned());
+        let Some((names, parameters)) = parameters else {
             self.error("generic", file, span, "this type has no type parameters");
             return None;
         };
@@ -560,7 +566,7 @@ impl Cx {
                 "generic",
                 file,
                 span,
-                "generic record expansion exceeds 256 instances or 64 nested specializations",
+                "generic aggregate expansion exceeds 256 instances or 64 nested specializations",
             );
             return None;
         }
@@ -575,7 +581,14 @@ impl Cx {
                 .collect::<Vec<_>>()
                 .join(", ")
         );
-        concrete.info = DefInfo::Struct { fields: Vec::new() };
+        concrete.info = if record.is_some() {
+            DefInfo::Struct { fields: Vec::new() }
+        } else {
+            DefInfo::Enum {
+                variants: Vec::new(),
+                layout: Some(Vec::new()),
+            }
+        };
         let active = self.generics.active.replace(template);
         let instance = self.push_def(concrete);
         self.generics.origins.insert(instance, template);
@@ -585,9 +598,8 @@ impl Cx {
         self.generics
             .record_arguments
             .insert(instance, (template, types.clone()));
-        let mut bindings: BTreeMap<_, _> = record
-            .generics
-            .iter()
+        let mut bindings: BTreeMap<_, _> = names
+            .into_iter()
             .zip(types)
             .zip(parameters)
             .map(|((name, ty), parameter)| (name.name.clone(), (ty, parameter)))
@@ -595,6 +607,22 @@ impl Cx {
         bindings.insert("Self".into(), (Ty::Struct(instance), template));
         let saved = std::mem::replace(&mut self.generics.bindings, bindings);
         self.generics.record_depth += 1;
+        if let Some((record, _)) = record {
+            self.instantiate_record_layout(template, instance, &record);
+        } else {
+            self.instantiate_variant_layout(template, instance);
+        }
+        self.generics.record_depth -= 1;
+        self.generics.bindings = saved;
+        self.generics.active = active;
+        if self.layout_leaves(Ty::Struct(instance)).is_none() {
+            self.invalid_layout(instance, file, span);
+            return None;
+        }
+        Some(Ty::Struct(instance))
+    }
+
+    fn instantiate_record_layout(&mut self, template: DefId, instance: DefId, record: &StructItem) {
         let mut fields = Vec::new();
         let mut members = BTreeMap::new();
         for field in self.struct_fields(template) {
@@ -609,8 +637,9 @@ impl Cx {
             fields: fields.clone(),
         };
         self.members.insert(instance, members);
+        let module = self.defs[template.0].module;
         for (field, declared) in fields.into_iter().zip(&record.fields) {
-            let ty = self.resolve_type(owner.module, &declared.ty);
+            let ty = self.resolve_type(module, &declared.ty);
             self.defs[field.0].info = DefInfo::Field {
                 ty,
                 default: None,
@@ -619,20 +648,6 @@ impl Cx {
             };
         }
         self.instantiate_record_methods(template, instance);
-        self.generics.record_depth -= 1;
-        self.generics.bindings = saved;
-        self.generics.active = active;
-        if self.layout_leaves(Ty::Struct(instance)).is_none() {
-            self.error(
-                "struct",
-                file,
-                span,
-                "struct layouts must be finite, at most 32 levels deep and 1024 scalar fields",
-            );
-            self.defs[instance.0].info = DefInfo::Struct { fields: Vec::new() };
-            return None;
-        }
-        Some(Ty::Struct(instance))
     }
 
     /// A contextual literal can omit arguments; otherwise infer from its fields.
@@ -721,11 +736,11 @@ impl Cx {
             }
             types
         };
-        self.instantiate_record(def, types, file, path.span)
+        self.instantiate_aggregate(def, types, file, path.span)
     }
 
     /// Unification records candidates; the ordinary concrete call checks conflicts.
-    fn infer_type_arguments(
+    pub(super) fn infer_type_arguments(
         &mut self,
         module: ModuleId,
         annotation: &Type,

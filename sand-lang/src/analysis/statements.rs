@@ -464,9 +464,9 @@ impl Cx {
             {
                 Ty::Number
             }
-            Expr::Call { path, args, .. } => {
+            Expr::Call { path, args, span } => {
                 if let Some(variant) = self.variant_path(body.module, path) {
-                    return self.variant_type(variant);
+                    return self.variant_type_from_args(body, variant, args, *span);
                 }
                 self.resolve_call(body, path, args, None, false)
                     .and_then(|def| self.fn_slots.get(&def))
@@ -1712,7 +1712,7 @@ impl Cx {
                         .iter()
                         .map(|ty| self.resolve_type(body.module, ty))
                         .collect();
-                    self.instantiate_record(def, types, body.file, *location)
+                    self.instantiate_aggregate(def, types, body.file, *location)
                         .unwrap_or(Ty::Unknown)
                 } else {
                     Ty::Struct(def)
@@ -2132,7 +2132,10 @@ impl Cx {
         if let Some(bindings) = self.pattern_bindings.get(&key) {
             return bindings.clone();
         }
-        let Some(variant) = self.variant_path(body.module, path) else {
+        let Some(variant) = self
+            .variant_path(body.module, path)
+            .and_then(|variant| self.variant_in_type(variant, ty))
+        else {
             return Vec::new();
         };
         if self.variant_type(variant) != ty {
@@ -2162,6 +2165,15 @@ impl Cx {
     fn match_variant(&mut self, body: &BodyCx, ty: Ty, path: &Path, arity: usize) -> Option<i32> {
         let variant =
             self.expect_path(body.module, path, &[DefKind::Variant], "an enum variant")?;
+        let Some(variant) = self.variant_in_type(variant, ty) else {
+            self.error(
+                "variant",
+                body.file,
+                path.span,
+                "variant does not belong to the matched enum type",
+            );
+            return None;
+        };
         if !self.types_agree(body.file, path.span, ty, self.variant_type(variant))
             || !self.check_variant_arity(body.file, path.span, variant, arity)
         {

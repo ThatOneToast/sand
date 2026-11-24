@@ -122,7 +122,7 @@ use_group  = { "{" ~ (use_tree ~ ("," ~ use_tree)* ~ ","?)? ~ "}" }
 
 const_item = { kw_const ~ ident ~ ":" ~ ty ~ "=" ~ expr ~ ";" }
 
-enum_item  = { kw_enum ~ ident ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}" }
+enum_item  = { kw_enum ~ ident ~ generic_params? ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}" }
 variant    = { outer_doc* ~ ident ~ variant_payload? ~ ("=" ~ expr)? }
 variant_payload = { "(" ~ ty ~ ("," ~ ty)* ~ ","? ~ ")" }
 

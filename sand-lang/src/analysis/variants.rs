@@ -48,17 +48,65 @@ impl Cx {
     pub(super) fn evaluate_variant_payloads(&mut self) {
         let variants: Vec<_> = self.variant_src.keys().copied().collect();
         for variant in variants {
-            let DefInfo::Variant { fields, .. } = self.defs[variant.0].info.clone() else {
+            let parent = self.defs[variant.0].parent.expect("variant owner");
+            if self.generics.enums.contains_key(&parent) {
                 continue;
-            };
-            let source = &self.variant_src[&variant];
-            let (module, payload) = (source.module, source.payload.clone());
-            for (field, annotation) in fields.into_iter().zip(payload) {
-                let ty = self.resolve_type(module, &annotation);
-                if let DefInfo::Field { ty: slot, .. } = &mut self.defs[field.0].info {
-                    *slot = ty;
-                }
             }
+            self.resolve_variant_fields(variant, variant);
+        }
+    }
+
+    fn resolve_variant_fields(&mut self, source: DefId, concrete: DefId) {
+        let fields = self.variant_fields(concrete).to_vec();
+        let source = &self.variant_src[&source];
+        let (module, payload) = (source.module, source.payload.clone());
+        for (field, annotation) in fields.into_iter().zip(payload) {
+            let ty = self.resolve_type(module, &annotation);
+            if let DefInfo::Field { ty: slot, .. } = &mut self.defs[field.0].info {
+                *slot = ty;
+            }
+        }
+    }
+
+    pub(super) fn instantiate_variant_layout(&mut self, template: DefId, instance: DefId) {
+        let DefInfo::Enum {
+            variants: sources, ..
+        } = self.defs[template.0].info.clone()
+        else {
+            unreachable!("enum template");
+        };
+        let tag = self.variant_slot(instance, Span::default(), "tag".into(), Ty::Enum(instance));
+        let mut layout = vec![tag];
+        let mut members = BTreeMap::new();
+        let mut variants = Vec::new();
+        for source in &sources {
+            let mut variant = self.defs[source.0].clone();
+            variant.parent = Some(instance);
+            let name = variant.name.clone();
+            let concrete = self.push_def(variant);
+            self.generics.origins.insert(concrete, *source);
+            let fields: Vec<_> = self
+                .variant_fields(*source)
+                .to_vec()
+                .into_iter()
+                .map(|field| {
+                    let authored = &self.defs[field.0];
+                    self.variant_slot(concrete, authored.span, authored.name.clone(), Ty::Unknown)
+                })
+                .collect();
+            layout.extend(fields.iter().copied());
+            let value = self.eval_def(*source);
+            self.defs[concrete.0].info = DefInfo::Variant { value, fields };
+            members.insert(name, concrete);
+            variants.push(concrete);
+        }
+        self.members.insert(instance, members);
+        self.defs[instance.0].info = DefInfo::Enum {
+            variants: variants.clone(),
+            layout: Some(layout),
+        };
+        for (source, concrete) in sources.into_iter().zip(variants) {
+            self.resolve_variant_fields(source, concrete);
         }
     }
 
@@ -81,6 +129,55 @@ impl Cx {
 
     pub(super) fn variant_type(&self, variant: DefId) -> Ty {
         self.enum_type(self.defs[variant.0].parent.expect("variant owner"))
+    }
+
+    pub(super) fn variant_in_type(&self, variant: DefId, ty: Ty) -> Option<DefId> {
+        let owner = self.defs[variant.0].parent.expect("variant owner");
+        if !self.generics.enums.contains_key(&owner) {
+            return Some(variant);
+        }
+        let Ty::Struct(instance) = ty else {
+            return None;
+        };
+        let (template, _) = self.generics.record_arguments.get(&instance)?;
+        if *template != owner {
+            return None;
+        }
+        self.members
+            .get(&instance)?
+            .get(&self.defs[variant.0].name)
+            .copied()
+    }
+
+    pub(super) fn variant_type_from_args(
+        &mut self,
+        body: &BodyCx,
+        variant: DefId,
+        args: &[Arg],
+        span: Span,
+    ) -> Ty {
+        let owner = self.defs[variant.0].parent.expect("variant owner");
+        let Some((params, _)) = self.generics.enums.get(&owner).cloned() else {
+            return self.variant_type(variant);
+        };
+        let source = &self.variant_src[&variant];
+        let (module, payload) = (source.module, source.payload.clone());
+        let mut inferred = BTreeMap::new();
+        for (annotation, arg) in payload.iter().zip(args) {
+            if let ArgValue::Expr(expr) = &arg.value {
+                let ty = self.type_of(body, expr);
+                self.infer_type_arguments(module, annotation, ty, &params, &mut inferred);
+            }
+        }
+        let Some(types) = params
+            .iter()
+            .map(|param| inferred.get(&param.name).copied())
+            .collect::<Option<Vec<_>>>()
+        else {
+            return self.variant_type(variant);
+        };
+        self.instantiate_aggregate(owner, types, body.file, span)
+            .unwrap_or(Ty::Unknown)
     }
 
     pub(super) fn variant_fields(&self, variant: DefId) -> &[DefId] {
@@ -141,6 +238,15 @@ impl Cx {
             }
         };
         let variant = self.expect_path(module, path, &[DefKind::Variant], "an enum variant")?;
+        let Some(variant) = self.variant_in_type(variant, ty) else {
+            self.error(
+                "generic",
+                file,
+                path.span,
+                "this variant needs explicit type arguments or a matching enum type annotation",
+            );
+            return None;
+        };
         if !self.types_agree(file, path.span, ty, self.variant_type(variant))
             || !self.check_variant_arity(file, expr.span(), variant, args.len())
         {

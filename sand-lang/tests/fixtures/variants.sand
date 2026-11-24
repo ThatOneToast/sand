@@ -7,10 +7,13 @@ enum Delivery {
     Rejected([number; 2]),
 }
 enum Node { End, Branch(Vec<Node>) }
+enum Choice<T> { None, Some(T) }
+enum Decision<T, E> { Accept(T), Reject(E) }
 
 global state Depot {
     stored: Delivery = Delivery::Ready(Reading { units: 7 }, "initial"),
     root: Node,
+    choice: Choice<number> = Choice::Some(4),
     observed: number,
     failures: number,
 }
@@ -42,6 +45,20 @@ fn count(value: Node) -> number {
     }
 }
 
+fn get<T>(value: Choice<T>, fallback: T) -> T {
+    return match value {
+        Choice::Some(found) => found,
+        Choice::None => fallback,
+    };
+}
+
+fn label(value: Decision<number, string>) -> string {
+    return match value {
+        Decision::Accept(count) => count.to_string(),
+        Decision::Reject(reason) => reason,
+    };
+}
+
 fn check(value: bool) {
     if !value { Depot.failures += 1; }
 }
@@ -61,6 +78,12 @@ pub fn run() {
     check(measure(values[1]) == 7);
     check(count(Depot.root) == 1);
     check(count(Node::Branch([Node::Branch([Node::End])])) == 3);
+    let choice = Choice::Some("inferred");
+    check(get(choice, "") == "inferred");
+    check(get(Depot.choice, 0) == 4);
+    check(get(Choice::<number>::None, 23) == 23);
+    check(label(Decision::Reject("declined")) == "declined");
+    check(label(Decision::<number, string>::Accept(3)) == "3");
     Depot.stored = result;
     if Depot.failures == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }

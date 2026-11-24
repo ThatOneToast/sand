@@ -1861,6 +1861,10 @@
           "named": true
         },
         {
+          "type": "generic_parameters",
+          "named": true
+        },
+        {
           "type": "variant",
           "named": true
         },

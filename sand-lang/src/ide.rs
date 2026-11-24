@@ -41,9 +41,18 @@ fn variant_label(analysis: &Analysis, def: &crate::analysis::Def) -> String {
     if !fields.is_empty() {
         let payload = fields
             .iter()
-            .filter_map(|field| match analysis.def(*field).info {
-                DefInfo::Field { ty, .. } => Some(ty_name(analysis, ty)),
-                _ => None,
+            .filter_map(|field| {
+                let field = analysis.def(*field);
+                match field.info {
+                    DefInfo::Field {
+                        ty: Ty::Unknown, ..
+                    } => analysis.package.files[field.file.0]
+                        .text
+                        .get(field.span.start..field.span.end)
+                        .map(str::to_owned),
+                    DefInfo::Field { ty, .. } => Some(ty_name(analysis, ty)),
+                    _ => None,
+                }
             })
             .collect::<Vec<_>>()
             .join(", ");
@@ -85,13 +94,26 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
             Vec::new(),
         ),
         DefInfo::Enum { variants, layout } => {
+            let parameters: Vec<_> = analysis
+                .defs
+                .iter()
+                .filter(|candidate| {
+                    candidate.kind == DefKind::TypeParameter && candidate.parent == Some(id)
+                })
+                .map(|candidate| candidate.name.as_str())
+                .collect();
+            let parameters = if parameters.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", parameters.join(", "))
+            };
             let body = variants
                 .iter()
                 .map(|v| format!("    {},", variant_label(analysis, analysis.def(*v))))
                 .collect::<Vec<_>>()
                 .join("\n");
             (
-                format!("{vis}enum {} {{\n{body}\n}}", def.name),
+                format!("{vis}enum {}{parameters} {{\n{body}\n}}", def.name),
                 vec![if layout.is_some() {
                     "An owned variant with a tag and typed payload.".into()
                 } else {

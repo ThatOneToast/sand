@@ -143,6 +143,7 @@ module.exports = grammar({
         optional($.visibility),
         'enum',
         field('name', $.identifier),
+        optional($.generic_parameters),
         '{',
         commaSep($.variant),
         '}',

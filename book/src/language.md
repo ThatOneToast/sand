@@ -459,6 +459,26 @@ for its payload, or use an explicit constant constructor. Use explicit
 discriminants when the tags need to stay stable across pack updates.
 Enums with only unit variants retain their numeric casts and score layout.
 
+Use type parameters to reuse a payload enum across value types. A constructor
+can infer its type arguments from the payload or take them from a surrounding
+type annotation. Supply them explicitly when needed, as in
+`Option::<number>::None`. Patterns can omit the arguments because the matched
+value supplies the concrete enum type.
+
+Run `sand lang add outcomes` in the pack directory to install the bundled
+`Option<T>` and `Result<T, E>` declarations as an ordinary module.
+
+```rust,ignore
+use outcomes::{Option, Result};
+
+fn require_sample(sample: Option<number>) -> Result<number, string> {
+    return match sample {
+        Option::Some(units) => Result::Ok(units),
+        Option::None => Result::Err("No sample available"),
+    };
+}
+```
+
 ## Functions and variables
 
 Functions take typed parameters and may return a value, just like Rust:
@@ -759,7 +779,8 @@ fn price(phase: Phase) -> number {
 }
 ```
 
-Patterns are typed constants or enum variants, with `|` joining alternatives.
+Use `|` to join constant or unit-variant patterns. Give each payload
+variant pattern its own arm.
 Cover every enum variant, both booleans, or add a catch-all arm such as
 `_ => { ... }` or `let name => { ... }`. Duplicate unguarded patterns, missing
 cases, and arms following an unguarded catch-all are errors. Dispatch depth

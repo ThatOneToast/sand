@@ -269,7 +269,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Player- and entity-scoped callable signatures with context checks at assignment and invocation.
 - [x] Named groups for cancelling a subset of one executor's pending waits.
 - [x] Payload enums with owned values, exhaustive matching and State defaults.
-- [ ] Generic enums and standard `Option<T>` and `Result<T, E>`.
+- [x] Generic enums and bundled `Option<T>` and `Result<T, E>`.
 - [ ] General borrowed slices.
 - [x] Typed enchantments generated from one verified catalog for Rust and Sand.
 - [x] Bundled typed durations and storable positions through ordinary Sand

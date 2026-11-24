@@ -975,10 +975,9 @@ impl Cx {
                         layout: None,
                     },
                 ));
-                let mut layout =
-                    e.variants.iter().any(|v| !v.payload.is_empty()).then(|| {
-                        vec![self.variant_slot(id, name.span, "tag".into(), Ty::Enum(id))]
-                    });
+                let has_payload = e.variants.iter().any(|v| !v.payload.is_empty());
+                let mut layout = has_payload
+                    .then(|| vec![self.variant_slot(id, name.span, "tag".into(), Ty::Enum(id))]);
                 let mut variants = Vec::new();
                 let mut members = BTreeMap::new();
                 let mut prev = None;
@@ -1049,6 +1048,20 @@ impl Cx {
                 }
                 self.defs[id.0].info = DefInfo::Enum { variants, layout };
                 self.members.insert(id, members);
+                if !e.generics.is_empty() {
+                    if !has_payload {
+                        self.error(
+                            "generic",
+                            file,
+                            name.span,
+                            "a generic enum needs a payload variant",
+                        );
+                    }
+                    let parameters = self.generic_parameters(id, &e.generics);
+                    self.generics
+                        .enums
+                        .insert(id, (e.generics.clone(), parameters));
+                }
                 id
             }
             ItemKind::Struct(record) => self.collect_struct(module, file, item, record),
@@ -1423,7 +1436,10 @@ impl Cx {
                 .find(|application| application.segment + 1 == index)
             {
                 let Cur::Def(def) = cur else {
-                    return fail(path.span, "type arguments require a generic struct".into());
+                    return fail(
+                        path.span,
+                        "type arguments require a generic struct or enum".into(),
+                    );
                 };
                 let types = application
                     .arguments
@@ -1431,7 +1447,7 @@ impl Cx {
                     .map(|ty| self.resolve_type(from, ty))
                     .collect();
                 let Some(Ty::Struct(instance)) =
-                    self.instantiate_record(def, types, file, path.span)
+                    self.instantiate_aggregate(def, types, file, path.span)
                 else {
                     return fail(path.span, "cannot instantiate this generic type".into());
                 };
@@ -1799,16 +1815,19 @@ impl Cx {
                     let element = self.resolve_type(module, &arguments[0]);
                     self.list_type(module, element)
                 } else {
-                    let Some(def) =
-                        self.expect_path(module, path, &[DefKind::Struct], "a generic struct")
-                    else {
+                    let Some(def) = self.expect_path(
+                        module,
+                        path,
+                        &[DefKind::Struct, DefKind::Enum],
+                        "a generic struct or enum",
+                    ) else {
                         return Ty::Unknown;
                     };
                     let types = arguments
                         .iter()
                         .map(|ty| self.resolve_type(module, ty))
                         .collect();
-                    self.instantiate_record(def, types, file, annotation.span)
+                    self.instantiate_aggregate(def, types, file, annotation.span)
                         .unwrap_or(Ty::Unknown)
                 }
             }
@@ -1900,20 +1919,29 @@ impl Cx {
             &[DefKind::Enum, DefKind::Struct],
             "a type (`number`, `float`, `bool`, `string`, `EntityRef`, enum, or struct)",
         ) {
-            Some(def) if self.defs[def.0].kind == DefKind::Struct => {
-                if self.generics.records.contains_key(&def) || !ty.arguments().is_empty() {
+            Some(def) => {
+                if self.generics.records.contains_key(&def)
+                    || self.generics.enums.contains_key(&def)
+                    || !ty.arguments().is_empty()
+                {
                     let types = ty
                         .arguments()
                         .iter()
                         .map(|ty| self.resolve_type(module, ty))
                         .collect();
-                    self.instantiate_record(def, types, self.package.module(module).file, ty.span)
-                        .unwrap_or(Ty::Unknown)
-                } else {
+                    self.instantiate_aggregate(
+                        def,
+                        types,
+                        self.package.module(module).file,
+                        ty.span,
+                    )
+                    .unwrap_or(Ty::Unknown)
+                } else if self.defs[def.0].kind == DefKind::Struct {
                     Ty::Struct(def)
+                } else {
+                    self.enum_type(def)
                 }
             }
-            Some(def) => self.enum_type(def),
             None => Ty::Unknown,
         }
     }

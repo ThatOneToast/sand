@@ -311,6 +311,8 @@ pub struct ConstItem {
 pub struct EnumItem {
     /// Enum name.
     pub name: Ident,
+    /// Type parameters shared by the variants of the enum.
+    pub generics: Vec<Ident>,
     /// Variants in declaration order.
     pub variants: Vec<Variant>,
 }

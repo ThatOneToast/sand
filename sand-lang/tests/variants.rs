@@ -55,3 +55,31 @@ fn payload_variants_reject_incorrect_construction_and_matching() {
         );
     }
 }
+
+#[test]
+fn generic_enum_specializations_are_nominal_and_use_the_bundled_types() {
+    let root = r#"
+#![pack(namespace = "variants", minecraft = "26.2")]
+mod outcomes;
+use outcomes::{Option, Result};
+global state Saved { current: Option<number> = Option::Some(4) }
+fn convert(value: Option<number>) -> Result<number, string> {
+    return match value { Option::Some(n) => Result::Ok(n), Option::None => Result::Err("missing") };
+}
+fn run() { let value = convert(Saved.current); }
+"#;
+    let source = sand_lang::library::Library::Outcomes.source();
+    compile(&analyze(&[("pack.sand", root), ("outcomes.sand", source)]));
+    let invalid =
+        format!("{root}\nfn invalid() {{ Saved.current = Option::<string>::Some(\"wrong\"); }}");
+    let errors = errors(&analyze(&[
+        ("pack.sand", &invalid),
+        ("outcomes.sand", source),
+    ]));
+    assert!(
+        errors
+            .iter()
+            .any(|message| message.contains("expected `Option<number>`, found `Option<string>`")),
+        "{errors:?}"
+    );
+}

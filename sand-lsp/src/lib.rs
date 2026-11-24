@@ -659,6 +659,7 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::Biome
         | D::StructureTemplate
         | D::InventoryTransfer
+        | D::Hud
         | D::Advancement
         | D::Predicate => lsp::SymbolKind::CONSTANT,
     };

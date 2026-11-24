@@ -950,6 +950,10 @@
                 {
                   "type": "STRING",
                   "value": "inventory_transfer"
+                },
+                {
+                  "type": "STRING",
+                  "value": "hud"
                 }
               ]
             },

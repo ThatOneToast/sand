@@ -688,3 +688,55 @@ pub struct InventoryTransferDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rejected: Option<super::FunctionReference>,
 }
+
+/// Owner-scoped presentation that lasts for a bounded number of loaded ticks.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::HudDefinition", module = "sand::advanced::compiler",
+ summary = "Owner-scoped presentation that lasts for a bounded number of loaded ticks.",
+ context = "Use Action::Hud to start or stop presentation as the current player. Supply an actionbar, a private boss bar, or both.",
+ minecraft = "Lowers through Hud and Lifetime with owner isolation, exclusive actionbar leases, and cleanup.",
+ use_when = ["Presenting player-specific gameplay progress for a loaded duration"],
+ avoid_when = ["Showing one shared bar to a group; use BossBar"],
+ fields(id = "HUD identity.", ticks = "Positive lifetime in loaded ticks.", every = "Refresh period in loaded ticks; defaults to one.", actionbar = "Optional rich actionbar text.", bossbar = "Optional private progress bar."),
+ example = "use sand::advanced::compiler::HudDefinition;",
+)]
+pub struct HudDefinition {
+    /// Identity used to start or cancel the HUD.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Loaded ticks before the native presentation expires.
+    pub ticks: u32,
+    /// Refresh cadence, defaulting to every loaded tick.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub every: Option<u32>,
+    /// Static rich text displayed in the owner's actionbar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub actionbar: Vec<TextPart>,
+    /// A native private boss bar with a constant or State-backed value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bossbar: Option<HudBossBar>,
+}
+
+/// The title, current value, and maximum of a player's private HUD boss bar.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::HudBossBar", module = "sand::advanced::compiler",
+ summary = "The title, current value, and maximum of a player's private HUD boss bar.",
+ context = "The value is read in player context each time Hud refreshes and is clamped to 0..=max.",
+ minecraft = "Lowers to one native boss bar per admitted player-owned HUD instance.",
+ use_when = ["Showing a private progress or resource meter"],
+ avoid_when = ["Using one shared boss bar value for all players"],
+ fields(title = "Static rich title.", value = "Constant or State score available to the player.", max = "Positive maximum."),
+ example = "use sand::advanced::compiler::HudBossBar;",
+)]
+pub struct HudBossBar {
+    /// Text shown over the bar.
+    pub title: Vec<TextPart>,
+    /// Current value read on each refresh.
+    pub value: super::ScoreOperand,
+    /// Positive bar maximum.
+    pub max: u32,
+}

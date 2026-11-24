@@ -89,14 +89,14 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         [
             (
                 "placeholder-codegen",
-                5_906,
+                5_920,
                 0,
                 "api-surface-baseline-placeholder.txt".to_owned(),
             ),
-            ("26.2", 12_220, 0, "api-surface-baseline.txt".to_owned(),),
+            ("26.2", 12_234, 0, "api-surface-baseline.txt".to_owned(),),
             (
                 "26.3",
-                12_482,
+                12_496,
                 0,
                 "api-surface-baseline-26.3.txt".to_owned(),
             ),

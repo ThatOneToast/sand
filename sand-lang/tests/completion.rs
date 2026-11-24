@@ -80,6 +80,7 @@ fn item_level() {
             "biome",
             "structure_template",
             "inventory_transfer",
+            "hud",
             "event",
             "loot",
             "recipe shapeless",
@@ -436,6 +437,15 @@ fn data_declarations_offer_only_remaining_valid_fields() {
     includes_excludes(
         "inventory_transfer Rations { from: 0, to: 1 }\nfn move() { transfer_inventory(|); }",
         &["Rations"],
+        &["Block::Stone"],
+    );
+    exactly(
+        "hud Status {\n    |\n}",
+        &["ticks", "every", "actionbar", "bossbar"],
+    );
+    includes_excludes(
+        "hud Status { ticks: 100, actionbar: \"Ready\" }\nfn show() { start_hud(|); }",
+        &["Status"],
         &["Block::Stone"],
     );
     exactly("structure_template Marker {\n    |\n}", &["source"]);

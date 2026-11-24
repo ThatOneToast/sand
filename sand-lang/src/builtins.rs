@@ -58,6 +58,8 @@ pub enum ParamKind {
     StructureTemplate,
     /// An authored inventory transfer definition.
     InventoryTransfer,
+    /// An authored player-owned HUD.
+    Hud,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -1455,6 +1457,33 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "clear_item(Item::${1:Dirt});",
     },
     Builtin {
+        name: "start_hud",
+        kind: BuiltinKind::Statement,
+        signature: "start_hud(hud)",
+        summary: "Start the declared HUD for the executing player.",
+        details: "Creates private presentation for the definition's loaded lifetime.",
+        minecraft: "Start a player-owned HUD lifetime with native screen channels.",
+        needs_player: true,
+        params: &[p("hud", ParamKind::Hud, true, "The declared HUD to start.")],
+        snippet: "start_hud(${1:Status});",
+    },
+    Builtin {
+        name: "cancel_hud",
+        kind: BuiltinKind::Statement,
+        signature: "cancel_hud(hud)",
+        summary: "Cancel this player's instances of the declared HUD.",
+        details: "Releases their private boss bars and current actionbar lease.",
+        minecraft: "Cancel the current player's owned HUD lifetimes.",
+        needs_player: true,
+        params: &[p(
+            "hud",
+            ParamKind::Hud,
+            true,
+            "The declared HUD to cancel.",
+        )],
+        snippet: "cancel_hud(${1:Status});",
+    },
+    Builtin {
         name: "transfer_inventory",
         kind: BuiltinKind::Statement,
         signature: "transfer_inventory(transfer)",
@@ -1847,6 +1876,8 @@ pub enum FieldKind {
     AssetPath,
     /// Parameterless function that runs after a native operation.
     Callback,
+    /// Title, progress and maximum for a private HUD bar.
+    HudBossBar,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -2335,6 +2366,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "hud",
+        "ticks",
+        FieldKind::Int,
+        true,
+        "Duration in loaded game ticks.",
+        "${1:100}",
+    ),
+    f(
+        "hud",
+        "every",
+        FieldKind::Int,
+        false,
+        "Refresh cadence in loaded ticks. Defaults to one.",
+        "${1:5}",
+    ),
+    f(
+        "hud",
+        "actionbar",
+        FieldKind::Text,
+        false,
+        "Rich text displayed in the owner's actionbar.",
+        r#""${1:Status}""#,
+    ),
+    f(
+        "hud",
+        "bossbar",
+        FieldKind::HudBossBar,
+        false,
+        "Private bar title, constant or State progress, and positive maximum.",
+        r#"{ title: "${1:Supplies}", value: ${2:Hero.energy}, max: ${3:100} }"#,
+    ),
+    f(
         "inventory_transfer",
         "from",
         FieldKind::Int,
@@ -2550,6 +2613,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "hud",
+        "`hud Name { ticks: 100, actionbar: \"Ready\" }` declares owner-scoped native presentation.",
     ),
     (
         "inventory_transfer",

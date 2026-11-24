@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 from validate_world_gameplay import WorldGameplayHarness
 from vanilla_reload_harness import ValidationFailure
@@ -223,6 +224,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute as NumericB run function runtime_values:inspect_inventory")
             self.check("RUNTIME_ITEM_CLEAR_ISOLATION", "if score NumericB numeric_probe matches 3")
             self.check_inventory_transfers()
+            self.check_owner_huds()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
@@ -256,6 +258,56 @@ class ValuesHarness(WorldGameplayHarness):
         for player, state in (("NumericA", 21), ("NumericB", 0)):
             self.send(f"execute as {player} run function runtime_values:report_transfers")
             self.check(f"TRANSFER_CALLBACKS_{player}", f"if score {player} numeric_probe matches {state}")
+
+
+    def check_owner_huds(self):
+        namespace = "runtime_values:__sand_system/lifetime/field_status"
+
+        def active_id(index):
+            start = len(self.lines)
+            pattern = re.compile(r"has the following contents: (\d+)$")
+            self.send(f"data get storage {namespace}/hud_ledger active[{index}].instance")
+            line = self.wait_for(pattern, "hud-identity", start)
+            return f"{namespace}/hud_bar/{pattern.search(self.lines[line]).group(1)}"
+
+        def value(bar, expected, label):
+            self.send(f"execute store result score #hud_value numeric_probe run bossbar get {bar} value")
+            self.check(label, f"if score #hud_value numeric_probe matches {expected}")
+
+        def audience(bar, player):
+            start = len(self.lines)
+            self.send(f"bossbar get {bar} players")
+            self.wait_for(re.compile(rf"has 1 player\(s\) currently online: {player}$"), f"hud-audience-{player}", start)
+
+        for player in ("NumericA", "NumericB"):
+            self.send(f"execute as {player} at @s run function runtime_values:begin_status")
+
+        first, second = (active_id(index) for index in (0, 1))
+        value(first, 25, "HUD_A_INITIAL")
+        value(second, 25, "HUD_B_INITIAL")
+        audience(first, "NumericA")
+        audience(second, "NumericB")
+
+        self.send("execute as NumericA run function runtime_values:update_status")
+        start = len(self.lines)
+        self.send("tick step 3")
+        self.wait_for(re.compile("Stepping 3 ticks?"), "hud-refresh", start)
+        for _ in range(20):
+            self.send(f"execute store result score #hud_value numeric_probe run bossbar get {first} value")
+            if self.passed("HUD_A_REFRESHED", "execute if score #hud_value numeric_probe matches 75 run say __SAND_WORLD_HUD_A_REFRESHED_OK__"):
+                break
+            time.sleep(0.05)
+        else:
+            raise ValidationFailure("hud-progress", "owner's State update did not reach the private bossbar")
+        value(second, 25, "HUD_B_STAYS_PRIVATE")
+
+        self.send("execute as NumericA run function runtime_values:end_status")
+        self.send(f"execute store success score #hud_exists numeric_probe run bossbar get {first} value")
+        self.check("HUD_A_CANCELLED", "if score #hud_exists numeric_probe matches 0")
+        value(second, 25, "HUD_B_STILL_PRESENT")
+        self.send("execute as NumericB run function runtime_values:end_status")
+        self.send(f"execute store success score #hud_exists numeric_probe run bossbar get {second} value")
+        self.check("HUD_B_CANCELLED", "if score #hud_exists numeric_probe matches 0")
 
 
 def main():

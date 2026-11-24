@@ -55,6 +55,13 @@ inventory_transfer MoveRations {
     rejected: transfer_denied,
 }
 
+hud FieldStatus {
+    ticks: 200,
+    every: 2,
+    actionbar: "{aqua}Field status active",
+    bossbar: { title: "Field progress", value: Ledger.hud_progress, max: 100 },
+}
+
 global state Origin { x: float, spread: float }
 player state Ledger {
     requested: number,
@@ -63,6 +70,7 @@ player state Ledger {
     completion_order: number,
     transfers_accepted: number,
     transfers_denied: number,
+    hud_progress: number,
 }
 impl Ledger {
     fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
@@ -146,6 +154,15 @@ fn inspect_inventory() {
         raw!("scoreboard players set @s numeric_probe -1");
     }
 }
+
+fn begin_status() {
+    Ledger.hud_progress = 25;
+    start_hud(FieldStatus);
+}
+
+fn update_status() { Ledger.hud_progress = 75; }
+
+fn end_status() { cancel_hud(FieldStatus); }
 
 fn move_rations() { transfer_inventory(MoveRations); }
 

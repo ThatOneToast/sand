@@ -9,6 +9,12 @@ player state Camp {
     cooldown: timer,
 }
 
+hud Recovery {
+    ticks: 100,
+    every: 4,
+    bossbar: { title: "{aqua}Checkpoint recovery", value: Camp.cooldown, max: 100 },
+}
+
 #[on(first_join)]
 fn equip_scout() {
     give_item(Item::CarrotOnAStick);
@@ -39,4 +45,5 @@ fn use_checkpoint() {
     let recovery = Duration::from_seconds(5);
     start_timer(Camp.cooldown, ticks = recovery.as_ticks());
     Camp.checkpoint.teleport();
+    start_hud(Recovery);
 }

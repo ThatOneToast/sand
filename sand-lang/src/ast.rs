@@ -514,6 +514,7 @@ pub enum DataKind {
     Biome,
     StructureTemplate,
     InventoryTransfer,
+    Hud,
 }
 
 impl DataKind {
@@ -533,6 +534,7 @@ impl DataKind {
             DataKind::Biome => "biome",
             DataKind::StructureTemplate => "structure_template",
             DataKind::InventoryTransfer => "inventory_transfer",
+            DataKind::Hud => "hud",
         }
     }
 }

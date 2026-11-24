@@ -246,6 +246,12 @@ pub(super) fn validate(
                 .caps()
                 .supports(sand_version::ComponentFeature::Dialogs)
         }),
+        huds: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.huds)
+            .map(|hud| hud.id.to_string())
+            .collect(),
         transfers: program
             .modules
             .iter()
@@ -437,6 +443,20 @@ pub(super) fn validate(
                 ExecutionContext::Player
             };
             validator.call(&tag.function, context, &owner, &format!("{ptr}/function"));
+        }
+        for (index, hud) in module.huds.iter().enumerate() {
+            if let Some(HudBossBar {
+                value: ScoreOperand::Field(score),
+                ..
+            }) = &hud.bossbar
+            {
+                validator.score(
+                    score,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("/huds/{index}/bossbar/value"),
+                );
+            }
         }
         for (index, transfer) in module.inventory_transfers.iter().enumerate() {
             for (field, callback) in [
@@ -729,6 +749,39 @@ pub(super) fn validate(
                     format!("{ptr}/result"),
                     "a recipe result is an item id with a count of 1..=99".into(),
                 );
+            }
+        }
+        for (index, hud) in module.huds.iter().enumerate() {
+            let ptr = format!("/huds/{index}");
+            if !resource_ids.insert(format!("hud {}", hud.id)) {
+                push(format!("{ptr}/id"), format!("duplicate HUD `{}`", hud.id));
+            }
+            for (field, value) in
+                std::iter::once(("ticks", hud.ticks)).chain(hud.every.map(|every| ("every", every)))
+            {
+                if !(1..=i32::MAX as u32).contains(&value) {
+                    push(
+                        format!("{ptr}/{field}"),
+                        "HUD ticks must be in 1..=2147483647".into(),
+                    );
+                }
+            }
+            if hud.actionbar.is_empty() && hud.bossbar.is_none() {
+                push(ptr.clone(), "a HUD needs an actionbar or a boss bar".into());
+            }
+            if let Some(error) = static_text_error(&hud.actionbar, None) {
+                push(format!("{ptr}/actionbar"), error);
+            }
+            if let Some(bar) = &hud.bossbar {
+                if !(1..=i32::MAX as u32).contains(&bar.max) {
+                    push(
+                        format!("{ptr}/bossbar/max"),
+                        "HUD bar maximum must be in 1..=2147483647".into(),
+                    );
+                }
+                if let Some(error) = static_text_error(&bar.title, None) {
+                    push(format!("{ptr}/bossbar/title"), error);
+                }
             }
         }
         for (index, transfer) in module.inventory_transfers.iter().enumerate() {
@@ -1205,6 +1258,7 @@ struct Validator<'a, 'e> {
     dialogs_supported: bool,
     advancements: BTreeMap<String, BTreeSet<String>>,
     transfers: BTreeSet<String>,
+    huds: BTreeSet<String>,
     target: &'a str,
     boss_bars: BTreeSet<String>,
     loot_tables: BTreeSet<String>,
@@ -2299,6 +2353,17 @@ impl Validator<'_, '_> {
                             ));
                         }
                         _ => {}
+                    }
+                }
+                Action::Hud { hud, .. } => {
+                    self.player(context, owner, &ptr, "showing the executing player's HUD");
+                    if !self.huds.contains(&hud.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/hud"),
+                            format!("unknown HUD `{hud}`"),
+                        ));
                     }
                 }
                 Action::TransferInventory { transfer } => {

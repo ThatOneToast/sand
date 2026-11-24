@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::Hud, _) => (
+                    format!("{vis}hud {}", def.name),
+                    format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
+                ),
                 (crate::ast::DataKind::InventoryTransfer, _) => (
                     format!("{vis}inventory_transfer {}", def.name),
                     format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
@@ -1163,7 +1167,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Dimension
         | DefKind::Biome
         | DefKind::StructureTemplate
-        | DefKind::InventoryTransfer => CompletionKind::Constant,
+        | DefKind::InventoryTransfer
+        | DefKind::Hud => CompletionKind::Constant,
     }
 }
 
@@ -1838,6 +1843,9 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("Hud") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Hud);
+            }
             Some("InventoryTransfer") => {
                 return scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::InventoryTransfer
@@ -2444,6 +2452,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
         ),
         Completion::snippet(
+            "hud",
+            "player-owned presentation",
+            r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
+        ),
+        Completion::snippet(
             "inventory_transfer",
             "checked inventory move",
             "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
@@ -2752,6 +2765,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Dialog => "Dialog",
                 ParamKind::StructureTemplate => "StructureTemplate",
                 ParamKind::InventoryTransfer => "InventoryTransfer",
+                ParamKind::Hud => "Hud",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

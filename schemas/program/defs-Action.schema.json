@@ -556,6 +556,30 @@
     },
     {
       "additionalProperties": false,
+      "description": "Start or cancel named presentation for the executing player.",
+      "properties": {
+        "hud": {
+          "description": "Identity of a HUD declared by this program.",
+          "type": "string"
+        },
+        "op": {
+          "const": "hud",
+          "type": "string"
+        },
+        "show": {
+          "description": "Start a new instance when true, or cancel this player's instances.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "hud",
+        "show"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Run a named inventory transfer for the executing player.",
       "properties": {
         "op": {

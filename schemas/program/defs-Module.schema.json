@@ -66,6 +66,13 @@
       },
       "type": "array"
     },
+    "huds": {
+      "description": "Named owner-scoped HUD definitions.",
+      "items": {
+        "$ref": "defs-HudDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "id": {
       "description": "Explicit semantic identity, independent of source filename.",
       "type": "string"

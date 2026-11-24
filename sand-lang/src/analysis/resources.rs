@@ -483,6 +483,45 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::Hud => {
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                }) else {
+                    return;
+                };
+                if get("actionbar").is_none() && get("bossbar").is_none() {
+                    self.error(
+                        "hud",
+                        file,
+                        data.name.span,
+                        "a HUD needs an actionbar or a boss bar",
+                    );
+                    return;
+                }
+                let every = get("every")
+                    .and_then(|field| {
+                        self.data_int(module, file, &field.value, 1, i64::from(i32::MAX))
+                    })
+                    .map(|value| value as u32);
+                let actionbar = get("actionbar")
+                    .and_then(|field| self.data_text(module, file, &field.value))
+                    .unwrap_or_default();
+                let bossbar = get("bossbar")
+                    .and_then(|field| self.data_hud_bossbar(module, file, &field.value));
+                self.pointers.push((
+                    module_id,
+                    format!("/huds/{}", out.huds.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.huds.push(pc::HudDefinition {
+                    id: location,
+                    ticks: ticks as u32,
+                    every,
+                    actionbar,
+                    bossbar,
+                });
+            }
             DataKind::InventoryTransfer => {
                 use sand::inventory::InventoryIndex;
                 let max = i64::from(InventoryIndex::MAX);
@@ -1481,6 +1520,40 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_hud_bossbar(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::HudBossBar> {
+        let fields =
+            self.data_object_fields(file, value, "HUD boss bar", &["title", "value", "max"], &[])?;
+        let title = self.data_text(module, file, fields.get("title")?)?;
+        let max = self.data_int(module, file, fields.get("max")?, 1, i64::from(i32::MAX))? as u32;
+        let value = self.data_expr(
+            file,
+            fields.get("value")?,
+            "a constant or State number field",
+        )?;
+        let value = match value {
+            Expr::Place(place) => {
+                let (state, field, ty) = self.resolve_place(module, file, place)?;
+                if !self.types_agree(file, value.span(), Ty::Number, ty) {
+                    return None;
+                }
+                pc::ScoreOperand::Field(self.field_reference(state, field)?)
+            }
+            _ => pc::ScoreOperand::Value(self.eval_i32(
+                module,
+                file,
+                value,
+                Some(Ty::Number),
+                None,
+            )? as i32),
+        };
+        Some(pc::HudBossBar { title, value, max })
     }
 
     fn data_callback(

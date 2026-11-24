@@ -318,8 +318,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   function.
 - [x] Native notice dialogs with translated text and player-scoped open and clear.
 - [ ] Broader advancement triggers, worldgen, interactive dialog flows and VFX.
-- [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
-  rosters, projectiles, progression, scenes, sessions and checkpoints
+- [x] Owner-scoped HUDs with bounded lifetime, rich actionbars, private
+  State-driven boss bars, and cancellation.
+- [ ] Expose the Rust combat, abilities, encounters, jobs, menus, rosters,
+  projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.

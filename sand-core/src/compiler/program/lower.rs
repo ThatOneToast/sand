@@ -132,6 +132,7 @@ pub(super) fn lower(
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
         constants: std::collections::BTreeSet::new(),
         custom_items: BTreeMap::new(),
+        huds: BTreeMap::new(),
         advancement_dispatchers: BTreeMap::new(),
         flags: std::collections::BTreeSet::new(),
         data_states: states
@@ -154,6 +155,11 @@ pub(super) fn lower(
             .collect(),
     };
     for module in &program.modules {
+        for hud in &module.huds {
+            lower
+                .huds
+                .insert(hud.id.to_string(), lower.hud_component(hud));
+        }
         for (index, item) in module.items.iter().enumerate() {
             let custom = custom_item(item, &lower.holders);
             if item.book.is_some() {
@@ -307,9 +313,22 @@ pub(super) fn lower(
     };
     lower.register_continuations(&ctx, &mut load, &mut tick)?;
     for module in &program.modules {
+        use crate::registration::IntoDatapack;
         let module_id = module.id.to_string();
+        for (index, hud) in module.huds.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.huds[&hud.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("hud {}", hud.id),
+                    &module_id,
+                    &format!("/huds/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
         for (index, transfer) in module.inventory_transfers.iter().enumerate() {
-            use crate::registration::IntoDatapack;
             lower.register_owned_runtime(
                 inventory_transfer(transfer).into_datapack(),
                 (
@@ -1533,6 +1552,7 @@ struct Lower<'sources> {
     constants: std::collections::BTreeSet<i32>,
     /// Declared custom items by id.
     custom_items: BTreeMap<String, sand_components::CustomItem>,
+    huds: BTreeMap<String, crate::gameplay::Hud>,
     advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
     /// Entity flags tested anywhere; each gets one generated predicate.
     flags: std::collections::BTreeSet<EntityFlag>,
@@ -1721,6 +1741,41 @@ impl Lower<'_> {
             output.push((owner.to_owned(), index, action.command().into()));
         }
         Ok(())
+    }
+
+    fn hud_component(&self, hud: &HudDefinition) -> crate::gameplay::Hud {
+        use crate::{
+            entity::{PlayerKind, StatCurve},
+            gameplay::{Hud, Lifetime},
+        };
+        use sand_components::effect::Ticks;
+
+        let lifetime = Lifetime::<PlayerKind>::new(hud.id.clone(), Ticks::new(hud.ticks))
+            .include_dimensions(self.dimensions.iter().cloned())
+            .every(Ticks::new(hud.every.unwrap_or(1)));
+        let mut definition = Hud::new(lifetime);
+        if !hud.actionbar.is_empty() {
+            definition = definition.actionbar(static_text_component(&hud.actionbar, &self.holders));
+        }
+        if let Some(bar) = &hud.bossbar {
+            let value = match &bar.value {
+                ScoreOperand::Value(value) => StatCurve::from(f64::from(*value)),
+                ScoreOperand::Field(field) => StatCurve::runtime_score(
+                    self.holders[&field.state.to_string()].clone(),
+                    sand_commands::ObjectiveName::logical(format!(
+                        "{}.{}",
+                        field.state, field.field
+                    )),
+                    1,
+                ),
+            };
+            definition = definition.bossbar(
+                static_text_component(&bar.title, &self.holders),
+                value,
+                bar.max,
+            );
+        }
+        definition
     }
 
     fn store_command_result(&self, score: &FieldReference, command: String) -> Cmd {
@@ -2380,6 +2435,14 @@ impl Lower<'_> {
                         }
                         (Some(item), None) => vec![Cmd::Raw(inventory.clear_item(item))],
                         (None, _) => vec![Cmd::Raw(inventory.clear_all())],
+                    }
+                }
+                Action::Hud { hud, show } => {
+                    let definition = &self.huds[&hud.to_string()];
+                    if *show {
+                        definition.start().0
+                    } else {
+                        definition.cancel().0
                     }
                 }
                 Action::TransferInventory { transfer } => {

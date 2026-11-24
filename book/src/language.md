@@ -1340,6 +1340,34 @@ whole stack. An occupied slot accepts items when their identity and components
 match and it has capacity. The optional zero-argument callbacks run as the
 player after the attempt releases the inventory lock.
 
+### Player-owned HUDs
+
+A named `hud` can show an actionbar, a private boss bar, or both. Start it
+as a player with `start_hud` and use `cancel_hud` to end that player's
+instances early.
+
+```rust,ignore
+player state Scout { progress: number }
+
+hud Survey {
+    ticks: 200,
+    every: 5,
+    actionbar: "{aqua}Survey in progress",
+    bossbar: { title: "Survey", value: Scout.progress, max: 100 },
+}
+
+fn begin_survey() {
+    Scout.progress = 0;
+    start_hud(Survey);
+}
+```
+
+A HUD lasts for its configured number of loaded ticks. The `every` field
+sets the refresh interval and defaults to one tick. A boss bar value can be
+a constant or a `number` or `timer` State field. It stays between zero and the bar's
+maximum. A player's most recently started Sand HUD with an actionbar owns
+that slot. Sand removes its presentation at cancellation, expiry, or reload.
+
 ### Structure templates
 
 Save a structure as a Minecraft gzip NBT file and put it inside the package.
@@ -1758,7 +1786,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers with exact amounts or whole stacks and callbacks | combat, abilities, encounters, jobs, menus, HUD, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers and player-owned HUDs | combat, abilities, encounters, jobs, menus, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

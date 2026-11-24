@@ -4806,6 +4806,10 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "start_hud" | "cancel_hud" => pc::Action::Hud {
+                hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
+                show: builtin.name == "start_hud",
+            },
             "transfer_inventory" => pc::Action::TransferInventory {
                 transfer: self.arg_declared(
                     body,

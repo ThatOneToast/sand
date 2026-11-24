@@ -31,6 +31,13 @@
       },
       "type": "array"
     },
+    "structure_assets": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Binary structure template assets, supplied explicitly by the host.\n\nKeys match the package-relative paths in structure template declarations.\nJSON encodes each byte sequence as standard Base64.",
+      "type": "object"
+    },
     "target": {
       "$ref": "defs-ProgramTarget.schema.json",
       "description": "Exact verified Minecraft release."

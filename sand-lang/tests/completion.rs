@@ -78,6 +78,7 @@ fn item_level() {
             "dialog",
             "dimension",
             "biome",
+            "structure_template",
             "event",
             "loot",
             "recipe shapeless",
@@ -420,6 +421,12 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "biome Garden {}\nfn check() { if biome_is(|, pos(0, 80, 0)) {} }",
         &["Garden", "Biome::Plains"],
         &["Dimension::Overworld"],
+    );
+    exactly("structure_template Marker {\n    |\n}", &["source"]);
+    includes_excludes(
+        "structure_template Marker { source: \"structures/marker.nbt\" }\nfn place() { place_template(|, pos(0, 80, 0)); }",
+        &["Marker"],
+        &["Block::Stone"],
     );
     exactly("dialog Notice {\n    |\n}", &["title", "body", "button"]);
     includes_excludes(

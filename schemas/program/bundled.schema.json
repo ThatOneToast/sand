@@ -1090,6 +1090,30 @@
         },
         {
           "additionalProperties": false,
+          "description": "Place a native structure template at an absolute or relative block position.",
+          "properties": {
+            "at": {
+              "$ref": "#/$defs/BlockPosition",
+              "description": "Minimum corner of the template, using its authored orientation."
+            },
+            "op": {
+              "const": "place_template",
+              "type": "string"
+            },
+            "template": {
+              "description": "A declared template or the namespaced identity of an external template.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "template",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Run a body in another dimension, retaining the current executor.",
           "properties": {
             "body": {
@@ -3522,6 +3546,13 @@
           },
           "type": "array"
         },
+        "structure_templates": {
+          "description": "Native templates whose bytes are supplied in the envelope.",
+          "items": {
+            "$ref": "#/$defs/StructureTemplate"
+          },
+          "type": "array"
+        },
         "tags": {
           "description": "Typed function-tag membership.",
           "items": {
@@ -4707,6 +4738,23 @@
       ],
       "type": "object"
     },
+    "StructureTemplate": {
+      "additionalProperties": false,
+      "description": "A datapack structure template copied from an existing `.nbt` file.\n\n# Context\nA datapack structure template copied from an existing `.nbt` file. Structure templates are binary NBT assets. Sand treats them as copy-backed datapack components and writes them under `data/<namespace>/structure/<path>.nbt`.\n\n# Minecraft behavior\nStructure templates are binary NBT assets. Sand treats them as copy-backed datapack components and writes them under `data/<namespace>/structure/<path>.nbt`.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructureTemplate;\n```\nA datapack structure template copied from an existing `.nbt` file.\n\nStructure templates are binary NBT assets. Sand treats them as copy-backed\ndatapack components and writes them under\n`data/<namespace>/structure/<path>.nbt`.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source"
+      ],
+      "type": "object"
+    },
     "TagKind": {
       "description": "Which registry a tag groups.",
       "oneOf": [
@@ -5166,6 +5214,13 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "structure_assets": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Binary structure template assets, supplied explicitly by the host.\n\nKeys match the package-relative paths in structure template declarations.\nJSON encodes each byte sequence as standard Base64.",
+      "type": "object"
     },
     "target": {
       "$ref": "#/$defs/ProgramTarget",

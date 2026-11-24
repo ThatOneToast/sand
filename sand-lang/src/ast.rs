@@ -512,6 +512,7 @@ pub enum DataKind {
     Dialog,
     Dimension,
     Biome,
+    StructureTemplate,
 }
 
 impl DataKind {
@@ -529,6 +530,7 @@ impl DataKind {
             DataKind::Dialog => "dialog",
             DataKind::Dimension => "dimension",
             DataKind::Biome => "biome",
+            DataKind::StructureTemplate => "structure_template",
         }
     }
 }

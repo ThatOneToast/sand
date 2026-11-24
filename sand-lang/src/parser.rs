@@ -572,6 +572,7 @@ impl Builder<'_> {
                     "dialog" => DataKind::Dialog,
                     "dimension" => DataKind::Dimension,
                     "biome" => DataKind::Biome,
+                    "structure_template" => DataKind::StructureTemplate,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

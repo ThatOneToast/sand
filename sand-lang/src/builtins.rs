@@ -54,6 +54,8 @@ pub enum ParamKind {
     Advancement,
     /// A declared or external native dialog.
     Dialog,
+    /// A declared or external native structure template.
+    StructureTemplate,
     /// A declared `loot` table.
     Loot,
     /// A retained EntityRef value.
@@ -693,6 +695,30 @@ pub const BUILTINS: &[Builtin] = &[
         needs_player: false,
         params: &[],
         snippet: "is_on_fire()",
+    },
+    Builtin {
+        name: "place_template",
+        kind: BuiltinKind::Statement,
+        signature: "place_template(template, at)",
+        summary: "Place a native structure template into the world.",
+        details: "Use a declared template or a quoted namespaced identity and an absolute or relative block position. The destination chunks must be loaded.",
+        minecraft: "place template <template> <position>",
+        needs_player: false,
+        params: &[
+            p(
+                "template",
+                ParamKind::StructureTemplate,
+                true,
+                "The template to place.",
+            ),
+            p(
+                "at",
+                ParamKind::Position,
+                true,
+                "The origin of the structure.",
+            ),
+        ],
+        snippet: "place_template(${1:Workshop}, offset(0, 0, 0));",
     },
     Builtin {
         name: "set_block",
@@ -1762,6 +1788,8 @@ pub enum FieldKind {
     FlatLayers,
     /// A quoted namespaced resource location.
     ResourceId,
+    /// A quoted path to a binary asset relative to the package root.
+    AssetPath,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -2250,6 +2278,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:5}",
     ),
     f(
+        "structure_template",
+        "source",
+        FieldKind::AssetPath,
+        true,
+        "Package-relative Minecraft structure asset saved as a gzip NBT file.",
+        r#""${1:structures/workshop.nbt}""#,
+    ),
+    f(
         "biome",
         "precipitation",
         FieldKind::Bool,
@@ -2417,6 +2453,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "advancement",
         "`advancement Name { criteria: {...} }` declares a player milestone with named native criteria and optional presentation and experience.",
+    ),
+    (
+        "structure_template",
+        r#"`structure_template Name { source: "structures/name.nbt" }` imports a native structure template for `place_template`."#,
     ),
     (
         "biome",

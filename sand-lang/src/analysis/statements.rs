@@ -4788,6 +4788,27 @@ impl Cx {
                 score: self.arg_timer(body, bound["timer"], "stops")?,
                 value: 0,
             },
+            "place_template" => {
+                let template = bound["template"];
+                let ArgValue::Expr(expr) = &template.value else {
+                    self.error(
+                        "type",
+                        file,
+                        template.span,
+                        "expected a structure template resource",
+                    );
+                    return None;
+                };
+                pc::Action::PlaceTemplate {
+                    template: self.native_data_id(
+                        body.module,
+                        file,
+                        expr,
+                        DefKind::StructureTemplate,
+                    )?,
+                    at: self.arg_position(body, bound["at"])?,
+                }
+            }
             "set_block" => {
                 let block = self.arg_id(body, bound["block"], "Block");
                 let at = self.arg_position(body, bound["at"]);

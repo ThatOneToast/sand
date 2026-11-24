@@ -942,6 +942,10 @@
                 {
                   "type": "STRING",
                   "value": "biome"
+                },
+                {
+                  "type": "STRING",
+                  "value": "structure_template"
                 }
               ]
             },

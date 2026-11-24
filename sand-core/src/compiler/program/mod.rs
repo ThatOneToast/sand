@@ -50,6 +50,7 @@ const CAPABILITIES: &[&str] = &[
     "notice_dialogs",
     "flat_dimensions",
     "custom_biomes",
+    "structure_templates",
     "sounds",
     "particles",
     "effects",

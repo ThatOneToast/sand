@@ -5,7 +5,7 @@
 //! `combat/mod.sand` next to it. Any other file `combat.sand` owns the
 //! directory `combat/`, so `mod hits;` inside it loads `combat/hits.sand`.
 
-use crate::ast::{Item, ItemKind, SourceFile, Span};
+use crate::ast::{DataKind, DataValue, Expr, Item, ItemKind, SourceFile, Span};
 use crate::diagnostic::Diagnostic;
 use crate::parser;
 use crate::source::{FileId, FileProvider, LineIndex};
@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 
 /// The conventional root file name a package directory is discovered by.
 pub const ROOT_FILE: &str = "pack.sand";
+
+const MAX_STRUCTURE_BYTES: usize = 8 * 1024 * 1024;
 
 /// One parsed source file.
 #[derive(Debug, Clone)]
@@ -74,6 +76,7 @@ pub struct Package {
     pub modules: Vec<ModuleData>,
     /// Syntax and module-loading diagnostics.
     pub diagnostics: Vec<Diagnostic>,
+    pub(crate) structure_assets: BTreeMap<String, Result<Vec<u8>, String>>,
 }
 
 impl Package {
@@ -117,11 +120,13 @@ pub fn find_root(file: &Path, files: &dyn FileProvider) -> PathBuf {
 pub fn load(root: &Path, files: &dyn FileProvider) -> Package {
     let mut loader = Loader {
         provider: files,
+        remaining_asset_bytes: MAX_STRUCTURE_BYTES,
         package: Package {
             root: root.to_path_buf(),
             files: Vec::new(),
             modules: Vec::new(),
             diagnostics: Vec::new(),
+            structure_assets: BTreeMap::new(),
         },
     };
     let text = files.read(root).unwrap_or_default();
@@ -153,10 +158,52 @@ pub fn load(root: &Path, files: &dyn FileProvider) -> Package {
 
 struct Loader<'a> {
     provider: &'a dyn FileProvider,
+    remaining_asset_bytes: usize,
     package: Package,
 }
 
 impl Loader<'_> {
+    fn load_structure_asset(&mut self, item: &Item) {
+        let ItemKind::Data(data) = &item.kind else {
+            return;
+        };
+        if data.kind != DataKind::StructureTemplate {
+            return;
+        }
+        let Some(DataValue::Expr(Expr::Str { value: path, .. })) = data
+            .fields
+            .iter()
+            .find(|field| field.key.name == "source")
+            .map(|field| &field.value)
+        else {
+            return;
+        };
+        if !path.ends_with(".nbt")
+            || Path::new(path).is_absolute()
+            || self.package.structure_assets.contains_key(path)
+        {
+            return;
+        }
+        let root = self
+            .package
+            .root
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let result = self
+            .provider
+            .read_binary(root, Path::new(path), self.remaining_asset_bytes)
+            .map_err(|error| error.to_string())
+            .and_then(|bytes| {
+                self.remaining_asset_bytes = self
+                    .remaining_asset_bytes
+                    .checked_sub(bytes.len())
+                    .ok_or_else(|| "structure assets exceed the 8 MiB program limit".to_owned())?;
+                Ok(bytes)
+            });
+        self.package.structure_assets.insert(path.clone(), result);
+    }
+
     fn add_file(&mut self, path: PathBuf, text: String) -> FileId {
         let id = FileId(self.package.files.len());
         let (ast, errors) = parser::parse(&text);
@@ -198,6 +245,7 @@ impl Loader<'_> {
             children: BTreeMap::new(),
         });
         for item in &items {
+            self.load_structure_asset(item);
             let ItemKind::Mod(module) = &item.kind else {
                 continue;
             };

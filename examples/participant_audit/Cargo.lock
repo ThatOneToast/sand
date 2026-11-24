@@ -1126,6 +1126,8 @@ dependencies = [
  "sand-api-contract",
  "sand-macros",
  "sand-version",
+ "schemars",
+ "serde",
  "serde_json",
  "thiserror 2.0.19",
  "unicode-general-category",
@@ -1152,6 +1154,7 @@ dependencies = [
 name = "sand-core"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "inventory",
  "sand-api-contract",
  "sand-build",

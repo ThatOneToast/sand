@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::StructureTemplate, _) => (
+                    format!("{vis}structure_template {}", def.name),
+                    format!("Native template `{id}`. Use it with `place_template`."),
+                ),
                 (crate::ast::DataKind::Biome, _) => (
                     format!("{vis}biome {}", def.name),
                     format!("Custom biome `{id}`. Use it in a dimension or with `biome_is`."),
@@ -1153,7 +1157,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Advancement
         | DefKind::Dialog
         | DefKind::Dimension
-        | DefKind::Biome => CompletionKind::Constant,
+        | DefKind::Biome
+        | DefKind::StructureTemplate => CompletionKind::Constant,
     }
 }
 
@@ -1823,6 +1828,11 @@ fn expression_completions(
             Some("Predicate") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
             }
+            Some("StructureTemplate") => {
+                return scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::StructureTemplate
+                });
+            }
             Some("Biome") => {
                 out.extend(scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::Biome
@@ -2408,6 +2418,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
         ),
         Completion::snippet(
+            "structure_template",
+            "native structure template",
+            r#"structure_template ${1:Workshop} { source: "${2:structures/workshop.nbt}" }"#,
+        ),
+        Completion::snippet(
             "biome",
             "custom biome",
             r##"biome ${1:Grove} { temperature: ${2:0.7}, water_color: "#${3:3f76e4}" }"##,
@@ -2704,6 +2719,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Predicate => "Predicate",
                 ParamKind::Advancement => "Advancement",
                 ParamKind::Dialog => "Dialog",
+                ParamKind::StructureTemplate => "StructureTemplate",
                 ParamKind::EntityRef => "EntityRef",
                 ParamKind::Value => "T",
             };

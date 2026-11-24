@@ -19,6 +19,7 @@ fn counter() -> Program {
             namespace: "demo".into(),
             description: "Player counter".into(),
         },
+        structure_assets: Default::default(),
         requires: vec![],
         modules: vec![Module {
             events: vec![],
@@ -33,6 +34,7 @@ fn counter() -> Program {
             dialogs: vec![],
             dimensions: vec![],
             biomes: vec![],
+            structure_templates: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

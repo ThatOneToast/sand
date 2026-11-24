@@ -11,7 +11,7 @@ use crate::diagnostic::Diagnostic;
 use crate::package::{ModuleId, Package};
 use crate::source::FileId;
 use sand::advanced::compiler as pc;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 // Minecraft uses floor division, including when the divisor is negative.
 // Rust's truncating and Euclidean operations each differ for some signs.
@@ -153,6 +153,8 @@ pub enum DefKind {
     Dimension,
     /// `biome Name { ... }`.
     Biome,
+    /// `structure_template Name { ... }`.
+    StructureTemplate,
 }
 
 impl DefKind {
@@ -184,6 +186,7 @@ impl DefKind {
             DefKind::Dialog => "dialog",
             DefKind::Dimension => "dimension",
             DefKind::Biome => "biome",
+            DefKind::StructureTemplate => "structure template",
         }
     }
 }
@@ -1094,6 +1097,7 @@ impl Cx {
                     crate::ast::DataKind::Dialog => DefKind::Dialog,
                     crate::ast::DataKind::Dimension => DefKind::Dimension,
                     crate::ast::DataKind::Biome => DefKind::Biome,
+                    crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -2588,6 +2592,17 @@ impl Cx {
         if lowerer.raw {
             requires.push("raw_commands".to_string());
         }
+        let structure_assets = modules
+            .iter()
+            .flat_map(|module| &module.structure_templates)
+            .map(|template| template.source_path())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter_map(|path| {
+                let bytes = self.package.structure_assets.get(path)?.as_ref().ok()?;
+                Some((path.to_owned(), bytes.clone()))
+            })
+            .collect();
         Some(pc::Program {
             format: "sand.program".into(),
             format_version: 1,
@@ -2600,6 +2615,7 @@ impl Cx {
             },
             requires,
             modules,
+            structure_assets,
         })
     }
 
@@ -3025,6 +3041,7 @@ impl Cx {
             dialogs: Vec::new(),
             dimensions: Vec::new(),
             biomes: Vec::new(),
+            structure_templates: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));

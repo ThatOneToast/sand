@@ -291,8 +291,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   declared dimension.
 - [x] Custom biome climate and colors, with typed references from dimensions and
   predicates.
-- [ ] Structure resources, biome generation and spawn tables, other world
-  generators and dimension types, and first-class native block data.
+- [x] Structure template imports from saved native NBT files and typed placement
+  at absolute or relative positions.
+- [ ] Natural structure generation, biome generation and spawn tables, other
+  world generators and dimension types, and first-class native block data.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.
 - [x] Native damage type declarations and typed vanilla damage types, both

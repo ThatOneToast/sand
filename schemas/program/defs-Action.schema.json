@@ -1089,6 +1089,30 @@
     },
     {
       "additionalProperties": false,
+      "description": "Place a native structure template at an absolute or relative block position.",
+      "properties": {
+        "at": {
+          "$ref": "defs-BlockPosition.schema.json",
+          "description": "Minimum corner of the template, using its authored orientation."
+        },
+        "op": {
+          "const": "place_template",
+          "type": "string"
+        },
+        "template": {
+          "description": "A declared template or the namespaced identity of an external template.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "template",
+        "at"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Run a body in another dimension, retaining the current executor.",
       "properties": {
         "body": {

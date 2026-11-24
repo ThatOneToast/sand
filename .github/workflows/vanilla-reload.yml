@@ -263,6 +263,10 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/language-custom-biomes"
           python3 scripts/validate_language.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/structure_templates.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-structure-templates"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/equipment.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-equipment"
           python3 scripts/validate_language.py \

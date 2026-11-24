@@ -483,6 +483,47 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::StructureTemplate => {
+                use sand::registration::DatapackComponent;
+                let Some(field) = get("source") else {
+                    return;
+                };
+                let Some(Expr::Str {
+                    value: source,
+                    span,
+                    ..
+                }) = self.data_expr(file, &field.value, "a quoted relative .nbt path")
+                else {
+                    self.error(
+                        "type",
+                        file,
+                        field.value.span(),
+                        "expected a quoted relative .nbt path",
+                    );
+                    return;
+                };
+                let template = sand::component::StructureTemplate::new(location, source);
+                if let Err(error) = template.validate() {
+                    self.error("structure", file, *span, error.to_string());
+                    return;
+                }
+                if let Some(Err(error)) = self.package.structure_assets.get(source) {
+                    self.error(
+                        "io",
+                        file,
+                        *span,
+                        format!("cannot read structure asset `{source}`: {error}"),
+                    );
+                    return;
+                }
+                self.pointers.push((
+                    module_id,
+                    format!("/structure_templates/{}", out.structure_templates.len()),
+                    file,
+                    *span,
+                ));
+                out.structure_templates.push(template);
+            }
             DataKind::Biome => {
                 let precipitation =
                     get("precipitation").and_then(|field| self.data_bool(file, &field.value));

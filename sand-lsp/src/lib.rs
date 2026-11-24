@@ -657,6 +657,7 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::Dialog
         | D::Dimension
         | D::Biome
+        | D::StructureTemplate
         | D::Advancement
         | D::Predicate => lsp::SymbolKind::CONSTANT,
     };

@@ -15,12 +15,15 @@ dimension Workshop {
     ],
 }
 
+structure_template CheckpointMarker {
+    source: "structures/checkpoint_marker.nbt",
+}
+
 /// Call near the test area in the Overworld, Nether, or Workshop.
 pub fn place() {
     if dimension_is(Dimension::Overworld) || dimension_is(Dimension::TheNether) || dimension_is(Workshop) {
-        // Build a three-block marker and place a second copy four blocks away.
-        set_block(Block::StoneBricks, offset(0, 0, 2));
-        set_block(Block::Lantern, offset(0, 1, 2));
+        // Place the saved marker and copy it four blocks away.
+        place_template(CheckpointMarker, offset(0, 0, 2));
         clone_blocks(offset(0, 0, 2), offset(0, 2, 2), offset(4, 0, 2), masked = true);
     }
 }

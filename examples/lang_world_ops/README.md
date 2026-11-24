@@ -3,7 +3,8 @@
 Build with `sand lang build examples/lang_world_ops` for Minecraft 26.2.
 Stand in a clear test area and run `/function checkpoint_rooms:place` in the
 Overworld, Nether, or Workshop. The pack places a lantern marker two blocks south and
-clones it four blocks east. The masked clone preserves blocks at the destination
+clones it four blocks east. The marker comes from the included
+`structures/checkpoint_marker.nbt` template. The masked clone preserves blocks at the destination
 where the source region contains air.
 
 Run `/function checkpoint_rooms:inspect_nether` from any dimension to check the

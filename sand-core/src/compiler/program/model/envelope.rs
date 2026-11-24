@@ -3,9 +3,10 @@ use super::{
     Advancement, CustomBiome, EventHook, FlatDimension, Function, NoticeDialog, Operation, State,
     TagMembership, WorldPredicate,
 };
-use sand_components::{DamageType, ResourceLocation};
+use sand_components::{DamageType, ResourceLocation, StructureTemplate};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// A complete compilation request with explicit protocol and target metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(format = "Protocol format discriminator, sand.program.", format_version = "Protocol revision, currently 1.", target = "ProgramTarget for this portable definition.", pack = "Pack for this portable definition.", requires = "Requires for this portable definition.", modules = "Modules for this portable definition."),
+ fields(format = "Protocol format discriminator, sand.program.", format_version = "Protocol revision, currently 1.", target = "ProgramTarget for this portable definition.", pack = "Pack for this portable definition.", requires = "Requires for this portable definition.", modules = "Modules for this portable definition.", structure_assets = "Gzip NBT bytes keyed by the source names in module structure templates. JSON represents each value as standard Base64."),
 )]
 pub struct Program<M = Module> {
     /// Must be `sand.program`.
@@ -34,6 +35,17 @@ pub struct Program<M = Module> {
     pub requires: Vec<String>,
     /// Flat module declarations. Resolved programs contain no paths.
     pub modules: Vec<M>,
+    /// Binary structure template assets, supplied explicitly by the host.
+    ///
+    /// Keys match the package-relative paths in structure template declarations.
+    /// JSON encodes each byte sequence as standard Base64.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        with = "asset_encoding"
+    )]
+    #[schemars(with = "BTreeMap<String, String>")]
+    pub structure_assets: BTreeMap<String, Vec<u8>>,
 }
 
 /// A target supplied explicitly by the host, never inferred from environment.
@@ -106,7 +118,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources.", biomes = "Native custom biome resources."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -166,4 +178,40 @@ pub struct Module {
     /// Native custom biomes declared by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub biomes: Vec<CustomBiome>,
+    /// Native templates whose bytes are supplied in the envelope.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub structure_templates: Vec<StructureTemplate>,
+}
+
+mod asset_encoding {
+    use super::BTreeMap;
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    use serde::{Deserialize, Deserializer, Serializer, ser::SerializeMap};
+
+    pub(super) fn serialize<S: Serializer>(
+        assets: &BTreeMap<String, Vec<u8>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(assets.len()))?;
+        for (name, bytes) in assets {
+            map.serialize_entry(name, &STANDARD.encode(bytes))?;
+        }
+        map.end()
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<BTreeMap<String, Vec<u8>>, D::Error> {
+        BTreeMap::<String, String>::deserialize(deserializer)?
+            .into_iter()
+            .map(|(name, encoded)| {
+                let bytes = STANDARD.decode(encoded).map_err(|error| {
+                    serde::de::Error::custom(format!(
+                        "invalid Base64 for structure asset `{name}`: {error}"
+                    ))
+                })?;
+                Ok((name, bytes))
+            })
+            .collect()
+    }
 }

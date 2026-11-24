@@ -698,6 +698,33 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, template) in module.structure_templates.iter().enumerate() {
+            use sand_components::component::DatapackComponent;
+            let ptr = format!("/structure_templates/{index}");
+            let id = template.resource_location();
+            if !resource_ids.insert(format!("structure template {id}")) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate structure template `{id}`"),
+                );
+            }
+            if let Err(error) = template.validate() {
+                push(format!("{ptr}/source"), error.to_string());
+                continue;
+            }
+            let source = template.source_path();
+            match program.structure_assets.get(source) {
+                Some(bytes) if bytes.len() >= 18 && bytes.starts_with(&[0x1f, 0x8b, 8]) => {}
+                Some(_) => push(
+                    format!("{ptr}/source"),
+                    format!("structure asset `{source}` must be a gzip NBT file"),
+                ),
+                None => push(
+                    format!("{ptr}/source"),
+                    format!("missing structure asset `{source}`"),
+                ),
+            }
+        }
         for (index, biome) in module.biomes.iter().enumerate() {
             let ptr = format!("/biomes/{index}");
             if !resource_ids.insert(format!("biome {}", biome.id)) {
@@ -2533,6 +2560,14 @@ impl Validator<'_, '_> {
                             ));
                         }
                     }
+                }
+                Action::PlaceTemplate { template, .. } => {
+                    self.resource(
+                        &template.to_string(),
+                        owner,
+                        &format!("{ptr}/action/template"),
+                        "structure template",
+                    );
                 }
                 Action::InDimension { dimension, body } => {
                     self.resource(

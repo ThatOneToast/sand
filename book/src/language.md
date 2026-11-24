@@ -1298,6 +1298,28 @@ Use quoted `"#rrggbb"` colors for `fog_color`, `water_color`, `water_fog_color`,
 terrain feature and natural mob spawn tables. Install the pack before the
 world starts to register the biome and any dimension that uses it.
 
+### Structure templates
+
+Save a structure as a Minecraft gzip NBT file and put it inside the package.
+Declare its path relative to the package root that contains `pack.sand`.
+
+```rust,ignore
+structure_template CheckpointMarker {
+    source: "structures/checkpoint_marker.nbt",
+}
+
+fn build_checkpoint() {
+    place_template(CheckpointMarker, offset(0, 0, 2));
+}
+```
+
+The build copies the asset into the datapack under its declared name.
+`place_template` accepts `pos(...)` or `offset(...)` and requires the destination
+chunks to be loaded. To place a template supplied by another pack, pass a
+namespaced identity such as `"adventure:rooms/camp"`. The portable JSON produced
+by `sand lang emit` includes the asset bytes, so another compiler host can
+build the same template without access to the package files.
+
 ### Block data and regions
 
 `block_data_number(at, path)` reads the vanilla integer result of a block
@@ -1677,7 +1699,7 @@ command and State models as Rust. Today the language covers:
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, typed block data literals and copies | structure resources, biome generation and spawn tables, other dimension generators and types |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |

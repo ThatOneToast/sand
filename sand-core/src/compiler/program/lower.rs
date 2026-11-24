@@ -432,6 +432,17 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, template) in module.structure_templates.iter().enumerate() {
+            let record = records::component_to_record(template, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/structure_templates/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
         for (index, biome) in module.biomes.iter().enumerate() {
             let component = custom_biome_component(biome);
             let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
@@ -562,13 +573,22 @@ pub(super) fn lower(
     let runtime_report =
         crate::compiler::runtime::RuntimeReport::collect(&lower.records, &lower.runtime);
     for record in lower.records {
+        let content = if record.content_type == "copy" {
+            program
+                .structure_assets
+                .get(&record.content)
+                .cloned()
+                .ok_or_else(|| error(format!("missing structure asset `{}`", record.content)))?
+        } else {
+            record.content.into_bytes()
+        };
         insert_output(
             &mut output,
             format!(
                 "data/{}/{}/{}.{}",
                 record.namespace, record.dir, record.path, record.ext
             ),
-            record.content.into_bytes(),
+            content,
         )?;
     }
     Ok(LoweredProgram {
@@ -2509,6 +2529,17 @@ impl Lower<'_> {
                         .map_err(|error| fail(error.to_string()))?;
                     vec![Cmd::Raw(command)]
                 }
+                Action::PlaceTemplate { template, at } => {
+                    let position = block_position(*at);
+                    #[cfg(not(sand_placeholder_codegen))]
+                    let command = crate::cmd::place_template(template.clone())
+                        .pos(position)
+                        .to_string();
+                    #[cfg(sand_placeholder_codegen)]
+                    let command = format!("place template {template} {position}");
+                    vec![Cmd::Raw(command)]
+                }
+
                 Action::InDimension { dimension, body } => {
                     let id = helper(
                         &self.namespace,

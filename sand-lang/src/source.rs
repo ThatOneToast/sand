@@ -2,6 +2,7 @@
 
 use crate::ast::Span;
 use std::collections::HashMap;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 /// Index of a file within one loaded [`Package`](crate::Package).
@@ -12,6 +13,20 @@ pub struct FileId(pub usize);
 pub trait FileProvider {
     /// Return the current text of `path`, or `None` if it does not exist.
     fn read(&self, path: &Path) -> Option<String>;
+
+    /// Read an explicitly declared binary asset below the package root.
+    ///
+    /// Providers must respect `limit` and keep the resolved file within `root`.
+    /// The default implementation has no binary assets.
+    fn read_binary(&self, _root: &Path, path: &Path, _limit: usize) -> io::Result<Vec<u8>> {
+        Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "binary asset '{}' is unavailable to this file provider",
+                path.display()
+            ),
+        ))
+    }
 }
 
 /// Reads files from disk.
@@ -21,6 +36,34 @@ pub struct DiskFiles;
 impl FileProvider for DiskFiles {
     fn read(&self, path: &Path) -> Option<String> {
         std::fs::read_to_string(path).ok()
+    }
+
+    fn read_binary(&self, root: &Path, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        let root = root.canonicalize()?;
+        let source = root.join(path).canonicalize()?;
+        if !source.starts_with(&root) {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "asset resolves outside the package",
+            ));
+        }
+        if !source.metadata()?.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "expected a regular file",
+            ));
+        }
+        let mut bytes = Vec::new();
+        std::fs::File::open(source)?
+            .take((limit as u64).saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > limit {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "structure assets exceed the 8 MiB program limit",
+            ));
+        }
+        Ok(bytes)
     }
 }
 
@@ -70,6 +113,17 @@ impl FileProvider for OverlayFiles {
             std::fs::read_to_string(path).ok()
         } else {
             None
+        }
+    }
+
+    fn read_binary(&self, root: &Path, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        if self.disk_fallback {
+            DiskFiles.read_binary(root, path, limit)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "binary asset is absent from this in-memory package",
+            ))
         }
     }
 }

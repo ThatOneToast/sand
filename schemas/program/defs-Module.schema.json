@@ -119,6 +119,13 @@
       },
       "type": "array"
     },
+    "structure_templates": {
+      "description": "Native templates whose bytes are supplied in the envelope.",
+      "items": {
+        "$ref": "defs-StructureTemplate.schema.json"
+      },
+      "type": "array"
+    },
     "tags": {
       "description": "Typed function-tag membership.",
       "items": {

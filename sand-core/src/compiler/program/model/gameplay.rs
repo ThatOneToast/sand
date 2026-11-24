@@ -843,7 +843,7 @@ pub enum EntitySort {
  use_when = ["Running work as, or counting, entities that match filters"],
  avoid_when = ["Iterating players; use Players"],
  example = "let query = sand::advanced::compiler::EntityQuery::default();",
- fields(entity_type = "Entity type identity, such as `minecraft:zombie`.", tag = "Required entity tag.", with_state = "Only entities with this entity State attached.", min_distance = "Inclusive minimum distance in blocks.", max_distance = "Inclusive maximum distance in blocks.", limit = "Most entities selected.", sort = "Order before the limit applies."),
+ fields(entity_type = "Entity type identity, such as `minecraft:zombie`.", tag = "Required entity tag.", with_state = "Only entities with this entity State attached.", min_distance = "Inclusive minimum distance in blocks.", max_distance = "Inclusive maximum distance in blocks.", limit = "Most entities selected.", sort = "Order before the limit applies.", score = "Inclusive range of a per-entity scoreboard field.", nbt = "Typed NBT compound to match."),
 )]
 pub struct EntityQuery {
     /// Entity type identity, such as `minecraft:zombie`.
@@ -868,6 +868,12 @@ pub struct EntityQuery {
     /// Order before the limit applies.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<EntitySort>,
+    /// Score bounds for a field on each candidate entity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub score: Option<ScoreComparison>,
+    /// Match a typed subset of each candidate entity's NBT.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbt: Option<sand_commands::NbtCompound>,
 }
 
 /// Where a teleport moves the executor.

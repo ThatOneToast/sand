@@ -239,6 +239,14 @@ jobs:
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/world_ops.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-world-ops"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/equipment.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-equipment"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/entity_filters.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-entity-filters"
           mkdir -p "target/vanilla-reload/${{ matrix.version }}/language-authored-tests"
           target/debug/sand lang test sand-lang/tests/fixtures/authored_tests.sand \
             --accept-eula --jar "$SAND_SERVER_JAR" 2>&1 \

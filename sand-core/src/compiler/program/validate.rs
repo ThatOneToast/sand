@@ -1067,6 +1067,50 @@ impl Validator<'_, '_> {
         if let Some(tag) = &query.tag {
             self.tag_name(tag, owner, &format!("{ptr}/tag"));
         }
+        if let Some(filter) = &query.score {
+            let field = &filter.score;
+            if !self
+                .states
+                .get(&field.state.to_string())
+                .is_some_and(|(scope, fields)| {
+                    matches!(*scope, "player" | "entity") && fields.contains(field.field.as_str())
+                })
+            {
+                self.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_REFERENCE",
+                    owner,
+                    &format!("{ptr}/score/score"),
+                    "a query score filter requires a declared player or entity scoreboard field",
+                ));
+            }
+            if (filter.min.is_none() && filter.max.is_none())
+                || filter
+                    .min
+                    .zip(filter.max)
+                    .is_some_and(|(min, max)| min > max)
+            {
+                self.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_RANGE",
+                    owner,
+                    &format!("{ptr}/score"),
+                    "query score bounds must be ordered with at least one bound",
+                ));
+            }
+        }
+        if let Some(nbt) = &query.nbt {
+            let selector = sand_commands::Selector::all_entities().nbt_raw(nbt.to_string());
+            if let Err(error) = sand_commands::Validate::validate(
+                &selector,
+                &sand_commands::CommandProfile::unprofiled(),
+            ) {
+                self.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_VALUE",
+                    owner,
+                    &format!("{ptr}/nbt"),
+                    error.to_string(),
+                ));
+            }
+        }
         let distance = |d: Option<f64>| d.is_none_or(|d| d.is_finite() && d >= 0.0);
         if !distance(query.min_distance)
             || !distance(query.max_distance)

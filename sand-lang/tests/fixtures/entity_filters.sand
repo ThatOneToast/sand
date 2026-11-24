@@ -1,0 +1,43 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+global state Report { checks: number, failed: number, visited: number }
+entity state Threat { level: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    Report.visited = 0;
+    raw!("summon minecraft:marker 0 80 0 {Tags:[\"filter_probe\",\"low\"],data:{quest:{stage:2,active:1b}}}");
+    raw!("summon minecraft:marker 1 80 0 {Tags:[\"filter_probe\",\"high\"],data:{quest:{stage:2,active:0b}}}");
+    raw!("summon minecraft:marker 2 80 0 {Tags:[\"filter_probe\",\"missing\"],data:{quest:{stage:2,active:1b}}}");
+
+    for target in entities(tag = "low") {
+        attach_state(Threat);
+        Threat.level = -3;
+    }
+    for target in entities(tag = "high") {
+        attach_state(Threat);
+        Threat.level = 5;
+    }
+    check(count_entities(tag = "filter_probe", score = Threat.level, score_range = -3..=5) == 2);
+    check(count_entities(tag = "filter_probe", score = Threat.level, score_range = -3..5) == 1);
+    check(count_entities(tag = "filter_probe", score = Threat.level, score_range = -3) == 1);
+    check(any_entities(tag = "filter_probe", score = Threat.level, score_range = ..=-3));
+    check(!any_entities(tag = "filter_probe", score = Threat.level, score_range = 6..));
+    check(count_entities(tag = "filter_probe", nbt = Nbt { data: Nbt { quest: Nbt { stage: 2, active: true } } }) == 2);
+    for target in entities(with = Threat, score = Threat.level, score_range = -3.., nbt = Nbt { Tags: ["low"] }) {
+        Report.visited += Threat.level;
+        detach_state(Threat);
+    }
+    check(Report.visited == -3);
+    check(!any_entities(tag = "filter_probe", score = Threat.level, score_range = ..=0));
+    for target in entities(tag = "filter_probe") { kill(); }
+
+    if Report.checks == 8 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

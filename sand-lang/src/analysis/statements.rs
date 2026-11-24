@@ -3811,7 +3811,222 @@ impl Cx {
                 None => ok = false,
             }
         }
+        query.score = match (bound.get("score"), bound.get("score_range")) {
+            (Some(field), Some(range)) => match self.query_score(body, field, range) {
+                Some(filter) => Some(filter),
+                None => {
+                    ok = false;
+                    None
+                }
+            },
+            (Some(arg), None) | (None, Some(arg)) => {
+                self.error("type", file, arg.span, "supply both score and score_range");
+                ok = false;
+                None
+            }
+            (None, None) => None,
+        };
+        if let Some(arg) = bound.get("nbt") {
+            if let ArgValue::Expr(Expr::Struct { path, fields, .. }) = &arg.value
+                && path.segments.len() == 1
+                && path.applications.is_empty()
+                && path.last().name == "Nbt"
+            {
+                query.nbt = self.query_nbt_compound(body, fields, 0);
+                ok &= query.nbt.is_some();
+            } else {
+                self.error(
+                    "type",
+                    file,
+                    arg.span,
+                    "expected a typed compound such as `Nbt { Silent: true }`",
+                );
+                ok = false;
+            }
+        }
         ok.then_some(query)
+    }
+
+    fn query_score(
+        &mut self,
+        body: &BodyCx,
+        field: &Arg,
+        range: &Arg,
+    ) -> Option<pc::ScoreComparison> {
+        let file = body.file;
+        let ArgValue::Expr(Expr::Place(place)) = &field.value else {
+            self.error(
+                "type",
+                file,
+                field.span,
+                "expected a player or entity `State.field`",
+            );
+            return None;
+        };
+        let (state, field, ty) = self.resolve_place(body.module, file, place)?;
+        if ty != Ty::Number
+            || !matches!(
+                self.defs[state.0].info,
+                DefInfo::State {
+                    scope: Scope::Entity | Scope::Player,
+                    ..
+                }
+            )
+        {
+            self.error(
+                "type",
+                file,
+                place.span,
+                "query scores require a number field on player or entity State",
+            );
+            return None;
+        }
+        let mut evaluate = |expr: &Expr| {
+            self.eval_i32(body.module, file, expr, Some(Ty::Number), None)
+                .map(|number| number as i32)
+        };
+        let (min, max) = match &range.value {
+            ArgValue::Expr(expr) => {
+                let exact = evaluate(expr)?;
+                (Some(exact), Some(exact))
+            }
+            ArgValue::Range(range) => {
+                let min = match &range.start {
+                    Some(expr) => Some(evaluate(expr)?),
+                    None => None,
+                };
+                let max = match &range.end {
+                    Some(expr) => {
+                        let end = evaluate(expr)?;
+                        if range.inclusive {
+                            Some(end)
+                        } else {
+                            match end.checked_sub(1) {
+                                Some(end) => Some(end),
+                                None => {
+                                    self.error(
+                                        "range",
+                                        file,
+                                        expr.span(),
+                                        "exclusive score bound leaves no possible value",
+                                    );
+                                    return None;
+                                }
+                            }
+                        }
+                    }
+                    None => None,
+                };
+                (min, max)
+            }
+        };
+        if (min.is_none() && max.is_none()) || min.zip(max).is_some_and(|(min, max)| min > max) {
+            self.error(
+                "range",
+                file,
+                range.span,
+                "query score bounds must be ordered with at least one bound",
+            );
+            return None;
+        }
+        Some(pc::ScoreComparison {
+            score: self.field_reference(state, field)?,
+            min,
+            max,
+        })
+    }
+
+    fn query_nbt_compound(
+        &mut self,
+        body: &BodyCx,
+        fields: &[(Ident, Expr)],
+        depth: usize,
+    ) -> Option<sand::data::NbtCompound> {
+        let mut nbt = sand::data::NbtCompound::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for (field, expr) in fields {
+            if !seen.insert(&field.name) {
+                self.error(
+                    "duplicate",
+                    body.file,
+                    field.span,
+                    format!("duplicate NBT field `{}`", field.name),
+                );
+                return None;
+            }
+            nbt = nbt.field(&field.name, self.query_nbt_value(body, expr, depth + 1)?);
+        }
+        Some(nbt)
+    }
+
+    fn query_nbt_value(
+        &mut self,
+        body: &BodyCx,
+        expr: &Expr,
+        depth: usize,
+    ) -> Option<sand::data::NbtValue> {
+        use sand::data::NbtValue;
+        let file = body.file;
+        if depth > 32 {
+            self.error(
+                "limit",
+                file,
+                expr.span(),
+                "NBT query filters may be nested at most 32 levels",
+            );
+            return None;
+        }
+        Some(match expr {
+            Expr::Str { value, .. } => NbtValue::String(value.clone()),
+            Expr::Float(value, _) => NbtValue::Double(*value),
+            Expr::Neg(inner, _) if matches!(inner.as_ref(), Expr::Float(_, _)) => {
+                let Expr::Float(value, _) = inner.as_ref() else {
+                    unreachable!()
+                };
+                NbtValue::Double(-value)
+            }
+            Expr::Array(values, _) => NbtValue::List(
+                values
+                    .iter()
+                    .map(|element| self.query_nbt_value(body, element, depth + 1))
+                    .collect::<Option<_>>()?,
+            ),
+            Expr::Struct { path, fields, .. }
+                if path.segments.len() == 1
+                    && path.applications.is_empty()
+                    && path.last().name == "Nbt" =>
+            {
+                NbtValue::Compound(self.query_nbt_compound(body, fields, depth)?)
+            }
+            _ => {
+                let (value, ty) = self.eval(body.module, file, expr, None)?;
+                match ty {
+                    Ty::Bool => NbtValue::Bool(value != 0),
+                    Ty::Float => NbtValue::Double(value as f64 / super::FLOAT_SCALE as f64),
+                    Ty::Number => match i32::try_from(value) {
+                        Ok(value) => NbtValue::Int(value),
+                        Err(_) => {
+                            self.error(
+                                "range",
+                                file,
+                                expr.span(),
+                                "NBT integer must fit in a number",
+                            );
+                            return None;
+                        }
+                    },
+                    _ => {
+                        self.error(
+                            "type",
+                            file,
+                            expr.span(),
+                            "expected a constant NBT scalar, list, or compound",
+                        );
+                        return None;
+                    }
+                }
+            }
+        })
     }
 
     /// Whether `Handle.field` names an entity handle rather than a State:

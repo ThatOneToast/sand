@@ -38,6 +38,10 @@ pub enum ParamKind {
     Range,
     /// A declared `entity state`.
     EntityState,
+    /// A scoreboard-backed number field on player or entity State.
+    QueryScore,
+    /// A compile-time typed Minecraft NBT compound.
+    NbtCompound,
     /// A `timer` State field, written `State.field`.
     Timer,
     /// A block position: `pos(x, y, z)` or `offset(dx, dy, dz)`.
@@ -136,6 +140,24 @@ const QUERY: &[Param] = &[
         ParamKind::Registry("Sort"),
         false,
         "Order before `limit`: `Sort::Nearest`, `Sort::Furthest`, `Sort::Random`, or `Sort::Arbitrary`.",
+    ),
+    p(
+        "score",
+        ParamKind::QueryScore,
+        false,
+        "Filter a number field on each candidate.",
+    ),
+    p(
+        "score_range",
+        ParamKind::Range,
+        false,
+        "Required bounds or exact number for the scoreboard filter.",
+    ),
+    p(
+        "nbt",
+        ParamKind::NbtCompound,
+        false,
+        "Match static entity data, such as Nbt { Silent: true }.",
     ),
 ];
 
@@ -322,7 +344,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin {
         name: "any_entities",
         kind: BuiltinKind::Condition,
-        signature: "any_entities(type = .., tag = .., distance = .., with = ..)",
+        signature: "any_entities(type?, tag?, distance?, with?, limit?, sort?, score?, score_range?, nbt?)",
         summary: "Whether at least one entity matches the filters.",
         details: "Takes the same filters as `entities(..)`. Distances are measured from the executor.",
         minecraft: "execute if entity @e[...]",
@@ -865,7 +887,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin {
         name: "teleport_to",
         kind: BuiltinKind::Statement,
-        signature: "teleport_to(type = .., tag = .., distance = .., sort = ..)",
+        signature: "teleport_to(type?, tag?, distance?, with?, limit?, sort?, score?, score_range?, nbt?)",
         summary: "Move the executing entity to the nearest entity that matches.",
         details: "Takes the same filters as `entities(..)`. One entity is chosen, the nearest unless `sort` says otherwise. Nothing happens if none match.",
         minecraft: "tp @s @e[...,limit=1,sort=nearest]",
@@ -924,7 +946,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin {
         name: "entities",
         kind: BuiltinKind::Expression,
-        signature: "for entity in entities(type = .., tag = .., distance = .., limit = .., sort = ..)",
+        signature: "entities(type?, tag?, distance?, with?, limit?, sort?, score?, score_range?, nbt?)",
         summary: "Run a loop body as each matching entity, at its position.",
         details: "Use it as the source of a `for` loop. Inside, the executor is that entity: `kill()`, \
                   `add_tag(..)`, `damage(..)` and position-based builtins act on it, and `continue` skips \
@@ -939,7 +961,7 @@ pub const BUILTINS: &[Builtin] = &[
     Builtin {
         name: "count_entities",
         kind: BuiltinKind::Expression,
-        signature: "count_entities(type = .., tag = .., distance = .., limit = .., sort = ..)",
+        signature: "count_entities(type?, tag?, distance?, with?, limit?, sort?, score?, score_range?, nbt?)",
         summary: "How many entities match the filters.",
         details: "An integer expression: `let zombies = count_entities(type = Entity::Zombie, distance = ..=32);`.",
         minecraft: "execute store result score ... if entity @e[...]",

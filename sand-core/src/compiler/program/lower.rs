@@ -1015,7 +1015,7 @@ fn state_objective(state: &str, suffix: &str) -> String {
         .to_owned()
 }
 
-fn query_selector(query: &EntityQuery) -> sand_commands::Selector {
+fn query_selector(query: &EntityQuery) -> Result<sand_commands::Selector, String> {
     let mut selector = sand_commands::Selector::all_entities();
     if let Some(entity_type) = &query.entity_type {
         selector = selector.entity_type_raw(entity_type.clone());
@@ -1030,7 +1030,28 @@ fn query_selector(query: &EntityQuery) -> sand_commands::Selector {
                 sand_commands::ObjectiveName::logical(format!("{state}.presence")),
                 sand_commands::ScoreRange::exact(1),
             )
-            .expect("canonical presence objective with a single score filter");
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(filter) = &query.score {
+        use sand_commands::ScoreRange;
+        let range = match (filter.min, filter.max) {
+            (Some(min), Some(max)) => ScoreRange::between(min, max),
+            (Some(min), None) => ScoreRange::at_least(min),
+            (None, Some(max)) => ScoreRange::at_most(max),
+            (None, None) => return Err("a query score filter requires a bound".into()),
+        };
+        selector = selector
+            .score_typed(
+                sand_commands::ObjectiveName::logical(format!(
+                    "{}.{}",
+                    filter.score.state, filter.score.field
+                )),
+                range,
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(nbt) = &query.nbt {
+        selector = selector.nbt_raw(nbt.to_string());
     }
     selector = match (query.min_distance, query.max_distance) {
         (Some(min), Some(max)) => selector.distance_range(min, max),
@@ -1049,7 +1070,7 @@ fn query_selector(query: &EntityQuery) -> sand_commands::Selector {
     if let Some(limit) = query.limit {
         selector = selector.limit(limit as i32);
     }
-    selector
+    Ok(selector)
 }
 
 fn function_resource(id: &str) -> String {
@@ -1437,7 +1458,7 @@ impl Lower<'_> {
     ) -> Result<sand_commands::ConditionIr, String> {
         Ok(match condition {
             Condition::Exists(test) => {
-                sand_commands::ConditionIr::Entity(query_selector(&test.exists))
+                sand_commands::ConditionIr::Entity(query_selector(&test.exists)?)
             }
             Condition::Block(test) => sand_commands::ConditionIr::Block {
                 position: block_position(test.at),
@@ -1900,7 +1921,7 @@ impl Lower<'_> {
                     self.function(&id, lines, module, &ptr)?;
                     vec![Cmd::Execute {
                         operations: vec![
-                            sand_commands::ExecuteOp::As(query_selector(query)),
+                            sand_commands::ExecuteOp::As(query_selector(query).map_err(fail)?),
                             sand_commands::ExecuteOp::At(sand_commands::Selector::self_()),
                         ],
                         run: Box::new(Cmd::Function(id)),
@@ -1983,7 +2004,10 @@ impl Lower<'_> {
                         let mut query = query.clone();
                         query.limit = Some(1);
                         query.sort = query.sort.or(Some(EntitySort::Nearest));
-                        vec![Cmd::Raw(format!("tp @s {}", query_selector(&query)))]
+                        vec![Cmd::Raw(format!(
+                            "tp @s {}",
+                            query_selector(&query).map_err(fail)?
+                        ))]
                     }
                 },
                 // Mirrors Rust's `state_attach_commands` for entity State:
@@ -2449,7 +2473,7 @@ impl Lower<'_> {
                     "execute store result score {} {} if entity {}",
                     self.holders[&score.state.to_string()],
                     objective(score),
-                    query_selector(query)
+                    query_selector(query).map_err(fail)?
                 ))],
                 Action::While { condition, body } => {
                     let looped = helper(&self.namespace, &self.helper_keys[owner], &path, "loop");

@@ -2572,6 +2572,8 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Function => "fn",
                 ParamKind::Range => "range",
                 ParamKind::EntityState => "EntityState",
+                ParamKind::QueryScore => "State.field",
+                ParamKind::NbtCompound => "Nbt",
                 ParamKind::Timer => "timer",
                 ParamKind::Position => "Position",
                 ParamKind::BossBar => "BossBar",

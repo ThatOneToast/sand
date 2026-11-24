@@ -87,7 +87,7 @@ pub struct ScoreField {
 }
 
 /// A field reference binds a field identity to its declaring State.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::FieldReference", module = "sand::advanced::compiler",
@@ -108,7 +108,7 @@ pub struct FieldReference {
 }
 
 /// Inclusive integer comparison bounds for a State score.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::ScoreComparison", module = "sand::advanced::compiler",

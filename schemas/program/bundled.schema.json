@@ -2200,6 +2200,28 @@
             "null"
           ]
         },
+        "nbt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NbtCompound"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Match a typed subset of each candidate entity's NBT."
+        },
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScoreComparison"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Score bounds for a field on each candidate entity."
+        },
         "sort": {
           "anyOf": [
             {

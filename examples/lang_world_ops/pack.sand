@@ -1,0 +1,22 @@
+#![pack(namespace = "checkpoint_rooms", minecraft = "26.2", description = "Repeatable checkpoint rooms")]
+
+/// Call near the test area in either supported dimension.
+pub fn place() {
+    if dimension_is(Dimension::Overworld) || dimension_is(Dimension::TheNether) {
+        // Build a three-block marker and place a second copy four blocks away.
+        set_block(Block::StoneBricks, offset(0, 0, 2));
+        set_block(Block::Lantern, offset(0, 1, 2));
+        clone_blocks(offset(0, 0, 2), offset(0, 2, 2), offset(4, 0, 2), masked = true);
+    }
+}
+
+/// Inspect the portal dimension from the caller's current world.
+pub fn inspect_nether() {
+    in_dimension(Dimension::TheNether, report_dimension);
+}
+
+fn report_dimension() {
+    if dimension_is(Dimension::TheNether) {
+        broadcast!("The Nether checkpoint dimension is available.");
+    }
+}

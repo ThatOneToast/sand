@@ -274,7 +274,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Top-level `wait` statements in entity and player functions, with
   per-invocation locals, original dimension, and owner-scoped cancellation.
 - [ ] Waits inside control flow, runtime durations, and server continuations.
-- [ ] Structures, dimensions, biomes, clone and typed block-data access.
+- [x] Dimension checks and scoped calls, and block cloning with mask, filter,
+  overlap, and move modes.
+- [ ] Structure resources, dimension declarations, biomes, and typed block data.
 - [ ] Multi-pool conditional loot, advancements, predicates, worldgen, damage
   types, trim recipes, books, dialogs, interactive/translated text and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory

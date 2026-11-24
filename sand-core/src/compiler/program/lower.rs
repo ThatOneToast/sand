@@ -985,7 +985,7 @@ fn returns(body: &[Operation]) -> bool {
         Action::Branch {
             then, otherwise, ..
         } => returns(then) || returns(otherwise),
-        Action::While { body, .. } => returns(body),
+        Action::While { body, .. } | Action::InDimension { body, .. } => returns(body),
         _ => false,
     })
 }
@@ -1430,6 +1430,9 @@ impl Lower<'_> {
                 position: block_position(test.at),
                 block: test.block.clone(),
             },
+            Condition::Dimension(test) => {
+                sand_commands::ConditionIr::Dimension(test.dimension.to_string())
+            }
             Condition::Holding(test) => sand_commands::ConditionIr::ItemsEntity {
                 target: sand_commands::Selector::self_(),
                 slot: if test.offhand {
@@ -2022,6 +2025,49 @@ impl Lower<'_> {
                     block_position(*from),
                     block_position(*to)
                 ))],
+                Action::CloneBlocks {
+                    from,
+                    to,
+                    destination,
+                    masked,
+                    filter,
+                    mode,
+                } => {
+                    let clone = sand_commands::CloneBlocks::new(
+                        block_position(*from),
+                        block_position(*to),
+                        block_position(*destination),
+                    )
+                    .clone_mode(*mode);
+                    let clone = match (masked, filter) {
+                        (_, Some(filter)) => clone.filtered(filter),
+                        (true, _) => clone.masked(),
+                        _ => clone,
+                    };
+                    let command = sand_commands::RenderCommand::render(&clone, &self.profile)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![Cmd::Raw(command)]
+                }
+                Action::InDimension { dimension, body } => {
+                    let id = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "in_dimension",
+                    );
+                    let lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/dimension"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    self.function(&id, lines, module, &ptr)?;
+                    vec![Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::In(dimension.to_string())],
+                        run: Box::new(call_helper(id, returns(body))),
+                    }]
+                }
                 Action::AddExperience { amount, levels } => {
                     let amount = match amount {
                         ScoreOperand::Value(value) => Amount::Value(*value as f64),

@@ -2937,6 +2937,53 @@ impl Cx {
             self.lower_start_timer(body, &bound, span, ops);
             return;
         }
+        if builtin.name == "in_dimension" {
+            let Some(dimension) = self
+                .arg_id(body, bound["dimension"], "Dimension")
+                .and_then(|id| id.parse().ok())
+            else {
+                return;
+            };
+            let ArgValue::Expr(Expr::Path(function)) = &bound["function"].value else {
+                self.error(
+                    "type",
+                    file,
+                    bound["function"].span,
+                    "expected a parameterless function name",
+                );
+                return;
+            };
+            if !self
+                .resolve_path(body.module, function)
+                .is_ok_and(|(def, _)| {
+                    matches!(
+                        self.defs[def.0].kind,
+                        DefKind::Function | DefKind::ExternFunction
+                    )
+                })
+            {
+                self.error(
+                    "resolve",
+                    file,
+                    function.span,
+                    "expected a parameterless function name",
+                );
+                return;
+            }
+            let mut nested = Vec::new();
+            self.lower_call(body, function, &[], function.span, &mut nested);
+            if !nested.is_empty() {
+                ops.push(op_at(
+                    pc::Action::InDimension {
+                        dimension,
+                        body: nested,
+                    },
+                    file,
+                    span,
+                ));
+            }
+            return;
+        }
         if matches!(builtin.name, "set_bossbar" | "set_bossbar_max") {
             self.lower_set_bossbar(body, builtin, &bound, span, ops);
             return;
@@ -3567,6 +3614,12 @@ impl Cx {
                     at: at?,
                 }))
             }
+            "dimension_is" => Some(pc::Condition::Dimension(pc::DimensionMatches {
+                dimension: self
+                    .arg_id(body, bound["dimension"], "Dimension")?
+                    .parse()
+                    .ok()?,
+            })),
             "holding" => {
                 let holding = self.arg_id(body, bound["item"], "Item");
                 let offhand = match bound.get("offhand") {
@@ -4095,6 +4148,51 @@ impl Cx {
                 pc::Action::SetBlock {
                     block: block?,
                     at: at?,
+                }
+            }
+            "clone_blocks" => {
+                let masked = match bound.get("masked") {
+                    Some(arg) => self.arg_bool(file, arg)?,
+                    None => false,
+                };
+                let filter = match bound.get("filter") {
+                    Some(arg) => Some(self.arg_block_test(body, arg)?),
+                    None => None,
+                };
+                if masked && filter.is_some() {
+                    self.error(
+                        "call",
+                        file,
+                        span,
+                        "choose either a clone filter or a masked clone",
+                    );
+                    return None;
+                }
+                let mode = match bound.get("mode") {
+                    Some(arg) => {
+                        let value = self.arg_id(body, arg, "CloneMode")?;
+                        match serde_json::from_value(serde_json::Value::String(value)) {
+                            Ok(mode) => mode,
+                            Err(_) => {
+                                self.error(
+                                    "type",
+                                    file,
+                                    arg.span,
+                                    "expected a `CloneMode::...` value",
+                                );
+                                return None;
+                            }
+                        }
+                    }
+                    None => sand::command::CloneMode::Normal,
+                };
+                pc::Action::CloneBlocks {
+                    from: self.arg_position(body, bound["from"])?,
+                    to: self.arg_position(body, bound["to"])?,
+                    destination: self.arg_position(body, bound["destination"])?,
+                    masked,
+                    filter,
+                    mode,
                 }
             }
             "fill_blocks" => {

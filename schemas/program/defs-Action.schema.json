@@ -965,6 +965,79 @@
     },
     {
       "additionalProperties": false,
+      "description": "Copy or move the blocks in an inclusive region to another position.",
+      "properties": {
+        "destination": {
+          "$ref": "defs-BlockPosition.schema.json",
+          "description": "Lower corner of the destination."
+        },
+        "filter": {
+          "description": "Optional block identity or tag to clone selectively.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "from": {
+          "$ref": "defs-BlockPosition.schema.json",
+          "description": "One source corner."
+        },
+        "masked": {
+          "default": false,
+          "description": "Skip air blocks. Mutually exclusive with a block filter.",
+          "type": "boolean"
+        },
+        "mode": {
+          "$ref": "defs-CloneMode.schema.json",
+          "default": "normal",
+          "description": "Vanilla overlap and move behavior."
+        },
+        "op": {
+          "const": "clone_blocks",
+          "type": "string"
+        },
+        "to": {
+          "$ref": "defs-BlockPosition.schema.json",
+          "description": "Opposite source corner."
+        }
+      },
+      "required": [
+        "op",
+        "from",
+        "to",
+        "destination"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Run a body in another dimension, retaining the current executor.",
+      "properties": {
+        "body": {
+          "description": "Body with the changed dimension and unchanged executor.",
+          "items": {
+            "$ref": "defs-Operation.schema.json"
+          },
+          "type": "array"
+        },
+        "dimension": {
+          "description": "Namespaced destination dimension.",
+          "type": "string"
+        },
+        "op": {
+          "const": "in_dimension",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "dimension",
+        "body"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Give the executing player experience points or levels.",
       "properties": {
         "amount": {

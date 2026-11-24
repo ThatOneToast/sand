@@ -11,12 +11,12 @@ pub use diagnostic::Diagnostic;
 pub use model::{
     Action, Amount, Audience, BlockMatches, BlockPosition, BossBar, BossBarColor, BossBarStyle,
     Condition, CookingMethod, CustomItem, DataField, DataOperand, DataProjection, DataReference,
-    EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook, ExecutionContext,
-    FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase, FlowTransition, Function,
-    FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel, Module, ModuleSource,
-    Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity, Recipe,
-    RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand,
-    ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
+    DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery, EntitySort, EventHook,
+    ExecutionContext, FieldReference, FlagSet, Flow, FlowHook, FlowHookPhase, FlowTransition,
+    Function, FunctionReference, ItemHeld, LootItem, LootTable, MessageChannel, Module,
+    ModuleSource, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, Rarity,
+    Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
+    ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached, TagKind, TagMembership,
     TeleportDestination, TextColor, TextPart, TextStyle, Weather,
 };
 pub use sand_commands::DataModifyOperation;

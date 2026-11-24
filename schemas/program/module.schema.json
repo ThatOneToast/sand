@@ -966,6 +966,79 @@
         },
         {
           "additionalProperties": false,
+          "description": "Copy or move the blocks in an inclusive region to another position.",
+          "properties": {
+            "destination": {
+              "$ref": "#/$defs/BlockPosition",
+              "description": "Lower corner of the destination."
+            },
+            "filter": {
+              "description": "Optional block identity or tag to clone selectively.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "from": {
+              "$ref": "#/$defs/BlockPosition",
+              "description": "One source corner."
+            },
+            "masked": {
+              "default": false,
+              "description": "Skip air blocks. Mutually exclusive with a block filter.",
+              "type": "boolean"
+            },
+            "mode": {
+              "$ref": "#/$defs/CloneMode",
+              "default": "normal",
+              "description": "Vanilla overlap and move behavior."
+            },
+            "op": {
+              "const": "clone_blocks",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/BlockPosition",
+              "description": "Opposite source corner."
+            }
+          },
+          "required": [
+            "op",
+            "from",
+            "to",
+            "destination"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Run a body in another dimension, retaining the current executor.",
+          "properties": {
+            "body": {
+              "description": "Body with the changed dimension and unchanged executor.",
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "dimension": {
+              "description": "Namespaced destination dimension.",
+              "type": "string"
+            },
+            "op": {
+              "const": "in_dimension",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "dimension",
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Give the executing player experience points or levels.",
           "properties": {
             "amount": {
@@ -1429,6 +1502,26 @@
         }
       ]
     },
+    "CloneMode": {
+      "description": "Clone mode for the `clone` command.\n\n# Context\nClone mode for the `clone` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.\n\n# Minecraft behavior\nBuilders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.\n\n# Use when\n- Constructing Minecraft commands through Sand's typed command model\n\n# Avoid when\n- Passing unvalidated command fragments when a typed builder or validated try_* entry point exists\n\n# Example\n```rust,ignore\nuse sand::command::CloneMode;\n```\nClone mode for the `clone` command.",
+      "oneOf": [
+        {
+          "const": "normal",
+          "description": "Normal cloning (default).\nNormal cloning (default).",
+          "type": "string"
+        },
+        {
+          "const": "force",
+          "description": "Force-clone even if blocks overlap.\nForce-clone even if blocks overlap.",
+          "type": "string"
+        },
+        {
+          "const": "move",
+          "description": "Move blocks (clone then clear source).\nMove blocks (clone then clear source).",
+          "type": "string"
+        }
+      ]
+    },
     "Condition": {
       "anyOf": [
         {
@@ -1450,6 +1543,10 @@
         {
           "$ref": "#/$defs/BlockMatches",
           "description": "A block matches at a position."
+        },
+        {
+          "$ref": "#/$defs/DimensionMatches",
+          "description": "The current command execution dimension matches."
         },
         {
           "$ref": "#/$defs/ItemHeld",
@@ -1803,6 +1900,20 @@
       },
       "required": [
         "field"
+      ],
+      "type": "object"
+    },
+    "DimensionMatches": {
+      "additionalProperties": false,
+      "description": "A test of the current execution dimension.",
+      "properties": {
+        "dimension": {
+          "description": "Namespaced dimension compared with the current execution level.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension"
       ],
       "type": "object"
     },

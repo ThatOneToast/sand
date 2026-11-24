@@ -512,8 +512,8 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     // the same enforced advanced vocabulary; no scope exemptions are added.
     // Typed storage fields/projections/operands, canonical data operations,
     // owned NBT text and the text constructor add 44 contracted source items.
-    // Related capture, source locations, mounting, and waits add 15 items.
-    assert_eq!(declarations.len(), 5_448);
+    // Related capture, source locations, mounting, waits, and world operations add 29 items.
+    assert_eq!(declarations.len(), 5_462);
     for path in [
         "sand::advanced::compiler::DataField",
         "sand::advanced::compiler::DataReference",

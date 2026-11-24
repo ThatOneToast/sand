@@ -138,6 +138,7 @@ fn map_body(entries: &mut Vec<Value>, module: &str, parent: &str, body: &[pc::Op
             | pc::Action::Entities { body, .. }
             | pc::Action::WithEntity { body, .. }
             | pc::Action::While { body, .. }
+            | pc::Action::InDimension { body, .. }
             | pc::Action::Suspend { body, .. } => {
                 map_body(entries, module, &format!("{pointer}/action/body"), body);
             }

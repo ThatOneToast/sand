@@ -22,6 +22,10 @@
       "description": "A block matches at a position."
     },
     {
+      "$ref": "defs-DimensionMatches.schema.json",
+      "description": "The current command execution dimension matches."
+    },
+    {
       "$ref": "defs-ItemHeld.schema.json",
       "description": "The executor holds an item."
     },

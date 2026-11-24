@@ -887,18 +887,14 @@ impl Validator<'_, '_> {
             }
             Condition::Exists(test) => self.query(&test.exists, owner, &format!("{ptr}/exists")),
             Condition::Block(test) => {
-                let id = test.block.strip_prefix('#').unwrap_or(&test.block);
-                self.resource(
-                    id,
-                    owner,
-                    &format!("{ptr}/block"),
-                    if test.block.starts_with('#') {
-                        "block tag"
-                    } else {
-                        "block"
-                    },
-                );
+                self.block_selector(&test.block, owner, &format!("{ptr}/block"));
             }
+            Condition::Dimension(test) => self.resource(
+                &test.dimension.to_string(),
+                owner,
+                &format!("{ptr}/dimension"),
+                "dimension",
+            ),
             Condition::Holding(test) => {
                 self.executor(context, owner, ptr, "testing a held item");
                 if !self.custom_items.contains(&test.holding) {
@@ -1120,6 +1116,14 @@ impl Validator<'_, '_> {
                 ptr,
                 format!("`{id}` is not a namespaced {kind} identity such as `minecraft:example`"),
             ));
+        }
+    }
+
+    fn block_selector(&mut self, selector: &str, owner: &str, ptr: &str) {
+        if let Some(tag) = selector.strip_prefix('#') {
+            self.resource(tag, owner, ptr, "block tag");
+        } else {
+            self.resource(selector, owner, ptr, "block");
         }
     }
 
@@ -1929,6 +1933,34 @@ impl Validator<'_, '_> {
                 }
                 Action::SetBlock { block, .. } | Action::FillBlocks { block, .. } => {
                     self.resource(block, owner, &format!("{ptr}/action/block"), "block");
+                }
+                Action::CloneBlocks { masked, filter, .. } => {
+                    if let Some(filter) = filter {
+                        self.block_selector(filter, owner, &format!("{ptr}/action/filter"));
+                        if *masked {
+                            self.errors.push(Diagnostic::error(
+                                "SAND_PROGRAM_TARGET",
+                                owner,
+                                &ptr,
+                                "choose either a clone filter or a masked clone",
+                            ));
+                        }
+                    }
+                }
+                Action::InDimension { dimension, body } => {
+                    self.resource(
+                        &dimension.to_string(),
+                        owner,
+                        &format!("{ptr}/action/dimension"),
+                        "dimension",
+                    );
+                    self.body(
+                        body,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/body"),
+                        depth + 1,
+                    );
                 }
                 Action::AddExperience { amount, .. } => {
                     self.player(context, owner, &ptr, "giving experience");

@@ -125,6 +125,22 @@ const OPTIONS: &[OptionSet] = &[
         ],
     },
     OptionSet {
+        name: "Dimension",
+        rust_path: "sand::registry::DimensionId",
+        noun: "dimension",
+        values: &[
+            ("Overworld", "minecraft:overworld"),
+            ("TheNether", "minecraft:the_nether"),
+            ("TheEnd", "minecraft:the_end"),
+        ],
+    },
+    OptionSet {
+        name: "CloneMode",
+        rust_path: "sand::command::CloneMode",
+        noun: "clone mode",
+        values: &[("Normal", "normal"), ("Force", "force"), ("Move", "move")],
+    },
+    OptionSet {
         name: "Weather",
         rust_path: "sand::advanced::compiler::Weather",
         noun: "weather",

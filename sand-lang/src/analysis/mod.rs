@@ -5135,6 +5135,7 @@ fn resolve_frame_markers(
         | pc::Action::Entities { body, .. }
         | pc::Action::WithEntity { body, .. }
         | pc::Action::While { body, .. }
+        | pc::Action::InDimension { body, .. }
         | pc::Action::Suspend { body, .. } => {
             resolve_frame_markers(body, resolved);
             true

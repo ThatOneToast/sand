@@ -1,0 +1,39 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+fn check_end() { check(dimension_is(Dimension::TheEnd)); }
+fn check_nether() {
+    check(dimension_is(Dimension::TheNether));
+    in_dimension(Dimension::TheEnd, check_end);
+    check(dimension_is(Dimension::TheNether));
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    check(dimension_is(Dimension::Overworld));
+    in_dimension(Dimension::TheNether, check_nether);
+    check(dimension_is(Dimension::Overworld));
+
+    set_block(Block::Stone, pos(1, 80, 1));
+    set_block(Block::Air, pos(2, 80, 1));
+    set_block(Block::GoldBlock, pos(3, 80, 1));
+    set_block(Block::Dirt, pos(6, 80, 1));
+    clone_blocks(pos(1, 80, 1), pos(3, 80, 1), pos(5, 80, 1), masked = true);
+    check(block_is(Block::Stone, pos(5, 80, 1)));
+    check(block_is(Block::Dirt, pos(6, 80, 1)));
+    check(block_is(Block::GoldBlock, pos(7, 80, 1)));
+
+    set_block(Block::Air, pos(12, 80, 1));
+    clone_blocks(pos(1, 80, 1), pos(3, 80, 1), pos(10, 80, 1), filter = Block::GoldBlock, mode = CloneMode::Move);
+    check(block_is(Block::Stone, pos(1, 80, 1)));
+    check(block_is(Block::Air, pos(3, 80, 1)));
+    check(block_is(Block::GoldBlock, pos(12, 80, 1)));
+    if Report.checks == 11 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

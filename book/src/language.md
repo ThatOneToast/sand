@@ -1093,6 +1093,21 @@ contains the wait. See the [bakery example](../../examples/lang_waits/pack.sand)
 Block positions are `pos(x, y, z)` in world coordinates or `offset(dx, dy, dz)`
 relative to the executor. Both take constants.
 
+`dimension_is(Dimension::Overworld)` checks the current command dimension.
+`in_dimension(Dimension::TheNether, setup_nether)` runs a parameterless function
+in that dimension with the same executor. Subsequent statements return to the
+original context. Minecraft scales horizontal coordinates when crossing between
+the Overworld and Nether. Use an absolute `pos(...)` for specific block locations.
+The vanilla choices are `Overworld`, `TheNether`, and `TheEnd`. Custom dimensions
+use namespaced identities such as `"my_pack:arena"`.
+
+`clone_blocks(from, to, destination)` copies an inclusive region to a destination
+corner. Use `masked = true` to preserve the destination beneath source air, or
+`filter = Block::Stone` to copy only one block or a declared block tag.
+`mode = CloneMode::Move` clears what it copies, and `CloneMode::Force` allows
+overlapping regions. The default mode is `CloneMode::Normal`. See the
+[checkpoint room example](../../examples/lang_world_ops/pack.sand).
+
 ```rust,ignore
 set_block(Block::Stone, offset(0, -1, 0));
 fill_blocks(Block::Air, offset(-2, 0, -2), offset(2, 3, 2));
@@ -1292,16 +1307,16 @@ variables, even inside `for player in players()`.
 
 ## Parity with Rust
 
-The language and Rust share one compiler backend, so anything both can
-express produces identical output. Today the language covers:
+The language emits resources through Sand's compiler and uses the same typed
+command and State models as Rust. Today the language covers:
 
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
-| State | player, global, and entity State; scalar and nested struct fields; timers; clamps; flows; impl methods | NBT-backed values, relations, derived values, migrations |
-| Logic | functions with parameters and returns, recursion, `let`, `if`, exhaustive `match`, `while`, `loop`, counting/reversed/stepped `for`, `break`/`continue`, casts, early return, custom events | closures, generics, compile-time Rust code |
-| Players and entities | player loops, entity queries, kill/tag/damage/summon, teleport, attributes and entity data as properties, effects, items, experience, game mode, sneaking and other flags, held items | selection by NBT or scores, motion, vehicles, equipment edits, archetypes |
+| State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
+| Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
+| Players and entities | loops and queries, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties, effects, items, experience, and entity flags | selection by NBT or scores, motion controls, equipment edits, archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
-| World | blocks and regions, block tests, time, weather | structures, biomes, dimensions, clone, data on blocks |
+| World | block placement, reads and cloning, time, weather, dimension tests and scoped calls | structure resources, biomes, dimension declarations, typed block data |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, single-pool loot tables | conditional loot, advancements, predicates, trim recipes, worldgen, damage types |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |

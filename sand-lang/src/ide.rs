@@ -38,6 +38,7 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
     let def = analysis.def(id);
     let vis = if def.is_pub { "pub " } else { "" };
     let (signature, facts): (String, Vec<String>) = match &def.info {
+        DefInfo::Trait => (format!("{vis}trait {}", def.name), Vec::new()),
         DefInfo::TypeParameter => (
             format!("type {}", def.name),
             vec!["Specialized at each concrete call.".into()],
@@ -826,9 +827,9 @@ pub fn rename(
 
 /// Reserved words that cannot name items.
 pub const KEYWORDS: &[&str] = &[
-    "impl", "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if", "else", "for", "in",
-    "extern", "as", "let", "return", "while", "loop", "match", "struct", "true", "false", "crate",
-    "self", "super",
+    "trait", "impl", "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if", "else",
+    "for", "in", "extern", "as", "let", "return", "while", "loop", "match", "struct", "true",
+    "false", "crate", "self", "super",
 ];
 
 /// What kind of thing a completion inserts.
@@ -1103,7 +1104,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         DefKind::Const => CompletionKind::Constant,
         DefKind::Enum => CompletionKind::Enum,
         DefKind::Variant => CompletionKind::Variant,
-        DefKind::State | DefKind::Struct => CompletionKind::State,
+        DefKind::State | DefKind::Struct | DefKind::Trait => CompletionKind::State,
         DefKind::TypeParameter => CompletionKind::TypeParameter,
         DefKind::Field => CompletionKind::Field,
         DefKind::Function | DefKind::ExternFunction | DefKind::Event => CompletionKind::Function,
@@ -2245,6 +2246,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "struct",
             "a copyable value type",
             "struct ${1:Point} {\n    ${2:x}: ${3:number},\n    $0\n}",
+        ),
+        Completion::snippet(
+            "trait",
+            "a method contract for generic code",
+            "trait ${1:Named} {\n    fn ${2:name}(&self) -> ${3:string};\n}",
         ),
         Completion::snippet(
             "impl",

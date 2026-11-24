@@ -64,7 +64,10 @@ pub(crate) fn type_delimiters(source: &str) -> std::collections::BTreeSet<usize>
     };
     let mut pending: Vec<_> = pairs.collect();
     while let Some(pair) = pending.pop() {
-        if matches!(pair.as_rule(), Rule::generic_params | Rule::type_arguments) {
+        if matches!(
+            pair.as_rule(),
+            Rule::generic_params | Rule::fn_generic_params | Rule::type_arguments
+        ) {
             let location = pair.as_span();
             result.insert(location.start());
             result.insert(location.end() - 1);
@@ -99,6 +102,7 @@ fn is_keyword(rule: Rule) -> bool {
         Rule::kw_fn
             | Rule::kw_struct
             | Rule::kw_impl
+            | Rule::kw_trait
             | Rule::kw_mod
             | Rule::kw_use
             | Rule::kw_const
@@ -130,6 +134,39 @@ fn is_keyword(rule: Rule) -> bool {
 /// Significant children: keyword tokens carry no information beyond the rule.
 fn children<'i>(pair: P<'i>) -> impl Iterator<Item = P<'i>> {
     pair.into_inner().filter(|p| !is_keyword(p.as_rule()))
+}
+
+fn fn_signature<'i>(mut parts: impl Iterator<Item = P<'i>>) -> TraitMethod {
+    let name = ident(parts.next().expect("function name"));
+    let mut params = Vec::new();
+    let mut ret = None;
+    let mut receiver = None;
+    for part in parts {
+        match part.as_rule() {
+            Rule::fn_params => {
+                for entry in part.into_inner() {
+                    if entry.as_rule() == Rule::receiver {
+                        let text = entry.as_str();
+                        receiver = Some(Receiver {
+                            mutable: text.contains("mut"),
+                            borrowed: text.starts_with('&'),
+                            span: span(&entry),
+                        });
+                    } else {
+                        params.extend(entry.into_inner().map(parameter));
+                    }
+                }
+            }
+            Rule::ret_ty => ret = part.into_inner().next().map(value_type),
+            _ => unreachable!("unexpected signature syntax"),
+        }
+    }
+    TraitMethod {
+        name,
+        receiver,
+        params,
+        ret,
+    }
 }
 
 fn parameter(pair: P<'_>) -> Param {
@@ -480,13 +517,22 @@ impl Builder<'_> {
                     fields,
                 })
             }
+            Rule::trait_item => {
+                let name = ident(inner.next().expect("trait name"));
+                ItemKind::Trait(TraitItem {
+                    name,
+                    methods: inner.map(|method| fn_signature(children(method))).collect(),
+                })
+            }
             Rule::impl_item => {
                 let mut generics = Vec::new();
                 let mut target = None;
+                let mut contract = None;
                 let mut methods = Vec::new();
                 for part in inner {
                     match part.as_rule() {
                         Rule::generic_params => generics = part.into_inner().map(ident).collect(),
+                        Rule::impl_contract => contract = children(part).next().map(path),
                         Rule::path => target = Some(path(part)),
                         Rule::type_arguments => {
                             let target = target.as_mut().expect("impl target");
@@ -500,6 +546,7 @@ impl Builder<'_> {
                 }
                 ItemKind::Impl(ImplItem {
                     generics,
+                    contract,
                     target: target.expect("impl target"),
                     methods,
                 })
@@ -548,41 +595,32 @@ impl Builder<'_> {
                 ItemKind::ExternFn(ExternFnItem { id, id_span, name })
             }
             Rule::fn_item => {
-                let name = ident(inner.next().expect("fn name"));
-                let mut params = Vec::new();
-                let mut ret = None;
-                let mut receiver = None;
                 let mut generics = Vec::new();
+                let mut bounds = Vec::new();
                 let mut body = None;
-                for part in inner {
-                    match part.as_rule() {
-                        Rule::generic_params => generics = part.into_inner().map(ident).collect(),
-                        Rule::fn_params => {
-                            for entry in part.into_inner() {
-                                if entry.as_rule() == Rule::receiver {
-                                    let text = entry.as_str();
-                                    receiver = Some(Receiver {
-                                        mutable: text.contains("mut"),
-                                        borrowed: text.starts_with('&'),
-                                        span: span(&entry),
-                                    });
-                                } else {
-                                    params.extend(entry.into_inner().map(parameter));
-                                }
-                            }
+                let signature = fn_signature(inner.filter_map(|part| match part.as_rule() {
+                    Rule::fn_generic_params => {
+                        for parameter in part.into_inner() {
+                            let mut entries = parameter.into_inner();
+                            let name = ident(entries.next().expect("type parameter"));
+                            bounds.extend(entries.map(|bound| (name.clone(), path(bound))));
+                            generics.push(name);
                         }
-                        Rule::ret_ty => {
-                            ret = part.into_inner().next().map(value_type);
-                        }
-                        _ => body = Some(self.block(part)),
+                        None
                     }
-                }
+                    Rule::block => {
+                        body = Some(self.block(part));
+                        None
+                    }
+                    _ => Some(part),
+                }));
                 ItemKind::Fn(FnItem {
                     generics,
-                    name,
-                    receiver,
-                    params,
-                    ret,
+                    bounds,
+                    name: signature.name,
+                    receiver: signature.receiver,
+                    params: signature.params,
+                    ret: signature.ret,
                     body: body.expect("fn body"),
                 })
             }

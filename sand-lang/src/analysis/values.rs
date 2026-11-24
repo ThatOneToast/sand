@@ -109,7 +109,7 @@ impl Cx {
             let file = self.package.module(module).file;
             let items = self.package.module(module).items.clone();
             for item in items {
-                let ItemKind::Impl(implementation) = item.kind else {
+                let ItemKind::Impl(mut implementation) = item.kind else {
                     continue;
                 };
                 if item.is_pub || !item.attrs.is_empty() {
@@ -128,8 +128,40 @@ impl Cx {
                 ) else {
                     continue;
                 };
+                let contract = if let Some(path) = &implementation.contract {
+                    let Some(contract) =
+                        self.expect_path(module, path, &[DefKind::Trait], "a trait")
+                    else {
+                        continue;
+                    };
+                    if self.defs[target.0].kind != DefKind::Struct {
+                        self.error(
+                            "trait",
+                            file,
+                            path.span,
+                            "traits are implemented on struct values",
+                        );
+                        continue;
+                    }
+                    self.validate_trait_members(
+                        contract,
+                        file,
+                        item.span,
+                        &mut implementation.methods,
+                    );
+                    Some(contract)
+                } else {
+                    None
+                };
                 if self.generics.records.contains_key(&target) {
-                    self.register_generic_impl(module, file, target, implementation, item.span);
+                    self.register_generic_impl(
+                        module,
+                        file,
+                        target,
+                        implementation,
+                        item.span,
+                        contract,
+                    );
                     continue;
                 }
                 if !implementation.generics.is_empty()
@@ -142,6 +174,9 @@ impl Cx {
                         "type parameters on an impl require a generic struct",
                     );
                     continue;
+                }
+                if let Some(contract) = contract {
+                    self.register_trait_impl(contract, target, file, item.span);
                 }
                 let state = self.defs[target.0].kind == DefKind::State;
                 for method in implementation.methods {

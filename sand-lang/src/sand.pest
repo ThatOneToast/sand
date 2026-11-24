@@ -19,7 +19,7 @@ inner_doc = @{ "//!" ~ (!"\n" ~ ANY)* }
 
 ident_char = _{ ASCII_ALPHANUMERIC | "_" }
 keyword = @{
-    ( "impl" | "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
+    ( "trait" | "impl" | "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
     | "if" | "else" | "for" | "in" | "extern" | "as" | "let" | "return"
     | "while" | "loop" | "match" | "struct" | "true" | "false" | "mut" | "continue"
     | "break" | "emit" ) ~ !ident_char
@@ -42,6 +42,7 @@ generic_params = { "<" ~ ident ~ ("," ~ ident)* ~ ","? ~ ">" }
 
 // Whole-word keyword tokens; the AST builder skips them.
 kw_struct = @{ "struct" ~ !ident_char }
+kw_trait = @{ "trait" ~ !ident_char }
 kw_impl = @{ "impl" ~ !ident_char }
 kw_fn = @{ "fn" ~ !ident_char }
 kw_mod = @{ "mod" ~ !ident_char }
@@ -85,7 +86,7 @@ vis = @{ "pub" ~ !ident_char }
 
 item = { (outer_doc | attr)* ~ vis? ~ item_kind }
 item_kind = _{
-    mod_item | use_item | const_item | enum_item | state_item | struct_item | impl_item
+    mod_item | use_item | const_item | enum_item | state_item | struct_item | trait_item | impl_item
   | flow_item | extern_fn | fn_item | event_item | data_item
 }
 
@@ -124,7 +125,10 @@ enum_item  = { kw_enum ~ ident ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}
 variant    = { outer_doc* ~ ident ~ ("=" ~ expr)? }
 
 struct_item = { kw_struct ~ ident ~ generic_params? ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
-impl_item = { kw_impl ~ generic_params? ~ path ~ type_arguments? ~ "{" ~ item* ~ "}" }
+trait_item = { kw_trait ~ ident ~ "{" ~ trait_method* ~ "}" }
+trait_method = { kw_fn ~ ident ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ ";" }
+impl_contract = { path ~ kw_for }
+impl_item = { kw_impl ~ generic_params? ~ impl_contract? ~ path ~ type_arguments? ~ "{" ~ item* ~ "}" }
 
 state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
@@ -134,7 +138,9 @@ applied_ty = { path ~ "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
 array_ty = { "[" ~ ty ~ ";" ~ (int | path) ~ "]" }
 
 extern_fn  = { kw_extern ~ string ~ kw_fn ~ ident ~ "(" ~ ")" ~ ";" }
-fn_item    = { kw_fn ~ ident ~ generic_params? ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ block }
+fn_generic_params = { "<" ~ fn_generic_param ~ ("," ~ fn_generic_param)* ~ ","? ~ ">" }
+fn_generic_param = { ident ~ (":" ~ path ~ ("+" ~ path)*)? }
+fn_item    = { kw_fn ~ ident ~ fn_generic_params? ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ block }
 fn_params = { (receiver ~ ("," ~ params)? ~ ","?) | params }
 receiver = { (("&" ~ kw_mut?) | kw_mut)? ~ self_kw }
 params     = { param ~ ("," ~ param)* ~ ","? }

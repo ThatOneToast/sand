@@ -22,6 +22,10 @@
 (argument_name) @property
 
 ; Struct values and inherent methods
+(trait_item name: (identifier) @type)
+(trait_method name: (identifier) @function.method)
+(function_type_parameter name: (identifier) @type bound: (path) @type)
+(impl_item trait: (path) @type)
 (struct_item name: (identifier) @type)
 (impl_item type: (path) @type)
 (record_expression type: (path) @type)
@@ -77,6 +81,7 @@
 [
   "fn"
   "struct"
+  "trait"
   "impl"
   "mod"
   "use"

@@ -574,11 +574,40 @@ generic arguments, and completed call results can supply receiver completions.
 
 Sand specializes generic bodies when concrete types are used. It checks each
 specialization, rather than proving an unused generic body valid for all possible
-types. Trait bounds and higher-kinded types are not implemented. A package supports
+types. Trait bounds check the concrete types used in each specialization. A package supports
 at most 256 function specializations and 256 record specializations; expanding
 record types stop at 64 nested specializations. The existing finite record-layout
 limits still apply. These checks prevent recursively growing compile-time types.
 See the [generic mining-history example](../../examples/lang_generics/pack.sand).
+
+### Traits
+
+A trait declares required method signatures. Use `impl Trait for Type` to supply
+them and `T: Trait` to require that contract in a generic function. Combine
+requirements with `+`.
+
+```rust,ignore
+trait Named {
+    fn name(&self) -> string;
+}
+
+struct Quest { title: string }
+impl Named for Quest {
+    fn name(&self) -> string { return self.title; }
+}
+
+fn announce<T: Named>(quest: T) {
+    chat!(quest.name());
+}
+```
+
+Implementations may use borrowed receivers and refer to the implementing type as
+`Self`. Generic records can implement a trait as in
+`impl<T> Named for Container<T>`. Each concrete implementation must supply the
+declared receiver, parameter types, and return type. Generic calls select a
+concrete implementation at compile time. Trait objects, default method bodies,
+associated types, and fully qualified calls to overlapping methods are still
+outside the language.
 
 ### Match
 

@@ -40,6 +40,7 @@ mod sequence_methods;
 mod sequences;
 mod statements;
 mod text;
+mod traits;
 mod values;
 
 /// Index of a definition within an [`Analysis`].
@@ -104,6 +105,8 @@ pub enum DefKind {
     Struct,
     /// A generic declaration's type parameter.
     TypeParameter,
+    /// A named method contract.
+    Trait,
     /// An enum variant.
     Variant,
     /// `player state` or `global state`.
@@ -141,6 +144,7 @@ impl DefKind {
             DefKind::Enum => "enum",
             DefKind::Struct => "struct",
             DefKind::TypeParameter => "type parameter",
+            DefKind::Trait => "trait",
             DefKind::Variant => "variant",
             DefKind::State => "state",
             DefKind::Field => "field",
@@ -163,6 +167,8 @@ impl DefKind {
 pub enum DefInfo {
     /// A generic type parameter, resolved by each concrete specialization.
     TypeParameter,
+    /// An authored contract with required method signatures.
+    Trait,
     /// A module; `None` when its file could not be loaded.
     Module {
         /// Loaded module.
@@ -532,6 +538,7 @@ pub fn analyze(package: Package) -> Analysis {
         text_constants: BTreeMap::new(),
         fn_slots: BTreeMap::new(),
         generics: generics::Generics::default(),
+        traits: traits::Traits::default(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
@@ -642,6 +649,7 @@ struct Cx {
     /// Parameter and return slots per function.
     fn_slots: BTreeMap<DefId, FnSlots>,
     generics: generics::Generics,
+    traits: traits::Traits,
     /// Handlers of each custom event, in declaration order.
     event_handlers: BTreeMap<DefId, Vec<(DefId, Span)>>,
     /// `#[on(Event)]` attributes that name a custom event.
@@ -919,6 +927,12 @@ impl Cx {
                 id
             }
             ItemKind::Struct(record) => self.collect_struct(module, file, item, record),
+            ItemKind::Trait(declaration) => {
+                self.reject_attrs(file, item);
+                let def = self.push_def(base(DefKind::Trait, DefInfo::Trait));
+                self.collect_trait(def, declaration);
+                def
+            }
             ItemKind::State(s) => {
                 let state_id = self.item_id(module, &name.name);
                 let id = self.push_def(base(
@@ -3032,8 +3046,11 @@ impl Cx {
                 ItemKind::Const(_) | ItemKind::Enum(_) | ItemKind::Mod(_) => {
                     self.reject_attrs(file, &item);
                 }
-                ItemKind::Use(_) | ItemKind::Struct(_) | ItemKind::Impl(_) | ItemKind::Error(_) => {
-                }
+                ItemKind::Use(_)
+                | ItemKind::Struct(_)
+                | ItemKind::Trait(_)
+                | ItemKind::Impl(_)
+                | ItemKind::Error(_) => {}
             }
         }
         out

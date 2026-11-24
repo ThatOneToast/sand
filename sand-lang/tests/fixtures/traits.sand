@@ -1,0 +1,59 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+trait Reward {
+    fn total(&self) -> number;
+    fn earn(&mut self, amount: number) -> Self;
+}
+trait Labeled {
+    fn label(&self) -> string;
+}
+
+struct Account { count: number, name: string }
+impl Reward for Account {
+    fn total(&self) -> number { return self.count; }
+    fn earn(&mut self, amount: number) -> Self {
+        let before = self;
+        if amount <= 0 { return before; }
+        self.count += amount;
+        return before;
+    }
+}
+impl Labeled for Account {
+    fn label(&self) -> string { return self.name; }
+}
+
+struct History<T> { values: Vec<T> }
+impl<T> Labeled for History<T> {
+    fn label(&self) -> string { return self.values.len().to_string(); }
+}
+
+fn print_total<T: Reward + Labeled>(value: T) -> string {
+    return value.label() + ":" + value.total().to_string();
+}
+fn name_of<T: Labeled>(value: T) -> string { return value.label(); }
+fn collect<T: Reward>(mut value: T, amount: number) -> T {
+    value.earn(amount);
+    return value;
+}
+global state Result { checks: number, failed: number, account: Account }
+fn check(value: bool) {
+    Result.checks += 1;
+    if !value { Result.failed += 1; }
+}
+fn run() {
+    Result.checks = 0;
+    Result.failed = 0;
+    Result.account = Account { count: 3, name: "Alex" };
+    let before = Result.account.earn(4);
+    check(before.total() == 3);
+    check(Result.account.total() == 7);
+    check(print_total(Result.account) == "Alex:7");
+    let earned = collect(Result.account, 5);
+    check(earned.total() == 12);
+    check(Result.account.total() == 7);
+    check(Result.account.earn(0).total() == 7);
+    check(name_of(History { values: [1, 2, 3] }) == "3");
+    check(name_of(History { values: ["a", "b"] }) == "2");
+    if Result.checks == 8 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

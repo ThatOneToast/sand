@@ -2053,7 +2053,7 @@
           "named": true
         },
         {
-          "type": "generic_parameters",
+          "type": "function_type_parameters",
           "named": true
         },
         {
@@ -2062,6 +2062,47 @@
         },
         {
           "type": "visibility",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "function_type_parameter",
+    "named": true,
+    "fields": {
+      "bound": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "function_type_parameters",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "function_type_parameter",
           "named": true
         }
       ]
@@ -2354,6 +2395,16 @@
     "type": "impl_item",
     "named": true,
     "fields": {
+      "trait": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      },
       "type": {
         "multiple": false,
         "required": true,
@@ -3517,6 +3568,10 @@
           "named": true
         },
         {
+          "type": "trait_item",
+          "named": true
+        },
+        {
           "type": "use_item",
           "named": true
         },
@@ -4232,6 +4287,10 @@
           "named": true
         },
         {
+          "type": "trait_item",
+          "named": true
+        },
+        {
           "type": "use_item",
           "named": true
         }
@@ -4342,6 +4401,76 @@
         },
         {
           "type": "visibility",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "trait_item",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "attribute",
+          "named": true
+        },
+        {
+          "type": "trait_method",
+          "named": true
+        },
+        {
+          "type": "visibility",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "trait_method",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "return_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "parameters",
           "named": true
         }
       ]
@@ -5328,6 +5457,10 @@
   {
     "type": "super",
     "named": true
+  },
+  {
+    "type": "trait",
+    "named": false
   },
   {
     "type": "true",

@@ -192,6 +192,7 @@ impl Item {
             ItemKind::Enum(item) => Some(&item.name),
             ItemKind::State(item) => Some(&item.name),
             ItemKind::Struct(item) => Some(&item.name),
+            ItemKind::Trait(item) => Some(&item.name),
             ItemKind::Flow(item) => Some(&item.name),
             ItemKind::Fn(item) => Some(&item.name),
             ItemKind::ExternFn(item) => Some(&item.name),
@@ -222,6 +223,8 @@ pub enum ItemKind {
     State(StateItem),
     /// A named, copyable record value.
     Struct(StructItem),
+    /// A contract for a set of methods on a value type.
+    Trait(TraitItem),
     /// Associated functions and methods for a State or struct.
     Impl(ImplItem),
     /// `flow Name on State.field { ... }`.
@@ -340,9 +343,33 @@ pub struct StructItem {
     pub fields: Vec<Field>,
 }
 
+/// A named method contract.
+#[derive(Debug, Clone)]
+pub struct TraitItem {
+    /// Contract name.
+    pub name: Ident,
+    /// Methods required by this contract.
+    pub methods: Vec<TraitMethod>,
+}
+
+/// The source signature of a required method.
+#[derive(Debug, Clone)]
+pub struct TraitMethod {
+    /// Method name.
+    pub name: Ident,
+    /// Optional value or borrowed receiver.
+    pub receiver: Option<Receiver>,
+    /// Explicit parameters.
+    pub params: Vec<Param>,
+    /// Declared return type.
+    pub ret: Option<Type>,
+}
+
 /// An inherent implementation for a State or struct.
 #[derive(Debug, Clone)]
 pub struct ImplItem {
+    /// Contract implemented by this block, if any.
+    pub contract: Option<Path>,
     /// Type parameters bound by the implemented type.
     pub generics: Vec<Ident>,
     /// Implemented type.
@@ -546,6 +573,8 @@ pub struct Param {
 /// A function definition.
 #[derive(Debug, Clone)]
 pub struct FnItem {
+    /// Required traits, paired with their declared type parameters.
+    pub bounds: Vec<(Ident, Path)>,
     /// Type parameters specialized for each concrete call.
     pub generics: Vec<Ident>,
     /// Optional method receiver; valid only inside an impl.

@@ -1,12 +1,14 @@
 //! Generic templates have authored identities; concrete instances have separate
 //! slots, contexts and call-graph nodes, with references retaining their origins.
 use super::*;
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 
 type TypeBindings = BTreeMap<String, (Ty, DefId)>;
 
 #[derive(Clone)]
 pub(super) struct GenericImpl {
+    contract: Option<DefId>,
+    span: Span,
     module: ModuleId,
     arguments: Vec<Type>,
     parameters: Vec<(Ident, DefId)>,
@@ -51,6 +53,7 @@ impl Cx {
             );
         }
         let parameters = self.generic_parameters(def, &function.generics);
+        self.collect_trait_bounds(def, function);
         for attr in &item.attrs {
             if attr.name() != "player" {
                 self.error(
@@ -236,6 +239,27 @@ impl Cx {
             }
             types.push(ty);
         }
+        if let Some(bounds) = self.traits.function_bounds.get(&def) {
+            for &(index, contract) in bounds {
+                let ty = types[index];
+                if !self.trait_bound_holds(ty, contract) {
+                    if report {
+                        self.error(
+                            "trait",
+                            body.file,
+                            path.span,
+                            format!(
+                                "`{}` does not implement trait `{}` required by `{}`",
+                                self.ty_name(ty),
+                                self.defs[contract.0].name,
+                                function.generics[index].name
+                            ),
+                        );
+                    }
+                    return None;
+                }
+            }
+        }
         if let Some(instance) = self.generics.instances.get(&(def, types.clone())) {
             let instance = *instance;
             if report {
@@ -322,6 +346,7 @@ impl Cx {
         target: DefId,
         implementation: ImplItem,
         scope: Span,
+        contract: Option<DefId>,
     ) {
         let Some((record, _)) = self.generics.records.get(&target) else {
             return;
@@ -371,6 +396,8 @@ impl Cx {
             .entry(target)
             .or_default()
             .push(GenericImpl {
+                contract,
+                span: scope,
                 module,
                 arguments: implementation.target.arguments().to_vec(),
                 parameters: implementation
@@ -434,6 +461,14 @@ impl Cx {
             if resolved != actual {
                 self.generics.bindings = saved;
                 continue;
+            }
+            if let Some(contract) = implementation.contract {
+                self.register_trait_impl(
+                    contract,
+                    instance,
+                    self.package.module(implementation.module).file,
+                    implementation.span,
+                );
             }
             for (source, item) in &implementation.methods {
                 let ItemKind::Fn(function) = &item.kind else {
@@ -738,7 +773,12 @@ impl Cx {
         modules: &mut [pc::Module],
         lowerer: &mut Lowering,
     ) {
-        while let Some(pending) = self.generics.pending.pop_front() {
+        let mut checked_traits = BTreeSet::new();
+        loop {
+            self.validate_trait_signatures(&mut checked_traits);
+            let Some(pending) = self.generics.pending.pop_front() else {
+                break;
+            };
             let ItemKind::Fn(function) = &pending.item.kind else {
                 continue;
             };

@@ -14,38 +14,56 @@ loot Supply {
 
 fn check(value: bool) {
     Report.checks += 1;
-    if !value { Report.failed += 1; }
+    if !value {
+        Report.failed += 1;
+        broadcast!("Loot assertion {Report.checks} failed.");
+    }
 }
 
 fn run() {
     Report.checks = 0;
     Report.failed = 0;
+    // Keep drops within the cleanup radius regardless of world seed.
+    fill_blocks(Block::Stone, pos(4, 199, 4), pos(12, 199, 12));
+    fill_blocks(Block::Air, pos(4, 200, 4), pos(12, 203, 12));
     set_weather(Weather::Clear, seconds = 60);
     schedule(check_clear, ticks = 120);
 }
 
 fn check_clear() {
-    raw!("execute positioned 0 80 0 run function language_probe:clear_drops");
-    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:bread" } }));
-    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:diamond", count: 3 } }));
-    check(!any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:emerald" } }));
+    raw!("execute positioned 8.5 200 8.5 run function language_probe:verify_clear");
+}
+
+fn verify_clear() {
+    clear_drops();
+    check(any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:bread" } }));
+    check(any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:diamond", count: 3 } }));
+    check(!any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:emerald" } }));
     set_weather(Weather::Rain, seconds = 60);
     schedule(check_rain, ticks = 120);
 }
 
 fn check_rain() {
-    raw!("execute positioned 0 80 0 run function language_probe:clear_drops");
-    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:gold_ingot" } }));
-    check(!any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:iron_ingot" } }));
+    raw!("execute positioned 8.5 200 8.5 run function language_probe:verify_rain");
+}
+
+fn verify_rain() {
+    clear_drops();
+    check(any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:gold_ingot" } }));
+    check(!any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:iron_ingot" } }));
     set_weather(Weather::Thunder, seconds = 60);
     schedule(check_thunder, ticks = 120);
 }
 
 fn check_thunder() {
-    raw!("execute positioned 0 80 0 run function language_probe:clear_drops");
-    check(any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:iron_ingot" } }));
-    check(!any_entities(type = Entity::Item, nbt = Nbt { Item: Nbt { id: "minecraft:gold_ingot" } }));
-    raw!("execute positioned 0 80 0 run function language_probe:cleanup");
+    raw!("execute positioned 8.5 200 8.5 run function language_probe:verify_thunder");
+}
+
+fn verify_thunder() {
+    clear_drops();
+    check(any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:iron_ingot" } }));
+    check(!any_entities(type = Entity::Item, distance = ..=3, nbt = Nbt { Item: Nbt { id: "minecraft:gold_ingot" } }));
+    cleanup();
     set_weather(Weather::Clear);
 
     if Report.checks == 7 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }

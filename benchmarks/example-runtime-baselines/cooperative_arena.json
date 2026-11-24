@@ -866,7 +866,7 @@
       "cooperative_arena:__sand_system/lifetime/a_round/after_tick": {
         "evaluations": {
           "maximum": null,
-          "minimum": 3,
+          "minimum": 2,
           "unknown": [
             "function arguments are not analyzed: function cooperative_arena:__sand_system/lifetime/a_round/resume_step with entity @s data",
             "function arguments are not analyzed: function cooperative_arena:__sand_system/lifetime/a_round/session_advance with entity @s data"
@@ -875,7 +875,13 @@
         "owners": [
           "cooperative_arena::round_a"
         ],
-        "selector_sites": []
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
       },
       "cooperative_arena:__sand_system/lifetime/a_round/ancestor_next": {
         "evaluations": {
@@ -2992,7 +2998,7 @@
       "cooperative_arena:__sand_system/lifetime/b_round/after_tick": {
         "evaluations": {
           "maximum": null,
-          "minimum": 3,
+          "minimum": 2,
           "unknown": [
             "function arguments are not analyzed: function cooperative_arena:__sand_system/lifetime/b_round/resume_step with entity @s data",
             "function arguments are not analyzed: function cooperative_arena:__sand_system/lifetime/b_round/session_advance with entity @s data"
@@ -3001,7 +3007,13 @@
         "owners": [
           "cooperative_arena::round_b"
         ],
-        "selector_sites": []
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s"
+          }
+        ]
       },
       "cooperative_arena:__sand_system/lifetime/b_round/ancestor_next": {
         "evaluations": {

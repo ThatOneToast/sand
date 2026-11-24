@@ -1,5 +1,5 @@
 //! Owned portable data resources: custom items, recipes, and registry tags.
-use super::{TextPart, Weather};
+use super::{ScoreOperand, TextPart, Weather};
 use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -736,7 +736,7 @@ pub struct HudBossBar {
     /// Text shown over the bar.
     pub title: Vec<TextPart>,
     /// Current value read on each refresh.
-    pub value: super::ScoreOperand,
+    pub value: ScoreOperand,
     /// Positive bar maximum.
     pub max: u32,
 }

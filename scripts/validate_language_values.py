@@ -83,6 +83,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("execute as NumericB run function runtime_values:check_player_vector_b")
             self.check("PLAYER_VECTOR_RELOAD_A", "if score #vec_a numeric_probe matches 1")
             self.check("PLAYER_VECTOR_RELOAD_B", "if score #vec_b numeric_probe matches 1")
+            self.check_owned_waits()
             self.send("execute as NumericA run function runtime_values:check_reference")
             self.check("REFERENCE_RELOAD", "if score #stable numeric_probe matches 1")
             self.send("execute in minecraft:the_nether run teleport NumericA 0 80 0")
@@ -113,6 +114,34 @@ class ValuesHarness(WorldGameplayHarness):
             for log in logs:
                 log.close()
 
+    def check_owned_waits(self):
+        self.send("scoreboard objectives add wait_origin dummy")
+        for name in ("NumericA", "NumericB"):
+            self.send(f"execute in minecraft:overworld run teleport {name} 0 80 0")
+            self.send(f"scoreboard players set {name} wait_origin 0")
+        self.send("tick freeze")
+        try:
+            for name in ("NumericA", "NumericB"):
+                self.send(f"execute as {name} at @s run function runtime_values:player_waits/queue_cancellable")
+            self.send("execute as NumericA at @s run function runtime_values:player_waits/cancel")
+            self.send("execute as NumericA at @s run function runtime_values:player_waits/queue_a")
+            self.send("execute as NumericB at @s run function runtime_values:player_waits/queue_b")
+            self.send("execute in minecraft:the_nether run teleport NumericB 0 80 0")
+            start = len(self.lines)
+            self.send("tick step 40")
+            for label, owner in (("A", "NumericA"), ("A2", "NumericA"), ("B", "NumericB"), ("CANCELLABLE", "NumericB")):
+                marker = f"__SAND_WAIT_{label}_DONE__"
+                self.wait_for(re.compile(rf"\[{owner}\] {marker}$"), "wait-completion", start)
+            self.send("execute as NumericA run function runtime_values:player_waits/check_a")
+            self.send("execute as NumericB run function runtime_values:player_waits/check_b")
+            self.check("WAIT_A_OWNED_AND_CANCELLED", "if score #wait_a numeric_probe matches 1")
+            self.check("WAIT_B_OWNED_AND_NOT_CANCELLED", "if score #wait_b numeric_probe matches 1")
+            self.check("WAIT_A_ORIGINAL_DIMENSION", "if score NumericA wait_origin matches 2")
+            self.check("WAIT_B_ORIGINAL_DIMENSION", "if score NumericB wait_origin matches 1")
+        finally:
+            self.send("tick unfreeze")
+            self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -126,8 +155,9 @@ def main():
     fixture = Path(__file__).resolve().parents[1] / "sand-lang/tests/fixtures/runtime_values.sand"
     source = root / "source"
     source.mkdir()
-    (source / "pack.sand").write_text(fixture.read_text() + "\nmod player_maps;\n")
+    (source / "pack.sand").write_text(fixture.read_text() + "\nmod player_maps;\nmod player_waits;\n")
     shutil.copyfile(fixture.with_name("player_maps.sand"), source / "player_maps.sand")
+    shutil.copyfile(fixture.with_name("player_waits.sand"), source / "player_waits.sand")
     binary = str(options.binary.resolve())
     subprocess.run([binary, "lang", "add", "collections", str(source)], check=True, timeout=60)
     subprocess.run([binary, "lang", "build", str(source), "--output", str(root / "pack")], check=True, timeout=60)

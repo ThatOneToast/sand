@@ -35,6 +35,7 @@ fn floor_rem(a: i64, b: i64) -> Option<i64> {
 
 mod callables;
 mod collections;
+mod continuations;
 mod generics;
 mod resources;
 mod sequence_methods;
@@ -4076,7 +4077,11 @@ impl Cx {
     }
 
     fn lower_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
-        let mut segments: Vec<(Vec<pc::Operation>, Option<pc::FieldReference>)> = Vec::new();
+        enum Segment {
+            Actions(Vec<pc::Operation>, Option<pc::FieldReference>),
+            Wait(continuations::WaitSite),
+        }
+        let mut segments = Vec::new();
         body.scopes.push(Vec::new());
         body.block_ends.push(block.span.end);
         let mut exited = false;
@@ -4093,6 +4098,14 @@ impl Cx {
                 );
                 break;
             }
+            if let Stmt::Call { path, args, span } = stmt
+                && self.is_wait(body, path)
+            {
+                if let Some(wait) = self.lower_wait(body, path, args, *span) {
+                    segments.push(Segment::Wait(wait));
+                }
+                continue;
+            }
             let mut lowered = Vec::new();
             self.lower_stmt(body, stmt, &mut lowered);
             exited = stmt_exits(stmt);
@@ -4107,10 +4120,17 @@ impl Cx {
                 && (statements::jumps_here(stmt, true) || statements::jumps_here(stmt, false)))
             .then_some(flag)
             .flatten();
-            segments.push((lowered, guard));
+            segments.push(Segment::Actions(lowered, guard));
         }
         let mut ops = Vec::new();
-        for (lowered, guard) in segments.into_iter().rev() {
+        for segment in segments.into_iter().rev() {
+            let (lowered, guard) = match segment {
+                Segment::Actions(lowered, guard) => (lowered, guard),
+                Segment::Wait(wait) => {
+                    ops = vec![wait.suspend(body.file, ops)];
+                    continue;
+                }
+            };
             if let Some(flag) = guard
                 && !ops.is_empty()
             {
@@ -5114,7 +5134,8 @@ fn resolve_frame_markers(
         pc::Action::Players { body }
         | pc::Action::Entities { body, .. }
         | pc::Action::WithEntity { body, .. }
-        | pc::Action::While { body, .. } => {
+        | pc::Action::While { body, .. }
+        | pc::Action::Suspend { body, .. } => {
             resolve_frame_markers(body, resolved);
             true
         }

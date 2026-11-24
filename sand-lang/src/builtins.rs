@@ -153,6 +153,8 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
     "teleport_to",
     "mount",
     "dismount",
+    "wait",
+    "cancel_waits",
     "holding",
     "is_sneaking",
     "is_sprinting",
@@ -162,6 +164,36 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
 
 /// Every builtin, in documentation order.
 pub const BUILTINS: &[Builtin] = &[
+    Builtin {
+        name: "wait",
+        kind: BuiltinKind::Statement,
+        signature: "wait(ticks?, seconds?)",
+        summary: "Resume this function later with its own local values.",
+        details: "Use one positive constant duration directly in a function body with an entity executor. The continuation keeps its locals and original execution position. Player and entity State are read live when it resumes.",
+        minecraft: "Start a canonical owner-bound Sand lifetime.",
+        needs_player: false,
+        params: &[
+            p("ticks", ParamKind::Int, false, "Loaded Minecraft ticks."),
+            p(
+                "seconds",
+                ParamKind::Int,
+                false,
+                "Seconds at twenty game ticks per second.",
+            ),
+        ],
+        snippet: "wait(${1:20})",
+    },
+    Builtin {
+        name: "cancel_waits",
+        kind: BuiltinKind::Statement,
+        signature: "cancel_waits()",
+        summary: "Cancel outstanding waits for the executing entity.",
+        details: "Cleans up this entity's pending continuations in the current pack. Other owners' waits continue.",
+        minecraft: "Cancel the executor's instances of the pack's wait lifetimes.",
+        needs_player: false,
+        params: &[],
+        snippet: "cancel_waits()",
+    },
     Builtin {
         name: "mount",
         kind: BuiltinKind::Statement,

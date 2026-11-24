@@ -1,4 +1,5 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
+mod continuations;
 mod data;
 
 use super::{CommandSource, diagnostic::Diagnostic, limits, model::*};
@@ -113,6 +114,9 @@ pub(super) fn lower(
         runtime: crate::compiler::runtime::RuntimePlan::default(),
         records: Vec::new(),
         sources,
+        continuations: Vec::new(),
+        continuation_count: 0,
+        cancel_waits: false,
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
@@ -274,6 +278,13 @@ pub(super) fn lower(
                 .unwrap_or(("", ""));
             vec![Diagnostic::error("SAND_PROGRAM_FLOW", module, ptr, message)]
         })?;
+    let caps = target.caps();
+    let ctx = crate::compiler::export::ExportCtx {
+        caps: &caps,
+        requested_version: target.resolved_name(),
+        is_fallback: target.is_fallback(),
+    };
+    lower.register_continuations(&ctx, &mut load, &mut tick)?;
     lifecycle::validate_private_objectives(&automatic, &load, &flow_plan.private_objectives)
         .map_err(error)?;
     for generated in flow_plan.functions {
@@ -387,12 +398,6 @@ pub(super) fn lower(
     for record in &mut lower.records {
         record.content = functions::resolve_local_refs(&record.content, &program.pack.namespace);
     }
-    let caps = target.caps();
-    let ctx = crate::compiler::export::ExportCtx {
-        caps: &caps,
-        requested_version: target.resolved_name(),
-        is_fallback: target.is_fallback(),
-    };
     for module in &program.modules {
         let owner = module.id.to_string();
         for (index, recipe) in module.recipes.iter().enumerate() {
@@ -1093,6 +1098,9 @@ struct Lower<'sources> {
     helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
     sources: Option<&'sources mut BTreeMap<String, Vec<CommandSource>>>,
+    continuations: Vec<continuations::Continuation>,
+    continuation_count: usize,
+    cancel_waits: bool,
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
@@ -1342,6 +1350,72 @@ impl Lower<'_> {
             .map(|id| id.to_string())
             .unwrap_or_default();
         Ok(format!("{base}[{}]", lowered.constraints.join(",")))
+    }
+
+    fn frame_commands(&self, fields: &[FieldReference], push: bool) -> Vec<Cmd> {
+        if push {
+            let storage = frame_storage(&self.namespace);
+            let mut commands = vec![Cmd::Raw(format!(
+                "data modify storage {storage} stack append value {{}}"
+            ))];
+            for (index, field) in fields.iter().enumerate() {
+                if self.is_data_field(field) {
+                    commands.extend(
+                        self.copy_data_field(
+                            field,
+                            &storage,
+                            &format!("stack[-1].f{index}"),
+                            false,
+                        )
+                        .into_iter()
+                        .map(Cmd::Raw),
+                    );
+                    continue;
+                }
+                commands.push(Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Nbt {
+                            target: sand_commands::DataTarget::Storage(storage.clone()),
+                            path: format!("stack[-1].f{index}"),
+                            kind: sand_commands::NbtStoreKind::Int,
+                            scale: 1.0,
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "scoreboard players get {} {}",
+                        self.holders[&field.state.to_string()],
+                        objective(field)
+                    ))),
+                });
+            }
+            commands
+        } else {
+            let storage = frame_storage(&self.namespace);
+            let mut commands = Vec::with_capacity(fields.len() + 1);
+            for (index, field) in fields.iter().enumerate() {
+                if self.is_data_field(field) {
+                    commands.extend(
+                        self.copy_data_field(field, &storage, &format!("stack[-1].f{index}"), true)
+                            .into_iter()
+                            .map(Cmd::Raw),
+                    );
+                    continue;
+                }
+                commands.push(Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Score {
+                            holder: self.holders[&field.state.to_string()].clone(),
+                            objective: objective(field),
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "data get storage {storage} stack[-1].f{index}"
+                    ))),
+                });
+            }
+            commands.push(Cmd::Raw(format!("data remove storage {storage} stack[-1]")));
+            commands
+        }
     }
 
     fn condition_test(
@@ -2036,74 +2110,16 @@ impl Lower<'_> {
                 | Action::DataEqual { .. } => {
                     self.data_operation(&operation.action, owner, &path, module, &ptr)?
                 }
-                Action::PushFrame { fields } => {
-                    let storage = frame_storage(&self.namespace);
-                    let mut commands = vec![Cmd::Raw(format!(
-                        "data modify storage {storage} stack append value {{}}"
-                    ))];
-                    for (index, field) in fields.iter().enumerate() {
-                        if self.is_data_field(field) {
-                            commands.extend(
-                                self.copy_data_field(
-                                    field,
-                                    &storage,
-                                    &format!("stack[-1].f{index}"),
-                                    false,
-                                )
-                                .into_iter()
-                                .map(Cmd::Raw),
-                            );
-                            continue;
-                        }
-                        commands.push(Cmd::Execute {
-                            operations: vec![sand_commands::ExecuteOp::StoreResult(
-                                sand_commands::ExecuteStoreTarget::Nbt {
-                                    target: sand_commands::DataTarget::Storage(storage.clone()),
-                                    path: format!("stack[-1].f{index}"),
-                                    kind: sand_commands::NbtStoreKind::Int,
-                                    scale: 1.0,
-                                },
-                            )],
-                            run: Box::new(Cmd::Raw(format!(
-                                "scoreboard players get {} {}",
-                                self.holders[&field.state.to_string()],
-                                objective(field)
-                            ))),
-                        });
-                    }
-                    commands
-                }
-                Action::PopFrame { fields } => {
-                    let storage = frame_storage(&self.namespace);
-                    let mut commands = Vec::with_capacity(fields.len() + 1);
-                    for (index, field) in fields.iter().enumerate() {
-                        if self.is_data_field(field) {
-                            commands.extend(
-                                self.copy_data_field(
-                                    field,
-                                    &storage,
-                                    &format!("stack[-1].f{index}"),
-                                    true,
-                                )
-                                .into_iter()
-                                .map(Cmd::Raw),
-                            );
-                            continue;
-                        }
-                        commands.push(Cmd::Execute {
-                            operations: vec![sand_commands::ExecuteOp::StoreResult(
-                                sand_commands::ExecuteStoreTarget::Score {
-                                    holder: self.holders[&field.state.to_string()].clone(),
-                                    objective: objective(field),
-                                },
-                            )],
-                            run: Box::new(Cmd::Raw(format!(
-                                "data get storage {storage} stack[-1].f{index}"
-                            ))),
-                        });
-                    }
-                    commands.push(Cmd::Raw(format!("data remove storage {storage} stack[-1]")));
-                    commands
+                Action::PushFrame { fields } => self.frame_commands(fields, true),
+                Action::PopFrame { fields } => self.frame_commands(fields, false),
+                Action::Suspend {
+                    ticks,
+                    fields,
+                    body,
+                } => self.suspend((owner, &path, module, &ptr), *ticks, fields, body)?,
+                Action::CancelWaits => {
+                    self.cancel_waits = true;
+                    vec![Cmd::Function(self.cancellation_function())]
                 }
                 Action::DataGet {
                     score,

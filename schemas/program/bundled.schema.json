@@ -506,6 +506,57 @@
         },
         {
           "additionalProperties": false,
+          "description": "Run a continuation as the current entity after loaded ticks, retaining\nthe execution dimension, position, and values of explicit global slots.",
+          "properties": {
+            "body": {
+              "description": "Operations to resume with the retained values.",
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "fields": {
+              "description": "Global slots copied into each admitted invocation.",
+              "items": {
+                "$ref": "#/$defs/FieldReference"
+              },
+              "type": "array"
+            },
+            "op": {
+              "const": "suspend",
+              "type": "string"
+            },
+            "ticks": {
+              "description": "Positive number of loaded ticks.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "op",
+            "ticks",
+            "fields",
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Cancel this executor's outstanding continuations for this pack.",
+          "properties": {
+            "op": {
+              "const": "cancel_waits",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "End the current function. Inside a `Players` body it ends only the\ncurrent player's turn, like `continue`.",
           "properties": {
             "op": {

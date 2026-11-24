@@ -46,6 +46,7 @@ const CAPABILITIES: &[&str] = &[
     "effects",
     "items",
     "schedule",
+    "owned_waits",
     "player_events",
     "control_flow",
     "attributes",

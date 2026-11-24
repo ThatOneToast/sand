@@ -4562,8 +4562,16 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 787);
-        for member in ["CaptureEntity", "WithEntity", "Damage::by"] {
+        assert_eq!(entries.len(), 802);
+        for member in [
+            "CaptureEntity",
+            "CaptureEntity::relation",
+            "WithEntity",
+            "Damage::by",
+            "Ride",
+            "Suspend",
+            "CancelWaits",
+        ] {
             assert!(
                 show(
                     catalog,
@@ -4572,6 +4580,13 @@ mod tests {
                 .is_ok()
             );
         }
+        assert!(
+            show(
+                catalog,
+                "sand::advanced::compiler::Compiler::compile_with_command_sources"
+            )
+            .is_ok()
+        );
         assert!(
             show(catalog, "sand::advanced::compiler::ScoreField::bounds")
                 .unwrap()

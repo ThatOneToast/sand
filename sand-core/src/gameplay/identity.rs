@@ -40,6 +40,7 @@ pub struct OwnedContext {
     pub(crate) scope: ResourceLocation,
     pub(crate) kind: &'static str,
     pub(crate) field: &'static str,
+    pub(crate) position_at_target: bool,
     pub(crate) body: Actions,
     pub(crate) child: Option<ResourceLocation>,
     pub(crate) damage: Option<(sand_commands::DamageAmount, sand_commands::DamageKind)>,
@@ -75,6 +76,11 @@ impl OwnedContext {
                 "sand/runtime/owned_body",
                 self.body.clone(),
             );
+            let position = if self.position_at_target {
+                " at @s"
+            } else {
+                ""
+            };
             selectors(
                 self.kind,
                 &objective.to_string(),
@@ -82,7 +88,9 @@ impl OwnedContext {
             )
             .into_iter()
             .map(|selector| {
-                format!("$execute as {selector} at @s run return run function __sand_local:{body}")
+                format!(
+                    "$execute as {selector}{position} run return run function __sand_local:{body}"
+                )
             })
             .collect::<Vec<_>>()
         };

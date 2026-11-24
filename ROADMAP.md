@@ -271,8 +271,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Equipment/inventory properties, richer entity data, motion, archetypes,
   and query NBT/score filters.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
-- [ ] Suspended function continuations (`wait`) with per-invocation locals,
-  executor identity, dimension, cancellation and multiplayer isolation.
+- [x] Top-level `wait` statements in entity and player functions, with
+  per-invocation locals, original dimension, and owner-scoped cancellation.
+- [ ] Waits inside control flow, runtime durations, and server continuations.
 - [ ] Structures, dimensions, biomes, clone and typed block-data access.
 - [ ] Multi-pool conditional loot, advancements, predicates, worldgen, damage
   types, trim recipes, books, dialogs, interactive/translated text and VFX.
@@ -282,7 +283,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.
-- [ ] Breakpoints and real Zed-session verification.
+- [x] Live Zed diagnostics and inferred-context hints using a worktree build.
+- [ ] Breakpoints.
 
 Acceptance: compiler/export tests prove observable output, runtime features have
 native evidence, and each new public model preserves deterministic export,

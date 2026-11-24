@@ -2737,7 +2737,7 @@ impl Cx {
         self.vanilla_value(body.module, body.file, expr, registry)
     }
 
-    fn arg_int(&mut self, body: &BodyCx, arg: &Arg, min: i64, max: i64) -> Option<i64> {
+    pub(super) fn arg_int(&mut self, body: &BodyCx, arg: &Arg, min: i64, max: i64) -> Option<i64> {
         let ArgValue::Expr(expr) = &arg.value else {
             self.error("type", body.file, arg.value.span(), "expected an integer");
             return None;
@@ -4043,6 +4043,7 @@ impl Cx {
             },
             "kill" => pc::Action::Kill,
             "dismount" => pc::Action::Ride { vehicle: None },
+            "cancel_waits" => pc::Action::CancelWaits,
             "add_tag" | "remove_tag" => {
                 let (tag, _, tag_span) = self.arg_string(file, bound["tag"], "a tag name")?;
                 if !valid_tag(&tag) {

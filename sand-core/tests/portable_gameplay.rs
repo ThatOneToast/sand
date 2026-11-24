@@ -459,3 +459,28 @@ fn generated_command_locations_follow_final_lifecycle_and_player_prefixes() {
         assert!(command.ends_with(&format!(" {value}")), "{command}");
     }
 }
+
+#[test]
+fn suspended_portable_bodies_check_delay_context_and_captured_storage() {
+    let bad = program(
+        serde_json::json!([
+            {"id":"play:delay", "context":"server", "body":[{"action":{
+                "op":"suspend", "ticks":0, "fields":[field("stats","best")],
+                "body":[{"action":{"op":"kill"}}]
+            }}]}
+        ]),
+        serde_json::json!([]),
+    );
+    let errors = Compiler::check(&decode(bad)).unwrap_err();
+    for expected in [
+        "suspending a function requires",
+        "positive scoreboard integer",
+        "global invocation slots",
+        "killing the executor requires",
+    ] {
+        assert!(
+            errors.iter().any(|error| error.message.contains(expected)),
+            "{errors:#?}"
+        );
+    }
+}

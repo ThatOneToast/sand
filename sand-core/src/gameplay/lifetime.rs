@@ -56,11 +56,20 @@ impl<K: EntityKind> TaskContext<K> {
     example = "use sand::prelude::*;\nuse sand::systems::{TaskContext, Lifetime};\n\nfn demonstrate(value: TaskContext) {\n    let _result = value.owner(|_| cmd::say(\"Owner callback\"));\n}",
     )]
     pub fn owner<R: IntoCommands>(&self, body: impl FnOnce(EntityContext<K>) -> R) -> Actions {
+        self.owner_actions(body(EntityContext::default()).into_commands(), true)
+    }
+
+    pub(crate) fn owner_at_instance(&self, body: impl IntoCommands) -> Actions {
+        self.owner_actions(body.into_commands(), false)
+    }
+
+    fn owner_actions(&self, body: Actions, position_at_target: bool) -> Actions {
         Cmd::OwnedContext(Box::new(identity::OwnedContext {
             scope: self.scope.clone(),
             kind: K::LABEL,
             field: "owner",
-            body: body(EntityContext::default()).into_commands(),
+            position_at_target,
+            body,
             child: None,
             damage: None,
         }))
@@ -87,6 +96,7 @@ example = "use sand::systems::{TaskContext, Scene}; fn demo(ctx: TaskContext, sc
             scope: self.scope.clone(),
             kind: K::LABEL,
             field: "owner",
+            position_at_target: true,
             body: Actions::default(),
             child: Some(child.as_ref().id.clone()),
             damage: None,
@@ -210,6 +220,7 @@ pub struct Lifetime<K: EntityKind = PlayerKind> {
     interval: Ticks,
     capacity: u32,
     origin: Anchor,
+    invocation_position: bool,
     dimensions: Vec<DimensionId>,
     pub(super) step: Option<&'static str>,
     pub(super) start: Option<Callback<K>>,
@@ -252,6 +263,7 @@ impl<K: EntityKind> Lifetime<K> {
             interval: Ticks::new(1),
             capacity: 128,
             origin: Anchor::Feet,
+            invocation_position: false,
             dimensions: ["overworld", "the_nether", "the_end"]
                 .into_iter()
                 .map(|name| DimensionId::minecraft(name).expect("vanilla dimension"))
@@ -337,6 +349,11 @@ impl<K: EntityKind> Lifetime<K> {
     )]
     pub fn origin(mut self, origin: Anchor) -> Self {
         self.origin = origin;
+        self
+    }
+
+    pub(crate) fn at_invocation_position(mut self) -> Self {
+        self.invocation_position = true;
         self
     }
     /// Replace the dimensions scanned for this definition. No chunks are loaded.
@@ -608,6 +625,7 @@ impl<K: EntityKind> RuntimeFunction<K> {
         let tag = identity::task_tag(&d.id)?;
         let resource = |part| identity::resource(&id, part).to_string();
         let storage = format!("{}:__sand_runtime", id.namespace());
+        let spawn_origin = if d.invocation_position { "" } else { " at @s" };
         let task_ledger = resource("task_ledger");
         let context = || TaskContext {
             scope: d.id.clone(),
@@ -739,7 +757,7 @@ impl<K: EntityKind> RuntimeFunction<K> {
                     format!("scoreboard players add #next {owner} 1"),
                     format!("execute store result storage {storage} spawn.instance int 1 run scoreboard players get #next {owner}"),
                     format!("execute store result storage {storage} spawn.epoch int 1 run scoreboard players get #epoch {epoch}"),
-                    format!("execute at @s rotated as @s anchored {} positioned ^ ^ ^ summon minecraft:marker run function {} with storage {storage} spawn", d.origin,resource("init")),
+                    format!("execute{spawn_origin} rotated as @s anchored {} positioned ^ ^ ^ summon minecraft:marker run function {} with storage {storage} spawn", d.origin,resource("init")),
                     format!("data remove storage {storage} spawn")]
             },
             "init"=>{
@@ -749,6 +767,12 @@ impl<K: EntityKind> RuntimeFunction<K> {
                     format!("execute unless data storage {task_ledger} active run data modify storage {task_ledger} active set value []"),
                     format!("$data modify storage {task_ledger} active append value {{instance:$(instance),owner:$(owner),generation:$(generation),children:0}}"),
                     format!("tag @s add {tag}"),"$data merge entity @s {data:{owner:$(owner),instance:$(instance),epoch:$(epoch),generation:$(generation)}}".into(),format!("$scoreboard players set @s {owner} $(instance)"),format!("$scoreboard players set @s {epoch} $(epoch)"),format!("scoreboard players set @s {remaining} {}",d.duration.get()),format!("scoreboard players set @s {phase} {}",d.interval.get()),format!("scoreboard players set @s {active} 1"),format!("scoreboard players add #live {active} 1"),"tp @s ~ ~ ~ ~ ~".into()];
+                if d.invocation_position {
+                    // A continuation started from a tick callback must first
+                    // spend a tick on the following game tick, even when its
+                    // own lifetime scans later in the same lifecycle pass.
+                    lines.push(format!("execute store result score @s {visited} run time query gametime"));
+                }
                 lines.push(format!("function {}",resource("commit")));
                 for attach in &d.attach { lines.extend(attach("@s")); }
                 lines.push(format!("execute unless entity @s[type=minecraft:marker,tag={tag}] run return 0"));

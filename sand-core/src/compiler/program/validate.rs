@@ -934,6 +934,59 @@ impl Validator<'_, '_> {
             .is_some_and(|(scope, _)| *scope == "entity")
     }
 
+    fn frame_fields(
+        &mut self,
+        fields: &[FieldReference],
+        context: ExecutionContext,
+        owner: &str,
+        ptr: &str,
+        global: bool,
+    ) {
+        let mut seen = std::collections::BTreeSet::new();
+        for (index, field) in fields.iter().enumerate() {
+            let field_ptr = format!("{ptr}/{index}");
+            if global
+                && self
+                    .states
+                    .get(&field.state.to_string())
+                    .is_some_and(|(scope, _)| *scope != "global")
+            {
+                self.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_STATE",
+                    owner,
+                    &field_ptr,
+                    "a wait retains global invocation slots; player and entity State stay live",
+                ));
+            }
+            if self
+                .data_fields
+                .get(&field.state.to_string())
+                .is_some_and(|fields| fields.contains(field.field.as_str()))
+            {
+                self.data_reference(
+                    &DataReference {
+                        field: field.clone(),
+                        path: Vec::new(),
+                    },
+                    context,
+                    owner,
+                    &field_ptr,
+                    false,
+                );
+            } else {
+                self.score(field, context, owner, &field_ptr);
+            }
+            if !seen.insert((field.state.to_string(), field.field.clone())) {
+                self.errors.push(Diagnostic::error(
+                    "SAND_PROGRAM_STATE",
+                    owner,
+                    &field_ptr,
+                    "a call frame names each field once",
+                ));
+            }
+        }
+    }
+
     fn executor(&mut self, context: ExecutionContext, owner: &str, ptr: &str, what: &str) {
         if context == ExecutionContext::Server {
             self.errors.push(Diagnostic::error(
@@ -1597,6 +1650,44 @@ impl Validator<'_, '_> {
                     }
                 }
                 Action::Return => {}
+                Action::Suspend {
+                    ticks,
+                    fields,
+                    body,
+                } => {
+                    self.executor(context, owner, &ptr, "suspending a function");
+                    if !(1..=i32::MAX as u32).contains(ticks) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RANGE",
+                            owner,
+                            &format!("{ptr}/action/ticks"),
+                            "wait delay must be a positive scoreboard integer",
+                        ));
+                    }
+                    if fields.len() > 64 {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_LIMIT",
+                            owner,
+                            &format!("{ptr}/action/fields"),
+                            "at most 64 local slots can be retained by a wait",
+                        ));
+                    }
+                    self.frame_fields(
+                        fields,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/fields"),
+                        true,
+                    );
+                    self.body(
+                        body,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/body"),
+                        depth + 1,
+                    );
+                }
+                Action::CancelWaits => self.executor(context, owner, &ptr, "cancelling a wait"),
                 Action::While { condition, body } => {
                     let condition_ptr = format!("{ptr}/action/condition");
                     self.condition(condition, context, owner, &condition_ptr);
@@ -1731,36 +1822,13 @@ impl Validator<'_, '_> {
                             "a call frame saves at least one field",
                         ));
                     }
-                    let mut seen = std::collections::BTreeSet::new();
-                    for (index, field) in fields.iter().enumerate() {
-                        let field_ptr = format!("{ptr}/action/fields/{index}");
-                        if self
-                            .data_fields
-                            .get(&field.state.to_string())
-                            .is_some_and(|fields| fields.contains(field.field.as_str()))
-                        {
-                            self.data_reference(
-                                &DataReference {
-                                    field: field.clone(),
-                                    path: Vec::new(),
-                                },
-                                context,
-                                owner,
-                                &field_ptr,
-                                false,
-                            );
-                        } else {
-                            self.score(field, context, owner, &field_ptr);
-                        }
-                        if !seen.insert((field.state.to_string(), field.field.clone())) {
-                            self.errors.push(Diagnostic::error(
-                                "SAND_PROGRAM_STATE",
-                                owner,
-                                &field_ptr,
-                                "a call frame names each field once",
-                            ));
-                        }
-                    }
+                    self.frame_fields(
+                        fields,
+                        context,
+                        owner,
+                        &format!("{ptr}/action/fields"),
+                        false,
+                    );
                 }
                 Action::DataGet {
                     score,

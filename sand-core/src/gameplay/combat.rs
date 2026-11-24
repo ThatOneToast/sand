@@ -4,8 +4,24 @@ use crate::{
     condition::Condition,
     entity::{EntityCooldown, EntityScore, NumericStateField, StatCurve},
     ir::{Actions, Cmd},
-    state::Ticks,
+    state::{Ticks, owned::PlayerScore},
 };
+
+#[derive(Clone)]
+pub(crate) enum CombatField<T> {
+    Declared(T),
+    Player(PlayerScore),
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for CombatField<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            // Existing Rust policies must retain their generated function IDs.
+            Self::Declared(field) => field.fmt(formatter),
+            Self::Player(field) => formatter.debug_tuple("PlayerScore").field(field).finish(),
+        }
+    }
+}
 
 /// Reusable combat rules over an author's canonical health and shield State.
 ///
@@ -33,11 +49,11 @@ use crate::{
         example = "use sand::systems::Combat;",
     )]
 pub struct Combat {
-    pub(crate) health: EntityScore,
+    pub(crate) health: CombatField<EntityScore>,
     pub(crate) maximum: StatCurve,
-    pub(crate) shield: Option<EntityScore>,
+    pub(crate) shield: Option<CombatField<EntityScore>>,
     pub(crate) resistance: StatCurve,
-    pub(crate) immunity: Option<(EntityCooldown, Ticks)>,
+    pub(crate) immunity: Option<(CombatField<EntityCooldown>, Ticks)>,
     pub(crate) critical: Option<(Condition, f64)>,
     pub(crate) hit: Actions,
     pub(crate) defeat: Actions,
@@ -56,9 +72,20 @@ impl Combat {
         example = "use sand::systems::Combat;",
     )]
     pub fn new(health: impl NumericStateField, maximum: impl Into<StatCurve>) -> Self {
+        Self::with_health(
+            CombatField::Declared(health.erase_numeric()),
+            maximum.into(),
+        )
+    }
+
+    pub(crate) fn owned(health: PlayerScore, maximum: StatCurve) -> Self {
+        Self::with_health(CombatField::Player(health), maximum)
+    }
+
+    fn with_health(health: CombatField<EntityScore>, maximum: StatCurve) -> Self {
         Self {
-            health: health.erase_numeric(),
-            maximum: maximum.into(),
+            health,
+            maximum,
             shield: None,
             resistance: 0.0.into(),
             immunity: None,
@@ -80,9 +107,19 @@ impl Combat {
         example = "use sand::systems::Combat;",
     )]
     pub fn shield(mut self, field: impl NumericStateField) -> Self {
-        self.shield = Some(field.erase_numeric());
+        self.shield = Some(CombatField::Declared(field.erase_numeric()));
         self
     }
+    pub(crate) fn owned_shield(mut self, field: PlayerScore) -> Self {
+        self.shield = Some(CombatField::Player(field));
+        self
+    }
+
+    pub(crate) fn owned_immunity(mut self, field: PlayerScore, duration: Ticks) -> Self {
+        self.immunity = Some((CombatField::Player(field), duration));
+        self
+    }
+
     /// Reduce damage by a runtime fraction between zero and one.
     #[sand_macros::api(
         registry = sand_api_contract, path = "sand::systems::Combat::resistance", module = "sand::systems", kind = "method",
@@ -110,7 +147,7 @@ impl Combat {
         example = "use sand::systems::Combat;",
     )]
     pub fn invulnerability(mut self, field: EntityCooldown, duration: Ticks) -> Self {
-        self.immunity = Some((field, duration));
+        self.immunity = Some((CombatField::Declared(field), duration));
         self
     }
     /// Multiply damage when a target-context condition is true.

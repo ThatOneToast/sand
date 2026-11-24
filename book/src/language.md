@@ -682,13 +682,15 @@ Creating or storing one captures only its ordinary local values.
 
 ### Traits
 
-A trait declares required method signatures. Use `impl Trait for Type` to supply
-them and `T: Trait` to require that contract in a generic function. Combine
+A trait declares method signatures and can provide default bodies. Use
+`impl Trait for Type` to supply required methods or override defaults.
+Use `T: Trait` to require that contract in a generic function. Combine
 requirements with `+`.
 
 ```rust,ignore
 trait Named {
     fn name(&self) -> string;
+    fn heading(&self) -> string { return "Quest: " + self.name(); }
 }
 
 struct Quest { title: string }
@@ -697,17 +699,19 @@ impl Named for Quest {
 }
 
 fn announce<T: Named>(quest: T) {
-    chat!(quest.name());
+    chat!(quest.heading());
 }
 ```
 
 Implementations may use borrowed receivers and refer to the implementing type as
 `Self`. Generic records can implement a trait as in
-`impl<T> Named for Container<T>`. Each concrete implementation must supply the
-declared receiver, parameter types, and return type. Generic calls select a
-concrete implementation at compile time. Trait objects, default method bodies,
-associated types, and fully qualified calls to overlapping methods are still
-outside the language.
+`impl<T> Named for Container<T>`. Every override must match the declared
+receiver, parameter types, and return type. Sand checks each inherited body
+with the implementing type as `Self` and resolves module names where the trait
+is declared. A call to `self.name()` in a default body selects the implementing
+type's method. Generic calls select a concrete implementation at compile time.
+Trait objects, associated types, and fully qualified calls to overlapping
+methods are still outside the language.
 
 ### Match
 

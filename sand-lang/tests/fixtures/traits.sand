@@ -3,9 +3,16 @@
 trait Reward {
     fn total(&self) -> number;
     fn earn(&mut self, amount: number) -> Self;
+    fn earn_twice(&mut self, amount: number) -> Self {
+        let before = self.earn(amount);
+        self.earn(amount);
+        return before;
+    }
 }
 trait Labeled {
     fn label(&self) -> string;
+    fn decorated(&self) -> string { return "[" + self.label() + "]"; }
+    fn snapshot(&self) -> Self { return self; }
 }
 
 struct Account { count: number, name: string }
@@ -27,10 +34,17 @@ impl<T> Labeled for History<T> {
     fn label(&self) -> string { return self.values.len().to_string(); }
 }
 
+struct Notice { name: string }
+impl Labeled for Notice {
+    fn label(&self) -> string { return self.name; }
+    fn decorated(&self) -> string { return "!" + self.label(); }
+}
+
 fn print_total<T: Reward + Labeled>(value: T) -> string {
     return value.label() + ":" + value.total().to_string();
 }
 fn name_of<T: Labeled>(value: T) -> string { return value.label(); }
+fn display<T: Labeled>(value: T) -> string { return value.snapshot().decorated(); }
 fn collect<T: Reward>(mut value: T, amount: number) -> T {
     value.earn(amount);
     return value;
@@ -54,6 +68,11 @@ fn run() {
     check(Result.account.earn(0).total() == 7);
     check(name_of(History { values: [1, 2, 3] }) == "3");
     check(name_of(History { values: ["a", "b"] }) == "2");
-    if Result.checks == 8 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    check(display(Result.account) == "[Alex]");
+    check(display(History { values: [4, 5] }) == "[2]");
+    check(display(Notice { name: "Ready" }) == "!Ready");
+    check(Result.account.earn_twice(3).total() == 7);
+    check(Result.account.total() == 13);
+    if Result.checks == 13 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }
 }

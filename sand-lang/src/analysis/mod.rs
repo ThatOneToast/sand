@@ -1464,11 +1464,7 @@ impl Cx {
                         (DefKind::State | DefKind::Struct, Some(method))
                             if self.defs[method.0].kind == DefKind::Function =>
                         {
-                            if !self.visible(
-                                from,
-                                self.defs[method.0].module,
-                                self.defs[method.0].is_pub,
-                            ) {
+                            if !self.method_visible(from, method) {
                                 return fail(
                                     segment.span,
                                     format!("method `{}` is private", segment.name),
@@ -2684,6 +2680,7 @@ impl Cx {
     /// Resolve every function's parameters and return type before bodies are
     /// lowered, so calls can target functions declared later.
     fn declare_signatures(&mut self) {
+        self.declare_trait_defaults();
         for index in 0..self.package.modules.len() {
             let module = ModuleId(index);
             let file = self.package.module(module).file;

@@ -263,6 +263,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   applications, per-specialization slots/contexts, canonical source identities,
   bounded expansion and native recursive/owned-value proof.
 - [x] Static traits, required signatures, and generic function and method bounds.
+- [x] Trait default method bodies with concrete `Self`, overrides, and generic impls.
 - [x] Typed function values, owned move closures, generic call signatures,
   recursive indirect calls and player-State persistence.
 - [x] Player- and entity-scoped callable signatures with context checks at assignment and invocation.

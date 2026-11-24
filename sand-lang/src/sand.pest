@@ -127,7 +127,7 @@ variant    = { outer_doc* ~ ident ~ ("=" ~ expr)? }
 
 struct_item = { kw_struct ~ ident ~ generic_params? ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
 trait_item = { kw_trait ~ ident ~ "{" ~ trait_method* ~ "}" }
-trait_method = { kw_fn ~ ident ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ ";" }
+trait_method = { kw_fn ~ ident ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ (";" | block) }
 impl_contract = { path ~ kw_for }
 impl_item = { kw_impl ~ generic_params? ~ impl_contract? ~ path ~ type_arguments? ~ "{" ~ item* ~ "}" }
 

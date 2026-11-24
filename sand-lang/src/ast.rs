@@ -366,11 +366,11 @@ pub struct StructItem {
 pub struct TraitItem {
     /// Contract name.
     pub name: Ident,
-    /// Methods required by this contract.
+    /// Methods required or provided by this contract.
     pub methods: Vec<TraitMethod>,
 }
 
-/// The source signature of a required method.
+/// A trait method signature and its optional default implementation.
 #[derive(Debug, Clone)]
 pub struct TraitMethod {
     /// Method name.
@@ -381,6 +381,8 @@ pub struct TraitMethod {
     pub params: Vec<Param>,
     /// Declared return type.
     pub ret: Option<Type>,
+    /// Body used when an implementation omits this method.
+    pub body: Option<Block>,
 }
 
 /// An inherent implementation for a State or struct.

@@ -68,7 +68,7 @@ module.exports = grammar({
 
     struct_item: ($) => seq(repeat($.attribute), optional($.visibility), 'struct', field('name', $.identifier), optional($.generic_parameters), '{', commaSep($.field_declaration), '}'),
     trait_item: ($) => seq(repeat($.attribute), optional($.visibility), 'trait', field('name', $.identifier), '{', repeat($.trait_method), '}'),
-    trait_method: ($) => seq('fn', field('name', $.identifier), $.parameters, optional(seq('->', field('return_type', $.type))), ';'),
+    trait_method: ($) => seq('fn', field('name', $.identifier), $.parameters, optional(seq('->', field('return_type', $.type))), choice(';', field('body', $.block))),
     impl_item: ($) => seq('impl', optional($.generic_parameters), optional(seq(field('trait', $.path), 'for')), field('type', $.path), optional($.type_arguments), '{', repeat($.function_item), '}'),
     record_expression: ($) => seq(field('type', $.path), '{', $.record_field, repeat(seq(',', $.record_field)), optional(','), '}'),
     record_field: ($) => seq(field('name', $.identifier), optional(seq(':', $._value_or_condition))),

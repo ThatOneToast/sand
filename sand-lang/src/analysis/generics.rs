@@ -342,12 +342,13 @@ impl Cx {
     pub(super) fn register_generic_impl(
         &mut self,
         module: ModuleId,
-        file: FileId,
         target: DefId,
         implementation: ImplItem,
         scope: Span,
         contract: Option<DefId>,
+        defaults: Vec<Item>,
     ) {
+        let file = self.package.module(module).file;
         let Some((record, _)) = self.generics.records.get(&target) else {
             return;
         };
@@ -381,8 +382,14 @@ impl Cx {
         let parameter_ids =
             self.generic_parameters_at(target, &implementation.generics, module, file, scope);
         let mut methods = Vec::new();
-        for method in implementation.methods {
-            if let Some((def, item)) = self.collect_method(module, file, target, false, method) {
+        let trait_module = contract.map_or(module, |contract| self.defs[contract.0].module);
+        let methods_with_modules = implementation
+            .methods
+            .into_iter()
+            .map(|method| (module, method))
+            .chain(defaults.into_iter().map(|method| (trait_module, method)));
+        for (module, method) in methods_with_modules {
+            if let Some((def, item)) = self.collect_method(module, target, contract, method) {
                 if let ItemKind::Fn(function) = &item.kind
                     && !function.generics.is_empty()
                 {
@@ -491,7 +498,7 @@ impl Cx {
                     .insert(function.name.name.clone(), def);
                 if function.generics.is_empty() {
                     self.declare_slots(
-                        implementation.module,
+                        self.defs[source.0].module,
                         self.defs[source.0].file,
                         def,
                         &function.params,

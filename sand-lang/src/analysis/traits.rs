@@ -7,6 +7,7 @@ pub(super) struct Traits {
     pub declarations: BTreeMap<DefId, Vec<TraitMethod>>,
     pub implementations: BTreeMap<(DefId, DefId), (FileId, Span)>,
     pub function_bounds: BTreeMap<DefId, Vec<(usize, DefId)>>,
+    pub default_bodies: Vec<(DefId, Item)>,
 }
 
 impl Cx {
@@ -65,7 +66,7 @@ impl Cx {
         file: FileId,
         span: Span,
         methods: &mut [Item],
-    ) {
+    ) -> Vec<Item> {
         let required = self.traits.declarations[&contract].clone();
         let mut named = HashSet::new();
         for method in methods {
@@ -104,14 +105,57 @@ impl Cx {
             // callable anywhere the implementing type and trait are visible.
             method.is_pub = self.defs[contract.0].is_pub;
         }
+        let mut defaults = Vec::new();
         for signature in required {
-            if !named.contains(&signature.name.name) {
+            if named.contains(&signature.name.name) {
+                continue;
+            }
+            let Some(body) = signature.body else {
                 self.error(
                     "trait",
                     file,
                     span,
                     format!("missing trait method `{}`", signature.name.name),
                 );
+                continue;
+            };
+            defaults.push(Item {
+                docs: Vec::new(),
+                attrs: Vec::new(),
+                is_pub: self.defs[contract.0].is_pub,
+                span: Span::new(signature.name.span.start, body.span.end),
+                kind: ItemKind::Fn(FnItem {
+                    generics: Vec::new(),
+                    bounds: Vec::new(),
+                    name: signature.name,
+                    receiver: signature.receiver,
+                    params: signature.params,
+                    ret: signature.ret,
+                    body,
+                }),
+            });
+        }
+        defaults
+    }
+
+    pub(super) fn declare_trait_defaults(&mut self) {
+        for (def, item) in std::mem::take(&mut self.traits.default_bodies) {
+            let ItemKind::Fn(function) = &item.kind else {
+                unreachable!("trait default is a function");
+            };
+            let owner = &self.defs[def.0];
+            let (module, file) = (owner.module, owner.file);
+            let target = self.methods[&def].target;
+            let prior = self
+                .generics
+                .bindings
+                .insert("Self".into(), (Ty::Struct(target), target));
+            self.declare_slots(module, file, def, &function.params, function.ret.as_ref());
+            self.queue_generated_body(def, item);
+            if let Some(prior) = prior {
+                self.generics.bindings.insert("Self".into(), prior);
+            } else {
+                self.generics.bindings.remove("Self");
             }
         }
     }

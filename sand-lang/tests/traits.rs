@@ -80,3 +80,59 @@ fn native_trait_fixture_compiles() {
     assert_eq!(sand_lang::format::format(&formatted).unwrap(), formatted);
     compile(&analyze_one(&formatted));
 }
+
+#[test]
+fn defaults_resolve_in_the_trait_module_for_each_implementing_type() {
+    let analysis = analyze(&[
+        (
+            "pack.sand",
+            r#"
+#![pack(namespace = "defaults", minecraft = "26.2")]
+mod contract;
+mod first;
+mod second;
+fn run() {
+    let first = first::Label { value: 4 };
+    let second = second::Label { value: "hi" };
+    first.snapshot().decorated();
+    second.snapshot().decorated();
+}
+"#,
+        ),
+        (
+            "contract.sand",
+            r#"
+fn decorate(text: string) -> string { return "[" + text + "]"; }
+pub trait Labeled {
+    fn label(&self) -> string;
+    fn snapshot(&self) -> Self { return self; }
+    fn decorated(&self) -> string { return decorate(self.label()); }
+}
+"#,
+        ),
+        (
+            "first.sand",
+            r#"
+use crate::contract::Labeled;
+pub struct Label { pub value: number }
+impl Labeled for Label {
+    fn label(&self) -> string { return self.value.to_string(); }
+}
+"#,
+        ),
+        (
+            "second.sand",
+            r#"
+use crate::contract::Labeled;
+pub struct Label<T> { pub value: T }
+impl Labeled for Label<string> {
+    fn label(&self) -> string { return self.value; }
+}
+"#,
+        ),
+    ]);
+    let pack = compile(&analysis);
+    let run = function(&pack, "defaults/function/run");
+    assert!(run.contains("function defaults:first/label.method/snapshot"));
+    assert!(run.contains("function defaults:second/label.method/snapshot.type/"));
+}

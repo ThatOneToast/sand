@@ -175,6 +175,7 @@ fn fn_signature<'i>(mut parts: impl Iterator<Item = P<'i>>) -> TraitMethod {
         receiver,
         params,
         ret,
+        body: None,
     }
 }
 
@@ -530,7 +531,21 @@ impl Builder<'_> {
                 let name = ident(inner.next().expect("trait name"));
                 ItemKind::Trait(TraitItem {
                     name,
-                    methods: inner.map(|method| fn_signature(children(method))).collect(),
+                    methods: inner
+                        .map(|method| {
+                            let mut body = None;
+                            let mut signature = fn_signature(children(method).filter_map(|part| {
+                                if part.as_rule() == Rule::block {
+                                    body = Some(self.block(part));
+                                    None
+                                } else {
+                                    Some(part)
+                                }
+                            }));
+                            signature.body = body;
+                            signature
+                        })
+                        .collect(),
                 })
             }
             Rule::impl_item => {

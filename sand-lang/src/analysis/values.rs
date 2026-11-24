@@ -5,6 +5,7 @@ use crate::builtins::{self, BuiltinKind};
 
 #[derive(Clone)]
 pub(super) struct Method {
+    pub contract: Option<DefId>,
     pub target: DefId,
     pub receiver: Option<Receiver>,
     pub state_receiver: bool,
@@ -128,6 +129,7 @@ impl Cx {
                 ) else {
                     continue;
                 };
+                let mut defaults = Vec::new();
                 let contract = if let Some(path) = &implementation.contract {
                     let Some(contract) =
                         self.expect_path(module, path, &[DefKind::Trait], "a trait")
@@ -143,7 +145,7 @@ impl Cx {
                         );
                         continue;
                     }
-                    self.validate_trait_members(
+                    defaults = self.validate_trait_members(
                         contract,
                         file,
                         item.span,
@@ -156,11 +158,11 @@ impl Cx {
                 if self.generics.records.contains_key(&target) {
                     self.register_generic_impl(
                         module,
-                        file,
                         target,
                         implementation,
                         item.span,
                         contract,
+                        defaults,
                     );
                     continue;
                 }
@@ -178,12 +180,20 @@ impl Cx {
                 if let Some(contract) = contract {
                     self.register_trait_impl(contract, target, file, item.span);
                 }
-                let state = self.defs[target.0].kind == DefKind::State;
                 for method in implementation.methods {
-                    if let Some((_, method)) =
-                        self.collect_method(module, file, target, state, method)
+                    if let Some((_, method)) = self.collect_method(module, target, contract, method)
                     {
                         self.package.modules[index].items.push(method);
+                    }
+                }
+                if let Some(contract) = contract {
+                    let module = self.defs[contract.0].module;
+                    for method in defaults {
+                        if let Some(default) =
+                            self.collect_method(module, target, Some(contract), method)
+                        {
+                            self.traits.default_bodies.push(default);
+                        }
                     }
                 }
             }
@@ -193,11 +203,12 @@ impl Cx {
     pub(super) fn collect_method(
         &mut self,
         module: ModuleId,
-        file: FileId,
         target: DefId,
-        state: bool,
+        contract: Option<DefId>,
         mut method: Item,
     ) -> Option<(DefId, Item)> {
+        let file = self.package.module(module).file;
+        let state = self.defs[target.0].kind == DefKind::State;
         let ItemKind::Fn(function) = &mut method.kind else {
             self.error("impl", file, method.span, "impl blocks contain functions");
             return None;
@@ -264,6 +275,7 @@ impl Cx {
         self.methods.insert(
             def,
             Method {
+                contract,
                 target,
                 state_receiver: state && receiver.is_some(),
                 receiver,
@@ -274,6 +286,12 @@ impl Cx {
             .expect("type members")
             .insert(name.name, def);
         Some((def, method))
+    }
+
+    pub(super) fn method_visible(&self, from: ModuleId, method: DefId) -> bool {
+        let owner = self.methods[&method].contract.unwrap_or(method);
+        let owner = &self.defs[owner.0];
+        self.visible(from, owner.module, owner.is_pub)
     }
 
     pub(super) fn evaluate_structs(&mut self) {
@@ -1259,11 +1277,7 @@ impl Cx {
         } else if let Expr::Path(path) = receiver {
             let _ = self.expect_path(body.module, path, &[DefKind::State], "a State");
         }
-        if !self.visible(
-            body.module,
-            self.defs[def.0].module,
-            self.defs[def.0].is_pub,
-        ) {
+        if !self.method_visible(body.module, def) {
             self.error(
                 "privacy",
                 body.file,

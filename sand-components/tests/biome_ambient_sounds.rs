@@ -41,7 +41,11 @@ fn typed_audio_moves_to_native_attribute_with_shared_holders() {
     for key in ["ambient_sound", "mood_sound", "additions_sound"] {
         assert!(value.to_json()["effects"].get(key).is_none());
     }
-    assert!(biome().to_json().get("attributes").is_none());
+    assert!(
+        biome().to_json()["attributes"]
+            .get("minecraft:audio/ambient_sounds")
+            .is_none()
+    );
     assert_eq!(
         audio(&biome().ambient_sounds(BiomeAmbientSounds::new())),
         json!({"additions":[]})

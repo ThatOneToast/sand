@@ -3344,7 +3344,7 @@ impl AdvancementRewards {
         summary = "Sets a function to execute as a reward.",
         context = "Sets a function to execute as a reward. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        use_when = ["React to an advancement by running a function as the completing player"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(func = "`func` provides the typed Minecraft resource identifier used to set a function to execute as a reward."),
         returns = "The `AdvancementRewards` value with the documented change applied to set a function to execute as a reward.",

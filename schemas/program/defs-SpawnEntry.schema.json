@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One weighted mob-spawn entry for a biome or [`SpawnOverride`].\n\n# Context\nOne weighted mob-spawn entry for a biome or [`SpawnOverride`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::SpawnEntry;\n```\nOne weighted mob-spawn entry for a biome or [`SpawnOverride`].",
+  "properties": {
+    "entity_type": {
+      "type": "string"
+    },
+    "max_count": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "min_count": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "weight": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "entity_type",
+    "weight",
+    "min_count",
+    "max_count"
+  ],
+  "type": "object"
+}

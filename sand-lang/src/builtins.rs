@@ -1907,6 +1907,8 @@ pub enum FieldKind {
     MenuViews,
     MenuGuard,
     MenuViewName,
+    BiomeSpawners,
+    BiomeSpawnCosts,
     /// A list of text lines.
     TextList,
     /// A shaped pattern: a list of one to three strings.
@@ -2601,6 +2603,22 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         false,
         "Optional foliage color override. Use a quoted RGB value.",
         r##""#${1:54a63d}""##,
+    ),
+    f(
+        "biome",
+        "spawners",
+        FieldKind::BiomeSpawners,
+        false,
+        "Natural spawn entries grouped by vanilla mob category.",
+        "{ creature: [{ entity: Entity::${1:Sheep}, weight: ${2:12} }] }",
+    ),
+    f(
+        "biome",
+        "spawn_costs",
+        FieldKind::BiomeSpawnCosts,
+        false,
+        "Optional population-density budget and per-mob charge.",
+        "[{ entity: Entity::${1:Sheep}, energy_budget: ${2:1.0}, charge: ${3:0.2} }]",
     ),
     f(
         "dimension",

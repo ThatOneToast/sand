@@ -1090,6 +1090,15 @@ fn custom_biome_component(source: &CustomBiome) -> sand_components::Biome {
     if let Some(downfall) = source.downfall {
         biome = biome.downfall(downfall);
     }
+    if !source.spawners.is_empty() {
+        biome = biome.spawners(source.spawners.clone());
+    }
+    if !source.spawn_costs.is_empty() {
+        biome = biome.spawn_costs(source.spawn_costs.iter().map(|(entity, cost)| {
+            let id: sand_components::ResourceLocation = entity.parse().expect("validated entity");
+            (id.into(), *cost)
+        }));
+    }
     biome
 }
 

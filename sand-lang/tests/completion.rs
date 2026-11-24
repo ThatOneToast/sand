@@ -419,6 +419,8 @@ fn data_declarations_offer_only_remaining_valid_fields() {
             "sky_color",
             "grass_color",
             "foliage_color",
+            "spawners",
+            "spawn_costs",
         ],
     );
     includes_excludes(

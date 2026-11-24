@@ -1298,6 +1298,24 @@ Use quoted `"#rrggbb"` colors for `fog_color`, `water_color`, `water_fog_color`,
 terrain feature and natural mob spawn tables. Install the pack before the
 world starts to register the biome and any dimension that uses it.
 
+Use `spawners` to assign natural spawning entries by mob category.
+Entries use typed Minecraft entity names. Weights are relative to other entries
+in the same category, and the default minimum group size is one.
+When omitted, the maximum defaults to the minimum.
+`spawn_costs` optionally supplies an entity’s local density budget and its
+per-mob charge.
+
+```rust,ignore
+biome RabbitGrove {
+    spawners: {
+        creature: [{ entity: Entity::Rabbit, weight: 12, min_count: 2, max_count: 4 }],
+    },
+    spawn_costs: [{ entity: Entity::Rabbit, energy_budget: 1.5, charge: 0.25 }],
+}
+```
+
+Vanilla still applies spawn rules such as block, light, and difficulty checks.
+
 ### Reading entity data and inventories
 
 `entity_data_number("Health")` reads the vanilla integer result of a checked
@@ -1827,7 +1845,7 @@ command and State models as Rust. Today the language covers:
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and top-level entity/player waits | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads, authored advancement completion | broader advancement triggers, equipment changes, tracked transitions, event chains |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate and colors, structure templates, typed block data literals and copies | natural structure generation, biome generation and spawn tables, other dimension generators and types |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
 | Gameplay systems | checked inventory transfers, player-owned HUDs and native menus | combat, abilities, encounters, jobs, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |

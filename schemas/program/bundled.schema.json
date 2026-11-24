@@ -2173,7 +2173,7 @@
     },
     "CustomBiome": {
       "additionalProperties": false,
-      "description": "Climate and visual settings for a native custom biome.",
+      "description": "Climate, visual settings, and natural spawn rules for a native custom biome.",
       "properties": {
         "downfall": {
           "description": "Humidity from zero to one. Defaults to 0.5.",
@@ -2229,6 +2229,23 @@
             "integer",
             "null"
           ]
+        },
+        "spawn_costs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SpawnCost"
+          },
+          "description": "Optional population-density budget and charge for each entity.",
+          "type": "object"
+        },
+        "spawners": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/SpawnEntry"
+            },
+            "type": "array"
+          },
+          "description": "Natural spawn entries in authored order within each vanilla category.",
+          "type": "object"
         },
         "temperature": {
           "description": "Climate temperature. Defaults to 0.5.",
@@ -5123,6 +5140,56 @@
         "left",
         "relation",
         "right"
+      ],
+      "type": "object"
+    },
+    "SpawnCost": {
+      "additionalProperties": false,
+      "description": "A biome's population-density budget and charge for one entity type.\n\n# Context\nUsed in Biome::spawn_costs alongside typed EntityTypeId keys.\n\n# Minecraft behavior\nSerializes energy_budget and charge; non-finite values fail export.\n\n# Use when\n- Controlling biome mob population density\n\n# Avoid when\n- Choosing spawn weights or group sizes; use SpawnEntry\n\n# Example\n```rust,ignore\nuse sand::component::SpawnCost; let cost = SpawnCost::new(1.0, 0.2);\n```\nPopulation-density cost for one entity type in a biome.\n\nMinecraft compares nearby spawn charges with the energy budget when deciding\nwhether another mob may spawn. Both values must be finite JSON numbers;\nMinecraft's codec imposes no sign restriction. Assign costs by entity type\nwith [`Biome::spawn_costs`].",
+      "properties": {
+        "charge": {
+          "format": "double",
+          "type": "number"
+        },
+        "energy_budget": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "energy_budget",
+        "charge"
+      ],
+      "type": "object"
+    },
+    "SpawnEntry": {
+      "additionalProperties": false,
+      "description": "One weighted mob-spawn entry for a biome or [`SpawnOverride`].\n\n# Context\nOne weighted mob-spawn entry for a biome or [`SpawnOverride`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::SpawnEntry;\n```\nOne weighted mob-spawn entry for a biome or [`SpawnOverride`].",
+      "properties": {
+        "entity_type": {
+          "type": "string"
+        },
+        "max_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "weight": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "entity_type",
+        "weight",
+        "min_count",
+        "max_count"
       ],
       "type": "object"
     },

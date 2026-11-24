@@ -964,6 +964,33 @@ pub(super) fn validate(
                     "downfall must be between zero and one".into(),
                 );
             }
+            let spawn_entity_exists = |id: &str| {
+                syntax_id(id)
+                    && sand_version::registry::contains(
+                        &program.target.minecraft,
+                        "minecraft:entity_type",
+                        id,
+                    ) != Some(false)
+            };
+            for (category, entries) in &biome.spawners {
+                for (index, entry) in entries.iter().enumerate() {
+                    let entity = entry.entity_type().to_string();
+                    if !spawn_entity_exists(&entity) {
+                        push(
+                            format!("{ptr}/spawners/{}/{index}/entity_type", category.as_str()),
+                            format!("unknown entity type `{entity}`"),
+                        );
+                    }
+                }
+            }
+            for entity in biome.spawn_costs.keys() {
+                if !spawn_entity_exists(entity) {
+                    push(
+                        format!("{ptr}/spawn_costs/{entity}"),
+                        format!("unknown entity type `{entity}`"),
+                    );
+                }
+            }
         }
         for (index, dimension) in module.dimensions.iter().enumerate() {
             let ptr = format!("/dimensions/{index}");

@@ -298,8 +298,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   predicates.
 - [x] Structure template imports from saved native NBT files and typed placement
   at absolute or relative positions.
-- [ ] Natural structure generation, biome generation and spawn tables, other
-  world generators and dimension types, and first-class native block data.
+- [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
+- [ ] Natural structure generation, biome terrain features, other world
+  generators and dimension types, and first-class native block data.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.
 - [x] Native damage type declarations and typed vanilla damage types, both

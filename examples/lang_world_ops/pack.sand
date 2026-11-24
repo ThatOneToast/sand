@@ -5,6 +5,9 @@ biome WorkshopClimate {
     downfall: 0.0,
     sky_color: "#e6b88a",
     water_color: "#4b8fa3",
+    spawners: {
+        creature: [{ entity: Entity::Rabbit, weight: 12, min_count: 1, max_count: 3 }],
+    },
 }
 
 dimension Workshop {

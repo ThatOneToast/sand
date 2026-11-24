@@ -1,6 +1,6 @@
 //! Owned portable data resources: custom items, recipes, and registry tags.
 use super::{FieldReference, FunctionReference, ScoreOperand, TextPart, Weather};
-use sand_components::ResourceLocation;
+use sand_components::{MobCategory, ResourceLocation, SpawnCost, SpawnEntry};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -609,17 +609,17 @@ pub struct FlatDimension {
     pub flat: sand_components::FlatGenerator,
 }
 
-/// Climate and visual settings for a native custom biome.
+/// Climate, visual settings, and natural spawn rules for a native custom biome.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::CustomBiome", module = "sand::advanced::compiler",
- summary = "Climate and visual settings for a native custom biome.",
+ summary = "Climate, visual settings, and natural spawn rules for a native custom biome.",
  context = "Reference the biome from FlatDimension or a block-position biome condition. Install the pack before starting the world to register the biome.",
- minecraft = "Lowers through Biome and BiomeEffects to a native worldgen biome, with no placed features, carvers or spawn tables.",
+ minecraft = "Lowers through Biome, BiomeEffects, and the shared weighted spawn model to a native worldgen biome.",
  use_when = ["Giving an authored dimension its own climate and colors"],
- avoid_when = ["Declaring placed features or natural mob spawn tables"],
- fields(id = "Biome identity.", precipitation = "Whether rain or snow occurs.", temperature = "Climate temperature.", downfall = "Humidity from zero to one.", fog_color = "Fog RGB.", water_color = "Water surface RGB.", water_fog_color = "Underwater fog RGB.", sky_color = "Sky RGB.", grass_color = "Grass RGB override.", foliage_color = "Foliage RGB override."),
+ avoid_when = ["Declaring placed features or terrain carvers"],
+ fields(id = "Biome identity.", precipitation = "Whether rain or snow occurs.", temperature = "Climate temperature.", downfall = "Humidity from zero to one.", fog_color = "Fog RGB.", water_color = "Water surface RGB.", water_fog_color = "Underwater fog RGB.", sky_color = "Sky RGB.", grass_color = "Grass RGB override.", foliage_color = "Foliage RGB override.", spawners = "Ordered weighted entries within each mob category.", spawn_costs = "Population density budgets and charges by entity type."),
  example = "use sand::advanced::compiler::CustomBiome;",
 )]
 pub struct CustomBiome {
@@ -653,6 +653,12 @@ pub struct CustomBiome {
     /// Optional foliage color override, as an RGB integer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub foliage_color: Option<u32>,
+    /// Natural spawn entries in authored order within each vanilla category.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub spawners: BTreeMap<MobCategory, Vec<SpawnEntry>>,
+    /// Optional population-density budget and charge for each entity.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub spawn_costs: BTreeMap<String, SpawnCost>,
 }
 
 /// A reusable native player inventory transfer between two numbered slots.

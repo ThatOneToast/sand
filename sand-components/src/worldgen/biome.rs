@@ -9,6 +9,8 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::SoundEventDefinition;
@@ -45,7 +47,8 @@ const GENERATION_STEP_COUNT: usize = 11;
     avoid_when = ["Choosing spawn weights or group sizes; use SpawnEntry"],
     example = "use sand::component::SpawnCost; let cost = SpawnCost::new(1.0, 0.2);",
 )]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SpawnCost {
     energy_budget: f64,
     charge: f64,

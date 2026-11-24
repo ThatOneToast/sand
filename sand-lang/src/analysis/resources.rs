@@ -687,6 +687,12 @@ impl Cx {
                     sky_color: color("sky_color"),
                     grass_color: color("grass_color"),
                     foliage_color: color("foliage_color"),
+                    spawners: get("spawners")
+                        .and_then(|field| self.data_biome_spawners(module, file, &field.value))
+                        .unwrap_or_default(),
+                    spawn_costs: get("spawn_costs")
+                        .and_then(|field| self.data_biome_spawn_costs(module, file, &field.value))
+                        .unwrap_or_default(),
                 };
                 self.pointers.push((
                     module_id,
@@ -1760,6 +1766,140 @@ impl Cx {
             return None;
         }
         self.function_reference(def)
+    }
+
+    fn data_biome_spawners(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<BTreeMap<sand::component::MobCategory, Vec<sand::component::SpawnEntry>>> {
+        let DataValue::Object(categories, _) = value else {
+            self.error(
+                "biome",
+                file,
+                value.span(),
+                "expected spawn categories such as `{ creature: [...] }`",
+            );
+            return None;
+        };
+        let mut table = BTreeMap::new();
+        for category in categories {
+            let Ok(kind) =
+                serde_json::from_value(serde_json::Value::String(category.key.name.clone()))
+            else {
+                self.error(
+                    "biome",
+                    file,
+                    category.key.span,
+                    format!("unknown mob spawn category `{}`", category.key.name),
+                );
+                continue;
+            };
+            let DataValue::Array(entries, _) = &category.value else {
+                self.error(
+                    "biome",
+                    file,
+                    category.value.span(),
+                    "expected a list of weighted spawn entries",
+                );
+                continue;
+            };
+            let entries = entries
+                .iter()
+                .map(|entry| {
+                    let fields = self.data_object_fields(
+                        file,
+                        entry,
+                        "spawn entry",
+                        &["entity"],
+                        &["weight", "min_count", "max_count"],
+                    )?;
+                    let entity = self.data_spawn_entity(module, file, fields.get("entity")?)?;
+                    let mut number = |key, default, min| {
+                        fields.get(key).map_or(Some(default), |value| {
+                            self.data_int(module, file, value, min, i64::from(i32::MAX))
+                        })
+                    };
+                    let weight = number("weight", 1, 1)?;
+                    let min = number("min_count", 1, 1)?;
+                    let max = number("max_count", min, min)?;
+                    Some(sand::component::SpawnEntry::new(
+                        entity,
+                        weight as u32,
+                        min as u32,
+                        max as u32,
+                    ))
+                })
+                .collect::<Option<Vec<_>>>()?;
+            if table.insert(kind, entries).is_some() {
+                self.error(
+                    "biome",
+                    file,
+                    category.key.span,
+                    format!("duplicate mob spawn category `{}`", category.key.name),
+                );
+            }
+        }
+        Some(table)
+    }
+
+    fn data_biome_spawn_costs(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<BTreeMap<String, sand::component::SpawnCost>> {
+        let DataValue::Array(entries, _) = value else {
+            self.error(
+                "biome",
+                file,
+                value.span(),
+                "expected a list of entity spawn costs",
+            );
+            return None;
+        };
+        let mut costs = BTreeMap::new();
+        for entry in entries {
+            let fields = self.data_object_fields(
+                file,
+                entry,
+                "spawn cost",
+                &["entity", "energy_budget", "charge"],
+                &[],
+            )?;
+            let entity = self.data_spawn_entity(module, file, fields.get("entity")?)?;
+            let budget = self.data_number(module, file, fields.get("energy_budget")?)?;
+            let charge = self.data_number(module, file, fields.get("charge")?)?;
+            if costs
+                .insert(
+                    entity.to_string(),
+                    sand::component::SpawnCost::new(budget, charge),
+                )
+                .is_some()
+            {
+                self.error(
+                    "biome",
+                    file,
+                    entry.span(),
+                    "duplicate spawn cost for this entity type",
+                );
+            }
+        }
+        Some(costs)
+    }
+
+    fn data_spawn_entity(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<sand::registry::EntityTypeId> {
+        let expr = self.data_expr(file, value, "an entity type")?;
+        self.vanilla_value(module, file, expr, "Entity")?
+            .parse::<sand::ResourceLocation>()
+            .ok()
+            .map(Into::into)
     }
 
     fn data_biome_number(

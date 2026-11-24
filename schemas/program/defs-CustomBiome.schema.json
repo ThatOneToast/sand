@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Climate and visual settings for a native custom biome.",
+  "description": "Climate, visual settings, and natural spawn rules for a native custom biome.",
   "properties": {
     "downfall": {
       "description": "Humidity from zero to one. Defaults to 0.5.",
@@ -57,6 +57,23 @@
         "integer",
         "null"
       ]
+    },
+    "spawn_costs": {
+      "additionalProperties": {
+        "$ref": "defs-SpawnCost.schema.json"
+      },
+      "description": "Optional population-density budget and charge for each entity.",
+      "type": "object"
+    },
+    "spawners": {
+      "additionalProperties": {
+        "items": {
+          "$ref": "defs-SpawnEntry.schema.json"
+        },
+        "type": "array"
+      },
+      "description": "Natural spawn entries in authored order within each vanilla category.",
+      "type": "object"
     },
     "temperature": {
       "description": "Climate temperature. Defaults to 0.5.",

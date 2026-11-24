@@ -28,6 +28,20 @@ fn authored_biome_colors_and_climate_export_through_canonical_worldgen() {
             "foliage_color": "#436a55",
         })
     );
+    assert_eq!(
+        biome["spawners"],
+        serde_json::json!({
+            "creature": [
+                {"type": "minecraft:rabbit", "weight": 12, "minCount": 2, "maxCount": 4},
+                {"type": "minecraft:sheep", "weight": 1, "minCount": 1, "maxCount": 1},
+            ],
+            "monster": [{"type": "minecraft:zombie", "weight": 3, "minCount": 1, "maxCount": 1}],
+        }),
+    );
+    assert_eq!(
+        biome["spawn_costs"],
+        serde_json::json!({"minecraft:rabbit": {"energy_budget": 1.5, "charge": 0.25}}),
+    );
     let dimension = resource("data/language_probe/dimension/grove.json");
     assert_eq!(
         dimension["generator"]["settings"]["biome"],
@@ -66,5 +80,45 @@ biome Garden {}
     let diagnostics = sand::advanced::compiler::Compiler::compile(&program).unwrap_err();
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.message.contains("water_color") && diagnostic.pointer == "/biomes/0"
+    }));
+}
+
+#[test]
+fn biome_spawn_tables_validate_groups_counts_and_references() {
+    let source = include_str!("fixtures/custom_biomes.sand");
+    for (original, replacement, expected) in [
+        (
+            "creature:",
+            "critters:",
+            "unknown mob spawn category `critters`",
+        ),
+        ("max_count: 4", "max_count: 1", "expected a value from 2"),
+        ("Entity::Rabbit", "Block::Stone", "Entity"),
+        ("weight: 12", "weight: 2147483647", "sum of spawn weights"),
+    ] {
+        let analysis = analyze_one(&source.replacen(original, replacement, 1));
+        let messages: Vec<_> = analysis
+            .compile()
+            .expect_err("invalid biome compiled")
+            .into_iter()
+            .map(|diagnostic| diagnostic.message)
+            .collect();
+        assert!(
+            messages.iter().any(|message| message.contains(expected)),
+            "expected {expected:?}, got {messages:?}",
+        );
+    }
+    let mut portable = serde_json::to_value(analyze_one(source).program.unwrap()).unwrap();
+    portable["modules"][0]["biomes"][0]["spawners"]["monster"][0]["entity_type"] =
+        serde_json::json!("probe:unknown");
+    let program = serde_json::from_value(portable).unwrap();
+    let diagnostics = sand::advanced::compiler::Compiler::compile(&program).unwrap_err();
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .message
+            .contains("unknown entity type `probe:unknown`")
+            && diagnostic
+                .pointer
+                .ends_with("/spawners/monster/0/entity_type")
     }));
 }

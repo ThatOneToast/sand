@@ -7,6 +7,8 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::component::DatapackComponent;
@@ -197,7 +199,10 @@ impl TerrainAdaptation {
     variants(Ambient = "Targets Minecraft's ambient mob category.", Axolotls = "Targets Minecraft's axolotls mob category.", Creature = "Targets Minecraft's creature mob category.", Misc = "Targets Minecraft's misc mob category.", Monster = "Targets Minecraft's monster mob category.", UndergroundWaterCreature = "Targets Minecraft's underground water creature mob category.", WaterAmbient = "Targets Minecraft's water ambient mob category.", WaterCreature = "Targets Minecraft's water creature mob category."),
 )]
 /// A vanilla mob category used as a spawn-override key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum MobCategory {
     #[doc = "Targets Minecraft's monster mob category."]
     Monster,
@@ -306,8 +311,10 @@ impl SpawnBoundingBox {
     example = "use sand::component::SpawnEntry;",
 )]
 /// One weighted mob-spawn entry for a biome or [`SpawnOverride`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SpawnEntry {
+    #[schemars(with = "String")]
     entity_type: EntityTypeId,
     weight: u32,
     min_count: u32,
@@ -340,6 +347,22 @@ impl SpawnEntry {
             min_count,
             max_count,
         }
+    }
+
+    /// The entity admitted by this weighted entry.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::SpawnEntry::entity_type",
+        aliases = ["sand::prelude::SpawnEntry::entity_type"], module = "sand::component",
+        summary = "Read the entity type in one weighted spawn entry.",
+        context = "Inspect the entry before validating it against the target’s entity registry.",
+        minecraft = "Returns the typed registry identity emitted as the spawn entry’s type.",
+        use_when = ["Checking or comparing the entity in a biome or structure spawn table"],
+        avoid_when = ["Changing the entity; create a new SpawnEntry"],
+        returns = "The entity type in this entry.",
+        example = "use sand::component::SpawnEntry;",
+    )]
+    pub fn entity_type(&self) -> &EntityTypeId {
+        &self.entity_type
     }
 
     pub(crate) fn to_json(&self) -> Value {

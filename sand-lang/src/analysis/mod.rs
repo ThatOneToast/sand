@@ -2577,7 +2577,7 @@ impl Cx {
                     );
                     continue;
                 };
-                module.functions.push(pc::Function {
+                let mut function = pc::Function {
                     id,
                     context: match context {
                         Context::Server => pc::ExecutionContext::Server,
@@ -2585,7 +2585,19 @@ impl Cx {
                         Context::Entity => pc::ExecutionContext::Entity,
                     },
                     body: pending.body.clone(),
-                });
+                };
+                let joins = continuations::join_wait_paths(&mut function);
+                module.functions.push(function);
+                for join in joins {
+                    let ptr = format!("/functions/{}", module.functions.len());
+                    self.pointers.push((
+                        module.id.to_string(),
+                        ptr,
+                        pending.file,
+                        pending.name_span,
+                    ));
+                    module.functions.push(join);
+                }
             }
         }
         if self.test_mode {
@@ -4470,14 +4482,63 @@ impl Cx {
     }
 
     fn lower_if(&mut self, body: &mut BodyCx, stmt: &IfStmt) -> Vec<pc::Operation> {
-        let then = self.lower_block(body, &stmt.then);
+        let then = self.lower_if_block(body, &stmt.then);
         let otherwise = match &stmt.otherwise {
             None => Vec::new(),
-            Some(Else::Block(block)) => self.lower_block(body, block),
+            Some(Else::Block(block)) => self.lower_if_block(body, block),
             Some(Else::If(nested)) => self.lower_if(body, nested),
         };
-        self.lower_cond(body, &stmt.cond, then, otherwise)
-            .unwrap_or_default()
+        if !continuations::may_suspend(&then) && !continuations::may_suspend(&otherwise) {
+            return self
+                .lower_cond(body, &stmt.cond, then, otherwise)
+                .unwrap_or_default();
+        }
+        // Evaluate short-circuit conditions once and put each suspending arm
+        // in a single branch, keeping the number of wait sites linear.
+        let depth = body.temp_depth;
+        let selected = self.temp(body);
+        let test = |value| {
+            vec![op_at(
+                pc::Action::ScoreSet {
+                    score: selected.clone(),
+                    value,
+                },
+                body.file,
+                stmt.span,
+            )]
+        };
+        let yes = test(1);
+        let no = test(0);
+        let evaluated = self.lower_cond(body, &stmt.cond, yes, no);
+        body.temp_depth = depth;
+        let Some(mut operations) = evaluated else {
+            return Vec::new();
+        };
+        operations.push(op_at(
+            pc::Action::Branch {
+                condition: pc::Condition::Range(pc::ScoreComparison {
+                    score: selected,
+                    min: Some(1),
+                    max: Some(1),
+                }),
+                then,
+                otherwise,
+            },
+            body.file,
+            stmt.span,
+        ));
+        operations
+    }
+
+    fn lower_if_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
+        let saved = body.wait_block_depth;
+        let depth = body.block_ends.len();
+        if saved == depth {
+            body.wait_block_depth = depth + 1;
+        }
+        let operations = self.lower_block(body, block);
+        body.wait_block_depth = saved;
+        operations
     }
 
     /// Lower a boolean condition into nested single-comparison branches.
@@ -5348,6 +5409,8 @@ struct BodyCx {
     pending: Vec<Diagnostic>,
     /// End offsets of enclosing blocks, for local visibility ranges.
     block_ends: Vec<usize>,
+    /// The innermost block where a wait may suspend this function frame.
+    wait_block_depth: usize,
     in_players: bool,
     player_use: Option<(Span, String)>,
     calls: Vec<(DefId, Span)>,
@@ -5380,6 +5443,7 @@ impl BodyCx {
             entity_use: None,
             pending: Vec::new(),
             block_ends: Vec::new(),
+            wait_block_depth: 1,
             player_use: None,
             calls: Vec::new(),
             schedules: Vec::new(),

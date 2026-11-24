@@ -1,4 +1,4 @@
-//! Retain the invocation's locals at each top-level wait boundary.
+//! Retain each invocation across wait boundaries and join conditional paths.
 use super::*;
 use crate::builtins::{self, BuiltinKind};
 use std::collections::BTreeSet;
@@ -44,11 +44,11 @@ impl Cx {
         let builtin = builtins::find("wait", BuiltinKind::Statement).expect("registered builtin");
         self.references_builtin(file, path.span, builtin);
         if body.owner.is_none()
-            || body.block_ends.len() != 1
+            || body.wait_block_depth != body.block_ends.len()
             || body.ret.is_some()
             || body.receiver_out.is_some()
         {
-            self.error("wait", file, span, "use `wait` directly in a function body that returns no value and has no mutable borrowed receiver");
+            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch, with no return value or mutable borrowed receiver");
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
@@ -122,17 +122,22 @@ impl Cx {
         };
         body.note_executor(span, "retains the executing entity across a wait".into());
 
-        // Retain the live lexical slots, including parameters and destructured
-        // locals. Reused command scratch slots never escape the expression that
-        // owns them. Shadowed bindings will stay unreachable on resume.
+        // An outer binding hidden by a branch local becomes visible again
+        // after the branch joins. A later declaration in the same scope
+        // permanently hides the earlier one.
         let mut seen = BTreeSet::new();
-        let definitions: BTreeSet<_> = body
-            .scopes
-            .iter()
-            .rev()
-            .flat_map(|scope| scope.iter().rev())
-            .filter_map(|(name, def)| seen.insert(name).then_some(*def))
-            .collect();
+        let mut definitions = BTreeSet::new();
+        for scope in body.scopes.iter().rev() {
+            if body.block_ends.len() > 1 {
+                seen.clear();
+            }
+            definitions.extend(
+                scope
+                    .iter()
+                    .rev()
+                    .filter_map(|(name, def)| seen.insert(name).then_some(*def)),
+            );
+        }
         let mut fields = Vec::new();
         for def in definitions {
             let root = self.local_ref(def);
@@ -160,5 +165,97 @@ impl Cx {
             fields,
             span,
         })
+    }
+}
+
+/// Whether control flow in this function frame can suspend. Selector bodies,
+/// loops and value blocks are lowered independently and cannot suspend here.
+pub(super) fn may_suspend(operations: &[pc::Operation]) -> bool {
+    operations.iter().any(|operation| match &operation.action {
+        pc::Action::Suspend { .. } => true,
+        pc::Action::Branch {
+            then, otherwise, ..
+        } => may_suspend(then) || may_suspend(otherwise),
+        _ => false,
+    })
+}
+
+/// Outline shared suffixes once. Reaching the end of either branch calls its
+/// suffix, and suspending retains the suffix call for the resumed path.
+pub(super) fn join_wait_paths(function: &mut pc::Function) -> Vec<pc::Function> {
+    if !may_suspend(&function.body) {
+        return Vec::new();
+    }
+    let mut joins = WaitJoins {
+        id: &function.id,
+        context: function.context,
+        functions: Vec::new(),
+    };
+    joins.rewrite(&mut function.body, None);
+    joins.functions
+}
+
+struct WaitJoins<'a> {
+    id: &'a sand::ResourceLocation,
+    context: pc::ExecutionContext,
+    functions: Vec<pc::Function>,
+}
+
+impl WaitJoins<'_> {
+    fn rewrite(&mut self, operations: &mut Vec<pc::Operation>, fallthrough: Option<pc::Operation>) {
+        if !may_suspend(operations) {
+            if !matches!(
+                operations.last().map(|op| &op.action),
+                Some(pc::Action::Return)
+            ) {
+                operations.extend(fallthrough);
+            }
+            return;
+        }
+        let mut suffix: Vec<_> = fallthrough.into_iter().collect();
+        for mut operation in std::mem::take(operations).into_iter().rev() {
+            match &mut operation.action {
+                pc::Action::Suspend { body, .. } => {
+                    // The frontend embeds all following statements in this
+                    // body, so only an enclosing branch contributes a suffix.
+                    debug_assert!(suffix.len() <= 1);
+                    self.rewrite(body, suffix.pop());
+                }
+                pc::Action::Branch {
+                    then, otherwise, ..
+                } if may_suspend(then) || may_suspend(otherwise) => {
+                    let fallthrough = match suffix.len() {
+                        0 => None,
+                        1 if matches!(suffix[0].action, pc::Action::Call { .. }) => suffix.pop(),
+                        _ => {
+                            suffix.reverse();
+                            let id = sand::ResourceLocation::new(
+                                self.id.namespace(),
+                                format!("__wait/{}/{}", self.functions.len(), self.id.path()),
+                            )
+                            .expect("validated continuation identity");
+                            let origin = suffix.first().and_then(|op| op.origin.clone());
+                            self.functions.push(pc::Function {
+                                id: id.clone(),
+                                context: self.context,
+                                body: std::mem::take(&mut suffix),
+                            });
+                            Some(pc::Operation {
+                                action: pc::Action::Call {
+                                    function: pc::FunctionReference::Internal { id },
+                                },
+                                origin,
+                            })
+                        }
+                    };
+                    self.rewrite(then, fallthrough.clone());
+                    self.rewrite(otherwise, fallthrough);
+                }
+                _ => {}
+            }
+            suffix.push(operation);
+        }
+        suffix.reverse();
+        *operations = suffix;
     }
 }

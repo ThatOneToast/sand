@@ -1,6 +1,14 @@
 //! Imported by the two-client runtime probe.
 struct Plan { label: string, boost: number, delay: number, steps: Vec<number> }
-player state Ledger { stage_one: number, stage_two: number, cancelled: number, immediate: number }
+player state Ledger {
+    stage_one: number,
+    stage_two: number,
+    cancelled: number,
+    immediate: number,
+    branch_sum: number,
+    branch_shadow: number,
+    branch_count: number,
+}
 
 fn run(plan: Plan) {
     let mut amount = plan.boost;
@@ -71,3 +79,57 @@ fn runtime_seconds(seconds: number) {
 }
 
 pub fn queue_seconds() { runtime_seconds(1); }
+
+fn branch_wait(mode: number, value: number) {
+    let mut total = value;
+    if mode == 1 || mode == 2 {
+        let add = 7;
+        if mode == 1 {
+            let total = total + 100;
+            wait(4);
+            Ledger.branch_shadow += total;
+        } else {
+            wait(2);
+            return;
+        }
+        total += add;
+    } else if mode == 3 {
+        wait(3);
+        total *= 2;
+    } else {
+        total += 1;
+    }
+    Ledger.branch_sum += total;
+    Ledger.branch_count += 1;
+    if mode != 0 { raw!("say __SAND_BRANCH_WAIT_DONE__"); }
+}
+
+pub fn queue_branches_a() {
+    branch_wait(1, 10);
+    branch_wait(1, 30);
+    branch_wait(2, 99);
+    branch_wait(0, 3);
+    if Ledger.branch_sum == 4 && Ledger.branch_count == 1 {
+        raw!("scoreboard players set #branch_eager_a numeric_probe 1");
+    }
+}
+
+pub fn queue_branches_b() {
+    branch_wait(3, 8);
+    branch_wait(0, 5);
+    if Ledger.branch_sum == 6 && Ledger.branch_count == 1 {
+        raw!("scoreboard players set #branch_eager_b numeric_probe 1");
+    }
+}
+
+pub fn check_branches_a() {
+    if Ledger.branch_sum == 58 && Ledger.branch_shadow == 240 && Ledger.branch_count == 3 {
+        raw!("scoreboard players set #branch_after_a numeric_probe 1");
+    }
+}
+
+pub fn check_branches_b() {
+    if Ledger.branch_sum == 22 && Ledger.branch_shadow == 0 && Ledger.branch_count == 2 {
+        raw!("scoreboard players set #branch_after_b numeric_probe 1");
+    }
+}

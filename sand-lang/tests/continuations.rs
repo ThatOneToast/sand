@@ -53,10 +53,10 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
     for (body, expected) in [
         (
             "fn eager() -> number { wait(1); return 2; }",
-            "returns no value",
+            "no return value",
         ),
         (
-            "fn eager() { if true { wait(1); } }",
+            "fn eager() { loop { wait(1); break; } }",
             "directly in a function body",
         ),
         ("fn eager() { wait(0); }", "expected a value from 1"),
@@ -104,4 +104,53 @@ fn resume_later(seconds: number) {
     assert!(commands.lines().any(|line| {
         line.contains("matches 1.. run return run function") && line.contains("/continuation")
     }));
+}
+
+#[test]
+fn nested_conditional_waits_outline_one_suffix_and_keep_both_scopes() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+player state Result { sum: number, marker: number }
+fn branch(a: bool, b: bool, c: bool) {
+    let mut value = 5;
+    if a || b || c {
+        if a {
+            let value = 7;
+            wait(3);
+            Result.marker = value;
+        } else {
+            wait(4);
+            return;
+        }
+        value += 7;
+    }
+    Result.sum += value;
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    // Short-circuit operations must not duplicate a wait or its lifetime.
+    assert_eq!(
+        pack.resources
+            .keys()
+            .filter(|name| name.ends_with("/continuation.mcfunction"))
+            .count(),
+        2,
+    );
+    let functions = &analysis.program.as_ref().unwrap().modules[0].functions;
+    assert!(
+        functions
+            .iter()
+            .any(|function| function.id.path().starts_with("__wait/"))
+    );
+    let document = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&document, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
 }

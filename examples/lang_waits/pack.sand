@@ -18,7 +18,12 @@ fn bake(batch: number) {
     let quantity = 3;
     actionbar!("Batch {batch} is in the oven.");
     let baking_ticks = quantity * 12;
-    wait(baking_ticks);
+    if batch % 3 == 0 {
+        actionbar!("Batch {batch} is getting an extra-crisp crust.");
+        wait(baking_ticks + 12);
+    } else {
+        wait(baking_ticks);
+    }
     give_item(Item::Bread, count = quantity);
     chat!("Batch {batch} is ready. Here are your {quantity} loaves.");
 }

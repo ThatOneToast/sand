@@ -223,6 +223,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check("RUNTIME_ITEM_CLEAR", "if score #safe_clear numeric_probe matches 1")
             self.send("execute as NumericB run function runtime_values:inspect_inventory")
             self.check("RUNTIME_ITEM_CLEAR_ISOLATION", "if score NumericB numeric_probe matches 3")
+            self.check_conditional_waits()
             self.check_inventory_transfers()
             self.check_owner_huds()
             self.check_native_menus()
@@ -230,6 +231,19 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0 80 0")
 
+
+    def check_conditional_waits(self):
+        for player, suffix in (("NumericA", "a"), ("NumericB", "b")):
+            self.send(f"execute as {player} at @s run function runtime_values:player_waits/queue_branches_{suffix}")
+            self.check(f"BRANCH_EAGER_{suffix.upper()}", f"if score #branch_eager_{suffix} numeric_probe matches 1")
+        start = len(self.lines)
+        self.send("tick step 10")
+        for player in ("NumericB", "NumericA", "NumericA"):
+            line = self.wait_for(re.compile(rf"\[{player}\] __SAND_BRANCH_WAIT_DONE__$"), "conditional-wait", start)
+            start = line + 1
+        for player, suffix in (("NumericA", "a"), ("NumericB", "b")):
+            self.send(f"execute as {player} run function runtime_values:player_waits/check_branches_{suffix}")
+            self.check(f"BRANCH_AFTER_{suffix.upper()}", f"if score #branch_after_{suffix} numeric_probe matches 1")
 
     def check_inventory_transfers(self):
         for player, count in (("NumericA", 5), ("NumericB", 7)):

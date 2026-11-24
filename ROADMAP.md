@@ -286,7 +286,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Top-level `wait` statements in entity and player functions, with
   per-invocation locals, original dimension, and owner-scoped cancellation.
 - [x] Runtime wait durations in ticks and seconds, captured for each invocation.
-- [ ] Waits inside control flow and server continuations.
+- [x] Waits in nested conditional branches with one shared continuation and
+  per-invocation locals.
+- [ ] Waits inside loops and matches, and server continuations.
 - [x] Dimension checks and scoped calls, and block cloning with mask, filter,
   overlap, and move modes.
 - [x] Biome predicates validated against the target version’s shared catalog.

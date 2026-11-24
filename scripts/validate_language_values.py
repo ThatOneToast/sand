@@ -32,7 +32,7 @@ class ValuesHarness(WorldGameplayHarness):
                 logs.append(log)
                 start = len(self.lines)
                 command = [sys.executable, str(Path(__file__).parent / "mc_validation/minimal_join_client.py"),
-                           "127.0.0.1", str(self.port), "776", name, "25"]
+                           "127.0.0.1", str(self.port), "776", name, "55"]
                 if name == "NumericA":
                     for token in ("SAND-JOURNAL-PROBE", "click_event", "copy_to_clipboard",
                                   "hover_event", "show_text", "Native text"):
@@ -176,7 +176,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.send("schedule function runtime_values:check_dead_reference 25t")
             self.wait_for(self.marker_pattern("__SAND_REFERENCE_DEAD_OK__"), "dead-reference", start)
             for client in clients:
-                if client.wait(timeout=30) != 0:
+                if client.wait(timeout=60) != 0:
                     raise RuntimeError("passive player client failed; inspect retained client logs")
         finally:
             for client in clients:

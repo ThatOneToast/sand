@@ -31,9 +31,21 @@ item Notebook {
     lore: ["{gray}Right-click to read your saved notes."],
     unbreakable: true
 }
+item FieldGuide {
+    base: Item::WrittenBook,
+    book: {
+        title: "Field guide",
+        author: "The Surveyors",
+        pages: [
+            Text::page("{aqua}Turn to the instructions", 2),
+            "{bold}Your journal\n{reset}Mine stone or defeat zombies to add entries.",
+        ],
+    },
+}
 #[on(first_join)]
 fn welcome() {
     give_item(Notebook);
+    give_item(FieldGuide);
     chat!(Text::translate("chat.type.text", "Journal", "The journey begins 🌍"));
     chat!(Text::hover(
         Text::copy("{aqua}Copy the journal code", "field-journal"),

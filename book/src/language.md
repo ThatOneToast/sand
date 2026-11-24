@@ -873,7 +873,7 @@ plain text when it passes them to placeholder arguments.
 `Text::hover(label, tooltip)` adds a text tooltip. `Text::link(label, url)`
 opens an HTTP(S) link, `Text::suggest(label, command)` fills the chat input,
 and `Text::copy(label, value)` copies a quoted string to the clipboard.
-These components work in `chat!` and `broadcast!`. Compose them with
+These components work in `chat!`, `broadcast!`, and written-book pages. Compose them with
 translations and formatted text.
 
 ```rust,ignore
@@ -1341,6 +1341,31 @@ recipe GuardTrim {
     trim_pattern: "minecraft:sentry",
 }
 ```
+
+### Written books
+
+Use `book` on a custom item with `base: Item::WrittenBook`. The native title and
+author are quoted strings. Pages accept fixed formatted text, translations and
+interactive components. `Text::page(label, number)` links to a page in the same
+book, starting at 1.
+
+```rust,ignore
+item FieldGuide {
+    base: Item::WrittenBook,
+    book: {
+        title: "Field guide",
+        author: "Sand",
+        pages: [
+            Text::page("{aqua}Contents", 2),
+            "{bold}Chapter 1\n{reset}Explore the world.",
+        ],
+    },
+}
+```
+
+Give the book with `give_item(FieldGuide)` or use it as a recipe result. Sand
+validates the native 32 UTF-16 code-unit title limit and supports up to 100
+pages. Pages use fixed content authored in the item declaration.
 
 ### Named predicates
 

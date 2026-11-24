@@ -40,7 +40,7 @@ pub enum Rarity {
  use_when = ["Declaring a named item that operations and recipes refer to by id"],
  avoid_when = ["Plain vanilla items, which operations name directly"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(id = "Identity, also the custom_data marker.", base = "Vanilla base item.", name = "Display name parts.", lore = "Lore lines.", glint = "Force the enchantment glint on or off.", unbreakable = "Never loses durability.", max_stack = "Largest stack size.", rarity = "Name rarity colour.", enchantments = "Enchantment identities and levels.", custom_model_data = "Resource-pack model selector."),
+ fields(id = "Identity, also the custom_data marker.", base = "Vanilla base item.", name = "Display name parts.", lore = "Lore lines.", glint = "Force the enchantment glint on or off.", unbreakable = "Never loses durability.", max_stack = "Largest stack size.", rarity = "Name rarity colour.", enchantments = "Enchantment identities and levels.", custom_model_data = "Resource-pack model selector.", book = "Fixed written-book title, author and pages."),
 )]
 pub struct CustomItem {
     /// Identity, also the `custom_data` marker.
@@ -72,6 +72,31 @@ pub struct CustomItem {
     /// Resource-pack model selector.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_model_data: Option<i32>,
+    /// Written-book content for a `minecraft:written_book` base item.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub book: Option<WrittenBookContent>,
+}
+
+/// Fixed pages for a custom written book, using portable rich text.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::WrittenBookContent", module = "sand::advanced::compiler",
+ summary = "Fixed pages for a custom written book, using portable rich text.",
+ context = "Attach it to a CustomItem whose base is minecraft:written_book. Pages accept styles, translations, tooltips, and native page links. Sand lowers them through the same WrittenBook builder used by Rust.",
+ minecraft = "Emits native written_book_content on item commands and recipe results.",
+ use_when = ["Declaring a portable written manual or a fixed journal"],
+ avoid_when = ["Capturing writable-book input or formatting a runtime State snapshot"],
+ fields(title = "Native title, limited to 32 UTF-16 code units.", author = "Book author.", pages = "Ordered rich-text pages, up to 100."),
+ example = "use sand::advanced::compiler::WrittenBookContent;",
+)]
+pub struct WrittenBookContent {
+    /// Native title, limited to 32 UTF-16 code units.
+    pub title: String,
+    /// Book author shown by the native interface.
+    pub author: String,
+    /// Ordered rich-text pages, up to 100.
+    pub pages: Vec<Vec<TextPart>>,
 }
 
 /// The item a recipe produces.

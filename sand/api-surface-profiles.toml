@@ -68,6 +68,7 @@
 # Portable smithing trims add one recipe variant and five contracted fields.
 # Translated text adds a variant, three fields, and two shared validation APIs.
 # Interactive chat adds a variant, three fields, and two native click methods.
+# Written books add one portable type and four contracted fields.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -76,19 +77,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5830
+static_surface_items = 5835
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12144
+static_surface_items = 12149
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12406
+static_surface_items = 12411
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

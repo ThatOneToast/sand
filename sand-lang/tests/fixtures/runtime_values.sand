@@ -2,6 +2,17 @@
 
 item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
 item LocalizedPaper { base: Item::Paper, name: Text::translate("item.minecraft.paper") }
+item Handbook {
+    base: Item::WrittenBook,
+    book: {
+        title: "Probe handbook",
+        author: "Sand",
+        pages: [
+            Text::page("{aqua}Go to the recipe notes", 2),
+            Text::translate("item.minecraft.written_book"),
+        ],
+    },
+}
 recipe GuardTrim {
     smithing_trim: Item::SentryArmorTrimSmithingTemplate,
     base: Item::DiamondChestplate,
@@ -22,6 +33,7 @@ fn show_localized() {
     chat!(Text::translate("chat.type.text", "{player}", Text::translate("chat.type.text", label, "Native text")));
     chat!(Text::hover(Text::copy("{aqua}Journal code", "SAND-JOURNAL-PROBE"), "Native text"));
     give_item(LocalizedPaper);
+    give_item(Handbook);
 }
 
 fn reward(count: number) {

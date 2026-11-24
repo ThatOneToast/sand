@@ -18,7 +18,7 @@ pub use model::{
     Program, ProgramTarget, Rarity, Recipe, RecipeOutput, Relation, ResourceTag, ScaledField,
     ScoreComparison, ScoreField, ScoreOperand, ScoreOperator, ScoreRelation, State, StateAttached,
     TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle, Weather,
-    WorldPredicate,
+    WorldPredicate, WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -44,6 +44,7 @@ const CAPABILITIES: &[&str] = &[
     "messages",
     "translated_text",
     "interactive_text",
+    "written_books",
     "sounds",
     "particles",
     "effects",

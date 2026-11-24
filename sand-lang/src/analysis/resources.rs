@@ -101,6 +101,24 @@ impl Cx {
                 else {
                     return;
                 };
+                let book = match get("book") {
+                    Some(field) => {
+                        if base != "minecraft:written_book" {
+                            self.error(
+                                "item",
+                                file,
+                                field.key.span,
+                                "`book` requires `base: Item::WrittenBook`",
+                            );
+                            return;
+                        }
+                        let Some(content) = self.data_book(module, file, &field.value) else {
+                            return;
+                        };
+                        Some(content)
+                    }
+                    None => None,
+                };
                 self.pointers.push((
                     module_id,
                     format!("/items/{}", out.items.len()),
@@ -118,6 +136,7 @@ impl Cx {
                     rarity,
                     enchantments,
                     custom_model_data: model.map(|m| m as i32),
+                    book,
                 });
             }
             DataKind::Recipe => {
@@ -1146,11 +1165,95 @@ impl Cx {
         self.vanilla_value(module, file, expr, registry)
     }
 
+    fn data_book(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::WrittenBookContent> {
+        let DataValue::Object(entries, span) = value else {
+            self.error(
+                "book",
+                file,
+                value.span(),
+                "expected `{ title, author, pages }`",
+            );
+            return None;
+        };
+        let mut fields = BTreeMap::new();
+        for field in entries {
+            let name = field.key.name.as_str();
+            if !matches!(name, "title" | "author" | "pages") {
+                self.error(
+                    "book",
+                    file,
+                    field.key.span,
+                    format!("a book has no field `{name}`"),
+                );
+            } else if fields.insert(name, &field.value).is_some() {
+                self.error(
+                    "book",
+                    file,
+                    field.key.span,
+                    format!("duplicate book field `{name}`"),
+                );
+            }
+        }
+        for name in ["title", "author", "pages"] {
+            if !fields.contains_key(name) {
+                self.error("book", file, *span, format!("a book needs `{name}`"));
+            }
+        }
+        let plain = |this: &mut Self, key: &str| match fields.get(key)? {
+            DataValue::Expr(Expr::Str { value, .. }) => Some(value.clone()),
+            other => {
+                this.error(
+                    "book",
+                    file,
+                    other.span(),
+                    format!("book {key} must be a quoted string"),
+                );
+                None
+            }
+        };
+        let title = plain(self, "title")?;
+        let author = plain(self, "author")?;
+        let DataValue::Array(pages, _) = fields.get("pages")? else {
+            self.error(
+                "book",
+                file,
+                fields["pages"].span(),
+                "book pages must be a list of text values",
+            );
+            return None;
+        };
+        let count = pages.len();
+        let pages = pages
+            .iter()
+            .map(|page| self.data_static_text(module, file, page, Some(count)))
+            .collect::<Option<Vec<_>>>()?;
+        Some(pc::WrittenBookContent {
+            title,
+            author,
+            pages,
+        })
+    }
+
     fn data_text(
         &mut self,
         module: ModuleId,
         file: FileId,
         value: &DataValue,
+    ) -> Option<Vec<pc::TextPart>> {
+        self.data_static_text(module, file, value, None)
+    }
+
+    fn data_static_text(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        book_pages: Option<usize>,
     ) -> Option<Vec<pc::TextPart>> {
         let expr = self.data_expr(file, value, "text in quotes")?.clone();
         let span = expr.span();
@@ -1160,7 +1263,8 @@ impl Cx {
             value: ArgValue::Expr(expr),
             span,
         };
-        let parts = self.presentation_text(&mut body, &arg, None, false, 0)?;
+        let parts =
+            self.presentation_text(&mut body, &arg, None, book_pages.is_some(), book_pages, 0)?;
         self.diagnostics.append(&mut body.pending);
         if parts.iter().any(|part| !part.is_static()) || body.player_use.is_some() {
             self.diagnostics.push(

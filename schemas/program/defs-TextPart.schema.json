@@ -79,7 +79,7 @@
     },
     {
       "additionalProperties": false,
-      "description": "Text with an optional hover tooltip and click action for chat.",
+      "description": "Text with an optional hover tooltip and click action.",
       "properties": {
         "click": {
           "anyOf": [

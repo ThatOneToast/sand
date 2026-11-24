@@ -1700,6 +1700,8 @@ pub enum FieldKind {
     Ingredients,
     /// Text with style interpolation, such as `"{red}Ruby Sword"`.
     Text,
+    /// The author, title and pages of a written book.
+    WrittenBook,
     /// A quoted namespaced resource location.
     ResourceId,
     /// A list of text lines.
@@ -1860,6 +1862,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         false,
         "Selects a resource-pack model.",
         "${1:1}",
+    ),
+    f(
+        "item",
+        "book",
+        FieldKind::WrittenBook,
+        false,
+        "Written book content. Requires `base: Item::WrittenBook`.",
+        "{ title: \"${1:Field Guide}\", author: \"${2:Sand}\", pages: [\"${3:First page}\"] }",
     ),
     f(
         "recipe",

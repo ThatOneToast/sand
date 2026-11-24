@@ -1864,6 +1864,17 @@
           "description": "Vanilla base item, such as `minecraft:diamond_sword`.",
           "type": "string"
         },
+        "book": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WrittenBookContent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Written-book content for a `minecraft:written_book` base item."
+        },
         "custom_model_data": {
           "description": "Resource-pack model selector.",
           "format": "int32",
@@ -4509,7 +4520,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Text with an optional hover tooltip and click action for chat.",
+          "description": "Text with an optional hover tooltip and click action.",
           "properties": {
             "click": {
               "anyOf": [
@@ -4687,6 +4698,36 @@
       },
       "required": [
         "id"
+      ],
+      "type": "object"
+    },
+    "WrittenBookContent": {
+      "additionalProperties": false,
+      "description": "Fixed pages for a custom written book, using portable rich text.",
+      "properties": {
+        "author": {
+          "description": "Book author shown by the native interface.",
+          "type": "string"
+        },
+        "pages": {
+          "description": "Ordered rich-text pages, up to 100.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/TextPart"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "Native title, limited to 32 UTF-16 code units.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "author",
+        "pages"
       ],
       "type": "object"
     }

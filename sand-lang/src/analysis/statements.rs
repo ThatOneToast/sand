@@ -4986,7 +4986,8 @@ impl Cx {
             );
         }
         let interactive = matches!(builtin.name, "chat" | "broadcast");
-        let Some(text) = self.presentation_text(body, bound["text"], Some(ops), interactive, 0)
+        let Some(text) =
+            self.presentation_text(body, bound["text"], Some(ops), interactive, None, 0)
         else {
             return;
         };
@@ -5033,6 +5034,7 @@ impl Cx {
         arg: &Arg,
         mut ops: Option<&mut Vec<pc::Operation>>,
         interactive: bool,
+        book_pages: Option<usize>,
         depth: usize,
     ) -> Option<Vec<pc::TextPart>> {
         use sand::text::ClickEvent;
@@ -5042,7 +5044,7 @@ impl Cx {
             && path.segments[0].name == "Text"
             && matches!(
                 path.last().name.as_str(),
-                "translate" | "hover" | "link" | "suggest" | "copy"
+                "translate" | "hover" | "link" | "suggest" | "copy" | "page"
             )
         {
             let action = path.last().name.as_str();
@@ -5091,6 +5093,7 @@ impl Cx {
                         argument,
                         ops.as_deref_mut(),
                         interactive,
+                        book_pages,
                         depth + 1,
                     )?);
                 }
@@ -5105,7 +5108,7 @@ impl Cx {
                     "text",
                     body.file,
                     *span,
-                    "interactive text is only supported in chat messages",
+                    "interactive text is supported in chat messages and written-book pages",
                 );
                 return None;
             }
@@ -5118,13 +5121,31 @@ impl Cx {
                 );
                 return None;
             };
-            let content =
-                self.presentation_text(body, content, ops.as_deref_mut(), interactive, depth + 1)?;
+            let content = self.presentation_text(
+                body,
+                content,
+                ops.as_deref_mut(),
+                interactive,
+                book_pages,
+                depth + 1,
+            )?;
             let (tooltip, click) = if action == "hover" {
                 (
-                    self.presentation_text(body, payload, ops, interactive, depth + 1)?,
+                    self.presentation_text(body, payload, ops, interactive, book_pages, depth + 1)?,
                     None,
                 )
+            } else if action == "page" {
+                let Some(pages) = book_pages else {
+                    self.error(
+                        "text",
+                        body.file,
+                        *span,
+                        "`Text::page` is for written-book pages",
+                    );
+                    return None;
+                };
+                let page = self.arg_int(body, payload, 1, pages as i64)?;
+                (Vec::new(), Some(ClickEvent::ChangePage(page as u32)))
             } else {
                 let (payload, _, payload_span) =
                     self.arg_string(body.file, payload, "a click payload")?;

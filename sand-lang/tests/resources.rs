@@ -273,3 +273,71 @@ fn custom_item_hover_and_rename_follow_uses() {
         "declaration, recipe result, give, clear: {edits:?}"
     );
 }
+
+#[test]
+fn written_books_emit_rich_pages_in_give_and_recipe_results() {
+    let analysis = analyze_one(&pack(
+        r#"
+item Manual {
+    base: Item::WrittenBook,
+    book: {
+        title: "Field Guide",
+        author: "Sand",
+        pages: [
+            Text::page("{blue}Turn to page two", 2),
+            Text::translate("item.minecraft.written_book"),
+        ],
+    },
+}
+recipe ManualRecipe { shapeless: [Item::Book], result: Manual }
+fn deliver() { give_item(Manual); }
+"#,
+    ));
+    let compiled = compile(&analysis);
+    let recipe = json(&compiled, "data/forge/recipe/manual_recipe.json");
+    let book = &recipe["result"]["components"]["minecraft:written_book_content"];
+    assert_eq!(book["author"], "Sand");
+    assert_eq!(book["title"], "Field Guide");
+    assert_eq!(book["pages"][0]["extra"][0]["click_event"]["page"], 2);
+    assert_eq!(
+        book["pages"][1]["extra"][0]["translate"],
+        "item.minecraft.written_book"
+    );
+    assert!(function(&compiled, "forge/function/deliver").contains("written_book_content="));
+}
+
+#[test]
+fn written_books_validate_resource_surface_and_native_limits() {
+    for (source, diagnostic) in [
+        (
+            r#"item A { base: Item::Paper, book: { title: "A", author: "Sand", pages: [] } }"#,
+            "`book` requires `base: Item::WrittenBook`",
+        ),
+        (
+            r#"item A { base: Item::WrittenBook, book: { title: "A", author: "Sand", pages: [Text::page("Next", 2)] } }"#,
+            "expected a value from 1 to 1",
+        ),
+        (
+            r#"item A { base: Item::WrittenBook, book: { title: "A", author: "Sand", pages: [Text::hover("Info", "{player}")] } }"#,
+            "resource text cannot read runtime values",
+        ),
+    ] {
+        let errors = errors(&analyze_one(&pack(source)));
+        assert!(
+            errors.iter().any(|error| error.contains(diagnostic)),
+            "{errors:#?}"
+        );
+    }
+    let long_title = "😀".repeat(17);
+    let analysis = analyze_one(&pack(&format!(
+        r#"item A {{ base: Item::WrittenBook, book: {{ title: "{long_title}", author: "Sand", pages: ["Read"] }} }}"#
+    )));
+    let Err(errors) = analysis.compile() else {
+        panic!("accepted a title beyond the native UTF-16 limit");
+    };
+    assert!(
+        errors
+            .iter()
+            .any(|error| { error.message.contains("32 UTF-16 code units") })
+    );
+}

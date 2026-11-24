@@ -324,6 +324,7 @@ fn data_declarations_offer_only_remaining_valid_fields() {
             "max_stack",
             "enchantments",
             "custom_model_data",
+            "book",
         ],
     );
     exactly(

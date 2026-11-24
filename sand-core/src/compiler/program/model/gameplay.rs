@@ -595,8 +595,8 @@ pub struct TextStyle {
  use_when = ["Building component text from literals, translations, live scores, and player names"],
  avoid_when = ["Embedding raw Minecraft text JSON"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters.", Translation = "A translation key with ordered text substitutions.", Interactive = "Chat text with an optional tooltip or click action."),
- variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling."), Translation(key = "Client language-file key.", arguments = "One text component per placeholder.", style = "Styling."), Interactive(content = "Text displayed in chat.", tooltip = "Optional text shown on hover.", click = "Optional click action using Sand’s canonical native text model.")),
+ variants(Text = "Literal text.", Score = "The live value of a State field.", PlayerName = "The executing player's name.", Stored = "A stored sequence of text characters.", Translation = "A translation key with ordered text substitutions.", Interactive = "Text with an optional tooltip or click action."),
+ variant_fields(Text(text = "Literal text.", style = "Styling."), Score(score = "Displayed State field.", style = "Styling."), PlayerName(style = "Styling."), Stored(value = "Storage field containing text characters.", style = "Styling."), Translation(key = "Client language-file key.", arguments = "One text component per placeholder.", style = "Styling."), Interactive(content = "Text displayed in chat or a written book.", tooltip = "Optional text shown on hover.", click = "Optional click action using Sand’s canonical native text model.")),
 )]
 pub enum TextPart {
     /// A stored list of string characters, joined without separators. Read at
@@ -620,7 +620,7 @@ pub enum TextPart {
         #[serde(default)]
         style: TextStyle,
     },
-    /// Text with an optional hover tooltip and click action for chat.
+    /// Text with an optional hover tooltip and click action.
     Interactive {
         content: Vec<TextPart>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -660,11 +660,11 @@ impl TextPart {
         registry = sand_api_contract, path = "sand::advanced::compiler::TextPart::is_static",
         module = "sand::advanced::compiler", kind = "method",
         summary = "Checks whether a text part belongs in a static resource.",
-        context = "Use when validating fixed item names, lore and boss bar titles. Literals and translations with entirely static substitutions can be emitted without an executor.",
+        context = "Use when validating fixed item names, lore and boss bar titles. Literals and components with entirely fixed contents can be emitted without an executor. Each resource must still validate supported click or hover actions separately.",
         minecraft = "Translation keys still resolve in the receiving client's language.",
         use_when = ["Checking whether portable component text belongs in a static resource"],
         avoid_when = ["Checking that a key exists in a client language file"],
-        returns = "Whether the part is independent of runtime State and executor context and has no interactive behavior.",
+        returns = "Whether the part is independent of runtime State and executor context.",
         example = "fn can_export(part: &sand::advanced::compiler::TextPart) -> bool { part.is_static() }",
     )]
     pub fn is_static(&self) -> bool {
@@ -673,6 +673,11 @@ impl TextPart {
             match part {
                 Self::Text { .. } => {}
                 Self::Translation { arguments, .. } => pending.extend(arguments.iter().flatten()),
+                Self::Interactive {
+                    content, tooltip, ..
+                } => {
+                    pending.extend(content.iter().chain(tooltip));
+                }
                 _ => return false,
             }
         }

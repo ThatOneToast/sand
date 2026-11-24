@@ -61,6 +61,12 @@ class ValuesHarness(WorldGameplayHarness):
                 '"minecraft:custom_name".extra[{translate:"item.minecraft.paper"}]',
             )
             self.check("TRANSLATION_CLEANUP", "unless data storage runtime_values:__program_text p0_1_0_0_0")
+            book = 'Inventory[{id:"minecraft:written_book"}].components."minecraft:written_book_content"'
+            self.check("WRITTEN_BOOK_PAGES", f"if data entity NumericA {book}.pages[1]")
+            self.check(
+                "WRITTEN_BOOK_NAVIGATION",
+                f'if data entity NumericA {book}.pages[0].raw.extra[0].click_event{{action:"change_page",page:2}}',
+            )
             for name, expected in (("NumericA", 5), ("NumericB", 3)):
                 self.send(f"execute store result score #xp numeric_probe run experience query {name} points")
                 self.check(f"{name}_EXPERIENCE", f"if score #xp numeric_probe matches {expected}")

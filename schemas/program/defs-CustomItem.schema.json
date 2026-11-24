@@ -7,6 +7,17 @@
       "description": "Vanilla base item, such as `minecraft:diamond_sword`.",
       "type": "string"
     },
+    "book": {
+      "anyOf": [
+        {
+          "$ref": "defs-WrittenBookContent.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Written-book content for a `minecraft:written_book` base item."
+    },
     "custom_model_data": {
       "description": "Resource-pack model selector.",
       "format": "int32",

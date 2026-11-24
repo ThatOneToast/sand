@@ -493,8 +493,21 @@ pub(super) fn validate(
             let item_text =
                 std::iter::once(item.name.as_slice()).chain(item.lore.iter().map(Vec::as_slice));
             for parts in item_text {
-                if let Some(error) = static_text_error(parts) {
+                if let Some(error) = static_text_error(parts, None) {
                     push(ptr.clone(), error);
+                }
+            }
+            if let Some(book) = &item.book {
+                if item.base != "minecraft:written_book" {
+                    push(
+                        format!("{ptr}/book"),
+                        "book content needs a minecraft:written_book base item".into(),
+                    );
+                }
+                for (index, page) in book.pages.iter().enumerate() {
+                    if let Some(error) = static_text_error(page, Some(book.pages.len())) {
+                        push(format!("{ptr}/book/pages/{index}"), error);
+                    }
                 }
             }
             if item.max_stack.is_some_and(|n| !(1..=99).contains(&n)) {
@@ -797,7 +810,7 @@ pub(super) fn validate(
             if bar.max == 0 || bar.max > i32::MAX as u32 {
                 push(format!("{ptr}/max"), "boss bar max must be positive".into());
             }
-            if let Some(error) = static_text_error(&bar.title) {
+            if let Some(error) = static_text_error(&bar.title, None) {
                 push(format!("{ptr}/title"), error);
             }
         }
@@ -871,7 +884,12 @@ fn valid_id(id: &ResourceLocation) -> bool {
     safe_path(id.namespace()) && safe_path(id.path()) && id.namespace() != "__sand_local"
 }
 
-fn text_shape_error(text: &[TextPart], depth: usize, interactive: bool) -> Option<String> {
+fn text_shape_error(
+    text: &[TextPart],
+    depth: usize,
+    interactive: bool,
+    book_pages: Option<usize>,
+) -> Option<String> {
     for part in text {
         if depth >= TextPart::MAX_NESTING_DEPTH
             && matches!(
@@ -891,7 +909,7 @@ fn text_shape_error(text: &[TextPart], depth: usize, interactive: bool) -> Optio
                 }
                 if let Some(error) = arguments
                     .iter()
-                    .find_map(|parts| text_shape_error(parts, depth + 1, interactive))
+                    .find_map(|parts| text_shape_error(parts, depth + 1, interactive, book_pages))
                 {
                     return Some(error);
                 }
@@ -902,7 +920,10 @@ fn text_shape_error(text: &[TextPart], depth: usize, interactive: bool) -> Optio
                 click,
             } => {
                 if !interactive {
-                    return Some("interactive text is only supported in chat messages".into());
+                    return Some(
+                        "interactive text is supported in chat messages and written-book pages"
+                            .into(),
+                    );
                 }
                 if content.is_empty() || (click.is_none() && tooltip.is_empty()) {
                     return Some(
@@ -910,15 +931,28 @@ fn text_shape_error(text: &[TextPart], depth: usize, interactive: bool) -> Optio
                     );
                 }
                 if let Some(click) = click {
-                    if matches!(click, ClickEvent::RunCommand(_) | ClickEvent::ChangePage(_)) {
-                        return Some("portable chat supports opening URLs, suggesting commands, and copying text".into());
+                    match click {
+                        ClickEvent::RunCommand(_) => {
+                            return Some(
+                                "portable text can suggest a command without running it".into(),
+                            );
+                        }
+                        ClickEvent::ChangePage(page)
+                            if book_pages.is_none_or(|count| (*page as usize) > count) =>
+                        {
+                            return Some(
+                                "page navigation needs a valid page in the same written book"
+                                    .into(),
+                            );
+                        }
+                        _ => {}
                     }
                     if let Err(error) = click.validate() {
                         return Some(error.to_string());
                     }
                 }
-                if let Some(error) = text_shape_error(content, depth + 1, interactive)
-                    .or_else(|| text_shape_error(tooltip, depth + 1, interactive))
+                if let Some(error) = text_shape_error(content, depth + 1, interactive, book_pages)
+                    .or_else(|| text_shape_error(tooltip, depth + 1, interactive, book_pages))
                 {
                     return Some(error);
                 }
@@ -929,8 +963,8 @@ fn text_shape_error(text: &[TextPart], depth: usize, interactive: bool) -> Optio
     None
 }
 
-fn static_text_error(text: &[TextPart]) -> Option<String> {
-    text_shape_error(text, 0, false).or_else(|| {
+fn static_text_error(text: &[TextPart], book_pages: Option<usize>) -> Option<String> {
+    text_shape_error(text, 0, book_pages.is_some(), book_pages).or_else(|| {
         text.iter()
             .any(|part| !part.is_static())
             .then(|| "static text cannot use stored values, scores or player names".into())
@@ -1812,7 +1846,8 @@ impl Validator<'_, '_> {
                         ));
                     }
                     let text_ptr = format!("{ptr}/action/text");
-                    if let Some(error) = text_shape_error(text, 0, *channel == MessageChannel::Chat)
+                    if let Some(error) =
+                        text_shape_error(text, 0, *channel == MessageChannel::Chat, None)
                     {
                         self.errors.push(Diagnostic::error(
                             "SAND_PROGRAM_TEXT",

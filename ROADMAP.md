@@ -298,7 +298,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Client-localized component text with positional arguments in messages and
   static resources.
 - [x] Interactive chat with hover text, links, command suggestions and clipboard actions.
-- [ ] Advancements, worldgen, books, dialogs and VFX.
+- [x] Fixed written books using canonical item components, rich pages and page navigation.
+- [ ] Advancements, worldgen, dialogs and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.

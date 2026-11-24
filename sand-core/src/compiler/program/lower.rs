@@ -143,8 +143,18 @@ pub(super) fn lower(
             .collect(),
     };
     for module in &program.modules {
-        for item in &module.items {
+        for (index, item) in module.items.iter().enumerate() {
             let custom = custom_item(item, &lower.holders);
+            if item.book.is_some() {
+                custom.validate().map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &module.id.to_string(),
+                        &format!("/items/{index}/book"),
+                        error.to_string(),
+                    )]
+                })?;
+            }
             lower.custom_items.insert(item.id.to_string(), custom);
         }
     }
@@ -691,6 +701,13 @@ fn custom_item(
     }
     if let Some(data) = item.custom_model_data {
         custom = custom.custom_model_data(data);
+    }
+    if let Some(book) = &item.book {
+        let mut built = sand_components::WrittenBook::new(&book.title, &book.author);
+        for parts in &book.pages {
+            built = built.page(static_text_component(parts, holders));
+        }
+        custom = custom.component(sand_components::ItemComponent::WrittenBook(built));
     }
     custom
 }

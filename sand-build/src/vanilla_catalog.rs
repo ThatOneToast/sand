@@ -46,14 +46,16 @@ pub fn refresh_vanilla_catalog(versions: &[String], output: &Path) -> Result<()>
         registries.insert(name.into(), named_variants(version, name, biomes)?);
         let staged = tempfile::tempdir()?;
         report::run_data_generator(staged.path(), &jar, "--server")?;
-        let name = "minecraft:enchantment";
-        let enchantments = server_resource_ids(staged.path(), "enchantment")?;
-        if enchantments.is_empty() {
-            return Err(cache::invalid(format!(
-                "{version}: missing registry {name}"
-            )));
+        for kind in ["enchantment", "damage_type"] {
+            let name = format!("minecraft:{kind}");
+            let ids = server_resource_ids(staged.path(), kind)?;
+            if ids.is_empty() {
+                return Err(cache::invalid(format!(
+                    "{version}: missing registry {name}"
+                )));
+            }
+            registries.insert(name.clone(), named_variants(version, &name, ids)?);
         }
-        registries.insert(name.into(), named_variants(version, name, enchantments)?);
         targets.insert(
             entry.id.clone(),
             json!({"registries": registries, "report_sha1": hash_bytes(&bytes)}),

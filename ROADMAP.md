@@ -285,8 +285,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Structure resources, dimension and biome declarations, and general block data.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.
-- [ ] Advancements, predicates, worldgen, damage types, trim recipes, books,
-  dialogs, interactive/translated text and VFX.
+- [x] Native damage type declarations and typed vanilla damage types, both
+  available with retained attacker attribution.
+- [ ] Advancements, predicates, worldgen, trim recipes, books, dialogs,
+  interactive/translated text and VFX.
 - [ ] Expose the Rust combat, abilities, encounters, jobs, menus, HUD, inventory
   transfers, rosters, projectiles, progression, scenes, sessions and checkpoints
   through canonical shared models.

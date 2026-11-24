@@ -3183,7 +3183,15 @@ impl Cx {
                     );
                     return None;
                 }
-                Some(pc::Action::Damage { amount, by })
+                let damage_type = match bound.get("type") {
+                    Some(arg) => Some(self.arg_id(body, arg, "DamageType")?.parse().ok()?),
+                    None => None,
+                };
+                Some(pc::Action::Damage {
+                    amount,
+                    by,
+                    damage_type,
+                })
             }
             "set_block_data_number" => {
                 let target = self.arg_block_data(body, bound)?;

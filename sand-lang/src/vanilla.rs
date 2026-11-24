@@ -66,6 +66,7 @@ const SOURCES: &[(&str, &str, &str)] = &[
     ("Effect", "sand::registry::EffectId", "status effect"),
     ("Potion", "sand::registry::PotionId", "potion"),
     ("Enchantment", "sand::vanilla::Enchantment", "enchantment"),
+    ("DamageType", "sand::registry::DamageTypeId", "damage type"),
 ];
 
 /// One of Sand's own option sets.
@@ -141,6 +142,42 @@ const OPTIONS: &[OptionSet] = &[
         rust_path: "sand::command::CloneMode",
         noun: "clone mode",
         values: &[("Normal", "normal"), ("Force", "force"), ("Move", "move")],
+    },
+    OptionSet {
+        name: "DamageScaling",
+        rust_path: "sand::component::DamageScaling",
+        noun: "damage scaling policy",
+        values: &[
+            ("Never", "never"),
+            (
+                "WhenCausedByLivingNonPlayer",
+                "when_caused_by_living_non_player",
+            ),
+            ("Always", "always"),
+        ],
+    },
+    OptionSet {
+        name: "DamageEffects",
+        rust_path: "sand::component::DamageEffects",
+        noun: "damage effect",
+        values: &[
+            ("Hurt", "hurt"),
+            ("Thorns", "thorns"),
+            ("Drowning", "drowning"),
+            ("Burning", "burning"),
+            ("Poking", "poking"),
+            ("Freezing", "freezing"),
+        ],
+    },
+    OptionSet {
+        name: "DeathMessageType",
+        rust_path: "sand::component::DeathMessageType",
+        noun: "death message format",
+        values: &[
+            ("Default", "default"),
+            ("FallVariants", "fall_variants"),
+            ("IntentionalGameDesign", "intentional_game_design"),
+        ],
     },
     OptionSet {
         name: "EquipmentSlot",
@@ -219,6 +256,7 @@ pub(crate) fn registry_key(name: &str) -> Option<&'static str> {
         "Effect" => "minecraft:mob_effect",
         "Potion" => "minecraft:potion",
         "Enchantment" => "minecraft:enchantment",
+        "DamageType" => "minecraft:damage_type",
         _ => return None,
     })
 }

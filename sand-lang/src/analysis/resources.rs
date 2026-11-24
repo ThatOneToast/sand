@@ -429,6 +429,99 @@ impl Cx {
                     max: max as u32,
                 });
             }
+            DataKind::DamageType => {
+                let Some(message) = get("message_id") else {
+                    return;
+                };
+                let DataValue::Expr(Expr::Str {
+                    value: message_id,
+                    span,
+                    ..
+                }) = &message.value
+                else {
+                    self.error(
+                        "type",
+                        file,
+                        message.value.span(),
+                        "expected a literal death message id",
+                    );
+                    return;
+                };
+                if message_id.trim().is_empty() || message_id.chars().any(char::is_control) {
+                    self.error(
+                        "value",
+                        file,
+                        *span,
+                        "a death message id must contain text without control characters",
+                    );
+                    return;
+                }
+                let exhaustion = match get("exhaustion") {
+                    Some(field) => match self.data_number(module, file, &field.value) {
+                        Some(value) if value >= 0.0 && (value as f32).is_finite() => value as f32,
+                        Some(_) => {
+                            self.error(
+                                "range",
+                                file,
+                                field.value.span(),
+                                "exhaustion must be finite and non-negative",
+                            );
+                            return;
+                        }
+                        None => return,
+                    },
+                    None => 0.0,
+                };
+                let option = |cx: &mut Cx, field, registry| {
+                    let Some(field) = get(field) else {
+                        return Some(serde_json::Value::Null);
+                    };
+                    let value = cx.data_expr(file, &field.value, "a typed damage option")?;
+                    if !matches!(value, Expr::Path(_)) {
+                        cx.error(
+                            "type",
+                            file,
+                            value.span(),
+                            format!("expected a `{registry}::...` value"),
+                        );
+                        return None;
+                    }
+                    cx.vanilla_value(module, file, value, registry)
+                        .map(serde_json::Value::String)
+                };
+                let (Some(scaling), Some(effects), Some(death_message_type)) = (
+                    option(self, "scaling", "DamageScaling"),
+                    option(self, "effects", "DamageEffects"),
+                    option(self, "death_message_type", "DeathMessageType"),
+                ) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/damage_types/{}", out.damage_types.len()),
+                    file,
+                    data.name.span,
+                ));
+                let mut damage_type = sand::component::DamageType::new(location)
+                    .message_id(message_id)
+                    .exhaustion(exhaustion);
+                if let Some(scaling) =
+                    serde_json::from_value(scaling).expect("damage scaling option")
+                {
+                    damage_type = damage_type.scaling(scaling);
+                }
+                if let Some(effects) =
+                    serde_json::from_value(effects).expect("damage effect option")
+                {
+                    damage_type = damage_type.effects(effects);
+                }
+                if let Some(death_message_type) =
+                    serde_json::from_value(death_message_type).expect("death message option")
+                {
+                    damage_type = damage_type.death_message_type(death_message_type);
+                }
+                out.damage_types.push(damage_type);
+            }
             DataKind::Loot => {
                 let Some(pools) = self.data_loot_pools(module, file, data, &fields) else {
                     return;

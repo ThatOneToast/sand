@@ -24,7 +24,20 @@ use crate::resource_location::ResourceLocation;
 use crate::validation;
 
 /// Controls how damage scales with difficulty.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::component::DamageScaling", module = "sand::component",
+ summary = "Selects how native damage scales with difficulty.",
+ context = "A typed option for a native damage type resource.",
+ minecraft = "Serializes to the corresponding built-in value in damage_type JSON.",
+ use_when = ["Defining a native damage type"],
+ avoid_when = ["Changing the raw amount dealt by a command"],
+ example = "let option = sand::component::DamageScaling::Never;",
+ variants(Never = "Do not scale.", WhenCausedByLivingNonPlayer = "Scale damage from living non-player attackers.", Always = "Always scale with difficulty."),
+)]
 pub enum DamageScaling {
     /// Damage does not scale with difficulty.
     Never,
@@ -35,6 +48,14 @@ pub enum DamageScaling {
 }
 
 impl DamageScaling {
+    /// Returns the exact identifier used in native damage type JSON.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageScaling::as_str", module = "sand::component", kind = "method",
+        summary = "Returns the native damage option identifier.", context = "The typed resource builder uses this same serialization.",
+        minecraft = "Returns the value accepted by the damage type codec.", use_when = ["Inspecting a native option"],
+        avoid_when = ["Supplying this enum directly to a typed builder"], returns = "Static native option identifier.",
+        example = "let name = sand::component::DamageScaling::Never.as_str();",
+    )]
     pub fn as_str(self) -> &'static str {
         match self {
             DamageScaling::Never => "never",
@@ -45,7 +66,20 @@ impl DamageScaling {
 }
 
 /// The visual/sound effect played when this damage type is dealt.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::component::DamageEffects", module = "sand::component",
+ summary = "Selects the native effect when an entity takes damage.",
+ context = "A typed option for a native damage type resource.",
+ minecraft = "Serializes to the corresponding built-in value in damage_type JSON.",
+ use_when = ["Defining a native damage type"],
+ avoid_when = ["Changing the raw amount dealt by a command"],
+ example = "let option = sand::component::DamageEffects::Hurt;",
+ variants(Hurt = "Normal hurt effect.", Thorns = "Thorns effect.", Drowning = "Drowning effect.", Burning = "Burning effect.", Poking = "Poking effect.", Freezing = "Freezing effect."),
+)]
 pub enum DamageEffects {
     Hurt,
     Thorns,
@@ -56,6 +90,14 @@ pub enum DamageEffects {
 }
 
 impl DamageEffects {
+    /// Returns the exact identifier used in native damage type JSON.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageEffects::as_str", module = "sand::component", kind = "method",
+        summary = "Returns the native damage option identifier.", context = "The typed resource builder uses this same serialization.",
+        minecraft = "Returns the value accepted by the damage type codec.", use_when = ["Inspecting a native option"],
+        avoid_when = ["Supplying this enum directly to a typed builder"], returns = "Static native option identifier.",
+        example = "let name = sand::component::DamageEffects::Hurt.as_str();",
+    )]
     pub fn as_str(self) -> &'static str {
         match self {
             DamageEffects::Hurt => "hurt",
@@ -69,7 +111,20 @@ impl DamageEffects {
 }
 
 /// Controls the format of the death message for this damage type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::component::DeathMessageType", module = "sand::component",
+ summary = "Selects the native death message format.",
+ context = "A typed option for a native damage type resource.",
+ minecraft = "Serializes to the corresponding built-in value in damage_type JSON.",
+ use_when = ["Defining a native damage type"],
+ avoid_when = ["Changing the raw amount dealt by a command"],
+ example = "let option = sand::component::DeathMessageType::Default;",
+ variants(Default = "Default death message.", FallVariants = "Fall-specific variants.", IntentionalGameDesign = "Intentional-game-design suffix."),
+)]
 pub enum DeathMessageType {
     Default,
     FallVariants,
@@ -77,6 +132,14 @@ pub enum DeathMessageType {
 }
 
 impl DeathMessageType {
+    /// Returns the exact identifier used in native damage type JSON.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DeathMessageType::as_str", module = "sand::component", kind = "method",
+        summary = "Returns the native damage option identifier.", context = "The typed resource builder uses this same serialization.",
+        minecraft = "Returns the value accepted by the damage type codec.", use_when = ["Inspecting a native option"],
+        avoid_when = ["Supplying this enum directly to a typed builder"], returns = "Static native option identifier.",
+        example = "let name = sand::component::DeathMessageType::Default.as_str();",
+    )]
     pub fn as_str(self) -> &'static str {
         match self {
             DeathMessageType::Default => "default",
@@ -86,23 +149,54 @@ impl DeathMessageType {
     }
 }
 
-/// A Minecraft damage type definition (`data/<namespace>/damage_type/<id>.json`).
+fn default_scaling() -> DamageScaling {
+    DamageScaling::WhenCausedByLivingNonPlayer
+}
+
+/// A Minecraft damage type definition. The portable representation includes
+/// the resource identity. Resource export emits the native JSON body.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::component::DamageType", module = "sand::component",
+ summary = "Defines a native damage type resource.",
+ context = "Use the resource's identity with the damage command to select its difficulty, hurt effects, and death message.",
+ minecraft = "Exports a validated damage_type JSON resource.",
+ use_when = ["Adding a native source of gameplay damage"],
+ avoid_when = ["Changing custom health or shield values"],
+ example = r#"let device = sand::component::DamageType::new("demo:spike".parse().unwrap()).message_id("spike");"#,
+)]
 pub struct DamageType {
+    #[serde(rename = "id")]
+    #[schemars(with = "String")]
     location: ResourceLocation,
     /// Translation key suffix for death messages (e.g. `"laser"` → `"death.attack.laser"`).
     message_id: String,
     /// Hunger exhaustion applied when this damage is taken (0.0–0.4 typical).
     /// Must be finite and non-negative. No upper bound is enforced.
+    #[serde(default)]
     exhaustion: f32,
     /// Whether the damage scales with difficulty.
+    #[serde(default = "default_scaling")]
     scaling: DamageScaling,
     /// Optional visual/sound effect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     effects: Option<DamageEffects>,
     /// Optional death message format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     death_message_type: Option<DeathMessageType>,
 }
 
 impl DamageType {
+    /// Begins a native damage type definition. Set a message ID before export.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageType::new", module = "sand::component", kind = "method",
+        summary = "Begins a native damage type definition.", context = "Set a message ID before export.",
+        minecraft = "Defines the corresponding part of the native damage type resource.",
+        use_when = ["Authoring a native damage subtype"], avoid_when = ["Configuring an individual damage command"],
+        params(location = "The resource identity."), returns = "The damage type definition.",
+        example = r#"let definition = sand::component::DamageType::new("demo:spike".parse().unwrap());"#,
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -114,26 +208,71 @@ impl DamageType {
         }
     }
 
+    /// Sets the suffix of the death message key. The suffix must contain text and no control characters.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageType::message_id", module = "sand::component", kind = "method",
+        summary = "Sets the suffix of the death message key.", context = "The suffix must contain text and no control characters.",
+        minecraft = "Defines the corresponding part of the native damage type resource.",
+        use_when = ["Authoring a native damage subtype"], avoid_when = ["Configuring an individual damage command"],
+        params(id = "Suffix of the death.attack translation key."), returns = "The damage type definition.",
+        example = r#"let definition = sand::component::DamageType::new("demo:spike".parse().unwrap()).message_id("spike");"#,
+    )]
     pub fn message_id(mut self, id: impl Into<String>) -> Self {
         self.message_id = id.into();
         self
     }
 
+    /// Sets how much hunger exhaustion this damage causes. The value is stored in the native exhaustion field.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageType::exhaustion", module = "sand::component", kind = "method",
+        summary = "Sets how much hunger exhaustion this damage causes.", context = "The value is stored in the native exhaustion field.",
+        minecraft = "Defines the corresponding part of the native damage type resource.",
+        use_when = ["Authoring a native damage subtype"], avoid_when = ["Configuring an individual damage command"],
+        params(exhaustion = "Finite, non-negative hunger exhaustion."), returns = "The damage type definition.",
+        example = r#"let definition = sand::component::DamageType::new("demo:spike".parse().unwrap()).exhaustion(0.1);"#,
+    )]
     pub fn exhaustion(mut self, exhaustion: f32) -> Self {
         self.exhaustion = exhaustion;
         self
     }
 
+    /// Controls whether difficulty changes this damage. The native damage type codec reads the chosen scaling mode.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageType::scaling", module = "sand::component", kind = "method",
+        summary = "Controls whether difficulty changes this damage.", context = "The native damage type codec reads the chosen scaling mode.",
+        minecraft = "Defines the corresponding part of the native damage type resource.",
+        use_when = ["Authoring a native damage subtype"], avoid_when = ["Configuring an individual damage command"],
+        params(scaling = "Difficulty scaling policy."), returns = "The damage type definition.",
+        example = r#"let definition = sand::component::DamageType::new("demo:spike".parse().unwrap()).scaling(sand::component::DamageScaling::Never);"#,
+    )]
     pub fn scaling(mut self, scaling: DamageScaling) -> Self {
         self.scaling = scaling;
         self
     }
 
+    /// Sets the effect played after a hit. The native damage type codec reads this effect.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageType::effects", module = "sand::component", kind = "method",
+        summary = "Sets the effect played after a hit.", context = "The native damage type codec reads this effect.",
+        minecraft = "Defines the corresponding part of the native damage type resource.",
+        use_when = ["Authoring a native damage subtype"], avoid_when = ["Configuring an individual damage command"],
+        params(effects = "Native damage effect."), returns = "The damage type definition.",
+        example = r#"let definition = sand::component::DamageType::new("demo:spike".parse().unwrap()).effects(sand::component::DamageEffects::Thorns);"#,
+    )]
     pub fn effects(mut self, effects: DamageEffects) -> Self {
         self.effects = Some(effects);
         self
     }
 
+    /// Sets which native format handles the death message. The selected format controls the message suffix and parameters.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::DamageType::death_message_type", module = "sand::component", kind = "method",
+        summary = "Sets which native format handles the death message.", context = "The selected format controls the message suffix and parameters.",
+        minecraft = "Defines the corresponding part of the native damage type resource.",
+        use_when = ["Authoring a native damage subtype"], avoid_when = ["Configuring an individual damage command"],
+        params(t = "Native death message format."), returns = "The damage type definition.",
+        example = r#"let definition = sand::component::DamageType::new("demo:spike".parse().unwrap()).death_message_type(sand::component::DeathMessageType::Default);"#,
+    )]
     pub fn death_message_type(mut self, t: DeathMessageType) -> Self {
         self.death_message_type = Some(t);
         self

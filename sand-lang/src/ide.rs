@@ -225,6 +225,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
                     ),
                 ),
+                (crate::ast::DataKind::DamageType, _) => (
+                    format!("{vis}damage_type {}", def.name),
+                    format!("Damage type `{id}`. Pass it to `damage(..., type = ...)`."),
+                ),
                 (crate::ast::DataKind::Loot, _) => (
                     format!("{vis}loot {}", def.name),
                     format!("Loot table `{id}`. Use it with `give_loot` or `drop_loot`."),
@@ -517,7 +521,7 @@ fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<
         })
         .or_else(|| {
             // On the declaration keyword itself.
-            ["item", "recipe", "tag", "bossbar", "loot"]
+            ["item", "recipe", "tag", "bossbar", "loot", "damage_type"]
                 .into_iter()
                 .find(|k| *k == word && before.trim().is_empty())
         });
@@ -1114,9 +1118,12 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         DefKind::Function | DefKind::ExternFunction | DefKind::Event => CompletionKind::Function,
         DefKind::Flow => CompletionKind::Flow,
         DefKind::Local => CompletionKind::Variable,
-        DefKind::CustomItem | DefKind::Recipe | DefKind::Tag | DefKind::BossBar | DefKind::Loot => {
-            CompletionKind::Constant
-        }
+        DefKind::CustomItem
+        | DefKind::Recipe
+        | DefKind::Tag
+        | DefKind::BossBar
+        | DefKind::Loot
+        | DefKind::DamageType => CompletionKind::Constant,
     }
 }
 
@@ -1750,6 +1757,11 @@ fn expression_completions(
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
             }
             Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
+            Some("DamageType") => {
+                out.extend(scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::DamageType
+                }));
+            }
             Some("timer") => return timer_field_completions(analysis, in_scope),
             Some("Position") => {
                 return vec![
@@ -2314,6 +2326,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "loot",
             "loot table",
             "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "damage_type",
+            "damage type",
+            r#"damage_type ${1:Spikes} { message_id: "${2:spikes}" }"#,
         ),
         Completion::snippet(
             "item",

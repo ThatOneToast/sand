@@ -64,6 +64,7 @@ const CAPABILITIES: &[&str] = &[
     "world_state",
     "boss_bars",
     "loot_tables",
+    "damage_types",
     "smithing_recipes",
     "recursion",
     "entity_data",

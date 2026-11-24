@@ -10,6 +10,13 @@
       },
       "type": "array"
     },
+    "damage_types": {
+      "description": "Native damage type definitions.",
+      "items": {
+        "$ref": "defs-DamageType.schema.json"
+      },
+      "type": "array"
+    },
     "events": {
       "description": "Player event handlers, dispatched in declaration order.",
       "items": {

@@ -1245,6 +1245,27 @@ recipe Upgrade {
 }
 ```
 
+### Damage types
+
+```rust,ignore
+damage_type Thorn {
+    message_id: "scout_thorn",
+    exhaustion: 0.2,
+    scaling: DamageScaling::Never,
+    effects: DamageEffects::Thorns,
+}
+
+fn thorn_hit(caster: EntityRef) {
+    damage(2.0, type = Thorn, by = caster);
+}
+```
+
+A declaration exports a native damage type. `message_id` supplies the suffix of
+its `death.attack` translation key. Provide translated text in the resource
+pack. Use `DamageType::Generic` or another typed vanilla ID when a custom
+resource is unnecessary. The optional `by` retains vanilla attribution for
+either kind of damage type.
+
 ### Loot tables
 
 ```rust,ignore
@@ -1385,7 +1406,7 @@ command and State models as Rust. Today the language covers:
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads | advancement triggers, equipment changes, tracked transitions, event chains |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls | structure resources, biome and dimension declarations, general typed block data writes |
 | Text and feedback | chat, broadcast, actionbar, titles, sounds, particles, boss bars | books, dialogs, clickable text, VFX sequences |
-| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, conditional multi-pool loot | advancements, predicates, trim recipes, worldgen, damage types |
+| Data | custom items, crafting/cooking/stonecutting/smithing upgrade recipes, item/block/entity tags, conditional multi-pool loot, damage types | advancements, predicates, trim recipes, worldgen |
 | Gameplay systems | build them from the pieces above | combat, abilities, encounters, jobs, menus, HUD, inventory transfers, rosters, projectiles, progression, scenes, sessions, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.

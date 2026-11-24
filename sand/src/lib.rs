@@ -358,14 +358,15 @@ pub mod component {
         BannerPattern, Biome, BiomeAdditionsSound, BiomeAmbientSounds, BiomeEffects,
         BiomeMoodSound, BiomeSource, CarverFloatRange, CarvingStep, CaveCarverConfig,
         ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
-        ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
-        DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
-        FlatGenerator, FlatLayer, Generator, Instrument, IntoItemStack, ItemComponent,
-        ItemStackComponents, JukeboxSong, LootText, MonsterSpawnLightLevel, Noise, NoiseGenerator,
-        NoiseSettingsRef, OreConfig, OreTarget, PlacedFeature, PlacementModifier, PotionContents,
-        RawComponent, RawJson, RawSnbt, Result, RuleTest, SandError, SoundEventDefinition,
-        SpawnCondition, SpawnCost, StatusEffectInstance, StructureTemplate, SuspiciousStewEffect,
-        TagEntry, TagRegistry, TemperatureModifier, TypedTag, VanillaNoiseSettings, WrittenBook,
+        ConfiguredFeature, CustomData, DamageEffects, DamageScaling, DamageType, DeathMessageType,
+        DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp,
+        Dimension, DimensionType, EnchantmentEntry, FlatGenerator, FlatLayer, Generator,
+        Instrument, IntoItemStack, ItemComponent, ItemStackComponents, JukeboxSong, LootText,
+        MonsterSpawnLightLevel, Noise, NoiseGenerator, NoiseSettingsRef, OreConfig, OreTarget,
+        PlacedFeature, PlacementModifier, PotionContents, RawComponent, RawJson, RawSnbt, Result,
+        RuleTest, SandError, SoundEventDefinition, SpawnCondition, SpawnCost, StatusEffectInstance,
+        StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry, TemperatureModifier,
+        TypedTag, VanillaNoiseSettings, WrittenBook,
     };
     pub use sand_core::components::*;
 }

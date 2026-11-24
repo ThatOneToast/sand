@@ -1,5 +1,5 @@
 //! Typed projections and operands for component-owned storage values.
-use super::{FieldReference, ScoreOperand};
+use super::{BlockPosition, FieldReference, ScoreOperand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct BlockDataAddress {
     /// Absolute or relative block position.
-    pub at: super::BlockPosition,
+    pub at: BlockPosition,
     /// The NBT path, validated before emission.
     pub path: String,
 }

@@ -566,6 +566,7 @@ impl Builder<'_> {
                     "recipe" => DataKind::Recipe,
                     "bossbar" => DataKind::BossBar,
                     "loot" => DataKind::Loot,
+                    "damage_type" => DataKind::DamageType,
                     _ => DataKind::Tag,
                 };
                 let name = ident(inner.next().expect("data name"));

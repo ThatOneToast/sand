@@ -654,6 +654,17 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, damage_type) in module.damage_types.iter().enumerate() {
+            let ptr = format!("/damage_types/{index}");
+            use sand_components::DatapackComponent;
+            let id = damage_type.resource_location();
+            if !resource_ids.insert(format!("damage_type {id}")) {
+                push(format!("{ptr}/id"), format!("duplicate damage type `{id}`"));
+            }
+            if let Err(error) = damage_type.validate() {
+                push(ptr, error.to_string());
+            }
+        }
         for (index, table) in module.loot_tables.iter().enumerate() {
             let ptr = format!("/loot_tables/{index}");
             if !resource_ids.insert(format!("loot {}", table.id)) {
@@ -1190,6 +1201,7 @@ impl Validator<'_, '_> {
             "item" => Some("minecraft:item"),
             "block" => Some("minecraft:block"),
             "biome" => Some("minecraft:worldgen/biome"),
+            "damage type" => Some("minecraft:damage_type"),
             "entity type" => Some("minecraft:entity_type"),
             "sound" => Some("minecraft:sound_event"),
             "particle" => Some("minecraft:particle_type"),
@@ -1981,7 +1993,19 @@ impl Validator<'_, '_> {
                         ));
                     }
                 }
-                Action::Damage { amount, by } => {
+                Action::Damage {
+                    amount,
+                    by,
+                    damage_type,
+                } => {
+                    if let Some(damage_type) = damage_type {
+                        self.resource(
+                            &damage_type.to_string(),
+                            owner,
+                            &format!("{ptr}/action/damage_type"),
+                            "damage type",
+                        );
+                    }
                     if let Some(by) = by {
                         self.score(by, context, owner, &format!("{ptr}/action/by"));
                     }

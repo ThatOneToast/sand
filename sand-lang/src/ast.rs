@@ -502,6 +502,8 @@ pub enum DataKind {
     BossBar,
     /// `loot Name { items: [...] }`.
     Loot,
+    /// `damage_type Name { message_id: "..." }`.
+    DamageType,
 }
 
 impl DataKind {
@@ -513,6 +515,7 @@ impl DataKind {
             DataKind::Tag => "tag",
             DataKind::BossBar => "bossbar",
             DataKind::Loot => "loot",
+            DataKind::DamageType => "damage_type",
         }
     }
 }

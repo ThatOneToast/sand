@@ -141,6 +141,8 @@ pub enum DefKind {
     BossBar,
     /// `loot Name { ... }`.
     Loot,
+    /// `damage_type Name { ... }`.
+    DamageType,
 }
 
 impl DefKind {
@@ -166,6 +168,7 @@ impl DefKind {
             DefKind::Event => "event",
             DefKind::BossBar => "boss bar",
             DefKind::Loot => "loot table",
+            DefKind::DamageType => "damage type",
         }
     }
 }
@@ -1066,6 +1069,7 @@ impl Cx {
                     crate::ast::DataKind::Tag => DefKind::Tag,
                     crate::ast::DataKind::BossBar => DefKind::BossBar,
                     crate::ast::DataKind::Loot => DefKind::Loot,
+                    crate::ast::DataKind::DamageType => DefKind::DamageType,
                 };
                 let tag_type = match (&data.kind, &data.tag_type) {
                     (crate::ast::DataKind::Tag, Some(ty)) => match ty.name.as_str() {
@@ -2990,6 +2994,7 @@ impl Cx {
             resource_tags: Vec::new(),
             loot_tables: Vec::new(),
             boss_bars: Vec::new(),
+            damage_types: Vec::new(),
         };
         self.pointers
             .push((id_text.clone(), String::new(), file, Span::default()));
@@ -3326,8 +3331,13 @@ impl Cx {
             .unwrap_or_else(|| sand_version::LATEST_KNOWN.into());
         let table = crate::vanilla::for_target(&target, registry);
         let noun = table.map(|t| t.noun).unwrap_or("value");
-        if registry == "Item"
-            && let Some((_, id)) = self.declared(module, file, expr, DefKind::CustomItem)
+        let declaration = match registry {
+            "Item" => Some(DefKind::CustomItem),
+            "DamageType" => Some(DefKind::DamageType),
+            _ => None,
+        };
+        if let Some(declaration) = declaration
+            && let Some((_, id)) = self.declared(module, file, expr, declaration)
         {
             return Some(id);
         }

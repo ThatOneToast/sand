@@ -414,6 +414,18 @@ pub(super) fn lower(
                 .map_err(|e| fail(e.to_string()))?;
             lower.records.push(record);
         }
+        for (index, damage_type) in module.damage_types.iter().enumerate() {
+            let record =
+                records::component_to_record(damage_type, Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/damage_types/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
         for (index, table) in module.loot_tables.iter().enumerate() {
             let fail = |message: String| {
                 vec![Diagnostic::error(
@@ -2436,7 +2448,12 @@ impl Lower<'_> {
                         &[],
                     )?
                 }
-                Action::Damage { amount, by } => {
+                Action::Damage {
+                    amount,
+                    by,
+                    damage_type,
+                } => {
+                    let id = damage_type.as_ref().map(ToString::to_string);
                     let reference;
                     let mut arguments = vec![NumericArgument {
                         name: "amount",
@@ -2467,12 +2484,16 @@ impl Lower<'_> {
                             &path,
                             "damage_source",
                         );
-                        let mut lines: Vec<_> = crate::gameplay::identity::selectors("entity", &identity.to_string(), "$(attacker)").into_iter().map(|selector| format!("$execute if entity {selector} run return run damage @s $(amount) minecraft:generic by {selector}")).collect();
+                        let damage_type = id.as_deref().unwrap_or("minecraft:generic");
+                        let mut lines: Vec<_> = crate::gameplay::identity::selectors("entity", &identity.to_string(), "$(attacker)").into_iter().map(|selector| format!("$execute if entity {selector} run return run damage @s $(amount) {damage_type} by {selector}")).collect();
                         lines.push("return 0".into());
                         self.function(&dispatch, lines, module, &ptr)?;
                         format!("function {dispatch} {{amount:$(amount),attacker:$(attacker)}}")
                     } else {
-                        "damage @s $(amount)".into()
+                        id.map_or_else(
+                            || "damage @s $(amount)".into(),
+                            |id| format!("damage @s $(amount) {id}"),
+                        )
                     };
                     self.numeric_command(
                         (owner, &path, module, &ptr),

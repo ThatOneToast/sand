@@ -801,6 +801,12 @@
               ],
               "description": "Retained attacker identity; absence uses unattributed generic damage."
             },
+            "damage_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "op": {
               "const": "damage",
               "type": "string"
@@ -1794,6 +1800,89 @@
       ],
       "type": "object"
     },
+    "DamageEffects": {
+      "description": "The visual/sound effect played when this damage type is dealt.",
+      "enum": [
+        "hurt",
+        "thorns",
+        "drowning",
+        "burning",
+        "poking",
+        "freezing"
+      ],
+      "type": "string"
+    },
+    "DamageScaling": {
+      "description": "Controls how damage scales with difficulty.",
+      "oneOf": [
+        {
+          "const": "never",
+          "description": "Damage does not scale with difficulty.",
+          "type": "string"
+        },
+        {
+          "const": "when_caused_by_living_non_player",
+          "description": "Damage scales when caused by a living non-player entity.",
+          "type": "string"
+        },
+        {
+          "const": "always",
+          "description": "Damage always scales with difficulty.",
+          "type": "string"
+        }
+      ]
+    },
+    "DamageType": {
+      "additionalProperties": false,
+      "description": "A Minecraft damage type definition. The portable representation includes\nthe resource identity. Resource export emits the native JSON body.",
+      "properties": {
+        "death_message_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeathMessageType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional death message format."
+        },
+        "effects": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DamageEffects"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional visual/sound effect."
+        },
+        "exhaustion": {
+          "default": 0.0,
+          "description": "Hunger exhaustion applied when this damage is taken (0.0\u20130.4 typical).\nMust be finite and non-negative. No upper bound is enforced.",
+          "format": "float",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "message_id": {
+          "description": "Translation key suffix for death messages (e.g. `\"laser\"` \u2192 `\"death.attack.laser\"`).",
+          "type": "string"
+        },
+        "scaling": {
+          "$ref": "#/$defs/DamageScaling",
+          "default": "when_caused_by_living_non_player",
+          "description": "Whether the damage scales with difficulty."
+        }
+      },
+      "required": [
+        "id",
+        "message_id"
+      ],
+      "type": "object"
+    },
     "DataField": {
       "additionalProperties": false,
       "description": "A component-owned storage value with a typed NBT default.",
@@ -2028,6 +2117,15 @@
         "field"
       ],
       "type": "object"
+    },
+    "DeathMessageType": {
+      "description": "Controls the format of the death message for this damage type.",
+      "enum": [
+        "default",
+        "fall_variants",
+        "intentional_game_design"
+      ],
+      "type": "string"
     },
     "DimensionMatches": {
       "additionalProperties": false,
@@ -4107,6 +4205,13 @@
       "description": "Boss bars, created at load.",
       "items": {
         "$ref": "#/$defs/BossBar"
+      },
+      "type": "array"
+    },
+    "damage_types": {
+      "description": "Native damage type definitions.",
+      "items": {
+        "$ref": "#/$defs/DamageType"
       },
       "type": "array"
     },

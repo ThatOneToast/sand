@@ -800,6 +800,12 @@
           ],
           "description": "Retained attacker identity; absence uses unattributed generic damage."
         },
+        "damage_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "op": {
           "const": "damage",
           "type": "string"

@@ -100,6 +100,7 @@ mod tests {
                 "potion",
                 "worldgen/biome",
                 "enchantment",
+                "damage_type",
             ] {
                 assert!(
                     !variants(version, &format!("minecraft:{registry}"))

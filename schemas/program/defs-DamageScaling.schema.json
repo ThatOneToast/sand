@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Controls how damage scales with difficulty.",
+  "oneOf": [
+    {
+      "const": "never",
+      "description": "Damage does not scale with difficulty.",
+      "type": "string"
+    },
+    {
+      "const": "when_caused_by_living_non_player",
+      "description": "Damage scales when caused by a living non-player entity.",
+      "type": "string"
+    },
+    {
+      "const": "always",
+      "description": "Damage always scales with difficulty.",
+      "type": "string"
+    }
+  ]
+}

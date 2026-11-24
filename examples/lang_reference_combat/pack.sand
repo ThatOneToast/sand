@@ -22,6 +22,11 @@ item MarkingWand {
     name: "{light_purple}Marking Wand",
     unbreakable: true
 }
+damage_type ArcaneMark {
+    message_id: "arcane_mark",
+    scaling: DamageScaling::Never,
+    effects: DamageEffects::Thorns,
+}
 recipe WandRecipe {
     shapeless: [Item::Stick, Item::AmethystShard],
     result: MarkingWand
@@ -54,7 +59,7 @@ fn cast() {
 fn resolve_marks() {
     for target in entities(with = Mark) {
         if timer_done(Mark.delay) {
-            damage(Mark.damage, by = Mark.owner);
+            damage(Mark.damage, by = Mark.owner, type = ArcaneMark);
             detach_state(Mark);
         }
     }

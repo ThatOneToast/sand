@@ -918,6 +918,10 @@
                 {
                   "type": "STRING",
                   "value": "loot"
+                },
+                {
+                  "type": "STRING",
+                  "value": "damage_type"
                 }
               ]
             },

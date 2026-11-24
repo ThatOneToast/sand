@@ -84,6 +84,7 @@ fn item_level() {
             "menu",
             "projectile",
             "progression",
+            "job",
             "session",
             "ability",
             "combat",
@@ -560,5 +561,17 @@ fn comments_and_strings_offer_nothing_except_interpolation() {
         "fn f() {\n    chat!(\"{|\");\n}",
         &["player", "gold", "Hero.energy"],
         &["let"],
+    );
+}
+
+#[test]
+fn job_steps_complete_to_functions_with_an_index_parameter() {
+    includes_excludes(
+        "fn walk(i: number) {}
+fn no_index() {}
+fn wrong_index(f: float) {}
+job Route { ticks: 20, count: 2, step: | }",
+        &["walk"],
+        &["no_index", "wrong_index"],
     );
 }

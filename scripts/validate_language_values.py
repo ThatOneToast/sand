@@ -236,6 +236,7 @@ class ValuesHarness(WorldGameplayHarness):
             self.check_progression_sessions()
             self.check_ability_admission()
             self.check_state_combat()
+            self.check_jobs()
         finally:
             self.send("tick unfreeze")
             self.send("execute in minecraft:overworld run teleport NumericB 0.5 80 0.5")
@@ -526,6 +527,32 @@ class ValuesHarness(WorldGameplayHarness):
         report("NumericA", 24, "ABILITY_READY_AGAIN")
         report("NumericB", 4, "ABILITY_PEER_STATE_UNCHANGED")
 
+
+    def check_jobs(self):
+        self.send("scoreboard objectives add job_complete_probe dummy")
+
+        def invoke(player, callback):
+            self.send(f"execute as {player} at @s run function runtime_values:{callback}")
+
+        def report(player, trace, completed, label):
+            invoke(player, "report_job")
+            self.check(label, f"if score {player} numeric_probe matches {trace} "
+                              f"if score {player} job_complete_probe matches {completed}")
+
+        for player in ("NumericA", "NumericB"):
+            invoke(player, "begin_job")
+        invoke("NumericA", "enqueue_job")
+        self.step_ticks(1, "JOB_FIRST_BATCH")
+        report("NumericA", 12, 0, "JOB_A_FIRST_BATCH")
+        report("NumericB", 12, 0, "JOB_B_FIRST_BATCH")
+        invoke("NumericA", "end_job")
+        self.step_ticks(1, "JOB_SECOND_BATCH")
+        report("NumericA", 12, 0, "JOB_A_CANCELLED")
+        report("NumericB", 1234, 0, "JOB_B_SECOND_BATCH")
+        self.step_ticks(1, "JOB_FINAL_BATCH")
+        report("NumericB", 12345, 1, "JOB_B_COMPLETED")
+        self.step_ticks(2, "JOB_AFTER_COMPLETION")
+        report("NumericB", 12345, 1, "JOB_COMPLETES_ONCE")
 
     def check_state_combat(self):
         def invoke(player, function):

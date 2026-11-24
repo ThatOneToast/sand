@@ -16,14 +16,14 @@ pub use model::{
     DataReference, DimensionMatches, EntitiesExist, EntityData, EntityFlag, EntityQuery,
     EntitySort, EventHook, ExecutionContext, FieldReference, FlagSet, FlatDimension, Flow,
     FlowHook, FlowHookPhase, FlowTransition, Function, FunctionReference, HudBossBar,
-    HudDefinition, InventoryTransferDefinition, ItemHeld, LootItem, LootPool, LootTable,
-    MenuChoice, MenuDefinition, MenuView, MessageChannel, Module, ModuleSource, NoticeDialog,
-    Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget, ProgressionBranch,
-    ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
-    RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField, ScoreOperand,
-    ScoreOperator, ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached,
-    StateCooldown, TagKind, TagMembership, TeleportDestination, TextColor, TextPart, TextStyle,
-    Weather, WorldPredicate, WrittenBookContent,
+    HudDefinition, InventoryTransferDefinition, ItemHeld, JobDefinition, LootItem, LootPool,
+    LootTable, MenuChoice, MenuDefinition, MenuView, MessageChannel, Module, ModuleSource,
+    NoticeDialog, Operation, Pack, PlayerEvent, PlayerGameMode, Program, ProgramTarget,
+    ProgressionBranch, ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity,
+    Recipe, RecipeOutput, Relation, ResourceTag, ScaledField, ScoreComparison, ScoreField,
+    ScoreOperand, ScoreOperator, ScoreRelation, SessionCommand, SessionDefinition, State,
+    StateAttached, StateCooldown, TagKind, TagMembership, TeleportDestination, TextColor, TextPart,
+    TextStyle, Weather, WorldPredicate, WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -93,6 +93,7 @@ const CAPABILITIES: &[&str] = &[
     "owned_projectiles",
     "progressions",
     "owned_sessions",
+    "owned_jobs",
     "owned_abilities",
     "state_combat",
 ];

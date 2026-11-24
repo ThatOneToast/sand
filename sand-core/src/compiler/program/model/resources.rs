@@ -962,6 +962,42 @@ pub struct ProgressionBranch {
     pub when: FieldReference,
 }
 
+/// Player-owned indexed work with a bounded number of callbacks per loaded tick.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::JobDefinition", module = "sand::advanced::compiler",
+ summary = "Player-owned indexed work with a bounded number of callbacks per loaded tick.",
+ context = "Each admitted job visits indices from zero through count minus one. A callback runs as the current owner with the index written to its declared global score slot. A completed job invokes complete once; expiry or cancellation discards unfinished work.",
+ minecraft = "Uses the shared Job and Lifetime runtimes.",
+ use_when = ["Running a finite batch of authored gameplay work across ticks"],
+ avoid_when = ["Work must advance in unloaded chunks"],
+ fields(id = "Job identity.", ticks = "Positive deadline in loaded ticks.", count = "Positive number of indexed steps.", per_tick = "Maximum step callbacks per instance per tick, default one.", capacity = "Maximum simultaneous instances across all owners.", index = "Global integer score slot receiving the current index immediately before step.", step = "Function invoked as the player for each index.", complete = "Optional function invoked as the player after the last step."),
+ example = "use sand::advanced::compiler::JobDefinition;",
+)]
+pub struct JobDefinition {
+    /// Identity used to start or cancel this job.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Loaded-tick deadline for each instance.
+    pub ticks: u32,
+    /// Number of steps, starting at index zero.
+    pub count: u32,
+    /// Maximum callbacks per instance per tick. Defaults to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub per_tick: Option<u32>,
+    /// Maximum simultaneous instances of this definition. Defaults to 128.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capacity: Option<u32>,
+    /// Writable global integer score slot receiving the zero-based index.
+    pub index: FieldReference,
+    /// Step callback invoked as the player.
+    pub step: FunctionReference,
+    /// Callback invoked as the player when the work completes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complete: Option<FunctionReference>,
+}
+
 /// An owned lifetime that drives a named player progression.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

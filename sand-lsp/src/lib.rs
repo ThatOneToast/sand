@@ -663,6 +663,7 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::Progression
         | D::Combat
         | D::Ability
+        | D::Job
         | D::Session
         | D::Projectile
         | D::Menu

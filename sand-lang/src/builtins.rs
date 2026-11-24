@@ -66,6 +66,8 @@ pub enum ParamKind {
     Projectile,
     /// An authored progression track.
     Progression,
+    /// An authored bounded job.
+    Job,
     /// An authored session controller.
     Session,
     /// A checked player activation.
@@ -1613,6 +1615,28 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "reset_progression(${1:Quest})",
     },
     Builtin {
+        name: "start_job",
+        kind: BuiltinKind::Statement,
+        signature: "start_job(job)",
+        summary: "Start an independent job for the executing player.",
+        details: "Runs indexed steps on loaded ticks while capacity and the deadline allow.",
+        minecraft: "Uses the shared Job and Lifetime runtimes.",
+        needs_player: true,
+        params: &[p("job", ParamKind::Job, true, "The declared job.")],
+        snippet: "start_job(${1:GatherSupplies})",
+    },
+    Builtin {
+        name: "cancel_job",
+        kind: BuiltinKind::Statement,
+        signature: "cancel_job(job)",
+        summary: "Cancel the executing player's instances of this job.",
+        details: "Incomplete instances end without a completion callback.",
+        minecraft: "Uses the shared Job and Lifetime runtimes.",
+        needs_player: true,
+        params: &[p("job", ParamKind::Job, true, "The declared job.")],
+        snippet: "cancel_job(${1:GatherSupplies})",
+    },
+    Builtin {
         name: "start_session",
         kind: BuiltinKind::Statement,
         signature: "start_session(session)",
@@ -2150,6 +2174,8 @@ pub enum FieldKind {
     AssetPath,
     /// Parameterless function that runs after a native operation.
     Callback,
+    /// A named function with one numeric index and no return value.
+    JobStep,
     /// Title, progress and maximum for a private HUD bar.
     HudBossBar,
     /// An ordered list of rich button labels and their callbacks.
@@ -2799,6 +2825,54 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "[{ from: ${1:0}, to: ${2:2}, when: ${3:Journal}.${4:skip_optional} }]",
     ),
     f(
+        "job",
+        "ticks",
+        FieldKind::Int,
+        true,
+        "Maximum duration in loaded ticks.",
+        "${1:100}",
+    ),
+    f(
+        "job",
+        "count",
+        FieldKind::Int,
+        true,
+        "Number of steps, starting at index zero.",
+        "${1:12}",
+    ),
+    f(
+        "job",
+        "per_tick",
+        FieldKind::Int,
+        false,
+        "Steps per instance per loaded tick, from one to 64.",
+        "${1:2}",
+    ),
+    f(
+        "job",
+        "capacity",
+        FieldKind::Int,
+        false,
+        "Maximum simultaneous instances across all owners.",
+        "${1:128}",
+    ),
+    f(
+        "job",
+        "step",
+        FieldKind::JobStep,
+        true,
+        "Callback with one number parameter for the zero-based index.",
+        "${1:work_step}",
+    ),
+    f(
+        "job",
+        "complete",
+        FieldKind::Callback,
+        false,
+        "Parameterless callback after the last step.",
+        "${1:finish_work}",
+    ),
+    f(
         "session",
         "progression",
         FieldKind::ProgressionRef,
@@ -3202,6 +3276,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "progression",
         "`progression Name { progress: State.index, objectives: [...] }` declares an ordered player track.",
+    ),
+    (
+        "job",
+        "`job Name { ticks: 100, count: 12, step: work_step }` runs bounded indexed work for a player.",
     ),
     (
         "session",

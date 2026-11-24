@@ -335,8 +335,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   optional projectile flight under the same admission.
 - [x] Custom player health using shared Combat mitigation, shields, critical
   damage, immunity, healing and committed callbacks.
-- [ ] Expose the Rust encounters, jobs, rosters, scenes, and
-  checkpoints through canonical shared models.
+- [x] Bounded indexed player jobs with independent loaded-tick batches,
+  completion callbacks and owner cancellation.
+- [ ] Expose the Rust encounters, rosters, scenes, and checkpoints through
+  canonical shared models.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.

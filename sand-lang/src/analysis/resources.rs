@@ -617,6 +617,45 @@ impl Cx {
                     branches,
                 });
             }
+            DataKind::Job => {
+                let mut integer = |name, max| {
+                    get(name).and_then(|field| {
+                        self.data_int(module, file, &field.value, 1, max)
+                            .map(|value| value as u32)
+                    })
+                };
+                let (Some(ticks), Some(count)) = (
+                    integer("ticks", i64::from(i32::MAX)),
+                    integer("count", i64::from(i32::MAX)),
+                ) else {
+                    return;
+                };
+                let per_tick = integer("per_tick", 64);
+                let capacity = integer("capacity", i64::from(i32::MAX));
+                let Some((step, index)) =
+                    get("step").and_then(|field| self.data_job_step(module, file, &field.value))
+                else {
+                    return;
+                };
+                let complete = get("complete")
+                    .and_then(|field| self.data_callback(module, file, &field.value));
+                self.pointers.push((
+                    module_id,
+                    format!("/jobs/{}", out.jobs.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.jobs.push(pc::JobDefinition {
+                    id: location,
+                    ticks,
+                    count,
+                    per_tick,
+                    capacity,
+                    index,
+                    step,
+                    complete,
+                });
+            }
             DataKind::Session => {
                 let Some(progression) = get("progression").and_then(|field| {
                     let expr = self.data_expr(file, &field.value, "a progression")?;
@@ -2143,6 +2182,42 @@ impl Cx {
             )? as i32),
         };
         Some(pc::HudBossBar { title, value, max })
+    }
+
+    fn data_job_step(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<(pc::FunctionReference, pc::FieldReference)> {
+        let expr = self.data_expr(file, value, "a job step function name")?;
+        let Expr::Path(path) = expr else {
+            self.error(
+                "job",
+                file,
+                expr.span(),
+                "expected a named job step function",
+            );
+            return None;
+        };
+        let def = self.expect_path(module, path, &[DefKind::Function], "a job step function")?;
+        let Some(index) = self
+            .fn_slots
+            .get(&def)
+            .and_then(|slots| match slots.params.as_slice() {
+                [(field, _, Ty::Number)] if slots.ret.is_none() => Some(field.clone()),
+                _ => None,
+            })
+        else {
+            self.error(
+                "job",
+                file,
+                path.span,
+                "a job step takes one number and returns no value",
+            );
+            return None;
+        };
+        Some((self.function_reference(def)?, self.slot(index)))
     }
 
     fn data_callback(

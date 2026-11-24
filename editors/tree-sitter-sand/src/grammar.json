@@ -978,6 +978,10 @@
                 {
                   "type": "STRING",
                   "value": "combat"
+                },
+                {
+                  "type": "STRING",
+                  "value": "job"
                 }
               ]
             },

@@ -1604,6 +1604,30 @@ The advancement's native reward runs the handlers once per player completion.
 Handlers in the same module run in declaration order. Experience rewards and
 the player's advancement progress use the same vanilla completion.
 
+### Bounded player jobs
+
+A job processes zero-based indices in order. The step function takes one
+`number` and runs as the player who started that instance. The optional
+completion function has no parameters and runs after the final step. The
+`per_tick` callback count is per instance, and defaults to one. The `ticks`
+deadline uses loaded ticks. `capacity` limits simultaneous instances across
+owners and defaults to 128.
+
+```sand
+job CheckSupplies {
+    ticks: 40,
+    count: 5,
+    per_tick: 2,
+    step: inspect_supply,
+    complete: finish_inspection,
+}
+```
+
+Use `start_job(CheckSupplies)` to start a fresh instance. Use
+`cancel_job(CheckSupplies)` to stop the executing player's instances. Work that
+expires, is cancelled, or loses its owner ends without invoking completion.
+See the [supply inspection example](../../examples/lang_supply_job/).
+
 ### Player progression and sessions
 
 A `progression` stores its next objective in a player's State. The field must be
@@ -1972,7 +1996,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities and State combat | encounters, jobs, rosters, scenes, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat and bounded jobs | encounters, rosters, scenes, status effects, checkpoints |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

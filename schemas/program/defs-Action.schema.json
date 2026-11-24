@@ -650,6 +650,29 @@
     },
     {
       "additionalProperties": false,
+      "description": "Start a job or cancel the executing player's instances.",
+      "properties": {
+        "job": {
+          "type": "string"
+        },
+        "op": {
+          "const": "job",
+          "type": "string"
+        },
+        "start": {
+          "description": "Start a fresh instance if true, otherwise cancel the owner's jobs.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "job",
+        "start"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Control this player's named session.",
       "properties": {
         "command": {

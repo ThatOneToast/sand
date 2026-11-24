@@ -1,0 +1,28 @@
+#![pack(namespace = "supply_job", minecraft = "26.2")]
+
+player state Supplies {
+    counted: number = 0,
+}
+
+job CheckSupplies {
+    ticks: 40,
+    count: 5,
+    per_tick: 2,
+    step: inspect_supply,
+    complete: finish_inspection,
+}
+
+fn inspect_supply(index: number) {
+    Supplies.counted += index + 1;
+}
+
+fn finish_inspection() {
+    actionbar!("Inspection complete. Score: {Supplies.counted}.");
+}
+
+pub fn begin_inspection() {
+    Supplies.counted = 0;
+    start_job(CheckSupplies);
+}
+
+pub fn stop_inspection() { cancel_job(CheckSupplies); }

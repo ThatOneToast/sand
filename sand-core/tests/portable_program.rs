@@ -43,6 +43,7 @@ fn counter() -> Program {
             sessions: vec![],
             abilities: vec![],
             combats: vec![],
+            jobs: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {

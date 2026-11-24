@@ -105,6 +105,13 @@
       },
       "type": "array"
     },
+    "jobs": {
+      "description": "Player-owned bounded indexed work.",
+      "items": {
+        "$ref": "defs-JobDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "load": {
       "description": "Server-context bodies run at load in authored order.",
       "items": {

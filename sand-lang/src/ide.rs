@@ -241,6 +241,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Player ability `{id}`. Use `activate_ability` to attempt its admission."
                     ),
                 ),
+                (crate::ast::DataKind::Job, _) => (
+                    format!("{vis}job {}", def.name),
+                    format!("Player-owned job `{id}`. Use `start_job` or `cancel_job`."),
+                ),
                 (crate::ast::DataKind::Session, _) => (
                     format!("{vis}session {}", def.name),
                     format!("Player session `{id}`. Use `start_session` to run its track."),
@@ -1202,6 +1206,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Progression
         | DefKind::Combat
         | DefKind::Ability
+        | DefKind::Job
         | DefKind::Session
         | DefKind::Projectile
         | DefKind::Menu => CompletionKind::Constant,
@@ -1888,6 +1893,9 @@ fn expression_completions(
             Some("Ability") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Ability);
             }
+            Some("Job") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Job);
+            }
             Some("Session") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Session);
             }
@@ -2406,6 +2414,23 @@ fn data_completions(
             out
         }
         FieldKind::Text | FieldKind::TextList => vec![translation_completion()],
+        FieldKind::JobStep => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| {
+                let Some(signature) = analysis.function_types.get(def) else {
+                    return false;
+                };
+                let [parameter] = signature.parameters.as_slice() else {
+                    return false;
+                };
+                signature.returns.is_none()
+                    && matches!(
+                        analysis.def(*parameter).info,
+                        DefInfo::Local { ty: Ty::Number, .. }
+                    )
+            })
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
         FieldKind::Callback => scope_names(analysis, module)
             .into_iter()
             .filter(|(_, def)| {
@@ -2529,6 +2554,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "ability",
             "checked player activation",
             "ability ${1:CastSpark} { ticks: ${2:24}, projectile: ${3:Spark} }",
+        ),
+        Completion::snippet(
+            "job",
+            "player-owned indexed work",
+            "job ${1:GatherSupplies} { ticks: ${2:100}, count: ${3:12}, step: ${4:work_step} }",
         ),
         Completion::snippet(
             "session",
@@ -2863,6 +2893,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Menu => "Menu",
                 ParamKind::Projectile => "Projectile",
                 ParamKind::Progression => "Progression",
+                ParamKind::Job => "Job",
                 ParamKind::Session => "Session",
                 ParamKind::Ability => "Ability",
                 ParamKind::Combat => "Combat",

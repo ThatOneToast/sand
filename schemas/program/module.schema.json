@@ -764,6 +764,29 @@
         },
         {
           "additionalProperties": false,
+          "description": "Start a job or cancel the executing player's instances.",
+          "properties": {
+            "job": {
+              "type": "string"
+            },
+            "op": {
+              "const": "job",
+              "type": "string"
+            },
+            "start": {
+              "description": "Start a fresh instance if true, otherwise cancel the owner's jobs.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "job",
+            "start"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Control this player's named session.",
           "properties": {
             "command": {
@@ -3932,6 +3955,73 @@
       ],
       "type": "object"
     },
+    "JobDefinition": {
+      "additionalProperties": false,
+      "description": "Player-owned indexed work with a bounded number of callbacks per loaded tick.",
+      "properties": {
+        "capacity": {
+          "description": "Maximum simultaneous instances of this definition. Defaults to 128.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "complete": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Callback invoked as the player when the work completes."
+        },
+        "count": {
+          "description": "Number of steps, starting at index zero.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Identity used to start or cancel this job.",
+          "type": "string"
+        },
+        "index": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Writable global integer score slot receiving the zero-based index."
+        },
+        "per_tick": {
+          "description": "Maximum callbacks per instance per tick. Defaults to one.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "step": {
+          "$ref": "#/$defs/FunctionReference",
+          "description": "Step callback invoked as the player."
+        },
+        "ticks": {
+          "description": "Loaded-tick deadline for each instance.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "ticks",
+        "count",
+        "index",
+        "step"
+      ],
+      "type": "object"
+    },
     "LootItem": {
       "additionalProperties": false,
       "description": "One choice in a loot table.",
@@ -6175,6 +6265,13 @@
       "description": "Custom items that operations and recipes refer to by id.",
       "items": {
         "$ref": "#/$defs/CustomItem"
+      },
+      "type": "array"
+    },
+    "jobs": {
+      "description": "Player-owned bounded indexed work.",
+      "items": {
+        "$ref": "#/$defs/JobDefinition"
       },
       "type": "array"
     },

@@ -270,6 +270,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.abilities)
             .map(|ability| ability.id.to_string())
             .collect(),
+        jobs: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.jobs)
+            .map(|job| job.id.to_string())
+            .collect(),
         sessions: program
             .modules
             .iter()
@@ -607,6 +613,25 @@ pub(super) fn validate(
                     &format!("{ptr}/projectile"),
                     format!("unknown projectile `{projectile}`"),
                 ));
+            }
+        }
+        for (index, job) in module.jobs.iter().enumerate() {
+            let ptr = format!("/jobs/{index}");
+            validator.score(
+                &job.index,
+                ExecutionContext::Server,
+                &owner,
+                &format!("{ptr}/index"),
+            );
+            for (field, callback) in std::iter::once(("step", &job.step))
+                .chain(job.complete.as_ref().map(|callback| ("complete", callback)))
+            {
+                validator.call(
+                    callback,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("{ptr}/{field}"),
+                );
             }
         }
         for (index, session) in module.sessions.iter().enumerate() {
@@ -1168,6 +1193,49 @@ pub(super) fn validate(
                 push(
                     format!("{ptr}/cooldown/ticks"),
                     "ability cooldown must be in 1..=2147483647".into(),
+                );
+            }
+        }
+        for (index, job) in module.jobs.iter().enumerate() {
+            let ptr = format!("/jobs/{index}");
+            if !resource_ids.insert(format!("job {}", job.id)) {
+                push(format!("{ptr}/id"), format!("duplicate job `{}`", job.id));
+            }
+            for (field, value, max) in [
+                ("ticks", job.ticks, i32::MAX as u32),
+                ("count", job.count, i32::MAX as u32),
+                ("per_tick", job.per_tick.unwrap_or(1), 64),
+                ("capacity", job.capacity.unwrap_or(128), i32::MAX as u32),
+            ] {
+                if !(1..=max).contains(&value) {
+                    push(
+                        format!("{ptr}/{field}"),
+                        format!("job {field} must be in 1..={max}"),
+                    );
+                }
+            }
+            let valid = program
+                .modules
+                .iter()
+                .flat_map(|module| &module.states)
+                .find(|state| state.scope == "global" && state.id == job.index.state)
+                .and_then(|state| {
+                    state
+                        .fields
+                        .iter()
+                        .find(|field| field.name == job.index.field)
+                })
+                .is_some_and(|field| {
+                    !field.timer
+                        && field.bounds.is_none_or(|(min, max)| {
+                            min <= 0 && i64::from(max) >= i64::from(job.count) - 1
+                        })
+                });
+            if !valid {
+                push(
+                    format!("{ptr}/index"),
+                    "job index needs a non-ticking global score that can represent all indices"
+                        .into(),
                 );
             }
         }
@@ -1759,6 +1827,7 @@ struct Validator<'a, 'e> {
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
     progressions: BTreeSet<String>,
+    jobs: BTreeSet<String>,
     sessions: BTreeSet<String>,
     abilities: BTreeSet<String>,
     combats: BTreeSet<String>,
@@ -2953,6 +3022,22 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/ability"),
                             format!("unknown ability `{ability}`"),
+                        ));
+                    }
+                }
+                Action::Job { job, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "controlling the executing player's job",
+                    );
+                    if !self.jobs.contains(&job.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_REFERENCE",
+                            owner,
+                            &format!("{ptr}/action/job"),
+                            format!("unknown job `{job}`"),
                         ));
                     }
                 }

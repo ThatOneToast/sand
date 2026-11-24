@@ -124,7 +124,18 @@ hud FieldStatus {
 }
 
 global state Origin { x: float, spread: float }
+job ProbeJob {
+    ticks: 20,
+    count: 5,
+    per_tick: 2,
+    capacity: 2,
+    step: job_step,
+    complete: job_complete,
+}
+
 player state Ledger {
+    job_trace: number,
+    job_completed: number,
     requested: number,
     label: string = "new",
     recent: Vec<string>,
@@ -235,6 +246,30 @@ fn inspect_inventory() {
     } else {
         raw!("scoreboard players set @s numeric_probe -1");
     }
+}
+
+fn job_step(index: number) {
+    Ledger.job_trace = Ledger.job_trace * 10 + index + 1;
+}
+fn job_complete() { Ledger.job_completed += 1; }
+fn begin_job() {
+    Ledger.job_trace = 0;
+    Ledger.job_completed = 0;
+    start_job(ProbeJob);
+}
+fn enqueue_job() { start_job(ProbeJob); }
+fn end_job() { cancel_job(ProbeJob); }
+fn report_job() {
+    if Ledger.job_completed == 1 {
+        raw!("scoreboard players set @s job_complete_probe 1");
+    } else {
+        raw!("scoreboard players set @s job_complete_probe 0");
+    }
+    let trace = Ledger.job_trace;
+    if trace == 12 { raw!("scoreboard players set @s numeric_probe 12"); }
+    else if trace == 1234 { raw!("scoreboard players set @s numeric_probe 1234"); }
+    else if trace == 12345 { raw!("scoreboard players set @s numeric_probe 12345"); }
+    else { raw!("scoreboard players set @s numeric_probe -1"); }
 }
 
 fn scored_hit() { Ledger.combat_hits += 1; }

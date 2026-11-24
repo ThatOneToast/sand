@@ -135,6 +135,7 @@ pub(super) fn lower(
         huds: BTreeMap::new(),
         projectiles: BTreeMap::new(),
         progressions: BTreeMap::new(),
+        jobs: BTreeMap::new(),
         sessions: BTreeMap::new(),
         abilities: BTreeMap::new(),
         combats: BTreeMap::new(),
@@ -173,6 +174,11 @@ pub(super) fn lower(
             progression.id.to_string(),
             lower.progression_component(progression, state),
         );
+    }
+    for job in program.modules.iter().flat_map(|module| &module.jobs) {
+        lower
+            .jobs
+            .insert(job.id.to_string(), lower.job_component(job));
     }
     for session in program.modules.iter().flat_map(|module| &module.sessions) {
         lower
@@ -400,6 +406,19 @@ pub(super) fn lower(
                     &format!("ability {}", ability.id),
                     &module_id,
                     &format!("/abilities/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, job) in module.jobs.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.jobs[&job.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("job {}", job.id),
+                    &module_id,
+                    &format!("/jobs/{index}"),
                 ),
                 &ctx,
                 &mut load,
@@ -1685,6 +1704,7 @@ struct Lower<'sources> {
     huds: BTreeMap<String, crate::gameplay::Hud>,
     projectiles: BTreeMap<String, crate::gameplay::Projectile>,
     progressions: BTreeMap<String, crate::gameplay::Progression>,
+    jobs: BTreeMap<String, crate::gameplay::Job>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
     abilities: BTreeMap<String, crate::gameplay::Ability>,
     combats: BTreeMap<String, crate::gameplay::Combat>,
@@ -2037,6 +2057,49 @@ impl Lower<'_> {
             });
         }
         progression
+    }
+
+    fn job_component(&self, job: &JobDefinition) -> crate::gameplay::Job {
+        use crate::{
+            IntoCommands,
+            entity::PlayerKind,
+            gameplay::{Job, Lifetime},
+        };
+        use sand_components::effect::Ticks;
+
+        let mut lifetime = Lifetime::<PlayerKind>::new(job.id.clone(), Ticks::new(job.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        if let Some(capacity) = job.capacity {
+            lifetime = lifetime.capacity(capacity);
+        }
+        let holder = self.holders[&job.index.state.to_string()].clone();
+        let objective = sand_commands::ObjectiveName::logical(format!(
+            "{}.{}",
+            job.index.state, job.index.field
+        ));
+        let step = reference_id(&job.step);
+        let mut definition = Job::new(lifetime, job.count, move |context, index| {
+            // The index is read from the task before resolving its player owner.
+            let mut actions = Cmd::NumericWrite(Box::new(NumericWrite {
+                value: index,
+                holder: holder.clone(),
+                objective: objective.clone(),
+                scale: 1,
+                fixed: crate::entity::FixedPoint::default(),
+                bounds: None,
+                dirty: Vec::new(),
+            }))
+            .into_commands();
+            actions.extend([context.owner(|_| Cmd::Function(step.clone()))]);
+            actions
+        })
+        .per_tick(job.per_tick.unwrap_or(1));
+        if let Some(callback) = &job.complete {
+            let callback = reference_id(callback);
+            definition = definition
+                .on_complete(move |context| context.owner(|_| Cmd::Function(callback.clone())));
+        }
+        definition
     }
 
     fn session_component(&self, source: &SessionDefinition) -> crate::gameplay::Session {
@@ -2867,6 +2930,14 @@ impl Lower<'_> {
                         definition.advance().0
                     } else {
                         definition.reset().0
+                    }
+                }
+                Action::Job { job, start } => {
+                    let definition = &self.jobs[&job.to_string()];
+                    if *start {
+                        definition.start().0
+                    } else {
+                        definition.cancel().0
                     }
                 }
                 Action::Session { session, command } => {

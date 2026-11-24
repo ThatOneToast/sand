@@ -4921,6 +4921,10 @@ impl Cx {
                 )?,
                 advance: builtin.name == "advance_progression",
             },
+            "start_job" | "cancel_job" => pc::Action::Job {
+                job: self.arg_declared(body, bound["job"], DefKind::Job, "a job")?,
+                start: builtin.name == "start_job",
+            },
             "start_session" | "restart_session" | "reset_session" | "cancel_session" => {
                 pc::Action::Session {
                     session: self.arg_declared(

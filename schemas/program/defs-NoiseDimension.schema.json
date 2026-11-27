@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A native fixed-biome noise dimension.",
+  "properties": {
+    "biome": {
+      "description": "The biome used for every column.",
+      "type": "string"
+    },
+    "dimension_type": {
+      "description": "Existing dimension type.",
+      "type": "string"
+    },
+    "id": {
+      "description": "Identity of the generated native dimension.",
+      "type": "string"
+    },
+    "noise_settings": {
+      "description": "The noise settings used to shape terrain.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "dimension_type",
+    "noise_settings",
+    "biome"
+  ],
+  "type": "object"
+}

@@ -609,6 +609,64 @@ pub struct FlatDimension {
     pub flat: sand_components::FlatGenerator,
 }
 
+/// A native dimension with flat layers or noise terrain.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::DimensionDefinition", module = "sand::advanced::compiler",
+ summary = "A typed native dimension definition.",
+ context = "Use flat layers or noise terrain sourced from a named settings resource.",
+ minecraft = "Adapts to the canonical Dimension component before validation and export.",
+ use_when = ["Declaring worlds in portable gameplay programs"],
+ avoid_when = ["Defining the dimension type's environmental rules"],
+ variants(Flat = "Generate an ordered stack of layers.", Noise = "Generate noise terrain in a fixed biome."),
+ variant_fields(Flat = ["The flat terrain definition."], Noise = ["The noise terrain definition."]),
+ example = "use sand::advanced::compiler::DimensionDefinition;",
+)]
+pub enum DimensionDefinition {
+    /// An ordered stack of flat layers.
+    Flat(FlatDimension),
+    /// A fixed-biome noise world.
+    Noise(NoiseDimension),
+}
+
+impl DimensionDefinition {
+    pub(crate) fn id(&self) -> &ResourceLocation {
+        match self {
+            Self::Flat(dimension) => &dimension.id,
+            Self::Noise(dimension) => &dimension.id,
+        }
+    }
+}
+
+/// A native fixed-biome noise dimension.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::NoiseDimension", module = "sand::advanced::compiler",
+ summary = "A native noise dimension with a fixed biome.",
+ context = "The noise settings and biome reference existing resources. A module can declare the biome in the same program.",
+ minecraft = "Lowers through the canonical NoiseGenerator and fixed BiomeSource.",
+ use_when = ["Giving a biome native noise-shaped terrain"],
+ avoid_when = ["Choosing different biomes per column"],
+ fields(id = "Native dimension identity.", dimension_type = "Existing dimension type identity.", noise_settings = "Existing noise settings resource.", biome = "Biome used for every column."),
+ example = "use sand::advanced::compiler::NoiseDimension;",
+)]
+pub struct NoiseDimension {
+    /// Identity of the generated native dimension.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Existing dimension type.
+    #[schemars(with = "String")]
+    pub dimension_type: sand_components::DimensionTypeId,
+    /// The noise settings used to shape terrain.
+    #[schemars(with = "String")]
+    pub noise_settings: sand_components::NoiseSettingsId,
+    /// The biome used for every column.
+    #[schemars(with = "String")]
+    pub biome: sand_components::BiomeId,
+}
+
 /// Climate, visual settings, and natural spawn rules for a native custom biome.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

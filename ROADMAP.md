@@ -271,6 +271,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Generic enums and bundled `Option<T>` and `Result<T, E>`.
 - [ ] General borrowed slices.
 - [x] Owned vector subranges with clamped half-open bounds.
+- [x] Borrowed range iteration over immutable local vectors.
 - [x] Typed enchantments generated from one verified catalog for Rust and Sand.
 - [x] Bundled typed durations and storable positions through ordinary Sand
   records and impl methods. Use existing entity State for checked membership.
@@ -288,6 +289,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Broader equipment and entity data operations, motion controls, and
   archetypes.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
+- [x] Player sneaking, sprinting, swimming, and flying transitions through the
+  shared observation planner.
 - [x] Top-level `wait` statements in entity and player functions, with
   per-invocation locals, original dimension, and owner-scoped cancellation.
 - [x] Runtime wait durations in ticks and seconds, captured for each invocation.
@@ -312,6 +315,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
 - [ ] Natural structure generation, biome terrain features, other world
   generators and dimension types, and first-class native block data.
+- [x] Fixed-biome noise dimensions driven by native noise settings references.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.
 - [x] Native damage type declarations and typed vanilla damage types, both
@@ -351,6 +355,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.
+- [x] CLI lookup of authored source for a generated function and line.
 - [x] Live Zed diagnostics and inferred-context hints using a worktree build.
 - [ ] Breakpoints.
 

@@ -708,7 +708,7 @@ impl TextPart {
  use_when = ["Reacting to joins, deaths, kills, or item use in a portable program"],
  avoid_when = ["Occurrences not listed here, which use the Rust event API"],
  example = "let event = sand::advanced::compiler::PlayerEvent::Death;",
- variants(Join = "Every join, including the first.", FirstJoin = "Only the first join ever.", Death = "The player died.", KillEntity = "The player killed any entity.", KillPlayer = "The player killed another player.", UseItem = "The player used an item.", Jump = "The player jumped.", DropItem = "The player dropped an item.", Sleep = "The player slept in a bed.", TakeDamage = "The player took damage.", DealDamage = "The player dealt damage.", CraftItem = "The player crafted an item.", PickUpItem = "The player picked up an item.", MineBlock = "The player mined a block.", KillEntityType = "The player killed an entity of one type.", KilledBy = "An entity of one type killed the player.", AdvancementCompleted = "The player completed one advancement authored by this program."),
+ variants(Join = "Every join, including the first.", FirstJoin = "Only the first join ever.", Death = "The player died.", KillEntity = "The player killed any entity.", KillPlayer = "The player killed another player.", UseItem = "The player used an item.", Jump = "The player jumped.", DropItem = "The player dropped an item.", Sleep = "The player slept in a bed.", TakeDamage = "The player took damage.", DealDamage = "The player dealt damage.", StartSneaking = "The player started sneaking.", StopSneaking = "The player stopped sneaking.", StartSprinting = "The player started sprinting.", StopSprinting = "The player stopped sprinting.", StartSwimming = "The player started swimming.", StopSwimming = "The player stopped swimming.", StartFlying = "The player started flying.", StopFlying = "The player stopped flying.", CraftItem = "The player crafted an item.", PickUpItem = "The player picked up an item.", MineBlock = "The player mined a block.", KillEntityType = "The player killed an entity of one type.", KilledBy = "An entity of one type killed the player.", AdvancementCompleted = "The player completed one advancement authored by this program."),
  variant_fields(UseItem(item = "Used item identity, such as `minecraft:carrot_on_a_stick`."), CraftItem(item = "Crafted item identity."), PickUpItem(item = "Picked-up item identity."), MineBlock(block = "Mined block identity."), KillEntityType(entity = "Killed entity type identity."), KilledBy(entity = "Killer entity type identity."), AdvancementCompleted(advancement = "The authored advancement identity.")),
 )]
 pub enum PlayerEvent {
@@ -737,6 +737,22 @@ pub enum PlayerEvent {
     TakeDamage,
     /// The player dealt damage.
     DealDamage,
+    /// Fires on the observed start sneaking transition.
+    StartSneaking,
+    /// Fires on the observed stop sneaking transition.
+    StopSneaking,
+    /// Fires on the observed start sprinting transition.
+    StartSprinting,
+    /// Fires on the observed stop sprinting transition.
+    StopSprinting,
+    /// Fires on the observed start swimming transition.
+    StartSwimming,
+    /// Fires on the observed stop swimming transition.
+    StopSwimming,
+    /// Fires on the observed start flying transition.
+    StartFlying,
+    /// Fires on the observed stop flying transition.
+    StopFlying,
     /// The player crafted an item.
     CraftItem {
         /// Crafted item identity.
@@ -799,6 +815,14 @@ impl PlayerEvent {
             PlayerEvent::Sleep => "sleep",
             PlayerEvent::TakeDamage => "take_damage",
             PlayerEvent::DealDamage => "deal_damage",
+            Self::StartSneaking => "start_sneaking",
+            Self::StopSneaking => "stop_sneaking",
+            Self::StartSprinting => "start_sprinting",
+            Self::StopSprinting => "stop_sprinting",
+            Self::StartSwimming => "start_swimming",
+            Self::StopSwimming => "stop_swimming",
+            Self::StartFlying => "start_flying",
+            Self::StopFlying => "stop_flying",
             PlayerEvent::CraftItem { .. } => "craft_item",
             PlayerEvent::PickUpItem { .. } => "pick_up_item",
             PlayerEvent::MineBlock { .. } => "mine_block",
@@ -818,12 +842,62 @@ impl PlayerEvent {
         }
     }
 
+    /// Adapt the same vanilla sources used by the registered Rust events.
+    pub(crate) fn transition(&self) -> Option<crate::TrackedTransition> {
+        use crate::{TransitionKind::*, events::*};
+        let (id, source, kind) = match self {
+            Self::StartSneaking => (
+                "player_sneaking",
+                PLAYER_SNEAKING_TRACKED_SOURCE,
+                BecameTrue,
+            ),
+            Self::StopSneaking => (
+                "player_sneaking",
+                PLAYER_SNEAKING_TRACKED_SOURCE,
+                BecameFalse,
+            ),
+            Self::StartSprinting => (
+                "player_sprinting",
+                PLAYER_SPRINTING_TRACKED_SOURCE,
+                BecameTrue,
+            ),
+            Self::StopSprinting => (
+                "player_sprinting",
+                PLAYER_SPRINTING_TRACKED_SOURCE,
+                BecameFalse,
+            ),
+            Self::StartSwimming => (
+                "player_swimming",
+                PLAYER_SWIMMING_TRACKED_SOURCE,
+                BecameTrue,
+            ),
+            Self::StopSwimming => (
+                "player_swimming",
+                PLAYER_SWIMMING_TRACKED_SOURCE,
+                BecameFalse,
+            ),
+            Self::StartFlying => ("player_flying", PLAYER_FLYING_TRACKED_SOURCE, BecameTrue),
+            Self::StopFlying => ("player_flying", PLAYER_FLYING_TRACKED_SOURCE, BecameFalse),
+            _ => return None,
+        };
+        Some(crate::TrackedTransition::new(id, source, kind))
+    }
+
     /// The scoreboard criterion that observes this event, when one does.
     pub(crate) fn criterion(&self) -> Option<String> {
         let stat = |kind: &str, id: &str| format!("minecraft.{kind}:{}", id.replace(':', "."));
         Some(match self {
             PlayerEvent::Join => "minecraft.custom:minecraft.leave_game".into(),
-            PlayerEvent::FirstJoin | PlayerEvent::AdvancementCompleted { .. } => return None,
+            PlayerEvent::FirstJoin
+            | PlayerEvent::AdvancementCompleted { .. }
+            | Self::StartSneaking
+            | Self::StopSneaking
+            | Self::StartSprinting
+            | Self::StopSprinting
+            | Self::StartSwimming
+            | Self::StopSwimming
+            | Self::StartFlying
+            | Self::StopFlying => return None,
             PlayerEvent::Death => "deathCount".into(),
             PlayerEvent::KillEntity => "totalKillCount".into(),
             PlayerEvent::KillPlayer => "playerKillCount".into(),

@@ -53,9 +53,9 @@
       "type": "array"
     },
     "dimensions": {
-      "description": "Native flat dimensions declared by this module.",
+      "description": "Native dimensions declared by this module.",
       "items": {
-        "$ref": "defs-FlatDimension.schema.json"
+        "$ref": "defs-DimensionDefinition.schema.json"
       },
       "type": "array"
     },

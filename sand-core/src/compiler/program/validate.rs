@@ -1518,27 +1518,36 @@ pub(super) fn validate(
         }
         for (index, dimension) in module.dimensions.iter().enumerate() {
             let ptr = format!("/dimensions/{index}");
-            if !resource_ids.insert(format!("dimension {}", dimension.id)) {
-                push(
-                    format!("{ptr}/id"),
-                    format!("duplicate dimension `{}`", dimension.id),
-                );
+            let id = dimension.id();
+            if !resource_ids.insert(format!("dimension {id}")) {
+                push(format!("{ptr}/id"), format!("duplicate dimension `{id}`"));
             }
-            let biome = dimension.flat.biome_id.to_string();
-            if !available(&biome, "minecraft:worldgen/biome") {
-                push(
-                    format!("{ptr}/flat/biome_id"),
-                    format!("unknown biome `{biome}`"),
-                );
-            }
-            for (layer_index, layer) in dimension.flat.layers.iter().enumerate() {
-                let block = layer.block.to_string();
-                if !block_id(&block) {
-                    push(
-                        format!("{ptr}/flat/layers/{layer_index}/block"),
-                        format!("unknown block `{block}`"),
-                    );
+            let (biome, field) = match dimension {
+                DimensionDefinition::Flat(dimension) => {
+                    for (layer_index, layer) in dimension.flat.layers.iter().enumerate() {
+                        let block = layer.block.to_string();
+                        if !block_id(&block) {
+                            push(
+                                format!("{ptr}/flat/layers/{layer_index}/block"),
+                                format!("unknown block `{block}`"),
+                            );
+                        }
+                    }
+                    (&dimension.flat.biome_id, "flat/biome_id")
                 }
+                DimensionDefinition::Noise(dimension) => {
+                    let settings = dimension.noise_settings.to_string();
+                    if !available(&settings, "minecraft:worldgen/noise_settings") {
+                        push(
+                            format!("{ptr}/noise_settings"),
+                            format!("unknown noise settings `{settings}`"),
+                        );
+                    }
+                    (&dimension.biome, "biome")
+                }
+            };
+            if !available(&biome.to_string(), "minecraft:worldgen/biome") {
+                push(format!("{ptr}/{field}"), format!("unknown biome `{biome}`"));
             }
         }
         for (index, dialog) in module.dialogs.iter().enumerate() {

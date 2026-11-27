@@ -1985,6 +1985,38 @@ pub const EVENTS: &[(&str, Option<&str>, &str)] = &[
     ("sleep", None, "The player slept in a bed."),
     ("take_damage", None, "The player took damage."),
     ("deal_damage", None, "The player dealt damage."),
+    (
+        "start_sneaking",
+        None,
+        "Fires when the player starts sneaking.",
+    ),
+    (
+        "stop_sneaking",
+        None,
+        "Fires when the player stops sneaking.",
+    ),
+    (
+        "start_sprinting",
+        None,
+        "Fires when the player starts sprinting.",
+    ),
+    (
+        "stop_sprinting",
+        None,
+        "Fires when the player stops sprinting.",
+    ),
+    (
+        "start_swimming",
+        None,
+        "Fires when the player starts swimming.",
+    ),
+    (
+        "stop_swimming",
+        None,
+        "Fires when the player stops swimming.",
+    ),
+    ("start_flying", None, "Fires when the player starts flying."),
+    ("stop_flying", None, "Fires when the player stops flying."),
 ];
 
 /// Style names usable inside `{...}` in text.
@@ -2051,7 +2083,7 @@ pub const ATTRIBUTES: &[(&str, &str, &str)] = &[
     (
         "on",
         "#[on(event)]",
-        "Run this function as the player whenever a player event happens, or whenever a custom `event` is emitted (`#[on(Payday)]`). Player events: `join`, `first_join`, `advancement`, `death`, `kill`, `kill_player`, `killed_by`, `use_item`, `craft_item`, `pick_up_item`, `mine_block`, `jump`, `drop_item`, `sleep`, `take_damage`, `deal_damage`.",
+        "Run this function as the player whenever a player event happens, or whenever a custom `event` is emitted (`#[on(Payday)]`). Player events: `join`, `first_join`, `advancement`, `death`, `kill`, `kill_player`, `killed_by`, `use_item`, `craft_item`, `pick_up_item`, `mine_block`, `jump`, `drop_item`, `sleep`, `take_damage`, `deal_damage`, and the `start_*` and `stop_*` transitions for sneaking, sprinting, swimming, and flying.",
     ),
 ];
 
@@ -3244,9 +3276,17 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "dimension",
         "layers",
         FieldKind::FlatLayers,
-        true,
+        false,
         "Bottom-to-top terrain layers with a block and positive height.",
         "[{ block: Block::${1:Bedrock}, height: ${2:1} }]",
+    ),
+    f(
+        "dimension",
+        "noise_settings",
+        FieldKind::ResourceId,
+        false,
+        "Noise settings resource for fixed-biome terrain. Supply layers or noise settings.",
+        r#""minecraft:overworld""#,
     ),
     f(
         "dimension",

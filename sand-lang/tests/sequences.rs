@@ -71,6 +71,8 @@ fn vectors_reject_invalid_types_and_scalar_operators() {
         "fn f() { let a: Vec<number>; let b = a[0.5]; }",
         "fn f() { let a: Vec<number>; let b = a.slice(false, 2); }",
         "fn f() { let a: Vec<number>; let b: Vec<string> = a.slice(0, 2); }",
+        "fn f() { let mut a: Vec<number>; for x in a.borrow_slice(0, 2) {} }",
+        "fn f() { let a: Vec<number>; let b = a.borrow_slice(0, 2); }",
         "player state S { values: Vec<number> } impl S { fn bad(&self) { self.values.push(1); } }",
     ] {
         assert!(
@@ -78,6 +80,22 @@ fn vectors_reject_invalid_types_and_scalar_operators() {
             "accepted {code}"
         );
     }
+}
+
+#[test]
+fn immutable_local_vector_ranges_are_iterable_even_across_waits() {
+    compile(&analyze_one(
+        r#"
+#![pack(namespace = "lists", minecraft = "26.2")]
+global state Report { total: number }
+fn run(values: Vec<number>, start: number, end: number) {
+    for value in values.borrow_slice(start, end) {
+        wait(1, server = true);
+        Report.total += value;
+    }
+}
+"#,
+    ));
 }
 
 #[test]

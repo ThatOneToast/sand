@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "defs-FlatDimension.schema.json",
+      "description": "An ordered stack of flat layers."
+    },
+    {
+      "$ref": "defs-NoiseDimension.schema.json",
+      "description": "A fixed-biome noise world."
+    }
+  ],
+  "description": "A native dimension with flat layers or noise terrain."
+}

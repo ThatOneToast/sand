@@ -157,6 +157,9 @@ Function attributes:
   `craft_item = Item::Bread`, `pick_up_item = Item::Diamond`,
   `mine_block = Block::DiamondOre`, `jump`, `drop_item`, `sleep`,
   `take_damage`, and `deal_damage`.
+- `#[on(start_sneaking)]` and `#[on(stop_sneaking)]` run when a sampled
+  player changes state. The same start/stop pairs exist for `sprinting`,
+  `swimming`, and `flying`. The first sample on load establishes a baseline.
 - `#[tag("ns:name")]` adds the function to any function tag.
 - `#[player]` requires a player executor explicitly. Without it, the context is
   inferred (see below).
@@ -317,7 +320,10 @@ Each vector supports up to 1,024 elements. A full vector rejects `push` and
 1 MiB budget checked before repeat expansion; build larger values at runtime.
 For example, `values.slice(1, 3)` copies indices 1 and 2. Bounds are clamped to
 the current length, and empty or reversed ranges produce an empty vector.
-General borrowed slices remain future work.
+To iterate an immutable local vector without copying its entire range, write
+`for value in values.borrow_slice(1, 3) { ... }`. Bounds are evaluated once
+in order and clamped. Each loop binding is a value. A borrowed range is scoped
+to the loop. First-class borrowed slices remain future work.
 
 See the [exploration-log example](../../examples/lang_vectors/pack.sand), which
 stores a separate growable vector of coordinate records for each player.
@@ -386,6 +392,8 @@ table is relative to the package root directory. Source ranges use UTF-8 byte
 offsets. The `commands` index uses pack-relative `.mcfunction` paths and
 inclusive one-based line ranges, including generated branches and macros. This
 command compiles in memory and reports ordinary Sand errors if emission fails.
+Use `sand lang source-at namespace:function/path 7` to resolve line 7 of a
+generated function to its authored file, line, and column.
 
 ## Types
 
@@ -1434,6 +1442,19 @@ Each layer needs a block and a positive height. The defaults are
 the pack before starting the world so Minecraft registers the dimension.
 As in vanilla dimensions, scheduled entity work counts ticks only while its
 chunk is loaded.
+
+For a fixed-biome world with noise-shaped terrain, give a dimension
+`noise_settings` in place of `layers`.
+
+```rust,ignore
+dimension Highlands {
+    noise_settings: "minecraft:overworld",
+    biome: Biome::Desert,
+}
+```
+
+The settings reference an existing native noise settings resource.
+`structures` is a flat-generator option.
 
 ### Custom biomes
 

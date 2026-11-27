@@ -3400,6 +3400,14 @@ impl Cx {
                     "sleep" => pc::PlayerEvent::Sleep,
                     "take_damage" => pc::PlayerEvent::TakeDamage,
                     "deal_damage" => pc::PlayerEvent::DealDamage,
+                    "start_sneaking" => pc::PlayerEvent::StartSneaking,
+                    "stop_sneaking" => pc::PlayerEvent::StopSneaking,
+                    "start_sprinting" => pc::PlayerEvent::StartSprinting,
+                    "stop_sprinting" => pc::PlayerEvent::StopSprinting,
+                    "start_swimming" => pc::PlayerEvent::StartSwimming,
+                    "stop_swimming" => pc::PlayerEvent::StopSwimming,
+                    "start_flying" => pc::PlayerEvent::StartFlying,
+                    "stop_flying" => pc::PlayerEvent::StopFlying,
                     "advancement" => {
                         self.diagnostics.push(
                             Diagnostic::error(
@@ -4512,6 +4520,13 @@ impl Cx {
                 body: block,
                 span,
             } => {
+                if let Expr::Method { receiver, name, .. } = value
+                    && name.name == "borrow_slice"
+                    && matches!(self.type_of(body, receiver), Ty::List(_))
+                {
+                    self.lower_borrowed_slice_loop(body, binding, value, block, *span, ops);
+                    return;
+                }
                 let ty = self.type_of(body, value);
                 let length = if let Some((_, length)) = self.array_shape(ty) {
                     length
@@ -4540,6 +4555,7 @@ impl Cx {
                         reverse: false,
                         step: None,
                         collection: Some(value),
+                        borrowed: None,
                     },
                     block,
                     *span,
@@ -4561,6 +4577,7 @@ impl Cx {
                     reverse: *reverse,
                     step: step.as_ref(),
                     collection: None,
+                    borrowed: None,
                 },
                 block,
                 *span,
@@ -4655,6 +4672,97 @@ impl Cx {
             }
             Stmt::Error(_) => {}
         }
+    }
+
+    fn lower_borrowed_slice_loop(
+        &mut self,
+        body: &mut BodyCx,
+        binding: &Ident,
+        value: &Expr,
+        block: &Block,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let Expr::Method {
+            receiver,
+            type_arguments,
+            args,
+            ..
+        } = value
+        else {
+            unreachable!();
+        };
+        let [start, end] = args.as_slice() else {
+            self.error(
+                "slice",
+                body.file,
+                value.span(),
+                "use `borrow_slice(start, end)`",
+            );
+            return;
+        };
+        let (ArgValue::Expr(from), ArgValue::Expr(to)) = (&start.value, &end.value) else {
+            self.error(
+                "slice",
+                body.file,
+                value.span(),
+                "slice bounds must be numbers",
+            );
+            return;
+        };
+        if !type_arguments.is_empty() || start.name.is_some() || end.name.is_some() {
+            self.error(
+                "slice",
+                body.file,
+                value.span(),
+                "pass the start and end bounds in order",
+            );
+            return;
+        }
+        let Some(local) = Self::local_of(body, receiver).filter(|local| {
+            matches!(
+                self.defs[local.0].info,
+                DefInfo::Local {
+                    mutable: false,
+                    ty: Ty::List(_),
+                    ..
+                }
+            )
+        }) else {
+            self.error(
+                "slice",
+                body.file,
+                receiver.span(),
+                "`borrow_slice` needs an immutable local vector",
+            );
+            return;
+        };
+        body.used.insert(local);
+        self.references.push(Reference {
+            file: body.file,
+            span: receiver.span(),
+            def: local,
+        });
+        let range = Range {
+            start: Some(from.clone()),
+            end: Some(to.clone()),
+            inclusive: false,
+            span: value.span(),
+        };
+        self.lower_repeat(
+            body,
+            statements::Repeat::Count {
+                binding,
+                range: &range,
+                reverse: false,
+                step: None,
+                collection: Some(receiver),
+                borrowed: Some(local),
+            },
+            block,
+            span,
+            ops,
+        );
     }
 
     fn lower_if(&mut self, body: &mut BodyCx, stmt: &IfStmt) -> Vec<pc::Operation> {

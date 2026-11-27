@@ -82,6 +82,15 @@ enum Command {
     Emit(Input),
     /// Print source locations for emitted commands and portable operations as JSON
     SourceMap(Input),
+    /// Find the authored source of a generated Minecraft function line
+    SourceAt {
+        /// Generated function identity, including its namespace
+        function: sand::ResourceLocation,
+        /// One-based line number reported by Minecraft
+        line: std::num::NonZeroUsize,
+        #[command(flatten)]
+        input: Input,
+    },
     /// Create a new Sand language project in a new directory
     New {
         /// Project directory (its name becomes the namespace)
@@ -254,6 +263,16 @@ pub fn run(args: LangArgs) -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&map)?);
             Ok(())
         }
+        Command::SourceAt {
+            function,
+            line,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            println!("{}", source_at(&analysis, &function, line.get())?);
+            Ok(())
+        }
         Command::Emit(input) => {
             let analysis = analyze(&input.path)?;
             report(&analysis)?;
@@ -265,6 +284,52 @@ pub fn run(args: LangArgs) -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn source_at(
+    analysis: &Analysis,
+    function: &sand::ResourceLocation,
+    line: usize,
+) -> Result<String> {
+    #[derive(serde::Deserialize)]
+    struct MappedCommand {
+        lines: std::ops::RangeInclusive<usize>,
+        source: MappedSpan,
+    }
+    #[derive(serde::Deserialize)]
+    struct MappedSpan {
+        file: usize,
+        start: usize,
+    }
+
+    let map = analysis
+        .source_map()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
+    let resource = format!(
+        "data/{}/function/{}.mcfunction",
+        function.namespace(),
+        function.path()
+    );
+    let ranges = map["commands"]
+        .get(&resource)
+        .with_context(|| format!("no source-mapped commands for `{function}`"))?;
+    let ranges: Vec<MappedCommand> = serde_json::from_value(ranges.clone())?;
+    let span = ranges
+        .into_iter()
+        .filter(|entry| entry.lines.contains(&line))
+        .min_by_key(|entry| entry.lines.end() - entry.lines.start())
+        .map(|entry| entry.source)
+        .with_context(|| format!("no authored source for `{function}` at generated line {line}"))?;
+    let file = &analysis.package.files[span.file];
+    let index = sand_lang::LineIndex::new(&file.text);
+    let position = index.chars(span.start);
+    Ok(format!(
+        "{}:{}:{}\n{}",
+        file.path.display(),
+        position.line + 1,
+        position.col + 1,
+        index.line_text(position.line as usize)
+    ))
 }
 
 /// Format all declared source files, or check their formatting without writes.
@@ -511,6 +576,44 @@ fn report(analysis: &Analysis) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_at_resolves_generated_branch_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("pack.sand");
+        std::fs::write(
+            &root,
+            r#"
+#![pack(namespace = "probe", minecraft = "26.2")]
+global state Report { value: number }
+fn run(flag: bool) {
+    if flag { Report.value = 17; }
+}
+"#,
+        )
+        .unwrap();
+        let analysis = analyze(&root).unwrap();
+        let map = analysis.source_map().unwrap();
+        let (path, entries) = map["commands"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .find(|(path, _)| path.contains("/__sand_program/"))
+            .unwrap();
+        let id = format!(
+            "probe:{}",
+            path.strip_prefix("data/probe/function/")
+                .unwrap()
+                .strip_suffix(".mcfunction")
+                .unwrap()
+        )
+        .parse()
+        .unwrap();
+        let line = entries[0]["lines"]["start"].as_u64().unwrap() as usize;
+        let source = source_at(&analysis, &id, line).unwrap();
+        assert!(source.contains("Report.value = 17"), "{source}");
+        assert!(source_at(&analysis, &id, usize::MAX).is_err());
+    }
 
     #[test]
     fn building_updates_an_existing_test_world_only_when_there_is_one() {

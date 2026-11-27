@@ -2,6 +2,53 @@ mod support;
 use support::*;
 
 #[test]
+fn fixed_biome_noise_dimensions_round_trip_and_share_the_dimension_registry() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+dimension Highlands { noise_settings: "minecraft:overworld", biome: Biome::Desert }
+"#,
+    );
+    let pack = compile(&analysis);
+    let dimension: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/world_probe/dimension/highlands.json"])
+            .unwrap();
+    assert_eq!(
+        dimension,
+        serde_json::json!({
+            "type": "minecraft:overworld",
+            "generator": {
+                "type": "minecraft:noise",
+                "settings": "minecraft:overworld",
+                "biome_source": { "type": "minecraft:fixed", "biome": "minecraft:desert" }
+            }
+        })
+    );
+    let program = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&program, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+}
+
+#[test]
+fn dimensions_require_one_generator_and_keep_flat_structure_settings_separate() {
+    for fields in [
+        "",
+        "layers: [], noise_settings: \"minecraft:overworld\"",
+        "noise_settings: \"minecraft:overworld\", structures: true",
+        "noise_settings: \"overworld\"",
+    ] {
+        let source = format!("#![pack(namespace = \"world_probe\")] dimension Test {{ {fields} }}");
+        assert!(analyze_one(&source).has_errors(), "{fields}");
+    }
+}
+
+#[test]
 fn flat_dimension_export_and_owned_waits_use_the_authored_identity() {
     let analysis = analyze_one(include_str!("fixtures/flat_dimensions.sand"));
     let pack = compile(&analysis);

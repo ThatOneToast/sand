@@ -102,7 +102,7 @@ pub(super) fn lower(
         .modules
         .iter()
         .flat_map(|module| &module.dimensions)
-        .map(|dimension| sand_components::DimensionId::custom(dimension.id.clone()))
+        .map(|dimension| sand_components::DimensionId::custom(dimension.id().clone()))
         .collect();
     dimensions.sort_by_cached_key(ToString::to_string);
     let mut lower = Lower {
@@ -307,7 +307,11 @@ pub(super) fn lower(
         event_owner.push('_');
     }
     let mut event_load = Vec::new();
-    for (index, line) in lower.events(program)?.into_iter().enumerate() {
+    for (index, line) in lower
+        .events(program, &mut automatic)?
+        .into_iter()
+        .enumerate()
+    {
         match line {
             EventLine::Load(command) => event_load.push((event_owner.clone(), index, command)),
             EventLine::Tick(command) => tick.push((event_owner.clone(), index, command)),
@@ -670,11 +674,23 @@ pub(super) fn lower(
             lower.records.push(record);
         }
         for (index, dimension) in module.dimensions.iter().enumerate() {
-            let component = sand_components::Dimension::flat_generator(
-                dimension.id.clone(),
-                dimension.dimension_type.clone(),
-                dimension.flat.clone(),
-            );
+            let component = match dimension {
+                DimensionDefinition::Flat(dimension) => sand_components::Dimension::flat_generator(
+                    dimension.id.clone(),
+                    dimension.dimension_type.clone(),
+                    dimension.flat.clone(),
+                ),
+                DimensionDefinition::Noise(dimension) => {
+                    sand_components::Dimension::noise_generator(
+                        dimension.id.clone(),
+                        dimension.dimension_type.clone(),
+                        sand_components::NoiseGenerator::custom_settings(
+                            dimension.noise_settings.clone(),
+                        )
+                        .biome_source(sand_components::BiomeSource::Fixed(dimension.biome.clone())),
+                    )
+                }
+            };
             let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
                 vec![Diagnostic::error(
                     "SAND_PROGRAM_RESOURCE",
@@ -1825,7 +1841,11 @@ impl Lower<'_> {
     }
     /// Lower player observations and native advancement rewards to shared dispatchers.
     /// A polled dispatcher consumes its observation before running its handlers.
-    fn events(&mut self, program: &Program) -> Result<Vec<EventLine>, Vec<Diagnostic>> {
+    fn events(
+        &mut self,
+        program: &Program,
+        automatic: &mut crate::state::registry::AutomaticLifecycle,
+    ) -> Result<Vec<EventLine>, Vec<Diagnostic>> {
         let mut groups: BTreeMap<String, (PlayerEvent, Vec<(String, String)>)> = BTreeMap::new();
         let mut modules: Vec<_> = program.modules.iter().collect();
         modules.sort_by_key(|module| module.id.to_string());
@@ -1842,6 +1862,7 @@ impl Lower<'_> {
             }
         }
         let mut lines = Vec::new();
+        let mut transitions = Vec::new();
         for (key, (event, handlers)) in groups {
             let base = format!("{}.__sand_event.{key}", self.namespace);
             let dispatch = format!("{}:__sand_program/event/{key}", self.namespace);
@@ -1874,6 +1895,12 @@ impl Lower<'_> {
                 )));
                 body.push(format!("scoreboard players reset @s {objective}"));
             }
+            if let Some(transition) = event.transition() {
+                transitions.push(crate::transition::TransitionHandler {
+                    path: format!("__sand_program/event/{key}"),
+                    transition: transition.into(),
+                });
+            }
             if matches!(event, PlayerEvent::Join | PlayerEvent::FirstJoin) {
                 // A persistent tag marks players already observed once; joins
                 // after that are seen through the leave_game statistic.
@@ -1891,7 +1918,76 @@ impl Lower<'_> {
                 .unwrap_or_default();
             self.function(&dispatch, body, &owner, "/events")?;
         }
+        if !transitions.is_empty() {
+            self.register_event_transitions(&transitions, automatic)?;
+        }
         Ok(lines)
+    }
+
+    fn register_event_transitions(
+        &mut self,
+        handlers: &[crate::transition::TransitionHandler],
+        automatic: &mut crate::state::registry::AutomaticLifecycle,
+    ) -> Result<(), Vec<Diagnostic>> {
+        use crate::compiler::export::predicates::{
+            player_state_predicate_json, sand_player_state_predicate,
+        };
+        use crate::transition::observation::ObservationSource;
+        let owner = format!("{}:__sand_program/events", self.namespace);
+        let mut predicates = BTreeMap::new();
+        for handler in handlers {
+            if let ObservationSource::Boolean(source) = &handler.transition.observation.source
+                && let crate::condition::ConditionKind::Raw(condition) = source.kind()
+                && let Some((path, flag)) = sand_player_state_predicate(condition)
+            {
+                predicates.insert(path, flag);
+            }
+        }
+        for (path, flag) in predicates {
+            self.records.push(ComponentRecord {
+                namespace: self.namespace.to_owned(),
+                dir: "predicate".into(),
+                path: path.into(),
+                ext: "json".into(),
+                content_type: "text".into(),
+                content: player_state_predicate_json(flag).to_string(),
+            });
+        }
+        let plan = crate::transition::resolve_transition_plan(&self.namespace, handlers).map_err(
+            |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_EVENT",
+                    &owner,
+                    "/events",
+                    message,
+                )]
+            },
+        )?;
+        lifecycle::validate_private_objectives(automatic, &[], &plan.private_objectives).map_err(
+            |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_EVENT",
+                    &owner,
+                    "/events",
+                    message,
+                )]
+            },
+        )?;
+        for generated in plan.functions {
+            let id = format!("{}:{}", self.namespace, generated.path);
+            self.function(&id, generated.commands, &owner, "/events")?;
+            self.runtime.generated_function(id, generated.origins);
+        }
+        automatic.private_objectives.extend(plan.private_objectives);
+        automatic.load_origins.insert(owner.clone());
+        automatic.tick_origins.insert(owner);
+        automatic.load_commands.extend(plan.load_commands);
+        automatic.global_init_commands.extend(plan.reload_commands);
+        automatic.player_tick_commands.extend(plan.tick_commands);
+        automatic
+            .global_tick_commands
+            .extend(plan.global_tick_commands);
+        Ok(())
     }
 
     fn register_owned_runtime(

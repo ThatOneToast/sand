@@ -3145,6 +3145,19 @@
       ],
       "type": "string"
     },
+    "DimensionDefinition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FlatDimension",
+          "description": "An ordered stack of flat layers."
+        },
+        {
+          "$ref": "#/$defs/NoiseDimension",
+          "description": "A fixed-biome noise world."
+        }
+      ],
+      "description": "A native dimension with flat layers or noise terrain."
+    },
     "DimensionMatches": {
       "additionalProperties": false,
       "description": "A test of the current execution dimension.",
@@ -4393,9 +4406,9 @@
           "type": "array"
         },
         "dimensions": {
-          "description": "Native flat dimensions declared by this module.",
+          "description": "Native dimensions declared by this module.",
           "items": {
-            "$ref": "#/$defs/FlatDimension"
+            "$ref": "#/$defs/DimensionDefinition"
           },
           "type": "array"
         },
@@ -4803,6 +4816,35 @@
         }
       ]
     },
+    "NoiseDimension": {
+      "additionalProperties": false,
+      "description": "A native fixed-biome noise dimension.",
+      "properties": {
+        "biome": {
+          "description": "The biome used for every column.",
+          "type": "string"
+        },
+        "dimension_type": {
+          "description": "Existing dimension type.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Identity of the generated native dimension.",
+          "type": "string"
+        },
+        "noise_settings": {
+          "description": "The noise settings used to shape terrain.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "dimension_type",
+        "noise_settings",
+        "biome"
+      ],
+      "type": "object"
+    },
     "NoticeDialog": {
       "additionalProperties": false,
       "description": "A native notice dialog with static rich text and a dismiss button.",
@@ -5032,6 +5074,118 @@
           "properties": {
             "kind": {
               "const": "deal_damage",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed start sneaking transition.",
+          "properties": {
+            "kind": {
+              "const": "start_sneaking",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed stop sneaking transition.",
+          "properties": {
+            "kind": {
+              "const": "stop_sneaking",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed start sprinting transition.",
+          "properties": {
+            "kind": {
+              "const": "start_sprinting",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed stop sprinting transition.",
+          "properties": {
+            "kind": {
+              "const": "stop_sprinting",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed start swimming transition.",
+          "properties": {
+            "kind": {
+              "const": "start_swimming",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed stop swimming transition.",
+          "properties": {
+            "kind": {
+              "const": "stop_swimming",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed start flying transition.",
+          "properties": {
+            "kind": {
+              "const": "start_flying",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fires on the observed stop flying transition.",
+          "properties": {
+            "kind": {
+              "const": "stop_flying",
               "type": "string"
             }
           },

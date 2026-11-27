@@ -1,6 +1,6 @@
 //! Owned portable envelope definitions.
 use super::{
-    AbilityDefinition, Advancement, CombatDefinition, CustomBiome, EventHook, FlatDimension,
+    AbilityDefinition, Advancement, CombatDefinition, CustomBiome, DimensionDefinition, EventHook,
     Function, HudDefinition, InventoryTransferDefinition, JobDefinition, MenuDefinition,
     NoticeDialog, Operation, ProgressionDefinition, ProjectileDefinition, SceneDefinition,
     SessionDefinition, State, TagMembership, WorldPredicate,
@@ -120,7 +120,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat dimension resources.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat and noise dimension resources.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -174,9 +174,9 @@ pub struct Module {
     /// Native notice dialogs declared by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dialogs: Vec<NoticeDialog>,
-    /// Native flat dimensions declared by this module.
+    /// Native dimensions declared by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub dimensions: Vec<FlatDimension>,
+    pub dimensions: Vec<DimensionDefinition>,
     /// Native custom biomes declared by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub biomes: Vec<CustomBiome>,

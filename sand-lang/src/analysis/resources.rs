@@ -990,13 +990,7 @@ impl Cx {
                 out.biomes.push(biome);
             }
             DataKind::Dimension => {
-                let Some(layers) = get("layers")
-                    .and_then(|field| self.data_flat_layers(module, file, &field.value))
-                else {
-                    return;
-                };
-                let mut flat = sand::component::FlatGenerator::new(layers);
-                if let Some(field) = get("biome") {
+                let biome = if let Some(field) = get("biome") {
                     let Some(biome) = self
                         .data_expr(file, &field.value, "a biome")
                         .and_then(|expr| self.vanilla_value(module, file, expr, "Biome"))
@@ -1004,14 +998,10 @@ impl Cx {
                     else {
                         return;
                     };
-                    flat = flat.biome(biome);
-                }
-                if let Some(field) = get("structures") {
-                    let Some(structures) = self.data_bool(file, &field.value) else {
-                        return;
-                    };
-                    flat = flat.with_structures(structures);
-                }
+                    biome.into()
+                } else {
+                    sand::registry::BiomeId::minecraft("plains").expect("valid built-in id")
+                };
                 let dimension_type = if let Some(field) = get("type") {
                     let Some(id) = self
                         .data_expr(file, &field.value, "a dimension type")
@@ -1025,17 +1015,70 @@ impl Cx {
                     sand::registry::DimensionTypeId::minecraft("overworld")
                         .expect("valid built-in id")
                 };
+                let dimension = match (get("layers"), get("noise_settings")) {
+                    (Some(field), None) => {
+                        let Some(layers) = self.data_flat_layers(module, file, &field.value) else {
+                            return;
+                        };
+                        let mut flat = sand::component::FlatGenerator::new(layers).biome(biome);
+                        if let Some(field) = get("structures") {
+                            let Some(structures) = self.data_bool(file, &field.value) else {
+                                return;
+                            };
+                            flat = flat.with_structures(structures);
+                        }
+                        pc::DimensionDefinition::Flat(pc::FlatDimension {
+                            id: location,
+                            dimension_type,
+                            flat,
+                        })
+                    }
+                    (None, Some(field)) => {
+                        if let Some(structures) = get("structures") {
+                            self.error(
+                                "dimension",
+                                file,
+                                structures.key.span,
+                                "the structures switch requires flat layers",
+                            );
+                            return;
+                        }
+                        let noise_settings = self
+                            .data_expr(file, &field.value, "a quoted namespaced noise settings id")
+                            .and_then(|expr| match expr {
+                                Expr::Str { value, .. } if value.contains(':') => {
+                                    value.parse::<sand::ResourceLocation>().ok()
+                                }
+                                _ => None,
+                            });
+                        let Some(noise_settings) = noise_settings else {
+                            self.error("dimension", file, field.value.span(), "expected a namespaced noise settings id such as \"minecraft:overworld\"");
+                            return;
+                        };
+                        pc::DimensionDefinition::Noise(pc::NoiseDimension {
+                            id: location,
+                            dimension_type,
+                            biome,
+                            noise_settings: noise_settings.into(),
+                        })
+                    }
+                    _ => {
+                        self.error(
+                            "dimension",
+                            file,
+                            data.name.span,
+                            "a dimension requires exactly one of `layers` and `noise_settings`",
+                        );
+                        return;
+                    }
+                };
                 self.pointers.push((
                     module_id,
                     format!("/dimensions/{}", out.dimensions.len()),
                     file,
                     data.name.span,
                 ));
-                out.dimensions.push(pc::FlatDimension {
-                    id: location,
-                    dimension_type,
-                    flat,
-                });
+                out.dimensions.push(dimension);
             }
             DataKind::Dialog => {
                 let Some(title) =

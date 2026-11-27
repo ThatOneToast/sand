@@ -163,6 +163,118 @@
     },
     {
       "additionalProperties": false,
+      "description": "Fires on the observed start sneaking transition.",
+      "properties": {
+        "kind": {
+          "const": "start_sneaking",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed stop sneaking transition.",
+      "properties": {
+        "kind": {
+          "const": "stop_sneaking",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed start sprinting transition.",
+      "properties": {
+        "kind": {
+          "const": "start_sprinting",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed stop sprinting transition.",
+      "properties": {
+        "kind": {
+          "const": "stop_sprinting",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed start swimming transition.",
+      "properties": {
+        "kind": {
+          "const": "start_swimming",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed stop swimming transition.",
+      "properties": {
+        "kind": {
+          "const": "stop_swimming",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed start flying transition.",
+      "properties": {
+        "kind": {
+          "const": "start_flying",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Fires on the observed stop flying transition.",
+      "properties": {
+        "kind": {
+          "const": "stop_flying",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "The player crafted an item.",
       "properties": {
         "item": {

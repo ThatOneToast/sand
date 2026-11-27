@@ -52,6 +52,8 @@ pub(super) enum Repeat<'a> {
         step: Option<&'a Expr>,
         /// Array snapshot supplying the loop binding instead of the counter.
         collection: Option<&'a Expr>,
+        /// An immutable local vector supplying elements directly.
+        borrowed: Option<DefId>,
     },
 }
 
@@ -2588,6 +2590,7 @@ impl Cx {
                 reverse,
                 step: increment,
                 collection,
+                borrowed,
             } => {
                 let (Some(start), Some(end)) = (&range.start, &range.end) else {
                     self.diagnostics.push(
@@ -2676,13 +2679,18 @@ impl Cx {
                         body.temp_depth = depth;
                         return;
                     };
-                    let array = self.temp(body);
-                    if self.emit(body, &array, ty, value, &mut setup).is_none() {
-                        body.scopes.pop();
-                        body.temp_depth = depth;
-                        return;
-                    }
-                    retained.extend(self.retained_slots(&array, ty));
+                    let array = if let Some(local) = borrowed {
+                        self.local_ref(local)
+                    } else {
+                        let array = self.temp(body);
+                        if self.emit(body, &array, ty, value, &mut setup).is_none() {
+                            body.scopes.pop();
+                            body.temp_depth = depth;
+                            return;
+                        }
+                        retained.extend(self.retained_slots(&array, ty));
+                        array
+                    };
                     Some((array, element, length, ty == Ty::String))
                 } else {
                     None
@@ -2796,7 +2804,40 @@ impl Cx {
                         file,
                         start.span(),
                     ));
-                    if let Some(length) = dynamic_length {
+                    if borrowed.is_some()
+                        && let Some(length) = dynamic_length
+                    {
+                        let limit = self.temp(body);
+                        if self
+                            .emit(body, &limit, Ty::Number, end, &mut setup)
+                            .is_none()
+                        {
+                            body.scopes.pop();
+                            body.temp_depth = depth;
+                            return;
+                        }
+                        setup.extend([
+                            op_at(
+                                pc::Action::ScoreOperation {
+                                    score: counter.clone(),
+                                    operator: pc::ScoreOperator::Max,
+                                    operand: pc::ScoreOperand::Value(0),
+                                },
+                                file,
+                                start.span(),
+                            ),
+                            op_at(
+                                pc::Action::ScoreOperation {
+                                    score: limit.clone(),
+                                    operator: pc::ScoreOperator::Min,
+                                    operand: pc::ScoreOperand::Field(length),
+                                },
+                                file,
+                                end.span(),
+                            ),
+                        ]);
+                        Value::Read(limit)
+                    } else if let Some(length) = dynamic_length {
                         Value::Read(length)
                     } else {
                         match self.simple(body, end, Ty::Number) {

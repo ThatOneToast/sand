@@ -3250,7 +3250,7 @@ impl Cx {
         Some(value)
     }
 
-    fn arg_bool(&mut self, file: FileId, arg: &Arg) -> Option<bool> {
+    pub(super) fn arg_bool(&mut self, file: FileId, arg: &Arg) -> Option<bool> {
         match &arg.value {
             ArgValue::Expr(Expr::Bool(value, _)) => Some(*value),
             other => {
@@ -4963,9 +4963,16 @@ impl Cx {
             },
             "kill" => pc::Action::Kill,
             "dismount" => pc::Action::Ride { vehicle: None },
-            "cancel_waits" => pc::Action::CancelWaits {
-                group: self.wait_group(file, bound.get("group").copied())?,
-            },
+            "cancel_waits" => {
+                let server = self.wait_is_server(file, bound.get("server").copied())?;
+                if !server {
+                    body.note_executor(span, "cancels waits owned by the executing entity".into());
+                }
+                pc::Action::CancelWaits {
+                    group: self.wait_group(file, bound.get("group").copied())?,
+                    server,
+                }
+            }
             "add_tag" | "remove_tag" => {
                 let (tag, _, tag_span) = self.arg_string(file, bound["tag"], "a tag name")?;
                 if !valid_tag(&tag) {

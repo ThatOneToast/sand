@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Revision-one State with typed score and storage fields and canonical ownership.",
+  "description": "Versioned State with typed score and storage fields and canonical ownership.",
   "properties": {
     "data_fields": {
       "description": "Typed storage-backed fields, initialized only when absent. Player and\nentity values are keyed by UUID through the canonical State lifecycle.",
@@ -21,8 +21,15 @@
       "description": "Namespaced State identity.",
       "type": "string"
     },
+    "migrations": {
+      "description": "Internal, synchronous transformation functions. The first upgrades\nrevision 1 to 2. Each subsequent function upgrades the next revision.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "revision": {
-      "description": "State schema revision, currently 1; distinct from protocol revision.",
+      "description": "State schema revision. A new owner starts at this revision.",
       "format": "uint32",
       "minimum": 0,
       "type": "integer"

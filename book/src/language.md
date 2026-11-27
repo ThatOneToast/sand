@@ -1275,6 +1275,38 @@ in State, copied, and passed to functions.
 The [checkpoints example](../../examples/lang_checkpoints/) saves a position
 per player and uses a typed cooldown for returning to it.
 
+### State migrations
+
+Add a migration when a new pack version needs to transform saved State.
+Keep old fields in the declaration during the upgrade so the migration can
+read them using their original names and types.
+
+```rust,ignore
+#[migrate(upgrade_ledger)]
+player state Ledger {
+    coins: number,
+    credits: number,
+}
+
+fn upgrade_ledger() {
+    Ledger.credits = Ledger.coins * 2;
+}
+```
+
+Each `#[migrate(function)]` upgrades one revision, starting at revision 1.
+Keep migrations in order and append new ones. Sand initializes missing fields
+from their defaults, runs the pending transforms in order, and advances the
+owner's revision after each transform. Fresh State starts at the current
+revision. Global State upgrades on load, player State upgrades during
+initialization, and attached entity State upgrades when loaded for a tick or
+explicitly attached again.
+
+Use ordinary synchronous score and owned-value operations, conditionals,
+and local loops. A migration takes no arguments and returns no value. Keep
+the transform deterministic and use assignments that produce the same result
+if an interrupted upgrade is retried. Calls to other functions and gameplay
+side effects are outside migration bodies.
+
 ### Waiting within a function
 
 Use `wait(20)` or `wait(seconds = 1)` in a function body, conditional branch,
@@ -1319,8 +1351,28 @@ After a branch finishes, execution continues with the statements that follow
 it. A `return;` within a resumed branch ends that invocation. Use waits in
 functions with no return value or mutable borrowed receiver. A waiting loop keeps its current iteration, bounds or collection
 snapshot, and jump state. In an entity-selector loop, start delayed work by
-calling a function as each selected entity. See the
+calling a function as each selected entity or placing the wait directly in the
+loop body. Each selected executor gets its own saved values. The caller keeps
+running, and local writes by a resumed iteration stay within that iteration.
+See the
 [bakery example](../../examples/lang_waits/pack.sand).
+
+Use `wait(20, server = true)` in a server-context function to wait without an
+entity. Server waits count world ticks and resume in the server tick context.
+They keep local values, support nested waits, and share the 128-instance limit
+per wait site. Use `cancel_waits(server = true, group = "bakery")` to cancel
+server waits in a group. A reload clears pending server waits.
+
+A waiting function can deliver a computed result through a typed callback.
+Keep the work that needs the result in that callback. It runs as part of
+the resumed continuation.
+
+```rust,ignore
+fn compute_later(done: fn(number)) {
+    wait(20, server = true);
+    done(42);
+}
+```
 
 ## The world
 
@@ -2104,7 +2156,7 @@ command and State models as Rust. Today the language covers:
 
 | Area | Language | Rust-only for now |
 | --- | --- | --- |
-| State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, and impl methods | custom State migrations and derived values |
+| State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, impl methods, and ordered migrations | derived values and general lifecycle hooks |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and entity/player waits inside branches, statement matches and local loops | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads, authored advancement completion | broader advancement triggers, equipment changes, tracked transitions, event chains |

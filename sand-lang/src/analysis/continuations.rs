@@ -8,6 +8,7 @@ pub(super) struct WaitSite {
     ticks: pc::ScoreOperand,
     fields: Vec<pc::FieldReference>,
     group: Option<String>,
+    server: bool,
     span: Span,
 }
 
@@ -19,6 +20,7 @@ impl WaitSite {
                 fields: self.fields,
                 body,
                 group: self.group,
+                server: self.server,
             },
             file,
             self.span,
@@ -47,13 +49,13 @@ impl Cx {
         self.references_builtin(file, path.span, builtin);
         if body.owner.is_none()
             || body.wait_block_depth != body.block_ends.len()
-            || body.ret.is_some()
-            || body.receiver_out.is_some()
+            || (body.loops.is_empty() && (body.ret.is_some() || body.receiver_out.is_some()))
         {
             self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch, match arm, or local loop, with no return value or mutable borrowed receiver");
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
+        let server = self.wait_is_server(file, bound.get("server").copied())?;
         let group = self.wait_group(file, bound.get("group").copied())?;
         let (duration, scale) = match (bound.get("ticks"), bound.get("seconds")) {
             (Some(arg), None) => (*arg, 1),
@@ -123,7 +125,9 @@ impl Cx {
             }
             pc::ScoreOperand::Field(score)
         };
-        body.note_executor(span, "retains the executing entity across a wait".into());
+        if !server {
+            body.note_executor(span, "retains the executing entity across a wait".into());
+        }
 
         // An outer binding hidden by a branch local becomes visible again
         // after the branch joins. A later declaration in the same scope
@@ -161,8 +165,16 @@ impl Cx {
             ticks,
             fields,
             group,
+            server,
             span,
         })
+    }
+
+    pub(super) fn wait_is_server(&mut self, file: FileId, arg: Option<&Arg>) -> Option<bool> {
+        match arg {
+            Some(arg) => self.arg_bool(file, arg),
+            None => Some(false),
+        }
     }
 
     pub(super) fn wait_group(
@@ -212,14 +224,12 @@ pub(super) fn may_suspend(operations: &[pc::Operation]) -> bool {
 /// Outline shared suffixes once. Reaching the end of either branch calls its
 /// suffix, and suspending retains the suffix call for the resumed path.
 pub(super) fn join_wait_paths(function: &mut pc::Function) -> Vec<pc::Function> {
-    if !may_suspend(&function.body) {
-        return Vec::new();
-    }
     let mut joins = WaitJoins {
         id: &function.id,
         context: function.context,
         functions: Vec::new(),
     };
+    joins.rewrite_selectors(&mut function.body);
     joins.rewrite(&mut function.body, None);
     joins.functions
 }
@@ -231,6 +241,39 @@ struct WaitJoins<'a> {
 }
 
 impl WaitJoins<'_> {
+    fn rewrite_selectors(&mut self, operations: &mut [pc::Operation]) {
+        for operation in operations {
+            let (body, context) = match &mut operation.action {
+                pc::Action::Players { body } => (body, pc::ExecutionContext::Player),
+                pc::Action::Entities { body, .. } => (body, pc::ExecutionContext::Entity),
+                pc::Action::WithEntity { body, players, .. } => {
+                    let context = if *players {
+                        pc::ExecutionContext::Player
+                    } else {
+                        pc::ExecutionContext::Entity
+                    };
+                    (body, context)
+                }
+                pc::Action::Suspend { body, .. } | pc::Action::While { body, .. } => {
+                    self.rewrite_selectors(body);
+                    continue;
+                }
+                pc::Action::Branch {
+                    then, otherwise, ..
+                } => {
+                    self.rewrite_selectors(then);
+                    self.rewrite_selectors(otherwise);
+                    continue;
+                }
+                _ => continue,
+            };
+            let outer = std::mem::replace(&mut self.context, context);
+            self.rewrite_selectors(body);
+            self.rewrite(body, None);
+            self.context = outer;
+        }
+    }
+
     fn rewrite(&mut self, operations: &mut Vec<pc::Operation>, fallthrough: Option<pc::Operation>) {
         if !may_suspend(operations) {
             if !matches!(

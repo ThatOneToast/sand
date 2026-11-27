@@ -55,10 +55,6 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
             "fn eager() -> number { wait(1); return 2; }",
             "no return value",
         ),
-        (
-            "fn eager() { for p in players() { wait(1); } }",
-            "directly in a function body",
-        ),
         ("fn eager() { wait(0); }", "expected a value from 1"),
         ("fn eager(n: string) { wait(n); }", "mismatched types"),
         ("#[load] fn eager() { wait(1); }", "on the server"),
@@ -70,6 +66,79 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
             "{body}: {diagnostics:?}"
         );
     }
+}
+
+#[test]
+fn selector_waits_keep_their_executor_and_do_not_suspend_the_caller() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+player state Journal { score: number }
+global state World { finished: bool }
+fn run(delay: number) -> number {
+    for player in players() {
+        if delay > 0 { wait(delay); }
+        Journal.score += delay;
+    }
+    World.finished = true;
+    return delay;
+}
+"#,
+    );
+    compile(&analysis);
+    let functions = &analysis.program.unwrap().modules[0].functions;
+    let run = functions.iter().find(|f| f.id.path() == "run").unwrap();
+    assert_eq!(
+        run.context,
+        sand::advanced::compiler::ExecutionContext::Server
+    );
+    assert!(matches!(
+        run.body[0].action,
+        sand::advanced::compiler::Action::Players { .. }
+    ));
+    assert!(functions.iter().any(|f| f.id.path().starts_with("__wait/")
+        && f.context == sand::advanced::compiler::ExecutionContext::Player));
+}
+
+#[test]
+fn server_waits_compile_without_a_player_and_keep_cancellation_separate() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+global state World { visits: number }
+fn run(delay: number) {
+    wait(ticks = delay, server = true, group = "server");
+    World.visits += delay;
+}
+fn clear() { cancel_waits(server = true, group = "server"); }
+"#,
+    );
+    let pack = compile(&analysis);
+    let tick = function(&pack, "wait_probe/function/__sand_lifecycle_tick");
+    assert!(tick.contains(".draining set from storage"));
+    assert!(tick.contains("server_wait_drain"));
+    let clear = function(
+        &pack,
+        "wait_probe/function/__sand_program/cancel_server_waits/server",
+    );
+    assert!(clear.contains("{pending:[],draining:[]}"));
+
+    let invalid = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe")]
+#[player]
+fn run() { wait(1, server = true); }
+"#,
+    );
+    let errors = invalid
+        .compile()
+        .err()
+        .expect("server wait allowed in a player frame");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.contains("must run in server context"))
+    );
 }
 
 #[test]

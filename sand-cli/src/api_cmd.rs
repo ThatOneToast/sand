@@ -4562,7 +4562,7 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 1118);
+        assert_eq!(entries.len(), 1121);
         for member in [
             "CaptureEntity",
             "CaptureEntity::relation",
@@ -4571,8 +4571,10 @@ mod tests {
             "Ride",
             "Suspend",
             "Suspend::group",
+            "Suspend::server",
             "CancelWaits",
             "CancelWaits::group",
+            "CancelWaits::server",
         ] {
             assert!(
                 show(
@@ -4582,6 +4584,7 @@ mod tests {
                 .is_ok()
             );
         }
+        assert!(show(catalog, "sand::advanced::compiler::State::migrations").is_ok());
         assert!(
             show(
                 catalog,

@@ -52,6 +52,7 @@ fn counter() -> Program {
                 id: "demo:counter".parse().unwrap(),
                 scope: "player".into(),
                 revision: 1,
+                migrations: Vec::new(),
                 fields: vec![ScoreField {
                     name: "value".into(),
                     default: 0,

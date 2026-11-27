@@ -131,13 +131,14 @@ pub(super) fn validate(
                 ));
             }
             if !matches!(state.scope.as_str(), "player" | "entity" | "global")
-                || state.revision != 1
+                || state.migrations.len() > 32
+                || state.revision as usize != state.migrations.len() + 1
             {
                 errors.push(Diagnostic::error(
                     "SAND_PROGRAM_STATE",
                     &owner,
                     &ptr,
-                    "v1 requires player, entity, or global State revision 1",
+                    "State requires player, entity, or global scope and one consecutive migration per revision after 1 (up to 32 migrations)",
                 ));
             }
             let mut fields = BTreeSet::new();
@@ -377,8 +378,41 @@ pub(super) fn validate(
         raw: program.requires.iter().any(|v| v == "raw_commands"),
         errors: &mut errors,
     };
+    let migration_functions: BTreeMap<_, _> = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.functions)
+        .map(|function| (function.id.to_string(), function))
+        .collect();
     for module in &program.modules {
         let owner = module.id.to_string();
+        for (index, state) in module.states.iter().enumerate() {
+            let context = match state.scope.as_str() {
+                "player" => ExecutionContext::Player,
+                "entity" => ExecutionContext::Entity,
+                _ => ExecutionContext::Server,
+            };
+            for (step, id) in state.migrations.iter().enumerate() {
+                let ptr = format!("/states/{index}/migrations/{step}");
+                validator.call(
+                    &FunctionReference::Internal { id: id.clone() },
+                    context,
+                    &owner,
+                    &ptr,
+                );
+                if migration_functions
+                    .get(&id.to_string())
+                    .is_some_and(|function| !is_state_migration(&function.body))
+                {
+                    validator.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_STATE",
+                        &owner,
+                        &ptr,
+                        "a State migration may only transform values synchronously without calling other functions or changing executor",
+                    ));
+                }
+            }
+        }
         for (index, flow) in module.flows.iter().enumerate() {
             let ptr = format!("/flows/{index}");
             if !validator.reserve_flow_expansion(flow, &owner, &ptr) {
@@ -1883,6 +1917,32 @@ fn static_text_error(text: &[TextPart], book_pages: Option<usize>) -> Option<Str
     })
 }
 
+fn is_state_migration(operations: &[Operation]) -> bool {
+    let mut pending = vec![operations];
+    while let Some(operations) = pending.pop() {
+        for operation in operations {
+            match &operation.action {
+                Action::Branch {
+                    then, otherwise, ..
+                } => {
+                    pending.extend([then.as_slice(), otherwise.as_slice()]);
+                }
+                Action::While { body, .. } => pending.push(body),
+                Action::ScoreSet { .. }
+                | Action::ScoreAdd { .. }
+                | Action::ScoreOperation { .. }
+                | Action::DataModify { .. }
+                | Action::DataRemove { .. }
+                | Action::DataRead { .. }
+                | Action::DataEqual { .. }
+                | Action::Return => {}
+                _ => return false,
+            }
+        }
+    }
+    true
+}
+
 struct Validator<'a, 'e> {
     dialogs_supported: bool,
     advancements: BTreeMap<String, BTreeSet<String>>,
@@ -3219,8 +3279,18 @@ impl Validator<'_, '_> {
                     fields,
                     body,
                     group,
+                    server,
                 } => {
-                    self.executor(context, owner, &ptr, "suspending a function");
+                    if !server {
+                        self.executor(context, owner, &ptr, "suspending a function");
+                    } else if context != ExecutionContext::Server {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_CONTEXT",
+                            owner,
+                            &ptr,
+                            "a server wait must run in server context",
+                        ));
+                    }
                     self.wait_group(group.as_deref(), owner, &ptr);
                     match ticks {
                         ScoreOperand::Field(score) => {
@@ -3259,8 +3329,10 @@ impl Validator<'_, '_> {
                         depth + 1,
                     );
                 }
-                Action::CancelWaits { group } => {
-                    self.executor(context, owner, &ptr, "cancelling a wait");
+                Action::CancelWaits { group, server } => {
+                    if !server {
+                        self.executor(context, owner, &ptr, "cancelling a wait");
+                    }
                     self.wait_group(group.as_deref(), owner, &ptr);
                 }
                 Action::While { condition, body } => {

@@ -1,6 +1,8 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
 mod continuations;
 mod data;
+mod migrations;
+mod server_waits;
 
 use super::{CommandSource, diagnostic::Diagnostic, limits, model::*};
 use crate::compiler::export::{
@@ -124,6 +126,7 @@ pub(super) fn lower(
         records: Vec::new(),
         sources,
         continuations: Vec::new(),
+        server_waits: Vec::new(),
         dimensions,
         continuation_count: 0,
         wait_cancellations: BTreeSet::new(),
@@ -147,21 +150,13 @@ pub(super) fn lower(
             .iter()
             .map(|state| (state.id.to_string(), (*state).clone()))
             .collect(),
-        entity_states: states
-            .iter()
-            .filter(|state| state.scope == "entity")
-            .map(|state| {
-                (
-                    state.id.to_string(),
-                    state
-                        .fields
-                        .iter()
-                        .map(|field| (field.name.clone(), field.default))
-                        .collect(),
-                )
-            })
-            .collect(),
     };
+    lower.register_state_migrations(program, &mut automatic)?;
+    let migration_ids: BTreeSet<_> = states
+        .iter()
+        .flat_map(|state| &state.migrations)
+        .map(ToString::to_string)
+        .collect();
     for progression in program
         .modules
         .iter()
@@ -268,7 +263,9 @@ pub(super) fn lower(
                 &owner,
                 &format!("/functions/{index}"),
             )?;
-            entries.insert(function.id.to_string(), function.context);
+            if !migration_ids.contains(&function.id.to_string()) {
+                entries.insert(function.id.to_string(), function.context);
+            }
         }
         for (phase, body, output) in [
             ("load", &module.load, &mut load),
@@ -318,20 +315,31 @@ pub(super) fn lower(
     }
     if !lower.constants.is_empty() {
         let objective = constants_objective(&program.pack.namespace);
-        event_load.push((
-            event_owner.clone(),
-            event_load.len(),
-            format!("scoreboard objectives add {objective} dummy"),
-        ));
-        for value in lower.constants.clone() {
-            event_load.push((
-                event_owner.clone(),
-                event_load.len(),
+        let declaration = format!("scoreboard objectives add {objective} dummy");
+        let constants = std::mem::take(&mut lower.constants)
+            .into_iter()
+            .map(|value| {
                 format!(
                     "scoreboard players set {} {objective} {value}",
                     constant_holder(value)
-                ),
-            ));
+                )
+            });
+        if states
+            .iter()
+            .any(|state| state.scope == "global" && !state.migrations.is_empty())
+        {
+            // Migration functions run during global initialization and may
+            // use constant operands even on the first load of a new pack.
+            automatic.load_commands.push(declaration);
+            automatic.provision_commands.extend(constants);
+        } else {
+            let first = event_load.len();
+            event_load.extend(
+                std::iter::once(declaration)
+                    .chain(constants)
+                    .enumerate()
+                    .map(|(index, line)| (event_owner.clone(), first + index, line)),
+            );
         }
     }
     for module in &program.modules {
@@ -379,7 +387,7 @@ pub(super) fn lower(
         requested_version: target.resolved_name(),
         is_fallback: target.is_fallback(),
     };
-    lower.register_continuations(&ctx, &mut load, &mut tick)?;
+    lower.register_continuations(&ctx, &mut automatic, &mut load, &mut tick)?;
     for module in &program.modules {
         use crate::registration::IntoDatapack;
         let module_id = module.id.to_string();
@@ -1613,7 +1621,10 @@ fn state_objective(state: &str, suffix: &str) -> String {
         .to_owned()
 }
 
-fn query_selector(query: &EntityQuery) -> Result<sand_commands::Selector, String> {
+fn query_selector(
+    query: &EntityQuery,
+    states: &BTreeMap<String, State>,
+) -> Result<sand_commands::Selector, String> {
     let mut selector = sand_commands::Selector::all_entities();
     if let Some(entity_type) = &query.entity_type {
         selector = selector.entity_type_raw(entity_type.clone());
@@ -1622,11 +1633,10 @@ fn query_selector(query: &EntityQuery) -> Result<sand_commands::Selector, String
         selector = selector.tag(tag.clone());
     }
     if let Some(state) = &query.with_state {
-        // Attached at revision 1, as `has_state` tests.
         selector = selector
             .score_typed(
                 sand_commands::ObjectiveName::logical(format!("{state}.presence")),
-                sand_commands::ScoreRange::exact(1),
+                sand_commands::ScoreRange::exact(states[&state.to_string()].revision as i32),
             )
             .map_err(|error| error.to_string())?;
     }
@@ -1718,9 +1728,10 @@ struct Lower<'sources> {
     records: Vec<ComponentRecord>,
     sources: Option<&'sources mut BTreeMap<String, Vec<CommandSource>>>,
     continuations: Vec<continuations::Continuation>,
+    server_waits: Vec<server_waits::ServerWait>,
     dimensions: Vec<sand_components::DimensionId>,
     continuation_count: usize,
-    wait_cancellations: BTreeSet<Option<String>>,
+    wait_cancellations: BTreeSet<(bool, Option<String>)>,
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
@@ -1742,8 +1753,6 @@ struct Lower<'sources> {
     flags: std::collections::BTreeSet<EntityFlag>,
     /// Owned backing storage for canonical data-field descriptors.
     data_states: BTreeMap<String, State>,
-    /// Entity States by id, with their field defaults.
-    entity_states: BTreeMap<String, Vec<(String, i32)>>,
 }
 fn whole_amount(operand: &ScoreOperand) -> Amount {
     match operand {
@@ -2482,7 +2491,7 @@ impl Lower<'_> {
     ) -> Result<sand_commands::ConditionIr, String> {
         Ok(match condition {
             Condition::Exists(test) => {
-                sand_commands::ConditionIr::Entity(query_selector(&test.exists)?)
+                sand_commands::ConditionIr::Entity(query_selector(&test.exists, &self.data_states)?)
             }
             Condition::Block(test) => sand_commands::ConditionIr::Block {
                 position: block_position(test.at),
@@ -2535,7 +2544,10 @@ impl Lower<'_> {
             Condition::Attached(test) => sand_commands::ConditionIr::ScoreMatches {
                 holder: sand_commands::ScoreHolder::self_(),
                 objective: state_objective(&test.attached.to_string(), "presence"),
-                range: "1..1".into(),
+                range: {
+                    let revision = self.data_states[&test.attached.to_string()].revision;
+                    format!("{revision}..{revision}")
+                },
             },
             Condition::Range(range) => sand_commands::ConditionIr::ScoreMatches {
                 holder: self.holders[&range.score.state.to_string()].clone(),
@@ -3128,7 +3140,9 @@ impl Lower<'_> {
                     self.function(&id, lines, module, &ptr)?;
                     vec![Cmd::Execute {
                         operations: vec![
-                            sand_commands::ExecuteOp::As(query_selector(query).map_err(fail)?),
+                            sand_commands::ExecuteOp::As(
+                                query_selector(query, &self.data_states).map_err(fail)?,
+                            ),
                             sand_commands::ExecuteOp::At(sand_commands::Selector::self_()),
                         ],
                         run: Box::new(Cmd::Function(id)),
@@ -3229,7 +3243,7 @@ impl Lower<'_> {
                         query.sort = query.sort.or(Some(EntitySort::Nearest));
                         vec![Cmd::Raw(format!(
                             "tp @s {}",
-                            query_selector(&query).map_err(fail)?
+                            query_selector(&query, &self.data_states).map_err(fail)?
                         ))]
                     }
                 },
@@ -3237,37 +3251,16 @@ impl Lower<'_> {
                 // keep existing values, default the rest, then mark present.
                 Action::AttachState { state } => {
                     let id = state.to_string();
-                    let mut commands: Vec<Cmd> = self.entity_states[&id]
-                        .iter()
-                        .map(|(field, default)| {
-                            let objective = state_objective(&id, field);
-                            Cmd::Raw(format!(
-                                "execute unless score @s {objective} matches -2147483648.. run scoreboard players set @s {objective} {default}"
-                            ))
-                        })
-                        .collect();
-                    for field in &self.data_states[&id].data_fields {
-                        commands.extend(
-                            crate::state::owned::with_data_field(
-                                &self.data_states[&id],
-                                &field.name,
-                                crate::entity::state::state_data_initialize_commands,
-                            )
-                            .into_iter()
-                            .map(Cmd::Raw),
-                        );
-                    }
-                    let presence = state_objective(&id, "presence");
-                    commands.push(Cmd::Raw(format!(
-                        "execute unless score @s {presence} matches 1.. run scoreboard players set @s {presence} 1"
-                    )));
-                    commands
+                    self.attach_entity_state(&self.data_states[&id])
+                        .into_iter()
+                        .map(Cmd::Raw)
+                        .collect()
                 }
                 // Mirrors Rust's `state_detach_commands` with dirty tracking.
                 Action::DetachState { state } => {
                     let id = state.to_string();
                     let mut commands = Vec::new();
-                    for (field, _) in &self.entity_states[&id] {
+                    for field in self.data_states[&id].fields.iter().map(|field| &field.name) {
                         commands.push(Cmd::Raw(format!(
                             "scoreboard players reset @s {}",
                             state_objective(&id, field)
@@ -3540,16 +3533,20 @@ impl Lower<'_> {
                     fields,
                     body,
                     group,
+                    server,
                 } => self.suspend(
                     (owner, &path, module, &ptr),
                     ticks,
                     fields,
                     body,
                     group.as_deref(),
+                    *server,
                 )?,
-                Action::CancelWaits { group } => {
-                    self.wait_cancellations.insert(group.clone());
-                    vec![Cmd::Function(self.cancellation_function(group.as_deref()))]
+                Action::CancelWaits { group, server } => {
+                    self.wait_cancellations.insert((*server, group.clone()));
+                    vec![Cmd::Function(
+                        self.cancellation_function(*server, group.as_deref()),
+                    )]
                 }
                 Action::DataGet {
                     score,
@@ -3738,7 +3735,7 @@ impl Lower<'_> {
                     "execute store result score {} {} if entity {}",
                     self.holders[&score.state.to_string()],
                     objective(score),
-                    query_selector(query).map_err(fail)?
+                    query_selector(query, &self.data_states).map_err(fail)?
                 ))],
                 Action::While { condition, body } => {
                     let looped = helper(&self.namespace, &self.helper_keys[owner], &path, "loop");

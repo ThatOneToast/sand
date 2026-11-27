@@ -22,6 +22,7 @@ impl Lower<'_> {
         fields: &[FieldReference],
         body: &[Operation],
         group: Option<&str>,
+        server: bool,
     ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
         let (owner, path, module, pointer) = location;
         self.continuation_count += 1;
@@ -70,6 +71,17 @@ impl Lower<'_> {
         resume_body.push(Cmd::Function(continuation.clone()).render());
         resume_body.extend(pop.iter().map(Cmd::render));
         self.function(&resume, resume_body, module, pointer)?;
+
+        if server {
+            return self.suspend_server(
+                (owner, path, module, pointer),
+                &continuation,
+                &resume,
+                ticks,
+                push,
+                group,
+            );
+        }
 
         let store =
             format!("data modify entity @s data.sand_wait set from storage {storage} stack[-1]");
@@ -129,6 +141,7 @@ impl Lower<'_> {
     pub(super) fn register_continuations(
         &mut self,
         context: &ExportCtx<'_>,
+        automatic: &mut crate::state::registry::AutomaticLifecycle,
         load: &mut Vec<LifecycleCommand>,
         tick: &mut Vec<LifecycleCommand>,
     ) -> Result<(), Vec<Diagnostic>> {
@@ -154,24 +167,30 @@ impl Lower<'_> {
                 tick,
             )?;
             let commands = identity::call(&id, "cancel");
-            if let Some(all) = cancellation.get_mut(&None) {
+            if let Some(all) = cancellation.get_mut(&(false, None)) {
                 all.extend(commands.0.iter().map(Cmd::render));
             }
             if group.is_some()
-                && let Some(matching) = cancellation.get_mut(&group)
+                && let Some(matching) = cancellation.get_mut(&(false, group))
             {
                 matching.extend(commands.0.iter().map(Cmd::render));
             }
         }
-        for (group, commands) in cancellation {
-            let id = self.cancellation_function(group.as_deref());
+        self.register_server_waits(automatic, &mut cancellation)?;
+        for ((server, group), commands) in cancellation {
+            let id = self.cancellation_function(server, group.as_deref());
             self.function(&id, commands, "", "")?;
         }
         Ok(())
     }
 
-    pub(super) fn cancellation_function(&self, group: Option<&str>) -> String {
-        let base = format!("{}:__sand_program/cancel_waits", self.namespace);
+    pub(super) fn cancellation_function(&self, server: bool, group: Option<&str>) -> String {
+        let scope = if server {
+            "cancel_server_waits"
+        } else {
+            "cancel_waits"
+        };
+        let base = format!("{}:__sand_program/{scope}", self.namespace);
         match group {
             Some(group) => format!("{base}/{group}"),
             None => base,

@@ -69,6 +69,7 @@ impl TryFrom<StateDescriptor<'_>> for State {
                 .map_err(|error| format!("invalid State ID: {error}"))?,
             scope: scope.into(),
             revision: 1,
+            migrations: Vec::new(),
             fields: descriptor
                 .fields
                 .iter()
@@ -291,7 +292,7 @@ pub(crate) fn with_descriptors<R>(
             |(((state, (id, holder, presence, suppression, _)), fields), data_fields)| {
                 StateDescriptor::new(
                     id,
-                    1,
+                    state.revision,
                     match state.scope.as_str() {
                         "player" => StateScope::Player,
                         "entity" => StateScope::Entity,
@@ -320,6 +321,7 @@ mod tests {
                 id: "demo:notes".parse().unwrap(),
                 scope: scope.into(),
                 revision: 1,
+                migrations: Vec::new(),
                 fields: Vec::new(),
                 data_fields: vec![crate::compiler::program::model::DataField {
                     name: "text".into(),
@@ -393,6 +395,7 @@ mod tests {
             id: "demo:pair".parse().unwrap(),
             scope: "player".into(),
             revision: 1,
+            migrations: Vec::new(),
             fields: vec![
                 ScoreField {
                     name: "first".into(),
@@ -431,6 +434,7 @@ mod tests {
             id: "demo:counter".parse().unwrap(),
             scope: "player".into(),
             revision: 1,
+            migrations: Vec::new(),
             fields: vec![ScoreField {
                 name: "value".to_owned(),
                 default: 0,
@@ -463,6 +467,7 @@ mod tests {
             id: "demo:counter".parse().unwrap(),
             scope: "player".into(),
             revision: 1,
+            migrations: Vec::new(),
             fields: vec![ScoreField {
                 name: "value".to_owned(),
                 default: 0,

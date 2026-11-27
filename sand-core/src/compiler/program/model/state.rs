@@ -3,18 +3,18 @@ use sand_components::ResourceLocation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Revision-one State with typed score and storage fields and canonical ownership.
+/// Versioned State with typed score and storage fields and canonical ownership.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::State", module = "sand::advanced::compiler",
- summary = "Revision-one State with typed score and storage fields and canonical ownership.",
+ summary = "Versioned State with typed score and storage fields and canonical ownership.",
  context = "Owned portable gameplay definitions and diagnostics shared by Rust construction and strict JSON decoding.",
  minecraft = "Validates explicit targets and emits deterministic datapack resources through canonical State and command lowering.",
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(id = "Id for this portable definition.", scope = "Scope for this portable definition.", revision = "Revision for this portable definition.", fields = "Fields for this portable definition.", data_fields = "Typed storage-backed fields with the same State ownership."),
+ fields(id = "Id for this portable definition.", scope = "Scope for this portable definition.", revision = "Revision for this portable definition.", fields = "Fields for this portable definition.", data_fields = "Typed storage-backed fields with the same State ownership.", migrations = "Internal functions transforming stored values in ascending revision order."),
 )]
 pub struct State {
     /// Namespaced State identity.
@@ -23,7 +23,7 @@ pub struct State {
     /// `player` stores independent values per player; `global` stores one shared
     /// value per State field and initializes it during load without an executor.
     pub scope: String,
-    /// State schema revision, currently 1; distinct from protocol revision.
+    /// State schema revision. A new owner starts at this revision.
     pub revision: u32,
     /// Named integer score fields.
     pub fields: Vec<ScoreField>,
@@ -31,6 +31,11 @@ pub struct State {
     /// entity values are keyed by UUID through the canonical State lifecycle.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub data_fields: Vec<DataField>,
+    /// Internal, synchronous transformation functions. The first upgrades
+    /// revision 1 to 2. Each subsequent function upgrades the next revision.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(with = "Vec<String>")]
+    pub migrations: Vec<ResourceLocation>,
 }
 
 /// A component-owned storage value with a typed NBT default.

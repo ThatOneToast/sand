@@ -253,7 +253,6 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Match guards for statement and value forms, with ordered fallthrough.
 - [x] Arm-local match bindings and nested record and array destructuring.
 - [x] Scoped block expressions with tail values, including value match arms.
-- [ ] Enum payloads.
 - [x] Bundled generic maps and sets with owned values, whole-record and array
   equality, an offline installer, and vanilla capacity and persistence checks.
 - [x] Read-only and mutable struct receivers, with write-back on early return and
@@ -295,7 +294,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   per-invocation locals.
 - [x] Waits inside statement match arms with guards, alternatives, and captures.
 - [x] Waits inside local loops retain iteration, collection and jump state.
-- [ ] Server continuations and waits inside executor-selection loops.
+- [x] Server-owned continuations and independent waits inside executor-selection loops.
+- [x] Ordered State migrations for global, player, and entity State.
+- [ ] Calls that suspend and resume their callers with return values or mutable receiver updates.
 - [x] Dimension checks and scoped calls, and block cloning with mask, filter,
   overlap, and move modes.
 - [x] Biome predicates validated against the target version’s shared catalog.

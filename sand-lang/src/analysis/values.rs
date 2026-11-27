@@ -730,7 +730,7 @@ impl Cx {
         }
         self.handle_scopes
             .push((body.file, block.span, binding.name.clone(), players));
-        let inner = self.lower_block(body, block);
+        let inner = self.lower_selector_block(body, block);
         if players {
             body.player_loops -= 1;
         }

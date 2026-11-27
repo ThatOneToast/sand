@@ -514,7 +514,7 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     // owned NBT text and the text constructor add 44 contracted source items.
     // Related capture, source locations, mounting, waits, and world operations add 43 items.
     // Named wait cancellation adds two fields to the portable actions.
-    assert_eq!(declarations.len(), 5_793);
+    assert_eq!(declarations.len(), 5_796);
     for path in [
         "sand::advanced::compiler::DataField",
         "sand::advanced::compiler::DataReference",
@@ -529,8 +529,11 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         "sand::advanced::compiler::Action::Ride",
         "sand::advanced::compiler::Action::Suspend",
         "sand::advanced::compiler::Action::Suspend::group",
+        "sand::advanced::compiler::Action::Suspend::server",
         "sand::advanced::compiler::Action::CancelWaits",
         "sand::advanced::compiler::Action::CancelWaits::group",
+        "sand::advanced::compiler::Action::CancelWaits::server",
+        "sand::advanced::compiler::State::migrations",
         "sand::advanced::compiler::Compiler::compile_with_command_sources",
         "sand::advanced::compiler::TextPart::Stored",
         "sand::text::TextComponent::nbt",

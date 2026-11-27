@@ -2050,6 +2050,9 @@ impl Cx {
                     continue;
                 };
                 for attr in &item.attrs {
+                    if attr.name() == "migrate" {
+                        continue;
+                    }
                     self.error(
                         "attribute",
                         file,
@@ -2647,6 +2650,7 @@ impl Cx {
                 id,
                 scope: "global".into(),
                 revision: 1,
+                migrations: Vec::new(),
                 fields: self
                     .local_fields
                     .iter()
@@ -3282,6 +3286,7 @@ impl Cx {
                         );
                         continue;
                     };
+                    let migrations = self.state_migrations(module, file, &item);
                     out.states.push(pc::State {
                         data_fields,
                         id: state_id,
@@ -3290,7 +3295,8 @@ impl Cx {
                             Scope::Global => "global".into(),
                             Scope::Entity => "entity".into(),
                         },
-                        revision: 1,
+                        revision: migrations.len() as u32 + 1,
+                        migrations,
                         fields: score_fields,
                     });
                 }
@@ -4250,6 +4256,59 @@ impl Cx {
         })
     }
 
+    fn state_migrations(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        item: &Item,
+    ) -> Vec<sand::ResourceLocation> {
+        let mut migrations = Vec::new();
+        for attr in item.attrs.iter().filter(|attr| attr.name() == "migrate") {
+            let [
+                AttrArg {
+                    key: None,
+                    value: AttrValue::Expr(Expr::Path(path)),
+                    ..
+                },
+            ] = attr.args.as_slice()
+            else {
+                self.error(
+                    "migration",
+                    file,
+                    attr.span,
+                    "expected `#[migrate(function_name)]`",
+                );
+                continue;
+            };
+            let Some(def) = self.expect_path(
+                module,
+                path,
+                &[DefKind::Function],
+                "an internal migration function",
+            ) else {
+                continue;
+            };
+            if !self
+                .fn_slots
+                .get(&def)
+                .is_some_and(|slots| slots.params.is_empty() && slots.ret.is_none())
+                || self.test_functions.contains(&def)
+            {
+                self.error(
+                    "migration",
+                    file,
+                    path.span,
+                    "a migration needs a non-generic function with no parameters or return value",
+                );
+                continue;
+            }
+            if let Some(pc::FunctionReference::Internal { id }) = self.function_reference(def) {
+                migrations.push(id);
+            }
+        }
+        migrations
+    }
+
     fn function_reference(&self, def: DefId) -> Option<pc::FunctionReference> {
         match &self.defs[def.0].info {
             DefInfo::Function { id, .. } => Some(pc::FunctionReference::Internal {
@@ -4583,7 +4642,9 @@ impl Cx {
                 if kind == LoopKind::Players {
                     body.player_loops += 1;
                 }
-                let inner = self.lower_block(body, block);
+                // The selector body is a separate invocation for each selected
+                // executor, so its continuation never owns the outer suffix.
+                let inner = self.lower_selector_block(body, block);
                 if kind == LoopKind::Players {
                     body.player_loops -= 1;
                 }
@@ -4655,6 +4716,13 @@ impl Cx {
             span,
         ));
         Some(operations)
+    }
+
+    fn lower_selector_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {
+        let saved = std::mem::replace(&mut body.wait_block_depth, body.block_ends.len() + 1);
+        let operations = self.lower_block(body, block);
+        body.wait_block_depth = saved;
+        operations
     }
 
     fn lower_waitable_block(&mut self, body: &mut BodyCx, block: &Block) -> Vec<pc::Operation> {

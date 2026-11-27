@@ -442,6 +442,63 @@ fn choose(mode: number) {
 }
 
 #[test]
+fn branching_paths_keep_one_wait_site_for_each_authored_call() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+player state Ledger { sum: number }
+fn delayed() -> number { wait(1); return 1; }
+fn delayed_test() -> bool { wait(1); return true; }
+fn choose(mode: number) {
+    if mode == 1 || mode == 2 || mode == 3 { Ledger.sum += delayed(); }
+    match mode {
+        1 | 2 | 3 => { Ledger.sum += delayed(); },
+        _ => {},
+    }
+}
+fn check(mode: number) {
+    if (mode == 1 || mode == 2) && delayed_test() { Ledger.sum += 1; }
+}
+fn select(mode: number) {
+    if mode == 1 || mode == 2 || mode == 3 {
+        for player in players() { wait(1); Ledger.sum += 1; }
+    }
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    assert_eq!(
+        pack.resources
+            .keys()
+            .filter(|name| name.ends_with("/continuation.mcfunction"))
+            .count(),
+        6,
+    );
+}
+
+#[test]
+fn a_wide_match_does_not_exhaust_the_wait_site_budget() {
+    let alternatives = (1..=80)
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let analysis = analyze_one(&format!(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+global state Ledger {{ sum: number }}
+fn delayed() -> number {{ wait(1, server = true); return 1; }}
+fn choose(mode: number) {{
+    match mode {{
+        {alternatives} => {{ Ledger.sum += delayed(); }},
+        _ => {{}},
+    }}
+}}
+"#
+    ));
+    compile(&analysis);
+}
+
+#[test]
 fn local_loops_outline_resumable_steps_and_preserve_collection_snapshots() {
     let analysis = analyze_one(
         r#"

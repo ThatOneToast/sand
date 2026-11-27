@@ -8,6 +8,8 @@ global state Journal {
     selected: number,
     finished: number,
     cancelled: bool,
+    branches: number,
+    tested_condition: number,
 }
 
 struct Counter { value: number }
@@ -61,15 +63,38 @@ fn entity_result(value: number) -> number {
     return value * 2;
 }
 
+fn test_condition() -> bool {
+    Journal.tested_condition += 1;
+    return false;
+}
+
+fn late_condition() -> bool {
+    wait(2, server = true);
+    return true;
+}
+
+fn branches(mode: number) {
+    if mode == 1 || test_condition() { Journal.branches += later(2, 1); }
+    match mode {
+        1 | 2 | 3 => { Journal.branches += later(3, 2); },
+        _ => {},
+    }
+    if (mode == 1 || mode == 2) && late_condition() { Journal.branches += 1; }
+}
+
 pub fn run() {
     Journal.first = 0;
     Journal.second = 0;
     Journal.selected = 0;
     Journal.finished = 0;
     Journal.cancelled = false;
+    Journal.branches = 0;
+    Journal.tested_condition = 0;
     let immediate = later(0, 9) + later(-1, 3);
     calculate(0, 3, 5, "first");
     calculate(1, 1, 8, "second");
+    branches(1);
+    branches(2);
     discard();
     cancel_waits(server = true, group = "discard");
     summon(Entity::Marker, tag = "wait_probe_owner");
@@ -84,6 +109,7 @@ pub fn run() {
     for entity in entities(type = Entity::Marker, tag = "wait_probe_owner") { kill(); }
     if Journal.first == 41 && Journal.second == 80
         && Journal.first_label == "first" && Journal.second_label == "second"
+        && Journal.branches == 12 && Journal.tested_condition == 1
         && Journal.selected == 12 && Journal.finished == 1 && !Journal.cancelled {
         raw!("say __SAND_LANGUAGE_OK__");
     } else {

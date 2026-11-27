@@ -4676,7 +4676,14 @@ impl Cx {
         otherwise: Vec<pc::Operation>,
         span: Span,
     ) -> Option<Vec<pc::Operation>> {
-        if !continuations::may_suspend(&then) && !continuations::may_suspend(&otherwise) {
+        let mut root = condition;
+        while let Cond::Not(inner, _) = root {
+            root = inner;
+        }
+        if !matches!(root, Cond::And(..) | Cond::Or(..))
+            || (!continuations::contains_wait_site(&then)
+                && !continuations::contains_wait_site(&otherwise))
+        {
             return self.lower_cond(body, condition, then, otherwise);
         }
         // Evaluate short-circuit conditions once and put each suspending arm
@@ -4748,11 +4755,11 @@ impl Cx {
             Cond::Not(inner, _) => self.lower_cond(body, inner, otherwise, then),
             Cond::And(a, b) => {
                 let inner = self.lower_cond(body, b, then, otherwise.clone())?;
-                self.lower_cond(body, a, inner, otherwise)
+                self.lower_branch_condition(body, a, inner, otherwise, cond.span())
             }
             Cond::Or(a, b) => {
                 let inner = self.lower_cond(body, b, then.clone(), otherwise)?;
-                self.lower_cond(body, a, then, inner)
+                self.lower_branch_condition(body, a, then, inner, cond.span())
             }
             Cond::Value(expr) => {
                 let span = expr.span();

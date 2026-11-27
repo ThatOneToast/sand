@@ -2336,7 +2336,7 @@ impl Cx {
             let branch = arm.body;
             let selected = if arm.catch_all {
                 branch
-            } else if arm.values.len() > 1 && continuations::may_suspend(&branch) {
+            } else if arm.values.len() > 1 && continuations::contains_wait_site(&branch) {
                 self.match_wait_alternatives(body, snapshot, arm.values, branch, arm_span)
             } else {
                 arm.values

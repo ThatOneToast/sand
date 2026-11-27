@@ -393,10 +393,22 @@ impl Cx {
     }
 }
 
-/// Whether an explicit wait can suspend this frame. Executor-changing bodies
-/// have independent continuations.
-pub(super) fn may_suspend(operations: &[pc::Operation]) -> bool {
-    frame_suspends(operations, &|_| false)
+/// Whether copying these operations could duplicate a wait site.
+/// Executor-changing bodies have independent continuations, but their
+/// waits still count toward the same pack limit.
+pub(super) fn contains_wait_site(operations: &[pc::Operation]) -> bool {
+    operations.iter().any(|operation| match &operation.action {
+        pc::Action::Suspend { .. } => true,
+        pc::Action::Branch {
+            then, otherwise, ..
+        } => contains_wait_site(then) || contains_wait_site(otherwise),
+        pc::Action::While { body, .. }
+        | pc::Action::Players { body }
+        | pc::Action::Entities { body, .. }
+        | pc::Action::WithEntity { body, .. }
+        | pc::Action::InDimension { body, .. } => contains_wait_site(body),
+        _ => call_marker(&operation.action).is_some(),
+    })
 }
 
 fn frame_suspends(operations: &[pc::Operation], composed: &impl Fn(usize) -> bool) -> bool {

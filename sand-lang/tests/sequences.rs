@@ -69,6 +69,8 @@ fn vectors_reject_invalid_types_and_scalar_operators() {
         "fn f() { let mut a: Vec<number>; let b = a.clear(); }",
         "fn f() { let mut a: Vec<number>; a.push(0..2); }",
         "fn f() { let a: Vec<number>; let b = a[0.5]; }",
+        "fn f() { let a: Vec<number>; let b = a.slice(false, 2); }",
+        "fn f() { let a: Vec<number>; let b: Vec<string> = a.slice(0, 2); }",
         "player state S { values: Vec<number> } impl S { fn bad(&self) { self.values.push(1); } }",
     ] {
         assert!(

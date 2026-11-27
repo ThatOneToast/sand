@@ -6,6 +6,74 @@ use sand::data::{NbtCompound, NbtValue};
 pub(super) const LIST_LIMIT: usize = 1024;
 
 impl Cx {
+    /// Copy a clamped half-open range of packed sequence elements. Its source and bounds are already
+    /// evaluated, and no user code runs during the copy.
+    pub(super) fn copy_sequence_range(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        source: &pc::FieldReference,
+        bounds: (&pc::FieldReference, &pc::FieldReference),
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let (start, end) = bounds;
+        let file = body.file;
+        let at = |action| op_at(action, file, span);
+        self.register_data_slot(dest, NbtValue::List(Vec::new()));
+        let counter = self.temp(body);
+        let limit = self.temp(body);
+        let length = self.temp(body);
+        ops.push(at(pc::Action::DataRead {
+            score: length.clone(),
+            source: Self::data_reference(source),
+        }));
+        ops.push(at(pc::Action::ScoreOperation {
+            score: counter.clone(),
+            operator: pc::ScoreOperator::Set,
+            operand: pc::ScoreOperand::Field(start.clone()),
+        }));
+        ops.push(at(pc::Action::ScoreOperation {
+            score: counter.clone(),
+            operator: pc::ScoreOperator::Max,
+            operand: pc::ScoreOperand::Value(0),
+        }));
+        ops.push(at(pc::Action::ScoreOperation {
+            score: limit.clone(),
+            operator: pc::ScoreOperator::Set,
+            operand: pc::ScoreOperand::Field(end.clone()),
+        }));
+        ops.push(at(pc::Action::ScoreOperation {
+            score: limit.clone(),
+            operator: pc::ScoreOperator::Min,
+            operand: pc::ScoreOperand::Field(length),
+        }));
+        ops.push(at(Self::initialize_leaf(
+            dest.clone(),
+            text::LeafDefault::Data(NbtValue::List(Vec::new())),
+        )));
+        ops.push(at(pc::Action::While {
+            condition: pc::Condition::Relation(pc::ScoreRelation {
+                left: counter.clone(),
+                relation: pc::Relation::Lt,
+                right: limit,
+            }),
+            body: vec![
+                at(pc::Action::DataModify {
+                    target: Self::data_reference(dest),
+                    operator: DataModifyOperation::Append,
+                    source: pc::DataOperand::Reference {
+                        value: Self::stored_element(source, &counter),
+                    },
+                }),
+                at(pc::Action::ScoreAdd {
+                    score: counter,
+                    value: 1,
+                }),
+            ],
+        }));
+    }
+
     pub(super) fn storage_index_valid(
         &mut self,
         body: &mut BodyCx,

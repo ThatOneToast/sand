@@ -360,6 +360,7 @@ impl Cx {
                         "len" | "extend" => Ty::Number,
                         "is_empty" | "contains" | "push" | "insert" => Ty::Bool,
                         "get_or" | "pop_or" | "remove_or" => element,
+                        "slice" => receiver_ty,
                         _ => Ty::Unknown,
                     };
                 }

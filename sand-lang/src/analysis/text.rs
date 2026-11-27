@@ -275,7 +275,7 @@ impl Cx {
                     score: point.clone(),
                     value: -3,
                 }));
-                self.slice_text(body, dest, &digits, (&zero, &point), *span, ops);
+                self.copy_sequence_range(body, dest, &digits, (&zero, &point), *span, ops);
                 ops.push(at(pc::Action::DataModify {
                     target: Self::data_reference(dest),
                     operator: DataModifyOperation::Append,
@@ -284,7 +284,7 @@ impl Cx {
                     },
                 }));
                 let fractional = self.temp(body);
-                self.slice_text(body, &fractional, &digits, (&point, &length), *span, ops);
+                self.copy_sequence_range(body, &fractional, &digits, (&point, &length), *span, ops);
                 ops.push(at(Self::append_text(dest, &fractional)));
                 ops.push(at(pc::Action::Branch {
                     condition: pc::Condition::Range(pc::ScoreComparison {
@@ -370,71 +370,6 @@ impl Cx {
         ));
         body.temp_depth = depth;
         Some(())
-    }
-
-    /// Copy a clamped scalar-character range. Its source and bounds are already
-    /// evaluated, and no user code runs during the copy.
-    fn slice_text(
-        &mut self,
-        body: &mut BodyCx,
-        dest: &pc::FieldReference,
-        source: &pc::FieldReference,
-        bounds: (&pc::FieldReference, &pc::FieldReference),
-        span: Span,
-        ops: &mut Vec<pc::Operation>,
-    ) {
-        let (start, end) = bounds;
-        let file = body.file;
-        let at = |action| op_at(action, file, span);
-        self.register_data_slot(dest, text_value(""));
-        let counter = self.temp(body);
-        let limit = self.temp(body);
-        let length = self.temp(body);
-        ops.push(at(Self::text_length(source, &length)));
-        ops.push(at(pc::Action::ScoreOperation {
-            score: counter.clone(),
-            operator: pc::ScoreOperator::Set,
-            operand: pc::ScoreOperand::Field(start.clone()),
-        }));
-        ops.push(at(pc::Action::ScoreOperation {
-            score: counter.clone(),
-            operator: pc::ScoreOperator::Max,
-            operand: pc::ScoreOperand::Value(0),
-        }));
-        ops.push(at(pc::Action::ScoreOperation {
-            score: limit.clone(),
-            operator: pc::ScoreOperator::Set,
-            operand: pc::ScoreOperand::Field(end.clone()),
-        }));
-        ops.push(at(pc::Action::ScoreOperation {
-            score: limit.clone(),
-            operator: pc::ScoreOperator::Min,
-            operand: pc::ScoreOperand::Field(length),
-        }));
-        ops.push(at(Self::initialize_leaf(
-            dest.clone(),
-            LeafDefault::Data(text_value("")),
-        )));
-        ops.push(at(pc::Action::While {
-            condition: pc::Condition::Relation(pc::ScoreRelation {
-                left: counter.clone(),
-                relation: pc::Relation::Lt,
-                right: limit,
-            }),
-            body: vec![
-                at(pc::Action::DataModify {
-                    target: Self::data_reference(dest),
-                    operator: DataModifyOperation::Append,
-                    source: pc::DataOperand::Reference {
-                        value: Self::stored_element(source, &counter),
-                    },
-                }),
-                at(pc::Action::ScoreAdd {
-                    score: counter,
-                    value: 1,
-                }),
-            ],
-        }));
     }
 
     pub(super) fn emit_text_method(
@@ -533,7 +468,7 @@ impl Cx {
                     otherwise: Vec::new(),
                 }));
             }
-            "slice" => self.slice_text(
+            "slice" => self.copy_sequence_range(
                 body,
                 dest,
                 &source,
@@ -575,7 +510,7 @@ impl Cx {
                     }));
                 }
                 let part = self.temp(body);
-                self.slice_text(body, &part, &source, (&start, &end), *span, ops);
+                self.copy_sequence_range(body, &part, &source, (&start, &end), *span, ops);
                 ops.push(at(pc::Action::DataEqual {
                     score: dest.clone(),
                     left: Self::data_reference(&part),
@@ -638,7 +573,14 @@ impl Cx {
                         operand: pc::ScoreOperand::Field(needle_length),
                     }),
                 ];
-                self.slice_text(body, &part, &source, (&start, &end), *span, &mut iteration);
+                self.copy_sequence_range(
+                    body,
+                    &part,
+                    &source,
+                    (&start, &end),
+                    *span,
+                    &mut iteration,
+                );
                 iteration.push(at(pc::Action::DataEqual {
                     score: matched.clone(),
                     left: Self::data_reference(&part),

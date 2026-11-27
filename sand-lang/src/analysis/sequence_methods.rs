@@ -58,6 +58,7 @@ impl Cx {
             "len" | "extend" => Ty::Number,
             "is_empty" | "contains" | "push" | "insert" => Ty::Bool,
             "get_or" | "pop_or" | "remove_or" => element,
+            "slice" => list_ty,
             _ => Ty::Unknown,
         };
         if let Some((_, expected)) = result {
@@ -106,12 +107,26 @@ impl Cx {
             };
             let slot = self.temp(body);
             let ty = match parameter {
-                "index" | "length" => Ty::Number,
+                "index" | "length" | "start" | "end" => Ty::Number,
                 "values" => list_ty,
                 _ => element,
             };
             self.emit(body, &slot, ty, value, ops)?;
             values.insert(parameter, slot);
+        }
+        if name.name == "slice" {
+            if let Some((dest, _)) = result {
+                self.copy_sequence_range(
+                    body,
+                    dest,
+                    &source,
+                    (&values["start"], &values["end"]),
+                    *span,
+                    ops,
+                );
+            }
+            body.temp_depth = depth;
+            return Some(());
         }
         let ignored = self.temp(body);
         let dest = result.map_or(&ignored, |(dest, _)| dest);

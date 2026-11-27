@@ -296,6 +296,7 @@ bindings are single-character strings. Loop bindings are immutable values.
 | --- | --- |
 | `len()`, `is_empty()` | Current element count or emptiness |
 | `get_or(index, fallback)` | Element or eagerly evaluated fallback |
+| `slice(start, end)` | Independent vector in a clamped half-open range |
 | `contains(value)` | Deep typed value equality |
 | `push(value)` | Append an independent copy; return whether it was added |
 | `pop_or(fallback)` | Remove the last element, or return the fallback |
@@ -314,6 +315,8 @@ an operation that cannot add an element. `==` and `!=` compare entire vectors.
 Each vector supports up to 1,024 elements. A full vector rejects `push` and
 `insert`; `extend` adds as many elements as fit. Expanded State defaults have a
 1 MiB budget checked before repeat expansion; build larger values at runtime.
+For example, `values.slice(1, 3)` copies indices 1 and 2. Bounds are clamped to
+the current length, and empty or reversed ranges produce an empty vector.
 General borrowed slices remain future work.
 
 See the [exploration-log example](../../examples/lang_vectors/pack.sand), which

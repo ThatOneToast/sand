@@ -270,6 +270,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Payload enums with owned values, exhaustive matching and State defaults.
 - [x] Generic enums and bundled `Option<T>` and `Result<T, E>`.
 - [ ] General borrowed slices.
+- [x] Owned vector subranges with clamped half-open bounds.
 - [x] Typed enchantments generated from one verified catalog for Rust and Sand.
 - [x] Bundled typed durations and storable positions through ordinary Sand
   records and impl methods. Use existing entity State for checked membership.

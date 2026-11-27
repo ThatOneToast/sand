@@ -18,6 +18,9 @@ fn next() -> number { Result.order += 1; return Result.order; }
 fn identity(values: Vec<Point>, n: number) -> Vec<Point> { if n == 0 { return values; } return identity(values, n - 1); }
 fn first(values: Vec<number>) -> number { for value in values { return value; } return 0; }
 fn text_once() -> string { Result.order += 1; return "é🌍"; }
+fn slice_source() -> Vec<number> { Result.order = Result.order * 10 + 1; return Data.values; }
+fn slice_start() -> number { Result.order = Result.order * 10 + 2; Data.values.push(99); return -1; }
+fn slice_end() -> number { Result.order = Result.order * 10 + 3; return 100; }
 entity state Hidden { values: Vec<string>, text: string, n: number = 42, owner: EntityRef, phase: Phase = Phase::Done }
 fn read_hidden() -> Vec<string> { return Hidden.values; }
 fn read_text() -> string { return Hidden.text; }
@@ -110,6 +113,24 @@ fn run() {
     let found = Data.nodes.get_or(0, Point { x: next(), title: "fallback", values: [0, 0] });
     check(found.x == 5); check(Result.order == 3);
     check(!Full.values.push(next())); check(Result.order == 4);
+
+    Data.values = [10, 20, 30];
+    Result.order = 0;
+    let ordered = slice_source().slice(slice_start(), slice_end());
+    check(Result.order == 123);
+    check(ordered == [10, 20, 30]);
+    check(Data.values == [10, 20, 30, 99]);
+    check(ordered.slice(1, 2) == [20]);
+    check(ordered.slice(2, 1).is_empty());
+    check(ordered.slice(8, 10).is_empty());
+    check(ordered.slice(0, -1).is_empty());
+    let mut fragment = originals.slice(0, 1);
+    fragment[0].values[0] = 99;
+    check(fragment[0].values[0] == 99 && originals[0].values[0] == 1);
+    check(nested.slice(0, 1) == [[1, 2]]);
+    Data.values = Data.values.slice(1, 3);
+    check(Data.values == [20, 30]);
+
     summon(Entity::Pig, tag = "hidden_probe");
     for actor in entities(type = Entity::Pig, tag = "hidden_probe", limit = 1) {
         attach_state(Hidden); Hidden.values = ["secret"]; Hidden.text = "owned"; Hidden.owner = entity_ref();
@@ -122,6 +143,6 @@ fn run() {
         attach_state(Hidden); check(read_n() == 42); check(read_phase() == Phase::Done);
         detach_state(Hidden); kill();
     }
-    if Result.checks == 95 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    if Result.checks == 105 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }
 }

@@ -3533,6 +3533,20 @@ pub const LIST_METHODS: &[Builtin] = &[
         snippet: "get_or(${1:index}, ${2:fallback})",
     },
     Builtin {
+        name: "vec.slice",
+        kind: BuiltinKind::Expression,
+        signature: "vec.slice(start: number, end: number) -> Vec<T>",
+        summary: "Copy the elements in a half-open range.",
+        details: "Bounds are clamped to the vector length. A reversed range is empty. The receiver is copied before the bounds evaluate, and the result can be mutated independently.",
+        minecraft: "Copies selected typed elements from an owned NBT list.",
+        needs_player: false,
+        params: &[
+            p("start", ParamKind::Int, true, "First included index."),
+            p("end", ParamKind::Int, true, "First excluded index."),
+        ],
+        snippet: "slice(${1:start}, ${2:end})",
+    },
+    Builtin {
         name: "vec.contains",
         kind: BuiltinKind::Expression,
         signature: "vec.contains(value: T) -> bool",

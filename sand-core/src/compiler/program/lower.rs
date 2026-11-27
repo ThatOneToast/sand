@@ -3251,7 +3251,7 @@ impl Lower<'_> {
                 // keep existing values, default the rest, then mark present.
                 Action::AttachState { state } => {
                     let id = state.to_string();
-                    self.attach_entity_state(&self.data_states[&id])
+                    self.entity_attachment_commands(&self.data_states[&id])
                         .into_iter()
                         .map(Cmd::Raw)
                         .collect()

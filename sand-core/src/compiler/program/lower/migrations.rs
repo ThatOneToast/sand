@@ -50,7 +50,12 @@ impl Lower<'_> {
                     }
                     "entity" => {
                         let helper = format!("{base}/attach");
-                        self.function(&helper, self.attach_entity_state(state), &owner, &ptr)?;
+                        self.function(
+                            &helper,
+                            self.entity_attachment_commands(state),
+                            &owner,
+                            &ptr,
+                        )?;
                         let prior = state.revision - 1;
                         for dimension in [
                             "minecraft:overworld",
@@ -85,7 +90,7 @@ impl Lower<'_> {
         )
     }
 
-    pub(super) fn attach_entity_state(&self, state: &State) -> Vec<String> {
+    pub(super) fn entity_attachment_commands(&self, state: &State) -> Vec<String> {
         let id = state.id.to_string();
         let mut commands = Vec::new();
         for field in &state.fields {

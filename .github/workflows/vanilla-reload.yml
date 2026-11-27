@@ -300,6 +300,10 @@ jobs:
             --output "target/vanilla-reload/${{ matrix.version }}/language-entity-motion"
           python3 scripts/validate_language.py \
             --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --fixture sand-lang/tests/fixtures/composed_waits.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-composed-waits"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
             --fixture sand-lang/tests/fixtures/world_predicates.sand \
             --output "target/vanilla-reload/${{ matrix.version }}/language-world-predicates"
           mkdir -p "target/vanilla-reload/${{ matrix.version }}/language-authored-tests"

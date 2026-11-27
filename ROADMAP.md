@@ -296,7 +296,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Waits inside local loops retain iteration, collection and jump state.
 - [x] Server-owned continuations and independent waits inside executor-selection loops.
 - [x] Ordered State migrations for global, player, and entity State.
-- [ ] Calls that suspend and resume their callers with return values or mutable receiver updates.
+- [x] Calls that suspend and resume their callers with return values or local mutable receiver updates.
 - [x] Dimension checks and scoped calls, and block cloning with mask, filter,
   overlap, and move modes.
 - [x] Biome predicates validated against the target version’s shared catalog.

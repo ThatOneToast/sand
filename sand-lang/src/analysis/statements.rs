@@ -1212,6 +1212,7 @@ impl Cx {
         } else {
             None
         };
+        let retained_depth = body.temp_depth;
         // A self-call reads the parameters it is about to overwrite, and a
         // nested call may overwrite parameters already passed, so those
         // arguments are computed into temporaries before any is passed.
@@ -1269,7 +1270,6 @@ impl Cx {
                 self.emit(body, &slot, *param_ty, expr, ops)?;
             }
         }
-        body.temp_depth = depth;
         body.all_calls.push((def, path.span));
         if !body.in_players {
             body.calls.push((def, path.span));
@@ -1278,6 +1278,21 @@ impl Cx {
             body.entity_loop_calls.push((def, path.span));
         }
         let function = self.function_reference(def)?;
+        let function = if slots.ret.is_some() || slots.receiver_out.is_some() {
+            self.mark_wait_call(
+                body,
+                def,
+                retained_depth,
+                receiver_dest
+                    .as_ref()
+                    .is_some_and(|address| self.address_uses_state(address)),
+                span,
+                function,
+            )
+        } else {
+            function
+        };
+        body.temp_depth = depth;
         ops.push(op_at(pc::Action::Call { function }, file, span));
         ops.push(op_at(
             pc::Action::PopFrame {
@@ -1593,7 +1608,9 @@ impl Cx {
         let reference = self.local_ref(local);
         match value {
             Some(value) => {
+                body.initializing_locals.push(local);
                 let _ = self.emit(body, &reference, ty, value, ops);
+                body.initializing_locals.pop();
             }
             None => {
                 let defaults = self

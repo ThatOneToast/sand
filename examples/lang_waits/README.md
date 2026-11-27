@@ -10,4 +10,5 @@ pending batches. The pack counts orders in player State and keeps pending
 ingredients and batch numbers in each invocation's local variables.
 
 Every third batch spends an extra 12 loaded ticks in the oven. Both branches
-serve the original batch after its own timer completes.
+return the quantity to `order`, which serves the original batch after its timer
+completes.

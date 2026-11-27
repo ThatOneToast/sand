@@ -3,6 +3,98 @@ use super::*;
 use crate::builtins::{self, BuiltinKind};
 use std::collections::BTreeSet;
 
+const CALL_MARKER: &str = "__sand_wait_call/";
+// Specialisation must be bounded before the portable backend can enforce its
+// wait-site limit. A branching chain of returning functions can grow quickly.
+pub(super) const MAX_COMPOSED_CALLS: usize = 256;
+
+/// One call whose result or receiver output may be produced after a wait.
+pub(super) struct WaitCall {
+    target: DefId,
+    original: pc::FunctionReference,
+    caller: Option<DefId>,
+    locals: Vec<DefId>,
+    slots: Vec<pc::FieldReference>,
+    temp_prefix: String,
+    temp_depth: usize,
+    shared_receiver: bool,
+    file: FileId,
+    span: Span,
+}
+
+#[derive(Default)]
+pub(super) struct Composition {
+    calls: BTreeMap<usize, ComposedCall>,
+    bodies: BTreeMap<DefId, Vec<pc::Operation>>,
+}
+
+struct ComposedCall {
+    target: DefId,
+    original: pc::FunctionReference,
+    fields: Vec<pc::FieldReference>,
+}
+
+fn call_marker(action: &pc::Action) -> Option<usize> {
+    let pc::Action::Call {
+        function: pc::FunctionReference::Internal { id },
+    } = action
+    else {
+        return None;
+    };
+    id.path().strip_prefix(CALL_MARKER)?.parse().ok()
+}
+
+fn lexical_locals(body: &BodyCx) -> Vec<DefId> {
+    // An outer binding hidden by a branch local becomes visible again after
+    // the branch joins. A declaration in the same scope permanently hides it.
+    let mut seen = BTreeSet::new();
+    let mut definitions = BTreeSet::new();
+    for scope in body.scopes.iter().rev() {
+        if body.block_ends.len() > 1 {
+            seen.clear();
+        }
+        definitions.extend(
+            scope
+                .iter()
+                .rev()
+                .filter_map(|(name, def)| seen.insert(name).then_some(*def)),
+        );
+    }
+    definitions.extend(body.initializing_locals.iter().copied());
+    definitions.into_iter().collect()
+}
+
+fn children(action: &mut pc::Action) -> impl Iterator<Item = &mut Vec<pc::Operation>> {
+    let (first, second) = match action {
+        pc::Action::Branch {
+            then, otherwise, ..
+        } => (Some(then), Some(otherwise)),
+        pc::Action::While { body, .. }
+        | pc::Action::Players { body }
+        | pc::Action::Entities { body, .. }
+        | pc::Action::WithEntity { body, .. }
+        | pc::Action::InDimension { body, .. }
+        | pc::Action::Suspend { body, .. } => (Some(body), None),
+        _ => (None, None),
+    };
+    first.into_iter().chain(second)
+}
+
+fn restore_calls(operations: &mut [pc::Operation], calls: &[WaitCall], composed: &Composition) {
+    for operation in operations {
+        if let Some(site) = call_marker(&operation.action)
+            && !composed.calls.contains_key(&site)
+        {
+            operation.action = pc::Action::Call {
+                function: calls[site].original.clone(),
+            };
+        }
+        for body in children(&mut operation.action) {
+            restore_calls(body, calls, composed);
+        }
+    }
+}
+
 pub(super) struct WaitSite {
     setup: Vec<pc::Operation>,
     ticks: pc::ScoreOperand,
@@ -47,11 +139,8 @@ impl Cx {
         let file = body.file;
         let builtin = builtins::find("wait", BuiltinKind::Statement).expect("registered builtin");
         self.references_builtin(file, path.span, builtin);
-        if body.owner.is_none()
-            || body.wait_block_depth != body.block_ends.len()
-            || (body.loops.is_empty() && (body.ret.is_some() || body.receiver_out.is_some()))
-        {
-            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch, match arm, or local loop, with no return value or mutable borrowed receiver");
+        if body.owner.is_none() || body.wait_block_depth != body.block_ends.len() {
+            self.error("wait", file, span, "use `wait` directly in a function body or an if/else branch, match arm, or local loop");
             return None;
         }
         let bound = self.bind_args(body, builtin, args, span)?;
@@ -129,24 +218,8 @@ impl Cx {
             body.note_executor(span, "retains the executing entity across a wait".into());
         }
 
-        // An outer binding hidden by a branch local becomes visible again
-        // after the branch joins. A later declaration in the same scope
-        // permanently hides the earlier one.
-        let mut seen = BTreeSet::new();
-        let mut definitions = BTreeSet::new();
-        for scope in body.scopes.iter().rev() {
-            if body.block_ends.len() > 1 {
-                seen.clear();
-            }
-            definitions.extend(
-                scope
-                    .iter()
-                    .rev()
-                    .filter_map(|(name, def)| seen.insert(name).then_some(*def)),
-            );
-        }
         let mut fields = body.wait_slots.clone();
-        for def in definitions {
+        for def in lexical_locals(body) {
             let root = self.local_ref(def);
             let ty = self.local_ty(def);
             fields.extend(self.retained_slots(&root, ty));
@@ -206,42 +279,176 @@ impl Cx {
             })
             .collect()
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn mark_wait_call(
+        &mut self,
+        body: &BodyCx,
+        target: DefId,
+        temp_depth: usize,
+        shared_receiver: bool,
+        span: Span,
+        original: pc::FunctionReference,
+    ) -> pc::FunctionReference {
+        let site = self.wait_calls.len();
+        self.wait_calls.push(WaitCall {
+            target,
+            original,
+            caller: body.owner,
+            locals: lexical_locals(body),
+            slots: body.wait_slots.clone(),
+            temp_prefix: format!("{}_t", body.slot),
+            temp_depth,
+            shared_receiver,
+            file: body.file,
+            span,
+        });
+        pc::FunctionReference::Internal {
+            id: sand::ResourceLocation::new(self.namespace(), format!("{CALL_MARKER}{site}"))
+                .expect("valid call marker"),
+        }
+    }
+
+    pub(super) fn prepare_wait_calls(&mut self, lowerer: &mut Lowering) -> Composition {
+        let calls = std::mem::take(&mut self.wait_calls);
+        let mut suspending = BTreeSet::new();
+        loop {
+            let previous_size = suspending.len();
+            for function in &lowerer.functions {
+                if let Some(def) = function.def
+                    && !suspending.contains(&def)
+                    && frame_suspends(&function.body, &|site| {
+                        suspending.contains(&calls[site].target)
+                    })
+                {
+                    suspending.insert(def);
+                }
+            }
+            if suspending.len() == previous_size {
+                break;
+            }
+        }
+        let mut composed = Composition::default();
+        let state: sand::ResourceLocation =
+            self.locals_state_id().parse().expect("namespace validated");
+        for (site, call) in calls.iter().enumerate() {
+            if !suspending.contains(&call.target) {
+                continue;
+            }
+            if let Some(caller) = call.caller
+                && lowerer.reenters(call.target, caller)
+            {
+                self.error(
+                    "wait",
+                    call.file,
+                    call.span,
+                    "a call that suspends its caller cannot be recursive",
+                );
+                continue;
+            }
+            if call.shared_receiver {
+                self.error("wait", call.file, call.span, "a mutable receiver held across a wait must be local; copy the State value into a local and assign it back explicitly");
+                continue;
+            }
+            let mut fields = call.slots.clone();
+            for local in &call.locals {
+                let root = self.local_ref(*local);
+                fields.extend(self.retained_slots(&root, self.local_ty(*local)));
+            }
+            for name in self
+                .local_fields
+                .iter()
+                .chain(self.local_data_fields.keys())
+            {
+                let base = name.strip_prefix("__sand_data_").unwrap_or(name);
+                if base
+                    .strip_prefix(&call.temp_prefix)
+                    .and_then(|suffix| suffix.split('_').next()?.parse::<usize>().ok())
+                    .is_some_and(|index| index < call.temp_depth)
+                {
+                    fields.push(pc::FieldReference {
+                        state: state.clone(),
+                        field: name.clone(),
+                    });
+                }
+            }
+            composed.calls.insert(
+                site,
+                ComposedCall {
+                    target: call.target,
+                    original: call.original.clone(),
+                    fields,
+                },
+            );
+        }
+        for function in &mut lowerer.functions {
+            restore_calls(&mut function.body, &calls, &composed);
+            if let Some(def) = function.def
+                && suspending.contains(&def)
+            {
+                composed.bodies.insert(def, function.body.clone());
+            }
+        }
+        composed
+    }
 }
 
-/// Whether control flow in this function frame can suspend. Selector bodies
-/// and value blocks are separate frames.
+/// Whether an explicit wait can suspend this frame. Executor-changing bodies
+/// have independent continuations.
 pub(super) fn may_suspend(operations: &[pc::Operation]) -> bool {
+    frame_suspends(operations, &|_| false)
+}
+
+fn frame_suspends(operations: &[pc::Operation], composed: &impl Fn(usize) -> bool) -> bool {
     operations.iter().any(|operation| match &operation.action {
         pc::Action::Suspend { .. } => true,
-        pc::Action::While { body, .. } => may_suspend(body),
+        pc::Action::While { body, .. } => frame_suspends(body, composed),
         pc::Action::Branch {
             then, otherwise, ..
-        } => may_suspend(then) || may_suspend(otherwise),
-        _ => false,
+        } => frame_suspends(then, composed) || frame_suspends(otherwise, composed),
+        _ => call_marker(&operation.action).is_some_and(composed),
     })
 }
 
 /// Outline shared suffixes once. Reaching the end of either branch calls its
 /// suffix, and suspending retains the suffix call for the resumed path.
-pub(super) fn join_wait_paths(function: &mut pc::Function) -> Vec<pc::Function> {
+pub(super) fn join_wait_paths(
+    function: &mut pc::Function,
+    composition: &Composition,
+    remaining: &mut usize,
+) -> Option<Vec<pc::Function>> {
     let mut joins = WaitJoins {
         id: &function.id,
         context: function.context,
         functions: Vec::new(),
+        composition,
+        retained: Vec::new(),
+        remaining,
+        exhausted: false,
     };
-    joins.rewrite_selectors(&mut function.body);
+    joins.rewrite_nested_frames(&mut function.body);
     joins.rewrite(&mut function.body, None);
-    joins.functions
+    (!joins.exhausted).then_some(joins.functions)
 }
 
 struct WaitJoins<'a> {
     id: &'a sand::ResourceLocation,
     context: pc::ExecutionContext,
     functions: Vec<pc::Function>,
+    composition: &'a Composition,
+    retained: Vec<pc::FieldReference>,
+    remaining: &'a mut usize,
+    exhausted: bool,
 }
 
 impl WaitJoins<'_> {
-    fn rewrite_selectors(&mut self, operations: &mut [pc::Operation]) {
+    fn suspends(&self, operations: &[pc::Operation]) -> bool {
+        frame_suspends(operations, &|site| {
+            self.composition.calls.contains_key(&site)
+        })
+    }
+
+    fn rewrite_nested_frames(&mut self, operations: &mut [pc::Operation]) {
         for operation in operations {
             let (body, context) = match &mut operation.action {
                 pc::Action::Players { body } => (body, pc::ExecutionContext::Player),
@@ -254,28 +461,31 @@ impl WaitJoins<'_> {
                     };
                     (body, context)
                 }
+                pc::Action::InDimension { body, .. } => (body, self.context),
                 pc::Action::Suspend { body, .. } | pc::Action::While { body, .. } => {
-                    self.rewrite_selectors(body);
+                    self.rewrite_nested_frames(body);
                     continue;
                 }
                 pc::Action::Branch {
                     then, otherwise, ..
                 } => {
-                    self.rewrite_selectors(then);
-                    self.rewrite_selectors(otherwise);
+                    self.rewrite_nested_frames(then);
+                    self.rewrite_nested_frames(otherwise);
                     continue;
                 }
                 _ => continue,
             };
             let outer = std::mem::replace(&mut self.context, context);
-            self.rewrite_selectors(body);
+            let retained = std::mem::take(&mut self.retained);
+            self.rewrite_nested_frames(body);
             self.rewrite(body, None);
+            self.retained = retained;
             self.context = outer;
         }
     }
 
     fn rewrite(&mut self, operations: &mut Vec<pc::Operation>, fallthrough: Option<pc::Operation>) {
-        if !may_suspend(operations) {
+        if !self.suspends(operations) {
             if !matches!(
                 operations.last().map(|op| &op.action),
                 Some(pc::Action::Return)
@@ -287,11 +497,16 @@ impl WaitJoins<'_> {
         let mut suffix: Vec<_> = fallthrough.into_iter().collect();
         for mut operation in std::mem::take(operations).into_iter().rev() {
             match &mut operation.action {
-                pc::Action::Suspend { body, .. } => {
+                pc::Action::Suspend { body, fields, .. } => {
+                    for field in &self.retained {
+                        if !fields.contains(field) {
+                            fields.push(field.clone());
+                        }
+                    }
                     let fallthrough = self.take_suffix(&mut suffix);
                     self.rewrite(body, fallthrough);
                 }
-                pc::Action::While { condition, body } if may_suspend(body) => {
+                pc::Action::While { condition, body } if self.suspends(body) => {
                     let fallthrough = self.take_suffix(&mut suffix);
                     let index = self.outline(Vec::new());
                     let repeat = self.call(index, operation.origin.clone());
@@ -308,10 +523,14 @@ impl WaitJoins<'_> {
                 }
                 pc::Action::Branch {
                     then, otherwise, ..
-                } if may_suspend(then) || may_suspend(otherwise) => {
+                } if self.suspends(then) || self.suspends(otherwise) => {
                     let fallthrough = self.take_suffix(&mut suffix);
                     self.rewrite(then, fallthrough.clone());
                     self.rewrite(otherwise, fallthrough);
+                }
+                action if let Some(site) = call_marker(action) => {
+                    let fallthrough = self.take_suffix(&mut suffix);
+                    operation = self.compose_call(site, operation.origin, fallthrough);
                 }
                 _ => {}
             }
@@ -319,6 +538,56 @@ impl WaitJoins<'_> {
         }
         suffix.reverse();
         *operations = suffix;
+    }
+
+    fn compose_call(
+        &mut self,
+        site: usize,
+        origin: Option<serde_json::Value>,
+        fallthrough: Option<pc::Operation>,
+    ) -> pc::Operation {
+        let call = &self.composition.calls[&site];
+        if fallthrough.is_some() && *self.remaining == 0 {
+            self.exhausted = true;
+        }
+        let Some(completion) = fallthrough.filter(|_| !self.exhausted) else {
+            return pc::Operation {
+                action: pc::Action::Call {
+                    function: call.original.clone(),
+                },
+                origin,
+            };
+        };
+        *self.remaining -= 1;
+        let mut body = self.composition.bodies[&call.target].clone();
+        Self::complete_returns(&mut body, &completion);
+        let retained = self.retained.len();
+        self.retained.extend_from_slice(&call.fields);
+        self.rewrite_nested_frames(&mut body);
+        self.rewrite(&mut body, Some(completion));
+        self.retained.truncate(retained);
+        let entry = self.outline(body);
+        self.call(entry, origin)
+    }
+
+    /// A return finishes only the callee. Run its caller's suffix and end
+    /// the callee branch even if the suffix itself suspends.
+    fn complete_returns(operations: &mut Vec<pc::Operation>, completion: &pc::Operation) {
+        for index in (0..operations.len()).rev() {
+            match &mut operations[index].action {
+                pc::Action::Return => operations.insert(index, completion.clone()),
+                pc::Action::Branch {
+                    then, otherwise, ..
+                } => {
+                    Self::complete_returns(then, completion);
+                    Self::complete_returns(otherwise, completion);
+                }
+                pc::Action::While { body, .. } | pc::Action::Suspend { body, .. } => {
+                    Self::complete_returns(body, completion);
+                }
+                _ => {}
+            }
+        }
     }
 
     fn take_suffix(&mut self, reversed: &mut Vec<pc::Operation>) -> Option<pc::Operation> {

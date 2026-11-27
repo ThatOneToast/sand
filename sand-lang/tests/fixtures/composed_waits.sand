@@ -1,0 +1,92 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+global state Journal {
+    first: number,
+    second: number,
+    first_label: string,
+    second_label: string,
+    selected: number,
+    finished: number,
+    cancelled: bool,
+}
+
+struct Counter { value: number }
+
+impl Counter {
+    fn add(&mut self, amount: number) -> number {
+        wait(2, server = true, group = "calculations");
+        self.value += amount;
+        return self.value;
+    }
+    fn advance(&mut self) {
+        wait(1, server = true, group = "calculations");
+        self.value += 1;
+    }
+}
+
+fn later(ticks: number, value: number) -> number {
+    if ticks == 0 { return value; }
+    wait(ticks, server = true, group = "calculations");
+    return value * 2;
+}
+
+fn sum(ticks: number, value: number) -> number {
+    let calculate: fn(number, number) -> number = later;
+    return calculate(ticks, value) + later(ticks + 1, value + 1);
+}
+
+fn calculate(slot: number, ticks: number, value: number, label: string) {
+    let mut counters = [Counter { value: 1 }, Counter { value: 10 }];
+    let total = value + sum(ticks, value);
+    let written = counters[slot].add(value);
+    for step in 0..2 { counters[slot].advance(); }
+    if slot == 0 {
+        Journal.first = total + written + counters[slot].value;
+        Journal.first_label = label;
+    } else {
+        Journal.second = total + written + counters[slot].value;
+        Journal.second_label = label;
+    }
+}
+
+fn should_cancel() -> bool {
+    wait(2, server = true, group = "discard");
+    return true;
+}
+
+fn discard() { Journal.cancelled = should_cancel(); }
+
+fn entity_result(value: number) -> number {
+    wait(2);
+    return value * 2;
+}
+
+pub fn run() {
+    Journal.first = 0;
+    Journal.second = 0;
+    Journal.selected = 0;
+    Journal.finished = 0;
+    Journal.cancelled = false;
+    let immediate = later(0, 9) + later(-1, 3);
+    calculate(0, 3, 5, "first");
+    calculate(1, 1, 8, "second");
+    discard();
+    cancel_waits(server = true, group = "discard");
+    summon(Entity::Marker, tag = "wait_probe_owner");
+    summon(Entity::Marker, tag = "wait_probe_owner");
+    for entity in entities(type = Entity::Marker, tag = "wait_probe_owner") {
+        Journal.selected += entity_result(3);
+    }
+    if immediate == 15 && Journal.first == 0 && Journal.second == 0 && Journal.selected == 0 {
+        Journal.finished = 1;
+    }
+    wait(20, server = true);
+    for entity in entities(type = Entity::Marker, tag = "wait_probe_owner") { kill(); }
+    if Journal.first == 41 && Journal.second == 80
+        && Journal.first_label == "first" && Journal.second_label == "second"
+        && Journal.selected == 12 && Journal.finished == 1 && !Journal.cancelled {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

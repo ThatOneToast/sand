@@ -2,6 +2,11 @@ mod support;
 use support::*;
 
 #[test]
+fn composed_wait_runtime_fixture_compiles() {
+    compile(&analyze_one(include_str!("fixtures/composed_waits.sand")));
+}
+
+#[test]
 fn wait_preserves_the_function_context_and_retains_typed_lexical_slots() {
     let analysis = analyze_one(
         r#"
@@ -52,8 +57,8 @@ fn cancel() { cancel_waits(); }
 fn wait_diagnostics_explain_unsupported_positions_and_delays() {
     for (body, expected) in [
         (
-            "fn eager() -> number { wait(1); return 2; }",
-            "no return value",
+            "fn eager() { let _result = { wait(1); 2 }; }",
+            "use `wait` directly",
         ),
         ("fn eager() { wait(0); }", "expected a value from 1"),
         ("fn eager(n: string) { wait(n); }", "mismatched types"),
@@ -66,6 +71,122 @@ fn wait_diagnostics_explain_unsupported_positions_and_delays() {
             "{body}: {diagnostics:?}"
         );
     }
+}
+
+#[test]
+fn returning_calls_retain_caller_locals_and_intermediate_values_through_waits() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+global state Journal { label: string, total: number }
+fn later(delay: number, value: number) -> number {
+    if delay == 0 { return value; }
+    wait(delay, server = true);
+    return value * 2;
+}
+fn twice(delay: number, value: number) -> number {
+    return later(delay, value) + later(delay, value + 1);
+}
+pub fn run(delay: number, label: string) {
+    let initial = delay + 1;
+    Journal.total = initial + twice(delay, 7);
+    Journal.label = label;
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    let program = serde_json::to_value(analysis.program.as_ref().unwrap()).unwrap();
+    let functions = program["modules"][0]["functions"].as_array().unwrap();
+    let saved = functions
+        .iter()
+        .filter(|function| function["id"].as_str().unwrap().ends_with("/run"))
+        .map(|function| serde_json::to_string(&function["body"]).unwrap())
+        .find(|body| body.contains("\"op\":\"suspend\"") && body.contains("_label"))
+        .expect("the wait retains the original caller's owned string");
+    assert!(saved.contains("_t0"));
+    assert!(
+        !serde_json::to_string(&program)
+            .unwrap()
+            .contains("__sand_wait_call")
+    );
+    assert!(
+        pack.resources
+            .keys()
+            .any(|path| path.contains("server_wait_drain"))
+    );
+}
+
+#[test]
+fn waiting_method_commits_the_local_receiver_before_the_caller_resumes() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "wait_probe", minecraft = "26.2")]
+struct Count { value: number }
+impl Count {
+    fn add(&mut self, amount: number) -> number {
+        wait(2, server = true);
+        self.value += amount;
+        return self.value;
+    }
+}
+global state Journal { total: number }
+pub fn run(index: number) {
+    let mut counts = [Count { value: 1 }, Count { value: 10 }];
+    Journal.total = counts[index].add(2) + counts[index].value;
+}
+"#,
+    );
+    compile(&analysis);
+}
+
+#[test]
+fn composed_waits_reject_recursion_and_shared_borrowed_receivers() {
+    for (source, expected) in [
+        (
+            "fn retry(value: number) -> number { wait(1, server = true); return retry(value); }",
+            "cannot be recursive",
+        ),
+        (
+            r#"
+struct Count { value: number }
+impl Count {
+    fn add(&mut self) { wait(1, server = true); self.value += 1; }
+}
+global state Journal { count: Count }
+pub fn run() { Journal.count.add(); }
+"#,
+            "held across a wait must be local",
+        ),
+    ] {
+        let source = format!("#![pack(namespace = \"wait_probe\")]\n{source}");
+        let diagnostics = errors(&analyze_one(&source));
+        assert!(
+            diagnostics.iter().any(|item| item.contains(expected)),
+            "{diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn branching_return_chains_report_excessive_wait_specialization() {
+    let mut source = r#"
+#![pack(namespace = "wait_probe")]
+fn level_0() -> number { wait(1, server = true); return 1; }
+"#
+    .to_owned();
+    for level in 1..10 {
+        let previous = level - 1;
+        source.push_str(&format!(
+            "fn level_{level}() -> number {{ return level_{previous}() + level_{previous}(); }}\n"
+        ));
+    }
+    let diagnostics = errors(&analyze_one(&source));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|message| message.contains("too many distinct continuations")),
+        "{diagnostics:?}"
+    );
 }
 
 #[test]

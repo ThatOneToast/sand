@@ -630,6 +630,7 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
+        wait_calls: Vec::new(),
         property_uses: Vec::new(),
         handle_scopes: Vec::new(),
     };
@@ -752,6 +753,7 @@ struct Cx {
     handler_attrs: HashSet<(FileId, Span)>,
     /// Caller and callee of each frame marker, indexed by marker number.
     call_frames: Vec<(Option<DefId>, DefId)>,
+    wait_calls: Vec<continuations::WaitCall>,
     property_uses: Vec<PropertyUse>,
     handle_scopes: Vec<(FileId, Span, String, bool)>,
 }
@@ -2632,6 +2634,7 @@ impl Cx {
         self.validate_callable_contexts();
         self.discover_tests(&lowerer);
         self.resolve_frames(&mut lowerer);
+        let composition = self.prepare_wait_calls(&mut lowerer);
         if (!self.local_fields.is_empty() || !self.local_data_fields.is_empty())
             && let Some(root) = modules.first_mut()
             && let Ok(id) = self.locals_state_id().parse()
@@ -2664,6 +2667,7 @@ impl Cx {
             });
         }
         // Contexts are known; finalise function declarations.
+        let mut remaining_wait_calls = continuations::MAX_COMPOSED_CALLS;
         for (index, module) in modules.iter_mut().enumerate() {
             for pending in lowerer.functions.iter().filter(|f| f.module.0 == index) {
                 if !self.test_mode
@@ -2701,7 +2705,19 @@ impl Cx {
                     },
                     body: pending.body.clone(),
                 };
-                let joins = continuations::join_wait_paths(&mut function);
+                let Some(joins) = continuations::join_wait_paths(
+                    &mut function,
+                    &composition,
+                    &mut remaining_wait_calls,
+                ) else {
+                    self.error(
+                        "wait",
+                        pending.file,
+                        pending.name_span,
+                        "too many distinct continuations for calls that return after a wait",
+                    );
+                    return None;
+                };
                 module.functions.push(function);
                 for join in joins {
                     let ptr = format!("/functions/{}", module.functions.len());
@@ -3073,26 +3089,6 @@ impl Cx {
     /// result out across the restore. Calls that cannot re-enter their caller
     /// drop the placeholders and cost nothing.
     fn resolve_frames(&mut self, lowerer: &mut Lowering) {
-        let graph: BTreeMap<DefId, Vec<DefId>> = lowerer
-            .facts
-            .iter()
-            .map(|(def, facts)| (*def, facts.all_calls.iter().map(|(d, _)| *d).collect()))
-            .collect();
-        let reaches = |from: DefId, to: DefId| {
-            let mut stack = vec![from];
-            let mut seen = HashSet::new();
-            while let Some(next) = stack.pop() {
-                if next == to {
-                    return true;
-                }
-                if seen.insert(next)
-                    && let Some(calls) = graph.get(&next)
-                {
-                    stack.extend(calls.iter().copied());
-                }
-            }
-            false
-        };
         let mut frames: BTreeMap<DefId, Vec<String>> = BTreeMap::new();
         let resolved: Vec<Option<Vec<pc::FieldReference>>> = self
             .call_frames
@@ -3100,7 +3096,7 @@ impl Cx {
             .into_iter()
             .map(|(caller, callee)| {
                 let caller = caller?;
-                if !reaches(callee, caller) {
+                if !lowerer.reenters(callee, caller) {
                     return None;
                 }
                 let fields = frames
@@ -5523,6 +5519,24 @@ struct Lowering {
     global_hooks_calls: Vec<(DefId, FileId, Span, Scope)>,
 }
 
+impl Lowering {
+    fn reenters(&self, callee: DefId, caller: DefId) -> bool {
+        let mut stack = vec![callee];
+        let mut seen = HashSet::new();
+        while let Some(next) = stack.pop() {
+            if next == caller {
+                return true;
+            }
+            if seen.insert(next)
+                && let Some(facts) = self.facts.get(&next)
+            {
+                stack.extend(facts.all_calls.iter().map(|(target, _)| *target));
+            }
+        }
+        false
+    }
+}
+
 struct PendingFn {
     module: ModuleId,
     file: FileId,
@@ -5608,6 +5622,8 @@ struct BodyCx {
     wait_block_depth: usize,
     /// Compiler State needed to finish dispatch after a resumed arm.
     wait_slots: Vec<pc::FieldReference>,
+    /// Destinations being initialized before their bindings become visible.
+    initializing_locals: Vec<DefId>,
     in_players: bool,
     player_use: Option<(Span, String)>,
     calls: Vec<(DefId, Span)>,
@@ -5642,6 +5658,7 @@ impl BodyCx {
             block_ends: Vec::new(),
             wait_block_depth: 1,
             wait_slots: Vec::new(),
+            initializing_locals: Vec::new(),
             player_use: None,
             calls: Vec::new(),
             schedules: Vec::new(),

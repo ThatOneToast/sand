@@ -11,10 +11,13 @@ fn issue_ticket() {
 #[on(use_item = Item::CarrotOnAStick)]
 fn order() {
     Bakery.batches += 1;
-    bake(Bakery.batches);
+    let batch = Bakery.batches;
+    let quantity = bake(batch);
+    give_item(Item::Bread, count = quantity);
+    chat!("Batch {batch} is ready. Here are your {quantity} loaves.");
 }
 
-fn bake(batch: number) {
+fn bake(batch: number) -> number {
     let quantity = 3;
     actionbar!("Batch {batch} is in the oven.");
     let baking_ticks = quantity * 12;
@@ -24,8 +27,7 @@ fn bake(batch: number) {
     } else {
         wait(baking_ticks, group = "bakery");
     }
-    give_item(Item::Bread, count = quantity);
-    chat!("Batch {batch} is ready. Here are your {quantity} loaves.");
+    return quantity;
 }
 
 #[player]

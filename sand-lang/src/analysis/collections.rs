@@ -534,6 +534,16 @@ impl Cx {
         !address.possible || !address.valid.is_empty()
     }
 
+    pub(super) fn address_uses_state(&self, address: &ValueAddress) -> bool {
+        address.cells.iter().any(|cell| {
+            let field = match &cell.target {
+                AddressTarget::Slots(field) => field,
+                AddressTarget::Data(data) => &data.field,
+            };
+            field.state.to_string() != self.locals_state_id()
+        })
+    }
+
     pub(super) fn guard_address(
         &self,
         body: &BodyCx,

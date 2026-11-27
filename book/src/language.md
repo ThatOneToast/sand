@@ -1313,7 +1313,9 @@ Use `wait(20)` or `wait(seconds = 1)` in a function body, conditional branch,
 statement `match` arm, or local loop with an entity or player executor. When the delay ends, the rest of the function runs
 with its own saved parameters and locals. It runs as the original executor at
 the saved position and dimension. State fields are read live when the function
-resumes. A caller can continue as soon as the called function suspends.
+resumes. A call that produces a value or writes back a mutable receiver
+keeps its caller suspended until the callee finishes. A function without
+either output starts delayed work independently of its caller.
 Pass a computed `number` in ticks or seconds to give each invocation a
 different delay. Invalid runtime durations continue immediately. Invalid
 constant durations produce a diagnostic.
@@ -1345,11 +1347,11 @@ executing entity. Group names are shared across the pack. Write 1 to 32
 lowercase letters, digits, or underscores in quotes. Cancelling a group with no
 pending waits has no effect.
 
-Waits keep up to 64 local fields including record fields and admit up to 128
-pending instances at each wait statement.
+Waits keep up to 64 local fields across suspended calls, including record
+fields, and admit up to 128 pending instances per compiled wait site.
 After a branch finishes, execution continues with the statements that follow
-it. A `return;` within a resumed branch ends that invocation. Use waits in
-functions with no return value or mutable borrowed receiver. A waiting loop keeps its current iteration, bounds or collection
+it. A `return` within a resumed branch completes that invocation. A waiting
+loop keeps its current iteration, bounds or collection
 snapshot, and jump state. In an entity-selector loop, start delayed work by
 calling a function as each selected entity or placing the wait directly in the
 loop body. Each selected executor gets its own saved values. The caller keeps
@@ -1363,9 +1365,15 @@ They keep local values, support nested waits, and share the 128-instance limit
 per wait site. Use `cancel_waits(server = true, group = "bakery")` to cancel
 server waits in a group. A reload clears pending server waits.
 
-A waiting function can deliver a computed result through a typed callback.
-Keep the work that needs the result in that callback. It runs as part of
-the resumed continuation.
+A delayed result can be used like any other function result. For example,
+`let amount = bake(batch);` continues with `amount` once `bake` returns.
+An `&mut self` method can update a local record the same way. A mutable
+borrow from shared State cannot cross a wait. Use a local record when the
+updates belong to one invocation. Calls that suspend their callers cannot
+be recursive and must stay in the current executor context.
+
+Cancelling a wait discards the suspended call chain. To deliver a computed
+result while the caller continues independently, use a typed callback.
 
 ```rust,ignore
 fn compute_later(done: fn(number)) {

@@ -221,7 +221,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Statement,
         signature: "wait(ticks?, seconds?, group?, server?)",
         summary: "Resume this function later with its own local values.",
-        details: "The continuation keeps its locals. Entity waits resume as their original executor at the saved location. Use `server = true` to resume in server context, or `group = \"name\"` to give waits a shared cancellation group. Invalid runtime durations continue immediately.",
+        details: "The continuation keeps its locals. A caller awaiting a return value or a mutable local receiver update resumes when the callee finishes. Entity waits resume as their original executor at the saved location. Use `server = true` to resume in server context, or `group = \"name\"` to give waits a shared cancellation group. Invalid runtime durations continue immediately.",
         minecraft: "Start a canonical owner-bound Sand lifetime.",
         needs_player: false,
         params: &[

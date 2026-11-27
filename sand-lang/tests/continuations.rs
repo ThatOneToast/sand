@@ -130,10 +130,9 @@ fn clear() { cancel_waits(server = true, group = "server"); }
 fn run() { wait(1, server = true); }
 "#,
     );
-    let errors = invalid
-        .compile()
-        .err()
-        .expect("server wait allowed in a player frame");
+    let Err(errors) = invalid.compile() else {
+        panic!("server wait allowed in a player frame");
+    };
     assert!(
         errors
             .iter()

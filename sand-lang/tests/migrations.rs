@@ -97,10 +97,9 @@ fn migration_callbacks_require_compatible_synchronous_transforms() {
             "#![pack(namespace = \"upgrades\")] #[migrate(upgrade)] global state Bank {{ value: number }} {body}"
         );
         let analysis = analyze_one(&source);
-        let diagnostics = analysis
-            .compile()
-            .err()
-            .expect("invalid migration compiled");
+        let Err(diagnostics) = analysis.compile() else {
+            panic!("invalid migration compiled");
+        };
         assert!(
             diagnostics.iter().any(|d| d.message.contains(expected)),
             "{source}: {diagnostics:?}"

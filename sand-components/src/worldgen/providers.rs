@@ -713,7 +713,7 @@ mod tests {
             3,
         )]);
         valid.validate(&location(), "kind", "field").unwrap();
-        assert_eq!(valid.to_json()["entries"][0]["weight"], 3);
+        assert_eq!(valid.to_feature_json(false)["entries"][0]["weight"], 3);
     }
 
     #[test]

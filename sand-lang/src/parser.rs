@@ -603,6 +603,7 @@ impl Builder<'_> {
                     "dimension_type" => DataKind::DimensionType,
                     "biome" => DataKind::Biome,
                     "structure_template" => DataKind::StructureTemplate,
+                    "structure_set" => DataKind::StructureSet,
                     "inventory_transfer" => DataKind::InventoryTransfer,
                     "hud" => DataKind::Hud,
                     "menu" => DataKind::Menu,

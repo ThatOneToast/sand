@@ -966,6 +966,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "structure_set"
+                },
+                {
+                  "type": "STRING",
                   "value": "inventory_transfer"
                 },
                 {

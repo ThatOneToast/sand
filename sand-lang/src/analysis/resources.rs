@@ -997,6 +997,20 @@ impl Cx {
                 ));
                 out.biomes.push(biome);
             }
+            DataKind::StructureSet => {
+                let Some(structure_set) =
+                    self.data_structure_set(module, file, location, data.name.span, get)
+                else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/structure_sets/{}", out.structure_sets.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.structure_sets.push(structure_set);
+            }
             DataKind::DimensionType => {
                 let Some(dimension_type) = self.data_dimension_type(module, file, location, get)
                 else {
@@ -2734,6 +2748,165 @@ impl Cx {
         None
     }
 
+    fn data_structure_set<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        span: Span,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<sand::component::StructureSet> {
+        use sand::component::{
+            ExclusionZone, SpreadType, StructureEntry, StructurePlacement, StructureSet,
+        };
+        let structures = &get("structures")?.value;
+        let DataValue::Array(entries, _) = structures else {
+            self.error(
+                "structure_set",
+                file,
+                structures.span(),
+                "expected a list of weighted structure references",
+            );
+            return None;
+        };
+        let structures = entries
+            .iter()
+            .map(|entry| {
+                let fields = self.data_object_fields(
+                    file,
+                    entry,
+                    "structure entry",
+                    &["structure"],
+                    &["weight"],
+                )?;
+                let structure =
+                    self.data_named_resource(file, fields.get("structure")?, "structure")?;
+                let weight = match fields.get("weight") {
+                    Some(value) => self.data_int(module, file, value, 1, i32::MAX as i64)? as u32,
+                    None => 1,
+                };
+                Some(StructureEntry::new(structure.into(), weight))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let placement = match (get("random_spread"), get("concentric_rings")) {
+            (Some(field), None) => {
+                let args = self.data_object_fields(
+                    file,
+                    &field.value,
+                    "random spread",
+                    &["spacing", "separation", "salt"],
+                    &["frequency", "triangular"],
+                )?;
+                let spacing = self.data_int(module, file, args.get("spacing")?, 1, 4096)? as u32;
+                let separation =
+                    self.data_int(module, file, args.get("separation")?, 0, 4095)? as u32;
+                let salt =
+                    self.data_int(module, file, args.get("salt")?, 0, i32::MAX as i64)? as i32;
+                let frequency = match args.get("frequency") {
+                    Some(value) => Some(self.data_number(module, file, value)? as f32),
+                    None => None,
+                };
+                let spread_type = match args.get("triangular") {
+                    Some(value) if self.data_bool(file, value)? => SpreadType::Triangular,
+                    _ => SpreadType::Linear,
+                };
+                StructurePlacement::RandomSpread {
+                    spacing,
+                    separation,
+                    salt,
+                    spread_type,
+                    frequency,
+                    frequency_reduction_method: None,
+                }
+            }
+            (None, Some(field)) => {
+                let args = self.data_object_fields(
+                    file,
+                    &field.value,
+                    "concentric rings",
+                    &["distance", "spread", "count", "preferred_biomes"],
+                    &[],
+                )?;
+                let distance = self.data_int(module, file, args.get("distance")?, 1, 1023)? as u32;
+                let spread = self.data_int(module, file, args.get("spread")?, 1, 1023)? as u32;
+                let count = self.data_int(module, file, args.get("count")?, 1, 4095)? as u32;
+                let biomes = *args.get("preferred_biomes")?;
+                let DataValue::Array(entries, _) = biomes else {
+                    self.error(
+                        "structure_set",
+                        file,
+                        biomes.span(),
+                        "expected a list of biome references",
+                    );
+                    return None;
+                };
+                let biomes = entries
+                    .iter()
+                    .map(|value| self.data_tag_value(module, file, value, "Biome"))
+                    .collect::<Option<Vec<_>>>()?;
+                if biomes.len() > 1 && biomes.iter().any(|biome| biome.starts_with('#')) {
+                    self.error(
+                        "structure_set",
+                        file,
+                        field.value.span(),
+                        "a preferred biome tag must be the only entry",
+                    );
+                    return None;
+                }
+                StructurePlacement::ConcentricRings {
+                    distance,
+                    spread,
+                    count,
+                    preferred_biomes: Some(biomes),
+                }
+            }
+            _ => {
+                self.error(
+                    "structure_set",
+                    file,
+                    span,
+                    "select exactly one of random_spread and concentric_rings",
+                );
+                return None;
+            }
+        };
+        let mut set = StructureSet::new(id, structures, placement);
+        if let Some(field) = get("exclusion") {
+            let args = self.data_object_fields(
+                file,
+                &field.value,
+                "exclusion zone",
+                &["set", "chunks"],
+                &[],
+            )?;
+            let other_set = self.data_named_resource(file, args.get("set")?, "structure set")?;
+            let chunks = self.data_int(module, file, args.get("chunks")?, 1, 16)? as u32;
+            set = set.exclusion_zone(ExclusionZone::new(other_set.to_string(), chunks));
+        }
+        Some(set)
+    }
+
+    fn data_named_resource(
+        &mut self,
+        file: FileId,
+        value: &DataValue,
+        kind: &str,
+    ) -> Option<sand::ResourceLocation> {
+        if let DataValue::Expr(Expr::Str { value, .. }) = value
+            && value.contains(':')
+            && let Ok(id) = value.parse()
+        {
+            return Some(id);
+        }
+        self.error(
+            "id",
+            file,
+            value.span(),
+            format!("expected a quoted namespaced {kind} id"),
+        );
+        None
+    }
+
     fn data_biome_features(
         &mut self,
         file: FileId,
@@ -2773,20 +2946,9 @@ impl Cx {
             };
             let ids = entries
                 .iter()
-                .map(|entry| {
-                    if let DataValue::Expr(Expr::Str { value, .. }) = entry
-                        && value.contains(':')
-                        && let Ok(id) = value.parse()
-                    {
-                        return Some(id);
-                    }
-                    self.error(
-                        "biome",
-                        file,
-                        entry.span(),
-                        "expected a quoted namespaced placed feature id",
-                    );
-                    None
+                .map(|value| {
+                    self.data_named_resource(file, value, "placed feature")
+                        .map(Into::into)
                 })
                 .collect::<Option<Vec<_>>>()?;
             if features.insert(step, ids).is_some() {

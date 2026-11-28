@@ -196,6 +196,13 @@
       },
       "type": "array"
     },
+    "structure_sets": {
+      "description": "Native placements for weighted structures.",
+      "items": {
+        "$ref": "defs-StructureSet.schema.json"
+      },
+      "type": "array"
+    },
     "structure_templates": {
       "description": "Native templates whose bytes are supplied in the envelope.",
       "items": {

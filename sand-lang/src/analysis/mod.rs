@@ -158,6 +158,8 @@ pub enum DefKind {
     Biome,
     /// `structure_template Name { ... }`.
     StructureTemplate,
+    /// `structure_set Name { ... }`.
+    StructureSet,
     /// `inventory_transfer Name { ... }`.
     InventoryTransfer,
     /// `hud Name { ... }`.
@@ -209,6 +211,7 @@ impl DefKind {
             DefKind::DimensionType => "dimension type",
             DefKind::Biome => "biome",
             DefKind::StructureTemplate => "structure template",
+            DefKind::StructureSet => "structure set",
             DefKind::InventoryTransfer => "inventory transfer",
             DefKind::Hud => "HUD",
             DefKind::Menu => "menu",
@@ -1189,6 +1192,7 @@ impl Cx {
                     crate::ast::DataKind::DimensionType => DefKind::DimensionType,
                     crate::ast::DataKind::Biome => DefKind::Biome,
                     crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
+                    crate::ast::DataKind::StructureSet => DefKind::StructureSet,
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                     crate::ast::DataKind::Hud => DefKind::Hud,
                     crate::ast::DataKind::Menu => DefKind::Menu,
@@ -3225,6 +3229,7 @@ impl Cx {
             dimension_types: Vec::new(),
             biomes: Vec::new(),
             structure_templates: Vec::new(),
+            structure_sets: Vec::new(),
             inventory_transfers: Vec::new(),
             huds: Vec::new(),
             menus: Vec::new(),

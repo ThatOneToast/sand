@@ -1479,6 +1479,20 @@ pub(super) fn validate(
                 ),
             }
         }
+        for (index, structure_set) in module.structure_sets.iter().enumerate() {
+            use sand_components::component::DatapackComponent;
+            let ptr = format!("/structure_sets/{index}");
+            let id = structure_set.resource_location();
+            if !resource_ids.insert(format!("structure set {id}")) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate structure set `{id}`"),
+                );
+            }
+            if let Err(error) = structure_set.validate() {
+                push(ptr, error.to_string());
+            }
+        }
         for (index, biome) in module.biomes.iter().enumerate() {
             let ptr = format!("/biomes/{index}");
             if !resource_ids.insert(format!("biome {}", biome.id)) {

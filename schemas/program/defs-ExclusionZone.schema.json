@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The exclusion-zone chunk count that another structure set must keep clear around a placement.\n\n# Context\nThe exclusion-zone chunk count that another structure set must keep clear around a placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::ExclusionZone;\n```\nThe exclusion-zone chunk count that another structure set must keep clear\naround a placement.",
+  "properties": {
+    "chunk_count": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "other_set": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "other_set",
+    "chunk_count"
+  ],
+  "type": "object"
+}

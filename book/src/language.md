@@ -1645,6 +1645,27 @@ a constant or a `number` or `timer` State field. It stays between zero and the b
 maximum. A player's most recently started Sand HUD with an actionbar owns
 that slot. Sand removes its presentation at cancellation, expiry, or reload.
 
+### Natural placement with structure sets
+
+A `structure_set` schedules existing native structures during chunk
+generation. Give each structure a namespaced identity and an optional weight,
+which defaults to 1. Minecraft selects a structure at each candidate position
+and still checks whether that structure can generate at the chosen biome.
+
+```rust,ignore
+structure_set Outposts {
+    structures: [{ structure: "minecraft:pillager_outpost" }],
+    random_spread: { spacing: 24, separation: 6, salt: 836142 },
+    exclusion: { set: "minecraft:villages", chunks: 5 },
+}
+```
+
+Random spread uses spacing and separation in chunks. Add `frequency` from
+0 to 1 to reduce candidate placements or set `triangular` to use triangular
+spread. For stronghold-style placement, use `concentric_rings` with
+`distance`, `spread`, `count`, and `preferred_biomes`. Preferred biomes can
+be a list of biome identities or one quoted biome tag in the list.
+
 ### Structure templates
 
 Save a structure as a Minecraft gzip NBT file and put it inside the package.

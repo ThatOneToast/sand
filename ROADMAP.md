@@ -314,8 +314,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Structure template imports from saved native NBT files and typed placement
   at absolute or relative positions.
 - [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
-- [ ] Natural structure generation, biome terrain features, other world
-  generators, and first-class native block data.
+- [ ] Authored structure definitions and template pools for natural generation,
+  authored terrain features, other world generators, and first-class native block data.
+- [x] Native structure sets with weighted placement, random spread and rings.
 - [x] Custom dimension rules for height, lighting, coordinate scale,
   infiniburn and spawn light, through native dimension type resources.
 - [x] Ordered placed-feature references in custom biome terrain steps.

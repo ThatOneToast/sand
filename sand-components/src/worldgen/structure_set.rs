@@ -7,6 +7,8 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::component::DatapackComponent;
@@ -33,8 +35,10 @@ const TYPED_FIELDS: &[&str] = &["structures", "placement"];
     example = "use sand::component::StructureEntry;",
 )]
 /// A weighted `worldgen/structure` reference inside a structure set.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct StructureEntry {
+    #[schemars(with = "String")]
     structure: StructureId,
     weight: u32,
 }
@@ -100,7 +104,8 @@ impl StructureEntry {
 )]
 /// The exclusion-zone chunk count that another structure set must keep clear
 /// around a placement.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExclusionZone {
     other_set: String,
     chunk_count: u32,
@@ -173,7 +178,8 @@ impl ExclusionZone {
     variants(Default = "Uses Minecraft's default frequency-reduction algorithm.", LegacyType1 = "Uses Minecraft's legacy type1 frequency-reduction algorithm.", LegacyType2 = "Uses Minecraft's legacy type2 frequency-reduction algorithm.", LegacyType3 = "Uses Minecraft's legacy type3 frequency-reduction algorithm."),
 )]
 /// The frequency reduction curve for random-spread placement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum FrequencyReductionMethod {
     #[doc = "Uses Minecraft's default frequency-reduction algorithm."]
     Default,
@@ -225,7 +231,8 @@ impl FrequencyReductionMethod {
     variants(Linear = "Distributes candidate chunks with Minecraft's linear spread.", Triangular = "Distributes candidate chunks with Minecraft's triangular spread."),
 )]
 /// How random-spread candidate chunks are chosen inside each spacing cell.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum SpreadType {
     #[doc = "Distributes candidate chunks with Minecraft's linear spread."]
     Linear,
@@ -272,7 +279,8 @@ impl SpreadType {
     variant_fields(ConcentricRings(count = "`count` provides the count when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", distance = "`distance` provides the distance when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", preferred_biomes = "`preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", spread = "`spread` provides the spread when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds."), RandomSpread(frequency = "`frequency` optionally supplies the placement frequency for this random-spread strategy.", frequency_reduction_method = "`frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` — an evenly distributed grid with jitter.", salt = "`salt` provides the salt when `minecraft:random_spread` — an evenly distributed grid with jitter.", separation = "`separation` provides the separation when `minecraft:random_spread` — an evenly distributed grid with jitter.", spacing = "`spacing` provides the spacing when `minecraft:random_spread` — an evenly distributed grid with jitter.", spread_type = "`spread_type` provides the spread type when `minecraft:random_spread` — an evenly distributed grid with jitter.")),
 )]
 /// A structure-set placement strategy.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum StructurePlacement {
     /// `minecraft:random_spread` — an evenly distributed grid with jitter.
     RandomSpread {
@@ -399,12 +407,13 @@ impl StructurePlacement {
                 map.insert("distance".into(), (*distance).into());
                 map.insert("spread".into(), (*spread).into());
                 map.insert("count".into(), (*count).into());
-                if let Some(biomes) = preferred_biomes {
-                    map.insert(
-                        "preferred_biomes".into(),
-                        Value::Array(biomes.iter().cloned().map(Value::String).collect()),
-                    );
-                }
+                map.insert("salt".into(), 0.into());
+                let biomes = preferred_biomes.as_deref().unwrap_or_default();
+                let preferred = match biomes {
+                    [tag] if tag.starts_with('#') => Value::String(tag.clone()),
+                    _ => Value::Array(biomes.iter().cloned().map(Value::String).collect()),
+                };
+                map.insert("preferred_biomes".into(), preferred);
             }
         }
     }
@@ -414,9 +423,18 @@ impl StructurePlacement {
             Self::RandomSpread {
                 spacing,
                 separation,
+                salt,
                 frequency,
                 ..
             } => {
+                if *salt < 0 {
+                    return Err(validation::error(
+                        location,
+                        KIND,
+                        "placement.salt",
+                        "salt must not be negative",
+                    ));
+                }
                 if *separation >= *spacing {
                     return Err(validation::error(
                         location,
@@ -482,6 +500,14 @@ impl StructurePlacement {
                         "placement.preferred_biomes",
                         biomes.len(),
                     )?;
+                    if biomes.len() > 1 && biomes.iter().any(|biome| biome.starts_with('#')) {
+                        return Err(validation::error(
+                            location,
+                            KIND,
+                            "placement.preferred_biomes",
+                            "a preferred biome tag must be the only entry",
+                        ));
+                    }
                     for (index, biome) in biomes.iter().enumerate() {
                         validation::validate_resource_or_tag_location_str(
                             location,
@@ -524,11 +550,17 @@ impl StructurePlacement {
 /// assert_eq!(set.component_dir(), "worldgen/structure_set");
 /// assert_eq!(set.to_json()["placement"]["type"], "minecraft:random_spread");
 /// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct StructureSet {
+    #[serde(rename = "id")]
+    #[schemars(with = "String")]
     location: ResourceLocation,
     structures: Vec<StructureEntry>,
     placement: StructurePlacement,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     exclusion_zone: Option<ExclusionZone>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     raw_fields: BTreeMap<String, RawJson>,
 }
 

@@ -36,6 +36,7 @@ fn counter() -> Program {
             dimension_types: vec![],
             biomes: vec![],
             structure_templates: vec![],
+            structure_sets: vec![],
             inventory_transfers: vec![],
             huds: vec![],
             menus: vec![],

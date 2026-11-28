@@ -663,6 +663,18 @@ pub(super) fn lower(
             })?;
             lower.records.push(record);
         }
+        for (index, structure_set) in module.structure_sets.iter().enumerate() {
+            let record =
+                records::component_to_record(structure_set, Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/structure_sets/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
         for (index, biome) in module.biomes.iter().enumerate() {
             let component = custom_biome_component(biome);
             let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {

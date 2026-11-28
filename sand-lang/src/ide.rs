@@ -310,6 +310,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}inventory_transfer {}", def.name),
                     format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
                 ),
+                (crate::ast::DataKind::StructureSet, _) => (
+                    format!("{vis}structure_set {}", def.name),
+                    format!("Native structure placement schedule `{id}`."),
+                ),
                 (crate::ast::DataKind::StructureTemplate, _) => (
                     format!("{vis}structure_template {}", def.name),
                     format!("Native template `{id}`. Use it with `place_template`."),
@@ -1253,6 +1257,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::DimensionType
         | DefKind::Biome
         | DefKind::StructureTemplate
+        | DefKind::StructureSet
         | DefKind::InventoryTransfer
         | DefKind::Hud
         | DefKind::Progression
@@ -2665,6 +2670,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "inventory_transfer",
             "checked inventory move",
             "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
+        ),
+        Completion::snippet(
+            "structure_set",
+            "native weighted structure placement",
+            r#"structure_set ${1:Set} { structures: [{ structure: "minecraft:${2:village_plains}" }], random_spread: { spacing: ${3:34}, separation: ${4:8}, salt: ${5:1} } }"#,
         ),
         Completion::snippet(
             "structure_template",

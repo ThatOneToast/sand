@@ -532,6 +532,8 @@ pub enum DataKind {
     DimensionType,
     Biome,
     StructureTemplate,
+    /// A native weighted structure placement schedule.
+    StructureSet,
     InventoryTransfer,
     Hud,
     Menu,
@@ -561,6 +563,7 @@ impl DataKind {
             DataKind::DimensionType => "dimension_type",
             DataKind::Biome => "biome",
             DataKind::StructureTemplate => "structure_template",
+            DataKind::StructureSet => "structure_set",
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",

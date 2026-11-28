@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A structure-set placement strategy.\n\n# Context\nA structure-set placement strategy. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructurePlacement;\n```\nA structure-set placement strategy.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "`minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+      "properties": {
+        "random_spread": {
+          "additionalProperties": false,
+          "properties": {
+            "frequency": {
+              "description": "`frequency` optionally supplies the placement frequency for this random-spread strategy.\n`frequency` optionally supplies the placement frequency for this random-spread strategy.",
+              "format": "float",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "frequency_reduction_method": {
+              "anyOf": [
+                {
+                  "$ref": "defs-FrequencyReductionMethod.schema.json"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter."
+            },
+            "salt": {
+              "description": "`salt` provides the salt when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`salt` provides the salt when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "separation": {
+              "description": "`separation` provides the separation when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`separation` provides the separation when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "spacing": {
+              "description": "`spacing` provides the spacing when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`spacing` provides the spacing when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "spread_type": {
+              "$ref": "defs-SpreadType.schema.json",
+              "description": "`spread_type` provides the spread type when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`spread_type` provides the spread type when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter."
+            }
+          },
+          "required": [
+            "spacing",
+            "separation",
+            "salt",
+            "spread_type"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "random_spread"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "`minecraft:concentric_rings` \u2014 rings of candidate chunks around the\nworld origin, as used by strongholds.\n`minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+      "properties": {
+        "concentric_rings": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "description": "`count` provides the count when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`count` provides the count when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "distance": {
+              "description": "`distance` provides the distance when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`distance` provides the distance when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "preferred_biomes": {
+              "description": "`preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "spread": {
+              "description": "`spread` provides the spread when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`spread` provides the spread when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "distance",
+            "spread",
+            "count"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "concentric_rings"
+      ],
+      "type": "object"
+    }
+  ]
+}

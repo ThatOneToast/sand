@@ -80,6 +80,7 @@ fn item_level() {
             "dimension_type",
             "biome",
             "structure_template",
+            "structure_set",
             "inventory_transfer",
             "hud",
             "menu",

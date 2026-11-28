@@ -113,3 +113,80 @@ structure_template Probe { source: "saved.nbt" }"#,
         errors(&analysis)
     );
 }
+
+#[test]
+fn native_structure_sets_export_weighted_spread_and_rings() {
+    let analysis = analyze_one(
+        r##"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+structure_set Towns {
+    structures: [
+        { structure: "minecraft:village_plains", weight: 3 },
+        { structure: "minecraft:village_desert" },
+    ],
+    random_spread: { spacing: 20, separation: 6, salt: 421, frequency: 0.25, triangular: true },
+    exclusion: { set: "minecraft:pillager_outposts", chunks: 3 },
+}
+structure_set Rings {
+    structures: [{ structure: "minecraft:stronghold" }],
+    concentric_rings: { distance: 32, spread: 3, count: 16, preferred_biomes: ["#minecraft:stronghold_biased_to"] },
+}
+"##,
+    );
+    let pack = compile(&analysis);
+    let towns: serde_json::Value = serde_json::from_slice(
+        &pack.resources["data/world_probe/worldgen/structure_set/towns.json"],
+    )
+    .unwrap();
+    assert_eq!(
+        towns,
+        serde_json::json!({
+            "structures": [{"structure": "minecraft:village_plains", "weight": 3}, {"structure": "minecraft:village_desert", "weight": 1}],
+            "placement": {
+                "type": "minecraft:random_spread", "spacing": 20, "separation": 6, "salt": 421,
+                "spread_type": "triangular", "frequency": 0.25,
+                "exclusion_zone": {"other_set": "minecraft:pillager_outposts", "chunk_count": 3},
+            }
+        })
+    );
+    let rings: serde_json::Value = serde_json::from_slice(
+        &pack.resources["data/world_probe/worldgen/structure_set/rings.json"],
+    )
+    .unwrap();
+    assert_eq!(
+        rings["placement"],
+        serde_json::json!({
+            "type": "minecraft:concentric_rings", "distance": 32, "spread": 3, "count": 16,
+            "salt": 0, "preferred_biomes": "#minecraft:stronghold_biased_to",
+        })
+    );
+    let json = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded = sand::advanced::compiler::Compiler::decode(&json, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+}
+
+#[test]
+fn structure_sets_diagnose_missing_rules_and_invalid_placement() {
+    for fields in [
+        "",
+        r#"random_spread: { spacing: 16, separation: 16, salt: 1 }"#,
+        r#"random_spread: { spacing: 16, separation: 2, salt: -1 }"#,
+        r#"random_spread: { spacing: 16, salt: 1 }"#,
+        r##"concentric_rings: { distance: 32, spread: 3, count: 16, preferred_biomes: ["#minecraft:stronghold_biased_to", Biome::Plains] }"##,
+    ] {
+        let source = format!(
+            r#"#![pack(namespace = "world_probe")]
+structure_set Invalid {{ structures: [{{ structure: "minecraft:village_plains" }}], {fields} }}"#
+        );
+        let analysis = analyze_one(&source);
+        assert!(
+            analysis.has_errors() || analysis.compile().is_err(),
+            "{fields}"
+        );
+    }
+}

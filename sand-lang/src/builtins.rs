@@ -3177,6 +3177,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "${1:on_rejected}",
     ),
     f(
+        "structure_set",
+        "structures",
+        FieldKind::ResourceId,
+        true,
+        "Weighted list of existing structure IDs.",
+        "[{ structure: \"minecraft:${1:village_plains}\", weight: ${2:1} }]",
+    ),
+    f(
+        "structure_set",
+        "random_spread",
+        FieldKind::ResourceId,
+        false,
+        "Random-spread grid placement with chunk spacing, separation, and seed salt.",
+        "{ spacing: ${1:34}, separation: ${2:8}, salt: ${3:10387312} }",
+    ),
+    f(
+        "structure_set",
+        "concentric_rings",
+        FieldKind::ResourceId,
+        false,
+        "Origin-centered rings with preferred biomes.",
+        "{ distance: ${1:32}, spread: ${2:3}, count: ${3:128}, preferred_biomes: [Biome::${4:Plains}] }",
+    ),
+    f(
+        "structure_set",
+        "exclusion",
+        FieldKind::ResourceId,
+        false,
+        "Exclude chunks near another structure set.",
+        "{ set: \"minecraft:${1:villages}\", chunks: ${2:10} }",
+    ),
+    f(
         "structure_template",
         "source",
         FieldKind::AssetPath,
@@ -3528,6 +3560,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "inventory_transfer",
         "`inventory_transfer Name { from: 0, to: 9 }` declares a checked move for `transfer_inventory`.",
+    ),
+    (
+        "structure_set",
+        "`structure_set Name { ... }` places a weighted selection of native structures during generation.",
     ),
     (
         "structure_template",

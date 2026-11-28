@@ -3738,6 +3738,25 @@
       ],
       "type": "object"
     },
+    "ExclusionZone": {
+      "additionalProperties": false,
+      "description": "The exclusion-zone chunk count that another structure set must keep clear around a placement.\n\n# Context\nThe exclusion-zone chunk count that another structure set must keep clear around a placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::ExclusionZone;\n```\nThe exclusion-zone chunk count that another structure set must keep clear\naround a placement.",
+      "properties": {
+        "chunk_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "other_set": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "other_set",
+        "chunk_count"
+      ],
+      "type": "object"
+    },
     "ExecutionContext": {
       "description": "Minimum executor context required by a function or external call.",
       "oneOf": [
@@ -3987,6 +4006,31 @@
         "to"
       ],
       "type": "object"
+    },
+    "FrequencyReductionMethod": {
+      "description": "The frequency reduction curve for random-spread placement.\n\n# Context\nThe frequency reduction curve for random-spread placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::FrequencyReductionMethod;\n```\nThe frequency reduction curve for random-spread placement.",
+      "oneOf": [
+        {
+          "const": "default",
+          "description": "Uses Minecraft's default frequency-reduction algorithm.\nUses Minecraft's default frequency-reduction algorithm.",
+          "type": "string"
+        },
+        {
+          "const": "legacy_type1",
+          "description": "Uses Minecraft's legacy type1 frequency-reduction algorithm.\nUses Minecraft's legacy type1 frequency-reduction algorithm.",
+          "type": "string"
+        },
+        {
+          "const": "legacy_type2",
+          "description": "Uses Minecraft's legacy type2 frequency-reduction algorithm.\nUses Minecraft's legacy type2 frequency-reduction algorithm.",
+          "type": "string"
+        },
+        {
+          "const": "legacy_type3",
+          "description": "Uses Minecraft's legacy type3 frequency-reduction algorithm.\nUses Minecraft's legacy type3 frequency-reduction algorithm.",
+          "type": "string"
+        }
+      ]
     },
     "Function": {
       "additionalProperties": false,
@@ -4763,6 +4807,13 @@
           "description": "Player or global State definitions owned by this module.",
           "items": {
             "$ref": "#/$defs/State"
+          },
+          "type": "array"
+        },
+        "structure_sets": {
+          "description": "Native placements for weighted structures.",
+          "items": {
+            "$ref": "#/$defs/StructureSet"
           },
           "type": "array"
         },
@@ -6560,6 +6611,21 @@
       ],
       "type": "object"
     },
+    "SpreadType": {
+      "description": "How random-spread candidate chunks are chosen inside each spacing cell.\n\n# Context\nHow random-spread candidate chunks are chosen inside each spacing cell. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::SpreadType;\n```\nHow random-spread candidate chunks are chosen inside each spacing cell.",
+      "oneOf": [
+        {
+          "const": "linear",
+          "description": "Distributes candidate chunks with Minecraft's linear spread.\nDistributes candidate chunks with Minecraft's linear spread.",
+          "type": "string"
+        },
+        {
+          "const": "triangular",
+          "description": "Distributes candidate chunks with Minecraft's triangular spread.\nDistributes candidate chunks with Minecraft's triangular spread.",
+          "type": "string"
+        }
+      ]
+    },
     "State": {
       "additionalProperties": false,
       "description": "Versioned State with typed score and storage fields and canonical ownership.",
@@ -6640,6 +6706,181 @@
       "required": [
         "timer",
         "ticks"
+      ],
+      "type": "object"
+    },
+    "StructureEntry": {
+      "additionalProperties": false,
+      "description": "A weighted `worldgen/structure` reference inside a structure set.\n\n# Context\nA weighted `worldgen/structure` reference inside a structure set. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructureEntry;\n```\nA weighted `worldgen/structure` reference inside a structure set.",
+      "properties": {
+        "structure": {
+          "type": "string"
+        },
+        "weight": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "structure",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "StructurePlacement": {
+      "description": "A structure-set placement strategy.\n\n# Context\nA structure-set placement strategy. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructurePlacement;\n```\nA structure-set placement strategy.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+          "properties": {
+            "random_spread": {
+              "additionalProperties": false,
+              "properties": {
+                "frequency": {
+                  "description": "`frequency` optionally supplies the placement frequency for this random-spread strategy.\n`frequency` optionally supplies the placement frequency for this random-spread strategy.",
+                  "format": "float",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "frequency_reduction_method": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/FrequencyReductionMethod"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "`frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter."
+                },
+                "salt": {
+                  "description": "`salt` provides the salt when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`salt` provides the salt when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+                  "format": "int32",
+                  "type": "integer"
+                },
+                "separation": {
+                  "description": "`separation` provides the separation when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`separation` provides the separation when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "spacing": {
+                  "description": "`spacing` provides the spacing when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`spacing` provides the spacing when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "spread_type": {
+                  "$ref": "#/$defs/SpreadType",
+                  "description": "`spread_type` provides the spread type when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter.\n`spread_type` provides the spread type when `minecraft:random_spread` \u2014 an evenly distributed grid with jitter."
+                }
+              },
+              "required": [
+                "spacing",
+                "separation",
+                "salt",
+                "spread_type"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "random_spread"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:concentric_rings` \u2014 rings of candidate chunks around the\nworld origin, as used by strongholds.\n`minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+          "properties": {
+            "concentric_rings": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "description": "`count` provides the count when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`count` provides the count when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "distance": {
+                  "description": "`distance` provides the distance when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`distance` provides the distance when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "preferred_biomes": {
+                  "description": "`preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "spread": {
+                  "description": "`spread` provides the spread when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.\n`spread` provides the spread when `minecraft:concentric_rings` \u2014 rings of candidate chunks around the world origin, as used by strongholds.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "distance",
+                "spread",
+                "count"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "concentric_rings"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StructureSet": {
+      "additionalProperties": false,
+      "description": "A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).\n\n# Context\nA structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructureSet;\n```\nA structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).\n\n```\nuse sand_components::{DatapackComponent, ResourceLocation, StructureId};\nuse sand_components::worldgen::structure_set::{StructureEntry, StructurePlacement, StructureSet};\n\nlet set = StructureSet::new(\n    ResourceLocation::new(\"example\", \"villages\").unwrap(),\n    [StructureEntry::new(StructureId::minecraft(\"village_plains\").unwrap(), 1)],\n    StructurePlacement::random_spread(34, 8, 10387312),\n);\nset.validate().unwrap();\nassert_eq!(set.component_dir(), \"worldgen/structure_set\");\nassert_eq!(set.to_json()[\"placement\"][\"type\"], \"minecraft:random_spread\");\n```",
+      "properties": {
+        "exclusion_zone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExclusionZone"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "placement": {
+          "$ref": "#/$defs/StructurePlacement"
+        },
+        "raw_fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RawJson"
+          },
+          "type": "object"
+        },
+        "structures": {
+          "items": {
+            "$ref": "#/$defs/StructureEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "structures",
+        "placement"
       ],
       "type": "object"
     },

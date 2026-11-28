@@ -857,6 +857,18 @@ impl Cx {
                     bossbar,
                 });
             }
+            DataKind::Archetype => {
+                let Some(archetype) = self.data_archetype(module, file, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/archetypes/{}", out.archetypes.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.archetypes.push(archetype);
+            }
             DataKind::StatusEffect => {
                 let Some(ticks) = get("ticks").and_then(|field| {
                     self.data_int(module, file, &field.value, 1, i32::MAX as i64)
@@ -2099,6 +2111,92 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_archetype<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::EntityArchetypeDefinition> {
+        let entity = self.data_expr(file, &get("entity")?.value, "a non-player entity kind")?;
+        let kind = self.vanilla_value(module, file, entity, "Entity")?;
+        if kind == "minecraft:player" {
+            self.error(
+                "archetype",
+                file,
+                entity.span(),
+                "an archetype requires a non-player entity kind",
+            );
+            return None;
+        }
+        let mut components = Vec::new();
+        if let Some(field) = get("components") {
+            let DataValue::Array(entries, _) = &field.value else {
+                self.error(
+                    "archetype",
+                    file,
+                    field.value.span(),
+                    "expected a list of entity State components",
+                );
+                return None;
+            };
+            let mut seen = BTreeSet::new();
+            for entry in entries {
+                let Some(Expr::Path(path)) = self.data_expr(file, entry, "an entity State name")
+                else {
+                    self.error(
+                        "archetype",
+                        file,
+                        entry.span(),
+                        "expected an entity State name",
+                    );
+                    return None;
+                };
+                let state = self.expect_path(module, path, &[DefKind::State], "an entity State")?;
+                let DefInfo::State {
+                    id,
+                    scope: Scope::Entity,
+                    ..
+                } = &self.defs[state.0].info
+                else {
+                    self.error(
+                        "archetype",
+                        file,
+                        entry.span(),
+                        "archetype components require entity State",
+                    );
+                    return None;
+                };
+                if !seen.insert(state) {
+                    self.error(
+                        "archetype",
+                        file,
+                        entry.span(),
+                        "duplicate archetype component",
+                    );
+                    return None;
+                }
+                components.push(id.parse().expect("valid entity State id"));
+            }
+        }
+        let adopt_every = match get("adopt_every") {
+            Some(field) => {
+                Some(self.data_int(module, file, &field.value, 1, i32::MAX as i64)? as u32)
+            }
+            None => None,
+        };
+        let mut callback =
+            |name| get(name).and_then(|field| self.data_callback(module, file, &field.value));
+        Some(pc::EntityArchetypeDefinition {
+            id,
+            entity: kind.parse().expect("valid entity type"),
+            components,
+            adopt_every,
+            initialize: callback("initialize"),
+            cleanup: callback("cleanup"),
+        })
     }
 
     pub(super) fn collect_roster_roles(&mut self) {

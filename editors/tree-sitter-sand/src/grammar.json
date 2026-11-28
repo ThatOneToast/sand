@@ -1002,6 +1002,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "archetype"
+                },
+                {
+                  "type": "STRING",
                   "value": "hud"
                 },
                 {

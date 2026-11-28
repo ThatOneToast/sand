@@ -116,8 +116,8 @@ pub struct ScoreRelation {
  use_when = ["Choosing between two ordered bodies at runtime"],
  avoid_when = ["Flow transition guards, which accept only ranges"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- variants(RosterMatch = "Tests authoritative online roster membership.", Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag.", Predicate = "A native predicate matches at the execution origin.", Advancement = "The executing player completed an advancement or criterion.", ProgressionCompleted = "The executing player completed a named progression."),
- variant_fields(RosterMatch(roster_match = "Roster identity.", role = "Optional role encoding.", any_member = "Test any member, instead of the executing player."), Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."], Predicate(predicate = "The predicate resource identity."), Advancement(advancement = "The native advancement identity.", criterion = "Optional named criterion."), ProgressionCompleted(progression_completed = "Progression identity.")),
+ variants(ArchetypeAttached = "The executing entity owns this archetype.", RosterMatch = "Tests authoritative online roster membership.", Range = "The field lies within inclusive constant bounds.", Relation = "Two fields satisfy a relation.", Attached = "The executor has an entity State attached.", Exists = "At least one entity matches.", Block = "A block matches at a position.", Dimension = "The execution dimension matches.", Biome = "The biome at a block position matches.", Holding = "The executor holds an item.", Flag = "The executor has an entity flag.", Predicate = "A native predicate matches at the execution origin.", Advancement = "The executing player completed an advancement or criterion.", ProgressionCompleted = "The executing player completed a named progression."),
+ variant_fields(ArchetypeAttached(archetype_attached = "Declared archetype identity."), RosterMatch(roster_match = "Roster identity.", role = "Optional role encoding.", any_member = "Test any member, instead of the executing player."), Range = ["The range test."], Relation = ["The field relation."], Attached = ["The attached State."], Exists = ["The tested query."], Block = ["The block test."], Dimension = ["The dimension test."], Biome = ["The biome test."], Holding = ["The held-item test."], Flag = ["The flag test."], Predicate(predicate = "The predicate resource identity."), Advancement(advancement = "The native advancement identity.", criterion = "Optional named criterion."), ProgressionCompleted(progression_completed = "Progression identity.")),
 )]
 pub enum Condition {
     /// The field lies within inclusive constant bounds.
@@ -138,6 +138,11 @@ pub enum Condition {
     Holding(ItemHeld),
     /// The executor has an entity flag.
     Flag(FlagSet),
+    /// The executing entity is initialized as this archetype.
+    ArchetypeAttached {
+        #[schemars(with = "String")]
+        archetype_attached: sand_components::ResourceLocation,
+    },
     /// Tests authoritative online roster membership.
     RosterMatch {
         #[schemars(with = "String")]

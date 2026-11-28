@@ -4548,6 +4548,20 @@ impl Cx {
                     criterion,
                 })
             }
+            "has_archetype" => {
+                body.note_executor(
+                    path.span,
+                    "`has_archetype` checks the executing entity".into(),
+                );
+                Some(pc::Condition::ArchetypeAttached {
+                    archetype_attached: self.arg_declared(
+                        body,
+                        bound["archetype"],
+                        DefKind::Archetype,
+                        "an archetype",
+                    )?,
+                })
+            }
             "roster_contains" | "roster_has_members" => {
                 let any_member = builtin.name == "roster_has_members";
                 if !any_member {
@@ -5408,6 +5422,21 @@ impl Cx {
             "start_hud" | "cancel_hud" => pc::Action::Hud {
                 hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
                 show: builtin.name == "start_hud",
+            },
+            "spawn_archetype" | "attach_archetype" | "release_archetype" => pc::Action::Archetype {
+                archetype: self.arg_declared(
+                    body,
+                    bound["archetype"],
+                    DefKind::Archetype,
+                    "an archetype",
+                )?,
+                command: match builtin.name {
+                    "spawn_archetype" => pc::ArchetypeCommand::Spawn {
+                        at: self.arg_position(body, bound["at"])?,
+                    },
+                    "attach_archetype" => pc::ArchetypeCommand::Attach,
+                    _ => pc::ArchetypeCommand::Release,
+                },
             },
             "apply_status" | "remove_status" => pc::Action::Status {
                 status: self.arg_declared(

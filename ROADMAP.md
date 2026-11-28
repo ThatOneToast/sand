@@ -288,8 +288,10 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   for checked entity NBT paths, and bounded item removal with a computed count.
 - [x] Numbered player-slot inventory transfers through the shared Rust system
   with whole stacks, exact amounts, component checks, and callbacks.
+- [x] Entity archetypes with canonical component attachment, spawn and adoption,
+  shared State ownership, and lifecycle callbacks.
 - [ ] Broader equipment and entity data operations, motion controls, and
-  archetypes.
+  advanced archetype property reconciliation.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
 - [x] Player sneaking, sprinting, swimming, flying, burning, and health
   transitions through the shared observation planner.

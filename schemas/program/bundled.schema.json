@@ -878,6 +878,28 @@
         },
         {
           "additionalProperties": false,
+          "description": "Spawn, attach or release an entity archetype.",
+          "properties": {
+            "archetype": {
+              "type": "string"
+            },
+            "command": {
+              "$ref": "#/$defs/ArchetypeCommand"
+            },
+            "op": {
+              "const": "archetype",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "archetype",
+            "command"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Apply or remove a named player status.",
           "properties": {
             "apply": {
@@ -2189,6 +2211,58 @@
       ],
       "description": "A number supplied to a command: a constant or a scaled State field."
     },
+    "ArchetypeCommand": {
+      "description": "One entity archetype lifecycle operation.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Summon and initialize a new entity.",
+          "properties": {
+            "action": {
+              "const": "spawn",
+              "type": "string"
+            },
+            "at": {
+              "$ref": "#/$defs/BlockPosition",
+              "description": "Absolute or relative block coordinates."
+            }
+          },
+          "required": [
+            "action",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Initialize the executing entity if its kind matches.",
+          "properties": {
+            "action": {
+              "const": "attach",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Release the executing entity and run canonical cleanup.",
+          "properties": {
+            "action": {
+              "const": "release",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "Audience": {
       "description": "Who receives a message.",
       "oneOf": [
@@ -2919,6 +2993,18 @@
         {
           "$ref": "#/$defs/FlagSet",
           "description": "The executor has an entity flag."
+        },
+        {
+          "description": "The executing entity is initialized as this archetype.",
+          "properties": {
+            "archetype_attached": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "archetype_attached"
+          ],
+          "type": "object"
         },
         {
           "description": "Tests authoritative online roster membership.",
@@ -3811,6 +3897,63 @@
       },
       "required": [
         "exists"
+      ],
+      "type": "object"
+    },
+    "EntityArchetypeDefinition": {
+      "additionalProperties": false,
+      "description": "A typed entity with reusable State components and lifecycle callbacks.",
+      "properties": {
+        "adopt_every": {
+          "description": "Cadence for automatic adoption of loaded matching entities.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cleanup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Runs as the entity before releasing its State."
+        },
+        "components": {
+          "description": "Reusable entity State components in attachment order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "entity": {
+          "description": "Native entity kind.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Archetype identity.",
+          "type": "string"
+        },
+        "initialize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Runs as the entity after attaching its State."
+        }
+      },
+      "required": [
+        "id",
+        "entity"
       ],
       "type": "object"
     },
@@ -5164,6 +5307,13 @@
           "description": "Native advancements declared by this module.",
           "items": {
             "$ref": "#/$defs/Advancement"
+          },
+          "type": "array"
+        },
+        "archetypes": {
+          "description": "Typed entities composed from entity State.",
+          "items": {
+            "$ref": "#/$defs/EntityArchetypeDefinition"
           },
           "type": "array"
         },

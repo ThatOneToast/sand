@@ -307,6 +307,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}hud {}", def.name),
                     format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
                 ),
+                (crate::ast::DataKind::Archetype, _) => (
+                    format!("{vis}archetype {}", def.name),
+                    format!("Entity lifecycle composed from State under `{id}`."),
+                ),
                 (crate::ast::DataKind::StatusEffect, _) => (
                     format!("{vis}status_effect {}", def.name),
                     format!(
@@ -1301,6 +1305,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Encounter
         | DefKind::Roster
         | DefKind::StatusEffect
+        | DefKind::Archetype
         | DefKind::Hud
         | DefKind::Progression
         | DefKind::Combat
@@ -2725,6 +2730,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
         ),
         Completion::snippet(
+            "archetype",
+            "entity composed from State",
+            r#"archetype ${1:Guard} { entity: Entity::${2:ArmorStand}, components: [${3:GuardState}] }"#,
+        ),
+        Completion::snippet(
             "status_effect",
             "timed status with lifecycle callbacks",
             r#"status_effect ${1:Guard} { ticks: ${2:60}, start: ${3:guard_started}, stop: ${4:guard_stopped} }"#,
@@ -3087,6 +3097,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Encounter => "Encounter",
                 ParamKind::Roster => "Roster",
                 ParamKind::StatusEffect => "StatusEffect",
+                ParamKind::Archetype => "Archetype",
                 ParamKind::RosterRole => "role",
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",

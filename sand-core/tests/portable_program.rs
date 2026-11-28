@@ -45,6 +45,7 @@ fn counter() -> Program {
             encounters: vec![],
             rosters: vec![],
             status_effects: vec![],
+            archetypes: vec![],
             huds: vec![],
             menus: vec![],
             projectiles: vec![],

@@ -89,6 +89,7 @@ fn item_level() {
             "encounter",
             "roster",
             "status_effect",
+            "archetype",
             "hud",
             "menu",
             "projectile",

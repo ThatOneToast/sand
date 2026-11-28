@@ -19,18 +19,19 @@ pub use gameplay::{
     TextStyle, Weather,
 };
 pub use operation::{
-    AbilityCommand, Action, CheckpointCommand, Operation, RosterCommand, SessionCommand,
+    AbilityCommand, Action, ArchetypeCommand, CheckpointCommand, Operation, RosterCommand,
+    SessionCommand,
 };
 pub use resources::{
     AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion, AdvancementDisplay, BossBar,
     BossBarColor, BossBarStyle, CheckpointDefinition, CheckpointFieldPair, CombatCritical,
     CombatDefinition, CookingMethod, CustomBiome, CustomItem, DimensionDefinition, EncounterAttack,
-    EncounterDefinition, FlatDimension, HudBossBar, HudDefinition, InventoryTransferDefinition,
-    JigsawStructure, JobDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition,
-    MenuView, NoiseDimension, NoticeDialog, OreFeatureDefinition, ProgressionBranch,
-    ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
-    RecipeOutput, ResourceTag, RosterDefinition, SceneContent, SceneDefinition, SceneKeyframe,
-    ScenePart, SessionDefinition, StateCooldown, StatusEffectDefinition, TagKind,
+    EncounterDefinition, EntityArchetypeDefinition, FlatDimension, HudBossBar, HudDefinition,
+    InventoryTransferDefinition, JigsawStructure, JobDefinition, LootItem, LootPool, LootTable,
+    MenuChoice, MenuDefinition, MenuView, NoiseDimension, NoticeDialog, OreFeatureDefinition,
+    ProgressionBranch, ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity,
+    Recipe, RecipeOutput, ResourceTag, RosterDefinition, SceneContent, SceneDefinition,
+    SceneKeyframe, ScenePart, SessionDefinition, StateCooldown, StatusEffectDefinition, TagKind,
     TemplatePoolDefinition, TemplatePoolPiece, WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

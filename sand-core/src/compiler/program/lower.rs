@@ -14,6 +14,7 @@ use crate::ir::{Cmd, NumericWrite};
 use std::collections::{BTreeMap, BTreeSet};
 
 type LifecycleCommand = (String, usize, String);
+type PrivateObjectives = BTreeMap<String, (String, String)>;
 
 /// Portable resource bytes and the same runtime provenance used by Rust export.
 pub(super) struct LoweredProgram {
@@ -143,6 +144,12 @@ pub(super) fn lower(
         scenes: BTreeMap::new(),
         encounters: BTreeMap::new(),
         status_effects: BTreeMap::new(),
+        archetypes: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.archetypes)
+            .map(|archetype| (archetype.id.to_string(), archetype.entity.clone()))
+            .collect(),
         jobs: BTreeMap::new(),
         sessions: BTreeMap::new(),
         abilities: BTreeMap::new(),
@@ -259,6 +266,8 @@ pub(super) fn lower(
     let mut entries = BTreeMap::new();
     let mut load = Vec::new();
     let mut tick = Vec::new();
+    let mut archetype_objectives =
+        lower.register_archetypes(program, target, &mut load, &mut tick)?;
     let mut lifecycle_sources = BTreeMap::new();
     let mut memberships = Vec::new();
     let mut modules: Vec<_> = program.modules.iter().collect();
@@ -622,7 +631,15 @@ pub(super) fn lower(
             )?;
         }
     }
-    lifecycle::validate_private_objectives(&automatic, &load, &flow_plan.private_objectives)
+    for (objective, (archetype, _)) in &archetype_objectives {
+        if let Some((owner, _)) = flow_plan.private_objectives.get(objective) {
+            return Err(error(format!(
+                "archetype `{archetype}` generated private objective `{objective}`, which collides with State flow `{owner}`"
+            )));
+        }
+    }
+    archetype_objectives.extend(flow_plan.private_objectives);
+    lifecycle::validate_private_objectives(&automatic, &load, &archetype_objectives)
         .map_err(error)?;
     for generated in flow_plan.functions {
         let (module, ptr) = &flow_locations[&generated.tracker_id];
@@ -1984,6 +2001,7 @@ struct Lower<'sources> {
     scenes: BTreeMap<String, crate::gameplay::Scene>,
     encounters: BTreeMap<String, PortableEncounter>,
     status_effects: BTreeMap<String, crate::gameplay::StatusEffect>,
+    archetypes: BTreeMap<String, sand_components::EntityTypeId>,
     jobs: BTreeMap<String, crate::gameplay::Job>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
     abilities: BTreeMap<String, crate::gameplay::Ability>,
@@ -2536,6 +2554,107 @@ impl Lower<'_> {
         )
     }
 
+    fn register_archetypes(
+        &mut self,
+        program: &Program,
+        profile: &crate::version::VersionProfile,
+        load: &mut Vec<LifecycleCommand>,
+        tick: &mut Vec<LifecycleCommand>,
+    ) -> Result<PrivateObjectives, Vec<Diagnostic>> {
+        use crate::entity::archetype::{
+            ArchetypeComponent, ArchetypeDefinition, compile_definitions,
+        };
+        let mut owners = BTreeMap::new();
+        let mut definitions = Vec::new();
+        let callback = |function: &FunctionReference| {
+            reference_id(function)
+                .parse::<sand_components::FunctionId>()
+                .expect("validated function identity")
+        };
+        for module in &program.modules {
+            for (index, source) in module.archetypes.iter().enumerate() {
+                owners.insert(source.id.to_string(), (module.id.to_string(), index));
+                let components = source
+                    .components
+                    .iter()
+                    .map(|id| {
+                        let state = &self.data_states[&id.to_string()];
+                        ArchetypeComponent::owned(
+                            state_objective(&id.to_string(), "presence"),
+                            state.revision,
+                            self.entity_attachment_commands(state),
+                            Self::entity_detachment_commands(state),
+                        )
+                    })
+                    .collect();
+                definitions.push(ArchetypeDefinition::portable(
+                    source,
+                    source.initialize.as_ref().map(callback),
+                    source.cleanup.as_ref().map(callback),
+                    components,
+                ));
+            }
+        }
+        let compiled = compile_definitions(profile, definitions).map_err(|diagnostic| {
+            vec![Diagnostic::error(
+                "SAND_PROGRAM_ARCHETYPE",
+                "",
+                "/archetypes",
+                diagnostic.to_string(),
+            )]
+        })?;
+        let mut private = BTreeMap::new();
+        for archetype in compiled {
+            let id = &archetype.report.archetype;
+            let (owner, index) = &owners[id];
+            let ptr = format!("/archetypes/{index}");
+            for objective in &archetype.report.objectives {
+                if let Some((previous, _)) =
+                    private.insert(objective.clone(), (id.clone(), "archetype".into()))
+                {
+                    return Err(vec![Diagnostic::error(
+                        "SAND_PROGRAM_ARCHETYPE",
+                        owner,
+                        &ptr,
+                        format!(
+                            "archetype `{id}` shares private objective `{objective}` with `{previous}`"
+                        ),
+                    )]);
+                }
+            }
+            self.runtime.archetypes.push(archetype.report);
+            for record in archetype.records {
+                if record.dir == "function" && record.ext == "mcfunction" {
+                    self.function(
+                        &format!("{}:{}", record.namespace, record.path),
+                        record
+                            .content
+                            .lines()
+                            .map(str::to_owned)
+                            .collect::<Vec<_>>(),
+                        owner,
+                        &ptr,
+                    )?;
+                } else {
+                    self.records.push(record);
+                }
+            }
+            load.extend(
+                archetype
+                    .load_functions
+                    .into_iter()
+                    .map(|function| (owner.clone(), *index, format!("function {function}"))),
+            );
+            tick.extend(
+                archetype
+                    .tick_functions
+                    .into_iter()
+                    .map(|function| (owner.clone(), *index, format!("function {function}"))),
+            );
+        }
+        Ok(private)
+    }
+
     fn status_component(&self, source: &StatusEffectDefinition) -> crate::gameplay::StatusEffect {
         use crate::gameplay::{Lifetime, StatusEffect};
         use sand_components::effect::Ticks;
@@ -2937,6 +3056,16 @@ impl Lower<'_> {
                     ),
                 ),
             ),
+            Condition::ArchetypeAttached { archetype_attached } => {
+                let kind = &self.archetypes[&archetype_attached.to_string()];
+                sand_commands::ConditionIr::Entity(
+                    crate::entity::archetype::concrete::select_entity(
+                        archetype_attached,
+                        kind,
+                        sand_commands::Selector::self_(),
+                    ),
+                )
+            }
             Condition::RosterMatch {
                 roster_match,
                 role,
@@ -3491,6 +3620,22 @@ impl Lower<'_> {
                         }
                     }
                 }
+                Action::Archetype { archetype, command } => {
+                    use crate::entity::archetype::concrete;
+                    let kind = &self.archetypes[&archetype.to_string()];
+                    vec![match command {
+                        ArchetypeCommand::Spawn { at } => {
+                            let pos = block_position(*at);
+                            concrete::summon_entity(
+                                archetype,
+                                kind,
+                                sand_commands::Vec3::new(pos.x, pos.y, pos.z),
+                            )
+                        }
+                        ArchetypeCommand::Attach => concrete::attach_entity(archetype, kind),
+                        ArchetypeCommand::Release => concrete::detach_entity(archetype, kind),
+                    }]
+                }
                 Action::Status { status, apply } => {
                     let status = &self.status_effects[&status.to_string()];
                     if *apply {
@@ -3711,38 +3856,10 @@ impl Lower<'_> {
                 }
                 // Mirrors Rust's `state_detach_commands` with dirty tracking.
                 Action::DetachState { state } => {
-                    let id = state.to_string();
-                    let mut commands = Vec::new();
-                    for field in self.data_states[&id].fields.iter().map(|field| &field.name) {
-                        commands.push(Cmd::Raw(format!(
-                            "scoreboard players reset @s {}",
-                            state_objective(&id, field)
-                        )));
-                        commands.push(Cmd::Raw(format!(
-                            "scoreboard players reset @s {}",
-                            state_objective(&id, &format!("{field}.dirty"))
-                        )));
-                    }
-                    for field in &self.data_states[&id].data_fields {
-                        commands.extend(
-                            crate::state::owned::with_data_field(
-                                &self.data_states[&id],
-                                &field.name,
-                                crate::entity::state::state_data_remove_commands,
-                            )
-                            .into_iter()
-                            .map(Cmd::Raw),
-                        );
-                    }
-                    commands.push(Cmd::Raw(format!(
-                        "scoreboard players reset @s {}",
-                        state_objective(&id, "reconcile_dirty")
-                    )));
-                    commands.push(Cmd::Raw(format!(
-                        "scoreboard players reset @s {}",
-                        state_objective(&id, "presence")
-                    )));
-                    commands
+                    Self::entity_detachment_commands(&self.data_states[&state.to_string()])
+                        .into_iter()
+                        .map(Cmd::Raw)
+                        .collect()
                 }
                 Action::SetBlock { block, at } => {
                     vec![Cmd::Raw(format!(

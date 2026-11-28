@@ -307,6 +307,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.rosters)
             .map(|roster| (roster.id.to_string(), roster.roles.as_slice()))
             .collect(),
+        archetypes: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.archetypes)
+            .map(|archetype| archetype.id.to_string())
+            .collect(),
         status_effects: program
             .modules
             .iter()
@@ -765,6 +771,21 @@ pub(super) fn validate(
                         ExecutionContext::Player,
                         &owner,
                         &format!("/inventory_transfers/{index}/{field}"),
+                    );
+                }
+            }
+        }
+        for (index, archetype) in module.archetypes.iter().enumerate() {
+            for (name, callback) in [
+                ("initialize", &archetype.initialize),
+                ("cleanup", &archetype.cleanup),
+            ] {
+                if let Some(callback) = callback {
+                    validator.call(
+                        callback,
+                        ExecutionContext::Entity,
+                        &owner,
+                        &format!("/archetypes/{index}/{name}"),
                     );
                 }
             }
@@ -1578,6 +1599,48 @@ pub(super) fn validate(
                 ),
             }
         }
+        for (index, archetype) in module.archetypes.iter().enumerate() {
+            let ptr = format!("/archetypes/{index}");
+            if !resource_ids.insert(format!("archetype {}", archetype.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate archetype `{}`", archetype.id),
+                );
+            }
+            let entity = archetype.entity.to_string();
+            if entity == "minecraft:player" || !available(&entity, "minecraft:entity_type") {
+                push(
+                    format!("{ptr}/entity"),
+                    format!("archetypes require a known non-player entity type, found `{entity}`"),
+                );
+            }
+            if archetype
+                .adopt_every
+                .is_some_and(|ticks| !(1..=i32::MAX as u32).contains(&ticks))
+            {
+                push(
+                    format!("{ptr}/adopt_every"),
+                    "adoption requires a positive tick cadence".into(),
+                );
+            }
+            let mut seen = BTreeSet::new();
+            for (index, component) in archetype.components.iter().enumerate() {
+                let field = format!("{ptr}/components/{index}");
+                if !seen.insert(component.to_string()) {
+                    push(field, format!("duplicate component `{component}`"));
+                } else if !program
+                    .modules
+                    .iter()
+                    .flat_map(|module| &module.states)
+                    .any(|state| &state.id == component && state.scope == "entity")
+                {
+                    push(
+                        field,
+                        format!("archetype component `{component}` must be declared entity State"),
+                    );
+                }
+            }
+        }
         for (index, status) in module.status_effects.iter().enumerate() {
             let ptr = format!("/status_effects/{index}");
             if !resource_ids.insert(format!("status effect {}", status.id)) {
@@ -2306,6 +2369,7 @@ struct Validator<'a, 'e> {
     checkpoints: BTreeSet<String>,
     encounters: BTreeSet<String>,
     status_effects: BTreeSet<String>,
+    archetypes: BTreeSet<String>,
     rosters: BTreeMap<String, &'a [i32]>,
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
@@ -2452,6 +2516,17 @@ impl Validator<'_, '_> {
         }
     }
 
+    fn archetype(&mut self, id: &ResourceLocation, owner: &str, ptr: &str) {
+        if !self.archetypes.contains(&id.to_string()) {
+            self.errors.push(Diagnostic::error(
+                "SAND_PROGRAM_ARCHETYPE",
+                owner,
+                ptr,
+                format!("unknown archetype `{id}`"),
+            ));
+        }
+    }
+
     fn roster(&mut self, id: &ResourceLocation, role: Option<i32>, owner: &str, ptr: &str) {
         let problem = match self.rosters.get(&id.to_string()) {
             None => format!("unknown roster `{id}`"),
@@ -2578,6 +2653,15 @@ impl Validator<'_, '_> {
                         ));
                     }
                 }
+            }
+            Condition::ArchetypeAttached { archetype_attached } => {
+                self.executor(
+                    context,
+                    owner,
+                    ptr,
+                    "testing the executing entity's archetype",
+                );
+                self.archetype(archetype_attached, owner, ptr);
             }
             Condition::RosterMatch {
                 roster_match,
@@ -3648,6 +3732,12 @@ impl Validator<'_, '_> {
                         RosterCommand::Open | RosterCommand::Close => None,
                     };
                     self.roster(roster, role, owner, &ptr);
+                }
+                Action::Archetype { archetype, command } => {
+                    if !matches!(command, ArchetypeCommand::Spawn { .. }) {
+                        self.executor(context, owner, &ptr, "attaching or releasing an archetype");
+                    }
+                    self.archetype(archetype, owner, &ptr);
                 }
                 Action::Status { status, .. } => {
                     self.player(

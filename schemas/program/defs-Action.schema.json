@@ -764,6 +764,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Spawn, attach or release an entity archetype.",
+      "properties": {
+        "archetype": {
+          "type": "string"
+        },
+        "command": {
+          "$ref": "defs-ArchetypeCommand.schema.json"
+        },
+        "op": {
+          "const": "archetype",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "archetype",
+        "command"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Apply or remove a named player status.",
       "properties": {
         "apply": {

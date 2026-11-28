@@ -38,6 +38,18 @@
       "description": "The executor has an entity flag."
     },
     {
+      "description": "The executing entity is initialized as this archetype.",
+      "properties": {
+        "archetype_attached": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "archetype_attached"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Tests authoritative online roster membership.",
       "properties": {
         "any_member": {

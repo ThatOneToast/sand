@@ -713,8 +713,10 @@ where
                 identities,
                 schemas: lifecycle.schemas,
                 auto_tick_objectives: lifecycle.auto_tick_objectives,
-                attach: lifecycle.attach,
-                detach: lifecycle.detach,
+                lifecycle: ComponentLifecycle::Static {
+                    attach: lifecycle.attach,
+                    detach: lifecycle.detach,
+                },
             };
             if self.components.iter().any(|component| {
                 component.identities == candidate.identities
@@ -1286,6 +1288,35 @@ pub struct ArchetypeDefinition {
     pub components: Vec<ArchetypeComponent>,
 }
 
+impl ArchetypeDefinition {
+    pub(crate) fn portable(
+        source: &crate::compiler::program::EntityArchetypeDefinition,
+        initialize: Option<FunctionId>,
+        cleanup: Option<FunctionId>,
+        components: Vec<ArchetypeComponent>,
+    ) -> Self {
+        Self {
+            id: source.id.clone(),
+            version: 1,
+            entity_type: source.entity.clone(),
+            kind_label: "entity",
+            living: false,
+            mutable_living: false,
+            adoption: source
+                .adopt_every
+                .map(|ticks| Adoption::natural().every(Ticks::new(ticks))),
+            reconcile: ReconcilePolicy::InitializeOnly,
+            initialize,
+            cleanup,
+            migrations: Vec::new(),
+            derivations: Vec::new(),
+            transitions: Vec::new(),
+            properties: Vec::new(),
+            components,
+        }
+    }
+}
+
 /// Type-erased canonical component composition retained by an archetype.
 #[doc(hidden)]
 #[derive(Debug, Clone)]
@@ -1293,16 +1324,79 @@ pub struct ArchetypeComponent {
     identities: Vec<(String, u32)>,
     schemas: Vec<StateSchema>,
     auto_tick_objectives: Vec<String>,
-    attach: fn(&'static str) -> Vec<String>,
-    detach: fn(&'static str) -> Vec<String>,
+    lifecycle: ComponentLifecycle,
+}
+
+type LifecycleHook = fn(&'static str) -> Vec<String>;
+
+#[derive(Debug, Clone)]
+enum ComponentLifecycle {
+    Static {
+        attach: LifecycleHook,
+        detach: LifecycleHook,
+    },
+    Owned {
+        attach: Vec<String>,
+        detach: Vec<String>,
+    },
+}
+
+impl ComponentLifecycle {
+    fn commands(&self, attaching: bool) -> Vec<String> {
+        match (self, attaching) {
+            (Self::Static { attach, .. }, true) => attach("@s"),
+            (Self::Static { detach, .. }, false) => detach("@s"),
+            (Self::Owned { attach, .. }, true) => attach.clone(),
+            (Self::Owned { detach, .. }, false) => detach.clone(),
+        }
+    }
+
+    fn same_as(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::Static {
+                    attach: aa,
+                    detach: ad,
+                },
+                Self::Static {
+                    attach: ba,
+                    detach: bd,
+                },
+            ) => std::ptr::fn_addr_eq(*aa, *ba) && std::ptr::fn_addr_eq(*ad, *bd),
+            (
+                Self::Owned {
+                    attach: aa,
+                    detach: ad,
+                },
+                Self::Owned {
+                    attach: ba,
+                    detach: bd,
+                },
+            ) => aa == ba && ad == bd,
+            _ => false,
+        }
+    }
 }
 
 impl ArchetypeComponent {
+    pub(crate) fn owned(
+        presence: String,
+        revision: u32,
+        attach: Vec<String>,
+        detach: Vec<String>,
+    ) -> Self {
+        Self {
+            identities: vec![(presence, revision)],
+            schemas: Vec::new(),
+            auto_tick_objectives: Vec::new(),
+            lifecycle: ComponentLifecycle::Owned { attach, detach },
+        }
+    }
+
     fn has_same_metadata(&self, other: &Self) -> bool {
         self.schemas == other.schemas
             && self.auto_tick_objectives == other.auto_tick_objectives
-            && std::ptr::fn_addr_eq(self.attach, other.attach)
-            && std::ptr::fn_addr_eq(self.detach, other.detach)
+            && self.lifecycle.same_as(&other.lifecycle)
     }
 }
 
@@ -1950,9 +2044,16 @@ inventory::collect!(EntityArchetypeDescriptor);
 pub(crate) fn compile_registered(
     profile: &crate::version::VersionProfile,
 ) -> Result<Vec<CompiledArchetype>, EntityDiagnostic> {
-    let mut definitions = inventory::iter::<EntityArchetypeDescriptor>()
+    let definitions = inventory::iter::<EntityArchetypeDescriptor>()
         .map(|descriptor| (descriptor.make)())
         .collect::<Result<Vec<_>, _>>()?;
+    compile_definitions(profile, definitions)
+}
+
+pub(crate) fn compile_definitions(
+    profile: &crate::version::VersionProfile,
+    mut definitions: Vec<ArchetypeDefinition>,
+) -> Result<Vec<CompiledArchetype>, EntityDiagnostic> {
     definitions.sort_by_key(|definition| definition.id.to_string());
     let mut ids = BTreeSet::new();
     for definition in &definitions {
@@ -2395,7 +2496,7 @@ fn compile_definition_with_claims(
 
     let mut component_attach = Vec::new();
     for component in &definition.components {
-        component_attach.extend((component.attach)("@s"));
+        component_attach.extend(component.lifecycle.commands(true));
     }
     dedup_commands(&mut component_attach);
     // Only elide attachment when its entire body consists of canonical score
@@ -2750,7 +2851,9 @@ fn compile_definition_with_claims(
         retaining_markers.sort();
         retaining_markers.dedup();
         component_cleanup.extend(
-            (component.detach)("@s")
+            component
+                .lifecycle
+                .commands(false)
                 .into_iter()
                 .map(|command| guard_component_cleanup(&command, &retaining_markers)),
         );

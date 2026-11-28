@@ -1,11 +1,11 @@
 //! Owned portable envelope definitions.
 use super::{
     AbilityDefinition, Advancement, CheckpointDefinition, CombatDefinition, CustomBiome,
-    DimensionDefinition, EncounterDefinition, EventHook, Function, HudDefinition,
-    InventoryTransferDefinition, JigsawStructure, JobDefinition, MenuDefinition, NoticeDialog,
-    Operation, OreFeatureDefinition, ProgressionDefinition, ProjectileDefinition, RosterDefinition,
-    SceneDefinition, SessionDefinition, State, StatusEffectDefinition, TagMembership,
-    TemplatePoolDefinition, WorldPredicate,
+    DimensionDefinition, EncounterDefinition, EntityArchetypeDefinition, EventHook, Function,
+    HudDefinition, InventoryTransferDefinition, JigsawStructure, JobDefinition, MenuDefinition,
+    NoticeDialog, Operation, OreFeatureDefinition, ProgressionDefinition, ProjectileDefinition,
+    RosterDefinition, SceneDefinition, SessionDefinition, State, StatusEffectDefinition,
+    TagMembership, TemplatePoolDefinition, WorldPredicate,
 };
 use sand_components::{DamageType, ResourceLocation, StructureTemplate};
 use schemars::JsonSchema;
@@ -122,7 +122,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat and noise dimension resources.", dimension_types = "Native environmental rules for dimensions.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", structure_sets = "Native placement schedules for weighted structures.", ore_features = "Configured ore veins and biome-restricted placement.", jigsaw_structures = "Native structures that expand from a jigsaw pool.", template_pools = "Weighted template choices for a jigsaw generator.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", checkpoints = "Player-owned State checkpoint projections.", encounters = "Player-owned bounded priority encounters.", rosters = "Bounded online arena rosters.", status_effects = "Player-owned timed status effects.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat and noise dimension resources.", dimension_types = "Native environmental rules for dimensions.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", structure_sets = "Native placement schedules for weighted structures.", ore_features = "Configured ore veins and biome-restricted placement.", jigsaw_structures = "Native structures that expand from a jigsaw pool.", template_pools = "Weighted template choices for a jigsaw generator.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", checkpoints = "Player-owned State checkpoint projections.", encounters = "Player-owned bounded priority encounters.", rosters = "Bounded online arena rosters.", status_effects = "Player-owned timed status effects.", archetypes = "Typed entities composed from entity State.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -215,6 +215,9 @@ pub struct Module {
     /// Player-owned timed status effects.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub status_effects: Vec<StatusEffectDefinition>,
+    /// Typed entities composed from entity State.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub archetypes: Vec<EntityArchetypeDefinition>,
     /// Named owner-scoped HUD definitions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub huds: Vec<HudDefinition>,

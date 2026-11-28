@@ -121,6 +121,33 @@ impl Lower<'_> {
             guard_data(state, commands)
         }
     }
+
+    pub(super) fn entity_detachment_commands(state: &State) -> Vec<String> {
+        let id = state.id.to_string();
+        let mut commands = Vec::new();
+        for field in &state.fields {
+            for name in [&field.name, &format!("{}.dirty", field.name)] {
+                commands.push(format!(
+                    "scoreboard players reset @s {}",
+                    state_objective(&id, name)
+                ));
+            }
+        }
+        for field in &state.data_fields {
+            commands.extend(owned::with_data_field(
+                state,
+                &field.name,
+                crate::entity::state::state_data_remove_commands,
+            ));
+        }
+        for field in ["reconcile_dirty", "presence"] {
+            commands.push(format!(
+                "scoreboard players reset @s {}",
+                state_objective(&id, field)
+            ));
+        }
+        commands
+    }
 }
 
 fn guard_data(state: &State, commands: Vec<String>) -> Vec<String> {

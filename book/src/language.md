@@ -1226,6 +1226,39 @@ getter cannot retain a previous entity's value. Reading does not attach the Stat
 or write its declared field default. A function that touches entity State
 outside a loop runs as an entity. Flows only run over player or global State.
 
+### Entity archetypes
+
+An `archetype` binds a native non-player entity kind to reusable entity State.
+Use `spawn_archetype` to create and initialize one entity at a position, or
+`attach_archetype` to initialize the executing entity if its kind matches.
+`has_archetype` checks whether initialization finished.
+
+```rust,ignore
+entity state MarkerState { energy: number = 20 }
+
+archetype SurveyMarker {
+    entity: Entity::ArmorStand,
+    components: [MarkerState],
+    initialize: marker_ready,
+}
+
+fn marker_ready() { MarkerState.energy += 5; }
+fn put_marker() { spawn_archetype(SurveyMarker, at = pos(0, 80, 0)); }
+
+fn remove_markers() {
+    for marker in entities(type = Entity::ArmorStand) {
+        if has_archetype(SurveyMarker) { release_archetype(SurveyMarker); }
+    }
+}
+```
+
+Initialization attaches components before invoking the optional callback.
+`release_archetype` runs the optional `cleanup` callback before releasing
+components. Components shared by another active archetype stay attached. The
+entity stays in the world. Supply a positive `adopt_every` tick interval to
+automatically adopt matching loaded entities according to Sand's native
+natural-adoption policy.
+
 ### Retained entity references
 
 `EntityRef` stores a persistent, pack-owned entity identity in a local, State
@@ -2529,7 +2562,7 @@ command and State models as Rust. Today the language covers:
 | --- | --- | --- |
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, impl methods, and ordered migrations | derived values and general lifecycle hooks |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and entity/player waits inside branches, statement matches and local loops | Rust compile-time metaprogramming and richer owned tasks |
-| Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
+| Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, entity flags, and State archetype lifecycles | advanced archetype property reconciliation and migrations |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, movement, burning, and health transitions, custom events with payloads, predicate guards, authored advancement completion | additional native triggers and tracked changes |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and noise dimensions with fixed, checkerboard, or vanilla biome sources, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |

@@ -824,6 +824,41 @@ impl JigsawStructure {
     }
 }
 
+/// A typed entity with reusable State components and lifecycle callbacks.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::EntityArchetypeDefinition", module = "sand::advanced::compiler",
+ summary = "A native entity archetype composed from registered entity State.",
+ context = "Use the same State components in distinct archetypes. Cleanup retains shared components while another active archetype claims them.",
+ minecraft = "Uses the canonical entity archetype compiler to generate initialization, ownership markers and cleanup.",
+ use_when = ["Summoning or adopting entities with reusable State behavior"],
+ avoid_when = ["Only adding a vanilla entity with no retained State or lifecycle callbacks"],
+ fields(id = "Archetype identity.", entity = "Native entity kind.", components = "Entity State IDs in attachment order.", adopt_every = "Optional cadence for automatically adopting loaded matching entities.", initialize = "Callback after attaching State.", cleanup = "Callback before releasing State."),
+ example = "use sand::advanced::compiler::EntityArchetypeDefinition;",
+)]
+pub struct EntityArchetypeDefinition {
+    /// Archetype identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Native entity kind.
+    #[schemars(with = "String")]
+    pub entity: sand_components::EntityTypeId,
+    /// Reusable entity State components in attachment order.
+    #[schemars(with = "Vec<String>")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<ResourceLocation>,
+    /// Cadence for automatic adoption of loaded matching entities.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adopt_every: Option<u32>,
+    /// Runs as the entity after attaching its State.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initialize: Option<FunctionReference>,
+    /// Runs as the entity before releasing its State.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cleanup: Option<FunctionReference>,
+}
+
 /// A reusable player status with loaded-tick duration and owner callbacks.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

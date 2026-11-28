@@ -66,6 +66,8 @@ pub enum ParamKind {
     Roster,
     /// A declared timed status effect.
     StatusEffect,
+    /// A declared entity archetype.
+    Archetype,
     /// A constant variant of the selected roster role enum.
     RosterRole,
     /// An authored player-owned HUD.
@@ -202,6 +204,8 @@ const QUERY: &[Param] = &[
 /// Builtins that act on the executing entity (`@s`), so they need a player or
 /// an entity to run as.
 pub const EXECUTOR_BUILTINS: &[&str] = &[
+    "attach_archetype",
+    "release_archetype",
     "kill",
     "add_tag",
     "remove_tag",
@@ -1126,6 +1130,22 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "advancement_done(${1:Milestone})",
     },
     Builtin {
+        name: "has_archetype",
+        kind: BuiltinKind::Condition,
+        signature: "has_archetype(archetype)",
+        summary: "Test whether the executing entity has completed archetype initialization.",
+        details: "Checks the native kind and the shared archetype marker.",
+        minecraft: "Tests the canonical archetype selector against the executor.",
+        needs_player: false,
+        params: &[p(
+            "archetype",
+            ParamKind::Archetype,
+            true,
+            "The archetype to test.",
+        )],
+        snippet: "has_archetype(${1:Guard})",
+    },
+    Builtin {
         name: "roster_contains",
         kind: BuiltinKind::Condition,
         signature: "roster_contains(roster, role = ...)",
@@ -1890,6 +1910,62 @@ pub const BUILTINS: &[Builtin] = &[
             "The declared HUD to cancel.",
         )],
         snippet: "cancel_hud(${1:Status});",
+    },
+    Builtin {
+        name: "spawn_archetype",
+        kind: BuiltinKind::Statement,
+        signature: "spawn_archetype(archetype, at = ...)",
+        summary: "Summon a new entity and initialize its archetype.",
+        details: "Attaches the declared State and runs initialization as the new entity.",
+        minecraft: "Uses execute summon to bind initialization to the exact entity.",
+        needs_player: false,
+        params: &[
+            p(
+                "archetype",
+                ParamKind::Archetype,
+                true,
+                "The declared archetype to spawn.",
+            ),
+            p(
+                "at",
+                ParamKind::Position,
+                true,
+                "Absolute or relative position.",
+            ),
+        ],
+        snippet: "spawn_archetype(${1:Guard}, at = offset(0, 0, 0));",
+    },
+    Builtin {
+        name: "attach_archetype",
+        kind: BuiltinKind::Statement,
+        signature: "attach_archetype(archetype)",
+        summary: "Initialize the executing entity as a declared archetype.",
+        details: "Checks the native entity kind and attaches the archetype once.",
+        minecraft: "Uses canonical archetype marking and initialization.",
+        needs_player: false,
+        params: &[p(
+            "archetype",
+            ParamKind::Archetype,
+            true,
+            "The archetype to attach.",
+        )],
+        snippet: "attach_archetype(${1:Guard});",
+    },
+    Builtin {
+        name: "release_archetype",
+        kind: BuiltinKind::Statement,
+        signature: "release_archetype(archetype)",
+        summary: "Release an archetype from the executing entity.",
+        details: "Runs cleanup and preserves components held by another active archetype.",
+        minecraft: "Runs the canonical entity cleanup helper.",
+        needs_player: false,
+        params: &[p(
+            "archetype",
+            ParamKind::Archetype,
+            true,
+            "The archetype to release.",
+        )],
+        snippet: "release_archetype(${1:Guard});",
     },
     Builtin {
         name: "apply_status",
@@ -3407,6 +3483,46 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         r#"{ title: "${1:Supplies}", value: ${2:Hero.energy}, max: ${3:100} }"#,
     ),
     f(
+        "archetype",
+        "entity",
+        FieldKind::Registry("Entity"),
+        true,
+        "Native non-player entity kind for this archetype.",
+        "Entity::${1:ArmorStand}",
+    ),
+    f(
+        "archetype",
+        "components",
+        FieldKind::ResourceId,
+        false,
+        "Ordered list of reusable entity State schemas.",
+        "[${1:GuardState}]",
+    ),
+    f(
+        "archetype",
+        "adopt_every",
+        FieldKind::Int,
+        false,
+        "Automatically adopt loaded matching entities at this tick cadence.",
+        "${1:20}",
+    ),
+    f(
+        "archetype",
+        "initialize",
+        FieldKind::Callback,
+        false,
+        "Run as the entity after attaching the components.",
+        "${1:on_init}",
+    ),
+    f(
+        "archetype",
+        "cleanup",
+        FieldKind::Callback,
+        false,
+        "Run as the entity before releasing its components.",
+        "${1:on_cleanup}",
+    ),
+    f(
         "status_effect",
         "ticks",
         FieldKind::Int,
@@ -4118,6 +4234,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "status_effect",
         "`status_effect Name { ... }` declares a timed, player-owned status.",
+    ),
+    (
+        "archetype",
+        "`archetype Name { ... }` composes reusable State into a native entity lifecycle.",
     ),
     (
         "structure_template",

@@ -17,6 +17,13 @@
       },
       "type": "array"
     },
+    "archetypes": {
+      "description": "Typed entities composed from entity State.",
+      "items": {
+        "$ref": "defs-EntityArchetypeDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "biomes": {
       "description": "Native custom biomes declared by this module.",
       "items": {

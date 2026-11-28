@@ -178,6 +178,8 @@ pub enum DefKind {
     Roster,
     /// `status_effect Name { ... }`.
     StatusEffect,
+    /// `archetype Name { ... }`.
+    Archetype,
     /// `hud Name { ... }`.
     Hud,
     /// `menu Name { ... }`.
@@ -236,6 +238,7 @@ impl DefKind {
             DefKind::Encounter => "encounter",
             DefKind::Roster => "roster",
             DefKind::StatusEffect => "status effect",
+            DefKind::Archetype => "archetype",
             DefKind::Hud => "HUD",
             DefKind::Menu => "menu",
             DefKind::Projectile => "projectile",
@@ -1231,6 +1234,7 @@ impl Cx {
                     crate::ast::DataKind::Encounter => DefKind::Encounter,
                     crate::ast::DataKind::Roster => DefKind::Roster,
                     crate::ast::DataKind::StatusEffect => DefKind::StatusEffect,
+                    crate::ast::DataKind::Archetype => DefKind::Archetype,
                     crate::ast::DataKind::Hud => DefKind::Hud,
                     crate::ast::DataKind::Menu => DefKind::Menu,
                     crate::ast::DataKind::Projectile => DefKind::Projectile,
@@ -3315,6 +3319,7 @@ impl Cx {
             encounters: Vec::new(),
             rosters: Vec::new(),
             status_effects: Vec::new(),
+            archetypes: Vec::new(),
             huds: Vec::new(),
             menus: Vec::new(),
             projectiles: Vec::new(),

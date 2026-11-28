@@ -3667,6 +3667,10 @@ impl Cx {
             }
             return;
         }
+        if builtin.name == "roster_each" {
+            self.lower_roster_each(body, &bound, span, ops);
+            return;
+        }
         if let Some(action) = self.builtin_action(body, builtin, &bound, span) {
             ops.push(op_at(action, file, span));
         }
@@ -4260,6 +4264,103 @@ impl Cx {
         id.parse().ok()
     }
 
+    fn arg_roster(
+        &mut self,
+        body: &BodyCx,
+        roster: &Arg,
+        role: Option<&Arg>,
+    ) -> Option<(sand::ResourceLocation, Option<i32>)> {
+        let ArgValue::Expr(Expr::Path(path)) = &roster.value else {
+            self.error(
+                "roster",
+                body.file,
+                roster.value.span(),
+                "expected an authored roster name",
+            );
+            return None;
+        };
+        let def = self.expect_path(body.module, path, &[DefKind::Roster], "a roster")?;
+        let (_, enum_id) = self.roster_roles.get(&def).cloned()?;
+        let DefInfo::Data { id, .. } = &self.defs[def.0].info else {
+            return None;
+        };
+        let id = id.parse().expect("valid roster identity");
+        let role = if let Some(arg) = role {
+            let ArgValue::Expr(expr) = &arg.value else {
+                self.error(
+                    "roster",
+                    body.file,
+                    arg.value.span(),
+                    "expected a constant roster role",
+                );
+                return None;
+            };
+            Some(self.eval_i32(body.module, body.file, expr, Some(Ty::Enum(enum_id)), None)? as i32)
+        } else {
+            None
+        };
+        Some((id, role))
+    }
+
+    fn lower_roster_each(
+        &mut self,
+        body: &mut BodyCx,
+        args: &BTreeMap<&'static str, &Arg>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let Some((roster, role)) = self.arg_roster(body, args["roster"], args.get("role").copied())
+        else {
+            return;
+        };
+        let arg = args["callback"];
+        let ArgValue::Expr(expr @ Expr::Path(path)) = &arg.value else {
+            self.error(
+                "roster",
+                body.file,
+                arg.value.span(),
+                "expected a parameterless callback function name",
+            );
+            return;
+        };
+        let Some(callback) = self.data_callback(
+            body.module,
+            body.file,
+            &crate::ast::DataValue::Expr(expr.clone()),
+        ) else {
+            return;
+        };
+        let (callback_def, _) = self
+            .resolve_path(body.module, path)
+            .expect("callback already resolved");
+        body.all_calls.push((callback_def, path.span));
+        let marker = self.frame_marker(body.owner, callback_def);
+        ops.extend([
+            op_at(
+                pc::Action::PushFrame {
+                    fields: vec![marker.clone()],
+                },
+                body.file,
+                span,
+            ),
+            op_at(
+                pc::Action::Roster {
+                    roster,
+                    command: pc::RosterCommand::Each { role, callback },
+                },
+                body.file,
+                span,
+            ),
+            op_at(
+                pc::Action::PopFrame {
+                    fields: vec![marker],
+                },
+                body.file,
+                span,
+            ),
+        ]);
+    }
+
     fn arg_block_data(
         &mut self,
         body: &mut BodyCx,
@@ -4429,6 +4530,22 @@ impl Cx {
                 Some(pc::Condition::Advancement {
                     advancement,
                     criterion,
+                })
+            }
+            "roster_contains" | "roster_has_members" => {
+                let any_member = builtin.name == "roster_has_members";
+                if !any_member {
+                    body.note_player(
+                        path.span,
+                        "`roster_contains` checks the executing player's membership".into(),
+                    );
+                }
+                let (roster_match, role) =
+                    self.arg_roster(body, bound["roster"], bound.get("role").copied())?;
+                Some(pc::Condition::RosterMatch {
+                    roster_match,
+                    role,
+                    any_member,
                 })
             }
             "progression_completed" => {
@@ -5276,6 +5393,19 @@ impl Cx {
                 hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
                 show: builtin.name == "start_hud",
             },
+            "roster_open" | "roster_close" | "roster_join" | "roster_leave" => {
+                let (roster, role) =
+                    self.arg_roster(body, bound["roster"], bound.get("role").copied())?;
+                let command = match builtin.name {
+                    "roster_open" => pc::RosterCommand::Open,
+                    "roster_close" => pc::RosterCommand::Close,
+                    "roster_leave" => pc::RosterCommand::Leave,
+                    _ => pc::RosterCommand::Join {
+                        role: role.expect("required role"),
+                    },
+                };
+                pc::Action::Roster { roster, command }
+            }
             "start_encounter" | "cancel_encounter" => pc::Action::Encounter {
                 encounter: self.arg_declared(
                     body,

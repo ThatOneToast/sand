@@ -764,6 +764,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Operate on a named online roster.",
+      "properties": {
+        "command": {
+          "$ref": "defs-RosterCommand.schema.json"
+        },
+        "op": {
+          "const": "roster",
+          "type": "string"
+        },
+        "roster": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "roster",
+        "command"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Start or cancel this player's encounter and its child attacks.",
       "properties": {
         "encounter": {

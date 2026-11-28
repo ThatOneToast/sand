@@ -38,6 +38,29 @@
       "description": "The executor has an entity flag."
     },
     {
+      "description": "Tests authoritative online roster membership.",
+      "properties": {
+        "any_member": {
+          "default": false,
+          "type": "boolean"
+        },
+        "role": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "roster_match": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_match"
+      ],
+      "type": "object"
+    },
+    {
       "description": "A native predicate evaluated in the current execution context.",
       "properties": {
         "predicate": {

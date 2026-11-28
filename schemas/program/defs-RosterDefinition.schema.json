@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A bounded roster over canonical player membership and role State.",
+  "properties": {
+    "capacity": {
+      "description": "Maximum current online members.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "id": {
+      "description": "Roster identity.",
+      "type": "string"
+    },
+    "member": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Player State field holding the admitted generation."
+    },
+    "role": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Player State field holding the role."
+    },
+    "roles": {
+      "description": "Distinct encodings of the roles in their authored order.",
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "member",
+    "role",
+    "roles",
+    "capacity"
+  ],
+  "type": "object"
+}

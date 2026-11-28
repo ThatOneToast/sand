@@ -301,6 +301,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.huds)
             .map(|hud| hud.id.to_string())
             .collect(),
+        rosters: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.rosters)
+            .map(|roster| (roster.id.to_string(), roster.roles.as_slice()))
+            .collect(),
         encounters: program
             .modules
             .iter()
@@ -1550,6 +1556,58 @@ pub(super) fn validate(
                 ),
             }
         }
+        for (index, roster) in module.rosters.iter().enumerate() {
+            let ptr = format!("/rosters/{index}");
+            if !resource_ids.insert(format!("roster {}", roster.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate roster `{}`", roster.id),
+                );
+            }
+            let score = |reference: &FieldReference| {
+                program
+                    .modules
+                    .iter()
+                    .flat_map(|module| &module.states)
+                    .find(|state| state.id == reference.state && state.scope == "player")
+                    .and_then(|state| {
+                        state
+                            .fields
+                            .iter()
+                            .find(|field| field.name == reference.field && !field.timer)
+                    })
+            };
+            if score(&roster.member).is_none_or(|field| {
+                field.default != 0
+                    || field
+                        .bounds
+                        .is_some_and(|(min, max)| min > 0 || max < i32::MAX)
+            }) {
+                push(format!("{ptr}/member"), "roster membership needs a default-zero player State number covering 0..=2147483647".into());
+            }
+            let encodings: BTreeSet<_> = roster.roles.iter().copied().collect();
+            if !(1..=256).contains(&roster.roles.len()) || encodings.len() != roster.roles.len() {
+                push(
+                    format!("{ptr}/roles"),
+                    "a roster requires one to 256 distinct role values".into(),
+                );
+            }
+            if roster.member == roster.role
+                || score(&roster.role).is_none_or(|field| {
+                    field.bounds.is_some_and(|(min, max)| {
+                        roster.roles.iter().any(|role| *role < min || *role > max)
+                    })
+                })
+            {
+                push(format!("{ptr}/role"), "roster role needs a distinct non-ticking player State field covering all role values".into());
+            }
+            if !(1..=128).contains(&roster.capacity) {
+                push(
+                    format!("{ptr}/capacity"),
+                    "roster capacity must be between one and 128".into(),
+                );
+            }
+        }
         for (index, encounter) in module.encounters.iter().enumerate() {
             let path = format!("/encounters/{index}");
             if !resource_ids.insert(format!("encounter {}", encounter.id)) {
@@ -2194,6 +2252,7 @@ struct Validator<'a, 'e> {
     transfers: BTreeSet<String>,
     checkpoints: BTreeSet<String>,
     encounters: BTreeSet<String>,
+    rosters: BTreeMap<String, &'a [i32]>,
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
     progressions: BTreeSet<String>,
@@ -2339,6 +2398,22 @@ impl Validator<'_, '_> {
         }
     }
 
+    fn roster(&mut self, id: &ResourceLocation, role: Option<i32>, owner: &str, ptr: &str) {
+        let problem = match self.rosters.get(&id.to_string()) {
+            None => format!("unknown roster `{id}`"),
+            Some(roles) if role.is_some_and(|role| !roles.contains(&role)) => {
+                format!("unknown role encoding for roster `{id}`")
+            }
+            Some(_) => return,
+        };
+        self.errors.push(Diagnostic::error(
+            "SAND_PROGRAM_ROSTER",
+            owner,
+            ptr,
+            problem,
+        ));
+    }
+
     fn player(&mut self, context: ExecutionContext, owner: &str, ptr: &str, what: &str) {
         if context != ExecutionContext::Player {
             self.errors.push(Diagnostic::error(
@@ -2449,6 +2524,21 @@ impl Validator<'_, '_> {
                         ));
                     }
                 }
+            }
+            Condition::RosterMatch {
+                roster_match,
+                role,
+                any_member,
+            } => {
+                if !any_member {
+                    self.player(
+                        context,
+                        owner,
+                        ptr,
+                        "testing the executing player's roster membership",
+                    );
+                }
+                self.roster(roster_match, *role, owner, ptr);
             }
             Condition::Predicate { predicate } => {
                 self.resource(
@@ -3481,6 +3571,29 @@ impl Validator<'_, '_> {
                             format!("unknown HUD `{hud}`"),
                         ));
                     }
+                }
+                Action::Roster { roster, command } => {
+                    let role = match command {
+                        RosterCommand::Join { role } => {
+                            self.player(context, owner, &ptr, "admitting the executing player");
+                            Some(*role)
+                        }
+                        RosterCommand::Leave => {
+                            self.player(
+                                context,
+                                owner,
+                                &ptr,
+                                "removing the executing player from a roster",
+                            );
+                            None
+                        }
+                        RosterCommand::Each { role, callback } => {
+                            self.call(callback, ExecutionContext::Player, owner, &ptr);
+                            *role
+                        }
+                        RosterCommand::Open | RosterCommand::Close => None,
+                    };
+                    self.roster(roster, role, owner, &ptr);
                 }
                 Action::Encounter { encounter, .. } => {
                     self.player(

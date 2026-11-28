@@ -814,6 +814,33 @@ impl JigsawStructure {
     }
 }
 
+/// A bounded roster over canonical player membership and role State.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::RosterDefinition", module = "sand::advanced::compiler",
+ summary = "Bounded online membership for a declared arena.",
+ context = "Use the same membership and role State across arenas for exclusive admission.",
+ minecraft = "Uses the shared native roster generation, connection checks and capacity checks.",
+ use_when = ["Composing multiplayer arena rounds with explicit admission"],
+ avoid_when = ["Tracking offline seats or automatic matchmaking"],
+ fields(id = "Roster identity.", member = "Default-zero unbounded player membership number.", role = "Player role field.", roles = "Distinct encodings of the named roles.", capacity = "Maximum online members, from one to 128."),
+ example = "use sand::advanced::compiler::RosterDefinition;",
+)]
+pub struct RosterDefinition {
+    /// Roster identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Player State field holding the admitted generation.
+    pub member: FieldReference,
+    /// Player State field holding the role.
+    pub role: FieldReference,
+    /// Distinct encodings of the roles in their authored order.
+    pub roles: Vec<i32>,
+    /// Maximum current online members.
+    pub capacity: u32,
+}
+
 /// Native ore veins and their biome-restricted placement.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -502,6 +502,22 @@ pub(super) fn lower(
                 &mut tick,
             )?;
         }
+        for (index, roster) in module.rosters.iter().enumerate() {
+            let registration =
+                crate::gameplay::roster::RosterPlan::portable(roster, &lower.data_states)
+                    .registration();
+            lower.register_owned_runtime(
+                registration,
+                (
+                    &format!("roster {}", roster.id),
+                    &module_id,
+                    &format!("/rosters/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
         for (index, source) in module.encounters.iter().enumerate() {
             let pointer = format!("/encounters/{index}");
             let encounter = lower.encounters[&source.id.to_string()].clone();
@@ -2839,6 +2855,15 @@ impl Lower<'_> {
                     ),
                 ),
             ),
+            Condition::RosterMatch {
+                roster_match,
+                role,
+                any_member,
+            } => sand_commands::ConditionIr::Function(crate::gameplay::roster::RosterPlan::query(
+                roster_match,
+                *role,
+                *any_member,
+            )),
             Condition::Predicate { predicate } => {
                 sand_commands::ConditionIr::Predicate(predicate.to_string())
             }
@@ -3361,6 +3386,27 @@ impl Lower<'_> {
                         definition.start().0
                     } else {
                         definition.cancel().0
+                    }
+                }
+                Action::Roster { roster, command } => {
+                    use crate::gameplay::roster::RosterPlan;
+                    match command {
+                        RosterCommand::Open => RosterPlan::call(roster, "open").0,
+                        RosterCommand::Close => RosterPlan::call(roster, "close").0,
+                        RosterCommand::Leave => RosterPlan::call(roster, "leave").0,
+                        RosterCommand::Join { role } => {
+                            RosterPlan::call(roster, &format!("join_{role}")).0
+                        }
+                        RosterCommand::Each { role, callback } => {
+                            RosterPlan::each(
+                                roster,
+                                *role,
+                                crate::IntoCommands::into_commands(Cmd::Function(reference_id(
+                                    callback,
+                                ))),
+                            )
+                            .0
+                        }
                     }
                 }
                 Action::Encounter { encounter, start } => {

@@ -878,6 +878,28 @@
         },
         {
           "additionalProperties": false,
+          "description": "Operate on a named online roster.",
+          "properties": {
+            "command": {
+              "$ref": "#/$defs/RosterCommand"
+            },
+            "op": {
+              "const": "roster",
+              "type": "string"
+            },
+            "roster": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "roster",
+            "command"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Start or cancel this player's encounter and its child attacks.",
           "properties": {
             "encounter": {
@@ -2815,6 +2837,29 @@
         {
           "$ref": "#/$defs/FlagSet",
           "description": "The executor has an entity flag."
+        },
+        {
+          "description": "Tests authoritative online roster membership.",
+          "properties": {
+            "any_member": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "format": "int32",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "roster_match": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "roster_match"
+          ],
+          "type": "object"
         },
         {
           "description": "A native predicate evaluated in the current execution context.",
@@ -6364,6 +6409,140 @@
       ],
       "type": "object"
     },
+    "RosterCommand": {
+      "description": "One operation on an online roster.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Open a fresh generation.",
+          "properties": {
+            "action": {
+              "const": "open",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Close the current generation.",
+          "properties": {
+            "action": {
+              "const": "close",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Admit the executing player.",
+          "properties": {
+            "action": {
+              "const": "join",
+              "type": "string"
+            },
+            "role": {
+              "description": "Declared role encoding to commit.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Remove the executing player.",
+          "properties": {
+            "action": {
+              "const": "leave",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Visit matching current members under the roster's mutation lock.",
+          "properties": {
+            "action": {
+              "const": "each",
+              "type": "string"
+            },
+            "callback": {
+              "$ref": "#/$defs/FunctionReference",
+              "description": "Synchronous callback executed as and at each matching player."
+            },
+            "role": {
+              "description": "Optional role filter.",
+              "format": "int32",
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "action",
+            "callback"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RosterDefinition": {
+      "additionalProperties": false,
+      "description": "A bounded roster over canonical player membership and role State.",
+      "properties": {
+        "capacity": {
+          "description": "Maximum current online members.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Roster identity.",
+          "type": "string"
+        },
+        "member": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Player State field holding the admitted generation."
+        },
+        "role": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Player State field holding the role."
+        },
+        "roles": {
+          "description": "Distinct encodings of the roles in their authored order.",
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "member",
+        "role",
+        "roles",
+        "capacity"
+      ],
+      "type": "object"
+    },
     "RuleTest": {
       "description": "A block-matching rule test used by ore-like feature configs.\n\n# Context\nA block-matching rule test used by ore-like feature configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::RuleTest;\n```\nA block-matching rule test used by ore-like feature configs.",
       "oneOf": [
@@ -7930,6 +8109,13 @@
       "description": "Item, block, and entity-type tags.",
       "items": {
         "$ref": "#/$defs/ResourceTag"
+      },
+      "type": "array"
+    },
+    "rosters": {
+      "description": "Bounded online arena rosters.",
+      "items": {
+        "$ref": "#/$defs/RosterDefinition"
       },
       "type": "array"
     },

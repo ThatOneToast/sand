@@ -203,6 +203,13 @@
       },
       "type": "array"
     },
+    "rosters": {
+      "description": "Bounded online arena rosters.",
+      "items": {
+        "$ref": "defs-RosterDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "scenes": {
       "description": "Owned native display scenes.",
       "items": {

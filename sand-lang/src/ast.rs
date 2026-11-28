@@ -542,6 +542,8 @@ pub enum DataKind {
     Checkpoint,
     /// A priority controller for an owner and its child attacks.
     Encounter,
+    /// A bounded online arena roster.
+    Roster,
     Hud,
     Menu,
     Projectile,
@@ -577,6 +579,7 @@ impl DataKind {
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Checkpoint => "checkpoint",
             DataKind::Encounter => "encounter",
+            DataKind::Roster => "roster",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",
             DataKind::Projectile => "projectile",

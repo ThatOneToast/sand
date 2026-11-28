@@ -994,6 +994,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "roster"
+                },
+                {
+                  "type": "STRING",
                   "value": "hud"
                 },
                 {

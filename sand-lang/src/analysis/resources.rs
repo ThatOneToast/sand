@@ -857,6 +857,18 @@ impl Cx {
                     bossbar,
                 });
             }
+            DataKind::Roster => {
+                let Some(roster) = self.data_roster(module, file, def, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/rosters/{}", out.rosters.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.rosters.push(roster);
+            }
             DataKind::Encounter => {
                 let Some(encounter) = self.data_encounter(module, file, location, get) else {
                     return;
@@ -2036,6 +2048,92 @@ impl Cx {
         Some(fields)
     }
 
+    pub(super) fn collect_roster_roles(&mut self) {
+        for index in 0..self.package.modules.len() {
+            let module = ModuleId(index);
+            let file = self.package.module(module).file;
+            for item in self.package.module(module).items.clone() {
+                let ItemKind::Data(data) = item.kind else {
+                    continue;
+                };
+                if data.kind != DataKind::Roster {
+                    continue;
+                }
+                let Some(def) = self.def_by_span(module, data.name.span) else {
+                    continue;
+                };
+                let Some(role) = data.fields.iter().find(|field| field.key.name == "role") else {
+                    continue;
+                };
+                let role = &role.value;
+                let Some(Expr::Place(place)) =
+                    self.data_expr(file, role, "a player State enum field")
+                else {
+                    self.error(
+                        "roster",
+                        file,
+                        role.span(),
+                        "expected a player State enum field",
+                    );
+                    continue;
+                };
+                let Some((state, field, ty)) = self.resolve_place(module, file, place) else {
+                    continue;
+                };
+                if let Ty::Enum(enum_id) = ty
+                    && matches!(
+                        self.defs[enum_id.0].info,
+                        DefInfo::Enum { layout: None, .. }
+                    )
+                    && matches!(
+                        self.defs[state.0].info,
+                        DefInfo::State {
+                            scope: Scope::Player,
+                            ..
+                        }
+                    )
+                    && let Some(reference) = self.field_reference(state, field)
+                {
+                    self.roster_roles.insert(def, (reference, enum_id));
+                } else {
+                    self.error(
+                        "roster",
+                        file,
+                        role.span(),
+                        "expected a fieldless enum field on player State",
+                    );
+                }
+            }
+        }
+    }
+
+    fn data_roster<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        def: DefId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::RosterDefinition> {
+        let (role, enum_id) = self.roster_roles.get(&def)?.clone();
+        let member = self.data_player_score(module, file, &get("member")?.value, false)?;
+        let capacity = self.data_int(module, file, &get("capacity")?.value, 1, 128)? as u32;
+        let DefInfo::Enum { variants, .. } = self.defs[enum_id.0].info.clone() else {
+            unreachable!("roster enum checked")
+        };
+        let roles = variants
+            .into_iter()
+            .map(|variant| self.eval_def(variant).map(|role| role as i32))
+            .collect::<Option<Vec<_>>>()?;
+        Some(pc::RosterDefinition {
+            id,
+            member,
+            role,
+            roles,
+            capacity,
+        })
+    }
+
     fn data_encounter<'a>(
         &mut self,
         module: ModuleId,
@@ -2737,7 +2835,7 @@ impl Cx {
         Some((self.function_reference(def)?, self.slot(index)))
     }
 
-    fn data_callback(
+    pub(super) fn data_callback(
         &mut self,
         module: ModuleId,
         file: FileId,

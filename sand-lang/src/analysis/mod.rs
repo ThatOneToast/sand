@@ -174,6 +174,8 @@ pub enum DefKind {
     Checkpoint,
     /// `encounter Name { ... }`.
     Encounter,
+    /// `roster Name { ... }`.
+    Roster,
     /// `hud Name { ... }`.
     Hud,
     /// `menu Name { ... }`.
@@ -230,6 +232,7 @@ impl DefKind {
             DefKind::InventoryTransfer => "inventory transfer",
             DefKind::Checkpoint => "checkpoint",
             DefKind::Encounter => "encounter",
+            DefKind::Roster => "roster",
             DefKind::Hud => "HUD",
             DefKind::Menu => "menu",
             DefKind::Projectile => "projectile",
@@ -660,6 +663,7 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         tests: BTreeMap::new(),
         test_functions: Default::default(),
         breakpoints: BTreeMap::new(),
+        roster_roles: BTreeMap::new(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
@@ -782,6 +786,7 @@ struct Cx {
     tests: BTreeMap<DefId, TestCase>,
     test_functions: std::collections::BTreeSet<DefId>,
     breakpoints: BTreeMap<String, (FileId, Span)>,
+    roster_roles: BTreeMap<DefId, (pc::FieldReference, DefId)>,
     /// Handlers of each custom event, in declaration order.
     event_handlers: BTreeMap<DefId, Vec<EventHandler>>,
     /// `#[on(Event)]` attributes that name a custom event.
@@ -1221,6 +1226,7 @@ impl Cx {
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                     crate::ast::DataKind::Checkpoint => DefKind::Checkpoint,
                     crate::ast::DataKind::Encounter => DefKind::Encounter,
+                    crate::ast::DataKind::Roster => DefKind::Roster,
                     crate::ast::DataKind::Hud => DefKind::Hud,
                     crate::ast::DataKind::Menu => DefKind::Menu,
                     crate::ast::DataKind::Projectile => DefKind::Projectile,
@@ -2666,6 +2672,7 @@ impl Cx {
         let pack = self.pack.clone()?;
         let mut lowerer = Lowering::default();
         self.declare_signatures();
+        self.collect_roster_roles();
         let mut modules = Vec::new();
         for index in 0..self.package.modules.len() {
             let module = ModuleId(index);
@@ -3288,6 +3295,7 @@ impl Cx {
             inventory_transfers: Vec::new(),
             checkpoints: Vec::new(),
             encounters: Vec::new(),
+            rosters: Vec::new(),
             huds: Vec::new(),
             menus: Vec::new(),
             projectiles: Vec::new(),

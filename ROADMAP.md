@@ -362,7 +362,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Player checkpoint projections reuse the Rust runtime for owned save,
   restore, preflight, callback revalidation, and invalidation.
 - [x] Player encounters use the shared priority controller and child-task ownership.
-- [ ] Expose the Rust rosters through canonical shared models.
+- [x] Shared Rust and Sand rosters with typed roles, checked admission, membership queries, and bounded online iteration.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.

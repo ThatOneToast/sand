@@ -610,6 +610,7 @@ impl Builder<'_> {
                     "inventory_transfer" => DataKind::InventoryTransfer,
                     "checkpoint" => DataKind::Checkpoint,
                     "encounter" => DataKind::Encounter,
+                    "roster" => DataKind::Roster,
                     "hud" => DataKind::Hud,
                     "menu" => DataKind::Menu,
                     "projectile" => DataKind::Projectile,

@@ -307,6 +307,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}hud {}", def.name),
                     format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
                 ),
+                (crate::ast::DataKind::Roster, _) => (
+                    format!("{vis}roster {}", def.name),
+                    format!("Bounded online arena roster `{id}`."),
+                ),
                 (crate::ast::DataKind::Encounter, _) => (
                     format!("{vis}encounter {}", def.name),
                     format!("Player-owned priority encounter `{id}`."),
@@ -1289,6 +1293,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::InventoryTransfer
         | DefKind::Checkpoint
         | DefKind::Encounter
+        | DefKind::Roster
         | DefKind::Hud
         | DefKind::Progression
         | DefKind::Combat
@@ -2703,6 +2708,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
         ),
         Completion::snippet(
+            "roster",
+            "bounded online arena membership",
+            r#"roster ${1:Arena} { member: ${2:Players.generation}, role: ${3:Players.role}, capacity: ${4:8} }"#,
+        ),
+        Completion::snippet(
             "encounter",
             "a priority controller with timed child attacks",
             "encounter ${1:Challenge} { ticks: ${2:200}, attacks: [{ ticks: ${3:20}, start: ${4:attack} }] }",
@@ -3053,6 +3063,8 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::InventoryTransfer => "InventoryTransfer",
                 ParamKind::Checkpoint => "Checkpoint",
                 ParamKind::Encounter => "Encounter",
+                ParamKind::Roster => "Roster",
+                ParamKind::RosterRole => "role",
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",
                 ParamKind::Projectile => "Projectile",

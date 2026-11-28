@@ -18,7 +18,9 @@ pub use gameplay::{
     ScoreOperator, ScoreRelation, StateAttached, TeleportDestination, TextColor, TextPart,
     TextStyle, Weather,
 };
-pub use operation::{AbilityCommand, Action, CheckpointCommand, Operation, SessionCommand};
+pub use operation::{
+    AbilityCommand, Action, CheckpointCommand, Operation, RosterCommand, SessionCommand,
+};
 pub use resources::{
     AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion, AdvancementDisplay, BossBar,
     BossBarColor, BossBarStyle, CheckpointDefinition, CheckpointFieldPair, CombatCritical,
@@ -27,8 +29,8 @@ pub use resources::{
     JigsawStructure, JobDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition,
     MenuView, NoiseDimension, NoticeDialog, OreFeatureDefinition, ProgressionBranch,
     ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
-    RecipeOutput, ResourceTag, SceneContent, SceneDefinition, SceneKeyframe, ScenePart,
-    SessionDefinition, StateCooldown, TagKind, TemplatePoolDefinition, TemplatePoolPiece,
-    WorldPredicate, WrittenBookContent,
+    RecipeOutput, ResourceTag, RosterDefinition, SceneContent, SceneDefinition, SceneKeyframe,
+    ScenePart, SessionDefinition, StateCooldown, TagKind, TemplatePoolDefinition,
+    TemplatePoolPiece, WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

@@ -53,5 +53,5 @@ pub use checkpoint::Checkpoint;
 mod journal;
 pub use journal::Journal;
 
-mod roster;
+pub(crate) mod roster;
 pub use roster::Roster;

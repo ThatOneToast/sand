@@ -87,6 +87,7 @@ fn item_level() {
             "inventory_transfer",
             "checkpoint",
             "encounter",
+            "roster",
             "hud",
             "menu",
             "projectile",

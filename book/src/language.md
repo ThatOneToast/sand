@@ -1477,6 +1477,49 @@ fn begin_arena() {
 Child `start` and `stop` callbacks and the optional controller `stop`
 callback run as the player when the owner can be resolved.
 
+### Online arena rosters
+
+A `roster` admits online players to a named arena with a bounded capacity.
+Use a default-zero player State number for the membership generation and a
+fieldless enum for the role. Arenas that share the membership field are
+exclusive. A successful join transfers the player to the destination arena.
+
+```rust,ignore
+enum Role { Fighter, Spectator }
+player state Member {
+    generation: number,
+    role: Role = Role::Spectator,
+    rounds: number,
+}
+roster Arena {
+    member: Member.generation,
+    role: Member.role,
+    capacity: 8,
+}
+
+fn open_round() { roster_open(Arena); }
+fn enter_round() { roster_join(Arena, Role::Fighter); }
+fn leave_round() { roster_leave(Arena); }
+fn close_round() { roster_close(Arena); }
+
+fn count_round() { Member.rounds += 1; }
+fn award_round() {
+    if roster_has_members(Arena, role = Role::Fighter) {
+        roster_each(Arena, count_round, role = Role::Fighter);
+    }
+}
+```
+
+`roster_contains` checks the executing player. `roster_has_members` checks all
+online players while retaining the caller's context. Both checks and
+`roster_each` accept an optional constant role of the roster's enum type.
+The iteration callback runs as each matching player at their position.
+The membership domain is locked against mutation and nested iteration until
+the synchronous visit finishes. A rejected join preserves the player's
+previous membership. Reopening, closing, reloading, or disconnecting
+invalidates membership. Use the roster checks for authorization because the
+underlying State scores can outlive that membership.
+
 ### Player checkpoints
 
 A `checkpoint` saves selected player State numbers into a separate saved
@@ -2437,7 +2480,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and fixed/checkerboard noise dimensions, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs, display scenes, player checkpoints and encounters | rosters and status effects |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs, display scenes, player checkpoints, encounters and online rosters | additional status-effect policies |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

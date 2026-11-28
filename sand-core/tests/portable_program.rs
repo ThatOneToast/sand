@@ -43,6 +43,7 @@ fn counter() -> Program {
             inventory_transfers: vec![],
             checkpoints: vec![],
             encounters: vec![],
+            rosters: vec![],
             huds: vec![],
             menus: vec![],
             projectiles: vec![],

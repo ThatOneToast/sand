@@ -4522,7 +4522,10 @@ impl Cx {
             } => {
                 if let Expr::Method { receiver, name, .. } = value
                     && name.name == "borrow_slice"
-                    && matches!(self.type_of(body, receiver), Ty::List(_))
+                    && {
+                        let ty = self.type_of(body, receiver);
+                        matches!(ty, Ty::List(_) | Ty::String) || self.array_shape(ty).is_some()
+                    }
                 {
                     self.lower_borrowed_slice_loop(body, binding, value, block, *span, ops);
                     return;
@@ -4722,18 +4725,14 @@ impl Cx {
         let Some(local) = Self::local_of(body, receiver).filter(|local| {
             matches!(
                 self.defs[local.0].info,
-                DefInfo::Local {
-                    mutable: false,
-                    ty: Ty::List(_),
-                    ..
-                }
+                DefInfo::Local { mutable: false, .. }
             )
         }) else {
             self.error(
                 "slice",
                 body.file,
                 receiver.span(),
-                "`borrow_slice` needs an immutable local vector",
+                "`borrow_slice` needs an immutable local array, vector, or string",
             );
             return;
         };

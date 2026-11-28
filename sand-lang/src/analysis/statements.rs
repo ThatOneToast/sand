@@ -52,7 +52,7 @@ pub(super) enum Repeat<'a> {
         step: Option<&'a Expr>,
         /// Array snapshot supplying the loop binding instead of the counter.
         collection: Option<&'a Expr>,
-        /// An immutable local vector supplying elements directly.
+        /// An immutable local supplying elements directly.
         borrowed: Option<DefId>,
     },
 }
@@ -2722,6 +2722,18 @@ impl Cx {
                 let mut dynamic_length = None;
                 if let Some((array, element, length, characters)) = snapshot {
                     if let Some(length) = length {
+                        if borrowed.is_some() {
+                            let measured = self.temp(body);
+                            setup.push(op_at(
+                                pc::Action::ScoreSet {
+                                    score: measured.clone(),
+                                    value: length as i32,
+                                },
+                                file,
+                                span,
+                            ));
+                            dynamic_length = Some(measured);
+                        }
                         for offset in 0..length {
                             let mut then = Vec::new();
                             self.copy_value(

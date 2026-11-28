@@ -91,6 +91,13 @@ enum Command {
         #[command(flatten)]
         input: Input,
     },
+    /// Annotate a native Minecraft debug function trace with Sand source locations
+    Trace {
+        /// Trace file written by Minecraft's debug function command
+        trace: PathBuf,
+        #[command(flatten)]
+        input: Input,
+    },
     /// Create a new Sand language project in a new directory
     New {
         /// Project directory (its name becomes the namespace)
@@ -273,6 +280,14 @@ pub fn run(args: LangArgs) -> Result<()> {
             println!("{}", source_at(&analysis, &function, line.get())?);
             Ok(())
         }
+        Command::Trace { trace, input } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let contents = std::fs::read_to_string(&trace)
+                .with_context(|| format!("read {}", trace.display()))?;
+            println!("{}", annotate_trace(&analysis, &contents)?);
+            Ok(())
+        }
         Command::Emit(input) => {
             let analysis = analyze(&input.path)?;
             report(&analysis)?;
@@ -286,50 +301,156 @@ pub fn run(args: LangArgs) -> Result<()> {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct MappedCommand {
+    lines: std::ops::RangeInclusive<usize>,
+    source: MappedSpan,
+}
+
+#[derive(serde::Deserialize, PartialEq, Eq)]
+struct MappedSpan {
+    file: usize,
+    start: usize,
+}
+
+fn command_map(
+    analysis: &Analysis,
+) -> Result<std::collections::BTreeMap<String, Vec<MappedCommand>>> {
+    let map = analysis
+        .source_map()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
+    Ok(serde_json::from_value(map["commands"].clone())?)
+}
+
+fn function_resource(function: &sand::ResourceLocation) -> String {
+    format!(
+        "data/{}/function/{}.mcfunction",
+        function.namespace(),
+        function.path()
+    )
+}
+
 fn source_at(
     analysis: &Analysis,
     function: &sand::ResourceLocation,
     line: usize,
 ) -> Result<String> {
-    #[derive(serde::Deserialize)]
-    struct MappedCommand {
-        lines: std::ops::RangeInclusive<usize>,
-        source: MappedSpan,
-    }
-    #[derive(serde::Deserialize)]
-    struct MappedSpan {
-        file: usize,
-        start: usize,
-    }
-
-    let map = analysis
-        .source_map()
-        .map_err(|errors| report_compilation_errors(analysis, errors))?;
-    let resource = format!(
-        "data/{}/function/{}.mcfunction",
-        function.namespace(),
-        function.path()
-    );
-    let ranges = map["commands"]
+    let map = command_map(analysis)?;
+    let resource = function_resource(function);
+    let ranges = map
         .get(&resource)
         .with_context(|| format!("no source-mapped commands for `{function}`"))?;
-    let ranges: Vec<MappedCommand> = serde_json::from_value(ranges.clone())?;
-    let span = ranges
-        .into_iter()
+    let span = mapped_command(ranges, line)
+        .with_context(|| format!("no authored source for `{function}` at generated line {line}"))?;
+    let index = sand_lang::LineIndex::new(&analysis.package.files[span.file].text);
+    let location = mapped_location(analysis, span, &index);
+    let source = index.line_text(index.chars(span.start).line as usize);
+    Ok(format!("{location}\n{source}"))
+}
+
+fn mapped_command(ranges: &[MappedCommand], line: usize) -> Option<&MappedSpan> {
+    ranges
+        .iter()
         .filter(|entry| entry.lines.contains(&line))
         .min_by_key(|entry| entry.lines.end() - entry.lines.start())
-        .map(|entry| entry.source)
-        .with_context(|| format!("no authored source for `{function}` at generated line {line}"))?;
+        .map(|entry| &entry.source)
+}
+
+fn mapped_location(analysis: &Analysis, span: &MappedSpan, index: &sand_lang::LineIndex) -> String {
     let file = &analysis.package.files[span.file];
-    let index = sand_lang::LineIndex::new(&file.text);
     let position = index.chars(span.start);
-    Ok(format!(
-        "{}:{}:{}\n{}",
+    format!(
+        "{}:{}:{}",
         file.path.display(),
         position.line + 1,
-        position.col + 1,
-        index.line_text(position.line as usize)
-    ))
+        position.col + 1
+    )
+}
+
+fn annotate_trace(analysis: &Analysis, trace: &str) -> Result<String> {
+    let map = command_map(analysis)?;
+    let pack = analysis
+        .compile()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
+    let indices: Vec<_> = analysis
+        .package
+        .files
+        .iter()
+        .map(|file| sand_lang::LineIndex::new(&file.text))
+        .collect();
+    let mut commands = std::collections::BTreeMap::new();
+    let mut frames: Vec<(usize, Option<String>)> = Vec::new();
+    let mut output = String::new();
+    for original in trace.lines() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(original);
+        let line = original.trim_start();
+        let indent = original.len() - line.len();
+        if let Some(frame) = line.strip_prefix("[F] ") {
+            frames.retain(|(level, _)| *level < indent);
+            let resource = frame
+                .split_once(" size=")
+                .and_then(|(id, _)| id.parse::<sand::ResourceLocation>().ok())
+                .map(|id| function_resource(&id));
+            frames.push((indent, resource));
+        } else if let Some(command) = line.strip_prefix("[C] ") {
+            frames.retain(|(level, _)| *level < indent);
+            let source = frames
+                .last()
+                .and_then(|(_, resource)| resource.as_ref())
+                .and_then(|resource| {
+                    let ranges = map.get(resource)?;
+                    let function = std::str::from_utf8(pack.resources.get(resource)?).ok()?;
+                    let index = commands
+                        .entry(resource.clone())
+                        .or_insert_with(|| trace_command_index(function, ranges));
+                    trace_command_source(command, index)
+                });
+            if let Some(span) = source {
+                output.push_str("    @ ");
+                output.push_str(&mapped_location(analysis, span, &indices[span.file]));
+            } else {
+                output.push_str("    @ unmapped");
+            }
+        }
+    }
+    Ok(output)
+}
+
+fn trace_command_index<'a>(
+    function: &'a str,
+    ranges: &'a [MappedCommand],
+) -> std::collections::BTreeMap<&'a str, Option<&'a MappedSpan>> {
+    let mut sources = std::collections::BTreeMap::new();
+    for (index, command) in function.lines().enumerate() {
+        let candidate = mapped_command(ranges, index + 1);
+        sources
+            .entry(command)
+            .and_modify(|source| {
+                if *source != candidate {
+                    *source = None;
+                }
+            })
+            .or_insert(candidate);
+    }
+    sources
+}
+
+fn trace_command_source<'a>(
+    command: &str,
+    index: &std::collections::BTreeMap<&str, Option<&'a MappedSpan>>,
+) -> Option<&'a MappedSpan> {
+    let result_free = command
+        .rsplit_once(" -> ")
+        .filter(|(_, result)| result.parse::<i32>().is_ok())
+        .map_or(command, |(bare, _)| bare);
+    match (index.get(command), index.get(result_free)) {
+        (Some(a), Some(b)) if a != b => None,
+        (Some(source), _) | (_, Some(source)) => *source,
+        _ => None,
+    }
 }
 
 /// Format all declared source files, or check their formatting without writes.
@@ -613,6 +734,21 @@ fn run(flag: bool) {
         let source = source_at(&analysis, &id, line).unwrap();
         assert!(source.contains("Report.value = 17"), "{source}");
         assert!(source_at(&analysis, &id, usize::MAX).is_err());
+        let pack = analysis.compile().unwrap();
+        let emitted = std::str::from_utf8(&pack.resources[path]).unwrap();
+        let command = emitted.lines().nth(line - 1).unwrap();
+        let trace = format!(
+            "    [F] probe:run size=1\n        [F] {id} size=1\n            [C] {command} -> 1\n        [C] say unrelated"
+        );
+        let annotated = annotate_trace(&analysis, &trace).unwrap();
+        assert!(
+            annotated.contains(&format!(
+                "{command} -> 1    @ {}",
+                analysis.package.files[0].path.display()
+            )),
+            "{annotated}"
+        );
+        assert!(annotated.ends_with("say unrelated    @ unmapped"));
     }
 
     #[test]

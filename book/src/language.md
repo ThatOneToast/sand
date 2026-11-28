@@ -320,7 +320,7 @@ Each vector supports up to 1,024 elements. A full vector rejects `push` and
 1 MiB budget checked before repeat expansion; build larger values at runtime.
 For example, `values.slice(1, 3)` copies indices 1 and 2. Bounds are clamped to
 the current length, and empty or reversed ranges produce an empty vector.
-To iterate an immutable local vector without copying its entire range, write
+To iterate an immutable local array, vector, or string without copying its entire range, write
 `for value in values.borrow_slice(1, 3) { ... }`. Bounds are evaluated once
 in order and clamped. Each loop binding is a value. A borrowed range is scoped
 to the loop. First-class borrowed slices remain future work.
@@ -394,6 +394,10 @@ inclusive one-based line ranges, including generated branches and macros. This
 command compiles in memory and reports ordinary Sand errors if emission fails.
 Use `sand lang source-at namespace:function/path 7` to resolve line 7 of a
 generated function to its authored file, line, and column.
+After running Minecraft's `debug function namespace:function/path`, use
+`sand lang trace path/to/debug-trace.txt` from the version of the source that
+built the installed pack. Sand annotates commands it can match unambiguously.
+Expanded macros and other unmatched commands stay visible as unmapped.
 
 ## Types
 

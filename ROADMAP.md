@@ -271,7 +271,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Generic enums and bundled `Option<T>` and `Result<T, E>`.
 - [ ] General borrowed slices.
 - [x] Owned vector subranges with clamped half-open bounds.
-- [x] Borrowed range iteration over immutable local vectors.
+- [x] Borrowed range iteration over immutable local arrays, vectors, and strings.
 - [x] Typed enchantments generated from one verified catalog for Rust and Sand.
 - [x] Bundled typed durations and storable positions through ordinary Sand
   records and impl methods. Use existing entity State for checked membership.
@@ -356,6 +356,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.
 - [x] CLI lookup of authored source for a generated function and line.
+- [x] Source annotations on identifiable commands in native debug traces.
 - [x] Live Zed diagnostics and inferred-context hints using a worktree build.
 - [ ] Breakpoints.
 

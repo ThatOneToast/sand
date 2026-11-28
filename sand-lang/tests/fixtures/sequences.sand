@@ -137,6 +137,13 @@ fn run() {
     check(borrowed_total == 30);
     for value in ordered.borrow_slice(2, 100) { borrowed_total += value; }
     check(borrowed_total == 60);
+    let fixed = [5, 10, 20];
+    for value in fixed.borrow_slice(1, 99) { borrowed_total += value; }
+    check(borrowed_total == 90);
+    let letters = "aé🌍z";
+    let mut borrowed_text = "";
+    for letter in letters.borrow_slice(1, 3) { borrowed_text += letter; }
+    check(borrowed_text == "é🌍");
 
     summon(Entity::Pig, tag = "hidden_probe");
     for actor in entities(type = Entity::Pig, tag = "hidden_probe", limit = 1) {
@@ -150,6 +157,6 @@ fn run() {
         attach_state(Hidden); check(read_n() == 42); check(read_phase() == Phase::Done);
         detach_state(Hidden); kill();
     }
-    if Result.checks == 108 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    if Result.checks == 110 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
     else { raw!("say __SAND_LANGUAGE_FAILED__"); }
 }

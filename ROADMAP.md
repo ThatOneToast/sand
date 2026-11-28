@@ -364,6 +364,7 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   restore, preflight, callback revalidation, and invalidation.
 - [x] Player encounters use the shared priority controller and child-task ownership.
 - [x] Shared Rust and Sand rosters with typed roles, checked admission, membership queries, and bounded online iteration.
+- [x] Shared player-owned timed statuses with refresh, stacking, and cleanup callbacks.
 - [x] Sand-authored tests with assertions, disposable vanilla runs, and source
   maps for portable operations and emitted function identities.
 - [x] Emitted command-line mappings, including generated helper functions.

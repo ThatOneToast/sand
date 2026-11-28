@@ -1488,6 +1488,32 @@ fn begin_arena() {
 Child `start` and `stop` callbacks and the optional controller `stop`
 callback run as the player when the owner can be resolved.
 
+### Timed player statuses
+
+Use `status_effect` for reusable gameplay that runs while a player owns a
+timed status. The optional `start`, `tick`, and `stop` callbacks take no
+arguments and run as the owning player when available.
+
+```rust,ignore
+player state GuardState { active: bool }
+
+status_effect Guard {
+    ticks: 60,
+    start: guard_started,
+    stop: guard_ended,
+}
+
+fn guard_started() { GuardState.active = true; }
+fn guard_ended() { GuardState.active = false; }
+fn defend() { apply_status(Guard); }
+fn end_defense() { remove_status(Guard); }
+```
+
+Reapplying refreshes its loaded-tick duration and keeps the existing instance.
+Set `stacks` to a positive limit to admit independently expiring instances
+instead. When a player reaches that limit, another application is skipped.
+`remove_status` cancels all instances of the status for that player.
+
 ### Online arena rosters
 
 A `roster` admits online players to a named arena with a bounded capacity.
@@ -2508,7 +2534,7 @@ command and State models as Rust. Today the language covers:
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and noise dimensions with fixed, checkerboard, or vanilla biome sources, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs, display scenes, player checkpoints, encounters and online rosters | additional status-effect policies |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs, display scenes, player checkpoints, encounters, statuses, and online rosters | advanced owned lifecycle policies |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

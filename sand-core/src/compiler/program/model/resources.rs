@@ -824,6 +824,39 @@ impl JigsawStructure {
     }
 }
 
+/// A reusable player status with loaded-tick duration and owner callbacks.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::StatusEffectDefinition", module = "sand::advanced::compiler",
+ summary = "A reusable bounded player status with lifecycle callbacks.",
+ context = "Reapplication refreshes its existing lifetime unless independent stacks are configured.",
+ minecraft = "Runs through the same owned StatusEffect and Lifetime planners used by Rust.",
+ use_when = ["Applying timed player gameplay such as shields or damage over time"],
+ avoid_when = ["Applying a single native potion effect directly"],
+ fields(id = "Status identity.", ticks = "Duration in loaded ticks.", stacks = "Optional positive per-owner stack limit.", start = "Callback run on admission.", tick = "Callback run on each active loaded tick.", stop = "Callback run when an instance ends."),
+ example = "use sand::advanced::compiler::StatusEffectDefinition;",
+)]
+pub struct StatusEffectDefinition {
+    /// Status identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Positive duration measured in loaded ticks.
+    pub ticks: u32,
+    /// Separate stack limit. Omit for refreshing reapplication.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stacks: Option<u32>,
+    /// Run as the player when an instance starts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<FunctionReference>,
+    /// Run as the player while the instance is active.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tick: Option<FunctionReference>,
+    /// Run as the player when an instance stops.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<FunctionReference>,
+}
+
 /// A bounded roster over canonical player membership and role State.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

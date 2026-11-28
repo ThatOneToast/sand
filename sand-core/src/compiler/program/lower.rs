@@ -142,6 +142,7 @@ pub(super) fn lower(
         progressions: BTreeMap::new(),
         scenes: BTreeMap::new(),
         encounters: BTreeMap::new(),
+        status_effects: BTreeMap::new(),
         jobs: BTreeMap::new(),
         sessions: BTreeMap::new(),
         abilities: BTreeMap::new(),
@@ -178,6 +179,15 @@ pub(super) fn lower(
         lower
             .jobs
             .insert(job.id.to_string(), lower.job_component(job));
+    }
+    for source in program
+        .modules
+        .iter()
+        .flat_map(|module| &module.status_effects)
+    {
+        lower
+            .status_effects
+            .insert(source.id.to_string(), lower.status_component(source));
     }
     for source in program.modules.iter().flat_map(|module| &module.encounters) {
         lower
@@ -512,6 +522,21 @@ pub(super) fn lower(
                     &format!("roster {}", roster.id),
                     &module_id,
                     &format!("/rosters/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, status) in module.status_effects.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.status_effects[&status.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("status effect {}", status.id),
+                    &module_id,
+                    &format!("/status_effects/{index}"),
                 ),
                 &ctx,
                 &mut load,
@@ -1958,6 +1983,7 @@ struct Lower<'sources> {
     progressions: BTreeMap<String, crate::gameplay::Progression>,
     scenes: BTreeMap<String, crate::gameplay::Scene>,
     encounters: BTreeMap<String, PortableEncounter>,
+    status_effects: BTreeMap<String, crate::gameplay::StatusEffect>,
     jobs: BTreeMap<String, crate::gameplay::Job>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
     abilities: BTreeMap<String, crate::gameplay::Ability>,
@@ -2508,6 +2534,30 @@ impl Lower<'_> {
             lifetime,
             self.progressions[&source.progression.to_string()].clone(),
         )
+    }
+
+    fn status_component(&self, source: &StatusEffectDefinition) -> crate::gameplay::StatusEffect {
+        use crate::gameplay::{Lifetime, StatusEffect};
+        use sand_components::effect::Ticks;
+        let mut lifetime = Lifetime::new(source.id.clone(), Ticks::new(source.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        if let Some(start) = source.start.as_ref().map(reference_id) {
+            lifetime =
+                lifetime.on_start(move |context| context.owner(|_| Cmd::Function(start.clone())));
+        }
+        if let Some(tick) = source.tick.as_ref().map(reference_id) {
+            lifetime =
+                lifetime.on_tick(move |context| context.owner(|_| Cmd::Function(tick.clone())));
+        }
+        if let Some(stop) = source.stop.as_ref().map(reference_id) {
+            lifetime =
+                lifetime.on_stop(move |context| context.owner(|_| Cmd::Function(stop.clone())));
+        }
+        let status = StatusEffect::new(lifetime);
+        match source.stacks {
+            Some(stacks) => status.stacking(stacks),
+            None => status,
+        }
     }
 
     fn encounter_component(&self, source: &EncounterDefinition) -> PortableEncounter {
@@ -3439,6 +3489,14 @@ impl Lower<'_> {
                             )
                             .0
                         }
+                    }
+                }
+                Action::Status { status, apply } => {
+                    let status = &self.status_effects[&status.to_string()];
+                    if *apply {
+                        status.apply().0
+                    } else {
+                        status.remove().0
                     }
                 }
                 Action::Encounter { encounter, start } => {

@@ -307,6 +307,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}hud {}", def.name),
                     format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
                 ),
+                (crate::ast::DataKind::StatusEffect, _) => (
+                    format!("{vis}status_effect {}", def.name),
+                    format!(
+                        "Timed player-owned status `{id}`. Apply or remove it with the status builtins."
+                    ),
+                ),
                 (crate::ast::DataKind::Roster, _) => (
                     format!("{vis}roster {}", def.name),
                     format!("Bounded online arena roster `{id}`."),
@@ -1294,6 +1300,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Checkpoint
         | DefKind::Encounter
         | DefKind::Roster
+        | DefKind::StatusEffect
         | DefKind::Hud
         | DefKind::Progression
         | DefKind::Combat
@@ -2718,6 +2725,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
         ),
         Completion::snippet(
+            "status_effect",
+            "timed status with lifecycle callbacks",
+            r#"status_effect ${1:Guard} { ticks: ${2:60}, start: ${3:guard_started}, stop: ${4:guard_stopped} }"#,
+        ),
+        Completion::snippet(
             "roster",
             "bounded online arena membership",
             r#"roster ${1:Arena} { member: ${2:Players.generation}, role: ${3:Players.role}, capacity: ${4:8} }"#,
@@ -3074,6 +3086,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Checkpoint => "Checkpoint",
                 ParamKind::Encounter => "Encounter",
                 ParamKind::Roster => "Roster",
+                ParamKind::StatusEffect => "StatusEffect",
                 ParamKind::RosterRole => "role",
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",

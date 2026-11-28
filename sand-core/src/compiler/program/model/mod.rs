@@ -30,7 +30,7 @@ pub use resources::{
     MenuView, NoiseDimension, NoticeDialog, OreFeatureDefinition, ProgressionBranch,
     ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
     RecipeOutput, ResourceTag, RosterDefinition, SceneContent, SceneDefinition, SceneKeyframe,
-    ScenePart, SessionDefinition, StateCooldown, TagKind, TemplatePoolDefinition,
-    TemplatePoolPiece, WorldPredicate, WrittenBookContent,
+    ScenePart, SessionDefinition, StateCooldown, StatusEffectDefinition, TagKind,
+    TemplatePoolDefinition, TemplatePoolPiece, WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

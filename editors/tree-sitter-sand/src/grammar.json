@@ -998,6 +998,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "status_effect"
+                },
+                {
+                  "type": "STRING",
                   "value": "hud"
                 },
                 {

@@ -611,6 +611,7 @@ impl Builder<'_> {
                     "checkpoint" => DataKind::Checkpoint,
                     "encounter" => DataKind::Encounter,
                     "roster" => DataKind::Roster,
+                    "status_effect" => DataKind::StatusEffect,
                     "hud" => DataKind::Hud,
                     "menu" => DataKind::Menu,
                     "projectile" => DataKind::Projectile,

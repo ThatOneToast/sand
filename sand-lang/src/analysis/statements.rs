@@ -5409,6 +5409,15 @@ impl Cx {
                 hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
                 show: builtin.name == "start_hud",
             },
+            "apply_status" | "remove_status" => pc::Action::Status {
+                status: self.arg_declared(
+                    body,
+                    bound["status"],
+                    DefKind::StatusEffect,
+                    "a status effect",
+                )?,
+                apply: builtin.name == "apply_status",
+            },
             "roster_open" | "roster_close" | "roster_join" | "roster_leave" => {
                 let (roster, role) =
                     self.arg_roster(body, bound["roster"], bound.get("role").copied())?;

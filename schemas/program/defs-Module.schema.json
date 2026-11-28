@@ -231,6 +231,13 @@
       },
       "type": "array"
     },
+    "status_effects": {
+      "description": "Player-owned timed status effects.",
+      "items": {
+        "$ref": "defs-StatusEffectDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "structure_sets": {
       "description": "Native placements for weighted structures.",
       "items": {

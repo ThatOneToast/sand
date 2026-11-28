@@ -544,6 +544,8 @@ pub enum DataKind {
     Encounter,
     /// A bounded online arena roster.
     Roster,
+    /// A timed player-owned status with lifecycle callbacks.
+    StatusEffect,
     Hud,
     Menu,
     Projectile,
@@ -580,6 +582,7 @@ impl DataKind {
             DataKind::Checkpoint => "checkpoint",
             DataKind::Encounter => "encounter",
             DataKind::Roster => "roster",
+            DataKind::StatusEffect => "status_effect",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",
             DataKind::Projectile => "projectile",

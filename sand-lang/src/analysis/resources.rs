@@ -857,6 +857,34 @@ impl Cx {
                     bossbar,
                 });
             }
+            DataKind::StatusEffect => {
+                let Some(ticks) = get("ticks").and_then(|field| {
+                    self.data_int(module, file, &field.value, 1, i32::MAX as i64)
+                }) else {
+                    return;
+                };
+                let stacks = get("stacks")
+                    .and_then(|field| self.data_int(module, file, &field.value, 1, 128))
+                    .map(|count| count as u32);
+                let mut callback = |name| {
+                    get(name).and_then(|field| self.data_callback(module, file, &field.value))
+                };
+                let status = pc::StatusEffectDefinition {
+                    id: location,
+                    ticks: ticks as u32,
+                    stacks,
+                    start: callback("start"),
+                    tick: callback("tick"),
+                    stop: callback("stop"),
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/status_effects/{}", out.status_effects.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.status_effects.push(status);
+            }
             DataKind::Roster => {
                 let Some(roster) = self.data_roster(module, file, def, location, get) else {
                     return;

@@ -88,6 +88,7 @@ fn item_level() {
             "checkpoint",
             "encounter",
             "roster",
+            "status_effect",
             "hud",
             "menu",
             "projectile",

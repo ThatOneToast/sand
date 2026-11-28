@@ -307,6 +307,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.rosters)
             .map(|roster| (roster.id.to_string(), roster.roles.as_slice()))
             .collect(),
+        status_effects: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.status_effects)
+            .map(|status| status.id.to_string())
+            .collect(),
         encounters: program
             .modules
             .iter()
@@ -759,6 +765,22 @@ pub(super) fn validate(
                         ExecutionContext::Player,
                         &owner,
                         &format!("/inventory_transfers/{index}/{field}"),
+                    );
+                }
+            }
+        }
+        for (index, status) in module.status_effects.iter().enumerate() {
+            for (field, callback) in [
+                ("start", &status.start),
+                ("tick", &status.tick),
+                ("stop", &status.stop),
+            ] {
+                if let Some(callback) = callback {
+                    validator.call(
+                        callback,
+                        ExecutionContext::Player,
+                        &owner,
+                        &format!("/status_effects/{index}/{field}"),
                     );
                 }
             }
@@ -1556,6 +1578,30 @@ pub(super) fn validate(
                 ),
             }
         }
+        for (index, status) in module.status_effects.iter().enumerate() {
+            let ptr = format!("/status_effects/{index}");
+            if !resource_ids.insert(format!("status effect {}", status.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate status effect `{}`", status.id),
+                );
+            }
+            if !(1..=i32::MAX as u32).contains(&status.ticks) {
+                push(
+                    format!("{ptr}/ticks"),
+                    "status duration must fit a positive tick count".into(),
+                );
+            }
+            if status
+                .stacks
+                .is_some_and(|stacks| !(1..=128).contains(&stacks))
+            {
+                push(
+                    format!("{ptr}/stacks"),
+                    "status stack limit must be between one and 128".into(),
+                );
+            }
+        }
         for (index, roster) in module.rosters.iter().enumerate() {
             let ptr = format!("/rosters/{index}");
             if !resource_ids.insert(format!("roster {}", roster.id)) {
@@ -2259,6 +2305,7 @@ struct Validator<'a, 'e> {
     transfers: BTreeSet<String>,
     checkpoints: BTreeSet<String>,
     encounters: BTreeSet<String>,
+    status_effects: BTreeSet<String>,
     rosters: BTreeMap<String, &'a [i32]>,
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
@@ -3601,6 +3648,22 @@ impl Validator<'_, '_> {
                         RosterCommand::Open | RosterCommand::Close => None,
                     };
                     self.roster(roster, role, owner, &ptr);
+                }
+                Action::Status { status, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "operating the executing player's status",
+                    );
+                    if !self.status_effects.contains(&status.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/status"),
+                            format!("unknown status effect `{status}`"),
+                        ));
+                    }
                 }
                 Action::Encounter { encounter, .. } => {
                     self.player(

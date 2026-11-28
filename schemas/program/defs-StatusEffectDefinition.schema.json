@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A reusable player status with loaded-tick duration and owner callbacks.",
+  "properties": {
+    "id": {
+      "description": "Status identity.",
+      "type": "string"
+    },
+    "stacks": {
+      "description": "Separate stack limit. Omit for refreshing reapplication.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "start": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Run as the player when an instance starts."
+    },
+    "stop": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Run as the player when an instance stops."
+    },
+    "tick": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Run as the player while the instance is active."
+    },
+    "ticks": {
+      "description": "Positive duration measured in loaded ticks.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "ticks"
+  ],
+  "type": "object"
+}

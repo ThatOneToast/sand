@@ -24,9 +24,9 @@ pub use model::{
     ProgressionObjective, ProjectileDefinition, Rarity, Recipe, RecipeOutput, Relation,
     ResourceTag, RosterCommand, RosterDefinition, ScaledField, SceneContent, SceneDefinition,
     SceneKeyframe, ScenePart, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
-    ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached, StateCooldown, TagKind,
-    TagMembership, TeleportDestination, TemplatePoolDefinition, TemplatePoolPiece, TextColor,
-    TextPart, TextStyle, Weather, WorldPredicate, WrittenBookContent,
+    ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached, StateCooldown,
+    StatusEffectDefinition, TagKind, TagMembership, TeleportDestination, TemplatePoolDefinition,
+    TemplatePoolPiece, TextColor, TextPart, TextStyle, Weather, WorldPredicate, WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -65,6 +65,7 @@ const CAPABILITIES: &[&str] = &[
     "ore_features",
     "player_checkpoints",
     "owned_encounters",
+    "owned_status_effects",
     "online_rosters",
     "event_predicate_guards",
     "named_breakpoints",

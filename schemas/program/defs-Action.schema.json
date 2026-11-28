@@ -764,6 +764,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Apply or remove a named player status.",
+      "properties": {
+        "apply": {
+          "type": "boolean"
+        },
+        "op": {
+          "const": "status",
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "status",
+        "apply"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Operate on a named online roster.",
       "properties": {
         "command": {

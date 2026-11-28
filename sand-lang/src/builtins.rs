@@ -64,6 +64,8 @@ pub enum ParamKind {
     Encounter,
     /// A declared arena roster.
     Roster,
+    /// A declared timed status effect.
+    StatusEffect,
     /// A constant variant of the selected roster role enum.
     RosterRole,
     /// An authored player-owned HUD.
@@ -1890,6 +1892,38 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "cancel_hud(${1:Status});",
     },
     Builtin {
+        name: "apply_status",
+        kind: BuiltinKind::Statement,
+        signature: "apply_status(status)",
+        summary: "Apply or refresh a declared timed status for the current player.",
+        details: "A stacking status admits separate instances up to its configured per-owner limit.",
+        minecraft: "Starts a canonical StatusEffect lifetime for the executing player.",
+        needs_player: true,
+        params: &[p(
+            "status",
+            ParamKind::StatusEffect,
+            true,
+            "The declared status to apply.",
+        )],
+        snippet: "apply_status(${1:Guard});",
+    },
+    Builtin {
+        name: "remove_status",
+        kind: BuiltinKind::Statement,
+        signature: "remove_status(status)",
+        summary: "Remove the current player's instances of a declared status.",
+        details: "Runs each instance's normal cleanup.",
+        minecraft: "Cancels the current owner's canonical StatusEffect lifetimes.",
+        needs_player: true,
+        params: &[p(
+            "status",
+            ParamKind::StatusEffect,
+            true,
+            "The declared status to remove.",
+        )],
+        snippet: "remove_status(${1:Guard});",
+    },
+    Builtin {
         name: "roster_open",
         kind: BuiltinKind::Statement,
         signature: "roster_open(roster)",
@@ -3373,6 +3407,46 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         r#"{ title: "${1:Supplies}", value: ${2:Hero.energy}, max: ${3:100} }"#,
     ),
     f(
+        "status_effect",
+        "ticks",
+        FieldKind::Int,
+        true,
+        "Positive duration in loaded ticks.",
+        "${1:60}",
+    ),
+    f(
+        "status_effect",
+        "stacks",
+        FieldKind::Int,
+        false,
+        "Independently expiring stacks per owner, from 1 to 128. Omit to refresh.",
+        "${1:2}",
+    ),
+    f(
+        "status_effect",
+        "start",
+        FieldKind::Callback,
+        false,
+        "Run as the player on admission.",
+        "${1:on_start}",
+    ),
+    f(
+        "status_effect",
+        "tick",
+        FieldKind::Callback,
+        false,
+        "Run as the player during each active loaded tick.",
+        "${1:on_tick}",
+    ),
+    f(
+        "status_effect",
+        "stop",
+        FieldKind::Callback,
+        false,
+        "Run as the player during cleanup when the owner is available.",
+        "${1:on_stop}",
+    ),
+    f(
         "roster",
         "member",
         FieldKind::PlayerStateNumber,
@@ -4040,6 +4114,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "roster",
         "`roster Name { ... }` controls bounded online membership in an arena.",
+    ),
+    (
+        "status_effect",
+        "`status_effect Name { ... }` declares a timed, player-owned status.",
     ),
     (
         "structure_template",

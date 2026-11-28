@@ -437,14 +437,20 @@
       },
       "rpg:__sand_entity/a9a72d381e757b/cleanup": {
         "evaluations": {
-          "maximum": 164,
-          "minimum": 164,
+          "maximum": 167,
+          "minimum": 1,
           "unknown": []
         },
         "owners": [
           "rpg:plagued_zombie"
         ],
-        "selector_sites": []
+        "selector_sites": [
+          {
+            "line": 1,
+            "operation": "if",
+            "selector": "@s[tag=__sand.a.a9a72d381e757b.lifecycle]"
+          }
+        ]
       },
       "rpg:__sand_entity/a9a72d381e757b/derive/0": {
         "evaluations": {
@@ -1316,7 +1322,7 @@
       "rpg:__sand_entity/a9a72d381e757b/initialize": {
         "evaluations": {
           "maximum": null,
-          "minimum": 110,
+          "minimum": 1,
           "unknown": [
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/0/max_health_macro with storage rpg:__sand_entity args.ha9a72d381e757b.0",
             "function arguments are not analyzed: function rpg:__sand_entity/a9a72d381e757b/property/1/macro with storage rpg:__sand_entity args.pa9a72d381e757b.1",
@@ -1328,19 +1334,9 @@
         ],
         "selector_sites": [
           {
-            "line": 9,
+            "line": 1,
             "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 10,
-            "operation": "if",
-            "selector": "@s"
-          },
-          {
-            "line": 10,
-            "operation": "unless",
-            "selector": "@s"
+            "selector": "@s[tag=__sand.a.a9a72d381e757b.lifecycle]"
           },
           {
             "line": 11,
@@ -1353,13 +1349,13 @@
             "selector": "@s"
           },
           {
-            "line": 13,
-            "operation": "if",
+            "line": 12,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 13,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1373,13 +1369,13 @@
             "selector": "@s"
           },
           {
-            "line": 16,
-            "operation": "if",
+            "line": 15,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 16,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1393,13 +1389,13 @@
             "selector": "@s"
           },
           {
-            "line": 19,
-            "operation": "if",
+            "line": 18,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 19,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1413,13 +1409,13 @@
             "selector": "@s"
           },
           {
-            "line": 22,
-            "operation": "if",
+            "line": 21,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 22,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1433,13 +1429,13 @@
             "selector": "@s"
           },
           {
-            "line": 25,
-            "operation": "if",
+            "line": 24,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 25,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1453,13 +1449,13 @@
             "selector": "@s"
           },
           {
-            "line": 28,
-            "operation": "if",
+            "line": 27,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 28,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1473,13 +1469,13 @@
             "selector": "@s"
           },
           {
-            "line": 31,
-            "operation": "if",
+            "line": 30,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 31,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1493,13 +1489,13 @@
             "selector": "@s"
           },
           {
-            "line": 34,
-            "operation": "if",
+            "line": 33,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 34,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1513,13 +1509,13 @@
             "selector": "@s"
           },
           {
-            "line": 37,
-            "operation": "if",
+            "line": 36,
+            "operation": "unless",
             "selector": "@s"
           },
           {
             "line": 37,
-            "operation": "unless",
+            "operation": "if",
             "selector": "@s"
           },
           {
@@ -1530,6 +1526,11 @@
           {
             "line": 39,
             "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 39,
+            "operation": "unless",
             "selector": "@s"
           },
           {
@@ -1579,6 +1580,16 @@
           },
           {
             "line": 49,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 50,
+            "operation": "if",
+            "selector": "@s"
+          },
+          {
+            "line": 51,
             "operation": "unless",
             "selector": "@s[scores={sf837738ac8624dc=0,saf5993b46460b8f=0,sd928dbc23d90f25=0,saa1439a4f012a28=0,s86be80b62503228=0,s150230968f0fdda=0,s5c34cbd320cd24d=0,s34362a6509bc7fd=0,scfe7e3f12f92503=0,se01645003fbea11=0}]"
           }
@@ -2937,6 +2948,7 @@
           "outer_scans_per_cycle": 2,
           "tags": [
             "__sand.a.a9a72d381e757b",
+            "__sand.a.a9a72d381e757b.lifecycle",
             "__sand.external.a9a72d381e757b"
           ]
         }

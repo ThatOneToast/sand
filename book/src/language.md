@@ -349,6 +349,19 @@ fallback passed to `get_or`. Each element read produces an owned value.
 Use an owned subrange for passing the whole range as an argument, returning
 it, capturing it in a closure, or storing it in State.
 
+A borrowed view can also create a smaller view. Bounds are relative to the
+parent view, and they cannot select outside it. The child still refers to the
+original immutable collection. A child may be named or iterated inline.
+
+```rust,ignore
+let values = [10, 20, 30, 40];
+let middle = values.borrow_slice(1, 3);
+let last = middle.borrow_slice(1, 2); // borrows [30]
+for value in middle.borrow_slice(0, 1) {
+    chat!("{value}");
+}
+```
+
 See the [exploration-log example](../../examples/lang_vectors/pack.sand), which
 stores a separate growable vector of coordinate records for each player.
 

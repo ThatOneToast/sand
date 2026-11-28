@@ -370,12 +370,13 @@ impl Cx {
                         "len" => Ty::Number,
                         "is_empty" => Ty::Bool,
                         "get_or" => element,
+                        "borrow_slice" => Ty::BorrowedSlice,
                         _ => Ty::Unknown,
                     };
                 }
                 let receiver_ty = self.type_of(body, receiver);
                 if name.name == "borrow_slice"
-                    && (matches!(receiver_ty, Ty::List(_) | Ty::String)
+                    && (matches!(receiver_ty, Ty::List(_) | Ty::String | Ty::BorrowedSlice)
                         || self.array_shape(receiver_ty).is_some())
                 {
                     return Ty::BorrowedSlice;
@@ -1681,13 +1682,15 @@ impl Cx {
             if !captured {
                 return;
             }
-            body.borrowed_slices.insert(
-                local,
-                super::BorrowedSlice {
-                    source,
-                    bounds: [first, last],
-                },
-            );
+            let bounds = [first, last];
+            let source = if let Some(parent) = body.borrowed_slices.get(&source).cloned() {
+                self.narrow_borrowed_view(body, &parent, &bounds, span, ops);
+                parent.source
+            } else {
+                source
+            };
+            body.borrowed_slices
+                .insert(local, super::BorrowedSlice { source, bounds });
             let end = body.block_ends.last().copied().unwrap_or(span.end);
             self.bring_into_scope(body, name, local, Span::new(span.end, end));
             return;

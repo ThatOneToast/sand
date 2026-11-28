@@ -1,0 +1,44 @@
+#![pack(namespace = "nested_view_probe", minecraft = "26.2")]
+
+player state Results { total: number, letter: string }
+
+#[player]
+pub fn start_alpha() { run(10, 1); }
+
+#[player]
+pub fn start_beta() { run(20, 0); }
+
+#[player]
+fn run(seed: number, start: number) {
+    let source = [seed, seed + 1, seed + 2, seed + 3];
+    let middle = source.borrow_slice(1, 3);
+    let selected = middle.borrow_slice(start, 2147483647);
+    let reversed = middle.borrow_slice(2, 1);
+    let values: Vec<number> = [seed, seed * 2, seed * 3];
+    let two_values = values.borrow_slice(0, 2);
+    let final_value = two_values.borrow_slice(1, 2147483647);
+    let text = "a⛰🙂!";
+    let letters = text.borrow_slice(1, 3);
+    let chosen = letters.borrow_slice(start, start + 1);
+
+    wait(4);
+    let mut total = 0;
+    for value in middle.borrow_slice(-2147483648, 2147483647) {
+        total += value;
+        wait(1);
+    }
+    if reversed.is_empty() && final_value.len() == 1 {
+        Results.total = total + selected.get_or(0, -100) + final_value[0];
+        Results.letter = chosen.get_or(0, "?");
+    }
+}
+
+#[player]
+pub fn verify_alpha() {
+    if Results.total == 55 && Results.letter == "🙂" { raw!("say __VIEW_ALPHA__"); }
+}
+
+#[player]
+pub fn verify_beta() {
+    if Results.total == 104 && Results.letter == "⛰" { raw!("say __VIEW_BETA__"); }
+}

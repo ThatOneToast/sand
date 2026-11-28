@@ -230,3 +230,25 @@ fn run() {
             .any(|message| message.contains("a borrowed slice supports"))
     );
 }
+
+#[test]
+fn views_accept_nested_bounds_and_inline_iteration_across_waits() {
+    let analysis = analyze_one(include_str!("fixtures/nested_views.sand"));
+    let pack = compile(&analysis);
+    let exported = pack
+        .resources
+        .iter()
+        .filter(|(path, _)| path.ends_with(".mcfunction"))
+        .map(|(_, value)| std::str::from_utf8(value).unwrap())
+        .collect::<Vec<_>>();
+    assert!(
+        exported
+            .iter()
+            .any(|body| body.contains("scoreboard players operation"))
+    );
+    assert!(
+        exported
+            .iter()
+            .any(|body| body.contains("data modify storage"))
+    );
+}

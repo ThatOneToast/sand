@@ -313,6 +313,88 @@ impl Cx {
         Some(self.read_borrowed_view(body, dest, ty, view, element, access, expr.span(), ops))
     }
 
+    /// Clamp nested bounds to their parent's effective range and convert to
+    /// absolute offsets in the immutable source collection.
+    pub(super) fn narrow_borrowed_view(
+        &mut self,
+        body: &mut BodyCx,
+        parent: &BorrowedSlice,
+        bounds: &[pc::FieldReference; 2],
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let depth = body.temp_depth;
+        let (first, count) = self.effective_borrowed_bounds(body, parent, span, ops);
+        for bound in bounds {
+            for (operator, operand) in [
+                (pc::ScoreOperator::Max, pc::ScoreOperand::Value(0)),
+                (
+                    pc::ScoreOperator::Min,
+                    pc::ScoreOperand::Field(count.clone()),
+                ),
+                (
+                    pc::ScoreOperator::Add,
+                    pc::ScoreOperand::Field(first.clone()),
+                ),
+            ] {
+                ops.push(borrowed_score(body.file, span, bound, operator, operand));
+            }
+        }
+        body.temp_depth = depth;
+    }
+
+    fn effective_borrowed_bounds(
+        &mut self,
+        body: &mut BodyCx,
+        view: &BorrowedSlice,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) -> (pc::FieldReference, pc::FieldReference) {
+        let file = body.file;
+        let first = self.temp(body);
+        let length = self.temp(body);
+        let count = self.temp(body);
+        let measure = if let Some((_, array_length)) = self.array_shape(self.local_ty(view.source))
+        {
+            pc::Action::ScoreSet {
+                score: length.clone(),
+                value: array_length as i32,
+            }
+        } else {
+            pc::Action::DataRead {
+                score: length.clone(),
+                source: Self::data_reference(&self.local_ref(view.source)),
+            }
+        };
+        ops.push(op_at(measure, file, span));
+        let adjust = |target: &pc::FieldReference, operator, operand| {
+            borrowed_score(file, span, target, operator, operand)
+        };
+        let copy = |target: &pc::FieldReference, operand: pc::FieldReference| {
+            adjust(
+                target,
+                pc::ScoreOperator::Set,
+                pc::ScoreOperand::Field(operand),
+            )
+        };
+        let max = pc::ScoreOperator::Max;
+        let min = pc::ScoreOperator::Min;
+        ops.extend([
+            copy(&first, view.bounds[0].clone()),
+            adjust(&first, max, pc::ScoreOperand::Value(0)),
+            adjust(&first, min, pc::ScoreOperand::Field(length.clone())),
+            copy(&count, view.bounds[1].clone()),
+            adjust(&count, min, pc::ScoreOperand::Field(length)),
+            adjust(&count, max, pc::ScoreOperand::Field(first.clone())),
+            adjust(
+                &count,
+                pc::ScoreOperator::Sub,
+                pc::ScoreOperand::Field(first.clone()),
+            ),
+        ]);
+        (first, count)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn read_borrowed_view(
         &mut self,
@@ -337,31 +419,9 @@ impl Cx {
         let source = self.local_ref(view.source);
         let source_ty = self.local_ty(view.source);
         let array = self.array_shape(source_ty);
-        let first = self.temp(body);
-        let length = self.temp(body);
-        let count = self.temp(body);
-        let measure = if let Some((_, array_length)) = array {
-            pc::Action::ScoreSet {
-                score: length.clone(),
-                value: array_length as i32,
-            }
-        } else {
-            pc::Action::DataRead {
-                score: length.clone(),
-                source: Self::data_reference(&source),
-            }
-        };
-        ops.push(op_at(measure, file, span));
+        let (first, count) = self.effective_borrowed_bounds(body, &view, span, ops);
         let adjust = |target: &pc::FieldReference, operator, operand| {
-            op_at(
-                pc::Action::ScoreOperation {
-                    score: target.clone(),
-                    operator,
-                    operand,
-                },
-                file,
-                span,
-            )
+            borrowed_score(file, span, target, operator, operand)
         };
         let copy = |target: &pc::FieldReference, operand: pc::FieldReference| {
             adjust(
@@ -370,21 +430,6 @@ impl Cx {
                 pc::ScoreOperand::Field(operand),
             )
         };
-        let max = pc::ScoreOperator::Max;
-        let min = pc::ScoreOperator::Min;
-        ops.extend([
-            copy(&first, view.bounds[0].clone()),
-            adjust(&first, max, pc::ScoreOperand::Value(0)),
-            adjust(&first, min, pc::ScoreOperand::Field(length.clone())),
-            copy(&count, view.bounds[1].clone()),
-            adjust(&count, min, pc::ScoreOperand::Field(length)),
-            adjust(&count, max, pc::ScoreOperand::Field(first.clone())),
-            adjust(
-                &count,
-                pc::ScoreOperator::Sub,
-                pc::ScoreOperand::Field(first.clone()),
-            ),
-        ]);
         match access {
             ViewAccess::Len => ops.push(copy(dest, count)),
             ViewAccess::IsEmpty => ops.push(op_at(
@@ -1295,4 +1340,22 @@ impl Cx {
         self.write_address(body, &address, &array, *span, ops);
         body.temp_depth = depth;
     }
+}
+
+fn borrowed_score(
+    file: FileId,
+    span: Span,
+    target: &pc::FieldReference,
+    operator: pc::ScoreOperator,
+    operand: pc::ScoreOperand,
+) -> pc::Operation {
+    op_at(
+        pc::Action::ScoreOperation {
+            score: target.clone(),
+            operator,
+            operand,
+        },
+        file,
+        span,
+    )
 }

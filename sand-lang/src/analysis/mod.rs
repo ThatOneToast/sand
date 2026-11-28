@@ -4756,7 +4756,8 @@ impl Cx {
                     && name.name == "borrow_slice"
                     && {
                         let ty = self.type_of(body, receiver);
-                        matches!(ty, Ty::List(_) | Ty::String) || self.array_shape(ty).is_some()
+                        matches!(ty, Ty::List(_) | Ty::String | Ty::BorrowedSlice)
+                            || self.array_shape(ty).is_some()
                     }
                 {
                     self.lower_borrowed_slice_loop(body, binding, value, block, *span, ops);
@@ -4976,7 +4977,7 @@ impl Cx {
                 "slice",
                 body.file,
                 receiver.span(),
-                "`borrow_slice` needs an immutable local array, vector, or string",
+                "`borrow_slice` needs an immutable local array, vector, string, or borrowed view",
             );
             return None;
         };
@@ -5001,6 +5002,20 @@ impl Cx {
         let Some((local, [from, to])) = self.borrowed_slice_parts(body, value) else {
             return;
         };
+        let depth = body.temp_depth;
+        let (source, bounds) = if let Some(parent) = body.borrowed_slices.get(&local).cloned() {
+            let bounds = [self.temp(body), self.temp(body)];
+            if self.emit(body, &bounds[0], Ty::Number, from, ops).is_none()
+                || self.emit(body, &bounds[1], Ty::Number, to, ops).is_none()
+            {
+                body.temp_depth = depth;
+                return;
+            }
+            self.narrow_borrowed_view(body, &parent, &bounds, value.span(), ops);
+            (parent.source, Some(bounds))
+        } else {
+            (local, None)
+        };
         let range = Range {
             start: Some(from.clone()),
             end: Some(to.clone()),
@@ -5016,14 +5031,15 @@ impl Cx {
                 step: None,
                 collection: None,
                 borrowed: Some(statements::BorrowedInput {
-                    source: local,
-                    bounds: None,
+                    source,
+                    bounds: bounds.as_ref(),
                 }),
             },
             block,
             span,
             ops,
         );
+        body.temp_depth = depth;
     }
 
     fn lower_if(&mut self, body: &mut BodyCx, stmt: &IfStmt) -> Vec<pc::Operation> {

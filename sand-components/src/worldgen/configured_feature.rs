@@ -42,18 +42,23 @@ const MAX_FILL_LAYER_HEIGHT: u32 = 4064;
     variant_fields(BlockMatch(block = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."), TagMatch(tag = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag.")),
 )]
 /// A block-matching rule test used by ore-like feature configs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RuleTest {
     /// `minecraft:always_true` — replaces any block.
     AlwaysTrue,
     /// `minecraft:block_match` — replaces exactly one block.
     BlockMatch {
         #[doc = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."]
+        #[schemars(with = "String")]
         block: BlockId,
     },
     /// `minecraft:tag_match` — replaces any block in a block tag.
     TagMatch {
         #[doc = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag."]
+        #[schemars(with = "String")]
         tag: TagId<BlockId>,
     },
 }
@@ -87,7 +92,10 @@ impl RuleTest {
     example = "use sand::component::OreTarget;",
 )]
 /// One replaceable-target entry of an ore feature config.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct OreTarget {
     target: RuleTest,
     state: BlockState,
@@ -135,10 +143,12 @@ impl OreTarget {
     example = "use sand::component::OreConfig;",
 )]
 /// Config for the `minecraft:ore` feature type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct OreConfig {
     size: u32,
     targets: Vec<OreTarget>,
+    #[serde(default)]
     discard_chance_on_air_exposure: f32,
 }
 

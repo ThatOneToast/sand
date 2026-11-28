@@ -986,7 +986,7 @@ impl Cx {
                     Some(value)
                 });
                 let features = match get("features") {
-                    Some(field) => match self.data_biome_features(file, &field.value) {
+                    Some(field) => match self.data_biome_features(module, file, &field.value) {
                         Some(features) => features,
                         None => return,
                     },
@@ -1020,6 +1020,18 @@ impl Cx {
                     data.name.span,
                 ));
                 out.biomes.push(biome);
+            }
+            DataKind::OreFeature => {
+                let Some(feature) = self.data_ore_feature(module, file, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/ore_features/{}", out.ore_features.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.ore_features.push(feature);
             }
             DataKind::StructureSet => {
                 let Some(structure_set) =
@@ -3067,8 +3079,93 @@ impl Cx {
         None
     }
 
+    fn data_ore_feature<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::OreFeatureDefinition> {
+        use sand::component::{BlockState, OreConfig, OreTarget, RuleTest, TagId};
+        let size = self.data_int(module, file, &get("size")?.value, 0, 64)? as u32;
+        let count = self.data_int(module, file, &get("count")?.value, 0, 4096)? as i32;
+        let min_y = self.data_int(module, file, &get("min_y")?.value, -2032, 2031)? as i32;
+        let max_y = self.data_int(module, file, &get("max_y")?.value, -2032, 2031)? as i32;
+        if min_y > max_y {
+            self.error(
+                "ore feature",
+                file,
+                get("max_y")?.value.span(),
+                "maximum placement height must be at least the minimum height",
+            );
+            return None;
+        }
+        let targets = &get("targets")?.value;
+        let DataValue::Array(entries, _) = targets else {
+            self.error(
+                "ore feature",
+                file,
+                targets.span(),
+                "expected a list of ore replacements",
+            );
+            return None;
+        };
+        if entries.is_empty() {
+            self.error(
+                "ore feature",
+                file,
+                targets.span(),
+                "an ore feature needs at least one replacement",
+            );
+            return None;
+        }
+        let mut replacements = Vec::new();
+        for entry in entries {
+            let fields =
+                self.data_object_fields(file, entry, "ore target", &["replace", "block"], &[])?;
+            let replace = self.data_tag_value(module, file, fields.get("replace")?, "Block")?;
+            let target = if let Some(tag) = replace.strip_prefix('#') {
+                RuleTest::TagMatch {
+                    tag: TagId::custom(tag.parse().ok()?),
+                }
+            } else {
+                RuleTest::BlockMatch {
+                    block: replace.parse().ok()?,
+                }
+            };
+            let expr = self.data_expr(file, fields.get("block")?, "a block for the ore vein")?;
+            let block = self
+                .vanilla_value(module, file, expr, "Block")?
+                .parse()
+                .ok()?;
+            replacements.push(OreTarget::new(target, BlockState::new(block)));
+        }
+        let mut config = OreConfig::new(size, replacements);
+        if let Some(field) = get("discard_exposed") {
+            let chance = self.data_biome_number(module, file, &field.value)?;
+            if !(0.0..=1.0).contains(&chance) {
+                self.error(
+                    "range",
+                    file,
+                    field.value.span(),
+                    "discard probability must be between zero and one",
+                );
+                return None;
+            }
+            config = config.discard_chance_on_air_exposure(chance);
+        }
+        Some(pc::OreFeatureDefinition {
+            id,
+            config,
+            count,
+            min_y,
+            max_y,
+        })
+    }
+
     fn data_biome_features(
         &mut self,
+        module: ModuleId,
         file: FileId,
         value: &DataValue,
     ) -> Option<BTreeMap<sand::component::GenerationStep, Vec<sand::registry::PlacedFeatureId>>>
@@ -3100,14 +3197,24 @@ impl Cx {
                     "biome",
                     file,
                     group.value.span(),
-                    "expected a list of namespaced placed feature ids",
+                    "expected a list of placed feature names or namespaced ids",
                 );
                 return None;
             };
             let ids = entries
                 .iter()
                 .map(|value| {
-                    self.data_named_resource(file, value, "placed feature")
+                    if let DataValue::Expr(expr @ Expr::Path(_)) = value
+                        && let Some((_, id)) =
+                            self.declared(module, file, expr, DefKind::OreFeature)
+                    {
+                        return Some(
+                            id.parse::<sand::ResourceLocation>()
+                                .expect("valid authored resource")
+                                .into(),
+                        );
+                    }
+                    self.data_named_resource(file, value, "placed feature name or id")
                         .map(Into::into)
                 })
                 .collect::<Option<Vec<_>>>()?;

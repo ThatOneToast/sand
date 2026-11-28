@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Config for the `minecraft:ore` feature type.\n\n# Context\nConfig for the `minecraft:ore` feature type. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::OreConfig;\n```\nConfig for the `minecraft:ore` feature type.",
+  "properties": {
+    "discard_chance_on_air_exposure": {
+      "default": 0.0,
+      "format": "float",
+      "type": "number"
+    },
+    "size": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "targets": {
+      "items": {
+        "$ref": "defs-OreTarget.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "size",
+    "targets"
+  ],
+  "type": "object"
+}

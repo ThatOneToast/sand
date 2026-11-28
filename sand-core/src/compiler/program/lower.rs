@@ -733,6 +733,23 @@ pub(super) fn lower(
                 })?;
             lower.records.push(record);
         }
+        for (index, feature) in module.ore_features.iter().enumerate() {
+            let (configured, placed) = feature.components();
+            let components: [&dyn sand_components::component::DatapackComponent; 2] =
+                [&configured, &placed];
+            for component in components {
+                let record =
+                    records::component_to_record(component, Some(&ctx)).map_err(|error| {
+                        vec![Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            &owner,
+                            &format!("/ore_features/{index}"),
+                            error.to_string(),
+                        )]
+                    })?;
+                lower.records.push(record);
+            }
+        }
         for (index, biome) in module.biomes.iter().enumerate() {
             let component = custom_biome_component(biome);
             let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {

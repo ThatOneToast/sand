@@ -154,6 +154,13 @@
       },
       "type": "array"
     },
+    "ore_features": {
+      "description": "Configured ore veins and their biome-restricted placement.",
+      "items": {
+        "$ref": "defs-OreFeatureDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "predicates": {
       "description": "Reusable native world predicates.",
       "items": {

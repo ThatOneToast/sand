@@ -81,6 +81,7 @@ fn item_level() {
             "biome",
             "structure_template",
             "structure_set",
+            "ore_feature",
             "inventory_transfer",
             "checkpoint",
             "encounter",

@@ -674,6 +674,57 @@ pub struct NoiseDimension {
     pub biome_source: sand_components::BiomeSource,
 }
 
+/// Native ore veins and their biome-restricted placement.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::OreFeatureDefinition", module = "sand::advanced::compiler",
+ summary = "Native ore veins and their biome-restricted placement.",
+ context = "Defines a configured and placed feature with the same identity. List the placed feature in a biome generation step.",
+ minecraft = "Uses the shared Minecraft ore configuration, count and biome filters, and an inclusive uniform Y range.",
+ use_when = ["Growing custom underground ore veins in authored biomes"],
+ avoid_when = ["Referencing an already configured and placed feature"],
+ fields(id = "Identity of both native resource entries.", config = "Vein size, block replacements and exposed-block discard chance.", count = "Placement attempts per chunk.", min_y = "Lowest eligible absolute Y coordinate.", max_y = "Highest eligible absolute Y coordinate."),
+ example = "use sand::advanced::compiler::OreFeatureDefinition;",
+)]
+pub struct OreFeatureDefinition {
+    /// Identity of both the configured feature and the placed feature.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Ore vein and ordered replacement rules.
+    pub config: sand_components::OreConfig,
+    /// Number of placement attempts per chunk, from zero through 4,096.
+    pub count: i32,
+    /// Lowest eligible absolute Y coordinate.
+    pub min_y: i32,
+    /// Highest eligible absolute Y coordinate.
+    pub max_y: i32,
+}
+
+impl OreFeatureDefinition {
+    pub(crate) fn components(
+        &self,
+    ) -> (
+        sand_components::ConfiguredFeature,
+        sand_components::PlacedFeature,
+    ) {
+        use sand_components::{
+            ConfiguredFeature, HeightProvider, PlacedFeature, PlacementModifier, VerticalAnchor,
+        };
+        let configured = ConfiguredFeature::ore(self.id.clone(), self.config.clone());
+        let placed = PlacedFeature::new(self.id.clone(), configured.id()).placement([
+            PlacementModifier::Count(self.count),
+            PlacementModifier::InSquare,
+            PlacementModifier::HeightRange(HeightProvider::Uniform {
+                min_inclusive: VerticalAnchor::Absolute(self.min_y),
+                max_inclusive: VerticalAnchor::Absolute(self.max_y),
+            }),
+            PlacementModifier::Biome,
+        ]);
+        (configured, placed)
+    }
+}
+
 /// Climate, visual settings, and natural spawn rules for a native custom biome.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

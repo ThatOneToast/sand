@@ -25,9 +25,9 @@ pub use resources::{
     CombatDefinition, CookingMethod, CustomBiome, CustomItem, DimensionDefinition, EncounterAttack,
     EncounterDefinition, FlatDimension, HudBossBar, HudDefinition, InventoryTransferDefinition,
     JobDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition, MenuView,
-    NoiseDimension, NoticeDialog, ProgressionBranch, ProgressionDefinition, ProgressionObjective,
-    ProjectileDefinition, Rarity, Recipe, RecipeOutput, ResourceTag, SceneContent, SceneDefinition,
-    SceneKeyframe, ScenePart, SessionDefinition, StateCooldown, TagKind, WorldPredicate,
-    WrittenBookContent,
+    NoiseDimension, NoticeDialog, OreFeatureDefinition, ProgressionBranch, ProgressionDefinition,
+    ProgressionObjective, ProjectileDefinition, Rarity, Recipe, RecipeOutput, ResourceTag,
+    SceneContent, SceneDefinition, SceneKeyframe, ScenePart, SessionDefinition, StateCooldown,
+    TagKind, WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

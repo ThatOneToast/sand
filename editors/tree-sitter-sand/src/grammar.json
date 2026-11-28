@@ -970,6 +970,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "ore_feature"
+                },
+                {
+                  "type": "STRING",
                   "value": "inventory_transfer"
                 },
                 {

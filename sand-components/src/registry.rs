@@ -593,6 +593,14 @@ impl<T> Serialize for TagId<T> {
     }
 }
 
+impl<'de, T> serde::Deserialize<'de> for TagId<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        ResourceLocation::deserialize(deserializer).map(Self::custom)
+    }
+}
+
 impl<T> std::str::FromStr for TagId<T> {
     type Err = crate::error::SandError;
     fn from_str(s: &str) -> Result<Self> {

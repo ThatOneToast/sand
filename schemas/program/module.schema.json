@@ -2275,6 +2275,25 @@
         }
       ]
     },
+    "BlockState": {
+      "additionalProperties": false,
+      "description": "A concrete block state: a block identifier plus optional property values.\n\n# Context\nA concrete block state: a block identifier plus optional property values. This is the datapack JSON form used by structure processors and feature configs (`{\"Name\": \u2026, \"Properties\": {\u2026}}`). It is deliberately distinct from the command-side `sand::command::BlockState`, which renders `minecraft:stone[facing=north]`.\n\n# Minecraft behavior\nThis is the datapack JSON form used by structure processors and feature configs (`{\"Name\": \u2026, \"Properties\": {\u2026}}`). It is deliberately distinct from the command-side `sand::command::BlockState`, which renders `minecraft:stone[facing=north]`.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::BlockState;\n```\nA concrete block state: a block identifier plus optional property values.\n\nThis is the datapack JSON form used by structure processors and feature\nconfigs (`{\"Name\": \u2026, \"Properties\": {\u2026}}`). It is deliberately distinct\nfrom the command-side `sand_commands::BlockState`, which renders\n`minecraft:stone[facing=north]`.\n\n```\nuse sand_components::worldgen::providers::BlockState;\nuse sand_components::BlockId;\n\nlet state = BlockState::new(BlockId::minecraft(\"oak_log\").unwrap()).property(\"axis\", \"y\");\nassert_eq!(state.block().to_string(), \"minecraft:oak_log\");\n```",
+      "properties": {
+        "block": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "block"
+      ],
+      "type": "object"
+    },
     "BossBar": {
       "additionalProperties": false,
       "description": "A named bar shown at the top of the screen.",
@@ -5214,6 +5233,87 @@
       ],
       "type": "object"
     },
+    "OreConfig": {
+      "additionalProperties": false,
+      "description": "Config for the `minecraft:ore` feature type.\n\n# Context\nConfig for the `minecraft:ore` feature type. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::OreConfig;\n```\nConfig for the `minecraft:ore` feature type.",
+      "properties": {
+        "discard_chance_on_air_exposure": {
+          "default": 0.0,
+          "format": "float",
+          "type": "number"
+        },
+        "size": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/OreTarget"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "size",
+        "targets"
+      ],
+      "type": "object"
+    },
+    "OreFeatureDefinition": {
+      "additionalProperties": false,
+      "description": "Native ore veins and their biome-restricted placement.",
+      "properties": {
+        "config": {
+          "$ref": "#/$defs/OreConfig",
+          "description": "Ore vein and ordered replacement rules."
+        },
+        "count": {
+          "description": "Number of placement attempts per chunk, from zero through 4,096.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Identity of both the configured feature and the placed feature.",
+          "type": "string"
+        },
+        "max_y": {
+          "description": "Highest eligible absolute Y coordinate.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "min_y": {
+          "description": "Lowest eligible absolute Y coordinate.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "config",
+        "count",
+        "min_y",
+        "max_y"
+      ],
+      "type": "object"
+    },
+    "OreTarget": {
+      "additionalProperties": false,
+      "description": "One replaceable-target entry of an ore feature config.\n\n# Context\nOne replaceable-target entry of an ore feature config. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::OreTarget;\n```\nOne replaceable-target entry of an ore feature config.",
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/BlockState"
+        },
+        "target": {
+          "$ref": "#/$defs/RuleTest"
+        }
+      },
+      "required": [
+        "target",
+        "state"
+      ],
+      "type": "object"
+    },
     "PlayerEvent": {
       "description": "A player occurrence that runs handler functions as that player.",
       "oneOf": [
@@ -6099,6 +6199,63 @@
         "values"
       ],
       "type": "object"
+    },
+    "RuleTest": {
+      "description": "A block-matching rule test used by ore-like feature configs.\n\n# Context\nA block-matching rule test used by ore-like feature configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::RuleTest;\n```\nA block-matching rule test used by ore-like feature configs.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:always_true` \u2014 replaces any block.\n`minecraft:always_true` \u2014 replaces any block.",
+          "properties": {
+            "kind": {
+              "const": "always_true",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:block_match` \u2014 replaces exactly one block.\n`minecraft:block_match` \u2014 replaces exactly one block.",
+          "properties": {
+            "block": {
+              "description": "`block` provides the block identifier when `minecraft:block_match` \u2014 replaces exactly one block.\n`block` provides the block identifier when `minecraft:block_match` \u2014 replaces exactly one block.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "block_match",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "block"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:tag_match` \u2014 replaces any block in a block tag.\n`minecraft:tag_match` \u2014 replaces any block in a block tag.",
+          "properties": {
+            "kind": {
+              "const": "tag_match",
+              "type": "string"
+            },
+            "tag": {
+              "description": "`tag` provides the tag identifier when `minecraft:tag_match` \u2014 replaces any block in a block tag.\n`tag` provides the tag identifier when `minecraft:tag_match` \u2014 replaces any block in a block tag.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tag"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "ScaledField": {
       "additionalProperties": false,
@@ -7470,6 +7627,13 @@
       "description": "Native menus with bounded sessions and ordered choices.",
       "items": {
         "$ref": "#/$defs/MenuDefinition"
+      },
+      "type": "array"
+    },
+    "ore_features": {
+      "description": "Configured ore veins and their biome-restricted placement.",
+      "items": {
+        "$ref": "#/$defs/OreFeatureDefinition"
       },
       "type": "array"
     },

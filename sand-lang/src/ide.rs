@@ -321,6 +321,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}inventory_transfer {}", def.name),
                     format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
                 ),
+                (crate::ast::DataKind::OreFeature, _) => (
+                    format!("{vis}ore_feature {}", def.name),
+                    format!(
+                        "Native ore vein placement `{id}`. Include it in a biome generation step."
+                    ),
+                ),
                 (crate::ast::DataKind::StructureSet, _) => (
                     format!("{vis}structure_set {}", def.name),
                     format!("Native structure placement schedule `{id}`."),
@@ -1268,6 +1274,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::DimensionType
         | DefKind::Biome
         | DefKind::StructureTemplate
+        | DefKind::OreFeature
         | DefKind::StructureSet
         | DefKind::InventoryTransfer
         | DefKind::Checkpoint
@@ -2699,6 +2706,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "inventory_transfer",
             "checked inventory move",
             "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
+        ),
+        Completion::snippet(
+            "ore_feature",
+            "Native ore veins with biome-restricted placement.",
+            r#"ore_feature ${1:Vein} { size: ${2:8}, count: ${3:4}, min_y: ${4:-32}, max_y: ${5:32}, targets: [{ replace: Block::${6:Stone}, block: Block::${7:IronOre} }] }"#,
         ),
         Completion::snippet(
             "structure_set",

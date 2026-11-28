@@ -1648,14 +1648,26 @@ biome RabbitGrove {
 
 Vanilla still applies spawn rules such as block, light, and difficulty checks.
 
-A custom biome's `features` field groups existing placed features by Minecraft
-decoration step. Give the namespaced IDs of vanilla placements or placements
-supplied by an installed datapack. Sand retains the list order within each step.
+A custom biome's `features` field groups placed features by Minecraft
+decoration step. Use a Sand declaration name or the namespaced ID of a feature
+supplied by Minecraft or another installed pack. Sand retains the list order
+within each step.
 
 ```rust,ignore
+ore_feature CopperVeins {
+    size: 12,
+    count: 8,
+    min_y: 0,
+    max_y: 48,
+    targets: [
+        { replace: Block::Stone, block: Block::CopperOre },
+        { replace: Block::Deepslate, block: Block::DeepslateCopperOre },
+    ],
+}
+
 biome Alpine {
     features: {
-        underground_ores: ["minecraft:ore_coal_upper", "minecraft:ore_iron_upper"],
+        underground_ores: ["minecraft:ore_coal_upper", CopperVeins],
         vegetal_decoration: ["minecraft:trees_plains"],
     },
 }
@@ -1665,6 +1677,14 @@ dimension Hills {
     biome: Alpine,
 }
 ```
+
+`ore_feature` emits a configured ore feature and a placed feature with the
+same identity. Every placement attempt picks a horizontal position in the
+chunk and samples uniformly from the inclusive Y range. A target can match a
+block, a Sand block tag, or a quoted block tag such as
+`"#minecraft:stone_ore_replaceables"`. The first matching target determines
+the ore block. Use `discard_exposed` to set the chance of dropping placements
+exposed to air. Generation applies to new chunks.
 
 ### Reading entity data and inventories
 

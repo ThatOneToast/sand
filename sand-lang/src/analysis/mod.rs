@@ -162,6 +162,8 @@ pub enum DefKind {
     StructureTemplate,
     /// `structure_set Name { ... }`.
     StructureSet,
+    /// `ore_feature Name { ... }`.
+    OreFeature,
     /// `inventory_transfer Name { ... }`.
     InventoryTransfer,
     /// `checkpoint Name { ... }`.
@@ -218,6 +220,7 @@ impl DefKind {
             DefKind::Biome => "biome",
             DefKind::StructureTemplate => "structure template",
             DefKind::StructureSet => "structure set",
+            DefKind::OreFeature => "ore feature",
             DefKind::InventoryTransfer => "inventory transfer",
             DefKind::Checkpoint => "checkpoint",
             DefKind::Encounter => "encounter",
@@ -1206,6 +1209,7 @@ impl Cx {
                     crate::ast::DataKind::Biome => DefKind::Biome,
                     crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
                     crate::ast::DataKind::StructureSet => DefKind::StructureSet,
+                    crate::ast::DataKind::OreFeature => DefKind::OreFeature,
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                     crate::ast::DataKind::Checkpoint => DefKind::Checkpoint,
                     crate::ast::DataKind::Encounter => DefKind::Encounter,
@@ -3270,6 +3274,7 @@ impl Cx {
             biomes: Vec::new(),
             structure_templates: Vec::new(),
             structure_sets: Vec::new(),
+            ore_features: Vec::new(),
             inventory_transfers: Vec::new(),
             checkpoints: Vec::new(),
             encounters: Vec::new(),

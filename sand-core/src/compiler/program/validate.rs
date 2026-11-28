@@ -1601,6 +1601,22 @@ pub(super) fn validate(
                 push(ptr, error.to_string());
             }
         }
+        for (index, feature) in module.ore_features.iter().enumerate() {
+            use sand_components::component::DatapackComponent;
+            let ptr = format!("/ore_features/{index}");
+            if !resource_ids.insert(format!("ore feature {}", feature.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate ore feature `{}`", feature.id),
+                );
+            }
+            let (configured, placed) = feature.components();
+            for result in [configured.validate(), placed.validate()] {
+                if let Err(error) = result {
+                    push(ptr.clone(), error.to_string());
+                }
+            }
+        }
         for (index, biome) in module.biomes.iter().enumerate() {
             let ptr = format!("/biomes/{index}");
             if !resource_ids.insert(format!("biome {}", biome.id)) {

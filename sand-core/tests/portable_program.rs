@@ -37,6 +37,7 @@ fn counter() -> Program {
             biomes: vec![],
             structure_templates: vec![],
             structure_sets: vec![],
+            ore_features: vec![],
             inventory_transfers: vec![],
             checkpoints: vec![],
             encounters: vec![],

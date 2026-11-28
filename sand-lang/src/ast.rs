@@ -534,6 +534,7 @@ pub enum DataKind {
     StructureTemplate,
     /// A native weighted structure placement schedule.
     StructureSet,
+    OreFeature,
     InventoryTransfer,
     /// A player-owned checkpoint projection.
     Checkpoint,
@@ -568,6 +569,7 @@ impl DataKind {
             DataKind::Biome => "biome",
             DataKind::StructureTemplate => "structure_template",
             DataKind::StructureSet => "structure_set",
+            DataKind::OreFeature => "ore_feature",
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Checkpoint => "checkpoint",
             DataKind::Encounter => "encounter",

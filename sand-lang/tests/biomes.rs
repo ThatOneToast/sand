@@ -173,3 +173,112 @@ fn biome_decoration_rejects_invalid_steps_and_feature_references() {
         assert!(analyze_one(&source).has_errors(), "{features}");
     }
 }
+
+const ORE_FEATURE: &str = r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+tag BaseStone: Block { values: [Block::Stone] }
+biome Alpine { features: { underground_ores: [Amber] } }
+ore_feature Amber {
+    size: 12,
+    count: 30,
+    min_y: -16,
+    max_y: 20,
+    targets: [
+        { replace: BaseStone, block: Block::GoldOre },
+        { replace: Block::Deepslate, block: Block::DeepslateGoldOre },
+    ],
+    discard_exposed: 0.5,
+}
+"#;
+
+#[test]
+fn declared_ore_builds_both_native_resources_and_a_biome_reference() {
+    use sand::advanced::compiler::Compiler;
+
+    let analysis = analyze_one(ORE_FEATURE);
+    let pack = compile(&analysis);
+    let resource = |path: &str| -> serde_json::Value {
+        serde_json::from_slice(&pack.resources[&format!("data/world_probe/worldgen/{path}.json")])
+            .unwrap()
+    };
+    let ore = resource("configured_feature/amber");
+    assert_eq!(ore["type"], "minecraft:ore");
+    assert_eq!(ore["config"]["size"], 12);
+    assert_eq!(ore["config"]["discard_chance_on_air_exposure"], 0.5);
+    assert_eq!(
+        ore["config"]["targets"],
+        serde_json::json!([
+            {
+                "target": { "predicate_type": "minecraft:tag_match", "tag": "world_probe:base_stone" },
+                "state": { "Name": "minecraft:gold_ore" },
+            },
+            {
+                "target": { "predicate_type": "minecraft:block_match", "block": "minecraft:deepslate" },
+                "state": { "Name": "minecraft:deepslate_gold_ore" },
+            },
+        ])
+    );
+    let placement = resource("placed_feature/amber");
+    assert_eq!(placement["feature"], "world_probe:amber");
+    assert_eq!(
+        placement["placement"],
+        serde_json::json!([
+            {"type": "minecraft:count", "count": 30},
+            {"type": "minecraft:in_square"},
+            {"type": "minecraft:height_range", "height": {
+                "type": "minecraft:uniform",
+                "min_inclusive": {"absolute": -16},
+                "max_inclusive": {"absolute": 20},
+            }},
+            {"type": "minecraft:biome"},
+        ])
+    );
+    assert_eq!(
+        resource("biome/alpine")["features"][6],
+        serde_json::json!(["world_probe:amber"])
+    );
+
+    let encoded = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded = Compiler::decode(&encoded, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        Compiler::compile(&decoded).unwrap().resources
+    );
+}
+
+#[test]
+fn ore_validation_rejects_unsupported_counts_heights_and_target_types() {
+    for (original, invalid, expected) in [
+        (
+            "count: 30",
+            "count: 4097",
+            "expected a value from 0 to 4096",
+        ),
+        ("max_y: 20", "max_y: -17", "maximum placement height"),
+        (
+            "discard_exposed: 0.5",
+            "discard_exposed: 1.5",
+            "discard probability",
+        ),
+        (
+            "block: Block::GoldOre",
+            "block: Item::GoldIngot",
+            "expected a `Block`",
+        ),
+    ] {
+        let messages = errors(&analyze_one(&ORE_FEATURE.replacen(original, invalid, 1)));
+        assert!(
+            messages.iter().any(|message| message.contains(expected)),
+            "{messages:?}"
+        );
+    }
+    let mut program = analyze_one(ORE_FEATURE).program.unwrap();
+    program.modules[0].ore_features[0].count = -1;
+    let diagnostics = sand::advanced::compiler::Compiler::compile(&program).unwrap_err();
+    assert!(
+        diagnostics
+            .iter()
+            .any(|error| error.pointer == "/ore_features/0"
+                && error.message.contains("count must be in 0..=4096"))
+    );
+}

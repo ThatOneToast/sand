@@ -43,9 +43,14 @@ use crate::validation;
 /// let state = BlockState::new(BlockId::minecraft("oak_log").unwrap()).property("axis", "y");
 /// assert_eq!(state.block().to_string(), "minecraft:oak_log");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct BlockState {
+    #[schemars(with = "String")]
     block: BlockId,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     properties: BTreeMap<String, String>,
 }
 

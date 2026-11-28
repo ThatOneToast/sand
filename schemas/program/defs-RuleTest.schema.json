@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A block-matching rule test used by ore-like feature configs.\n\n# Context\nA block-matching rule test used by ore-like feature configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::RuleTest;\n```\nA block-matching rule test used by ore-like feature configs.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "`minecraft:always_true` \u2014 replaces any block.\n`minecraft:always_true` \u2014 replaces any block.",
+      "properties": {
+        "kind": {
+          "const": "always_true",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "`minecraft:block_match` \u2014 replaces exactly one block.\n`minecraft:block_match` \u2014 replaces exactly one block.",
+      "properties": {
+        "block": {
+          "description": "`block` provides the block identifier when `minecraft:block_match` \u2014 replaces exactly one block.\n`block` provides the block identifier when `minecraft:block_match` \u2014 replaces exactly one block.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "block_match",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "`minecraft:tag_match` \u2014 replaces any block in a block tag.\n`minecraft:tag_match` \u2014 replaces any block in a block tag.",
+      "properties": {
+        "kind": {
+          "const": "tag_match",
+          "type": "string"
+        },
+        "tag": {
+          "description": "`tag` provides the tag identifier when `minecraft:tag_match` \u2014 replaces any block in a block tag.\n`tag` provides the tag identifier when `minecraft:tag_match` \u2014 replaces any block in a block tag.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "tag"
+      ],
+      "type": "object"
+    }
+  ]
+}

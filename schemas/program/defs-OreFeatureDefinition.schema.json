@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Native ore veins and their biome-restricted placement.",
+  "properties": {
+    "config": {
+      "$ref": "defs-OreConfig.schema.json",
+      "description": "Ore vein and ordered replacement rules."
+    },
+    "count": {
+      "description": "Number of placement attempts per chunk, from zero through 4,096.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "id": {
+      "description": "Identity of both the configured feature and the placed feature.",
+      "type": "string"
+    },
+    "max_y": {
+      "description": "Highest eligible absolute Y coordinate.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "min_y": {
+      "description": "Lowest eligible absolute Y coordinate.",
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "config",
+    "count",
+    "min_y",
+    "max_y"
+  ],
+  "type": "object"
+}

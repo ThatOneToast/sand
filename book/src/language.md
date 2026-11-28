@@ -1415,6 +1415,42 @@ fn compute_later(done: fn(number)) {
 }
 ```
 
+### Player encounters
+
+An `encounter` starts one eligible child attack at a time. It checks the
+`attacks` list from first to last and waits for the selected attack's full
+`ticks` and cleanup before choosing again. The optional controller `when`
+bool ends the encounter when it turns false. A child `when` only controls
+whether it is eligible to start.
+
+```rust,ignore
+player state Trial { active: bool, charged: bool }
+
+encounter Arena {
+    ticks: 200,
+    when: Trial.active,
+    attacks: [
+        { ticks: 30, when: Trial.charged, start: surge, stop: discharge },
+        { ticks: 10, start: recover },
+    ],
+}
+
+fn surge() { actionbar("Surge!"); }
+fn discharge() { Trial.charged = false; }
+fn recover() { actionbar("Recovering"); }
+
+#[player]
+fn begin_arena() {
+    Trial.active = true;
+    start_encounter(Arena);
+}
+```
+
+`start_encounter` replaces the player's existing instance.
+`cancel_encounter` stops that instance and its children.
+Child `start` and `stop` callbacks and the optional controller `stop`
+callback run as the player when the owner can be resolved.
+
 ### Player checkpoints
 
 A `checkpoint` saves selected player State numbers into a separate saved

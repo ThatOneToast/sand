@@ -83,6 +83,7 @@ fn item_level() {
             "structure_set",
             "inventory_transfer",
             "checkpoint",
+            "encounter",
             "hud",
             "menu",
             "projectile",

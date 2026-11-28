@@ -141,6 +141,7 @@ pub(super) fn lower(
         projectiles: BTreeMap::new(),
         progressions: BTreeMap::new(),
         scenes: BTreeMap::new(),
+        encounters: BTreeMap::new(),
         jobs: BTreeMap::new(),
         sessions: BTreeMap::new(),
         abilities: BTreeMap::new(),
@@ -177,6 +178,11 @@ pub(super) fn lower(
         lower
             .jobs
             .insert(job.id.to_string(), lower.job_component(job));
+    }
+    for source in program.modules.iter().flat_map(|module| &module.encounters) {
+        lower
+            .encounters
+            .insert(source.id.to_string(), lower.encounter_component(source));
     }
     for session in program.modules.iter().flat_map(|module| &module.sessions) {
         lower
@@ -491,6 +497,30 @@ pub(super) fn lower(
                     &module_id,
                     &format!("/projectiles/{index}"),
                 ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, source) in module.encounters.iter().enumerate() {
+            let pointer = format!("/encounters/{index}");
+            let encounter = lower.encounters[&source.id.to_string()].clone();
+            for (index, attack) in encounter.attacks.into_iter().enumerate() {
+                lower.register_owned_runtime(
+                    attack.into_datapack(),
+                    (
+                        &format!("encounter {} attack {index}", source.id),
+                        &module_id,
+                        &format!("{pointer}/attacks/{index}"),
+                    ),
+                    &ctx,
+                    &mut load,
+                    &mut tick,
+                )?;
+            }
+            lower.register_owned_runtime(
+                encounter.controller.into_datapack(),
+                (&format!("encounter {}", source.id), &module_id, &pointer),
                 &ctx,
                 &mut load,
                 &mut tick,
@@ -1806,6 +1836,12 @@ impl CommandBody {
     }
 }
 
+#[derive(Clone)]
+struct PortableEncounter {
+    controller: crate::gameplay::Encounter,
+    attacks: Vec<crate::gameplay::Lifetime>,
+}
+
 struct Lower<'sources> {
     runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
@@ -1831,6 +1867,7 @@ struct Lower<'sources> {
     projectiles: BTreeMap<String, crate::gameplay::Projectile>,
     progressions: BTreeMap<String, crate::gameplay::Progression>,
     scenes: BTreeMap<String, crate::gameplay::Scene>,
+    encounters: BTreeMap<String, PortableEncounter>,
     jobs: BTreeMap<String, crate::gameplay::Job>,
     sessions: BTreeMap<String, crate::gameplay::Session>,
     abilities: BTreeMap<String, crate::gameplay::Ability>,
@@ -2381,6 +2418,48 @@ impl Lower<'_> {
             lifetime,
             self.progressions[&source.progression.to_string()].clone(),
         )
+    }
+
+    fn encounter_component(&self, source: &EncounterDefinition) -> PortableEncounter {
+        use crate::gameplay::{Encounter, Lifetime, identity};
+        use sand_components::effect::Ticks;
+
+        let lifetime = |id, ticks, stop: Option<&FunctionReference>| {
+            let mut lifetime = Lifetime::new(id, Ticks::new(ticks))
+                .include_dimensions(self.dimensions.iter().cloned());
+            if let Some(callback) = stop {
+                let callback = reference_id(callback);
+                lifetime = lifetime
+                    .on_stop(move |context| context.owner(|_| Cmd::Function(callback.clone())));
+            }
+            lifetime
+        };
+        let mut controller = Encounter::new(lifetime(
+            source.id.clone(),
+            source.ticks,
+            source.stop.as_ref(),
+        ));
+        if let Some(when) = &source.when {
+            let condition = self.flag_condition(when);
+            controller = controller.while_active(move |_| condition.clone());
+        }
+        let mut attacks = Vec::with_capacity(source.attacks.len());
+        for (index, source_attack) in source.attacks.iter().enumerate() {
+            let id = identity::resource(&source.id, &format!("attack_{index}"));
+            let callback = reference_id(&source_attack.start);
+            let attack = lifetime(id, source_attack.ticks, source_attack.stop.as_ref())
+                .on_start(move |context| context.owner(|_| Cmd::Function(callback.clone())));
+            let condition = source_attack.when.as_ref().map_or_else(
+                || crate::condition::Condition::all([]),
+                |when| self.flag_condition(when),
+            );
+            controller = controller.attack(move |_| condition.clone(), &attack);
+            attacks.push(attack);
+        }
+        PortableEncounter {
+            controller,
+            attacks,
+        }
     }
 
     fn flag_condition(&self, score: &FieldReference) -> crate::condition::Condition {
@@ -3240,6 +3319,14 @@ impl Lower<'_> {
                         definition.start().0
                     } else {
                         definition.cancel().0
+                    }
+                }
+                Action::Encounter { encounter, start } => {
+                    let encounter = &self.encounters[&encounter.to_string()].controller;
+                    if *start {
+                        encounter.start().0
+                    } else {
+                        encounter.cancel().0
                     }
                 }
                 Action::Checkpoint {

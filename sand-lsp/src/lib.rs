@@ -662,6 +662,7 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::StructureSet
         | D::InventoryTransfer
         | D::Checkpoint
+        | D::Encounter
         | D::Hud
         | D::Progression
         | D::Combat

@@ -164,6 +164,8 @@ pub enum DefKind {
     InventoryTransfer,
     /// `checkpoint Name { ... }`.
     Checkpoint,
+    /// `encounter Name { ... }`.
+    Encounter,
     /// `hud Name { ... }`.
     Hud,
     /// `menu Name { ... }`.
@@ -216,6 +218,7 @@ impl DefKind {
             DefKind::StructureSet => "structure set",
             DefKind::InventoryTransfer => "inventory transfer",
             DefKind::Checkpoint => "checkpoint",
+            DefKind::Encounter => "encounter",
             DefKind::Hud => "HUD",
             DefKind::Menu => "menu",
             DefKind::Projectile => "projectile",
@@ -1198,6 +1201,7 @@ impl Cx {
                     crate::ast::DataKind::StructureSet => DefKind::StructureSet,
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                     crate::ast::DataKind::Checkpoint => DefKind::Checkpoint,
+                    crate::ast::DataKind::Encounter => DefKind::Encounter,
                     crate::ast::DataKind::Hud => DefKind::Hud,
                     crate::ast::DataKind::Menu => DefKind::Menu,
                     crate::ast::DataKind::Projectile => DefKind::Projectile,
@@ -3236,6 +3240,7 @@ impl Cx {
             structure_sets: Vec::new(),
             inventory_transfers: Vec::new(),
             checkpoints: Vec::new(),
+            encounters: Vec::new(),
             huds: Vec::new(),
             menus: Vec::new(),
             projectiles: Vec::new(),

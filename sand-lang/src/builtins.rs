@@ -60,6 +60,8 @@ pub enum ParamKind {
     InventoryTransfer,
     /// A declared player-owned checkpoint.
     Checkpoint,
+    /// A declared player-owned encounter.
+    Encounter,
     /// An authored player-owned HUD.
     Hud,
     /// An authored player-owned dialog menu.
@@ -1822,6 +1824,38 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "cancel_hud(${1:Status});",
     },
     Builtin {
+        name: "start_encounter",
+        kind: BuiltinKind::Statement,
+        signature: "start_encounter(controller)",
+        summary: "Start or replace the current player’s encounter.",
+        details: "Controls the current owner and uses the shared child-task ledger.",
+        minecraft: "Calls the canonical Encounter controller.",
+        needs_player: true,
+        params: &[p(
+            "controller",
+            ParamKind::Encounter,
+            true,
+            "The declared player encounter.",
+        )],
+        snippet: "start_encounter(${1:Encounter});",
+    },
+    Builtin {
+        name: "cancel_encounter",
+        kind: BuiltinKind::Statement,
+        signature: "cancel_encounter(controller)",
+        summary: "Cancel the player’s encounter and its outstanding attack.",
+        details: "Controls the current owner and uses the shared child-task ledger.",
+        minecraft: "Calls the canonical Encounter controller.",
+        needs_player: true,
+        params: &[p(
+            "controller",
+            ParamKind::Encounter,
+            true,
+            "The declared player encounter.",
+        )],
+        snippet: "cancel_encounter(${1:Encounter});",
+    },
+    Builtin {
         name: "save_checkpoint",
         kind: BuiltinKind::Statement,
         signature: "save_checkpoint(snapshot)",
@@ -3187,6 +3221,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         r#"{ title: "${1:Supplies}", value: ${2:Hero.energy}, max: ${3:100} }"#,
     ),
     f(
+        "encounter",
+        "ticks",
+        FieldKind::Number,
+        true,
+        "Maximum active lifetime in ticks.",
+        "${1:200}",
+    ),
+    f(
+        "encounter",
+        "attacks",
+        FieldKind::ResourceId,
+        true,
+        "Child attacks checked from first to last.",
+        "[{ ticks: ${1:20}, start: ${2:attack} }]",
+    ),
+    f(
+        "encounter",
+        "when",
+        FieldKind::BooleanState,
+        false,
+        "Stop the controller when this player State bool becomes false.",
+        "${1:Round.active}",
+    ),
+    f(
+        "encounter",
+        "stop",
+        FieldKind::Callback,
+        false,
+        "Called after cleanup for a resolvable owner.",
+        "${1:finished}",
+    ),
+    f(
         "checkpoint",
         "valid",
         FieldKind::BooleanState,
@@ -3638,6 +3704,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "hud",
         "`hud Name { ticks: 100, actionbar: \"Ready\" }` declares owner-scoped native presentation.",
+    ),
+    (
+        "encounter",
+        "`encounter Name { ... }` declares a controller with one active child attack at a time.",
     ),
     (
         "checkpoint",

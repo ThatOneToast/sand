@@ -537,6 +537,8 @@ pub enum DataKind {
     InventoryTransfer,
     /// A player-owned checkpoint projection.
     Checkpoint,
+    /// A priority controller for an owner and its child attacks.
+    Encounter,
     Hud,
     Menu,
     Projectile,
@@ -568,6 +570,7 @@ impl DataKind {
             DataKind::StructureSet => "structure_set",
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Checkpoint => "checkpoint",
+            DataKind::Encounter => "encounter",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",
             DataKind::Projectile => "projectile",

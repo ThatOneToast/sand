@@ -764,6 +764,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Start or cancel this player's encounter and its child attacks.",
+      "properties": {
+        "encounter": {
+          "type": "string"
+        },
+        "op": {
+          "const": "encounter",
+          "type": "string"
+        },
+        "start": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "encounter",
+        "start"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Operate on the executing player's checkpoint.",
       "properties": {
         "checkpoint": {

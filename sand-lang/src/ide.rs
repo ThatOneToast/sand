@@ -306,6 +306,10 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}hud {}", def.name),
                     format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
                 ),
+                (crate::ast::DataKind::Encounter, _) => (
+                    format!("{vis}encounter {}", def.name),
+                    format!("Player-owned priority encounter `{id}`."),
+                ),
                 (crate::ast::DataKind::Checkpoint, _) => (
                     format!("{vis}checkpoint {}", def.name),
                     format!(
@@ -1266,6 +1270,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::StructureSet
         | DefKind::InventoryTransfer
         | DefKind::Checkpoint
+        | DefKind::Encounter
         | DefKind::Hud
         | DefKind::Progression
         | DefKind::Combat
@@ -1977,6 +1982,9 @@ fn expression_completions(
             Some("Hud") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Hud);
             }
+            Some("Encounter") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Encounter);
+            }
             Some("Checkpoint") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Checkpoint);
             }
@@ -2677,6 +2685,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
         ),
         Completion::snippet(
+            "encounter",
+            "a priority controller with timed child attacks",
+            "encounter ${1:Challenge} { ticks: ${2:200}, attacks: [{ ticks: ${3:20}, start: ${4:attack} }] }",
+        ),
+        Completion::snippet(
             "checkpoint",
             "save and restore selected player State",
             "checkpoint ${1:Snapshot} { valid: ${2:Saved.valid}, fields: [{ live: ${3:Live.score}, saved: ${4:Saved.score} }] }",
@@ -3006,6 +3019,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::StructureTemplate => "StructureTemplate",
                 ParamKind::InventoryTransfer => "InventoryTransfer",
                 ParamKind::Checkpoint => "Checkpoint",
+                ParamKind::Encounter => "Encounter",
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",
                 ParamKind::Projectile => "Projectile",

@@ -1,31 +1,31 @@
 schema_version=1
 configuration=all-supported-features,current-target
 minecraft_version=26.2
-total=12442
+total=12457
 kind associated_const=18
 kind associated_type=3
 kind attribute_macro=9
 kind constant=2
 kind derive_macro=7
 kind enum=206
-kind field=1222
+kind field=1234
 kind function=512
 kind function_like_macro=1
 kind macro=3
 kind method=2976
 kind module=34
-kind struct=1043
+kind struct=1045
 kind trait=41
 kind trait_method=89
 kind type_alias=6
-kind variant=6270
+kind variant=6271
 origin generator:generated_commands=1233
 origin generator:generated_effect_registry_enums=95
 origin generator:generated_event_markers=25
 origin generator:generated_registries=5081
 origin generator:generated_registry_ids=162
-origin source=5846
-advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=1171 contracted=1171 aliases=- features=-
+origin source=5861
+advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=1186 contracted=1186 aliases=- features=-
 build-source module=sand::build state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=178 contracted=178 aliases=- features=-
 command-source module=sand::command state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=731 contracted=731 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=1589 contracted=1589 aliases=sand::prelude features=-
@@ -55,4 +55,4 @@ text-source module=sand::text state=enforced tier=ordinary provider=source prece
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=62 contracted=62 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=47 contracted=47 aliases=- features=-
 world-source module=sand::world state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=21 contracted=21 aliases=sand::prelude features=-
-totals pending_scopes=0 pending_items=0 enforced_items=12442 pending_scope_ceiling=0 pending_item_ceiling=0
+totals pending_scopes=0 pending_items=0 enforced_items=12457 pending_scope_ceiling=0 pending_item_ceiling=0

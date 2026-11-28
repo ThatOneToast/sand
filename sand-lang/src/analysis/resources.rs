@@ -857,6 +857,18 @@ impl Cx {
                     bossbar,
                 });
             }
+            DataKind::Encounter => {
+                let Some(encounter) = self.data_encounter(module, file, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/encounters/{}", out.encounters.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.encounters.push(encounter);
+            }
             DataKind::Checkpoint => {
                 let Some(checkpoint) = self.data_checkpoint(module, file, location, get) else {
                     return;
@@ -1985,6 +1997,70 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_encounter<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::EncounterDefinition> {
+        let ticks = self.data_int(module, file, &get("ticks")?.value, 1, i32::MAX as i64)? as u32;
+        let attacks = &get("attacks")?.value;
+        let DataValue::Array(entries, _) = attacks else {
+            self.error(
+                "encounter",
+                file,
+                attacks.span(),
+                "expected an ordered list of child attacks",
+            );
+            return None;
+        };
+        let attacks = entries
+            .iter()
+            .map(|entry| {
+                let fields = self.data_object_fields(
+                    file,
+                    entry,
+                    "encounter attack",
+                    &["ticks", "start"],
+                    &["when", "stop"],
+                )?;
+                let ticks =
+                    self.data_int(module, file, fields.get("ticks")?, 1, i32::MAX as i64)? as u32;
+                let start = self.data_callback(module, file, fields.get("start")?)?;
+                let when = match fields.get("when") {
+                    Some(value) => Some(self.data_flag(module, file, value)?),
+                    None => None,
+                };
+                let stop = match fields.get("stop") {
+                    Some(value) => Some(self.data_callback(module, file, value)?),
+                    None => None,
+                };
+                Some(pc::EncounterAttack {
+                    ticks,
+                    start,
+                    when,
+                    stop,
+                })
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let when = match get("when") {
+            Some(field) => Some(self.data_flag(module, file, &field.value)?),
+            None => None,
+        };
+        let stop = match get("stop") {
+            Some(field) => Some(self.data_callback(module, file, &field.value)?),
+            None => None,
+        };
+        Some(pc::EncounterDefinition {
+            id,
+            ticks,
+            when,
+            attacks,
+            stop,
+        })
     }
 
     fn data_checkpoint<'a>(

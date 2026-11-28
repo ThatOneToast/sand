@@ -301,6 +301,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.huds)
             .map(|hud| hud.id.to_string())
             .collect(),
+        encounters: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.encounters)
+            .map(|source| source.id.to_string())
+            .collect(),
         checkpoints: program
             .modules
             .iter()
@@ -747,6 +753,50 @@ pub(super) fn validate(
                         ExecutionContext::Player,
                         &owner,
                         &format!("/inventory_transfers/{index}/{field}"),
+                    );
+                }
+            }
+        }
+        for (index, encounter) in module.encounters.iter().enumerate() {
+            let path = format!("/encounters/{index}");
+            if let Some(when) = &encounter.when {
+                validator.score(
+                    when,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("{path}/when"),
+                );
+            }
+            if let Some(stop) = &encounter.stop {
+                validator.call(
+                    stop,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("{path}/stop"),
+                );
+            }
+            for (index, attack) in encounter.attacks.iter().enumerate() {
+                let path = format!("{path}/attacks/{index}");
+                if let Some(when) = &attack.when {
+                    validator.score(
+                        when,
+                        ExecutionContext::Player,
+                        &owner,
+                        &format!("{path}/when"),
+                    );
+                }
+                validator.call(
+                    &attack.start,
+                    ExecutionContext::Player,
+                    &owner,
+                    &format!("{path}/start"),
+                );
+                if let Some(stop) = &attack.stop {
+                    validator.call(
+                        stop,
+                        ExecutionContext::Player,
+                        &owner,
+                        &format!("{path}/stop"),
                     );
                 }
             }
@@ -1500,6 +1550,35 @@ pub(super) fn validate(
                 ),
             }
         }
+        for (index, encounter) in module.encounters.iter().enumerate() {
+            let path = format!("/encounters/{index}");
+            if !resource_ids.insert(format!("encounter {}", encounter.id)) {
+                push(
+                    format!("{path}/id"),
+                    format!("duplicate encounter `{}`", encounter.id),
+                );
+            }
+            if !(1..=256).contains(&encounter.attacks.len()) {
+                push(
+                    format!("{path}/attacks"),
+                    "an encounter requires between 1 and 256 attacks".into(),
+                );
+            }
+            for (field, ticks) in
+                std::iter::once((format!("{path}/ticks"), encounter.ticks)).chain(
+                    encounter.attacks.iter().enumerate().map(|(index, attack)| {
+                        (format!("{path}/attacks/{index}/ticks"), attack.ticks)
+                    }),
+                )
+            {
+                if !(1..=i32::MAX as u32).contains(&ticks) {
+                    push(
+                        field,
+                        "encounter durations must fit positive Minecraft tick counts".into(),
+                    );
+                }
+            }
+        }
         for (index, checkpoint) in module.checkpoints.iter().enumerate() {
             if !resource_ids.insert(format!("checkpoint {}", checkpoint.id)) {
                 push(
@@ -2069,6 +2148,7 @@ struct Validator<'a, 'e> {
     advancements: BTreeMap<String, BTreeSet<String>>,
     transfers: BTreeSet<String>,
     checkpoints: BTreeSet<String>,
+    encounters: BTreeSet<String>,
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
     progressions: BTreeSet<String>,
@@ -3354,6 +3434,22 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/hud"),
                             format!("unknown HUD `{hud}`"),
+                        ));
+                    }
+                }
+                Action::Encounter { encounter, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "operating the executing player's encounter",
+                    );
+                    if !self.encounters.contains(&encounter.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/encounter"),
+                            format!("unknown encounter `{encounter}`"),
                         ));
                     }
                 }

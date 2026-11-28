@@ -730,6 +730,61 @@ pub struct CustomBiome {
     pub features: BTreeMap<sand_components::GenerationStep, Vec<sand_components::PlacedFeatureId>>,
 }
 
+/// One eligible child attack run by a player encounter.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::EncounterAttack", module = "sand::advanced::compiler",
+    summary = "A bounded child attack for a portable player encounter.",
+    context = "The attack holds the controller until its lifetime, including recovery, ends.",
+    minecraft = "Starts a shared Lifetime child as the encounter's owner.",
+    use_when = ["Defining one priority choice in an encounter"],
+    avoid_when = ["Starting an independent task with no parent"],
+    fields(ticks = "Lifetime including recovery in ticks.", when = "Optional State guard for selection.", start = "Player callback at admission.", stop = "Optional player callback at cleanup."),
+    example = "use sand::advanced::compiler::EncounterAttack;",
+)]
+pub struct EncounterAttack {
+    /// Lifetime in Minecraft ticks, including the recovery interval.
+    pub ticks: u32,
+    /// Optional State guard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<super::FieldReference>,
+    /// Run as the owner when this child starts.
+    pub start: super::FunctionReference,
+    /// Run as the owner at cleanup, when the owner is resolvable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<super::FunctionReference>,
+}
+
+/// A player-owned bounded priority encounter.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::EncounterDefinition", module = "sand::advanced::compiler",
+    summary = "A bounded portable encounter with ordered eligible attacks.",
+    context = "The controller starts at most one outstanding child and preserves player ownership.",
+    minecraft = "Uses the shared Encounter and Lifetime implementations for selection and cleanup.",
+    use_when = ["Orchestrating ordered gameplay attacks with recovery"],
+    avoid_when = ["Authoring native entity pathfinding"],
+    fields(id = "Registered encounter identity.", ticks = "Maximum active duration in ticks.", when = "Optional State condition for keeping the controller active.", attacks = "Child attacks in descending priority order.", stop = "Optional player callback after the controller stops."),
+    example = "use sand::advanced::compiler::EncounterDefinition;",
+)]
+pub struct EncounterDefinition {
+    /// Registered encounter identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Maximum active duration in loaded ticks.
+    pub ticks: u32,
+    /// Optional State guard checked on each controller tick.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<super::FieldReference>,
+    /// Child attacks in descending priority order.
+    pub attacks: Vec<EncounterAttack>,
+    /// Optional cleanup callback, invoked for a resolvable owner.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<super::FunctionReference>,
+}
+
 /// Explicit live and saved player State fields in one checkpoint projection.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

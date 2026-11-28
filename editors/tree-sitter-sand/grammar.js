@@ -90,7 +90,7 @@ module.exports = grammar({
       seq(
         repeat($.attribute),
         optional($.visibility),
-        field('kind', alias(choice('item', 'recipe', 'tag', 'bossbar', 'loot', 'damage_type', 'predicate', 'advancement', 'dialog', 'dimension_type', 'dimension', 'biome', 'structure_template', 'structure_set', 'inventory_transfer', 'checkpoint', 'hud', 'menu', 'projectile', 'progression', 'session', 'ability', 'combat', 'job', 'scene'), $.data_kind)),
+        field('kind', alias(choice('item', 'recipe', 'tag', 'bossbar', 'loot', 'damage_type', 'predicate', 'advancement', 'dialog', 'dimension_type', 'dimension', 'biome', 'structure_template', 'structure_set', 'inventory_transfer', 'checkpoint', 'encounter', 'hud', 'menu', 'projectile', 'progression', 'session', 'ability', 'combat', 'job', 'scene'), $.data_kind)),
         field('name', $.identifier),
         optional(seq(':', field('type', $.type))),
         $.data_object,

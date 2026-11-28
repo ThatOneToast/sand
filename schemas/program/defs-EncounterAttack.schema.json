@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One eligible child attack run by a player encounter.",
+  "properties": {
+    "start": {
+      "$ref": "defs-FunctionReference.schema.json",
+      "description": "Run as the owner when this child starts."
+    },
+    "stop": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Run as the owner at cleanup, when the owner is resolvable."
+    },
+    "ticks": {
+      "description": "Lifetime in Minecraft ticks, including the recovery interval.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "when": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional State guard."
+    }
+  },
+  "required": [
+    "ticks",
+    "start"
+  ],
+  "type": "object"
+}

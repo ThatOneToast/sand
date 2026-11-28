@@ -5152,6 +5152,15 @@ impl Cx {
                 hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
                 show: builtin.name == "start_hud",
             },
+            "start_encounter" | "cancel_encounter" => pc::Action::Encounter {
+                encounter: self.arg_declared(
+                    body,
+                    bound["controller"],
+                    DefKind::Encounter,
+                    "an encounter",
+                )?,
+                start: builtin.name == "start_encounter",
+            },
             "save_checkpoint" | "restore_checkpoint" | "clear_checkpoint" => {
                 pc::Action::Checkpoint {
                     checkpoint: self.arg_declared(

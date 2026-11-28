@@ -38,7 +38,8 @@ use sand_components::recipe::{
 };
 use sand_components::registry::{
     AdvancementId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DimensionId, EnchantmentId,
-    EntityTypeId, FunctionId, ItemId, LootTableId, PredicateId, RecipeId, SoundEventId,
+    EntityTypeId, FunctionId, ItemId, LootTableId, PlacedFeatureId, PredicateId, RecipeId,
+    SoundEventId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
@@ -941,11 +942,11 @@ fn canonical_26_2_worldgen_biome() {
     .downfall(0.0)
     .feature(
         GenerationStep::UndergroundOres,
-        ConfiguredFeatureId::minecraft("ore_iron").unwrap(),
+        PlacedFeatureId::minecraft("ore_iron_middle").unwrap(),
     );
 
     let mut expected_features: Vec<Vec<&str>> = vec![vec![]; 11];
-    expected_features[GenerationStep::UndergroundOres as usize] = vec!["minecraft:ore_iron"];
+    expected_features[GenerationStep::UndergroundOres as usize] = vec!["minecraft:ore_iron_middle"];
     let expected = serde_json::json!({
         "has_precipitation": false,
         "attributes": {

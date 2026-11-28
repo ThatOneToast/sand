@@ -1286,6 +1286,11 @@ fn custom_biome_component(source: &CustomBiome) -> sand_components::Biome {
             (id.into(), *cost)
         }));
     }
+    for (step, features) in &source.features {
+        for feature in features {
+            biome = biome.feature(*step, feature.clone());
+        }
+    }
     biome
 }
 

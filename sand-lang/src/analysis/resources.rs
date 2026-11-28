@@ -961,6 +961,13 @@ impl Cx {
                     }
                     Some(value)
                 });
+                let features = match get("features") {
+                    Some(field) => match self.data_biome_features(file, &field.value) {
+                        Some(features) => features,
+                        None => return,
+                    },
+                    None => BTreeMap::new(),
+                };
                 let mut color =
                     |name| get(name).and_then(|field| self.data_biome_color(file, &field.value));
                 let biome = pc::CustomBiome {
@@ -977,6 +984,7 @@ impl Cx {
                     spawners: get("spawners")
                         .and_then(|field| self.data_biome_spawners(module, file, &field.value))
                         .unwrap_or_default(),
+                    features,
                     spawn_costs: get("spawn_costs")
                         .and_then(|field| self.data_biome_spawn_costs(module, file, &field.value))
                         .unwrap_or_default(),
@@ -2724,6 +2732,74 @@ impl Cx {
             "expected an RGB color such as `\"#3f76e4\"`",
         );
         None
+    }
+
+    fn data_biome_features(
+        &mut self,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<BTreeMap<sand::component::GenerationStep, Vec<sand::registry::PlacedFeatureId>>>
+    {
+        let DataValue::Object(groups, _) = value else {
+            self.error(
+                "biome",
+                file,
+                value.span(),
+                "expected a map of terrain generation steps to lists of placed features",
+            );
+            return None;
+        };
+        let mut features = BTreeMap::new();
+        for group in groups {
+            let Ok(step) =
+                serde_json::from_value(serde_json::Value::String(group.key.name.clone()))
+            else {
+                self.error(
+                    "biome",
+                    file,
+                    group.key.span,
+                    format!("unknown terrain generation step `{}`", group.key.name),
+                );
+                return None;
+            };
+            let DataValue::Array(entries, _) = &group.value else {
+                self.error(
+                    "biome",
+                    file,
+                    group.value.span(),
+                    "expected a list of namespaced placed feature ids",
+                );
+                return None;
+            };
+            let ids = entries
+                .iter()
+                .map(|entry| {
+                    if let DataValue::Expr(Expr::Str { value, .. }) = entry
+                        && value.contains(':')
+                        && let Ok(id) = value.parse()
+                    {
+                        return Some(id);
+                    }
+                    self.error(
+                        "biome",
+                        file,
+                        entry.span(),
+                        "expected a quoted namespaced placed feature id",
+                    );
+                    None
+                })
+                .collect::<Option<Vec<_>>>()?;
+            if features.insert(step, ids).is_some() {
+                self.error(
+                    "biome",
+                    file,
+                    group.key.span,
+                    format!("duplicate terrain generation step `{}`", group.key.name),
+                );
+                return None;
+            }
+        }
+        Some(features)
     }
 
     fn data_dimension_type<'a>(

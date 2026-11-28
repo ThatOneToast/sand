@@ -1557,6 +1557,24 @@ biome RabbitGrove {
 
 Vanilla still applies spawn rules such as block, light, and difficulty checks.
 
+A custom biome's `features` field groups existing placed features by Minecraft
+decoration step. Give the namespaced IDs of vanilla placements or placements
+supplied by an installed datapack. Sand retains the list order within each step.
+
+```rust,ignore
+biome Alpine {
+    features: {
+        underground_ores: ["minecraft:ore_coal_upper", "minecraft:ore_iron_upper"],
+        vegetal_decoration: ["minecraft:trees_plains"],
+    },
+}
+
+dimension Hills {
+    noise_settings: "minecraft:overworld",
+    biome: Alpine,
+}
+```
+
 ### Reading entity data and inventories
 
 `entity_data_number("Health")` reads the vanilla integer result of a checked

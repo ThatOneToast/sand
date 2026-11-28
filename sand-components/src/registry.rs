@@ -217,6 +217,11 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft placed-feature identifier for biome generation steps.
+    PlacedFeatureId
+}
+
+registry_id! {
     /// Typed Minecraft configured-carver identifier (e.g. `minecraft:cave` or
     /// `mymod:arcane_cave`).
     ///

@@ -453,6 +453,7 @@ fn data_declarations_offer_only_remaining_valid_fields() {
             "foliage_color",
             "spawners",
             "spawn_costs",
+            "features",
         ],
     );
     includes_excludes(

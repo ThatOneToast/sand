@@ -4562,7 +4562,7 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 1152);
+        assert_eq!(entries.len(), 1153);
         for member in [
             "CaptureEntity",
             "CaptureEntity::relation",

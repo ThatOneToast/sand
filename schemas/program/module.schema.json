@@ -2701,6 +2701,16 @@
             "null"
           ]
         },
+        "features": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "Placed features in declaration order within a native decoration step.",
+          "type": "object"
+        },
         "fog_color": {
           "description": "Fog color, as an RGB integer.",
           "format": "uint32",

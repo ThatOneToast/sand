@@ -53,7 +53,10 @@ const TYPED_FIELDS: &[&str] = &[
 ///
 /// This is vanilla's shared `GenerationStep.Decoration` enum: the same
 /// ordered steps also bucket a biome's per-step `features` list-of-lists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum GenerationStep {
     #[doc = "Places content during Minecraft's raw generation generation step."]
     RawGeneration,

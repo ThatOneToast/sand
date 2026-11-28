@@ -684,7 +684,7 @@ pub struct NoiseDimension {
  minecraft = "Lowers through Biome, BiomeEffects, and the shared weighted spawn model to a native worldgen biome.",
  use_when = ["Giving an authored dimension its own climate and colors"],
  avoid_when = ["Declaring placed features or terrain carvers"],
- fields(id = "Biome identity.", precipitation = "Whether rain or snow occurs.", temperature = "Climate temperature.", downfall = "Humidity from zero to one.", fog_color = "Fog RGB.", water_color = "Water surface RGB.", water_fog_color = "Underwater fog RGB.", sky_color = "Sky RGB.", grass_color = "Grass RGB override.", foliage_color = "Foliage RGB override.", spawners = "Ordered weighted entries within each mob category.", spawn_costs = "Population density budgets and charges by entity type."),
+ fields(id = "Biome identity.", precipitation = "Whether rain or snow occurs.", temperature = "Climate temperature.", downfall = "Humidity from zero to one.", fog_color = "Fog RGB.", water_color = "Water surface RGB.", water_fog_color = "Underwater fog RGB.", sky_color = "Sky RGB.", grass_color = "Grass RGB override.", foliage_color = "Foliage RGB override.", spawners = "Ordered weighted entries within each mob category.", spawn_costs = "Population density budgets and charges by entity type.", features = "Ordered placed-feature references in each terrain generation step."),
  example = "use sand::advanced::compiler::CustomBiome;",
 )]
 pub struct CustomBiome {
@@ -724,6 +724,10 @@ pub struct CustomBiome {
     /// Optional population-density budget and charge for each entity.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub spawn_costs: BTreeMap<String, SpawnCost>,
+    /// Placed features in declaration order within a native decoration step.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[schemars(with = "BTreeMap<sand_components::GenerationStep, Vec<String>>")]
+    pub features: BTreeMap<sand_components::GenerationStep, Vec<sand_components::PlacedFeatureId>>,
 }
 
 /// A reusable native player inventory transfer between two numbered slots.

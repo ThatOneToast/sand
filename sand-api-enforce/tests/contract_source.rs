@@ -514,7 +514,7 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     // owned NBT text and the text constructor add 44 contracted source items.
     // Related capture, source locations, mounting, waits, and world operations add 43 items.
     // Named wait cancellation adds two fields to the portable actions.
-    assert_eq!(declarations.len(), 5_827);
+    assert_eq!(declarations.len(), 5_828);
     for path in [
         "sand::advanced::compiler::DataField",
         "sand::advanced::compiler::DataReference",

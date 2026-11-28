@@ -122,3 +122,54 @@ fn biome_spawn_tables_validate_groups_counts_and_references() {
                 .ends_with("/spawners/monster/0/entity_type")
     }));
 }
+
+#[test]
+fn biome_decoration_keeps_placed_features_in_native_step_order() {
+    let source = r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+biome Alpine {
+    features: {
+        vegetal_decoration: ["minecraft:trees_plains"],
+        underground_ores: ["minecraft:ore_coal_upper", "minecraft:ore_iron_upper"],
+    },
+}
+dimension Hills { biome: Alpine, noise_settings: "minecraft:overworld" }
+"#;
+    let analysis = analyze_one(source);
+    let pack = compile(&analysis);
+    let biome: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/world_probe/worldgen/biome/alpine.json"])
+            .unwrap();
+    let features = biome["features"].as_array().unwrap();
+    assert_eq!(
+        features[6],
+        serde_json::json!(["minecraft:ore_coal_upper", "minecraft:ore_iron_upper"])
+    );
+    assert_eq!(features[9], serde_json::json!(["minecraft:trees_plains"]));
+    assert_eq!(features[0], serde_json::json!([]));
+    let program = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&program, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+}
+
+#[test]
+fn biome_decoration_rejects_invalid_steps_and_feature_references() {
+    for features in [
+        r#"{ middle: ["minecraft:ore_iron_upper"] }"#,
+        r#"{ underground_ores: "minecraft:ore_iron_upper" }"#,
+        r#"{ underground_ores: ["ore_iron_upper"] }"#,
+        r#"{ underground_ores: [Block::Stone] }"#,
+        r#"{ underground_ores: [], underground_ores: [] }"#,
+    ] {
+        let source = format!(
+            "#![pack(namespace = \"world_probe\")] biome Alpine {{ features: {features} }}"
+        );
+        assert!(analyze_one(&source).has_errors(), "{features}");
+    }
+}

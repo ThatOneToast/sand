@@ -3273,6 +3273,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "[{ entity: Entity::${1:Sheep}, energy_budget: ${2:1.0}, charge: ${3:0.2} }]",
     ),
     f(
+        "biome",
+        "features",
+        FieldKind::ResourceId,
+        false,
+        "Ordered placed-feature IDs grouped by native terrain generation step.",
+        r#"{ underground_ores: ["minecraft:${1:ore_iron_upper}"] }"#,
+    ),
+    f(
         "dimension_type",
         "has_skylight",
         FieldKind::Bool,

@@ -1496,6 +1496,16 @@ pub(super) fn validate(
                     "downfall must be between zero and one".into(),
                 );
             }
+            for (step, features) in &biome.features {
+                for (index, feature) in features.iter().enumerate() {
+                    if !available(&feature.to_string(), "minecraft:worldgen/placed_feature") {
+                        push(
+                            format!("{ptr}/features/{}/{index}", step.as_str()),
+                            format!("unknown placed feature `{feature}`"),
+                        );
+                    }
+                }
+            }
             let spawn_entity_exists = |id: &str| {
                 syntax_id(id)
                     && sand_version::registry::contains(

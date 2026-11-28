@@ -385,6 +385,7 @@ pub use sand_components::{
     PigVariant,
     PigVariantId,
     PlacedFeature,
+    PlacedFeatureId,
     PlacementModifier,
     // Structure/template pool
     PoolElement,

@@ -17,7 +17,7 @@ use crate::SoundEventDefinition;
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
 use crate::raw::RawJson;
-use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, EntityTypeId};
+use crate::registry::{ConfiguredCarverId, EntityTypeId, PlacedFeatureId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 use crate::worldgen::structure::{GenerationStep, MobCategory, SpawnEntry};
@@ -109,8 +109,8 @@ enum SpawnValue<T> {
 #[derive(Debug, Clone)]
 enum FeaturesValue {
     /// Fixed-length (`GENERATION_STEP_COUNT`) per-step lists of typed
-    /// configured-feature references, indexed by [`GenerationStep::index`].
-    Typed(Vec<Vec<ConfiguredFeatureId>>),
+    /// placed-feature references, indexed by [`GenerationStep::index`].
+    Typed(Vec<Vec<PlacedFeatureId>>),
     Raw(Value),
 }
 
@@ -927,7 +927,7 @@ impl Biome {
         self
     }
 
-    /// Adds a typed configured-feature reference to the given
+    /// Adds a typed placed-feature reference to the given
     /// [`GenerationStep`]'s bucket of the `features` list-of-lists.
     ///
     /// Repeated calls append to the same step and accumulate across steps.
@@ -938,16 +938,16 @@ impl Biome {
         path = "sand::component::Biome::feature",
         module = "sand::component",
         kind = "method",
-        summary = "Adds a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
-        context = "Adds a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists. Repeated calls append to the same step and accumulate across steps. If [`Biome::raw_features`] was used previously, this replaces it with a fresh typed feature map (typed and raw features are not merged).",
+        summary = "Adds a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
+        context = "Adds a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists. Repeated calls append to the same step and accumulate across steps. If [`Biome::raw_features`] was used previously, this replaces it with a fresh typed feature map (typed and raw features are not merged).",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(step = "`step` provides the step added when building a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
-        returns = "The `Biome` value with the documented change applied to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::GenerationStep, feature: sand::registry::ConfiguredFeatureId)  {\n    let updated_biome = biome_value.feature(step, feature);\n}",
+        params(step = "`step` provides the step added when building a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
+        returns = "The `Biome` value with the documented change applied to add a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::GenerationStep, feature: sand::registry::PlacedFeatureId)  {\n    let updated_biome = biome_value.feature(step, feature);\n}",
     )]
-    pub fn feature(mut self, step: GenerationStep, feature: ConfiguredFeatureId) -> Self {
+    pub fn feature(mut self, step: GenerationStep, feature: PlacedFeatureId) -> Self {
         let mut steps = match self.features {
             Some(FeaturesValue::Typed(steps)) => steps,
             _ => vec![Vec::new(); GENERATION_STEP_COUNT],
@@ -961,7 +961,7 @@ impl Biome {
     /// compatibility path.
     ///
     /// Prefer [`Biome::feature`] with a [`GenerationStep`] and
-    /// [`ConfiguredFeatureId`]. This escape hatch exists for modded or
+    /// [`PlacedFeatureId`]. This escape hatch exists for modded or
     /// version-specific feature shapes.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -969,9 +969,9 @@ impl Biome {
         module = "sand::component",
         kind = "method",
         summary = "Sets the features list-of-lists through the explicit raw compatibility path.",
-        context = "Sets the features list-of-lists through the explicit raw compatibility path. Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes.",
+        context = "Sets the features list-of-lists through the explicit raw compatibility path. Prefer [`Biome::feature`] with a [`GenerationStep`] and [`PlacedFeatureId`]. This escape hatch exists for modded or version-specific feature shapes.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes."],
+        use_when = ["Prefer [`Biome::feature`] with a [`GenerationStep`] and [`PlacedFeatureId`]. This escape hatch exists for modded or version-specific feature shapes."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(features = "`features` provides the features applied when setting the features list-of-lists through the explicit raw compatibility path."),
         returns = "The `Biome` value with the documented change applied to set the features list-of-lists through the explicit raw compatibility path.",
@@ -1403,15 +1403,15 @@ mod tests {
         let biome = Biome::new(location(), effects())
             .feature(
                 GenerationStep::VegetalDecoration,
-                ConfiguredFeatureId::minecraft("oak").unwrap(),
+                PlacedFeatureId::minecraft("oak").unwrap(),
             )
             .feature(
                 GenerationStep::UndergroundOres,
-                ConfiguredFeatureId::minecraft("ore_iron").unwrap(),
+                PlacedFeatureId::minecraft("ore_iron").unwrap(),
             )
             .feature(
                 GenerationStep::UndergroundOres,
-                ConfiguredFeatureId::minecraft("ore_gold").unwrap(),
+                PlacedFeatureId::minecraft("ore_gold").unwrap(),
             );
         assert!(biome.validate().is_ok());
         let features = biome.to_json()["features"].clone();

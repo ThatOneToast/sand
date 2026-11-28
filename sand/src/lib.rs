@@ -490,10 +490,10 @@ pub mod registry {
         BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId, CowVariantId,
         DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EffectId,
         EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, ItemId,
-        NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PotionId, PotionRegistryId,
-        ProcessorListId, RandomSequenceId, SoundEventId, StatusEffectId, StructureId,
-        StructureSetId, StructureTemplateId, StructureTypeId, TemplatePoolId, TradeSetId,
-        VillagerTradeId,
+        NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PlacedFeatureId, PotionId,
+        PotionRegistryId, ProcessorListId, RandomSequenceId, SoundEventId, StatusEffectId,
+        StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TemplatePoolId,
+        TradeSetId, VillagerTradeId,
     };
 }
 

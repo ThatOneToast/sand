@@ -2453,6 +2453,14 @@ fn compile_definition_with_claims(
     let root = generated_root(&id);
     let marker = initialized_tag(&id);
     let external_marker = external_tag(&id);
+    let lifecycle_marker = (definition.initialize.is_some() || definition.cleanup.is_some())
+        .then(|| format!("{marker}.lifecycle"));
+    let lifecycle_guard = lifecycle_marker.as_ref().map_or_else(Vec::new, |tag| {
+        vec![
+            format!("execute if entity @s[tag={tag}] run return 0"),
+            format!("tag @s add {tag}"),
+        ]
+    });
     let version_objective =
         sand_commands::ObjectiveName::logical(format!("{id}.archetype_version"))
             .as_str()
@@ -2526,10 +2534,11 @@ fn compile_definition_with_claims(
         &provision_path,
         component_attach,
     ));
-    let mut initialize_commands = vec![format!(
+    let mut initialize_commands = lifecycle_guard.clone();
+    initialize_commands.push(format!(
         "function {}:{provision_path}",
         definition.id.namespace()
-    )];
+    ));
     let repair_objective = sand_commands::ObjectiveName::logical(format!("{id}.component_repair"))
         .as_str()
         .to_string();
@@ -2651,6 +2660,9 @@ fn compile_definition_with_claims(
         definition.version
     ));
     initialize_commands.push(format!("tag @s add {marker}"));
+    if let Some(tag) = &lifecycle_marker {
+        initialize_commands.push(format!("tag @s remove {tag}"));
+    }
     let initialize_path = format!("{root}/initialize");
     functions.insert(initialize_path.clone());
     records.push(ComponentRecord::function(
@@ -2835,7 +2847,7 @@ fn compile_definition_with_claims(
 
     let cleanup_path = format!("{root}/cleanup");
     functions.insert(cleanup_path.clone());
-    let mut cleanup_commands = Vec::new();
+    let mut cleanup_commands = lifecycle_guard;
     if let Some(callback) = &definition.cleanup {
         cleanup_commands.push(format!("function {callback}"));
     }
@@ -2913,6 +2925,9 @@ fn compile_definition_with_claims(
     dedup_commands(&mut cleanup_commands);
     cleanup_commands.push(format!("tag @s remove {marker}"));
     cleanup_commands.push(format!("tag @s remove {external_marker}"));
+    if let Some(tag) = &lifecycle_marker {
+        cleanup_commands.push(format!("tag @s remove {tag}"));
+    }
     records.push(ComponentRecord::function(
         definition.id.namespace(),
         &cleanup_path,
@@ -3168,7 +3183,10 @@ fn compile_definition_with_claims(
         report: EntityRuntimeReport {
             archetype: id,
             objectives: objectives.into_iter().collect(),
-            tags: vec![marker, external_marker],
+            tags: [Some(marker), lifecycle_marker, Some(external_marker)]
+                .into_iter()
+                .flatten()
+                .collect(),
             functions: functions.into_iter().collect(),
             outer_scans_per_cycle: usize::from(definition.adoption.is_some())
                 + usize::from(needs_reconcile_scan),

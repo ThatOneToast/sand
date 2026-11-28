@@ -30,6 +30,29 @@ fn archetypes_spawn_and_bind_canonical_component_lifecycles() {
     ] {
         assert!(commands.contains(required), "{required}");
     }
+    for (phase, callback) in [("initialize", "initialize"), ("cleanup", "cleanup")] {
+        let lifecycle = pack
+            .resources
+            .iter()
+            .find_map(|(path, bytes)| {
+                let text = std::str::from_utf8(bytes).ok()?;
+                (path.ends_with(&format!("/{phase}.mcfunction"))
+                    && text
+                        .lines()
+                        .any(|line| line == format!("function archetype_probe:{callback}")))
+                .then_some(text)
+            })
+            .expect("the shared lifecycle invokes the authored callback");
+        let mut lines = lifecycle.lines();
+        let guard = lines.next().unwrap();
+        let tag = guard
+            .strip_prefix("execute if entity @s[tag=")
+            .unwrap()
+            .strip_suffix("] run return 0")
+            .unwrap();
+        assert_eq!(lines.next(), Some(format!("tag @s add {tag}").as_str()));
+        assert_eq!(lines.last(), Some(format!("tag @s remove {tag}").as_str()));
+    }
     let encoded = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
     let decoded = Compiler::decode(&encoded, &Default::default()).unwrap();
     assert_eq!(

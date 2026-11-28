@@ -17,9 +17,14 @@ archetype Piglet {
     components: [Memory],
     adopt_every: 4,
 }
-fn initialize() { Memory.value += 1; Activity.initialized += 1; }
+fn initialize() {
+    Memory.value += 1;
+    Activity.initialized += 1;
+    attach_archetype(Sentinel);
+}
 fn cleanup() {
     if Memory.value == 5 { Activity.released += 1; }
+    release_archetype(Sentinel);
 }
 pub fn create() { spawn_archetype(Sentinel, at = pos(0, 110, 0)); }
 pub fn add_observer() { attach_archetype(Observer); }

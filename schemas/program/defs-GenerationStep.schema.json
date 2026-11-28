@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The world-generation step a structure starts in.\n\n# Context\nThe world-generation step a structure starts in. This is vanilla's shared `GenerationStep.Decoration` enum: the same ordered steps also bucket a biome's per-step `features` list-of-lists.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::GenerationStep;\n```\nThe world-generation step a structure starts in.\n\nThis is vanilla's shared `GenerationStep.Decoration` enum: the same\nordered steps also bucket a biome's per-step `features` list-of-lists.",
+  "oneOf": [
+    {
+      "const": "raw_generation",
+      "description": "Places content during Minecraft's raw generation generation step.\nPlaces content during Minecraft's raw generation generation step.",
+      "type": "string"
+    },
+    {
+      "const": "lakes",
+      "description": "Places content during Minecraft's lakes generation step.\nPlaces content during Minecraft's lakes generation step.",
+      "type": "string"
+    },
+    {
+      "const": "local_modifications",
+      "description": "Places content during Minecraft's local modifications generation step.\nPlaces content during Minecraft's local modifications generation step.",
+      "type": "string"
+    },
+    {
+      "const": "underground_structures",
+      "description": "Places content during Minecraft's underground structures generation step.\nPlaces content during Minecraft's underground structures generation step.",
+      "type": "string"
+    },
+    {
+      "const": "surface_structures",
+      "description": "Places content during Minecraft's surface structures generation step.\nPlaces content during Minecraft's surface structures generation step.",
+      "type": "string"
+    },
+    {
+      "const": "strongholds",
+      "description": "Places content during Minecraft's strongholds generation step.\nPlaces content during Minecraft's strongholds generation step.",
+      "type": "string"
+    },
+    {
+      "const": "underground_ores",
+      "description": "Places content during Minecraft's underground ores generation step.\nPlaces content during Minecraft's underground ores generation step.",
+      "type": "string"
+    },
+    {
+      "const": "underground_decoration",
+      "description": "Places content during Minecraft's underground decoration generation step.\nPlaces content during Minecraft's underground decoration generation step.",
+      "type": "string"
+    },
+    {
+      "const": "fluid_springs",
+      "description": "Places content during Minecraft's fluid springs generation step.\nPlaces content during Minecraft's fluid springs generation step.",
+      "type": "string"
+    },
+    {
+      "const": "vegetal_decoration",
+      "description": "Places content during Minecraft's vegetal decoration generation step.\nPlaces content during Minecraft's vegetal decoration generation step.",
+      "type": "string"
+    },
+    {
+      "const": "top_layer_modification",
+      "description": "Places content during Minecraft's top layer modification generation step.\nPlaces content during Minecraft's top layer modification generation step.",
+      "type": "string"
+    }
+  ]
+}

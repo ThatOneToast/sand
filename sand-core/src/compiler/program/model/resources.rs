@@ -674,6 +674,146 @@ pub struct NoiseDimension {
     pub biome_source: sand_components::BiomeSource,
 }
 
+/// A weighted NBT template within a native jigsaw pool.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::TemplatePoolPiece", module = "sand::advanced::compiler",
+ summary = "A weighted NBT template in a jigsaw pool.",
+ context = "The template can be an asset exported by this program or an installed resource.",
+ minecraft = "Lowers to a vanilla single pool element with optional processors and terrain matching.",
+ use_when = ["Offering multiple saved pieces to the jigsaw generator"],
+ avoid_when = ["Placing a single structure immediately through a command"],
+ fields(template = "NBT template resource.", weight = "Positive selection weight.", processors = "Optional installed processor list.", terrain_matching = "Adjust the piece to follow surrounding terrain."),
+ example = "use sand::advanced::compiler::TemplatePoolPiece;",
+)]
+pub struct TemplatePoolPiece {
+    /// Resource ID of the saved NBT template.
+    #[schemars(with = "String")]
+    pub template: sand_components::StructureTemplateId,
+    /// Positive selection weight.
+    pub weight: u32,
+    /// Optional custom block processor list.
+    #[schemars(with = "Option<String>")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processors: Option<sand_components::ProcessorListId>,
+    /// Adjust the piece to the surrounding terrain.
+    #[serde(default)]
+    pub terrain_matching: bool,
+}
+
+/// Native jigsaw pool of weighted structure templates.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::TemplatePoolDefinition", module = "sand::advanced::compiler",
+ summary = "Native jigsaw pool of weighted structure templates.",
+ context = "Reference this pool from a jigsaw structure or its piece connectors.",
+ minecraft = "Creates a canonical worldgen/template_pool resource sharing the Rust exporter.",
+ use_when = ["Choosing pieces for natural structure generation"],
+ avoid_when = ["Importing the structure template asset itself"],
+ fields(id = "Template pool identity.", fallback = "Pool to try when none of the pieces can be placed.", pieces = "Ordered, weighted saved templates."),
+ example = "use sand::advanced::compiler::TemplatePoolDefinition;",
+)]
+pub struct TemplatePoolDefinition {
+    /// Identity of the generated template pool.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Pool to try when the original pieces cannot be placed.
+    #[schemars(with = "String")]
+    pub fallback: sand_components::TemplatePoolId,
+    /// Ordered weighted choices of saved pieces.
+    pub pieces: Vec<TemplatePoolPiece>,
+}
+
+impl TemplatePoolDefinition {
+    pub(crate) fn component(&self) -> sand_components::TemplatePool {
+        use sand_components::{
+            PoolElement, PoolEntry, ProcessorListId, ProcessorsRef, Projection, TemplatePool,
+        };
+        TemplatePool::new(
+            self.id.clone(),
+            self.fallback.clone(),
+            self.pieces.iter().map(|piece| {
+                let element = PoolElement::Single {
+                    location: piece.template.clone(),
+                    processors: ProcessorsRef::Named(
+                        piece
+                            .processors
+                            .clone()
+                            .unwrap_or_else(ProcessorListId::empty),
+                    ),
+                    projection: if piece.terrain_matching {
+                        Projection::TerrainMatching
+                    } else {
+                        Projection::Rigid
+                    },
+                };
+                PoolEntry::new(element, piece.weight)
+            }),
+        )
+    }
+}
+
+/// Native jigsaw structure generated from a template pool in eligible biomes.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+ registry = sand_api_contract, path = "sand::advanced::compiler::JigsawStructure", module = "sand::advanced::compiler",
+ summary = "Native jigsaw structure generated from a template pool in eligible biomes.",
+ context = "Reference this definition from a structure set to select placement chunks.",
+ minecraft = "Lowers through the Rust Structure and JigsawConfig component builders.",
+ use_when = ["Generating authored NBT structures from weighted template pools"],
+ avoid_when = ["Placing a template immediately without natural generation"],
+ fields(id = "Native structure identity.", start_pool = "First pool to select a template from.", biomes = "Allowed biome tag or entries.", size = "Maximum depth of jigsaw expansion.", start_y = "Absolute starting height or offset from surface projection.", surface = "Project the start onto the world surface heightmap.", step = "Native generation step.", terrain_adaptation = "Optional terrain adaptation around pieces."),
+ example = "use sand::advanced::compiler::JigsawStructure;",
+)]
+pub struct JigsawStructure {
+    /// Identity of the generated structure.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// Pool to choose the starting template from.
+    #[schemars(with = "String")]
+    pub start_pool: sand_components::TemplatePoolId,
+    /// Allowed biome list or biome tag.
+    pub biomes: sand_components::BiomeSelector,
+    /// Expansion depth, from one through twenty.
+    pub size: u32,
+    /// Initial absolute Y, or offset if projected.
+    pub start_y: i32,
+    /// Project the initial piece onto the world surface.
+    #[serde(default)]
+    pub surface: bool,
+    /// Generation step.
+    pub step: sand_components::GenerationStep,
+    /// Optional adjustment to the terrain around generated pieces.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terrain_adaptation: Option<sand_components::TerrainAdaptation>,
+}
+
+impl JigsawStructure {
+    pub(crate) fn component(&self) -> sand_components::Structure {
+        use sand_components::{HeightProvider, Heightmap, JigsawConfig, Structure};
+        let mut jigsaw = JigsawConfig::new(self.start_pool.clone())
+            .size(self.size)
+            .start_height(HeightProvider::absolute(self.start_y));
+        if self.surface {
+            jigsaw = jigsaw.project_start_to_heightmap(Heightmap::WorldSurfaceWg);
+        }
+        let mut structure = Structure::jigsaw(
+            self.id.clone(),
+            self.start_pool.clone(),
+            self.biomes.clone(),
+        )
+        .step(self.step)
+        .jigsaw_config(jigsaw);
+        if let Some(adaptation) = self.terrain_adaptation {
+            structure = structure.terrain_adaptation(adaptation);
+        }
+        structure
+    }
+}
+
 /// Native ore veins and their biome-restricted placement.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

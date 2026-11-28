@@ -82,6 +82,8 @@ fn item_level() {
             "structure_template",
             "structure_set",
             "ore_feature",
+            "jigsaw_structure",
+            "template_pool",
             "inventory_transfer",
             "checkpoint",
             "encounter",

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The biome constraint of a structure: a biome tag or an explicit list.\n\n# Context\nThe biome constraint of a structure: a biome tag or an explicit list. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::BiomeSelector;\n```\nThe biome constraint of a structure: a biome tag or an explicit list.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "A biome tag reference, emitted as `#namespace:path`.\nA biome tag reference, emitted as `#namespace:path`.",
+      "properties": {
+        "kind": {
+          "const": "tag",
+          "type": "string"
+        },
+        "value": {
+          "description": "A biome tag reference, emitted as `#namespace:path`.\nA biome tag reference, emitted as `#namespace:path`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "An explicit list of biome IDs.\nAn explicit list of biome IDs.",
+      "properties": {
+        "kind": {
+          "const": "entries",
+          "type": "string"
+        },
+        "value": {
+          "description": "An explicit list of biome IDs.\nAn explicit list of biome IDs.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    }
+  ]
+}

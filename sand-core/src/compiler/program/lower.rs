@@ -721,6 +721,31 @@ pub(super) fn lower(
             })?;
             lower.records.push(record);
         }
+        for (index, pool) in module.template_pools.iter().enumerate() {
+            let record =
+                records::component_to_record(&pool.component(), Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/template_pools/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
+        for (index, structure) in module.jigsaw_structures.iter().enumerate() {
+            let record = records::component_to_record(&structure.component(), Some(&ctx)).map_err(
+                |error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/jigsaw_structures/{index}"),
+                        error.to_string(),
+                    )]
+                },
+            )?;
+            lower.records.push(record);
+        }
         for (index, structure_set) in module.structure_sets.iter().enumerate() {
             let record =
                 records::component_to_record(structure_set, Some(&ctx)).map_err(|error| {

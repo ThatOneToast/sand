@@ -126,6 +126,13 @@
       },
       "type": "array"
     },
+    "jigsaw_structures": {
+      "description": "Native structures that expand from a jigsaw pool.",
+      "items": {
+        "$ref": "defs-JigsawStructure.schema.json"
+      },
+      "type": "array"
+    },
     "jobs": {
       "description": "Player-owned bounded indexed work.",
       "items": {
@@ -235,6 +242,13 @@
       "description": "Typed function-tag membership.",
       "items": {
         "$ref": "defs-TagMembership.schema.json"
+      },
+      "type": "array"
+    },
+    "template_pools": {
+      "description": "Weighted template choices for a jigsaw generator.",
+      "items": {
+        "$ref": "defs-TemplatePoolDefinition.schema.json"
       },
       "type": "array"
     },

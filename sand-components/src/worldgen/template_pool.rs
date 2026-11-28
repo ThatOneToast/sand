@@ -366,6 +366,14 @@ impl PoolEntry {
                 "pool entry weight must be at least 1",
             ));
         }
+        if self.weight > 150 {
+            return Err(validation::error(
+                location,
+                KIND,
+                &format!("{field}.weight"),
+                "pool entry weight must be at most 150",
+            ));
+        }
         Ok(())
     }
 }

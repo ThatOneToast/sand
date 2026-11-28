@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Native jigsaw structure generated from a template pool in eligible biomes.",
+  "properties": {
+    "biomes": {
+      "$ref": "defs-BiomeSelector.schema.json",
+      "description": "Allowed biome list or biome tag."
+    },
+    "id": {
+      "description": "Identity of the generated structure.",
+      "type": "string"
+    },
+    "size": {
+      "description": "Expansion depth, from one through twenty.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "start_pool": {
+      "description": "Pool to choose the starting template from.",
+      "type": "string"
+    },
+    "start_y": {
+      "description": "Initial absolute Y, or offset if projected.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "step": {
+      "$ref": "defs-GenerationStep.schema.json",
+      "description": "Generation step."
+    },
+    "surface": {
+      "default": false,
+      "description": "Project the initial piece onto the world surface.",
+      "type": "boolean"
+    },
+    "terrain_adaptation": {
+      "anyOf": [
+        {
+          "$ref": "defs-TerrainAdaptation.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional adjustment to the terrain around generated pieces."
+    }
+  },
+  "required": [
+    "id",
+    "start_pool",
+    "biomes",
+    "size",
+    "start_y",
+    "step"
+  ],
+  "type": "object"
+}

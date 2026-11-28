@@ -327,6 +327,14 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                         "Native ore vein placement `{id}`. Include it in a biome generation step."
                     ),
                 ),
+                (crate::ast::DataKind::JigsawStructure, _) => (
+                    format!("{vis}jigsaw_structure {}", def.name),
+                    format!("Native jigsaw structure `{id}`. Place it using a structure set."),
+                ),
+                (crate::ast::DataKind::TemplatePool, _) => (
+                    format!("{vis}template_pool {}", def.name),
+                    format!("Weighted NBT template pool `{id}`. Start a jigsaw structure from it."),
+                ),
                 (crate::ast::DataKind::StructureSet, _) => (
                     format!("{vis}structure_set {}", def.name),
                     format!("Native structure placement schedule `{id}`."),
@@ -1276,6 +1284,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::StructureTemplate
         | DefKind::OreFeature
         | DefKind::StructureSet
+        | DefKind::JigsawStructure
+        | DefKind::TemplatePool
         | DefKind::InventoryTransfer
         | DefKind::Checkpoint
         | DefKind::Encounter
@@ -2711,6 +2721,16 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "ore_feature",
             "Native ore veins with biome-restricted placement.",
             r#"ore_feature ${1:Vein} { size: ${2:8}, count: ${3:4}, min_y: ${4:-32}, max_y: ${5:32}, targets: [{ replace: Block::${6:Stone}, block: Block::${7:IronOre} }] }"#,
+        ),
+        Completion::snippet(
+            "template_pool",
+            "weighted NBT template pool",
+            r#"template_pool ${1:Pool} { pieces: [{ template: ${2:Marker}, weight: ${3:1} }] }"#,
+        ),
+        Completion::snippet(
+            "jigsaw_structure",
+            "natural generation from a template pool",
+            r#"jigsaw_structure ${1:Workshop} { start_pool: ${2:Pool}, biomes: [Biome::${3:Plains}], surface: true }"#,
         ),
         Completion::snippet(
             "structure_set",

@@ -604,6 +604,8 @@ impl Builder<'_> {
                     "biome" => DataKind::Biome,
                     "structure_template" => DataKind::StructureTemplate,
                     "structure_set" => DataKind::StructureSet,
+                    "jigsaw_structure" => DataKind::JigsawStructure,
+                    "template_pool" => DataKind::TemplatePool,
                     "ore_feature" => DataKind::OreFeature,
                     "inventory_transfer" => DataKind::InventoryTransfer,
                     "checkpoint" => DataKind::Checkpoint,

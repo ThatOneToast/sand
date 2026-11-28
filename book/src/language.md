@@ -1758,8 +1758,8 @@ that slot. Sand removes its presentation at cancellation, expiry, or reload.
 
 ### Natural placement with structure sets
 
-A `structure_set` schedules existing native structures during chunk
-generation. Give each structure a namespaced identity and an optional weight,
+A `structure_set` schedules native structures during chunk generation. Give
+each structure an authored name or namespaced identity and an optional weight,
 which defaults to 1. Minecraft selects a structure at each candidate position
 and still checks whether that structure can generate at the chosen biome.
 
@@ -1798,6 +1798,39 @@ chunks to be loaded. To place a template supplied by another pack, pass a
 namespaced identity such as `"adventure:rooms/camp"`. The portable JSON produced
 by `sand lang emit` includes the asset bytes, so another compiler host can
 build the same template without access to the package files.
+
+### Jigsaw generation from saved templates
+
+Use a `template_pool` to choose among saved structure templates. A
+`jigsaw_structure` selects a starting pool and the biomes where it can appear.
+Put the structure into a `structure_set` to schedule it in newly generated
+chunks.
+
+```rust,ignore
+structure_template StationPiece { source: "structures/station.nbt" }
+template_pool StationPieces {
+    pieces: [{ template: StationPiece, weight: 3 }],
+}
+
+jigsaw_structure Station {
+    start_pool: StationPieces,
+    biomes: [Biome::Plains],
+    surface: true,
+    terrain_adaptation: beard_thin,
+}
+structure_set Stations {
+    structures: [{ structure: Station }],
+    random_spread: { spacing: 18, separation: 6, salt: 431785 },
+}
+```
+
+The expansion depth `size` ranges from 1 to 20 and defaults to 1. If the
+template has jigsaw blocks, Minecraft follows their pool links to add pieces. A pool entry
+takes an optional namespaced `processors` reference and a `terrain_matching`
+switch. The pool's optional `fallback` defaults to `"minecraft:empty"`. A
+structure's `start_y` defaults to zero and becomes an offset above the surface
+if `surface` is enabled. `step` defaults to `surface_structures`; `biomes`
+can also be a quoted biome tag.
 
 ### Block data and regions
 
@@ -2400,11 +2433,11 @@ command and State models as Rust. Today the language covers:
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, impl methods, and ordered migrations | derived values and general lifecycle hooks |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and entity/player waits inside branches, statement matches and local loops | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
-| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, custom events with payloads, authored advancement completion | broader advancement triggers, equipment changes, tracked transitions, event chains |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat dimensions, custom biome climate, colors and spawn tables, structure templates, typed block data literals and copies | natural structure generation, biome terrain features, other dimension generators and types |
+| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, sneaking/sprinting/swimming/flying transitions, custom events with payloads, predicate guards, authored advancement completion | additional native triggers and tracked changes |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and fixed/checkerboard noise dimensions, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
-| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs and display scenes | encounters, rosters, status effects, checkpoints |
+| Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs, display scenes, player checkpoints and encounters | rosters and status effects |
 
 `raw!("...")` covers single commands that have no builtin yet.
 

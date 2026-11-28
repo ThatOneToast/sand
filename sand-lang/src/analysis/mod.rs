@@ -162,6 +162,10 @@ pub enum DefKind {
     StructureTemplate,
     /// `structure_set Name { ... }`.
     StructureSet,
+    /// `jigsaw_structure Name { ... }`.
+    JigsawStructure,
+    /// `template_pool Name { ... }`.
+    TemplatePool,
     /// `ore_feature Name { ... }`.
     OreFeature,
     /// `inventory_transfer Name { ... }`.
@@ -220,6 +224,8 @@ impl DefKind {
             DefKind::Biome => "biome",
             DefKind::StructureTemplate => "structure template",
             DefKind::StructureSet => "structure set",
+            DefKind::JigsawStructure => "jigsaw structure",
+            DefKind::TemplatePool => "template pool",
             DefKind::OreFeature => "ore feature",
             DefKind::InventoryTransfer => "inventory transfer",
             DefKind::Checkpoint => "checkpoint",
@@ -1209,6 +1215,8 @@ impl Cx {
                     crate::ast::DataKind::Biome => DefKind::Biome,
                     crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
                     crate::ast::DataKind::StructureSet => DefKind::StructureSet,
+                    crate::ast::DataKind::JigsawStructure => DefKind::JigsawStructure,
+                    crate::ast::DataKind::TemplatePool => DefKind::TemplatePool,
                     crate::ast::DataKind::OreFeature => DefKind::OreFeature,
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
                     crate::ast::DataKind::Checkpoint => DefKind::Checkpoint,
@@ -3275,6 +3283,8 @@ impl Cx {
             structure_templates: Vec::new(),
             structure_sets: Vec::new(),
             ore_features: Vec::new(),
+            jigsaw_structures: Vec::new(),
+            template_pools: Vec::new(),
             inventory_transfers: Vec::new(),
             checkpoints: Vec::new(),
             encounters: Vec::new(),

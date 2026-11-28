@@ -147,7 +147,8 @@ impl GenerationStep {
     variants(BeardBox = "Applies Minecraft's beard box terrain adaptation.", BeardThin = "Applies Minecraft's beard thin terrain adaptation.", Bury = "Applies Minecraft's bury terrain adaptation.", Encapsulate = "Applies Minecraft's encapsulate terrain adaptation.", None = "Applies Minecraft's none terrain adaptation."),
 )]
 /// How terrain is modified around a generated structure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TerrainAdaptation {
     #[doc = "Applies Minecraft's none terrain adaptation."]
     None,
@@ -573,12 +574,26 @@ impl SpawnOverride {
     variant_fields(Entries = ["An explicit list of biome IDs."], Tag = ["A biome tag reference, emitted as `#namespace:path`."]),
 )]
 /// The biome constraint of a structure: a biome tag or an explicit list.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum BiomeSelector {
     /// A biome tag reference, emitted as `#namespace:path`.
-    Tag(#[doc = "A biome tag reference, emitted as `#namespace:path`."] TagId<BiomeId>),
+    Tag(
+        #[doc = "A biome tag reference, emitted as `#namespace:path`."]
+        #[schemars(with = "String")]
+        TagId<BiomeId>,
+    ),
     /// An explicit list of biome IDs.
-    Entries(#[doc = "An explicit list of biome IDs."] Vec<BiomeId>),
+    Entries(
+        #[doc = "An explicit list of biome IDs."]
+        #[schemars(with = "Vec<String>")]
+        Vec<BiomeId>,
+    ),
 }
 
 impl BiomeSelector {
@@ -1178,14 +1193,12 @@ impl DatapackComponent for Structure {
                 Value::String(adaptation.as_str().to_string()),
             );
         }
-        if !self.spawn_overrides.is_empty() {
-            let overrides: Map<String, Value> = self
-                .spawn_overrides
-                .iter()
-                .map(|(category, spawns)| (category.as_str().to_string(), spawns.to_json()))
-                .collect();
-            map.insert("spawn_overrides".into(), Value::Object(overrides));
-        }
+        let overrides: Map<String, Value> = self
+            .spawn_overrides
+            .iter()
+            .map(|(category, spawns)| (category.as_str().to_string(), spawns.to_json()))
+            .collect();
+        map.insert("spawn_overrides".into(), Value::Object(overrides));
         if let Some(jigsaw) = &self.jigsaw {
             jigsaw.write_into(&mut map);
         }
@@ -1231,6 +1244,7 @@ mod tests {
                 "type": "minecraft:jigsaw",
                 "biomes": "#minecraft:has_structure/village_plains",
                 "step": "surface_structures",
+                "spawn_overrides": {},
                 "start_pool": "minecraft:village/plains/town_centers",
                 "size": 6,
                 "start_height": { "absolute": 0 },

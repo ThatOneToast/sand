@@ -970,6 +970,14 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "jigsaw_structure"
+                },
+                {
+                  "type": "STRING",
+                  "value": "template_pool"
+                },
+                {
+                  "type": "STRING",
                   "value": "ore_feature"
                 },
                 {

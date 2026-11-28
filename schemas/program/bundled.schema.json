@@ -2119,6 +2119,52 @@
       ],
       "type": "object"
     },
+    "BiomeSelector": {
+      "description": "The biome constraint of a structure: a biome tag or an explicit list.\n\n# Context\nThe biome constraint of a structure: a biome tag or an explicit list. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::BiomeSelector;\n```\nThe biome constraint of a structure: a biome tag or an explicit list.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A biome tag reference, emitted as `#namespace:path`.\nA biome tag reference, emitted as `#namespace:path`.",
+          "properties": {
+            "kind": {
+              "const": "tag",
+              "type": "string"
+            },
+            "value": {
+              "description": "A biome tag reference, emitted as `#namespace:path`.\nA biome tag reference, emitted as `#namespace:path`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An explicit list of biome IDs.\nAn explicit list of biome IDs.",
+          "properties": {
+            "kind": {
+              "const": "entries",
+              "type": "string"
+            },
+            "value": {
+              "description": "An explicit list of biome IDs.\nAn explicit list of biome IDs.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "BiomeSource": {
       "description": "How a noise generator selects biomes per-column.\n\n\ud83c\udf0d World (datapack).",
       "oneOf": [
@@ -4352,6 +4398,66 @@
         }
       ]
     },
+    "GenerationStep": {
+      "description": "The world-generation step a structure starts in.\n\n# Context\nThe world-generation step a structure starts in. This is vanilla's shared `GenerationStep.Decoration` enum: the same ordered steps also bucket a biome's per-step `features` list-of-lists.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::GenerationStep;\n```\nThe world-generation step a structure starts in.\n\nThis is vanilla's shared `GenerationStep.Decoration` enum: the same\nordered steps also bucket a biome's per-step `features` list-of-lists.",
+      "oneOf": [
+        {
+          "const": "raw_generation",
+          "description": "Places content during Minecraft's raw generation generation step.\nPlaces content during Minecraft's raw generation generation step.",
+          "type": "string"
+        },
+        {
+          "const": "lakes",
+          "description": "Places content during Minecraft's lakes generation step.\nPlaces content during Minecraft's lakes generation step.",
+          "type": "string"
+        },
+        {
+          "const": "local_modifications",
+          "description": "Places content during Minecraft's local modifications generation step.\nPlaces content during Minecraft's local modifications generation step.",
+          "type": "string"
+        },
+        {
+          "const": "underground_structures",
+          "description": "Places content during Minecraft's underground structures generation step.\nPlaces content during Minecraft's underground structures generation step.",
+          "type": "string"
+        },
+        {
+          "const": "surface_structures",
+          "description": "Places content during Minecraft's surface structures generation step.\nPlaces content during Minecraft's surface structures generation step.",
+          "type": "string"
+        },
+        {
+          "const": "strongholds",
+          "description": "Places content during Minecraft's strongholds generation step.\nPlaces content during Minecraft's strongholds generation step.",
+          "type": "string"
+        },
+        {
+          "const": "underground_ores",
+          "description": "Places content during Minecraft's underground ores generation step.\nPlaces content during Minecraft's underground ores generation step.",
+          "type": "string"
+        },
+        {
+          "const": "underground_decoration",
+          "description": "Places content during Minecraft's underground decoration generation step.\nPlaces content during Minecraft's underground decoration generation step.",
+          "type": "string"
+        },
+        {
+          "const": "fluid_springs",
+          "description": "Places content during Minecraft's fluid springs generation step.\nPlaces content during Minecraft's fluid springs generation step.",
+          "type": "string"
+        },
+        {
+          "const": "vegetal_decoration",
+          "description": "Places content during Minecraft's vegetal decoration generation step.\nPlaces content during Minecraft's vegetal decoration generation step.",
+          "type": "string"
+        },
+        {
+          "const": "top_layer_modification",
+          "description": "Places content during Minecraft's top layer modification generation step.\nPlaces content during Minecraft's top layer modification generation step.",
+          "type": "string"
+        }
+      ]
+    },
     "HudBossBar": {
       "additionalProperties": false,
       "description": "The title, current value, and maximum of a player's private HUD boss bar.",
@@ -4516,6 +4622,64 @@
       },
       "required": [
         "holding"
+      ],
+      "type": "object"
+    },
+    "JigsawStructure": {
+      "additionalProperties": false,
+      "description": "Native jigsaw structure generated from a template pool in eligible biomes.",
+      "properties": {
+        "biomes": {
+          "$ref": "#/$defs/BiomeSelector",
+          "description": "Allowed biome list or biome tag."
+        },
+        "id": {
+          "description": "Identity of the generated structure.",
+          "type": "string"
+        },
+        "size": {
+          "description": "Expansion depth, from one through twenty.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "start_pool": {
+          "description": "Pool to choose the starting template from.",
+          "type": "string"
+        },
+        "start_y": {
+          "description": "Initial absolute Y, or offset if projected.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "step": {
+          "$ref": "#/$defs/GenerationStep",
+          "description": "Generation step."
+        },
+        "surface": {
+          "default": false,
+          "description": "Project the initial piece onto the world surface.",
+          "type": "boolean"
+        },
+        "terrain_adaptation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TerrainAdaptation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional adjustment to the terrain around generated pieces."
+        }
+      },
+      "required": [
+        "id",
+        "start_pool",
+        "biomes",
+        "size",
+        "start_y",
+        "step"
       ],
       "type": "object"
     },
@@ -4985,6 +5149,13 @@
           },
           "type": "array"
         },
+        "jigsaw_structures": {
+          "description": "Native structures that expand from a jigsaw pool.",
+          "items": {
+            "$ref": "#/$defs/JigsawStructure"
+          },
+          "type": "array"
+        },
         "jobs": {
           "description": "Player-owned bounded indexed work.",
           "items": {
@@ -5094,6 +5265,13 @@
           "description": "Typed function-tag membership.",
           "items": {
             "$ref": "#/$defs/TagMembership"
+          },
+          "type": "array"
+        },
+        "template_pools": {
+          "description": "Weighted template choices for a jigsaw generator.",
+          "items": {
+            "$ref": "#/$defs/TemplatePoolDefinition"
           },
           "type": "array"
         },
@@ -7416,6 +7594,96 @@
             "query"
           ],
           "type": "object"
+        }
+      ]
+    },
+    "TemplatePoolDefinition": {
+      "additionalProperties": false,
+      "description": "Native jigsaw pool of weighted structure templates.",
+      "properties": {
+        "fallback": {
+          "description": "Pool to try when the original pieces cannot be placed.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Identity of the generated template pool.",
+          "type": "string"
+        },
+        "pieces": {
+          "description": "Ordered weighted choices of saved pieces.",
+          "items": {
+            "$ref": "#/$defs/TemplatePoolPiece"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "fallback",
+        "pieces"
+      ],
+      "type": "object"
+    },
+    "TemplatePoolPiece": {
+      "additionalProperties": false,
+      "description": "A weighted NBT template within a native jigsaw pool.",
+      "properties": {
+        "processors": {
+          "description": "Optional custom block processor list.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "template": {
+          "description": "Resource ID of the saved NBT template.",
+          "type": "string"
+        },
+        "terrain_matching": {
+          "default": false,
+          "description": "Adjust the piece to the surrounding terrain.",
+          "type": "boolean"
+        },
+        "weight": {
+          "description": "Positive selection weight.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "template",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "TerrainAdaptation": {
+      "description": "How terrain is modified around a generated structure.\n\n# Context\nHow terrain is modified around a generated structure. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::TerrainAdaptation;\n```\nHow terrain is modified around a generated structure.",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "Applies Minecraft's none terrain adaptation.\nApplies Minecraft's none terrain adaptation.",
+          "type": "string"
+        },
+        {
+          "const": "beard_thin",
+          "description": "Applies Minecraft's beard thin terrain adaptation.\nApplies Minecraft's beard thin terrain adaptation.",
+          "type": "string"
+        },
+        {
+          "const": "beard_box",
+          "description": "Applies Minecraft's beard box terrain adaptation.\nApplies Minecraft's beard box terrain adaptation.",
+          "type": "string"
+        },
+        {
+          "const": "bury",
+          "description": "Applies Minecraft's bury terrain adaptation.\nApplies Minecraft's bury terrain adaptation.",
+          "type": "string"
+        },
+        {
+          "const": "encapsulate",
+          "description": "Applies Minecraft's encapsulate terrain adaptation.\nApplies Minecraft's encapsulate terrain adaptation.",
+          "type": "string"
         }
       ]
     },

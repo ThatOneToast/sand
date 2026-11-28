@@ -1587,6 +1587,35 @@ pub(super) fn validate(
                 );
             }
         }
+        for (index, pool) in module.template_pools.iter().enumerate() {
+            use sand_components::component::DatapackComponent;
+            let ptr = format!("/template_pools/{index}");
+            if !resource_ids.insert(format!("template pool {}", pool.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate template pool `{}`", pool.id),
+                );
+            }
+            if let Err(error) = pool.component().validate() {
+                push(ptr, error.to_string());
+            }
+        }
+        for (index, structure) in module.jigsaw_structures.iter().enumerate() {
+            use sand_components::component::DatapackComponent;
+            let ptr = format!("/jigsaw_structures/{index}");
+            if !resource_ids.insert(format!("structure {}", structure.id)) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate structure `{}`", structure.id),
+                );
+            }
+            if structure.size == 0 {
+                push(format!("{ptr}/size"), "a jigsaw structure needs a positive expansion depth to generate the starting piece".into());
+            }
+            if let Err(error) = structure.component().validate() {
+                push(ptr, error.to_string());
+            }
+        }
         for (index, structure_set) in module.structure_sets.iter().enumerate() {
             use sand_components::component::DatapackComponent;
             let ptr = format!("/structure_sets/{index}");

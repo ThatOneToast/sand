@@ -190,3 +190,91 @@ structure_set Invalid {{ structures: [{{ structure: "minecraft:village_plains" }
         );
     }
 }
+
+#[test]
+fn jigsaw_structures_connect_authored_templates_pools_biomes_and_sets() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let analysis = sand_lang::analyze_path(&fixtures.join("jigsaw_structures.sand"), &DiskFiles);
+    let pack = compile(&analysis);
+    let worldgen = |path: &str| -> serde_json::Value {
+        serde_json::from_slice(&pack.resources[&format!("data/world_probe/worldgen/{path}.json")])
+            .unwrap()
+    };
+    let pool = worldgen("template_pool/pieces");
+    assert_eq!(pool["fallback"], "minecraft:empty");
+    assert_eq!(
+        pool["elements"],
+        serde_json::json!([{
+            "weight": 3,
+            "element": {
+                "element_type": "minecraft:single_pool_element",
+                "location": "world_probe:pedestal",
+                "processors": "minecraft:empty",
+                "projection": "rigid",
+            },
+        }])
+    );
+    let structure = worldgen("structure/waystation");
+    assert_eq!(structure["start_pool"], "world_probe:pieces");
+    assert_eq!(structure["type"], "minecraft:jigsaw");
+    assert_eq!(
+        structure["biomes"],
+        serde_json::json!(["world_probe:alpine"])
+    );
+    assert_eq!(structure["size"], 1);
+    assert_eq!(structure["spawn_overrides"], serde_json::json!({}));
+    assert_eq!(structure["terrain_adaptation"], "beard_thin");
+    assert_eq!(structure["project_start_to_heightmap"], "WORLD_SURFACE_WG");
+    assert_eq!(
+        worldgen("structure_set/waystations")["structures"][0]["structure"],
+        "world_probe:waystation",
+    );
+    assert_eq!(
+        pack.resources["data/world_probe/structure/pedestal.nbt"],
+        include_bytes!("fixtures/structures/pedestal.nbt")
+    );
+
+    let encoded = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded = Compiler::decode(&encoded, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        Compiler::compile(&decoded).unwrap().resources
+    );
+}
+
+#[test]
+fn jigsaw_inputs_reject_mismatched_references_and_limits() {
+    let source = include_str!("fixtures/jigsaw_structures.sand");
+    for (old, invalid, expected) in [
+        ("weight: 3", "weight: 151", "expected a value from 1 to 150"),
+        (
+            "start_pool: Pieces",
+            "start_pool: Pedestal",
+            "expected an authored template pool name",
+        ),
+        ("size: 1", "size: 0", "expected a value from 1 to 20"),
+        ("beard_thin", "unknown", "unknown terrain adaptation"),
+        (
+            "structure: Waystation",
+            "structure: Pieces",
+            "expected an authored jigsaw structure name",
+        ),
+    ] {
+        let messages = errors(&analyze_one(&source.replacen(old, invalid, 1)));
+        assert!(
+            messages.iter().any(|message| message.contains(expected)),
+            "{messages:?}"
+        );
+    }
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let analysis = sand_lang::analyze_path(&fixtures.join("jigsaw_structures.sand"), &DiskFiles);
+    let mut program = analysis.program.unwrap();
+    program.modules[0].template_pools[0].pieces[0].weight = 151;
+    let diagnostics = Compiler::compile(&program).unwrap_err();
+    assert!(diagnostics.iter().any(|error| {
+        error.pointer == "/template_pools/0"
+            && error
+                .message
+                .contains("pool entry weight must be at most 150")
+    }));
+}

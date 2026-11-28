@@ -1033,6 +1033,31 @@ impl Cx {
                 ));
                 out.ore_features.push(feature);
             }
+            DataKind::JigsawStructure => {
+                let Some(structure) = self.data_jigsaw_structure(module, file, location, get)
+                else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/jigsaw_structures/{}", out.jigsaw_structures.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.jigsaw_structures.push(structure);
+            }
+            DataKind::TemplatePool => {
+                let Some(pool) = self.data_template_pool(module, file, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/template_pools/{}", out.template_pools.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.template_pools.push(pool);
+            }
             DataKind::StructureSet => {
                 let Some(structure_set) =
                     self.data_structure_set(module, file, location, data.name.span, get)
@@ -2920,6 +2945,201 @@ impl Cx {
         None
     }
 
+    fn data_worldgen_reference(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        kind: DefKind,
+    ) -> Option<sand::ResourceLocation> {
+        if let DataValue::Expr(expr @ Expr::Path(_)) = value {
+            if let Some((_, id)) = self.declared(module, file, expr, kind) {
+                return Some(id.parse().expect("valid authored resource"));
+            }
+            self.error(
+                "resource",
+                file,
+                value.span(),
+                format!("expected an authored {} name", kind.describe()),
+            );
+            return None;
+        }
+        self.data_named_resource(file, value, kind.describe())
+    }
+
+    fn data_template_pool<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::TemplatePoolDefinition> {
+        let fallback = match get("fallback") {
+            Some(field) => self
+                .data_worldgen_reference(module, file, &field.value, DefKind::TemplatePool)?
+                .into(),
+            None => sand::registry::TemplatePoolId::empty(),
+        };
+        let values = &get("pieces")?.value;
+        let DataValue::Array(entries, _) = values else {
+            self.error(
+                "template pool",
+                file,
+                values.span(),
+                "expected a list of weighted template pieces",
+            );
+            return None;
+        };
+        let pieces = entries
+            .iter()
+            .map(|entry| {
+                let fields = self.data_object_fields(
+                    file,
+                    entry,
+                    "template piece",
+                    &["template"],
+                    &["weight", "processors", "terrain_matching"],
+                )?;
+                let template = self
+                    .data_worldgen_reference(
+                        module,
+                        file,
+                        fields.get("template")?,
+                        DefKind::StructureTemplate,
+                    )?
+                    .into();
+                let weight = match fields.get("weight") {
+                    Some(value) => self.data_int(module, file, value, 1, 150)? as u32,
+                    None => 1,
+                };
+                let processors = match fields.get("processors") {
+                    Some(value) => Some(
+                        self.data_named_resource(file, value, "processor list")?
+                            .into(),
+                    ),
+                    None => None,
+                };
+                let terrain_matching = match fields.get("terrain_matching") {
+                    Some(value) => self.data_bool(file, value)?,
+                    None => false,
+                };
+                Some(pc::TemplatePoolPiece {
+                    template,
+                    weight,
+                    processors,
+                    terrain_matching,
+                })
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(pc::TemplatePoolDefinition {
+            id,
+            fallback,
+            pieces,
+        })
+    }
+
+    fn data_jigsaw_structure<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::JigsawStructure> {
+        use sand::component::{BiomeSelector, GenerationStep, TagId};
+        let start_pool = self
+            .data_worldgen_reference(
+                module,
+                file,
+                &get("start_pool")?.value,
+                DefKind::TemplatePool,
+            )?
+            .into();
+        let biomes = &get("biomes")?.value;
+        let biomes = if let DataValue::Array(entries, _) = biomes {
+            BiomeSelector::Entries(
+                entries
+                    .iter()
+                    .map(|entry| {
+                        let expr = self.data_expr(file, entry, "a biome")?;
+                        self.vanilla_value(module, file, expr, "Biome")?
+                            .parse::<sand::ResourceLocation>()
+                            .ok()
+                            .map(Into::into)
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+            )
+        } else if let DataValue::Expr(Expr::Str { value, .. }) = biomes
+            && let Some(tag) = value.strip_prefix('#')
+            && tag.contains(':')
+            && let Ok(tag) = tag.parse()
+        {
+            BiomeSelector::Tag(TagId::custom(tag))
+        } else {
+            self.error(
+                "jigsaw structure",
+                file,
+                biomes.span(),
+                "expected a biome list or a quoted biome tag",
+            );
+            return None;
+        };
+        let size = match get("size") {
+            Some(field) => self.data_int(module, file, &field.value, 1, 20)? as u32,
+            None => 1,
+        };
+        let start_y = match get("start_y") {
+            Some(field) => self.data_int(module, file, &field.value, -2032, 2031)? as i32,
+            None => 0,
+        };
+        let surface = match get("surface") {
+            Some(field) => self.data_bool(file, &field.value)?,
+            None => false,
+        };
+        let step = match get("step") {
+            Some(field) => self.data_worldgen_option(file, &field.value, "generation step")?,
+            None => GenerationStep::SurfaceStructures,
+        };
+        let terrain_adaptation = match get("terrain_adaptation") {
+            Some(field) => {
+                Some(self.data_worldgen_option(file, &field.value, "terrain adaptation")?)
+            }
+            None => None,
+        };
+        Some(pc::JigsawStructure {
+            id,
+            start_pool,
+            biomes,
+            size,
+            start_y,
+            surface,
+            step,
+            terrain_adaptation,
+        })
+    }
+
+    fn data_worldgen_option<T: serde::de::DeserializeOwned>(
+        &mut self,
+        file: FileId,
+        value: &DataValue,
+        description: &str,
+    ) -> Option<T> {
+        let expr = self.data_expr(file, value, description)?;
+        if let Expr::Path(path) = expr
+            && path.segments.len() == 1
+            && let Ok(option) =
+                serde_json::from_value(serde_json::Value::String(path.last().name.clone()))
+        {
+            return Some(option);
+        }
+        self.error(
+            "resource",
+            file,
+            value.span(),
+            format!("unknown {description}"),
+        );
+        None
+    }
+
     fn data_structure_set<'a>(
         &mut self,
         module: ModuleId,
@@ -2951,8 +3171,12 @@ impl Cx {
                     &["structure"],
                     &["weight"],
                 )?;
-                let structure =
-                    self.data_named_resource(file, fields.get("structure")?, "structure")?;
+                let structure = self.data_worldgen_reference(
+                    module,
+                    file,
+                    fields.get("structure")?,
+                    DefKind::JigsawStructure,
+                )?;
                 let weight = match fields.get("weight") {
                     Some(value) => self.data_int(module, file, value, 1, i32::MAX as i64)? as u32,
                     None => 1,
@@ -3204,17 +3428,7 @@ impl Cx {
             let ids = entries
                 .iter()
                 .map(|value| {
-                    if let DataValue::Expr(expr @ Expr::Path(_)) = value
-                        && let Some((_, id)) =
-                            self.declared(module, file, expr, DefKind::OreFeature)
-                    {
-                        return Some(
-                            id.parse::<sand::ResourceLocation>()
-                                .expect("valid authored resource")
-                                .into(),
-                        );
-                    }
-                    self.data_named_resource(file, value, "placed feature name or id")
+                    self.data_worldgen_reference(module, file, value, DefKind::OreFeature)
                         .map(Into::into)
                 })
                 .collect::<Option<Vec<_>>>()?;

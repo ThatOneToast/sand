@@ -24,10 +24,11 @@ pub use resources::{
     BossBarColor, BossBarStyle, CheckpointDefinition, CheckpointFieldPair, CombatCritical,
     CombatDefinition, CookingMethod, CustomBiome, CustomItem, DimensionDefinition, EncounterAttack,
     EncounterDefinition, FlatDimension, HudBossBar, HudDefinition, InventoryTransferDefinition,
-    JobDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition, MenuView,
-    NoiseDimension, NoticeDialog, OreFeatureDefinition, ProgressionBranch, ProgressionDefinition,
-    ProgressionObjective, ProjectileDefinition, Rarity, Recipe, RecipeOutput, ResourceTag,
-    SceneContent, SceneDefinition, SceneKeyframe, ScenePart, SessionDefinition, StateCooldown,
-    TagKind, WorldPredicate, WrittenBookContent,
+    JigsawStructure, JobDefinition, LootItem, LootPool, LootTable, MenuChoice, MenuDefinition,
+    MenuView, NoiseDimension, NoticeDialog, OreFeatureDefinition, ProgressionBranch,
+    ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
+    RecipeOutput, ResourceTag, SceneContent, SceneDefinition, SceneKeyframe, ScenePart,
+    SessionDefinition, StateCooldown, TagKind, TemplatePoolDefinition, TemplatePoolPiece,
+    WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How terrain is modified around a generated structure.\n\n# Context\nHow terrain is modified around a generated structure. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::TerrainAdaptation;\n```\nHow terrain is modified around a generated structure.",
+  "oneOf": [
+    {
+      "const": "none",
+      "description": "Applies Minecraft's none terrain adaptation.\nApplies Minecraft's none terrain adaptation.",
+      "type": "string"
+    },
+    {
+      "const": "beard_thin",
+      "description": "Applies Minecraft's beard thin terrain adaptation.\nApplies Minecraft's beard thin terrain adaptation.",
+      "type": "string"
+    },
+    {
+      "const": "beard_box",
+      "description": "Applies Minecraft's beard box terrain adaptation.\nApplies Minecraft's beard box terrain adaptation.",
+      "type": "string"
+    },
+    {
+      "const": "bury",
+      "description": "Applies Minecraft's bury terrain adaptation.\nApplies Minecraft's bury terrain adaptation.",
+      "type": "string"
+    },
+    {
+      "const": "encapsulate",
+      "description": "Applies Minecraft's encapsulate terrain adaptation.\nApplies Minecraft's encapsulate terrain adaptation.",
+      "type": "string"
+    }
+  ]
+}

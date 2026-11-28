@@ -20,7 +20,7 @@ pub use gameplay::{
 };
 pub use operation::{
     AbilityCommand, Action, ArchetypeCommand, CheckpointCommand, Operation, RosterCommand,
-    SessionCommand,
+    SessionCommand, VfxCue,
 };
 pub use resources::{
     AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion, AdvancementDisplay, BossBar,

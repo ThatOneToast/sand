@@ -504,6 +504,27 @@
         },
         {
           "additionalProperties": false,
+          "description": "Render an authored sequence relative to the current execution position.",
+          "properties": {
+            "cues": {
+              "items": {
+                "$ref": "#/$defs/VfxCue"
+              },
+              "type": "array"
+            },
+            "op": {
+              "const": "play_vfx",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "cues"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Apply a status effect to the executing player.",
           "properties": {
             "amplifier": {
@@ -8989,6 +9010,104 @@
           },
           "required": [
             "below_top"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "VfxCue": {
+      "description": "One cue in a portable visual or sound sequence.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Emit the same particle at each relative point.",
+          "properties": {
+            "count": {
+              "description": "Particles emitted per point.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "force": {
+              "description": "Use Minecraft's forced visibility mode.",
+              "type": "boolean"
+            },
+            "id": {
+              "description": "Native particle identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "particle",
+              "type": "string"
+            },
+            "points": {
+              "description": "Relative X, Y, and Z coordinates for each point.",
+              "items": {
+                "items": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "speed": {
+              "description": "Nonnegative particle speed.",
+              "format": "double",
+              "type": "number"
+            },
+            "spread": {
+              "description": "Nonnegative spread on each axis.",
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "points",
+            "spread",
+            "speed",
+            "count",
+            "force"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Play an audible sound near the effect origin.",
+          "properties": {
+            "id": {
+              "description": "Native sound event identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "sound",
+              "type": "string"
+            },
+            "pitch": {
+              "description": "Pitch from zero through two.",
+              "format": "double",
+              "type": "number"
+            },
+            "volume": {
+              "description": "Nonnegative sound volume.",
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "volume",
+            "pitch"
           ],
           "type": "object"
         }

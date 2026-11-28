@@ -182,6 +182,8 @@ pub enum DefKind {
     Roster,
     /// `status_effect Name { ... }`.
     StatusEffect,
+    /// `vfx Name { ... }`.
+    Vfx,
     /// `archetype Name { ... }`.
     Archetype,
     /// `hud Name { ... }`.
@@ -244,6 +246,7 @@ impl DefKind {
             DefKind::Encounter => "encounter",
             DefKind::Roster => "roster",
             DefKind::StatusEffect => "status effect",
+            DefKind::Vfx => "VFX sequence",
             DefKind::Archetype => "archetype",
             DefKind::Hud => "HUD",
             DefKind::Menu => "menu",
@@ -1242,6 +1245,7 @@ impl Cx {
                     crate::ast::DataKind::Encounter => DefKind::Encounter,
                     crate::ast::DataKind::Roster => DefKind::Roster,
                     crate::ast::DataKind::StatusEffect => DefKind::StatusEffect,
+                    crate::ast::DataKind::Vfx => DefKind::Vfx,
                     crate::ast::DataKind::Archetype => DefKind::Archetype,
                     crate::ast::DataKind::Hud => DefKind::Hud,
                     crate::ast::DataKind::Menu => DefKind::Menu,

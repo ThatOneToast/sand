@@ -91,6 +91,7 @@ fn item_level() {
             "encounter",
             "roster",
             "status_effect",
+            "vfx",
             "archetype",
             "hud",
             "menu",
@@ -364,6 +365,7 @@ fn flows() {
 
 #[test]
 fn data_declarations_offer_only_remaining_valid_fields() {
+    exactly("vfx Celebration {\n    |\n}", &["cues"]);
     exactly(
         "configured_feature Marker {\n    |\n}",
         &[

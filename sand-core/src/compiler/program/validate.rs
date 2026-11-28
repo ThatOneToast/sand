@@ -3441,6 +3441,73 @@ impl Validator<'_, '_> {
                         Some((0.0, 2.0)),
                     );
                 }
+                Action::PlayVfx { cues } => {
+                    if !(1..=64).contains(&cues.len()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_VFX",
+                            owner,
+                            &ptr,
+                            "an effect needs between one and 64 cues",
+                        ));
+                        continue;
+                    }
+                    let earlier_errors = self.errors.len();
+                    for (index, cue) in cues.iter().enumerate() {
+                        let location = format!("{ptr}/action/cues/{index}");
+                        match cue {
+                            VfxCue::Particle {
+                                id,
+                                points,
+                                count,
+                                spread,
+                                speed,
+                                ..
+                            } => {
+                                self.resource(&id.to_string(), owner, &location, "particle");
+                                if !(1..=32).contains(&points.len()) || *count > 100_000 {
+                                    self.errors.push(Diagnostic::error(
+                                        "SAND_PROGRAM_VFX", owner, &location,
+                                        "a particle cue needs 1 to 32 points and at most 100000 particles per point",
+                                    ));
+                                }
+                                if spread
+                                    .iter()
+                                    .chain([speed])
+                                    .any(|value| !(0.0..=1000.0).contains(value))
+                                {
+                                    self.errors.push(Diagnostic::error(
+                                        "SAND_PROGRAM_VFX", owner, &location,
+                                        "particle spread and speed must be finite and from zero to 1000",
+                                    ));
+                                }
+                            }
+                            VfxCue::Sound { id, volume, pitch } => {
+                                self.resource(&id.to_string(), owner, &location, "sound");
+                                for (field, value, max) in [
+                                    ("volume", volume, f64::from(f32::MAX)),
+                                    ("pitch", pitch, 2.0),
+                                ] {
+                                    if !(0.0..=max).contains(value) {
+                                        self.errors.push(Diagnostic::error(
+                                            "SAND_PROGRAM_VFX", owner, &format!("{location}/{field}"),
+                                            format!("sound {field} must be finite and from zero to {max}"),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if self.errors.len() == earlier_errors
+                        && let Err(error) = VfxCue::effect(owner, cues).try_play()
+                    {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_VFX",
+                            owner,
+                            &ptr,
+                            error.to_string(),
+                        ));
+                    }
+                }
                 Action::Particle {
                     particle,
                     count,

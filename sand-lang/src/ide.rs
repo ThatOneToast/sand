@@ -311,6 +311,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}archetype {}", def.name),
                     format!("Entity lifecycle composed from State under `{id}`."),
                 ),
+                (crate::ast::DataKind::Vfx, _) => (
+                    format!("{vis}vfx {}", def.name),
+                    format!(
+                        "Reusable particle and sound sequence `{id}`. Play it with `play_vfx`."
+                    ),
+                ),
                 (crate::ast::DataKind::StatusEffect, _) => (
                     format!("{vis}status_effect {}", def.name),
                     format!(
@@ -1319,6 +1325,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Encounter
         | DefKind::Roster
         | DefKind::StatusEffect
+        | DefKind::Vfx
         | DefKind::Archetype
         | DefKind::Hud
         | DefKind::Progression
@@ -2749,6 +2756,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             r#"archetype ${1:Guard} { entity: Entity::${2:ArmorStand}, components: [${3:GuardState}] }"#,
         ),
         Completion::snippet(
+            "vfx",
+            "ordered spatial particle and sound cues",
+            r#"vfx ${1:Flourish} { cues: [{ particle: Particle::${2:Heart}, count: ${3:5} }] }"#,
+        ),
+        Completion::snippet(
             "status_effect",
             "timed status with lifecycle callbacks",
             r#"status_effect ${1:Guard} { ticks: ${2:60}, start: ${3:guard_started}, stop: ${4:guard_stopped} }"#,
@@ -3121,6 +3133,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Encounter => "Encounter",
                 ParamKind::Roster => "Roster",
                 ParamKind::StatusEffect => "StatusEffect",
+                ParamKind::Vfx => "Vfx",
                 ParamKind::Archetype => "Archetype",
                 ParamKind::RosterRole => "role",
                 ParamKind::Hud => "Hud",

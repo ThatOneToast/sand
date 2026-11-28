@@ -869,6 +869,27 @@ impl Cx {
                 ));
                 out.archetypes.push(archetype);
             }
+            DataKind::Vfx => {
+                let Some(field) = get("cues") else { return };
+                let Some(cues) = self.data_vfx(module, file, &field.value) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/functions/{}/body", out.functions.len()),
+                    file,
+                    field.value.span(),
+                ));
+                out.functions.push(pc::Function {
+                    id: location,
+                    context: pc::ExecutionContext::Server,
+                    body: vec![op_at(
+                        pc::Action::PlayVfx { cues },
+                        file,
+                        field.value.span(),
+                    )],
+                });
+            }
             DataKind::StatusEffect => {
                 let Some(ticks) = get("ticks").and_then(|field| {
                     self.data_int(module, file, &field.value, 1, i32::MAX as i64)
@@ -3583,6 +3604,140 @@ impl Cx {
         None
     }
 
+    fn data_vfx(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<Vec<pc::VfxCue>> {
+        let DataValue::Array(cues, _) = value else {
+            self.error(
+                "vfx",
+                file,
+                value.span(),
+                "expected an ordered list of particle and sound cues",
+            );
+            return None;
+        };
+        if !(1..=64).contains(&cues.len()) {
+            self.error(
+                "vfx",
+                file,
+                value.span(),
+                "an effect needs between one and 64 cues",
+            );
+            return None;
+        }
+        let mut result = Vec::with_capacity(cues.len());
+        for cue in cues {
+            let DataValue::Object(entries, _) = cue else {
+                self.error("vfx", file, cue.span(), "expected a particle or sound cue");
+                return None;
+            };
+            let particle = entries.iter().any(|field| field.key.name == "particle");
+            let sound = entries.iter().any(|field| field.key.name == "sound");
+            let kind = match (particle, sound) {
+                (true, false) => "particle",
+                (false, true) => "sound",
+                _ => {
+                    self.error(
+                        "vfx",
+                        file,
+                        cue.span(),
+                        "a cue needs either a particle or a sound",
+                    );
+                    return None;
+                }
+            };
+            let optional: &[_] = if particle {
+                &["points", "spread", "speed", "count", "force"]
+            } else {
+                &["volume", "pitch"]
+            };
+            let fields = self.data_object_fields(file, cue, kind, &[kind], optional)?;
+            let expr = self.data_expr(file, fields.get(kind)?, kind)?;
+            let registry = if particle { "Particle" } else { "Sound" };
+            let id = self
+                .vanilla_value(module, file, expr, registry)?
+                .parse()
+                .ok()?;
+            let mut number = |name, default| match fields.get(name) {
+                Some(value) => self.data_number(module, file, value),
+                None => Some(default),
+            };
+            if sound {
+                result.push(pc::VfxCue::Sound {
+                    id,
+                    volume: number("volume", 1.0)?,
+                    pitch: number("pitch", 1.0)?,
+                });
+                continue;
+            }
+            let speed = number("speed", 0.0)?;
+            let spread = match fields.get("spread") {
+                Some(value) => self.data_vfx_point(module, file, value)?,
+                None => [0.0; 3],
+            };
+            let points = match fields.get("points") {
+                None => vec![[0.0, 1.0, 0.0]],
+                Some(DataValue::Array(points, _)) if (1..=32).contains(&points.len()) => points
+                    .iter()
+                    .map(|point| self.data_vfx_point(module, file, point))
+                    .collect::<Option<_>>()?,
+                Some(value) => {
+                    self.error(
+                        "vfx",
+                        file,
+                        value.span(),
+                        "a particle cue needs between one and 32 points",
+                    );
+                    return None;
+                }
+            };
+            let force = match fields.get("force") {
+                Some(value) => self.data_bool(file, value)?,
+                None => false,
+            };
+            let count = match fields.get("count") {
+                Some(value) => self.data_int(module, file, value, 0, 100_000)? as u32,
+                None => 1,
+            };
+            result.push(pc::VfxCue::Particle {
+                id,
+                points,
+                spread,
+                speed,
+                count,
+                force,
+            });
+        }
+        Some(result)
+    }
+
+    fn data_vfx_point(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<[f64; 3]> {
+        if let DataValue::Array(values, _) = value
+            && let [x, y, z] = values.as_slice()
+        {
+            return Some([
+                self.data_number(module, file, x)?,
+                self.data_number(module, file, y)?,
+                self.data_number(module, file, z)?,
+            ]);
+        }
+        self.error(
+            "vfx",
+            file,
+            value.span(),
+            "expected three coordinates as [x, y, z]",
+        );
+        None
+    }
+
     fn data_configured_feature<'a>(
         &mut self,
         module: ModuleId,
@@ -4552,6 +4707,7 @@ impl Cx {
         let expr = self.data_expr(file, value, "a number")?;
         match expr {
             Expr::Float(v, _) => Some(*v),
+            Expr::Neg(inner, _) if let Expr::Float(v, _) = inner.as_ref() => Some(-*v),
             other => self
                 .eval_i32(module, file, other, Some(Ty::Number), None)
                 .map(|v| v as f64),

@@ -1010,6 +1010,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "vfx"
+                },
+                {
+                  "type": "STRING",
                   "value": "archetype"
                 },
                 {

@@ -548,6 +548,7 @@ pub enum DataKind {
     Roster,
     /// A timed player-owned status with lifecycle callbacks.
     StatusEffect,
+    Vfx,
     /// An entity kind with reusable State components and lifecycle callbacks.
     Archetype,
     Hud,
@@ -589,6 +590,7 @@ impl DataKind {
             DataKind::Encounter => "encounter",
             DataKind::Roster => "roster",
             DataKind::StatusEffect => "status_effect",
+            DataKind::Vfx => "vfx",
             DataKind::Archetype => "archetype",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",

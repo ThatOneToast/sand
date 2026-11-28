@@ -66,6 +66,8 @@ pub enum ParamKind {
     Roster,
     /// A declared timed status effect.
     StatusEffect,
+    /// A declared spatial particle and sound effect.
+    Vfx,
     /// A declared entity archetype.
     Archetype,
     /// A constant variant of the selected roster role enum.
@@ -1968,6 +1970,22 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "release_archetype(${1:Guard});",
     },
     Builtin {
+        name: "play_vfx",
+        kind: BuiltinKind::Statement,
+        signature: "play_vfx(effect)",
+        summary: "Play a declared particle and sound sequence at the current position.",
+        details: "Players hear the sound according to native distance and volume rules.",
+        minecraft: "Runs a function of ordered native particle and playsound commands.",
+        needs_player: false,
+        params: &[p(
+            "effect",
+            ParamKind::Vfx,
+            true,
+            "The declared presentation sequence.",
+        )],
+        snippet: "play_vfx(${1:Flourish});",
+    },
+    Builtin {
         name: "apply_status",
         kind: BuiltinKind::Statement,
         signature: "apply_status(status)",
@@ -3483,6 +3501,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         r#"{ title: "${1:Supplies}", value: ${2:Hero.energy}, max: ${3:100} }"#,
     ),
     f(
+        "vfx",
+        "cues",
+        FieldKind::ResourceId,
+        true,
+        "Ordered particle and sound cues.",
+        "[{ particle: Particle::${1:Heart}, count: ${2:5} }]",
+    ),
+    f(
         "archetype",
         "entity",
         FieldKind::Registry("Entity"),
@@ -4294,6 +4320,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "roster",
         "`roster Name { ... }` controls bounded online membership in an arena.",
+    ),
+    (
+        "vfx",
+        "`vfx Name { cues: [...] }` declares an ordered particle and sound sequence.",
     ),
     (
         "status_effect",

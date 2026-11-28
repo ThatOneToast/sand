@@ -390,6 +390,27 @@
     },
     {
       "additionalProperties": false,
+      "description": "Render an authored sequence relative to the current execution position.",
+      "properties": {
+        "cues": {
+          "items": {
+            "$ref": "defs-VfxCue.schema.json"
+          },
+          "type": "array"
+        },
+        "op": {
+          "const": "play_vfx",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "cues"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Apply a status effect to the executing player.",
       "properties": {
         "amplifier": {

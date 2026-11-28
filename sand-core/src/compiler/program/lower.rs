@@ -3365,6 +3365,12 @@ impl Lower<'_> {
                     ],
                     &[],
                 )?,
+                Action::PlayVfx { cues } => VfxCue::effect(owner, cues)
+                    .try_play()
+                    .map_err(|error| fail(error.to_string()))?
+                    .into_iter()
+                    .map(Cmd::Raw)
+                    .collect(),
                 Action::Particle {
                     particle,
                     count,

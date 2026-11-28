@@ -5438,6 +5438,11 @@ impl Cx {
                     _ => pc::ArchetypeCommand::Release,
                 },
             },
+            "play_vfx" => pc::Action::Call {
+                function: pc::FunctionReference::Internal {
+                    id: self.arg_declared(body, bound["effect"], DefKind::Vfx, "a VFX sequence")?,
+                },
+            },
             "apply_status" | "remove_status" => pc::Action::Status {
                 status: self.arg_declared(
                     body,

@@ -348,7 +348,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Native notice dialogs with translated text and player-scoped open and clear.
 - [x] Paginated native menus with named views, player-scoped one-shot callbacks,
   and State guards for choices and sessions.
-- [ ] Broader advancement triggers, worldgen and VFX.
+- [x] Named spatial particle and sound sequences through the shared VFX renderer.
+- [ ] Broader advancement triggers and worldgen.
 - [x] Owner-scoped HUDs with bounded lifetime, rich actionbars, private
   State-driven boss bars, and cancellation.
 - [x] Player-owned sampled projectiles with impact callbacks, target filters,

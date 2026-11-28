@@ -1145,6 +1145,35 @@ let sparks = Hero.energy / 10;
 spawn_particle(Particle::HappyVillager, count = sparks, spread = 0.25);
 ```
 
+Use a `vfx` declaration when several particle or sound cues should play
+together from a single call. The cues and particle points play in the declared
+order at the current execution position. Minecraft applies its distance and
+volume rules when delivering the sound to players.
+
+```rust,ignore
+vfx LevelUp {
+    cues: [
+        {
+            particle: Particle::HappyVillager,
+            points: [[-0.5, 1.0, 0.0], [0.5, 1.0, 0.0]],
+            spread: [0.1, 0.2, 0.1],
+            count: 6,
+        },
+        { sound: Sound::EntityPlayerLevelup, volume: 0.75, pitch: 1.25 },
+    ],
+}
+
+fn celebrate() {
+    play_vfx(LevelUp);
+}
+```
+
+A particle cue can also set `speed` and `force`. Without `points` it emits
+one block above the origin. A cue accepts up to 32 points, and a sequence
+accepts up to 64 cues. Each particle point is a constant relative offset.
+Use ordinary Sand waits between separate sequences when an effect needs
+timing.
+
 ## Entities
 
 `for name in entities(..)` runs its body as each matching entity, positioned

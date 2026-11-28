@@ -27,7 +27,8 @@ pub use model::{
     SceneKeyframe, ScenePart, ScoreComparison, ScoreField, ScoreOperand, ScoreOperator,
     ScoreRelation, SessionCommand, SessionDefinition, State, StateAttached, StateCooldown,
     StatusEffectDefinition, TagKind, TagMembership, TeleportDestination, TemplatePoolDefinition,
-    TemplatePoolPiece, TextColor, TextPart, TextStyle, Weather, WorldPredicate, WrittenBookContent,
+    TemplatePoolPiece, TextColor, TextPart, TextStyle, VfxCue, Weather, WorldPredicate,
+    WrittenBookContent,
 };
 pub use sand_commands::DataModifyOperation;
 use std::collections::BTreeMap;
@@ -78,6 +79,7 @@ const CAPABILITIES: &[&str] = &[
     "structure_templates",
     "sounds",
     "particles",
+    "vfx",
     "effects",
     "items",
     "schedule",

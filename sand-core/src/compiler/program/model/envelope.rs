@@ -1,9 +1,11 @@
 //! Owned portable envelope definitions.
 use super::{
-    AbilityDefinition, Advancement, CombatDefinition, CustomBiome, DimensionDefinition, EventHook,
-    Function, HudDefinition, InventoryTransferDefinition, JobDefinition, MenuDefinition,
-    NoticeDialog, Operation, ProgressionDefinition, ProjectileDefinition, SceneDefinition,
-    SessionDefinition, State, TagMembership, WorldPredicate,
+    AbilityDefinition, Advancement, CheckpointDefinition, CombatDefinition, CustomBiome,
+    DimensionDefinition, EncounterDefinition, EventHook, Function, HudDefinition,
+    InventoryTransferDefinition, JigsawStructure, JobDefinition, MenuDefinition, NoticeDialog,
+    Operation, OreFeatureDefinition, ProgressionDefinition, ProjectileDefinition, RosterDefinition,
+    SceneDefinition, SessionDefinition, State, TagMembership, TemplatePoolDefinition,
+    WorldPredicate,
 };
 use sand_components::{DamageType, ResourceLocation, StructureTemplate};
 use schemars::JsonSchema;
@@ -191,25 +193,25 @@ pub struct Module {
     pub structure_sets: Vec<sand_components::StructureSet>,
     /// Configured ore veins and their biome-restricted placement.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub ore_features: Vec<super::OreFeatureDefinition>,
+    pub ore_features: Vec<OreFeatureDefinition>,
     /// Native structures that expand from a jigsaw pool.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub jigsaw_structures: Vec<super::JigsawStructure>,
+    pub jigsaw_structures: Vec<JigsawStructure>,
     /// Weighted template choices for a jigsaw generator.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub template_pools: Vec<super::TemplatePoolDefinition>,
+    pub template_pools: Vec<TemplatePoolDefinition>,
     /// Named inventory transfer definitions owned by this module.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub inventory_transfers: Vec<InventoryTransferDefinition>,
     /// Player-owned State checkpoint definitions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub checkpoints: Vec<super::CheckpointDefinition>,
+    pub checkpoints: Vec<CheckpointDefinition>,
     /// Player-owned priority encounter definitions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub encounters: Vec<super::EncounterDefinition>,
+    pub encounters: Vec<EncounterDefinition>,
     /// Bounded online arena rosters.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub rosters: Vec<super::RosterDefinition>,
+    pub rosters: Vec<RosterDefinition>,
     /// Named owner-scoped HUD definitions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub huds: Vec<HudDefinition>,

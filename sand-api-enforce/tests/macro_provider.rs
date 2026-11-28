@@ -21,7 +21,12 @@ fn repository_registry_id_family_tracks_every_invocation() {
         .unwrap();
     let provider =
         registry_id_provider(&workspace.join("sand-components/src/registry.rs")).unwrap();
-    assert_eq!(provider.len(), 37);
+    assert_eq!(provider.len(), 38);
+    assert!(
+        provider
+            .iter()
+            .any(|item| item.identity.ends_with("::PlacedFeatureId"))
+    );
     for local_resource in provider.iter().filter(|item| {
         item.identity.ends_with("::DialogId") || item.identity.ends_with("::FunctionId")
     }) {

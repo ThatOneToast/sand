@@ -319,7 +319,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   at absolute or relative positions.
 - [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
 - [x] Authored jigsaw structures and weighted NBT template pools for natural generation.
-- [ ] Additional configured and placed feature families and custom noise settings authoring.
+- [x] Separately configured block, weighted block, layer, ore and no-op features with reusable ordered placement pipelines.
+- [ ] Additional feature algorithms and custom noise settings authoring.
 - [x] Native structure sets with weighted placement, random spread and rings.
 - [x] Custom dimension rules for height, lighting, coordinate scale,
   infiniburn and spawn light, through native dimension type resources.

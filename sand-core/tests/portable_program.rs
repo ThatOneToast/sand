@@ -38,6 +38,8 @@ fn counter() -> Program {
             structure_templates: vec![],
             structure_sets: vec![],
             ore_features: vec![],
+            configured_features: vec![],
+            placed_features: vec![],
             jigsaw_structures: vec![],
             template_pools: vec![],
             inventory_transfers: vec![],

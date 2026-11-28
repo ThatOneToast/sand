@@ -1,0 +1,33 @@
+#![pack(namespace = "terrains", minecraft = "26.2")]
+configured_feature Markers {
+    weighted_blocks: [
+        { block: Block::OakLog, properties: { axis: "x" }, weight: 2 },
+        { block: Block::DiamondBlock, weight: 1 },
+    ],
+}
+configured_feature Glass { fill_layer: { block: Block::Glass, height: 10 } }
+configured_feature Quiet { no_op: true }
+configured_feature Ore {
+    ore: {
+        size: 9,
+        targets: [{ replace: Block::Stone, block: Block::CopperOre }],
+    },
+}
+placed_feature Surface {
+    feature: Markers,
+    placement: [{ count: 30 }, in_square, { heightmap: world_surface_wg }, biome_filter],
+}
+placed_feature Buried {
+    feature: Ore,
+    placement: [
+        { rarity: 2 },
+        { height: { trapezoid: { min: { above_bottom: 4 }, max: { absolute: 48 }, plateau: 8 } } },
+        biome_filter,
+    ],
+}
+placed_feature Floating {
+    feature: Markers,
+    placement: [{ height: { absolute: 112 } }],
+}
+biome Foothills { features: { vegetal_decoration: [Surface, Floating], underground_ores: [Buried] } }
+dimension Highland { biome: Foothills, noise_settings: "minecraft:overworld" }

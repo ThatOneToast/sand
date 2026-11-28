@@ -116,15 +116,27 @@ impl BlockState {
     }
 
     pub(crate) fn to_json(&self) -> Value {
+        self.to_json_with_keys("Name", "Properties")
+    }
+
+    pub(crate) fn to_feature_json(&self, modern: bool) -> Value {
+        if modern {
+            self.to_json_with_keys("id", "properties")
+        } else {
+            self.to_json()
+        }
+    }
+
+    fn to_json_with_keys(&self, id: &str, properties_key: &str) -> Value {
         let mut map = Map::new();
-        map.insert("Name".into(), Value::String(self.block.to_string()));
+        map.insert(id.into(), Value::String(self.block.to_string()));
         if !self.properties.is_empty() {
             let properties: Map<String, Value> = self
                 .properties
                 .iter()
                 .map(|(key, value)| (key.clone(), Value::String(value.clone())))
                 .collect();
-            map.insert("Properties".into(), Value::Object(properties));
+            map.insert(properties_key.into(), Value::Object(properties));
         }
         Value::Object(map)
     }
@@ -166,7 +178,10 @@ impl BlockState {
     example = "use sand::component::WeightedBlockState;",
 )]
 /// A weighted entry of a [`BlockStateProvider::Weighted`] provider.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct WeightedBlockState {
     state: BlockState,
     weight: u32,
@@ -207,7 +222,10 @@ impl WeightedBlockState {
     variant_fields(Simple = ["`minecraft:simple_state_provider` — always the same block state."], Weighted = ["`minecraft:weighted_state_provider` — a weighted random choice."]),
 )]
 /// A typed block-state provider used by worldgen feature configs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum BlockStateProvider {
     /// `minecraft:simple_state_provider` — always the same block state.
     Simple(#[doc = "`minecraft:simple_state_provider` — always the same block state."] BlockState),
@@ -257,24 +275,30 @@ impl BlockStateProvider {
         Self::Weighted(entries.into_iter().collect())
     }
 
-    pub(crate) fn to_json(&self) -> Value {
+    pub(crate) fn to_feature_json(&self, modern: bool) -> Value {
         match self {
+            Self::Simple(state) if modern => state.to_feature_json(true),
             Self::Simple(state) => serde_json::json!({
                 "type": "minecraft:simple_state_provider",
                 "state": state.to_json(),
             }),
             Self::Weighted(entries) => {
+                let provider = if modern {
+                    "minecraft:weighted"
+                } else {
+                    "minecraft:weighted_state_provider"
+                };
                 let entries: Vec<Value> = entries
                     .iter()
                     .map(|entry| {
                         serde_json::json!({
                             "weight": entry.weight,
-                            "data": entry.state.to_json(),
+                            "data": entry.state.to_feature_json(modern),
                         })
                     })
                     .collect();
                 serde_json::json!({
-                    "type": "minecraft:weighted_state_provider",
+                    "type": provider,
                     "entries": entries,
                 })
             }
@@ -296,6 +320,7 @@ impl BlockStateProvider {
                     &format!("{field}.entries"),
                     entries.len(),
                 )?;
+                let mut total = 0_u64;
                 for (index, entry) in entries.iter().enumerate() {
                     let entry_field = format!("{field}.entries[{index}]");
                     if entry.weight == 0 {
@@ -306,7 +331,16 @@ impl BlockStateProvider {
                             "weight must be at least 1; received 0",
                         ));
                     }
+                    total += u64::from(entry.weight);
                     entry.state.validate(location, kind, &entry_field)?;
+                }
+                if total > i32::MAX as u64 {
+                    return Err(validation::error(
+                        location,
+                        kind,
+                        &format!("{field}.entries"),
+                        "the sum of block-state weights must fit a signed integer",
+                    ));
                 }
                 Ok(())
             }
@@ -333,7 +367,10 @@ const MAX_ANCHOR: i32 = 2031;
     variant_fields(AboveBottom = ["An offset above the dimension's minimum build height."], Absolute = ["An absolute Y coordinate."], BelowTop = ["An offset below the dimension's maximum build height."]),
 )]
 /// A vanilla vertical anchor (`{"absolute": 0}`, `{"above_bottom": 8}`, …).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum VerticalAnchor {
     /// An absolute Y coordinate.
     Absolute(#[doc = "An absolute Y coordinate."] i32),
@@ -415,7 +452,8 @@ impl VerticalAnchor {
 ///
 /// [`HeightProvider::Raw`] is the explicit escape hatch for provider types
 /// Sand does not model yet (for example `weighted_list`).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum HeightProvider {
     /// A constant anchor, emitted using the vanilla inline shorthand.
     Constant(
@@ -589,7 +627,10 @@ fn require_ordered_anchors(
     variants(MotionBlocking = "Samples Minecraft's motion blocking heightmap.", MotionBlockingNoLeaves = "Samples Minecraft's motion blocking no leaves heightmap.", OceanFloor = "Samples Minecraft's ocean floor heightmap.", OceanFloorWg = "Samples Minecraft's ocean floor wg heightmap.", WorldSurface = "Samples Minecraft's world surface heightmap.", WorldSurfaceWg = "Samples Minecraft's world surface wg heightmap."),
 )]
 /// A vanilla chunk heightmap selector.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Heightmap {
     #[doc = "Samples Minecraft's world surface wg heightmap."]
     WorldSurfaceWg,
@@ -647,7 +688,7 @@ mod tests {
             BlockState::new(BlockId::minecraft("oak_log").unwrap()).property("axis", "y"),
         );
         assert_eq!(
-            provider.to_json(),
+            provider.to_feature_json(false),
             serde_json::json!({
                 "type": "minecraft:simple_state_provider",
                 "state": {"Name": "minecraft:oak_log", "Properties": {"axis": "y"}},

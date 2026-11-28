@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, \u2026).\n\n# Context\nA vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, \u2026). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::VerticalAnchor;\n```\nA vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, \u2026).",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "An absolute Y coordinate.\nAn absolute Y coordinate.",
+      "properties": {
+        "absolute": {
+          "description": "An absolute Y coordinate.\nAn absolute Y coordinate.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "absolute"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "An offset above the dimension's minimum build height.\nAn offset above the dimension's minimum build height.",
+      "properties": {
+        "above_bottom": {
+          "description": "An offset above the dimension's minimum build height.\nAn offset above the dimension's minimum build height.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "above_bottom"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "An offset below the dimension's maximum build height.\nAn offset below the dimension's maximum build height.",
+      "properties": {
+        "below_top": {
+          "description": "An offset below the dimension's maximum build height.\nAn offset below the dimension's maximum build height.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "below_top"
+      ],
+      "type": "object"
+    }
+  ]
+}

@@ -1797,10 +1797,22 @@ pub(super) fn validate(
                 push(ptr, error.to_string());
             }
         }
+        for (kind, index, feature) in module.terrain_features() {
+            let id = feature.resource_location();
+            let ptr = format!("/{kind}/{index}");
+            if !resource_ids.insert(format!("{kind} {id}")) {
+                push(format!("{ptr}/id"), format!("duplicate feature `{id}`"));
+            }
+            if let Err(error) = feature.validate() {
+                push(ptr, error.to_string());
+            }
+        }
         for (index, feature) in module.ore_features.iter().enumerate() {
             use sand_components::component::DatapackComponent;
             let ptr = format!("/ore_features/{index}");
-            if !resource_ids.insert(format!("ore feature {}", feature.id)) {
+            let configured = resource_ids.insert(format!("configured_features {}", feature.id));
+            let placed = resource_ids.insert(format!("placed_features {}", feature.id));
+            if !configured || !placed {
                 push(
                     format!("{ptr}/id"),
                     format!("duplicate ore feature `{}`", feature.id),

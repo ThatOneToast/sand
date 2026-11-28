@@ -335,6 +335,18 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}inventory_transfer {}", def.name),
                     format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
                 ),
+                (crate::ast::DataKind::ConfiguredFeature, _) => (
+                    format!("{vis}configured_feature {}", def.name),
+                    format!(
+                        "Native generation algorithm `{id}`. Reference it from a placed feature."
+                    ),
+                ),
+                (crate::ast::DataKind::PlacedFeature, _) => (
+                    format!("{vis}placed_feature {}", def.name),
+                    format!(
+                        "Native generation placement `{id}`. Include it in a biome generation step."
+                    ),
+                ),
                 (crate::ast::DataKind::OreFeature, _) => (
                     format!("{vis}ore_feature {}", def.name),
                     format!(
@@ -1297,6 +1309,8 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Biome
         | DefKind::StructureTemplate
         | DefKind::OreFeature
+        | DefKind::ConfiguredFeature
+        | DefKind::PlacedFeature
         | DefKind::StructureSet
         | DefKind::JigsawStructure
         | DefKind::TemplatePool
@@ -2758,6 +2772,16 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "inventory_transfer",
             "checked inventory move",
             "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
+        ),
+        Completion::snippet(
+            "configured_feature",
+            "what to generate in a biome",
+            r#"configured_feature ${1:Decoration} { simple_block: { block: Block::${2:MossBlock} } }"#,
+        ),
+        Completion::snippet(
+            "placed_feature",
+            "ordered rules for terrain feature placement",
+            r#"placed_feature ${1:Surface} { feature: ${2:Decoration}, placement: [{ count: ${3:6} }, in_square, { heightmap: world_surface_wg }, biome_filter] }"#,
         ),
         Completion::snippet(
             "ore_feature",

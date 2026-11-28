@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).\n\n# Context\nA placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`). Placed features reference a configured feature and a list of placement modifiers that determine where and how often they generate in the world. Author the referenced feature with [`ConfiguredFeature`](sand::component::ConfiguredFeature) and pass [`ConfiguredFeature::id`](sand::component::ConfiguredFeature::id) here.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::PlacedFeature;\n```\nA placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).\n\nPlaced features reference a configured feature and a list of placement\nmodifiers that determine where and how often they generate in the world.\nAuthor the referenced feature with\n[`ConfiguredFeature`](crate::worldgen::ConfiguredFeature) and pass\n[`ConfiguredFeature::id`](crate::worldgen::ConfiguredFeature::id) here.",
+  "properties": {
+    "feature": {
+      "$ref": "defs-ConfiguredFeatureReference.schema.json",
+      "description": "The configured feature to place."
+    },
+    "location": {
+      "type": "string"
+    },
+    "placement": {
+      "description": "Ordered placement pipeline.",
+      "items": {
+        "$ref": "defs-PlacementModifier.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "location",
+    "feature",
+    "placement"
+  ],
+  "type": "object"
+}

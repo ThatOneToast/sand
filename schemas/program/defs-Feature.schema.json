@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The typed feature type and its config.",
+  "oneOf": [
+    {
+      "enum": [
+        "no_op"
+      ],
+      "type": "string"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "simple_block": {
+          "additionalProperties": false,
+          "properties": {
+            "to_place": {
+              "$ref": "defs-BlockStateProvider.schema.json"
+            }
+          },
+          "required": [
+            "to_place"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "simple_block"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "fill_layer": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "state": {
+              "$ref": "defs-BlockState.schema.json"
+            }
+          },
+          "required": [
+            "state",
+            "height"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "fill_layer"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "ore": {
+          "$ref": "defs-OreConfig.schema.json"
+        }
+      },
+      "required": [
+        "ore"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "raw": {
+          "additionalProperties": false,
+          "properties": {
+            "config": {
+              "$ref": "defs-RawJson.schema.json"
+            },
+            "feature_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "feature_type",
+            "config"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "type": "object"
+    }
+  ]
+}

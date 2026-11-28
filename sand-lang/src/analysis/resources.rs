@@ -1073,6 +1073,32 @@ impl Cx {
                 ));
                 out.biomes.push(biome);
             }
+            DataKind::ConfiguredFeature => {
+                let span = data.name.span;
+                let Some(feature) = self.data_configured_feature(module, file, location, span, get)
+                else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/configured_features/{}", out.configured_features.len()),
+                    file,
+                    span,
+                ));
+                out.configured_features.push(feature);
+            }
+            DataKind::PlacedFeature => {
+                let Some(feature) = self.data_placed_feature(module, file, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/placed_features/{}", out.placed_features.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.placed_features.push(feature);
+            }
             DataKind::OreFeature => {
                 let Some(feature) = self.data_ore_feature(module, file, location, get) else {
                     return;
@@ -3202,7 +3228,12 @@ impl Cx {
         kind: DefKind,
     ) -> Option<sand::ResourceLocation> {
         if let DataValue::Expr(expr @ Expr::Path(_)) = value {
-            if let Some((_, id)) = self.declared(module, file, expr, kind) {
+            let id = self.declared(module, file, expr, kind).or_else(|| {
+                matches!(kind, DefKind::ConfiguredFeature | DefKind::PlacedFeature)
+                    .then(|| self.declared(module, file, expr, DefKind::OreFeature))
+                    .flatten()
+            });
+            if let Some((_, id)) = id {
                 return Some(id.parse().expect("valid authored resource"));
             }
             self.error(
@@ -3552,6 +3583,305 @@ impl Cx {
         None
     }
 
+    fn data_configured_feature<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        span: Span,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<sand::component::ConfiguredFeature> {
+        use sand::component::{BlockStateProvider, ConfiguredFeature, WeightedBlockState};
+        let kinds = [
+            "simple_block",
+            "weighted_blocks",
+            "fill_layer",
+            "ore",
+            "no_op",
+        ];
+        let fields = kinds.into_iter().filter_map(get).collect::<Vec<_>>();
+        let [field] = fields.as_slice() else {
+            self.error(
+                "feature",
+                file,
+                span,
+                "choose exactly one configured feature kind",
+            );
+            return None;
+        };
+        let value = &field.value;
+        match field.key.name.as_str() {
+            "simple_block" => {
+                let fields = self.data_object_fields(
+                    file,
+                    value,
+                    "simple_block",
+                    &["block"],
+                    &["properties"],
+                )?;
+                let state = self.data_feature_block_state(
+                    module,
+                    file,
+                    fields.get("block")?,
+                    fields.get("properties").copied(),
+                )?;
+                Some(ConfiguredFeature::simple_block(
+                    id,
+                    BlockStateProvider::simple(state),
+                ))
+            }
+            "weighted_blocks" => {
+                let DataValue::Array(entries, _) = value else {
+                    self.error(
+                        "feature",
+                        file,
+                        value.span(),
+                        "expected a list of weighted block states",
+                    );
+                    return None;
+                };
+                let mut choices = Vec::with_capacity(entries.len());
+                for entry in entries {
+                    let fields = self.data_object_fields(
+                        file,
+                        entry,
+                        "weighted block",
+                        &["block", "weight"],
+                        &["properties"],
+                    )?;
+                    let state = self.data_feature_block_state(
+                        module,
+                        file,
+                        fields.get("block")?,
+                        fields.get("properties").copied(),
+                    )?;
+                    let weight =
+                        self.data_int(module, file, fields.get("weight")?, 1, i32::MAX.into())?
+                            as u32;
+                    choices.push(WeightedBlockState::new(state, weight));
+                }
+                Some(ConfiguredFeature::simple_block(
+                    id,
+                    BlockStateProvider::Weighted(choices),
+                ))
+            }
+            "fill_layer" => {
+                let fields = self.data_object_fields(
+                    file,
+                    value,
+                    "fill_layer",
+                    &["block", "height"],
+                    &["properties"],
+                )?;
+                let state = self.data_feature_block_state(
+                    module,
+                    file,
+                    fields.get("block")?,
+                    fields.get("properties").copied(),
+                )?;
+                let height = self.data_int(module, file, fields.get("height")?, 0, 4064)? as u32;
+                Some(ConfiguredFeature::fill_layer(id, state, height))
+            }
+            "ore" => {
+                let fields = self.data_object_fields(
+                    file,
+                    value,
+                    "ore",
+                    &["size", "targets"],
+                    &["discard_exposed"],
+                )?;
+                let size = self.data_int(module, file, fields.get("size")?, 0, 64)? as u32;
+                let config = self.data_ore_config(
+                    module,
+                    file,
+                    size,
+                    fields.get("targets")?,
+                    fields.get("discard_exposed").copied(),
+                )?;
+                Some(ConfiguredFeature::ore(id, config))
+            }
+            "no_op" => {
+                if self.data_bool(file, value)? {
+                    Some(ConfiguredFeature::no_op(id))
+                } else {
+                    self.error("feature", file, value.span(), "`no_op` requires true");
+                    None
+                }
+            }
+            _ => unreachable!("configured feature fields are selected by kind"),
+        }
+    }
+
+    fn data_placed_feature<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<sand::component::PlacedFeature> {
+        let value = &get("feature")?.value;
+        let configured =
+            self.data_worldgen_reference(module, file, value, DefKind::ConfiguredFeature)?;
+        let value = &get("placement")?.value;
+        let DataValue::Array(entries, _) = value else {
+            self.error(
+                "feature",
+                file,
+                value.span(),
+                "expected an ordered list of placement modifiers",
+            );
+            return None;
+        };
+        let placement = entries
+            .iter()
+            .map(|entry| self.data_placement_modifier(module, file, entry))
+            .collect::<Option<Vec<_>>>()?;
+        Some(sand::component::PlacedFeature::new(id, configured.into()).placement(placement))
+    }
+
+    fn data_placement_modifier(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        entry: &DataValue,
+    ) -> Option<sand::component::PlacementModifier> {
+        use sand::component::PlacementModifier;
+        if let DataValue::Expr(Expr::Path(path)) = entry
+            && path.segments.len() == 1
+            && path.applications.is_empty()
+        {
+            match path.last().name.as_str() {
+                "in_square" => return Some(PlacementModifier::InSquare),
+                "biome_filter" => return Some(PlacementModifier::Biome),
+                _ => {}
+            }
+        }
+        if let DataValue::Object(fields, _) = entry
+            && let [field] = fields.as_slice()
+        {
+            let value = &field.value;
+            return match field.key.name.as_str() {
+                "count" => self
+                    .data_int(module, file, value, 0, 4096)
+                    .map(|count| PlacementModifier::Count(count as i32)),
+                "rarity" => self
+                    .data_int(module, file, value, 1, i32::MAX.into())
+                    .map(|chance| PlacementModifier::RarityFilter(chance as i32)),
+                "surface_water_depth" => self
+                    .data_int(module, file, value, i32::MIN.into(), i32::MAX.into())
+                    .map(|depth| PlacementModifier::SurfaceWaterDepth(depth as i32)),
+                "height" => self
+                    .data_placement_height(module, file, value)
+                    .map(PlacementModifier::HeightRange),
+                "heightmap" => {
+                    if let DataValue::Expr(Expr::Path(path)) = value
+                        && path.segments.len() == 1
+                        && path.applications.is_empty()
+                        && let Ok(heightmap) = serde_json::from_value(serde_json::Value::String(
+                            path.last().name.clone(),
+                        ))
+                    {
+                        return Some(PlacementModifier::Heightmap(heightmap));
+                    }
+                    self.error(
+                        "feature",
+                        file,
+                        value.span(),
+                        "expected a heightmap such as `world_surface_wg`",
+                    );
+                    None
+                }
+                _ => {
+                    self.error(
+                        "feature",
+                        file,
+                        field.key.span,
+                        "unknown placement modifier",
+                    );
+                    None
+                }
+            };
+        }
+        self.error(
+            "feature",
+            file,
+            entry.span(),
+            "expected `in_square`, `biome_filter`, or one named placement modifier",
+        );
+        None
+    }
+
+    fn data_placement_height(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<sand::component::HeightProvider> {
+        use sand::component::HeightProvider;
+        if let DataValue::Object(fields, _) = value
+            && let [field] = fields.as_slice()
+            && matches!(field.key.name.as_str(), "uniform" | "trapezoid")
+        {
+            let trapezoid = field.key.name == "trapezoid";
+            let required: &[_] = if trapezoid {
+                &["min", "max", "plateau"]
+            } else {
+                &["min", "max"]
+            };
+            let fields =
+                self.data_object_fields(file, &field.value, &field.key.name, required, &[])?;
+            let min_inclusive = self.data_vertical_anchor(module, file, fields.get("min")?)?;
+            let max_inclusive = self.data_vertical_anchor(module, file, fields.get("max")?)?;
+            return Some(if trapezoid {
+                let plateau =
+                    self.data_int(module, file, fields.get("plateau")?, 0, i32::MAX.into())? as i32;
+                HeightProvider::Trapezoid {
+                    min_inclusive,
+                    max_inclusive,
+                    plateau,
+                }
+            } else {
+                HeightProvider::Uniform {
+                    min_inclusive,
+                    max_inclusive,
+                }
+            });
+        }
+        self.data_vertical_anchor(module, file, value)
+            .map(HeightProvider::Constant)
+    }
+
+    fn data_vertical_anchor(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<sand::component::VerticalAnchor> {
+        use sand::component::VerticalAnchor;
+        if let DataValue::Object(fields, _) = value
+            && let [field] = fields.as_slice()
+        {
+            let anchor: Option<fn(i32) -> VerticalAnchor> = match field.key.name.as_str() {
+                "absolute" => Some(VerticalAnchor::Absolute),
+                "above_bottom" => Some(VerticalAnchor::AboveBottom),
+                "below_top" => Some(VerticalAnchor::BelowTop),
+                _ => None,
+            };
+            if let Some(anchor) = anchor {
+                return self
+                    .data_int(module, file, &field.value, -2032, 2031)
+                    .map(|y| anchor(y as i32));
+            }
+        }
+        self.error(
+            "feature",
+            file,
+            value.span(),
+            "expected one vertical anchor such as `{ absolute: 32 }`",
+        );
+        None
+    }
+
     fn data_ore_feature<'a>(
         &mut self,
         module: ModuleId,
@@ -3559,7 +3889,6 @@ impl Cx {
         id: sand::ResourceLocation,
         get: impl Fn(&str) -> Option<&'a DataField>,
     ) -> Option<pc::OreFeatureDefinition> {
-        use sand::component::{BlockState, OreConfig, OreTarget, RuleTest, TagId};
         let size = self.data_int(module, file, &get("size")?.value, 0, 64)? as u32;
         let count = self.data_int(module, file, &get("count")?.value, 0, 4096)? as i32;
         let min_y = self.data_int(module, file, &get("min_y")?.value, -2032, 2031)? as i32;
@@ -3573,7 +3902,31 @@ impl Cx {
             );
             return None;
         }
-        let targets = &get("targets")?.value;
+        let config = self.data_ore_config(
+            module,
+            file,
+            size,
+            &get("targets")?.value,
+            get("discard_exposed").map(|field| &field.value),
+        )?;
+        Some(pc::OreFeatureDefinition {
+            id,
+            config,
+            count,
+            min_y,
+            max_y,
+        })
+    }
+
+    fn data_ore_config(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        size: u32,
+        targets: &DataValue,
+        discard_exposed: Option<&DataValue>,
+    ) -> Option<sand::component::OreConfig> {
+        use sand::component::{OreConfig, OreTarget, RuleTest, TagId};
         let DataValue::Array(entries, _) = targets else {
             self.error(
                 "ore feature",
@@ -3611,84 +3964,93 @@ impl Cx {
                     block: replace.parse().ok()?,
                 }
             };
-            let expr = self.data_expr(file, fields.get("block")?, "a block for the ore vein")?;
-            let block = self
-                .vanilla_value(module, file, expr, "Block")?
-                .parse()
-                .ok()?;
-            let mut state = BlockState::new(block);
-            if let Some(properties) = fields.get("properties") {
-                let DataValue::Object(entries, _) = properties else {
-                    self.error(
-                        "block state",
-                        file,
-                        properties.span(),
-                        "expected named block properties",
-                    );
-                    return None;
-                };
-                let mut seen = BTreeSet::new();
-                for property in entries {
-                    let key = &property.key.name;
-                    if !seen.insert(key) {
-                        self.error(
-                            "block state",
-                            file,
-                            property.key.span,
-                            format!("duplicate block property `{key}`"),
-                        );
-                        return None;
-                    }
-                    let expr = self.data_expr(file, &property.value, "a block property value")?;
-                    let value = match expr {
-                        Expr::Str { value, .. }
-                            if !value.is_empty()
-                                && value.bytes().all(|byte| {
-                                    byte.is_ascii_lowercase()
-                                        || byte.is_ascii_digit()
-                                        || byte == b'_'
-                                }) =>
-                        {
-                            value.clone()
-                        }
-                        Expr::Bool(value, _) => value.to_string(),
-                        Expr::Int(value, _) => value.to_string(),
-                        _ => {
-                            self.error(
-                                "block state",
-                                file,
-                                expr.span(),
-                                "use a quoted property token, boolean, or whole number",
-                            );
-                            return None;
-                        }
-                    };
-                    state = state.property(key, value);
-                }
-            }
+            let state = self.data_feature_block_state(
+                module,
+                file,
+                fields.get("block")?,
+                fields.get("properties").copied(),
+            )?;
             replacements.push(OreTarget::new(target, state));
         }
         let mut config = OreConfig::new(size, replacements);
-        if let Some(field) = get("discard_exposed") {
-            let chance = self.data_biome_number(module, file, &field.value)?;
+        if let Some(value) = discard_exposed {
+            let chance = self.data_biome_number(module, file, value)?;
             if !(0.0..=1.0).contains(&chance) {
                 self.error(
                     "range",
                     file,
-                    field.value.span(),
+                    value.span(),
                     "discard probability must be between zero and one",
                 );
                 return None;
             }
             config = config.discard_chance_on_air_exposure(chance);
         }
-        Some(pc::OreFeatureDefinition {
-            id,
-            config,
-            count,
-            min_y,
-            max_y,
-        })
+        Some(config)
+    }
+
+    fn data_feature_block_state(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        block: &DataValue,
+        properties: Option<&DataValue>,
+    ) -> Option<sand::component::BlockState> {
+        use sand::component::BlockState;
+        let expr = self.data_expr(file, block, "a native block")?;
+        let block = self
+            .vanilla_value(module, file, expr, "Block")?
+            .parse()
+            .ok()?;
+        let mut state = BlockState::new(block);
+        if let Some(properties) = properties {
+            let DataValue::Object(entries, _) = properties else {
+                self.error(
+                    "block state",
+                    file,
+                    properties.span(),
+                    "expected named block properties",
+                );
+                return None;
+            };
+            let mut seen = BTreeSet::new();
+            for property in entries {
+                let key = &property.key.name;
+                if !seen.insert(key) {
+                    self.error(
+                        "block state",
+                        file,
+                        property.key.span,
+                        format!("duplicate block property `{key}`"),
+                    );
+                    return None;
+                }
+                let expr = self.data_expr(file, &property.value, "a block property value")?;
+                let value = match expr {
+                    Expr::Str { value, .. }
+                        if !value.is_empty()
+                            && value.bytes().all(|byte| {
+                                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
+                            }) =>
+                    {
+                        value.clone()
+                    }
+                    Expr::Bool(value, _) => value.to_string(),
+                    Expr::Int(value, _) => value.to_string(),
+                    _ => {
+                        self.error(
+                            "block state",
+                            file,
+                            expr.span(),
+                            "use a quoted property token, boolean, or whole number",
+                        );
+                        return None;
+                    }
+                };
+                state = state.property(key, value);
+            }
+        }
+        Some(state)
     }
 
     fn data_biome_features(
@@ -3732,7 +4094,7 @@ impl Cx {
             let ids = entries
                 .iter()
                 .map(|value| {
-                    self.data_worldgen_reference(module, file, value, DefKind::OreFeature)
+                    self.data_worldgen_reference(module, file, value, DefKind::PlacedFeature)
                         .map(Into::into)
                 })
                 .collect::<Option<Vec<_>>>()?;

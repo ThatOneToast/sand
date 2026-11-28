@@ -64,6 +64,8 @@ const CAPABILITIES: &[&str] = &[
     "jigsaw_structures",
     "placed_biome_features",
     "ore_features",
+    "configured_features",
+    "placed_features",
     "player_checkpoints",
     "owned_encounters",
     "owned_status_effects",

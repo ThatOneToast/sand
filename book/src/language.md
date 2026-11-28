@@ -1814,6 +1814,63 @@ exposed to air. A replacement can set its native block properties with
 `properties: { axis: "x" }`. Use vanilla property names and quoted tokens,
 boolean literals, or whole numbers. Generation applies to new chunks.
 
+### Configuring and placing terrain features
+
+Use `configured_feature` to choose what generates. Use one or more
+`placed_feature` declarations to choose where and how often it generates.
+Add those placements to a biome's generation steps.
+
+```rust,ignore
+configured_feature TrailMarkers {
+    weighted_blocks: [
+        { block: Block::MossyCobblestone, weight: 4 },
+        { block: Block::MossBlock, weight: 1 },
+    ],
+}
+
+placed_feature HillMarkers {
+    feature: TrailMarkers,
+    placement: [{ count: 6 }, in_square, { heightmap: world_surface_wg }, biome_filter],
+}
+
+biome MarkedHills { features: { vegetal_decoration: [HillMarkers] } }
+dimension Hills { noise_settings: "minecraft:overworld", biome: MarkedHills }
+```
+
+Choose one configuration per declaration. `simple_block` takes a
+`{ block: Block::..., properties: { ... } }` record with optional properties.
+`weighted_blocks` takes a list of the same records with positive weights.
+`fill_layer` takes a block state and a `height` above the dimension floor,
+`ore` takes `size`, `targets`, and optional `discard_exposed`, and
+`no_op: true` registers an empty algorithm.
+
+Placement modifiers run in the order supplied. `{ count: 6 }` repeats each
+position, `{ rarity: 4 }` keeps one in four on average, and `in_square`
+scatters positions within the chunk. Use a heightmap such as
+`{ heightmap: ocean_floor_wg }`, or use an explicit height anchor such as
+`{ height: { above_bottom: 16 } }`. Anchors can also be `absolute` or
+`below_top`. Uniform and trapezoidal distributions take `min` and `max`
+anchors. A trapezoid also takes `plateau`.
+
+```rust,ignore
+placed_feature BuriedMarkers {
+    feature: TrailMarkers,
+    placement: [
+        { rarity: 5 },
+        in_square,
+        { height: { uniform: { min: { above_bottom: 8 }, max: { absolute: 48 } } } },
+        biome_filter,
+    ],
+}
+```
+
+`{ surface_water_depth: 2 }` limits the water over a placement position.
+`biome_filter` keeps a position only where the biome lists the placed
+feature. Authors can also use a quoted namespaced configured feature ID.
+These declarations use the target's native resource layout. Minecraft 26.2
+exports configured features under `worldgen/configured_feature` and 26.3
+uses `worldgen/feature`.
+
 ### Reading entity data and inventories
 
 `entity_data_number("Health")` reads the vanilla integer result of a checked

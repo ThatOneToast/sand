@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A weighted entry of a [`BlockStateProvider::Weighted`] provider.\n\n# Context\nA weighted entry of a [`BlockStateProvider::Weighted`] provider. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::WeightedBlockState;\n```\nA weighted entry of a [`BlockStateProvider::Weighted`] provider.",
+  "properties": {
+    "state": {
+      "$ref": "defs-BlockState.schema.json"
+    },
+    "weight": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "state",
+    "weight"
+  ],
+  "type": "object"
+}

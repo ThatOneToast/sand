@@ -982,6 +982,14 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "configured_feature"
+                },
+                {
+                  "type": "STRING",
+                  "value": "placed_feature"
+                },
+                {
+                  "type": "STRING",
                   "value": "inventory_transfer"
                 },
                 {

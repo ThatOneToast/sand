@@ -52,6 +52,13 @@
       },
       "type": "array"
     },
+    "configured_features": {
+      "description": "Native block generation algorithms.",
+      "items": {
+        "$ref": "defs-ConfiguredFeature.schema.json"
+      },
+      "type": "array"
+    },
     "damage_types": {
       "description": "Native damage type definitions.",
       "items": {
@@ -172,6 +179,13 @@
       "description": "Configured ore veins and their biome-restricted placement.",
       "items": {
         "$ref": "defs-OreFeatureDefinition.schema.json"
+      },
+      "type": "array"
+    },
+    "placed_features": {
+      "description": "Ordered placement pipelines for configured features.",
+      "items": {
+        "$ref": "defs-PlacedFeature.schema.json"
       },
       "type": "array"
     },

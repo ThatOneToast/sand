@@ -2518,6 +2518,42 @@
       ],
       "type": "object"
     },
+    "BlockStateProvider": {
+      "description": "A typed block-state provider used by worldgen feature configs.\n\n# Context\nA typed block-state provider used by worldgen feature configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::BlockStateProvider;\n```\nA typed block-state provider used by worldgen feature configs.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:simple_state_provider` \u2014 always the same block state.\n`minecraft:simple_state_provider` \u2014 always the same block state.",
+          "properties": {
+            "simple": {
+              "$ref": "#/$defs/BlockState",
+              "description": "`minecraft:simple_state_provider` \u2014 always the same block state.\n`minecraft:simple_state_provider` \u2014 always the same block state."
+            }
+          },
+          "required": [
+            "simple"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`minecraft:weighted_state_provider` \u2014 a weighted random choice.\n`minecraft:weighted_state_provider` \u2014 a weighted random choice.",
+          "properties": {
+            "weighted": {
+              "description": "`minecraft:weighted_state_provider` \u2014 a weighted random choice.\n`minecraft:weighted_state_provider` \u2014 a weighted random choice.",
+              "items": {
+                "$ref": "#/$defs/WeightedBlockState"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "weighted"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "BossBar": {
       "additionalProperties": false,
       "description": "A named bar shown at the top of the screen.",
@@ -3073,6 +3109,52 @@
         }
       ],
       "description": "A portable condition evaluated with the current executor and position."
+    },
+    "ConfiguredFeature": {
+      "additionalProperties": false,
+      "description": "A configured feature definition (`data/<namespace>/worldgen/configured_feature/<id>.json`).\n\n# Context\nA configured feature definition (`data/<namespace>/worldgen/configured_feature/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::ConfiguredFeature;\n```\nA configured feature definition\n(`data/<namespace>/worldgen/configured_feature/<id>.json`).\n\n```\nuse sand_components::{BlockId, DatapackComponent, ResourceLocation};\nuse sand_components::worldgen::ConfiguredFeature;\nuse sand_components::worldgen::providers::{BlockState, BlockStateProvider};\n\nlet feature = ConfiguredFeature::simple_block(\n    ResourceLocation::new(\"example\", \"lone_fern\").unwrap(),\n    BlockStateProvider::simple(BlockState::new(BlockId::minecraft(\"fern\").unwrap())),\n);\nassert_eq!(feature.component_dir(), \"worldgen/configured_feature\");\nassert_eq!(feature.to_json()[\"type\"], \"minecraft:simple_block\");\n```",
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/Feature"
+        },
+        "location": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "feature"
+      ],
+      "type": "object"
+    },
+    "ConfiguredFeatureReference": {
+      "description": "How the referenced configured feature was supplied.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "typed": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "typed"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "raw": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "raw"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "CookingMethod": {
       "description": "Which furnace-like block cooks a recipe.",
@@ -4338,6 +4420,102 @@
         }
       ]
     },
+    "Feature": {
+      "description": "The typed feature type and its config.",
+      "oneOf": [
+        {
+          "enum": [
+            "no_op"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "simple_block": {
+              "additionalProperties": false,
+              "properties": {
+                "to_place": {
+                  "$ref": "#/$defs/BlockStateProvider"
+                }
+              },
+              "required": [
+                "to_place"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "simple_block"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fill_layer": {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "state": {
+                  "$ref": "#/$defs/BlockState"
+                }
+              },
+              "required": [
+                "state",
+                "height"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "fill_layer"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "ore": {
+              "$ref": "#/$defs/OreConfig"
+            }
+          },
+          "required": [
+            "ore"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "raw": {
+              "additionalProperties": false,
+              "properties": {
+                "config": {
+                  "$ref": "#/$defs/RawJson"
+                },
+                "feature_type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "feature_type",
+                "config"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "raw"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "FieldReference": {
       "additionalProperties": false,
       "description": "A field reference binds a field identity to its declaring State.",
@@ -4724,6 +4902,136 @@
         {
           "const": "top_layer_modification",
           "description": "Places content during Minecraft's top layer modification generation step.\nPlaces content during Minecraft's top layer modification generation step.",
+          "type": "string"
+        }
+      ]
+    },
+    "HeightProvider": {
+      "description": "A vanilla height provider. [`HeightProvider::Raw`] is the explicit escape hatch for provider types Sand does not model yet (for example `weighted_list`).\n\n# Context\nA vanilla height provider. [`HeightProvider::Raw`] is the explicit escape hatch for provider types Sand does not model yet (for example `weighted_list`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::HeightProvider;\n```\nA vanilla height provider.\n\n[`HeightProvider::Raw`] is the explicit escape hatch for provider types\nSand does not model yet (for example `weighted_list`).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A constant anchor, emitted using the vanilla inline shorthand.\nA constant anchor, emitted using the vanilla inline shorthand.",
+          "properties": {
+            "constant": {
+              "$ref": "#/$defs/VerticalAnchor",
+              "description": "A constant anchor, emitted using the vanilla inline shorthand.\nA constant anchor, emitted using the vanilla inline shorthand."
+            }
+          },
+          "required": [
+            "constant"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A uniformly sampled inclusive anchor range.\nA uniformly sampled inclusive anchor range.",
+          "properties": {
+            "uniform": {
+              "additionalProperties": false,
+              "properties": {
+                "max_inclusive": {
+                  "$ref": "#/$defs/VerticalAnchor",
+                  "description": "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range.\n`max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range."
+                },
+                "min_inclusive": {
+                  "$ref": "#/$defs/VerticalAnchor",
+                  "description": "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range.\n`min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range."
+                }
+              },
+              "required": [
+                "min_inclusive",
+                "max_inclusive"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "uniform"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A trapezoidal distribution between two anchors.\nA trapezoidal distribution between two anchors.",
+          "properties": {
+            "trapezoid": {
+              "additionalProperties": false,
+              "properties": {
+                "max_inclusive": {
+                  "$ref": "#/$defs/VerticalAnchor",
+                  "description": "`max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors.\n`max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors."
+                },
+                "min_inclusive": {
+                  "$ref": "#/$defs/VerticalAnchor",
+                  "description": "`min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors.\n`min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors."
+                },
+                "plateau": {
+                  "description": "`plateau` provides the plateau when a trapezoidal distribution between two anchors.\n`plateau` provides the plateau when a trapezoidal distribution between two anchors.",
+                  "format": "int32",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "min_inclusive",
+                "max_inclusive",
+                "plateau"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "trapezoid"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An explicitly raw height provider object.\nAn explicitly raw height provider object.",
+          "properties": {
+            "raw": {
+              "$ref": "#/$defs/RawJson",
+              "description": "An explicitly raw height provider object.\nAn explicitly raw height provider object."
+            }
+          },
+          "required": [
+            "raw"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Heightmap": {
+      "description": "A vanilla chunk heightmap selector.\n\n# Context\nA vanilla chunk heightmap selector. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::Heightmap;\n```\nA vanilla chunk heightmap selector.",
+      "oneOf": [
+        {
+          "const": "world_surface_wg",
+          "description": "Samples Minecraft's world surface wg heightmap.\nSamples Minecraft's world surface wg heightmap.",
+          "type": "string"
+        },
+        {
+          "const": "world_surface",
+          "description": "Samples Minecraft's world surface heightmap.\nSamples Minecraft's world surface heightmap.",
+          "type": "string"
+        },
+        {
+          "const": "ocean_floor_wg",
+          "description": "Samples Minecraft's ocean floor wg heightmap.\nSamples Minecraft's ocean floor wg heightmap.",
+          "type": "string"
+        },
+        {
+          "const": "ocean_floor",
+          "description": "Samples Minecraft's ocean floor heightmap.\nSamples Minecraft's ocean floor heightmap.",
+          "type": "string"
+        },
+        {
+          "const": "motion_blocking",
+          "description": "Samples Minecraft's motion blocking heightmap.\nSamples Minecraft's motion blocking heightmap.",
+          "type": "string"
+        },
+        {
+          "const": "motion_blocking_no_leaves",
+          "description": "Samples Minecraft's motion blocking no leaves heightmap.\nSamples Minecraft's motion blocking no leaves heightmap.",
           "type": "string"
         }
       ]
@@ -5747,6 +6055,134 @@
         "state"
       ],
       "type": "object"
+    },
+    "PlacedFeature": {
+      "additionalProperties": false,
+      "description": "A placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).\n\n# Context\nA placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`). Placed features reference a configured feature and a list of placement modifiers that determine where and how often they generate in the world. Author the referenced feature with [`ConfiguredFeature`](sand::component::ConfiguredFeature) and pass [`ConfiguredFeature::id`](sand::component::ConfiguredFeature::id) here.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::PlacedFeature;\n```\nA placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).\n\nPlaced features reference a configured feature and a list of placement\nmodifiers that determine where and how often they generate in the world.\nAuthor the referenced feature with\n[`ConfiguredFeature`](crate::worldgen::ConfiguredFeature) and pass\n[`ConfiguredFeature::id`](crate::worldgen::ConfiguredFeature::id) here.",
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/ConfiguredFeatureReference",
+          "description": "The configured feature to place."
+        },
+        "location": {
+          "type": "string"
+        },
+        "placement": {
+          "description": "Ordered placement pipeline.",
+          "items": {
+            "$ref": "#/$defs/PlacementModifier"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "location",
+        "feature",
+        "placement"
+      ],
+      "type": "object"
+    },
+    "PlacementModifier": {
+      "description": "An ordered, typed worldgen placement operation.\n\n# Context\nCompose common vanilla feature placement without anonymous JSON, reusing HeightProvider and Heightmap.\n\n# Minecraft behavior\nSerializes an ordered placement entry; PlacedFeature validates numeric bounds and nested providers before export.\n\n# Use when\n- Placing configured features with common vanilla modifiers\n\n# Avoid when\n- Describing a configured feature's block-generation algorithm\n\n# Example\n```rust,ignore\nuse sand::component::PlacementModifier; let scatter = PlacementModifier::InSquare;\n```\nOne ordered placement operation for a configured feature.\n\nModifiers form a pipeline: count repeats each input position, in-square\nscatters it horizontally, and height modifiers choose its elevation. Order\nis significant and is preserved on export. Numeric bounds are validated by\n`PlacedFeature` before export. Unsupported providers/modifiers remain explicit\nthrough `Raw`; raw payloads receive structural, not full codec validation.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Repeat each input position `0..=4096` times (a constant count provider).\nRepeat each position zero through 4096 times.",
+          "properties": {
+            "count": {
+              "description": "Number of repetitions, in 0..=4096.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Keep each position with probability `1 / chance`; chance must be positive.\nRetain each position with probability one in the positive chance.",
+          "properties": {
+            "rarity_filter": {
+              "description": "Positive reciprocal probability.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "rarity_filter"
+          ],
+          "type": "object"
+        },
+        {
+          "const": "in_square",
+          "description": "Randomize horizontal coordinates within the chunk.\nScatter positions within the chunk horizontally.",
+          "type": "string"
+        },
+        {
+          "const": "biome",
+          "description": "Keep only positions whose biome includes this placed feature.\nKeep positions where the biome allows this placed feature.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Sample elevation using the shared worldgen height-provider model.\nChoose elevation with the shared height provider.",
+          "properties": {
+            "height_range": {
+              "$ref": "#/$defs/HeightProvider",
+              "description": "The canonical height provider."
+            }
+          },
+          "required": [
+            "height_range"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Place at the selected chunk heightmap elevation.\nChoose elevation from a chunk heightmap.",
+          "properties": {
+            "heightmap": {
+              "$ref": "#/$defs/Heightmap",
+              "description": "The canonical heightmap selector."
+            }
+          },
+          "required": [
+            "heightmap"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Filter by maximum surface water depth, in blocks.\nKeep positions whose surface water depth does not exceed the maximum.",
+          "properties": {
+            "surface_water_depth": {
+              "description": "Maximum water depth in blocks.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "surface_water_depth"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Explicit unsupported or custom modifier JSON.\nExplicit unsupported placement JSON, structurally validated.",
+          "properties": {
+            "raw": {
+              "$ref": "#/$defs/RawJson",
+              "description": "An object with a valid resource-location type field."
+            }
+          },
+          "required": [
+            "raw"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "PlayerEvent": {
       "description": "A player occurrence that runs handler functions as that player.",
@@ -8161,6 +8597,56 @@
       },
       "type": "object"
     },
+    "VerticalAnchor": {
+      "description": "A vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, \u2026).\n\n# Context\nA vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, \u2026). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::VerticalAnchor;\n```\nA vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, \u2026).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "An absolute Y coordinate.\nAn absolute Y coordinate.",
+          "properties": {
+            "absolute": {
+              "description": "An absolute Y coordinate.\nAn absolute Y coordinate.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "absolute"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An offset above the dimension's minimum build height.\nAn offset above the dimension's minimum build height.",
+          "properties": {
+            "above_bottom": {
+              "description": "An offset above the dimension's minimum build height.\nAn offset above the dimension's minimum build height.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "above_bottom"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An offset below the dimension's maximum build height.\nAn offset below the dimension's maximum build height.",
+          "properties": {
+            "below_top": {
+              "description": "An offset below the dimension's maximum build height.\nAn offset below the dimension's maximum build height.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "below_top"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "Weather": {
       "description": "World weather.",
       "oneOf": [
@@ -8180,6 +8666,25 @@
           "type": "string"
         }
       ]
+    },
+    "WeightedBlockState": {
+      "additionalProperties": false,
+      "description": "A weighted entry of a [`BlockStateProvider::Weighted`] provider.\n\n# Context\nA weighted entry of a [`BlockStateProvider::Weighted`] provider. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::WeightedBlockState;\n```\nA weighted entry of a [`BlockStateProvider::Weighted`] provider.",
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/BlockState"
+        },
+        "weight": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "state",
+        "weight"
+      ],
+      "type": "object"
     },
     "WorldPredicate": {
       "additionalProperties": false,
@@ -8319,6 +8824,13 @@
       },
       "type": "array"
     },
+    "configured_features": {
+      "description": "Native block generation algorithms.",
+      "items": {
+        "$ref": "#/$defs/ConfiguredFeature"
+      },
+      "type": "array"
+    },
     "damage_types": {
       "description": "Native damage type definitions.",
       "items": {
@@ -8439,6 +8951,13 @@
       "description": "Configured ore veins and their biome-restricted placement.",
       "items": {
         "$ref": "#/$defs/OreFeatureDefinition"
+      },
+      "type": "array"
+    },
+    "placed_features": {
+      "description": "Ordered placement pipelines for configured features.",
+      "items": {
+        "$ref": "#/$defs/PlacedFeature"
       },
       "type": "array"
     },

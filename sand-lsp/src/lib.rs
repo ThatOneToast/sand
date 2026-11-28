@@ -660,6 +660,8 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::Biome
         | D::StructureTemplate
         | D::OreFeature
+        | D::ConfiguredFeature
+        | D::PlacedFeature
         | D::StructureSet
         | D::JigsawStructure
         | D::TemplatePool

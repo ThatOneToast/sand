@@ -607,6 +607,8 @@ impl Builder<'_> {
                     "jigsaw_structure" => DataKind::JigsawStructure,
                     "template_pool" => DataKind::TemplatePool,
                     "ore_feature" => DataKind::OreFeature,
+                    "configured_feature" => DataKind::ConfiguredFeature,
+                    "placed_feature" => DataKind::PlacedFeature,
                     "inventory_transfer" => DataKind::InventoryTransfer,
                     "checkpoint" => DataKind::Checkpoint,
                     "encounter" => DataKind::Encounter,

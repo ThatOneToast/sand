@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla chunk heightmap selector.\n\n# Context\nA vanilla chunk heightmap selector. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::Heightmap;\n```\nA vanilla chunk heightmap selector.",
+  "oneOf": [
+    {
+      "const": "world_surface_wg",
+      "description": "Samples Minecraft's world surface wg heightmap.\nSamples Minecraft's world surface wg heightmap.",
+      "type": "string"
+    },
+    {
+      "const": "world_surface",
+      "description": "Samples Minecraft's world surface heightmap.\nSamples Minecraft's world surface heightmap.",
+      "type": "string"
+    },
+    {
+      "const": "ocean_floor_wg",
+      "description": "Samples Minecraft's ocean floor wg heightmap.\nSamples Minecraft's ocean floor wg heightmap.",
+      "type": "string"
+    },
+    {
+      "const": "ocean_floor",
+      "description": "Samples Minecraft's ocean floor heightmap.\nSamples Minecraft's ocean floor heightmap.",
+      "type": "string"
+    },
+    {
+      "const": "motion_blocking",
+      "description": "Samples Minecraft's motion blocking heightmap.\nSamples Minecraft's motion blocking heightmap.",
+      "type": "string"
+    },
+    {
+      "const": "motion_blocking_no_leaves",
+      "description": "Samples Minecraft's motion blocking no leaves heightmap.\nSamples Minecraft's motion blocking no leaves heightmap.",
+      "type": "string"
+    }
+  ]
+}

@@ -122,7 +122,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat and noise dimension resources.", dimension_types = "Native environmental rules for dimensions.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", structure_sets = "Native placement schedules for weighted structures.", ore_features = "Configured ore veins and biome-restricted placement.", jigsaw_structures = "Native structures that expand from a jigsaw pool.", template_pools = "Weighted template choices for a jigsaw generator.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", checkpoints = "Player-owned State checkpoint projections.", encounters = "Player-owned bounded priority encounters.", rosters = "Bounded online arena rosters.", status_effects = "Player-owned timed status effects.", archetypes = "Typed entities composed from entity State.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat and noise dimension resources.", dimension_types = "Native environmental rules for dimensions.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", structure_sets = "Native placement schedules for weighted structures.", ore_features = "Configured ore veins and biome-restricted placement.", configured_features = "Native block generation algorithms.", placed_features = "Ordered placement pipelines for configured features.", jigsaw_structures = "Native structures that expand from a jigsaw pool.", template_pools = "Weighted template choices for a jigsaw generator.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", checkpoints = "Player-owned State checkpoint projections.", encounters = "Player-owned bounded priority encounters.", rosters = "Bounded online arena rosters.", status_effects = "Player-owned timed status effects.", archetypes = "Typed entities composed from entity State.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -194,6 +194,12 @@ pub struct Module {
     /// Configured ore veins and their biome-restricted placement.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ore_features: Vec<OreFeatureDefinition>,
+    /// Native block generation algorithms.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub configured_features: Vec<sand_components::ConfiguredFeature>,
+    /// Ordered placement pipelines for configured features.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub placed_features: Vec<sand_components::PlacedFeature>,
     /// Native structures that expand from a jigsaw pool.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub jigsaw_structures: Vec<JigsawStructure>,
@@ -245,6 +251,38 @@ pub struct Module {
     /// Named State combat policies.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub combats: Vec<CombatDefinition>,
+}
+
+impl Module {
+    pub(in crate::compiler::program) fn terrain_features(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            &'static str,
+            usize,
+            &dyn sand_components::component::DatapackComponent,
+        ),
+    > {
+        use sand_components::component::DatapackComponent;
+        self.configured_features
+            .iter()
+            .enumerate()
+            .map(|(index, feature)| {
+                (
+                    "configured_features",
+                    index,
+                    feature as &dyn DatapackComponent,
+                )
+            })
+            .chain(
+                self.placed_features
+                    .iter()
+                    .enumerate()
+                    .map(|(index, feature)| {
+                        ("placed_features", index, feature as &dyn DatapackComponent)
+                    }),
+            )
+    }
 }
 
 mod asset_encoding {

@@ -82,6 +82,8 @@ fn item_level() {
             "structure_template",
             "structure_set",
             "ore_feature",
+            "configured_feature",
+            "placed_feature",
             "jigsaw_structure",
             "template_pool",
             "inventory_transfer",
@@ -362,6 +364,20 @@ fn flows() {
 
 #[test]
 fn data_declarations_offer_only_remaining_valid_fields() {
+    exactly(
+        "configured_feature Marker {\n    |\n}",
+        &[
+            "simple_block",
+            "weighted_blocks",
+            "fill_layer",
+            "ore",
+            "no_op",
+        ],
+    );
+    exactly(
+        "placed_feature Surface {\n    |\n}",
+        &["feature", "placement"],
+    );
     exactly(
         "item Gem {\n    base: Item::Emerald,\n    |\n}",
         &[

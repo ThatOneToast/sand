@@ -537,6 +537,8 @@ pub enum DataKind {
     JigsawStructure,
     TemplatePool,
     OreFeature,
+    ConfiguredFeature,
+    PlacedFeature,
     InventoryTransfer,
     /// A player-owned checkpoint projection.
     Checkpoint,
@@ -580,6 +582,8 @@ impl DataKind {
             DataKind::JigsawStructure => "jigsaw_structure",
             DataKind::TemplatePool => "template_pool",
             DataKind::OreFeature => "ore_feature",
+            DataKind::ConfiguredFeature => "configured_feature",
+            DataKind::PlacedFeature => "placed_feature",
             DataKind::InventoryTransfer => "inventory_transfer",
             DataKind::Checkpoint => "checkpoint",
             DataKind::Encounter => "encounter",

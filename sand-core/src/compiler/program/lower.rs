@@ -816,6 +816,17 @@ pub(super) fn lower(
                 })?;
             lower.records.push(record);
         }
+        for (kind, index, feature) in module.terrain_features() {
+            let record = records::component_to_record(feature, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/{kind}/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
         for (index, feature) in module.ore_features.iter().enumerate() {
             let (configured, placed) = feature.components();
             let components: [&dyn sand_components::component::DatapackComponent; 2] =

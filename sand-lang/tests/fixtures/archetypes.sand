@@ -1,0 +1,32 @@
+#![pack(namespace = "archetype_probe", minecraft = "26.2")]
+entity state Memory { value: number = 4, name: string = "sentinel" }
+global state Activity { initialized: number, released: number }
+
+archetype Sentinel {
+    entity: Entity::ArmorStand,
+    components: [Memory],
+    initialize: initialize,
+    cleanup: cleanup,
+}
+archetype Observer {
+    entity: Entity::ArmorStand,
+    components: [Memory],
+}
+archetype Piglet {
+    entity: Entity::Pig,
+    components: [Memory],
+    adopt_every: 4,
+}
+fn initialize() { Memory.value += 1; Activity.initialized += 1; }
+fn cleanup() {
+    if Memory.value == 5 { Activity.released += 1; }
+}
+pub fn create() { spawn_archetype(Sentinel, at = pos(0, 110, 0)); }
+pub fn add_observer() { attach_archetype(Observer); }
+pub fn release_sentinel() { release_archetype(Sentinel); }
+pub fn release_observer() { release_archetype(Observer); }
+pub fn check_current() {
+    if has_archetype(Sentinel) && has_state(Memory) && Memory.name == "sentinel" {
+        Activity.initialized += 1;
+    }
+}

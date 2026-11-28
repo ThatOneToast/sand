@@ -528,6 +528,8 @@ pub enum DataKind {
     /// `dialog Name { ... }`.
     Dialog,
     Dimension,
+    /// Environmental rules referenced by a dimension.
+    DimensionType,
     Biome,
     StructureTemplate,
     InventoryTransfer,
@@ -556,6 +558,7 @@ impl DataKind {
             DataKind::Advancement => "advancement",
             DataKind::Dialog => "dialog",
             DataKind::Dimension => "dimension",
+            DataKind::DimensionType => "dimension_type",
             DataKind::Biome => "biome",
             DataKind::StructureTemplate => "structure_template",
             DataKind::InventoryTransfer => "inventory_transfer",

@@ -318,9 +318,15 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}biome {}", def.name),
                     format!("Custom biome `{id}`. Use it in a dimension or with `biome_is`."),
                 ),
+                (crate::ast::DataKind::DimensionType, _) => (
+                    format!("{vis}dimension_type {}", def.name),
+                    format!(
+                        "Environmental rules `{id}`. Refer to them from a dimension's `type` field."
+                    ),
+                ),
                 (crate::ast::DataKind::Dimension, _) => (
                     format!("{vis}dimension {}", def.name),
-                    format!("Flat dimension `{id}`. Use it with `in_dimension` or `dimension_is`."),
+                    format!("Dimension `{id}`. Use it with `in_dimension` or `dimension_is`."),
                 ),
                 (crate::ast::DataKind::Dialog, _) => (
                     format!("{vis}dialog {}", def.name),
@@ -1244,6 +1250,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::Advancement
         | DefKind::Dialog
         | DefKind::Dimension
+        | DefKind::DimensionType
         | DefKind::Biome
         | DefKind::StructureTemplate
         | DefKind::InventoryTransfer
@@ -2525,6 +2532,11 @@ fn data_completions(
             );
             out
         }
+        FieldKind::Registry("DimensionType") => {
+            let mut out = registry("DimensionType");
+            out.extend(declared(DefKind::DimensionType));
+            out
+        }
         FieldKind::Registry(name) => registry(name),
         FieldKind::Bool => vec![
             Completion::plain("true", CompletionKind::Keyword),
@@ -2663,6 +2675,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             "biome",
             "custom biome",
             r##"biome ${1:Grove} { temperature: ${2:0.7}, water_color: "#${3:3f76e4}" }"##,
+        ),
+        Completion::snippet(
+            "dimension_type",
+            "dimension environmental rules",
+            "dimension_type ${1:WorkshopRules} { min_y: ${2:-64}, height: ${3:384} }",
         ),
         Completion::snippet(
             "dimension",

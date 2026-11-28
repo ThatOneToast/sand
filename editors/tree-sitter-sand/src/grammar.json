@@ -950,6 +950,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "dimension_type"
+                },
+                {
+                  "type": "STRING",
                   "value": "dimension"
                 },
                 {

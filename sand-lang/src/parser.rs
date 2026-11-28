@@ -600,6 +600,7 @@ impl Builder<'_> {
                     "advancement" => DataKind::Advancement,
                     "dialog" => DataKind::Dialog,
                     "dimension" => DataKind::Dimension,
+                    "dimension_type" => DataKind::DimensionType,
                     "biome" => DataKind::Biome,
                     "structure_template" => DataKind::StructureTemplate,
                     "inventory_transfer" => DataKind::InventoryTransfer,

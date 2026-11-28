@@ -152,6 +152,8 @@ pub enum DefKind {
     Dialog,
     /// `dimension Name { ... }`.
     Dimension,
+    /// `dimension_type Name { ... }`.
+    DimensionType,
     /// `biome Name { ... }`.
     Biome,
     /// `structure_template Name { ... }`.
@@ -204,6 +206,7 @@ impl DefKind {
             DefKind::Advancement => "advancement",
             DefKind::Dialog => "dialog",
             DefKind::Dimension => "dimension",
+            DefKind::DimensionType => "dimension type",
             DefKind::Biome => "biome",
             DefKind::StructureTemplate => "structure template",
             DefKind::InventoryTransfer => "inventory transfer",
@@ -1183,6 +1186,7 @@ impl Cx {
                     crate::ast::DataKind::Advancement => DefKind::Advancement,
                     crate::ast::DataKind::Dialog => DefKind::Dialog,
                     crate::ast::DataKind::Dimension => DefKind::Dimension,
+                    crate::ast::DataKind::DimensionType => DefKind::DimensionType,
                     crate::ast::DataKind::Biome => DefKind::Biome,
                     crate::ast::DataKind::StructureTemplate => DefKind::StructureTemplate,
                     crate::ast::DataKind::InventoryTransfer => DefKind::InventoryTransfer,
@@ -3218,6 +3222,7 @@ impl Cx {
             advancements: Vec::new(),
             dialogs: Vec::new(),
             dimensions: Vec::new(),
+            dimension_types: Vec::new(),
             biomes: Vec::new(),
             structure_templates: Vec::new(),
             inventory_transfers: Vec::new(),
@@ -3637,6 +3642,7 @@ impl Cx {
             "Item" => Some(DefKind::CustomItem),
             "DamageType" => Some(DefKind::DamageType),
             "Dimension" => Some(DefKind::Dimension),
+            "DimensionType" => Some(DefKind::DimensionType),
             "Biome" => Some(DefKind::Biome),
             _ => None,
         };

@@ -3264,6 +3264,114 @@
       ],
       "type": "object"
     },
+    "DimensionType": {
+      "additionalProperties": false,
+      "description": "A Minecraft dimension type definition. The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:.\n\n# Context\nA Minecraft dimension type definition. The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:\n\n# Minecraft behavior\nThe constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::DimensionType;\n```\nA Minecraft dimension type definition.\n\nThe constructor uses overworld-like defaults, producing a complete valid\nshape without requiring raw JSON:\n\n```\nuse sand_components::{DatapackComponent, DimensionType, ResourceLocation};\n\nlet ty = DimensionType::new(\n    ResourceLocation::new(\"example\", \"bright_overworld\").unwrap(),\n);\nassert_eq!(ty.component_dir(), \"dimension_type\");\nassert_eq!(ty.to_json()[\"effects\"], \"minecraft:overworld\");\n```",
+      "properties": {
+        "ambient_light": {
+          "format": "float",
+          "type": "number"
+        },
+        "bed_works": {
+          "type": "boolean"
+        },
+        "coordinate_scale": {
+          "format": "double",
+          "type": "number"
+        },
+        "effects": {
+          "type": "string"
+        },
+        "fixed_time": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "has_ceiling": {
+          "type": "boolean"
+        },
+        "has_ender_dragon_fight": {
+          "type": "boolean"
+        },
+        "has_raids": {
+          "type": "boolean"
+        },
+        "has_skylight": {
+          "type": "boolean"
+        },
+        "height": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "infiniburn": {
+          "type": "string"
+        },
+        "logical_height": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_y": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "monster_spawn_block_light_limit": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "monster_spawn_light_level": {
+          "$ref": "#/$defs/MonsterSpawnLightLevel"
+        },
+        "natural": {
+          "type": "boolean"
+        },
+        "piglin_safe": {
+          "type": "boolean"
+        },
+        "raw_fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RawJson"
+          },
+          "type": "object"
+        },
+        "respawn_anchor_works": {
+          "type": "boolean"
+        },
+        "ultrawarm": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "has_skylight",
+        "has_ceiling",
+        "ultrawarm",
+        "natural",
+        "coordinate_scale",
+        "bed_works",
+        "respawn_anchor_works",
+        "min_y",
+        "height",
+        "logical_height",
+        "infiniburn",
+        "effects",
+        "ambient_light",
+        "piglin_safe",
+        "has_raids",
+        "has_ender_dragon_fight",
+        "monster_spawn_light_level",
+        "monster_spawn_block_light_limit"
+      ],
+      "type": "object"
+    },
     "EntitiesExist": {
       "additionalProperties": false,
       "description": "A test that at least one entity matches a query.",
@@ -4504,6 +4612,13 @@
           },
           "type": "array"
         },
+        "dimension_types": {
+          "description": "Native dimension type components, referenced by dimensions.",
+          "items": {
+            "$ref": "#/$defs/DimensionType"
+          },
+          "type": "array"
+        },
         "dimensions": {
           "description": "Native dimensions declared by this module.",
           "items": {
@@ -4680,6 +4795,62 @@
         }
       ],
       "description": "An embedded module or a manifest-relative local module document path."
+    },
+    "MonsterSpawnLightLevel": {
+      "description": "The sky-light range in which monsters may spawn.\n\n# Context\nThe sky-light range in which monsters may spawn. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::MonsterSpawnLightLevel;\n```\nThe sky-light range in which monsters may spawn.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A single light level.\nA single light level.",
+          "properties": {
+            "constant": {
+              "description": "A single light level.\nA single light level.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "constant"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A uniformly sampled inclusive light-level range.\nA uniformly sampled inclusive light-level range.",
+          "properties": {
+            "uniform": {
+              "additionalProperties": false,
+              "properties": {
+                "max_inclusive": {
+                  "description": "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.\n`max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "min_inclusive": {
+                  "description": "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.\n`min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "min_inclusive",
+                "max_inclusive"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "uniform"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "NbtCompound": {
       "additionalProperties": false,
@@ -5626,6 +5797,9 @@
           "type": "string"
         }
       ]
+    },
+    "RawJson": {
+      "description": "A raw `serde_json::Value` used as an explicit escape hatch in datapack APIs.\n\n# Context\nA raw `serde_json::Value` used as an explicit escape hatch in datapack APIs. Prefer typed predicate/component APIs.  Use this only for modded or future Minecraft features not yet covered by Sand's typed model.\n\n# Minecraft behavior\nPrefer typed predicate/component APIs.  Use this only for modded or future Minecraft features not yet covered by Sand's typed model.\n\n# Use when\n- Prefer typed predicate/component APIs.  Use this only for modded or future Minecraft features not yet covered by Sand's typed model.\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::RawJson;\n```\nA raw `serde_json::Value` used as an explicit escape hatch in datapack APIs.\n\nPrefer typed predicate/component APIs.  Use this only for modded or\nfuture Minecraft features not yet covered by Sand's typed model.\n\n# Example\n```rust\nuse sand_components::raw::RawJson;\nuse serde_json::json;\n\nlet raw = RawJson::new(json!({ \"type\": \"mymod:custom\" }));\nassert_eq!(raw.as_value()[\"type\"], \"mymod:custom\");\n```"
     },
     "Recipe": {
       "description": "A crafting, cooking, stonecutting, or smithing recipe.",

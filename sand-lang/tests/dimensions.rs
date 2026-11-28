@@ -171,3 +171,75 @@ dimension Test { layers: [{ block: Block::Stone, height: 1 }], biome: Biome::Dap
             .any(|d| d.contains("not available in Minecraft 26.2"))
     );
 }
+
+#[test]
+fn custom_dimension_rules_use_native_components_and_round_trip() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+tag Burnable: Block { values: [Block::Netherrack] }
+dimension_type Deep {
+    has_skylight: false,
+    has_ceiling: true,
+    coordinate_scale: 2.0,
+    min_y: -32,
+    height: 256,
+    ambient_light: 0.125,
+    infiniburn: Burnable,
+    monster_spawn_light_level: { min: 2, max: 5 },
+    monster_spawn_block_light_limit: 3,
+}
+dimension Hollow { type: Deep, layers: [{ block: Block::Bedrock, height: 1 }] }
+"#,
+    );
+    let pack = compile(&analysis);
+    let rules: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/world_probe/dimension_type/deep.json"])
+            .unwrap();
+    assert_eq!(rules["has_skylight"], false);
+    assert_eq!(rules["has_ceiling"], true);
+    assert_eq!(rules["coordinate_scale"], 2.0);
+    assert_eq!(rules["min_y"], -32);
+    assert_eq!(rules["height"], 256);
+    assert_eq!(rules["logical_height"], 256);
+    assert_eq!(rules["ambient_light"], 0.125);
+    assert_eq!(rules["infiniburn"], "#world_probe:burnable");
+    assert_eq!(
+        rules["monster_spawn_light_level"],
+        serde_json::json!({
+            "type": "minecraft:uniform", "min_inclusive": 2, "max_inclusive": 5,
+        })
+    );
+    let world: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/world_probe/dimension/hollow.json"]).unwrap();
+    assert_eq!(world["type"], "world_probe:deep");
+    let json = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded = sand::advanced::compiler::Compiler::decode(&json, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+}
+
+#[test]
+fn custom_dimension_rules_report_invalid_values_instead_of_panicking() {
+    for fields in [
+        "min_y: -31",
+        "height: 65",
+        "height: 64, logical_height: 65",
+        "ambient_light: 2.0",
+        "infiniburn: Block::Stone",
+        "monster_spawn_light_level: { min: 1 }",
+        "monster_spawn_light_level: { min: 6, max: 4 }",
+    ] {
+        let source =
+            format!("#![pack(namespace = \"world_probe\")] dimension_type Bad {{ {fields} }}");
+        let analysis = analyze_one(&source);
+        assert!(
+            analysis.has_errors() || analysis.compile().is_err(),
+            "{fields}"
+        );
+    }
+}

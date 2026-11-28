@@ -77,6 +77,7 @@ fn item_level() {
             "advancement",
             "dialog",
             "dimension",
+            "dimension_type",
             "biome",
             "structure_template",
             "inventory_transfer",
@@ -429,8 +430,8 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         &["biome_scale", "type"],
     );
     includes_excludes(
-        "dimension Workshop { type: | }",
-        &["DimensionType::Overworld"],
+        "dimension_type Deep {}\ndimension Workshop { type: | }",
+        &["Deep", "DimensionType::Overworld"],
         &["Dimension::Overworld"],
     );
     includes_excludes(

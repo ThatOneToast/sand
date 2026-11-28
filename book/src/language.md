@@ -1490,6 +1490,29 @@ dimension Tiles {
 }
 ```
 
+### Custom dimension rules
+
+Declare `dimension_type` to control a world's height, lighting, coordinate
+scale, fire-sustaining block tag, and monster spawning light limits. Use its
+name in the dimension's `type` field. Omitted fields use Overworld-like
+defaults. When you set `height`, the logical height defaults to the same value.
+
+```rust,ignore
+dimension_type DeepRules {
+    min_y: -32,
+    height: 256,
+    has_skylight: false,
+    has_ceiling: true,
+    ambient_light: 0.125,
+    monster_spawn_light_level: { min: 2, max: 5 },
+}
+
+dimension DeepWorkshop {
+    type: DeepRules,
+    layers: [{ block: Block::Bedrock, height: 1 }],
+}
+```
+
 ### Custom biomes
 
 A `biome` declaration adds climate and colors that a dimension or predicate

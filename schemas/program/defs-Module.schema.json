@@ -52,6 +52,13 @@
       },
       "type": "array"
     },
+    "dimension_types": {
+      "description": "Native dimension type components, referenced by dimensions.",
+      "items": {
+        "$ref": "defs-DimensionType.schema.json"
+      },
+      "type": "array"
+    },
     "dimensions": {
       "description": "Native dimensions declared by this module.",
       "items": {

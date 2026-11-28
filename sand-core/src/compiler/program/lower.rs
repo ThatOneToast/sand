@@ -675,6 +675,18 @@ pub(super) fn lower(
             })?;
             lower.records.push(record);
         }
+        for (index, dimension_type) in module.dimension_types.iter().enumerate() {
+            let record =
+                records::component_to_record(dimension_type, Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/dimension_types/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
         for (index, dimension) in module.dimensions.iter().enumerate() {
             let component = match dimension {
                 DimensionDefinition::Flat(dimension) => sand_components::Dimension::flat_generator(

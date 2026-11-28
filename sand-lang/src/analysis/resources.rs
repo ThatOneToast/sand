@@ -989,6 +989,19 @@ impl Cx {
                 ));
                 out.biomes.push(biome);
             }
+            DataKind::DimensionType => {
+                let Some(dimension_type) = self.data_dimension_type(module, file, location, get)
+                else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/dimension_types/{}", out.dimension_types.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.dimension_types.push(dimension_type);
+            }
             DataKind::Dimension => {
                 let checkerboard = get("biomes");
                 let scale = get("biome_scale");
@@ -2711,6 +2724,101 @@ impl Cx {
             "expected an RGB color such as `\"#3f76e4\"`",
         );
         None
+    }
+
+    fn data_dimension_type<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<sand::component::DimensionType> {
+        use sand::component::{DimensionType, MonsterSpawnLightLevel};
+
+        let mut rules = DimensionType::new(id);
+        type BooleanField = (&'static str, fn(DimensionType, bool) -> DimensionType);
+        let booleans: &[BooleanField] = &[
+            ("has_skylight", DimensionType::has_skylight),
+            ("has_ceiling", DimensionType::has_ceiling),
+            (
+                "has_ender_dragon_fight",
+                DimensionType::has_ender_dragon_fight,
+            ),
+        ];
+        for &(name, set) in booleans {
+            if let Some(field) = get(name) {
+                rules = set(rules, self.data_bool(file, &field.value)?);
+            }
+        }
+        if let Some(field) = get("coordinate_scale") {
+            rules = rules.coordinate_scale(self.data_number(module, file, &field.value)?);
+        }
+        if let Some(field) = get("ambient_light") {
+            rules = rules.ambient_light(self.data_number(module, file, &field.value)? as f32);
+        }
+        if let Some(field) = get("min_y") {
+            rules = rules.min_y(self.data_int(module, file, &field.value, -2032, 2031)? as i32);
+        }
+        if let Some(field) = get("height") {
+            let height = self.data_int(module, file, &field.value, 16, 4064)? as u32;
+            rules = rules.height(height).logical_height(height);
+        }
+        if let Some(field) = get("logical_height") {
+            rules =
+                rules.logical_height(self.data_int(module, file, &field.value, 1, 4064)? as u32);
+        }
+        if let Some(field) = get("infiniburn") {
+            let value = self.data_tag_value(module, file, &field.value, "Block")?;
+            if !value.starts_with('#') {
+                self.error(
+                    "dimension_type",
+                    file,
+                    field.value.span(),
+                    "infiniburn requires a block tag",
+                );
+                return None;
+            }
+            rules = rules.infiniburn(value.parse().ok()?);
+        }
+        if let Some(field) = get("monster_spawn_block_light_limit") {
+            rules = rules.monster_spawn_block_light_limit(self.data_int(
+                module,
+                file,
+                &field.value,
+                0,
+                15,
+            )? as u8);
+        }
+        if let Some(field) = get("monster_spawn_light_level") {
+            let level = match &field.value {
+                DataValue::Object(..) => {
+                    let bounds = self.data_object_fields(
+                        file,
+                        &field.value,
+                        "monster spawn light range",
+                        &["min", "max"],
+                        &[],
+                    )?;
+                    let min_inclusive =
+                        self.data_int(module, file, bounds.get("min")?, 0, 15)? as u8;
+                    let max_inclusive =
+                        self.data_int(module, file, bounds.get("max")?, 0, 15)? as u8;
+                    MonsterSpawnLightLevel::Uniform {
+                        min_inclusive,
+                        max_inclusive,
+                    }
+                }
+                _ => MonsterSpawnLightLevel::Constant(self.data_int(
+                    module,
+                    file,
+                    &field.value,
+                    0,
+                    15,
+                )? as u8),
+            };
+            rules = rules.monster_spawn_light_level(level);
+        }
+        Some(rules)
     }
 
     fn data_checkerboard(

@@ -315,7 +315,9 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   at absolute or relative positions.
 - [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
 - [ ] Natural structure generation, biome terrain features, other world
-  generators and dimension types, and first-class native block data.
+  generators, and first-class native block data.
+- [x] Custom dimension rules for height, lighting, coordinate scale,
+  infiniburn and spawn light, through native dimension type resources.
 - [x] Fixed and checkerboard biome placement in dimensions driven by native noise settings references.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.

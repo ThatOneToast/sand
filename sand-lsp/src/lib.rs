@@ -656,6 +656,7 @@ fn document_symbol(analysis: &Analysis, file: FileId, symbol: ide::Symbol) -> ls
         | D::DamageType
         | D::Dialog
         | D::Dimension
+        | D::DimensionType
         | D::Biome
         | D::StructureTemplate
         | D::InventoryTransfer

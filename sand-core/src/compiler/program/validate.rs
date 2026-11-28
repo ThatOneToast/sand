@@ -1524,11 +1524,35 @@ pub(super) fn validate(
                 }
             }
         }
+        for (index, dimension_type) in module.dimension_types.iter().enumerate() {
+            use sand_components::component::DatapackComponent;
+            let id = dimension_type.resource_location();
+            let ptr = format!("/dimension_types/{index}");
+            if !resource_ids.insert(format!("dimension type {id}")) {
+                push(
+                    format!("{ptr}/id"),
+                    format!("duplicate dimension type `{id}`"),
+                );
+            }
+            if let Err(error) = dimension_type.validate() {
+                push(ptr, error.to_string());
+            }
+        }
         for (index, dimension) in module.dimensions.iter().enumerate() {
             let ptr = format!("/dimensions/{index}");
             let id = dimension.id();
             if !resource_ids.insert(format!("dimension {id}")) {
                 push(format!("{ptr}/id"), format!("duplicate dimension `{id}`"));
+            }
+            let dimension_type = match dimension {
+                DimensionDefinition::Flat(dimension) => &dimension.dimension_type,
+                DimensionDefinition::Noise(dimension) => &dimension.dimension_type,
+            };
+            if !available(&dimension_type.to_string(), "minecraft:dimension_type") {
+                push(
+                    format!("{ptr}/dimension_type"),
+                    format!("unknown dimension type `{dimension_type}`"),
+                );
             }
             let check_biome = |biome: &sand_components::BiomeId| {
                 (!available(&biome.to_string(), "minecraft:worldgen/biome"))

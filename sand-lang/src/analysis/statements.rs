@@ -328,6 +328,9 @@ impl Cx {
                 self.array_type(body.module, element, values.len())
             }
             Expr::Index(value, _, _) => {
+                if let Some(element) = self.borrowed_element(body, value) {
+                    return element;
+                }
                 let ty = self.type_of(body, value);
                 if ty == Ty::String {
                     return Ty::String;
@@ -362,6 +365,14 @@ impl Cx {
                 args,
                 ..
             } => {
+                if let Some(element) = self.borrowed_element(body, receiver) {
+                    return match name.name.as_str() {
+                        "len" => Ty::Number,
+                        "is_empty" => Ty::Bool,
+                        "get_or" => element,
+                        _ => Ty::Unknown,
+                    };
+                }
                 let receiver_ty = self.type_of(body, receiver);
                 if name.name == "borrow_slice"
                     && (matches!(receiver_ty, Ty::List(_) | Ty::String)
@@ -663,6 +674,11 @@ impl Cx {
         }
         if !self.validate_method_type_arguments(body, expr) {
             return None;
+        }
+        let depth = body.temp_depth;
+        if let Some(result) = self.emit_borrowed_access(body, dest, ty, expr, ops) {
+            body.temp_depth = depth;
+            return result;
         }
         let file = body.file;
         let span = expr.span();

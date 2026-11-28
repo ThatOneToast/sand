@@ -240,6 +240,290 @@ impl Cx {
     }
 }
 
+impl Cx {
+    pub(super) fn borrowed_element(&self, body: &BodyCx, receiver: &Expr) -> Option<Ty> {
+        let binding = Self::local_of(body, receiver)?;
+        let view = body.borrowed_slices.get(&binding)?;
+        let source = self.local_ty(view.source);
+        self.array_shape(source)
+            .map(|(ty, _)| ty)
+            .or_else(|| self.list_element(source))
+            .or_else(|| (source == Ty::String).then_some(Ty::String))
+    }
+
+    /// Handle size and element reads before ordinary owned value dispatch.
+    pub(super) fn emit_borrowed_access(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        ty: Ty,
+        expr: &Expr,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<Option<()>> {
+        let (receiver, access) = match expr {
+            Expr::Index(receiver, index, _) => (receiver.as_ref(), ViewAccess::Index(index, None)),
+            Expr::Method {
+                receiver,
+                name,
+                args,
+                type_arguments,
+                ..
+            } => {
+                let receiver = receiver.as_ref();
+                self.borrowed_element(body, receiver)?;
+                let access = match (name.name.as_str(), args.as_slice()) {
+                    ("len", []) if type_arguments.is_empty() => ViewAccess::Len,
+                    ("is_empty", []) if type_arguments.is_empty() => ViewAccess::IsEmpty,
+                    ("get_or", [index, fallback])
+                        if type_arguments.is_empty()
+                            && index.name.is_none()
+                            && fallback.name.is_none() =>
+                    {
+                        let (ArgValue::Expr(index), ArgValue::Expr(fallback)) =
+                            (&index.value, &fallback.value)
+                        else {
+                            self.error(
+                                "slice",
+                                body.file,
+                                name.span,
+                                "pass an index and a fallback value",
+                            );
+                            return Some(None);
+                        };
+                        ViewAccess::Index(index, Some(fallback))
+                    }
+                    _ => {
+                        self.error("slice", body.file, name.span, "a borrowed slice supports len(), is_empty(), and get_or(index, fallback)");
+                        return Some(None);
+                    }
+                };
+                (receiver, access)
+            }
+            _ => return None,
+        };
+        let binding = Self::local_of(body, receiver)?;
+        let view = body.borrowed_slices.get(&binding)?.clone();
+        let element = self.borrowed_element(body, receiver)?;
+        body.used.insert(binding);
+        self.references.push(Reference {
+            file: body.file,
+            span: receiver.span(),
+            def: binding,
+        });
+        Some(self.read_borrowed_view(body, dest, ty, view, element, access, expr.span(), ops))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn read_borrowed_view(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        ty: Ty,
+        view: BorrowedSlice,
+        element: Ty,
+        access: ViewAccess<'_>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) -> Option<()> {
+        let expected = match access {
+            ViewAccess::Len => Ty::Number,
+            ViewAccess::IsEmpty => Ty::Bool,
+            ViewAccess::Index(..) => element,
+        };
+        if !self.types_agree(body.file, span, ty, expected) {
+            return None;
+        }
+        let file = body.file;
+        let source = self.local_ref(view.source);
+        let source_ty = self.local_ty(view.source);
+        let array = self.array_shape(source_ty);
+        let first = self.temp(body);
+        let length = self.temp(body);
+        let count = self.temp(body);
+        let measure = if let Some((_, array_length)) = array {
+            pc::Action::ScoreSet {
+                score: length.clone(),
+                value: array_length as i32,
+            }
+        } else {
+            pc::Action::DataRead {
+                score: length.clone(),
+                source: Self::data_reference(&source),
+            }
+        };
+        ops.push(op_at(measure, file, span));
+        let adjust = |target: &pc::FieldReference, operator, operand| {
+            op_at(
+                pc::Action::ScoreOperation {
+                    score: target.clone(),
+                    operator,
+                    operand,
+                },
+                file,
+                span,
+            )
+        };
+        let copy = |target: &pc::FieldReference, operand: pc::FieldReference| {
+            adjust(
+                target,
+                pc::ScoreOperator::Set,
+                pc::ScoreOperand::Field(operand),
+            )
+        };
+        let max = pc::ScoreOperator::Max;
+        let min = pc::ScoreOperator::Min;
+        ops.extend([
+            copy(&first, view.bounds[0].clone()),
+            adjust(&first, max, pc::ScoreOperand::Value(0)),
+            adjust(&first, min, pc::ScoreOperand::Field(length.clone())),
+            copy(&count, view.bounds[1].clone()),
+            adjust(&count, min, pc::ScoreOperand::Field(length)),
+            adjust(&count, max, pc::ScoreOperand::Field(first.clone())),
+            adjust(
+                &count,
+                pc::ScoreOperator::Sub,
+                pc::ScoreOperand::Field(first.clone()),
+            ),
+        ]);
+        match access {
+            ViewAccess::Len => ops.push(copy(dest, count)),
+            ViewAccess::IsEmpty => ops.push(op_at(
+                pc::Action::Branch {
+                    condition: pc::Condition::Range(pc::ScoreComparison {
+                        score: count,
+                        min: Some(0),
+                        max: Some(0),
+                    }),
+                    then: vec![op_at(
+                        pc::Action::ScoreSet {
+                            score: dest.clone(),
+                            value: 1,
+                        },
+                        file,
+                        span,
+                    )],
+                    otherwise: vec![op_at(
+                        pc::Action::ScoreSet {
+                            score: dest.clone(),
+                            value: 0,
+                        },
+                        file,
+                        span,
+                    )],
+                },
+                file,
+                span,
+            )),
+            ViewAccess::Index(index, fallback) => {
+                let position = self.temp(body);
+                self.emit(body, &position, Ty::Number, index, ops)?;
+                if let Some(fallback) = fallback {
+                    self.emit(body, dest, element, fallback, ops)?;
+                } else {
+                    let defaults = self.record_constant(body.module, file, None, element)?;
+                    for ((score, _), value) in
+                        self.value_slots(dest, element).into_iter().zip(defaults)
+                    {
+                        ops.push(op_at(Self::initialize_leaf(score, value), file, span));
+                    }
+                }
+                let absolute = self.temp(body);
+                let mut read = vec![
+                    copy(&absolute, first),
+                    adjust(
+                        &absolute,
+                        pc::ScoreOperator::Add,
+                        pc::ScoreOperand::Field(position.clone()),
+                    ),
+                ];
+                if let Some((_, array_length)) = array {
+                    for offset in 0..array_length {
+                        let mut then = Vec::new();
+                        self.copy_value(
+                            dest,
+                            &super::values::child(&source, &format!("i{offset}")),
+                            element,
+                            file,
+                            span,
+                            &mut then,
+                        );
+                        read.push(op_at(
+                            pc::Action::Branch {
+                                condition: pc::Condition::Range(pc::ScoreComparison {
+                                    score: absolute.clone(),
+                                    min: Some(offset as i32),
+                                    max: Some(offset as i32),
+                                }),
+                                then,
+                                otherwise: Vec::new(),
+                            },
+                            file,
+                            span,
+                        ));
+                    }
+                } else {
+                    let item = Self::stored_element(&source, &absolute);
+                    if source_ty == Ty::String {
+                        read.extend([
+                            op_at(
+                                Self::initialize_leaf(
+                                    dest.clone(),
+                                    super::text::LeafDefault::Data(super::text::text_value("")),
+                                ),
+                                file,
+                                span,
+                            ),
+                            op_at(
+                                pc::Action::DataModify {
+                                    target: Self::data_reference(dest),
+                                    operator: pc::DataModifyOperation::Append,
+                                    source: pc::DataOperand::Reference { value: item },
+                                },
+                                file,
+                                span,
+                            ),
+                        ]);
+                    } else {
+                        self.unpack_value(body, dest, item, element, span, &mut read);
+                    }
+                }
+                ops.push(op_at(
+                    pc::Action::Branch {
+                        condition: pc::Condition::Range(pc::ScoreComparison {
+                            score: position.clone(),
+                            min: Some(0),
+                            max: None,
+                        }),
+                        then: vec![op_at(
+                            pc::Action::Branch {
+                                condition: pc::Condition::Relation(pc::ScoreRelation {
+                                    left: position,
+                                    relation: pc::Relation::Lt,
+                                    right: count,
+                                }),
+                                then: read,
+                                otherwise: Vec::new(),
+                            },
+                            file,
+                            span,
+                        )],
+                        otherwise: Vec::new(),
+                    },
+                    file,
+                    span,
+                ));
+            }
+        }
+        Some(())
+    }
+}
+
+enum ViewAccess<'a> {
+    Len,
+    IsEmpty,
+    Index(&'a Expr, Option<&'a Expr>),
+}
+
 /// An assignable aggregate or leaf, with frozen indexes for indirect elements.
 pub(super) struct ValueAddress {
     ty: Ty,

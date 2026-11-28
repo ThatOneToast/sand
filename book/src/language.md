@@ -324,11 +324,13 @@ Each vector supports up to 1,024 elements. A full vector rejects `push` and
 1 MiB budget checked before repeat expansion; build larger values at runtime.
 For example, `values.slice(1, 3)` copies indices 1 and 2. Bounds are clamped to
 the current length, and empty or reversed ranges produce an empty vector.
-Use `borrow_slice` to iterate part of an immutable local array, vector, or
-string, either directly in a loop or through an immutable local binding.
+Use `borrow_slice` to read part of an immutable local array, vector, or
+string. Name the view to read its length or elements, or use it directly
+in a loop.
 
 ```rust,ignore
 let view = values.borrow_slice(1, 3);
+if !view.is_empty() { record(view[0]); }
 for value in view { record(value); }
 ```
 
@@ -336,8 +338,12 @@ A named view captures its bounds once, in order. Each loop clamps the
 captured range to the source length and binds each element by value. The
 view keeps referring to its original local if another binding shadows that
 name. Sand retains the source and bounds when the current invocation waits.
-Consume the view with iteration in its lexical scope. Use an owned subrange
-for arguments, return values, closure captures, or State fields.
+In the binding's lexical scope, use `len()`, `is_empty()`, `view[index]`,
+or `get_or(index, fallback)`. Indices start at zero within the view. An
+out-of-range index returns the element's default value, or the explicit
+fallback passed to `get_or`. Each element read produces an owned value.
+Use an owned subrange for passing the whole range as an argument, returning
+it, capturing it in a closure, or storing it in State.
 
 See the [exploration-log example](../../examples/lang_vectors/pack.sand), which
 stores a separate growable vector of coordinate records for each player.

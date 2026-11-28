@@ -178,3 +178,55 @@ fn run() {
             .any(|error| error.contains("cannot capture a borrowed slice"))
     );
 }
+
+#[test]
+fn named_borrowed_slices_read_lengths_and_elements_without_escaping() {
+    let source = r#"
+#![pack(namespace = "view_probe", minecraft = "26.2")]
+struct Entry { value: number, label: string }
+global state Results { total: number, label: string }
+pub fn run(index: number) {
+    let source: Vec<Entry> = [
+        Entry { value: 3, label: "north" },
+        Entry { value: 8, label: "south" },
+        Entry { value: 11, label: "west" },
+    ];
+    let selected = source.borrow_slice(1, 2147483647);
+    let array = [10, 20, 30];
+    let inner = array.borrow_slice(-99, 2);
+    let text = "a⛰🙂!";
+    let chars = text.borrow_slice(1, 3);
+    let empty = text.borrow_slice(10, 2);
+    wait(2, server = true);
+    if empty.is_empty() && selected.len() == 2 {
+        Results.total = selected[index].value + inner[1] + empty.len();
+        Results.label = chars.get_or(index, "?");
+    }
+}
+"#;
+    let analysis = analyze_one(source);
+    compile(&analysis);
+    let program = serde_json::to_string(&analysis.program.unwrap()).unwrap();
+    assert!(program.contains("\"relation\":\"lt\""));
+    assert!(program.contains("\"operator\":\"min\""));
+    assert!(program.contains("\"op\":\"data_read\""));
+}
+
+#[test]
+fn borrowed_slices_reject_mutation_methods() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "view_probe", minecraft = "26.2")]
+fn run() {
+    let source = [1, 2, 3];
+    let view = source.borrow_slice(0, 2);
+    let _result: bool = view.push(4);
+}
+"#,
+    );
+    assert!(
+        errors(&analysis)
+            .iter()
+            .any(|message| message.contains("a borrowed slice supports"))
+    );
+}

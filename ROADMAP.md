@@ -269,7 +269,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Named groups for cancelling a subset of one executor's pending waits.
 - [x] Payload enums with owned values, exhaustive matching and State defaults.
 - [x] Generic enums and bundled `Option<T>` and `Result<T, E>`.
-- [ ] General borrowed slices.
+- [x] Scoped immutable slices with indexed reads, length, fallback reads and iteration.
+- [ ] First-class borrowed parameters, return values, and mutable views.
 - [x] Owned vector subranges with clamped half-open bounds.
 - [x] Inline and named read-only range iteration over immutable local arrays,
   vectors, and strings, including captured bounds and shadowing across waits.

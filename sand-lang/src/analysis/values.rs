@@ -1170,7 +1170,8 @@ impl Cx {
             Expr::Path(path) => {
                 path.segments.len() == 1
                     && path.applications.is_empty()
-                    && Self::lookup_local(body, &path.last().name).is_some()
+                    && Self::lookup_local(body, &path.last().name)
+                        .is_some_and(|local| !body.borrowed_slices.contains_key(&local))
             }
             Expr::Place(_) => true,
             Expr::Project(value, ..) => Self::direct_projection(body, value),

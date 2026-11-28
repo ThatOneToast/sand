@@ -1622,6 +1622,19 @@ dimension Highlands {
 The settings reference an existing native noise settings resource.
 `structures` is a flat-generator option.
 
+Set `biome_source: vanilla` to use the native biome placement associated with
+the noise settings. Overworld and Nether settings use their multi-noise
+presets, and End settings use the End biome source. This field replaces
+`biome` or `biomes`.
+
+```rust,ignore
+dimension Ember {
+    type: DimensionType::TheNether,
+    noise_settings: "minecraft:nether",
+    biome_source: vanilla,
+}
+```
+
 Use `biomes` for native checkerboard placement in the order supplied.
 Each entry can name a vanilla or authored biome. The optional `biome_scale`
 takes a value from 0 to 62 and defaults to 2.
@@ -1737,7 +1750,9 @@ chunk and samples uniformly from the inclusive Y range. A target can match a
 block, a Sand block tag, or a quoted block tag such as
 `"#minecraft:stone_ore_replaceables"`. The first matching target determines
 the ore block. Use `discard_exposed` to set the chance of dropping placements
-exposed to air. Generation applies to new chunks.
+exposed to air. A replacement can set its native block properties with
+`properties: { axis: "x" }`. Use vanilla property names and quoted tokens,
+boolean literals, or whole numbers. Generation applies to new chunks.
 
 ### Reading entity data and inventories
 
@@ -2487,7 +2502,7 @@ command and State models as Rust. Today the language covers:
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and entity/player waits inside branches, statement matches and local loops | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
 | Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, movement, burning, and health transitions, custom events with payloads, predicate guards, authored advancement completion | additional native triggers and tracked changes |
-| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and fixed/checkerboard noise dimensions, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
+| World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and noise dimensions with fixed, checkerboard, or vanilla biome sources, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |
 | Gameplay systems | checked inventory transfers, player-owned HUDs, native menus, projectiles, player progression, sessions, abilities, State combat, bounded jobs, display scenes, player checkpoints, encounters and online rosters | additional status-effect policies |

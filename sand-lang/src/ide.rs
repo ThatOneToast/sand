@@ -2471,11 +2471,21 @@ fn data_completions(
                     return true;
                 }
                 match f.name {
-                    "layers" | "structures" => !used("noise_settings") && !used("biomes"),
+                    "layers" | "structures" => {
+                        !used("noise_settings") && !used("biomes") && !used("biome_source")
+                    }
                     "noise_settings" => !used("layers") && !used("structures"),
-                    "biomes" => !used("layers") && !used("structures") && !used("biome"),
+                    "biomes" => {
+                        !used("layers")
+                            && !used("structures")
+                            && !used("biome")
+                            && !used("biome_source")
+                    }
+                    "biome_source" => {
+                        !used("layers") && !used("structures") && !used("biome") && !used("biomes")
+                    }
                     "biome_scale" => used("biomes"),
-                    "biome" => !used("biomes"),
+                    "biome" => !used("biomes") && !used("biome_source"),
                     _ => true,
                 }
             })

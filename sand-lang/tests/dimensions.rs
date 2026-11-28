@@ -243,3 +243,65 @@ fn custom_dimension_rules_report_invalid_values_instead_of_panicking() {
         );
     }
 }
+
+#[test]
+fn vanilla_noise_biomes_use_the_native_source_matching_the_terrain_settings() {
+    let source = r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+dimension Home {
+    noise_settings: "minecraft:overworld",
+    biome_source: vanilla,
+}
+dimension Ember {
+    type: DimensionType::TheNether,
+    noise_settings: "minecraft:nether",
+    biome_source: vanilla,
+}
+dimension Far {
+    type: DimensionType::TheEnd,
+    noise_settings: "minecraft:end",
+    biome_source: vanilla,
+}
+"#;
+    let analysis = analyze_one(source);
+    let pack = compile(&analysis);
+    for (id, expected) in [
+        (
+            "home",
+            serde_json::json!({"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}),
+        ),
+        (
+            "ember",
+            serde_json::json!({"type": "minecraft:multi_noise", "preset": "minecraft:nether"}),
+        ),
+        ("far", serde_json::json!({"type": "minecraft:the_end"})),
+    ] {
+        let path = format!("data/world_probe/dimension/{id}.json");
+        let dimension: serde_json::Value = serde_json::from_slice(&pack.resources[&path]).unwrap();
+        assert_eq!(dimension["generator"]["biome_source"], expected);
+    }
+    let encoded = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&encoded, &Default::default()).unwrap();
+    assert_eq!(
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources,
+        pack.resources
+    );
+}
+
+#[test]
+fn a_named_vanilla_biome_source_excludes_overlapping_source_choices() {
+    for input in [
+        "layers: [{ block: Block::Stone, height: 1 }], biome_source: vanilla",
+        "noise_settings: \"minecraft:nether\", biome: Biome::Plains, biome_source: vanilla",
+        "noise_settings: \"minecraft:nether\", biomes: [Biome::Plains], biome_source: vanilla",
+        "noise_settings: \"minecraft:nether\", biome_source: unknown",
+    ] {
+        let analysis = analyze_one(&format!(
+            "#![pack(namespace = \"world_probe\")] dimension Broken {{ {input} }}"
+        ));
+        assert!(analysis.has_errors(), "{input}");
+    }
+}

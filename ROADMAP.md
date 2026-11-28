@@ -317,13 +317,13 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
   at absolute or relative positions.
 - [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
 - [x] Authored jigsaw structures and weighted NBT template pools for natural generation.
-- [ ] Additional configured and placed feature families, world generators and
-  typed native worldgen block properties.
+- [ ] Additional configured and placed feature families and custom noise settings authoring.
 - [x] Native structure sets with weighted placement, random spread and rings.
 - [x] Custom dimension rules for height, lighting, coordinate scale,
   infiniburn and spawn light, through native dimension type resources.
 - [x] Ordered placed-feature references and native ore vein configuration in custom biome terrain steps.
-- [x] Fixed and checkerboard biome placement in dimensions driven by native noise settings references.
+- [x] Fixed, checkerboard and vanilla biome sources in noise dimensions.
+- [x] Native block-state property overrides in configured ore targets.
 - [x] Independent loot pools with weighted entries, random chance, and
   weather conditions.
 - [x] Native damage type declarations and typed vanilla damage types, both

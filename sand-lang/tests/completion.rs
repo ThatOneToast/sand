@@ -432,6 +432,7 @@ fn data_declarations_offer_only_remaining_valid_fields() {
             "layers",
             "noise_settings",
             "biome",
+            "biome_source",
             "biomes",
             "type",
             "structures",

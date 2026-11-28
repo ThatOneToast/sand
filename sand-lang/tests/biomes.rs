@@ -282,3 +282,27 @@ fn ore_validation_rejects_unsupported_counts_heights_and_target_types() {
                 && error.message.contains("count must be in 0..=4096"))
     );
 }
+
+#[test]
+fn ore_targets_export_native_block_properties_and_reject_duplicates() {
+    let source = ORE_FEATURE.replace(
+        "block: Block::GoldOre",
+        "block: Block::OakLog, properties: { axis: \"x\" }",
+    );
+    let pack = compile(&analyze_one(&source));
+    let path = "data/world_probe/worldgen/configured_feature/amber.json";
+    let configured: serde_json::Value = serde_json::from_slice(&pack.resources[path]).unwrap();
+    assert_eq!(
+        configured["config"]["targets"][0]["state"],
+        serde_json::json!({
+            "Name": "minecraft:oak_log",
+            "Properties": { "axis": "x" },
+        })
+    );
+    let duplicate = source.replace("axis: \"x\"", "axis: \"x\", axis: \"y\"");
+    assert!(
+        errors(&analyze_one(&duplicate))
+            .iter()
+            .any(|message| message.contains("duplicate block property"))
+    );
+}

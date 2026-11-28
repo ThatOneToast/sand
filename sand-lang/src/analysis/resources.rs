@@ -1100,6 +1100,20 @@ impl Cx {
             DataKind::Dimension => {
                 let checkerboard = get("biomes");
                 let scale = get("biome_scale");
+                let standard_biomes = get("biome_source");
+                if let Some(field) = standard_biomes
+                    && (get("noise_settings").is_none()
+                        || get("biome").is_some()
+                        || checkerboard.is_some())
+                {
+                    self.error(
+                        "dimension",
+                        file,
+                        field.key.span,
+                        "a vanilla biome source requires noise settings and excludes fixed or checkerboard biomes",
+                    );
+                    return;
+                }
                 if let Some(field) = checkerboard {
                     if get("noise_settings").is_none() || get("biome").is_some() {
                         self.error(
@@ -1184,7 +1198,18 @@ impl Cx {
                             self.error("dimension", file, field.value.span(), "expected a namespaced noise settings id such as \"minecraft:overworld\"");
                             return;
                         };
-                        let biome_source = if let Some(field) = checkerboard {
+                        let biome_source = if let Some(field) = standard_biomes {
+                            let Some(source) = self
+                                .data_worldgen_option::<sand::component::BiomeSource>(
+                                    file,
+                                    &field.value,
+                                    "biome source",
+                                )
+                            else {
+                                return;
+                            };
+                            source
+                        } else if let Some(field) = checkerboard {
                             let Some(source) = self.data_checkerboard(
                                 module,
                                 file,
@@ -3443,8 +3468,13 @@ impl Cx {
         }
         let mut replacements = Vec::new();
         for entry in entries {
-            let fields =
-                self.data_object_fields(file, entry, "ore target", &["replace", "block"], &[])?;
+            let fields = self.data_object_fields(
+                file,
+                entry,
+                "ore target",
+                &["replace", "block"],
+                &["properties"],
+            )?;
             let replace = self.data_tag_value(module, file, fields.get("replace")?, "Block")?;
             let target = if let Some(tag) = replace.strip_prefix('#') {
                 RuleTest::TagMatch {
@@ -3460,7 +3490,57 @@ impl Cx {
                 .vanilla_value(module, file, expr, "Block")?
                 .parse()
                 .ok()?;
-            replacements.push(OreTarget::new(target, BlockState::new(block)));
+            let mut state = BlockState::new(block);
+            if let Some(properties) = fields.get("properties") {
+                let DataValue::Object(entries, _) = properties else {
+                    self.error(
+                        "block state",
+                        file,
+                        properties.span(),
+                        "expected named block properties",
+                    );
+                    return None;
+                };
+                let mut seen = BTreeSet::new();
+                for property in entries {
+                    let key = &property.key.name;
+                    if !seen.insert(key) {
+                        self.error(
+                            "block state",
+                            file,
+                            property.key.span,
+                            format!("duplicate block property `{key}`"),
+                        );
+                        return None;
+                    }
+                    let expr = self.data_expr(file, &property.value, "a block property value")?;
+                    let value = match expr {
+                        Expr::Str { value, .. }
+                            if !value.is_empty()
+                                && value.bytes().all(|byte| {
+                                    byte.is_ascii_lowercase()
+                                        || byte.is_ascii_digit()
+                                        || byte == b'_'
+                                }) =>
+                        {
+                            value.clone()
+                        }
+                        Expr::Bool(value, _) => value.to_string(),
+                        Expr::Int(value, _) => value.to_string(),
+                        _ => {
+                            self.error(
+                                "block state",
+                                file,
+                                expr.span(),
+                                "use a quoted property token, boolean, or whole number",
+                            );
+                            return None;
+                        }
+                    };
+                    state = state.property(key, value);
+                }
+            }
+            replacements.push(OreTarget::new(target, state));
         }
         let mut config = OreConfig::new(size, replacements);
         if let Some(field) = get("discard_exposed") {

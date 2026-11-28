@@ -3870,6 +3870,14 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
     ),
     f(
         "dimension",
+        "biome_source",
+        FieldKind::ResourceId,
+        false,
+        "Use vanilla biome placement matching the noise settings.",
+        "vanilla",
+    ),
+    f(
+        "dimension",
         "biomes",
         FieldKind::Registry("Biome"),
         false,

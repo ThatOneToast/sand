@@ -5193,7 +5193,11 @@ mod tests {
         )
         .components::<MobState>()
         .definition();
-        definition.components[0].attach = |_| {
+        let ComponentLifecycle::Static { attach, .. } = &mut definition.components[0].lifecycle
+        else {
+            unreachable!("Rust State has a static lifecycle");
+        };
+        *attach = |_| {
             vec![
             "execute unless data storage rpg:state payload run data modify storage rpg:state payload set value {}".into(),
         ]

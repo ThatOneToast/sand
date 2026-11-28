@@ -39,7 +39,7 @@ fn archetypes_spawn_and_bind_canonical_component_lifecycles() {
 }
 
 #[test]
-fn archetype_components_require_distinct_entity_state() {
+fn archetypes_require_distinct_entity_components() {
     for (old, invalid, expected) in [
         (
             "entity state Memory",

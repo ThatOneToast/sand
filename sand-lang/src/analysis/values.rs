@@ -427,6 +427,12 @@ impl Cx {
         base: &pc::FieldReference,
         ty: Ty,
     ) -> Vec<(pc::FieldReference, Ty)> {
+        if ty == Ty::BorrowedSlice {
+            return ["first", "last"]
+                .into_iter()
+                .flat_map(|name| self.value_slots(&child(base, name), Ty::Number))
+                .collect();
+        }
         if let Ty::Struct(def) = ty {
             self.struct_fields(def)
                 .into_iter()

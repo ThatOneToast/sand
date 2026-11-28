@@ -38,6 +38,11 @@ pub(super) struct PatternLocal {
     projection: Vec<String>,
 }
 
+pub(super) struct BorrowedInput<'a> {
+    pub(super) source: DefId,
+    pub(super) bounds: Option<&'a [pc::FieldReference; 2]>,
+}
+
 /// What a `while`-shaped loop repeats on.
 pub(super) enum Repeat<'a> {
     /// `while cond { }`.
@@ -53,7 +58,7 @@ pub(super) enum Repeat<'a> {
         /// Array snapshot supplying the loop binding instead of the counter.
         collection: Option<&'a Expr>,
         /// An immutable local supplying elements directly.
-        borrowed: Option<DefId>,
+        borrowed: Option<BorrowedInput<'a>>,
     },
 }
 
@@ -352,6 +357,12 @@ impl Cx {
                 ..
             } => {
                 let receiver_ty = self.type_of(body, receiver);
+                if name.name == "borrow_slice"
+                    && (matches!(receiver_ty, Ty::List(_) | Ty::String)
+                        || self.array_shape(receiver_ty).is_some())
+                {
+                    return Ty::BorrowedSlice;
+                }
                 if name.name == "to_string"
                     && matches!(receiver_ty, Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
                 {
@@ -635,6 +646,15 @@ impl Cx {
         expr: &Expr,
         ops: &mut Vec<pc::Operation>,
     ) -> Option<()> {
+        if ty == Ty::BorrowedSlice {
+            self.error(
+                "slice",
+                body.file,
+                expr.span(),
+                "borrowed slices can only be iterated or bound to an immutable local",
+            );
+            return None;
+        }
         if !self.validate_method_type_arguments(body, expr) {
             return None;
         }
@@ -1609,6 +1629,47 @@ impl Cx {
         };
         let ty = self.local_ty(local);
         let reference = self.local_ref(local);
+        if ty == Ty::BorrowedSlice {
+            if mutable {
+                self.error(
+                    "slice",
+                    file,
+                    name.span,
+                    "a borrowed slice binding is immutable",
+                );
+                return;
+            }
+            let Some((source, bounds)) =
+                value.and_then(|value| self.borrowed_slice_parts(body, value))
+            else {
+                return;
+            };
+            let [first, last] = self
+                .value_slots(&reference, ty)
+                .into_iter()
+                .map(|(field, _)| field)
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("a borrowed range has two slots");
+            body.initializing_locals.push(local);
+            let captured = [(&first, bounds[0]), (&last, bounds[1])]
+                .into_iter()
+                .all(|(slot, value)| self.emit(body, slot, Ty::Number, value, ops).is_some());
+            body.initializing_locals.pop();
+            if !captured {
+                return;
+            }
+            body.borrowed_slices.insert(
+                local,
+                super::BorrowedSlice {
+                    source,
+                    bounds: [first, last],
+                },
+            );
+            let end = body.block_ends.last().copied().unwrap_or(span.end);
+            self.bring_into_scope(body, name, local, Span::new(span.end, end));
+            return;
+        }
         match value {
             Some(value) => {
                 body.initializing_locals.push(local);
@@ -2486,6 +2547,23 @@ impl Cx {
         Some(())
     }
 
+    fn emit_count_bound(
+        &mut self,
+        body: &mut BodyCx,
+        dest: &pc::FieldReference,
+        authored: &Expr,
+        captured: Option<&pc::FieldReference>,
+        ops: &mut Vec<pc::Operation>,
+    ) -> bool {
+        if let Some(source) = captured {
+            let action = Self::set_from(dest, Value::Read(source.clone())).expect("score copy");
+            ops.push(op_at(action, body.file, authored.span()));
+            true
+        } else {
+            self.emit(body, dest, Ty::Number, authored, ops).is_some()
+        }
+    }
+
     /// Lower `while`, `loop`, and counting `for` loops.
     ///
     /// Each becomes one backend `While` whose helper re-checks the test after
@@ -2660,8 +2738,11 @@ impl Cx {
                 } else {
                     1
                 };
-                let snapshot = if let Some(value) = collection {
-                    let ty = self.type_of(body, value);
+                let snapshot = if borrowed.is_some() || collection.is_some() {
+                    let ty = match &borrowed {
+                        Some(view) => self.local_ty(view.source),
+                        None => self.type_of(body, collection.expect("owned collection")),
+                    };
                     let (element, length) = if let Some((element, length)) = self.array_shape(ty) {
                         (element, Some(length))
                     } else if let Some(element) = self.list_element(ty) {
@@ -2672,18 +2753,27 @@ impl Cx {
                         self.error(
                             "for",
                             file,
-                            value.span(),
+                            span,
                             "this loop needs an array, vector or string value",
                         );
                         body.scopes.pop();
                         body.temp_depth = depth;
                         return;
                     };
-                    let array = if let Some(local) = borrowed {
-                        self.local_ref(local)
+                    let array = if let Some(view) = &borrowed {
+                        self.local_ref(view.source)
                     } else {
                         let array = self.temp(body);
-                        if self.emit(body, &array, ty, value, &mut setup).is_none() {
+                        if self
+                            .emit(
+                                body,
+                                &array,
+                                ty,
+                                collection.expect("owned collection"),
+                                &mut setup,
+                            )
+                            .is_none()
+                        {
                             body.scopes.pop();
                             body.temp_depth = depth;
                             return;
@@ -2698,10 +2788,14 @@ impl Cx {
                 // Save the first bound before evaluating the second one: either
                 // expression may call a function that changes the other's State.
                 let first = self.temp(body);
-                if self
-                    .emit(body, &first, Ty::Number, start, &mut setup)
-                    .is_none()
-                {
+                let captured = borrowed.as_ref().and_then(|view| view.bounds);
+                if !self.emit_count_bound(
+                    body,
+                    &first,
+                    start,
+                    captured.map(|bounds| &bounds[0]),
+                    &mut setup,
+                ) {
                     body.scopes.pop();
                     body.temp_depth = depth;
                     return;
@@ -2820,10 +2914,13 @@ impl Cx {
                         && let Some(length) = dynamic_length
                     {
                         let limit = self.temp(body);
-                        if self
-                            .emit(body, &limit, Ty::Number, end, &mut setup)
-                            .is_none()
-                        {
+                        if !self.emit_count_bound(
+                            body,
+                            &limit,
+                            end,
+                            captured.map(|bounds| &bounds[1]),
+                            &mut setup,
+                        ) {
                             body.scopes.pop();
                             body.temp_depth = depth;
                             return;

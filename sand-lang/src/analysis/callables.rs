@@ -666,6 +666,18 @@ impl Cx {
                 }
             }
         }
+        if captured
+            .values()
+            .any(|local| self.local_ty(*local) == Ty::BorrowedSlice)
+        {
+            self.error(
+                "slice",
+                body.file,
+                closure.span,
+                "a closure cannot capture a borrowed slice",
+            );
+            return None;
+        }
         if captured.len() > 64 {
             self.error(
                 "callable",

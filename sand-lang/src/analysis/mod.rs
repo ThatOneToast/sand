@@ -67,6 +67,8 @@ pub enum Ty {
     String,
     /// A growable owned homogeneous sequence.
     List(DefId),
+    /// A lexical read-only view into an immutable sequence local.
+    BorrowedSlice,
     /// An enum whose variants are integer phases.
     Enum(DefId),
     /// A copyable aggregate, including records, fixed arrays, and payload enums.
@@ -1979,6 +1981,7 @@ impl Cx {
             Ty::Enum(def) | Ty::Struct(def) | Ty::Callable(def) => self.defs[def.0].name.clone(),
             Ty::EntityRef => "EntityRef".into(),
             Ty::String => "string".into(),
+            Ty::BorrowedSlice => "borrowed slice".into(),
             Ty::List(def) => self.defs[def.0].name.clone(),
             Ty::Unknown => "{unknown}".into(),
         }
@@ -4618,6 +4621,42 @@ impl Cx {
                 body: block,
                 span,
             } => {
+                if let Some(local) = Self::local_of(body, value)
+                    && let Some(view) = body.borrowed_slices.get(&local).cloned()
+                {
+                    body.used.insert(local);
+                    self.references.push(Reference {
+                        file,
+                        span: value.span(),
+                        def: local,
+                    });
+                    // Captured bounds are read from their retained frame slots.
+                    // The expressions carry the user's iterate-site source span.
+                    let range = Range {
+                        start: Some(Expr::Int(0, value.span())),
+                        end: Some(Expr::Int(0, value.span())),
+                        inclusive: false,
+                        span: value.span(),
+                    };
+                    self.lower_repeat(
+                        body,
+                        statements::Repeat::Count {
+                            binding,
+                            range: &range,
+                            reverse: false,
+                            step: None,
+                            collection: None,
+                            borrowed: Some(statements::BorrowedInput {
+                                source: view.source,
+                                bounds: Some(&view.bounds),
+                            }),
+                        },
+                        block,
+                        *span,
+                        ops,
+                    );
+                    return;
+                }
                 if let Expr::Method { receiver, name, .. } = value
                     && name.name == "borrow_slice"
                     && {
@@ -4775,24 +4814,36 @@ impl Cx {
         }
     }
 
-    fn lower_borrowed_slice_loop(
+    fn borrowed_slice_parts<'a>(
         &mut self,
         body: &mut BodyCx,
-        binding: &Ident,
-        value: &Expr,
-        block: &Block,
-        span: Span,
-        ops: &mut Vec<pc::Operation>,
-    ) {
+        value: &'a Expr,
+    ) -> Option<(DefId, [&'a Expr; 2])> {
         let Expr::Method {
             receiver,
+            name,
             type_arguments,
             args,
             ..
         } = value
         else {
-            unreachable!();
+            self.error(
+                "slice",
+                body.file,
+                value.span(),
+                "initialize a borrowed slice with borrow_slice(start, end)",
+            );
+            return None;
         };
+        if name.name != "borrow_slice" {
+            self.error(
+                "slice",
+                body.file,
+                value.span(),
+                "initialize a borrowed slice with borrow_slice(start, end)",
+            );
+            return None;
+        }
         let [start, end] = args.as_slice() else {
             self.error(
                 "slice",
@@ -4800,7 +4851,7 @@ impl Cx {
                 value.span(),
                 "use `borrow_slice(start, end)`",
             );
-            return;
+            return None;
         };
         let (ArgValue::Expr(from), ArgValue::Expr(to)) = (&start.value, &end.value) else {
             self.error(
@@ -4809,7 +4860,7 @@ impl Cx {
                 value.span(),
                 "slice bounds must be numbers",
             );
-            return;
+            return None;
         };
         if !type_arguments.is_empty() || start.name.is_some() || end.name.is_some() {
             self.error(
@@ -4818,7 +4869,7 @@ impl Cx {
                 value.span(),
                 "pass the start and end bounds in order",
             );
-            return;
+            return None;
         }
         let Some(local) = Self::local_of(body, receiver).filter(|local| {
             matches!(
@@ -4832,7 +4883,7 @@ impl Cx {
                 receiver.span(),
                 "`borrow_slice` needs an immutable local array, vector, or string",
             );
-            return;
+            return None;
         };
         body.used.insert(local);
         self.references.push(Reference {
@@ -4840,6 +4891,21 @@ impl Cx {
             span: receiver.span(),
             def: local,
         });
+        Some((local, [from, to]))
+    }
+
+    fn lower_borrowed_slice_loop(
+        &mut self,
+        body: &mut BodyCx,
+        binding: &Ident,
+        value: &Expr,
+        block: &Block,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let Some((local, [from, to])) = self.borrowed_slice_parts(body, value) else {
+            return;
+        };
         let range = Range {
             start: Some(from.clone()),
             end: Some(to.clone()),
@@ -4853,8 +4919,11 @@ impl Cx {
                 range: &range,
                 reverse: false,
                 step: None,
-                collection: Some(receiver),
-                borrowed: Some(local),
+                collection: None,
+                borrowed: Some(statements::BorrowedInput {
+                    source: local,
+                    bounds: None,
+                }),
             },
             block,
             span,
@@ -5790,6 +5859,12 @@ enum LoopKind {
 }
 
 #[derive(Clone)]
+struct BorrowedSlice {
+    source: DefId,
+    bounds: [pc::FieldReference; 2],
+}
+
+#[derive(Clone)]
 struct BodyCx {
     module: ModuleId,
     file: FileId,
@@ -5801,6 +5876,8 @@ struct BodyCx {
     locals: Vec<DefId>,
     /// Visible locals, innermost scope last.
     scopes: Vec<Vec<(String, DefId)>>,
+    /// Lexical borrowed views reference immutable source slots and captured bounds.
+    borrowed_slices: BTreeMap<DefId, BorrowedSlice>,
     /// Current temporary nesting depth.
     temp_depth: usize,
     /// The return slot, when the function returns a value.
@@ -5853,6 +5930,7 @@ impl BodyCx {
             owner: None,
             locals: Vec::new(),
             scopes: vec![Vec::new()],
+            borrowed_slices: BTreeMap::new(),
             temp_depth: 0,
             ret: None,
             receiver_out: None,

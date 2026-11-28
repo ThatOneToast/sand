@@ -60,6 +60,11 @@ fn lexical_locals(body: &BodyCx) -> Vec<DefId> {
                 .filter_map(|(name, def)| seen.insert(name).then_some(*def)),
         );
     }
+    let borrowed_sources: Vec<_> = definitions
+        .iter()
+        .filter_map(|local| body.borrowed_slices.get(local).map(|view| view.source))
+        .collect();
+    definitions.extend(borrowed_sources);
     definitions.extend(body.initializing_locals.iter().copied());
     definitions.into_iter().collect()
 }

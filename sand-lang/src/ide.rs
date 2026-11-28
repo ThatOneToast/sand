@@ -30,6 +30,7 @@ fn ty_name(analysis: &Analysis, ty: Ty) -> String {
         Ty::String => "string".into(),
         Ty::List(def) => analysis.def(def).name.clone(),
         Ty::Unknown => "{unknown}".into(),
+        Ty::BorrowedSlice => "borrowed slice".into(),
     }
 }
 

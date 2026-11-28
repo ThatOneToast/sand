@@ -72,7 +72,9 @@ fn vectors_reject_invalid_types_and_scalar_operators() {
         "fn f() { let a: Vec<number>; let b = a.slice(false, 2); }",
         "fn f() { let a: Vec<number>; let b: Vec<string> = a.slice(0, 2); }",
         "fn f() { let mut a: Vec<number>; for x in a.borrow_slice(0, 2) {} }",
-        "fn f() { let a: Vec<number>; let b = a.borrow_slice(0, 2); }",
+        "fn f() { let a: Vec<number>; let mut b = a.borrow_slice(0, 2); }",
+        "fn f() -> Vec<number> { let a: Vec<number>; let view = a.borrow_slice(0, 2); return view; }",
+        "fn f() { let a: Vec<number>; let view = a.borrow_slice(0, 2); let copy = view; }",
         "player state S { values: Vec<number> } impl S { fn bad(&self) { self.values.push(1); } }",
     ] {
         assert!(
@@ -125,5 +127,54 @@ global state Data {{ values: [string; 1024] = ["{piece}"; 1024] }}
         errors(&analysis)
             .iter()
             .any(|message| message.contains("expanded State default"))
+    );
+}
+
+#[test]
+fn named_borrows_capture_bounds_and_keep_shadowed_sources_across_waits() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "view_probe", minecraft = "26.2")]
+global state Results { sum: number }
+
+fn run(value: number) {
+    let values = [1, value, 10];
+    let mut end = 3;
+    let view = values.borrow_slice(1, end);
+    end = 1;
+    let values = [99];
+    wait(2, server = true);
+    for item in view { Results.sum += item; }
+    Results.sum += values[0] + end;
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    let program = serde_json::to_string(&analysis.program.unwrap()).unwrap();
+    assert!(program.contains("_first"), "{program}");
+    assert!(program.contains("_last"), "{program}");
+    assert!(
+        pack.resources
+            .keys()
+            .any(|path| path.contains("server_wait_admit"))
+    );
+}
+
+#[test]
+fn borrowed_views_cannot_be_captured_by_closures() {
+    let source = r#"
+#![pack(namespace = "view_probe")]
+fn run() {
+    let values = [1, 2, 3];
+    let view = values.borrow_slice(0, 2);
+    let f: fn() = move || { for item in view {} };
+    f();
+}
+"#;
+    let analysis = analyze_one(source);
+    assert!(
+        errors(&analysis)
+            .iter()
+            .any(|error| error.contains("cannot capture a borrowed slice"))
     );
 }

@@ -47,6 +47,12 @@ pub(super) struct BorrowedInput<'a> {
 pub(super) enum Repeat<'a> {
     /// `while cond { }`.
     While(&'a Cond),
+    /// A compiler-owned breakpoint guard.
+    Breakpoint {
+        score: pc::FieldReference,
+        server: bool,
+        group: String,
+    },
     /// `loop { }`.
     Forever,
     /// `for binding in range { }`.
@@ -2614,6 +2620,7 @@ impl Cx {
         let mut direct = None;
         // Operations that compute the test into `keep`.
         let mut test = Vec::new();
+        let mut pause = None;
         let keep_needed;
         match kind {
             Repeat::While(cond) => {
@@ -2657,6 +2664,19 @@ impl Cx {
                     }
                 }
                 keep_needed = direct.is_none() || has_break;
+            }
+            Repeat::Breakpoint {
+                score,
+                server,
+                group,
+            } => {
+                direct = Some(pc::Condition::Range(pc::ScoreComparison {
+                    score,
+                    min: Some(1),
+                    max: Some(1),
+                }));
+                pause = Some((server, group));
+                keep_needed = false;
             }
             Repeat::Forever => {
                 test.push(Self::marker_set(1, file, span));
@@ -3112,7 +3132,10 @@ impl Cx {
         let retained_depth = body.wait_slots.len();
         body.wait_slots.extend(retained);
         body.wait_slots.extend(jump.iter().chain(&keep).cloned());
-        let lowered = self.lower_waitable_block(body, block);
+        let lowered = match pause {
+            Some((server, group)) => self.breakpoint_wait(body, server, group, span),
+            None => self.lower_waitable_block(body, block),
+        };
         body.wait_slots.truncate(retained_depth);
         body.jumps.pop();
         body.scopes.pop();
@@ -3546,6 +3569,10 @@ impl Cx {
         let Some(bound) = self.bind_args(body, builtin, args, span) else {
             return;
         };
+        if builtin.name == "breakpoint" {
+            self.lower_breakpoint(body, &bound, span, ops);
+            return;
+        }
         if builtin.needs_player {
             body.note_player(
                 path.span,

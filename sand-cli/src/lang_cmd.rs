@@ -122,6 +122,21 @@ enum Command {
         #[command(flatten)]
         input: Input,
     },
+    /// List the named breakpoints available in this package
+    Breakpoints(Input),
+    /// Arm or release one named breakpoint on a loopback Minecraft server
+    Breakpoint {
+        /// Label printed by sand lang breakpoints
+        label: String,
+        /// Release the label and resume waiting invocations on loaded ticks
+        #[arg(long)]
+        resume: bool,
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: u16,
+        #[command(flatten)]
+        input: Input,
+    },
     /// Create a new Sand language project in a new directory
     New {
         /// Project directory (its name becomes the namespace)
@@ -235,6 +250,46 @@ pub fn run(args: LangArgs) -> Result<()> {
             let analysis = analyze(&input.path)?;
             report(&analysis)?;
             inspect_waits(&analysis, group.as_deref(), rcon_port)
+        }
+        Command::Breakpoints(input) => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            for (label, (file, span)) in &analysis.breakpoints {
+                let index = sand_lang::LineIndex::new(&analysis.package.files[file.0].text);
+                let location = mapped_location(
+                    &analysis,
+                    &MappedSpan {
+                        file: file.0,
+                        start: span.start,
+                    },
+                    &index,
+                );
+                println!("{label}\t{location}");
+            }
+            Ok(())
+        }
+        Command::Breakpoint {
+            label,
+            resume,
+            rcon_port,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let program = analysis.program.as_ref().context("no analyzed program")?;
+            let command =
+                sand::advanced::compiler::Compiler::breakpoint_control(program, &label, !resume)
+                    .map_err(compiler_inspection_error)?;
+            let response = local_console(rcon_port)?.query(&command)?;
+            if !response.starts_with("Set ") {
+                bail!("could not control breakpoint `{label}`: {response}");
+            }
+            if resume {
+                println!("Released breakpoint {label}");
+            } else {
+                println!("Armed breakpoint {label}");
+            }
+            Ok(())
         }
         Command::New { path, namespace } => {
             let name = path
@@ -373,13 +428,13 @@ fn function_resource(function: &sand::ResourceLocation) -> String {
     )
 }
 
-fn inspection_connection(port: u16) -> Result<crate::dev::rcon::ReadSession> {
+fn local_console(port: u16) -> Result<crate::dev::rcon::ConsoleSession> {
     let secret =
         std::env::var("SAND_RCON_PASSWORD").context("set SAND_RCON_PASSWORD for this server")?;
     if secret.is_empty() {
         bail!("SAND_RCON_PASSWORD is empty");
     }
-    crate::dev::rcon::Rcon::inspect_connection(port, secret)
+    crate::dev::rcon::Rcon::console_connection(port, secret)
 }
 
 fn inspect_waits(analysis: &Analysis, group: Option<&str>, port: u16) -> Result<()> {
@@ -394,7 +449,7 @@ fn inspect_waits(analysis: &Analysis, group: Option<&str>, port: u16) -> Result<
         println!("No matching wait sites");
         return Ok(());
     }
-    let mut rcon = inspection_connection(port)?;
+    let mut rcon = local_console(port)?;
     for probe in probes {
         let source = probe
             .origin
@@ -447,7 +502,7 @@ fn inspect_state(
         ("player" | "entity", None) => bail!("State `{id}` requires --owner"),
         _ => {}
     }
-    let mut rcon = inspection_connection(port)?;
+    let mut rcon = local_console(port)?;
     let uuid = owner
         .map(|name| resolve_inspection_owner(&mut rcon, name))
         .transpose()?;
@@ -470,7 +525,7 @@ fn inspect_state(
 }
 
 fn resolve_inspection_owner(
-    rcon: &mut crate::dev::rcon::ReadSession,
+    rcon: &mut crate::dev::rcon::ConsoleSession,
     value: &str,
 ) -> Result<[i32; 4]> {
     if let Some(uuid) = parse_entity_uuid(value) {

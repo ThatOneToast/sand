@@ -219,33 +219,145 @@ impl Cx {
             }
             pc::ScoreOperand::Field(score)
         };
-        if !server {
-            body.note_executor(span, "retains the executing entity across a wait".into());
-        }
+        self.capture_wait(
+            body,
+            WaitSite {
+                setup,
+                ticks,
+                fields: Vec::new(),
+                group,
+                server,
+                span,
+            },
+        )
+    }
 
-        let mut fields = body.wait_slots.clone();
+    fn capture_wait(&mut self, body: &mut BodyCx, mut wait: WaitSite) -> Option<WaitSite> {
+        if !wait.server {
+            body.note_executor(
+                wait.span,
+                "retains the executing entity across a wait".into(),
+            );
+        }
+        wait.fields = body.wait_slots.clone();
         for def in lexical_locals(body) {
             let root = self.local_ref(def);
             let ty = self.local_ty(def);
-            fields.extend(self.retained_slots(&root, ty));
+            wait.fields.extend(self.retained_slots(&root, ty));
         }
-        if fields.len() > 64 {
+        if wait.fields.len() > 64 {
             self.error(
                 "wait",
-                file,
-                span,
+                body.file,
+                wait.span,
                 "a wait can retain at most 64 local fields, including fields of records",
             );
             return None;
         }
-        Some(WaitSite {
-            setup,
-            ticks,
-            fields,
-            group,
-            server,
+        Some(wait)
+    }
+
+    pub(super) fn breakpoint_wait(
+        &mut self,
+        body: &mut BodyCx,
+        server: bool,
+        group: String,
+        span: Span,
+    ) -> Vec<pc::Operation> {
+        self.capture_wait(
+            body,
+            WaitSite {
+                setup: Vec::new(),
+                ticks: pc::ScoreOperand::Value(1),
+                fields: Vec::new(),
+                group: Some(group),
+                server,
+                span,
+            },
+        )
+        .map_or_else(Vec::new, |wait| wait.suspend(body.file, Vec::new()))
+    }
+
+    pub(super) fn lower_breakpoint(
+        &mut self,
+        body: &mut BodyCx,
+        args: &BTreeMap<&'static str, &Arg>,
+        span: Span,
+        ops: &mut Vec<pc::Operation>,
+    ) {
+        let file = body.file;
+        if body.owner.is_none() || body.wait_block_depth != body.block_ends.len() {
+            self.error(
+                "breakpoint",
+                file,
+                span,
+                "use a breakpoint at a statement where the invocation can wait",
+            );
+            return;
+        }
+        let Some((label, _, _)) = self.arg_string(file, args["label"], "a breakpoint label") else {
+            return;
+        };
+        if !(1..=16).contains(&label.len())
+            || !label.as_bytes()[0].is_ascii_lowercase()
+            || !label
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+            || matches!(
+                label.as_str(),
+                "presence" | "suppressed" | "numeric_scratch"
+            )
+        {
+            self.error(
+                "breakpoint",
+                file,
+                span,
+                "use a 1–16 character lowercase breakpoint label starting with a letter",
+            );
+            return;
+        }
+        let Some(server) = self.wait_is_server(file, args.get("server").copied()) else {
+            return;
+        };
+        if let Some(&(first_file, first_span)) = self.breakpoints.get(&label)
+            && (first_file, first_span) != (file, span)
+        {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    "breakpoint",
+                    file,
+                    span,
+                    format!("duplicate breakpoint label `{label}`"),
+                )
+                .with_note(first_file, first_span, "first declaration"),
+            );
+            return;
+        }
+        self.breakpoints.insert(label.clone(), (file, span));
+        let score = pc::FieldReference {
+            state: format!(
+                "{}:sand.breakpoints",
+                self.pack.as_ref().expect("pack checked").namespace
+            )
+            .parse()
+            .expect("valid breakpoint State identity"),
+            field: label.clone(),
+        };
+        let block = Block {
+            stmts: Vec::new(),
             span,
-        })
+        };
+        self.lower_repeat(
+            body,
+            super::statements::Repeat::Breakpoint {
+                score,
+                server,
+                group: format!("breakpoint_{label}"),
+            },
+            &block,
+            span,
+            ops,
+        );
     }
 
     pub(super) fn wait_is_server(&mut self, file: FileId, arg: Option<&Arg>) -> Option<bool> {

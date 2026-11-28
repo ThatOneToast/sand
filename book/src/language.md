@@ -425,6 +425,22 @@ Run the inspector against the source used to build the installed pack.
 same server. It prints the source location and current queue or owner ledger
 for each compiled site. Use `--group` to inspect just one cancellation group.
 
+Place `breakpoint("before_award")` at a statement where the function can wait.
+Use `breakpoint("before_award", server = true)` in server functions. Each label
+identifies one source location. Breakpoints start disarmed in a fresh world.
+
+- `sand lang breakpoints` lists the labels and their source locations.
+- `sand lang breakpoint before_award --rcon-port 25575` arms this label. An
+  invocation reaching it pauses with its own local values, checking once per
+  loaded tick for release.
+- `sand lang inspect-waits --group breakpoint_before_award --rcon-port 25575`
+  shows paused invocations.
+- `sand lang breakpoint before_award --resume --rcon-port 25575` disarms the
+  label and releases all paused invocations as their next wait becomes due.
+
+Use the same local RCON settings as State inspection. Arming is stored in the
+world and persists across pack reloads.
+
 
 
 ## Types

@@ -63,6 +63,7 @@ const CAPABILITIES: &[&str] = &[
     "player_checkpoints",
     "owned_encounters",
     "event_predicate_guards",
+    "named_breakpoints",
     "player_transitions",
     "custom_biomes",
     "structure_templates",
@@ -425,6 +426,54 @@ impl Compiler {
             fields.insert(field.name.clone(), cmd);
         }
         Ok(fields)
+    }
+
+    /// Generate the native command that arms or releases one authored breakpoint.
+    ///
+    /// A breakpoint belongs to the program's debugger State and applies to every
+    /// invocation reaching its label. Releasing it resumes loaded instances on
+    /// their next eligible tick.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::advanced::compiler::Compiler::breakpoint_control", module = "sand::advanced::compiler",
+        summary = "Build the command that arms or releases a compiled breakpoint.",
+        context = "Controls a label that was explicitly declared in the matching program.",
+        minecraft = "Sets the canonical debugger State score for the breakpoint.",
+        use_when = ["Connecting an editor or local console to Sand's debugger"],
+        avoid_when = ["Setting arbitrary gameplay scores"],
+        params(program = "Resolved program used to build the installed pack.", label = "Authored breakpoint label.", armed = "Whether new and pending invocations wait here."),
+        returns = "A single checked console command, or diagnostics.",
+        example = "use sand::advanced::compiler::{Compiler, Program}; fn arm(program: &Program) { let _ = Compiler::breakpoint_control(program, \"reward\", true); }",
+    )]
+    pub fn breakpoint_control(
+        program: &Program,
+        label: &str,
+        armed: bool,
+    ) -> Result<String, Vec<Diagnostic>> {
+        validate::validate(program)?;
+        let id = format!("{}:sand.breakpoints", program.pack.namespace);
+        let state = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.states)
+            .find(|state| {
+                state.scope == "global"
+                    && state.id.to_string() == id
+                    && state.fields.iter().any(|field| field.name == label)
+            })
+            .ok_or_else(|| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_BREAKPOINT",
+                    &id,
+                    "",
+                    format!("unknown breakpoint `{label}`"),
+                )]
+            })?;
+        let objective = sand_commands::ObjectiveName::logical(format!("{id}.{label}"));
+        let holder = crate::state::owned::holder(state);
+        Ok(format!(
+            "scoreboard players set {holder} {objective} {}",
+            i32::from(armed)
+        ))
     }
 
     /// Find the native pending queue or ownership ledger for each compiled wait.

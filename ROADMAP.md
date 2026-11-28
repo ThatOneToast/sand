@@ -370,7 +370,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Read-only State inspection against a local running server.
 - [x] Pending wait inspection with source locations and group filtering.
 - [x] Live Zed diagnostics and inferred-context hints using a worktree build.
-- [ ] Breakpoints.
+- [x] Source-declared named breakpoints with live RCON control.
+- [ ] Editor breakpoints by line and execution stepping.
 
 Acceptance: compiler/export tests prove observable output, runtime features have
 native evidence, and each new public model preserves deterministic export,

@@ -221,6 +221,30 @@ pub const EXECUTOR_BUILTINS: &[&str] = &[
 /// Every builtin, in documentation order.
 pub const BUILTINS: &[Builtin] = &[
     Builtin {
+        name: "breakpoint",
+        kind: BuiltinKind::Statement,
+        signature: "breakpoint(label, server = false)",
+        summary: "Pause this invocation at an armed debugger label.",
+        details: "The label is established by the source. Resume that label through the local debugger.",
+        minecraft: "Reuses the loaded-tick wait runtime while the breakpoint is armed.",
+        needs_player: false,
+        params: &[
+            p(
+                "label",
+                ParamKind::Text,
+                true,
+                "A unique lowercase identifier.",
+            ),
+            p(
+                "server",
+                ParamKind::Bool,
+                false,
+                "Use the server queue for server-owned work.",
+            ),
+        ],
+        snippet: "breakpoint(\"${1:before_reward}\");",
+    },
+    Builtin {
         name: "wait",
         kind: BuiltinKind::Statement,
         signature: "wait(ticks?, seconds?, group?, server?)",

@@ -433,6 +433,8 @@ pub struct Analysis {
     pub function_types: BTreeMap<DefId, FunctionType>,
     /// Sand-authored tests, in discovery order.
     pub tests: Vec<TestCase>,
+    /// Authored breakpoint labels with their source locations.
+    pub breakpoints: BTreeMap<String, (FileId, Span)>,
     /// Every resolved reference.
     pub references: Vec<Reference>,
     /// Syntax, resolution, and type diagnostics.
@@ -648,6 +650,7 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         test_mode,
         tests: BTreeMap::new(),
         test_functions: Default::default(),
+        breakpoints: BTreeMap::new(),
         event_handlers: BTreeMap::new(),
         handler_attrs: HashSet::new(),
         call_frames: Vec::new(),
@@ -676,6 +679,7 @@ fn analyze_mode(package: Package, test_mode: bool) -> Analysis {
         defs: cx.defs,
         origins: cx.generics.origins,
         tests: cx.tests.into_values().collect(),
+        breakpoints: cx.breakpoints,
         function_types: cx
             .fn_slots
             .into_iter()
@@ -768,6 +772,7 @@ struct Cx {
     test_mode: bool,
     tests: BTreeMap<DefId, TestCase>,
     test_functions: std::collections::BTreeSet<DefId>,
+    breakpoints: BTreeMap<String, (FileId, Span)>,
     /// Handlers of each custom event, in declaration order.
     event_handlers: BTreeMap<DefId, Vec<EventHandler>>,
     /// `#[on(Event)]` attributes that name a custom event.
@@ -2685,6 +2690,30 @@ impl Cx {
                     .iter()
                     .map(|name| pc::ScoreField {
                         name: name.clone(),
+                        default: 0,
+                        bounds: None,
+                        timer: false,
+                    })
+                    .collect(),
+            });
+        }
+        if !self.breakpoints.is_empty()
+            && let Some(root) = modules.first_mut()
+        {
+            let id = format!("{}:sand.breakpoints", pack.namespace)
+                .parse()
+                .expect("valid breakpoint State identity");
+            root.states.push(pc::State {
+                id,
+                scope: "global".into(),
+                revision: 1,
+                migrations: Vec::new(),
+                data_fields: Vec::new(),
+                fields: self
+                    .breakpoints
+                    .keys()
+                    .map(|label| pc::ScoreField {
+                        name: label.clone(),
                         default: 0,
                         bounds: None,
                         timer: false,

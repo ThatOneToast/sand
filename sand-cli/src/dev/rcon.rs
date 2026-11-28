@@ -56,17 +56,17 @@ impl Rcon {
         Ok(stream)
     }
 
-    pub(crate) fn inspect_connection(port: u16, secret: String) -> Result<ReadSession> {
+    pub(crate) fn console_connection(port: u16, secret: String) -> Result<ConsoleSession> {
         let stream = Self { port, secret }.connect()?;
-        Ok(ReadSession { stream })
+        Ok(ConsoleSession { stream })
     }
 }
 
-pub(crate) struct ReadSession {
+pub(crate) struct ConsoleSession {
     stream: TcpStream,
 }
 
-impl ReadSession {
+impl ConsoleSession {
     /// Read a complete command response using a second, read-only request as
     /// the delimiter. Vanilla may split a UTF-8 response across packets.
     pub(crate) fn query(&mut self, command: &str) -> Result<String> {
@@ -215,7 +215,7 @@ mod tests {
             write_packet(&mut socket, 2, 0, "second").unwrap();
             write_packet(&mut socket, 3, 0, "The time is 0").unwrap();
         });
-        let mut rcon = Rcon::inspect_connection(port, "test-only".into()).unwrap();
+        let mut rcon = Rcon::console_connection(port, "test-only".into()).unwrap();
         assert_eq!(
             rcon.query("data get entity Tester UUID").unwrap(),
             "first second"

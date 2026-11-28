@@ -403,6 +403,20 @@ After running Minecraft's `debug function namespace:function/path`, use
 built the installed pack. Sand annotates commands it can match unambiguously.
 Expanded macros and other unmatched commands stay visible as unmapped.
 
+With local RCON enabled on a development server, use
+`sand lang inspect example:round --rcon-port 25575` to read global State.
+For player or entity State, add `--owner` with an online player name or
+the owner's UUID. Set `SAND_RCON_PASSWORD` in the CLI process environment.
+The inspector reads the stored revision and each score or storage value from
+the currently installed pack. String storage values use native list notation.
+Run the inspector against the source used to build the installed pack.
+
+`sand lang inspect-waits --rcon-port 25575` reads pending waits from the
+same server. It prints the source location and current queue or owner ledger
+for each compiled site. Use `--group` to inspect just one cancellation group.
+
+
+
 ## Types
 
 | Type | Holds | Stored as |

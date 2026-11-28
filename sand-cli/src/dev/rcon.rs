@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, ensure};
 
-pub(super) struct Rcon {
+pub(crate) struct Rcon {
     pub port: u16,
     secret: String,
 }
@@ -33,6 +33,16 @@ impl Rcon {
     /// single command-write attempt. Errors after that callback cannot prove
     /// the command did not run; callers retain bounded load confirmation.
     pub fn reload(&self, dispatching: impl FnOnce()) -> Result<()> {
+        let mut stream = self.connect()?;
+        dispatching();
+        write_packet(&mut stream, 2, 2, "reload")?;
+        let (id, kind, _) = read_response(&mut stream)?;
+        ensure!(id == 2 && kind == 0, "unexpected RCON command response");
+        // Vanilla's response acknowledges dispatch, not asynchronous resource
+        // validation. Never label this as successful datapack loading.
+        Ok(())
+    }
+    fn connect(&self) -> Result<TcpStream> {
         let mut stream = TcpStream::connect_timeout(
             &SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port).into(),
             Duration::from_secs(2),
@@ -41,15 +51,40 @@ impl Rcon {
         stream.set_read_timeout(Some(Duration::from_secs(2)))?;
         stream.set_write_timeout(Some(Duration::from_secs(2)))?;
         write_packet(&mut stream, 1, 3, &self.secret)?;
-        let (id, kind) = read_packet(&mut stream)?;
+        let (id, kind, _) = read_response(&mut stream)?;
         ensure!(id == 1 && kind == 2, "local RCON authentication rejected");
-        dispatching();
-        write_packet(&mut stream, 2, 2, "reload")?;
-        let (id, kind) = read_packet(&mut stream)?;
+        Ok(stream)
+    }
+
+    pub(crate) fn inspect_connection(port: u16, secret: String) -> Result<ReadSession> {
+        let stream = Self { port, secret }.connect()?;
+        Ok(ReadSession { stream })
+    }
+}
+
+pub(crate) struct ReadSession {
+    stream: TcpStream,
+}
+
+impl ReadSession {
+    /// Read a complete command response using a second, read-only request as
+    /// the delimiter. Vanilla may split a UTF-8 response across packets.
+    pub(crate) fn query(&mut self, command: &str) -> Result<String> {
+        write_packet(&mut self.stream, 2, 2, command)?;
+        let (id, kind, mut answer) = read_response(&mut self.stream)?;
         ensure!(id == 2 && kind == 0, "unexpected RCON command response");
-        // Vanilla's response acknowledges dispatch, not asynchronous resource
-        // validation. Never label this as successful datapack loading.
-        Ok(())
+        write_packet(&mut self.stream, 3, 2, "time query gametime")?;
+        for _ in 0..512 {
+            let (id, kind, body) = read_response(&mut self.stream)?;
+            ensure!(kind == 0, "unexpected RCON response type");
+            match id {
+                3 => return String::from_utf8(answer).context("RCON response isn't UTF-8"),
+                2 => answer.extend(body),
+                _ => anyhow::bail!("unexpected RCON response identity"),
+            }
+            ensure!(answer.len() <= 1024 * 1024, "RCON response exceeds 1 MiB");
+        }
+        anyhow::bail!("RCON response has too many packets")
     }
 }
 
@@ -79,7 +114,7 @@ fn write_packet(out: &mut impl Write, id: i32, kind: i32, body: &str) -> Result<
     Ok(())
 }
 
-fn read_packet(input: &mut impl Read) -> Result<(i32, i32)> {
+fn read_response(input: &mut impl Read) -> Result<(i32, i32, Vec<u8>)> {
     let mut length = [0; 4];
     input.read_exact(&mut length)?;
     let length = i32::from_le_bytes(length);
@@ -90,12 +125,17 @@ fn read_packet(input: &mut impl Read) -> Result<(i32, i32)> {
     Ok((
         i32::from_le_bytes(packet[..4].try_into()?),
         i32::from_le_bytes(packet[4..8].try_into()?),
+        packet[8..packet.len() - 2].to_vec(),
     ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn read_packet(input: &mut impl Read) -> Result<(i32, i32)> {
+        read_response(input).map(|(id, kind, _)| (id, kind))
+    }
     #[test]
     fn allocation_retries_game_port_collisions_and_bounds_failure() {
         let mut ports = [49152, 49152, 49153].into_iter();
@@ -149,6 +189,40 @@ mod tests {
         bytes.push(1);
         assert!(read_packet(&mut bytes.as_slice()).is_err());
     }
+    #[test]
+    fn inspection_reads_all_response_packets() {
+        let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let worker = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            assert_eq!(
+                read_response(&mut socket).unwrap(),
+                (1, 3, b"test-only".to_vec())
+            );
+            write_packet(&mut socket, 1, 2, "").unwrap();
+            assert_eq!(
+                read_response(&mut socket).unwrap(),
+                (2, 2, b"data get entity Tester UUID".to_vec())
+            );
+            write_packet(&mut socket, 2, 0, "first ").unwrap();
+            assert_eq!(
+                read_response(&mut socket).unwrap(),
+                (3, 2, b"time query gametime".to_vec())
+            );
+            write_packet(&mut socket, 2, 0, "second").unwrap();
+            write_packet(&mut socket, 3, 0, "The time is 0").unwrap();
+        });
+        let mut rcon = Rcon::inspect_connection(port, "test-only".into()).unwrap();
+        assert_eq!(
+            rcon.query("data get entity Tester UUID").unwrap(),
+            "first second"
+        );
+        worker.join().unwrap();
+    }
+
     #[test]
     fn authentication_failure_never_sends_reload() {
         let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();

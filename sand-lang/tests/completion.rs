@@ -162,12 +162,25 @@ fn attributes_fit_what_they_are_attached_to() {
             "sleep",
             "take_damage",
             "deal_damage",
+            "start_sneaking",
+            "stop_sneaking",
+            "start_sprinting",
+            "stop_sprinting",
+            "start_swimming",
+            "stop_swimming",
+            "start_flying",
+            "stop_flying",
         ],
     );
     includes_excludes(
         "advancement Scout { criteria: { found: { inventory_item: Item::Paper } } }\n#[on(advancement = |)]\nfn later() {}",
         &["Scout"],
         &["Item::Paper", "later"],
+    );
+    includes_excludes(
+        "predicate Clear { chance: 1 }\n#[on(start_flying, when = |)]\nfn later() {}",
+        &["Clear"],
+        &["start_flying", "later"],
     );
     includes_excludes(
         "#[on(use_item = |)]\nfn later() {}",
@@ -402,7 +415,18 @@ fn data_declarations_offer_only_remaining_valid_fields() {
     );
     exactly(
         "dimension Workshop {\n    |\n}",
-        &["layers", "biome", "type", "structures"],
+        &[
+            "layers",
+            "noise_settings",
+            "biome",
+            "biomes",
+            "type",
+            "structures",
+        ],
+    );
+    exactly(
+        "dimension Workshop { noise_settings: \"minecraft:overworld\", biomes: [Biome::Plains],\n    |\n}",
+        &["biome_scale", "type"],
     );
     includes_excludes(
         "dimension Workshop { type: | }",

@@ -19,6 +19,7 @@ type LifecycleCommand = (String, usize, String);
 pub(super) struct LoweredProgram {
     pub(super) resources: BTreeMap<String, Vec<u8>>,
     pub(super) runtime_report: crate::compiler::runtime::RuntimeReport,
+    pub(super) wait_sites: Vec<super::WaitInspection>,
 }
 
 pub(super) fn lower(
@@ -130,6 +131,7 @@ pub(super) fn lower(
         dimensions,
         continuation_count: 0,
         wait_cancellations: BTreeSet::new(),
+        wait_sites: Vec::new(),
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
@@ -828,6 +830,7 @@ pub(super) fn lower(
     Ok(LoweredProgram {
         resources: output,
         runtime_report,
+        wait_sites: lower.wait_sites,
     })
 }
 
@@ -1759,6 +1762,7 @@ struct Lower<'sources> {
     dimensions: Vec<sand_components::DimensionId>,
     continuation_count: usize,
     wait_cancellations: BTreeSet<(bool, Option<String>)>,
+    wait_sites: Vec<super::WaitInspection>,
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
@@ -3664,6 +3668,7 @@ impl Lower<'_> {
                     body,
                     group.as_deref(),
                     *server,
+                    operation.origin.as_ref(),
                 )?,
                 Action::CancelWaits { group, server } => {
                     self.wait_cancellations.insert((*server, group.clone()));

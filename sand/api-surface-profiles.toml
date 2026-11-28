@@ -94,6 +94,8 @@
 # Portable fixed-biome noise dimensions add ten source items.
 # Consumption and dimension-arrival advancement criteria add four source items.
 # Event predicate filtering adds one portable hook field.
+# Live State inspection adds one portable compiler method.
+# Pending wait inspection adds one method, one type, and four fields.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -102,19 +104,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 6097
+static_surface_items = 6104
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12411
+static_surface_items = 12418
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12673
+static_surface_items = 12680
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

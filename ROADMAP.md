@@ -360,6 +360,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Emitted command-line mappings, including generated helper functions.
 - [x] CLI lookup of authored source for a generated function and line.
 - [x] Source annotations on identifiable commands in native debug traces.
+- [x] Read-only State inspection against a local running server.
+- [x] Pending wait inspection with source locations and group filtering.
 - [x] Live Zed diagnostics and inferred-context hints using a worktree build.
 - [ ] Breakpoints.
 

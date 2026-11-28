@@ -14,6 +14,7 @@ impl Lower<'_> {
             .to_string()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn suspend_server(
         &mut self,
         location: (&str, &str, &str, &str),
@@ -22,6 +23,7 @@ impl Lower<'_> {
         ticks: &ScoreOperand,
         push: Vec<Cmd>,
         group: Option<&str>,
+        origin: Option<&serde_json::Value>,
     ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
         let (owner, path, module, pointer) = location;
         let key = &self.helper_keys[owner];
@@ -90,6 +92,12 @@ impl Lower<'_> {
             format!("execute if score #remaining {objective} matches ..0 run function {deliver}"),
             format!("execute if data storage {queue}.draining[0] run function {drain}"),
         ], module, pointer)?;
+        self.wait_sites.push(super::super::WaitInspection {
+            site: admit,
+            group: group.map(str::to_owned),
+            command: format!("data get storage {queue}"),
+            origin: origin.cloned(),
+        });
         self.server_waits.push(ServerWait {
             queue,
             drain,

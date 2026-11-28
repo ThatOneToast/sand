@@ -98,6 +98,30 @@ enum Command {
         #[command(flatten)]
         input: Input,
     },
+    /// Read a State's current values from a loopback Minecraft server
+    Inspect {
+        /// Namespaced State identity
+        state: sand::ResourceLocation,
+        /// Online player name or UUID of the one owned State to inspect
+        #[arg(long)]
+        owner: Option<String>,
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: u16,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Read the pending queue or ownership ledger for compiled waits
+    InspectWaits {
+        /// Inspect only wait sites with this cancellation group
+        #[arg(long)]
+        group: Option<String>,
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: u16,
+        #[command(flatten)]
+        input: Input,
+    },
     /// Create a new Sand language project in a new directory
     New {
         /// Project directory (its name becomes the namespace)
@@ -193,6 +217,25 @@ pub fn run(args: LangArgs) -> Result<()> {
                 profile: "dev".into(),
             },
         ),
+        Command::Inspect {
+            state,
+            owner,
+            rcon_port,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            inspect_state(&analysis, &state, owner.as_deref(), rcon_port)
+        }
+        Command::InspectWaits {
+            group,
+            rcon_port,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            inspect_waits(&analysis, group.as_deref(), rcon_port)
+        }
         Command::New { path, namespace } => {
             let name = path
                 .file_name()
@@ -328,6 +371,148 @@ fn function_resource(function: &sand::ResourceLocation) -> String {
         function.namespace(),
         function.path()
     )
+}
+
+fn inspection_connection(port: u16) -> Result<crate::dev::rcon::ReadSession> {
+    let secret =
+        std::env::var("SAND_RCON_PASSWORD").context("set SAND_RCON_PASSWORD for this server")?;
+    if secret.is_empty() {
+        bail!("SAND_RCON_PASSWORD is empty");
+    }
+    crate::dev::rcon::Rcon::inspect_connection(port, secret)
+}
+
+fn inspect_waits(analysis: &Analysis, group: Option<&str>, port: u16) -> Result<()> {
+    let program = analysis.program.as_ref().context("no analyzed program")?;
+    let probes = sand::advanced::compiler::Compiler::wait_inspection(program)
+        .map_err(compiler_inspection_error)?;
+    let mut probes = probes
+        .iter()
+        .filter(|probe| group.is_none_or(|group| probe.group.as_deref() == Some(group)))
+        .peekable();
+    if probes.peek().is_none() {
+        println!("No matching wait sites");
+        return Ok(());
+    }
+    let mut rcon = inspection_connection(port)?;
+    for probe in probes {
+        let source = probe
+            .origin
+            .clone()
+            .and_then(|origin| serde_json::from_value::<MappedSpan>(origin).ok())
+            .and_then(|span| {
+                let file = analysis.package.files.get(span.file)?;
+                let index = sand_lang::LineIndex::new(&file.text);
+                Some(mapped_location(analysis, &span, &index))
+            });
+        let group = probe.group.as_deref().unwrap_or("ungrouped");
+        match source {
+            Some(source) => println!("{} [{group}] {source}", probe.site),
+            None => println!("{} [{group}]", probe.site),
+        }
+        let result = rcon
+            .query(&probe.command)
+            .with_context(|| format!("could not inspect `{}`", probe.site))?;
+        println!("{result}");
+    }
+    Ok(())
+}
+
+fn compiler_inspection_error(errors: Vec<sand::advanced::compiler::Diagnostic>) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{}",
+        errors
+            .into_iter()
+            .map(|error| error.message)
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+}
+
+fn inspect_state(
+    analysis: &Analysis,
+    id: &sand::ResourceLocation,
+    owner: Option<&str>,
+    port: u16,
+) -> Result<()> {
+    let program = analysis.program.as_ref().context("no analyzed program")?;
+    let state = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.states)
+        .find(|state| &state.id == id)
+        .with_context(|| format!("unknown State `{id}`"))?;
+    match (state.scope.as_str(), owner) {
+        ("global", Some(_)) => bail!("global State `{id}` has no entity owner"),
+        ("player" | "entity", None) => bail!("State `{id}` requires --owner"),
+        _ => {}
+    }
+    let mut rcon = inspection_connection(port)?;
+    let uuid = owner
+        .map(|name| resolve_inspection_owner(&mut rcon, name))
+        .transpose()?;
+    let commands = sand::advanced::compiler::Compiler::state_inspection(program, id, uuid)
+        .map_err(compiler_inspection_error)?;
+    println!("State {id} (expected revision {})", state.revision);
+    for (name, command) in commands {
+        let label = name.strip_prefix("__sand_data_").unwrap_or(&name);
+        let result = rcon
+            .query(&command)
+            .with_context(|| format!("could not read `{label}`"))?;
+        let result = if result.is_empty() {
+            "<no value>"
+        } else {
+            &result
+        };
+        println!("{label}\t{result}");
+    }
+    Ok(())
+}
+
+fn resolve_inspection_owner(
+    rcon: &mut crate::dev::rcon::ReadSession,
+    value: &str,
+) -> Result<[i32; 4]> {
+    if let Some(uuid) = parse_entity_uuid(value) {
+        return Ok(uuid);
+    }
+    if !(1..=16).contains(&value.len())
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        bail!("--owner needs one player name or a hyphenated UUID");
+    }
+    let response = rcon.query(&format!("data get entity {value} UUID"))?;
+    parse_native_uuid(&response)
+        .with_context(|| format!("could not read the UUID of player `{value}`"))
+}
+
+fn parse_entity_uuid(value: &str) -> Option<[i32; 4]> {
+    if value.len() != 36
+        || !value.is_ascii()
+        || ![8, 13, 18, 23]
+            .into_iter()
+            .all(|i| value.as_bytes()[i] == b'-')
+    {
+        return None;
+    }
+    let hex = value.replace('-', "");
+    let mut parts = [0; 4];
+    for (index, part) in parts.iter_mut().enumerate() {
+        let start = index * 8;
+        *part = u32::from_str_radix(hex.get(start..start + 8)?, 16).ok()? as i32;
+    }
+    Some(parts)
+}
+
+fn parse_native_uuid(response: &str) -> Option<[i32; 4]> {
+    let array = response.rsplit_once("[I;")?.1.trim().strip_suffix(']')?;
+    let parts = array
+        .split(',')
+        .map(|part| part.trim().parse().ok())
+        .collect::<Option<Vec<_>>>()?;
+    parts.try_into().ok()
 }
 
 fn source_at(
@@ -697,6 +882,73 @@ fn report(analysis: &Analysis) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wait_inspection_uses_the_generated_queues_and_ledgers_with_origins() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("pack.sand");
+        std::fs::write(
+            &root,
+            r#"
+#![pack(namespace = "debug")]
+fn server_work() {
+    wait(40, server = true, group = "clock");
+    raw!("say server resumed");
+}
+#[player]
+fn owned_work() {
+    wait(40, group = "jobs");
+    raw!("say owner resumed");
+}
+"#,
+        )
+        .unwrap();
+        let analysis = analyze(&root).unwrap();
+        let program = analysis.program.as_ref().expect("valid wait fixture");
+        let pack = analysis.compile().expect("compiled wait fixture");
+        let probes = sand::advanced::compiler::Compiler::wait_inspection(program).unwrap();
+        assert_eq!(probes.len(), 2);
+        for probe in probes {
+            let origin: MappedSpan = serde_json::from_value(probe.origin.unwrap()).unwrap();
+            let text = &analysis.package.files[origin.file].text;
+            assert!(text[origin.start..].starts_with("wait"), "{}", probe.site);
+            let address = probe.command.strip_prefix("data get storage ").unwrap();
+            match probe.group.as_deref() {
+                Some("clock") => assert!(address.contains("debug:__sand_server_waits sites.")),
+                Some("jobs") => assert!(address.ends_with("/task_ledger active")),
+                other => panic!("unexpected wait group {other:?}"),
+            }
+            assert!(
+                pack.resources
+                    .values()
+                    .filter_map(|bytes| std::str::from_utf8(bytes).ok())
+                    .any(|text| text.contains(address))
+            );
+        }
+    }
+
+    #[test]
+    fn inspection_owner_parses_native_and_hyphenated_uuids() {
+        let uuid = [0, -1, i32::MIN, i32::MAX];
+        assert_eq!(
+            parse_entity_uuid("00000000-ffff-ffff-8000-00007fffffff"),
+            Some(uuid)
+        );
+        assert_eq!(
+            parse_native_uuid(
+                "Tester has the following entity data: [I; 0, -1, -2147483648, 2147483647]"
+            ),
+            Some(uuid)
+        );
+        assert_eq!(
+            parse_entity_uuid("00000000-ffff-ffff-8000-00007ffffff-"),
+            None
+        );
+        assert_eq!(
+            parse_native_uuid("[I; 0, -1, -2147483648, 2147483647, 0]"),
+            None
+        );
+    }
 
     #[test]
     fn source_at_resolves_generated_branch_lines() {

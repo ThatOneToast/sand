@@ -15,6 +15,7 @@ pub(super) struct Continuation {
 }
 
 impl Lower<'_> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn suspend(
         &mut self,
         location: (&str, &str, &str, &str),
@@ -23,6 +24,7 @@ impl Lower<'_> {
         body: &[Operation],
         group: Option<&str>,
         server: bool,
+        origin: Option<&serde_json::Value>,
     ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
         let (owner, path, module, pointer) = location;
         self.continuation_count += 1;
@@ -80,8 +82,17 @@ impl Lower<'_> {
                 ticks,
                 push,
                 group,
+                origin,
             );
         }
+
+        let ledger = crate::gameplay::identity::resource(&id, "task_ledger");
+        self.wait_sites.push(super::super::WaitInspection {
+            site: id.to_string(),
+            group: group.map(str::to_owned),
+            command: format!("data get storage {ledger} active"),
+            origin: origin.cloned(),
+        });
 
         let store =
             format!("data modify entity @s data.sand_wait set from storage {storage} stack[-1]");

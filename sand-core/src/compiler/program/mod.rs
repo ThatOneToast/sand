@@ -163,6 +163,29 @@ pub struct CommandSources {
     pub functions: BTreeMap<String, Vec<CommandSource>>,
 }
 
+/// A compiled wait site and the read-only command for its pending instances.
+#[derive(Debug, Clone, serde::Serialize)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::WaitInspection", module = "sand::advanced::compiler",
+    summary = "A read-only probe for pending instances of a compiled wait site.",
+    context = "The portable operation's origin lets authoring tools show the corresponding wait.",
+    minecraft = "Reads the native queue or owner ledger without ticking, cancelling, or resuming it.",
+    use_when = ["Inspecting delayed work in a running Minecraft development world"],
+    avoid_when = ["Cancelling a wait or asking a continuation to resume"],
+    fields(site = "Stable identity of the compiled wait site.", group = "Optional authored cancellation group.", command = "Read-only Minecraft query.", origin = "Optional portable operation origin."),
+    example = "use sand::advanced::compiler::WaitInspection;",
+)]
+pub struct WaitInspection {
+    /// Generated identity of this wait site.
+    pub site: String,
+    /// Optional authored cancellation group.
+    pub group: Option<String>,
+    /// Read-only command addressing the same queue or ledger used by the runtime.
+    pub command: String,
+    /// Optional origin supplied by the portable program producer.
+    pub origin: Option<serde_json::Value>,
+}
+
 /// Stateless portable compiler; repeated and concurrent calls share no state.
 ///
 /// Rust collection and JSON producers provide the same owned Program. Explicit
@@ -294,6 +317,129 @@ impl Compiler {
             diagnostics: Vec::new(),
             runtime_report: lowered.runtime_report,
         })
+    }
+
+    /// Build read-only native commands that inspect one State's current values.
+    ///
+    /// An owned State needs the UUID of one player or entity as Minecraft's
+    /// four signed integers. Global State uses its canonical fake score holder
+    /// and storage slot. The result includes the stored revision and, for owned
+    /// State, its suppression flag. Calling these commands never attaches State.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::advanced::compiler::Compiler::state_inspection", module = "sand::advanced::compiler",
+        summary = "Build read-only commands for inspecting a portable State.",
+        context = "Inspect global State or the exact State record of a known player or entity.",
+        minecraft = "Reads generated scoreboard and native storage identities without changing them.",
+        use_when = ["Inspecting stored State from a local Minecraft console or debugger"],
+        avoid_when = ["Reading gameplay State inside a Sand function"],
+        params(program = "Resolved owned program with an explicit target.", id = "State resource identity.", owner = "Minecraft UUID split into four signed integers for owned State."),
+        returns = "Native read commands keyed by State field name, or validation diagnostics.",
+        example = "use sand::advanced::compiler::{Compiler, Program}; fn probe(program: &Program) { let _ = Compiler::state_inspection(program, &\"example:round\".parse().unwrap(), None); }",
+    )]
+    pub fn state_inspection(
+        program: &Program,
+        id: &sand_components::ResourceLocation,
+        owner: Option<[i32; 4]>,
+    ) -> Result<BTreeMap<String, String>, Vec<Diagnostic>> {
+        validate::validate(program)?;
+        let error = |message| {
+            vec![Diagnostic::error(
+                "SAND_PROGRAM_INSPECT",
+                &id.to_string(),
+                "",
+                message,
+            )]
+        };
+        let state = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.states)
+            .find(|state| &state.id == id)
+            .ok_or_else(|| error(format!("unknown State `{id}`")))?;
+        let global = state.scope == "global";
+        let (holder, owner_path) = match (global, owner) {
+            (true, None) => (None, None),
+            (false, Some([first, second, third, fourth])) => {
+                let hex = format!(
+                    "{:08x}{:08x}{:08x}{:08x}",
+                    first as u32, second as u32, third as u32, fourth as u32
+                );
+                let uuid = format!(
+                    "{}-{}-{}-{}-{}",
+                    &hex[..8],
+                    &hex[8..12],
+                    &hex[12..16],
+                    &hex[16..20],
+                    &hex[20..]
+                );
+                let snbt = format!("[I;{first},{second},{third},{fourth}]");
+                (
+                    Some(uuid),
+                    Some(crate::entity::state::state_data_owner_path(&snbt)),
+                )
+            }
+            (true, Some(_)) => {
+                return Err(error(format!("global State `{id}` has no entity owner")));
+            }
+            (false, None) => return Err(error(format!("State `{id}` requires an owner UUID"))),
+        };
+        let read_score = |field: &str| {
+            let objective = sand_commands::ObjectiveName::logical(format!("{id}.{field}"));
+            match &holder {
+                Some(uuid) => {
+                    format!("execute as {uuid} run scoreboard players get @s {objective}")
+                }
+                None => format!(
+                    "scoreboard players get {} {objective}",
+                    crate::state::owned::holder(state)
+                ),
+            }
+        };
+        let mut fields = BTreeMap::from([("@revision".into(), read_score("presence"))]);
+        if !global {
+            fields.insert("@suppressed".into(), read_score("suppressed"));
+        }
+        for field in &state.fields {
+            fields.insert(field.name.clone(), read_score(&field.name));
+        }
+        for field in &state.data_fields {
+            let cmd = crate::state::owned::with_data_field(state, &field.name, |descriptor| {
+                match &owner_path {
+                    Some(owner) => format!(
+                        "data get storage {} {owner}.{}",
+                        descriptor.storage, descriptor.path
+                    ),
+                    None => format!(
+                        "data get storage {} {}",
+                        descriptor.storage, descriptor.path
+                    ),
+                }
+            });
+            fields.insert(field.name.clone(), cmd);
+        }
+        Ok(fields)
+    }
+
+    /// Find the native pending queue or ownership ledger for each compiled wait.
+    ///
+    /// Run the returned command against the world with this exact pack installed.
+    /// Empty owned ledgers may be absent until a wait has been admitted.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::advanced::compiler::Compiler::wait_inspection", module = "sand::advanced::compiler",
+        summary = "Find read-only queries for compiled pending waits.",
+        context = "Server waits use queues and executor-owned waits use retained ownership ledgers.",
+        minecraft = "Returns inspection commands without adding functions or changing datapack bytes.",
+        use_when = ["Connecting a debugger to the compiled wait runtime"],
+        avoid_when = ["Inspecting gameplay state fields"],
+        params(program = "Resolved owned program compiled for the installed target."),
+        returns = "Pending-wait probes in stable site order, or compilation diagnostics.",
+        example = "use sand::advanced::compiler::{Compiler, Program}; fn probe(program: &Program) { let _ = Compiler::wait_inspection(program); }",
+    )]
+    pub fn wait_inspection(program: &Program) -> Result<Vec<WaitInspection>, Vec<Diagnostic>> {
+        let target = validate::validate(program)?;
+        let mut sites = lower::lower(program, &target, None)?.wait_sites;
+        sites.sort_by(|a, b| a.site.cmp(&b.site));
+        Ok(sites)
     }
 
     /// Generate the bundled envelope schema from the authoritative Rust model.

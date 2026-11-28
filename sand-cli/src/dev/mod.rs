@@ -1,5 +1,5 @@
 //! Local development orchestration; no framework or release-output changes.
-mod rcon;
+pub(crate) mod rcon;
 mod reload;
 mod watch;
 

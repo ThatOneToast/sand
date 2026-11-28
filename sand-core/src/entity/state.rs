@@ -2844,8 +2844,12 @@ fn keyed_data_prune_commands(storage: &str, component: &str) -> Vec<String> {
     vec![format!("function __sand_local:{path}")]
 }
 
+pub(crate) fn state_data_owner_path(uuid: &str) -> String {
+    format!("owners_v2.\"{uuid}\"")
+}
+
 fn keyed_owner_path() -> String {
-    format!("owners_v2.\"{}\"", keyed_uuid())
+    state_data_owner_path(keyed_uuid())
 }
 
 // Legacy filtered data-modify paths create a matching owner when absent.

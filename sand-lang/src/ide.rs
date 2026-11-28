@@ -2413,6 +2413,19 @@ fn data_completions(
         return builtins::data_fields(keyword)
             .filter(|f| !used(f.name))
             .filter(|f| keyword != "recipe" || builtins::recipe_accepts_field(recipe_type, f.name))
+            .filter(|f| {
+                if keyword != "dimension" {
+                    return true;
+                }
+                match f.name {
+                    "layers" | "structures" => !used("noise_settings") && !used("biomes"),
+                    "noise_settings" => !used("layers") && !used("structures"),
+                    "biomes" => !used("layers") && !used("structures") && !used("biome"),
+                    "biome_scale" => used("biomes"),
+                    "biome" => !used("biomes"),
+                    _ => true,
+                }
+            })
             .map(|f| Completion {
                 detail: Some(f.doc.split(". ").next().unwrap_or(f.doc).to_string()),
                 documentation: Some(f.doc.into()),

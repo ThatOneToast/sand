@@ -2037,6 +2037,66 @@
         },
         {
           "additionalProperties": false,
+          "description": "Complete a native interaction with a selected entity type.",
+          "properties": {
+            "entity": {
+              "type": "string"
+            },
+            "item": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "const": "interact_entity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "entity"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Tame an animal of the selected type.",
+          "properties": {
+            "entity": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "tame_entity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "entity"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Activate the selected totem item.",
+          "properties": {
+            "item": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "use_totem",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Change dimensions and arrive in the selected destination.",
           "properties": {
             "dimension": {

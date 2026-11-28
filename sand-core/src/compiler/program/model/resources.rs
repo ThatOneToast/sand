@@ -542,11 +542,11 @@ pub struct AdvancementDisplay {
  registry = sand_api_contract, path = "sand::advanced::compiler::AdvancementCriterion", module = "sand::advanced::compiler",
  summary = "A vanilla condition that records one piece of player advancement progress.",
  context = "Give each condition a stable name in its Advancement. The game tracks each player's completion and persists criterion progress.",
- minecraft = "Uses native inventory, consumption, placement, kill, and dimension-change triggers.",
+ minecraft = "Uses native inventory, consumption, placement, kill, taming, entity interaction, totem, and dimension-change triggers.",
  use_when = ["Composing native advancement criteria"],
  avoid_when = ["Executing an arbitrary script as a criterion"],
- variants(InventoryItem = "Acquire an item.", PlaceBlock = "Place the selected block.", KillEntity = "Kill an entity of the selected type.", ConsumeItem = "Consume the selected item.", ArriveDimension = "Enter the selected dimension."),
- variant_fields(InventoryItem(item = "Vanilla item identity."), PlaceBlock(block = "Vanilla block identity."), KillEntity(entity = "Vanilla entity type identity."), ConsumeItem(item = "Vanilla item identity."), ArriveDimension(dimension = "Destination dimension identity.")),
+ variants(InteractEntity = "Successfully interact with the selected entity type.", TameEntity = "Tame an animal of the selected type.", UseTotem = "Activate the selected totem item.", InventoryItem = "Acquire an item.", PlaceBlock = "Place the selected block.", KillEntity = "Kill an entity of the selected type.", ConsumeItem = "Consume the selected item.", ArriveDimension = "Enter the selected dimension."),
+ variant_fields(InteractEntity(entity = "Target entity type.", item = "Optional interacted item."), TameEntity(entity = "Tamed entity type."), UseTotem(item = "Activated totem item."), InventoryItem(item = "Vanilla item identity."), PlaceBlock(block = "Vanilla block identity."), KillEntity(entity = "Vanilla entity type identity."), ConsumeItem(item = "Vanilla item identity."), ArriveDimension(dimension = "Destination dimension identity.")),
  example = "use sand::advanced::compiler::AdvancementCriterion;",
 )]
 pub enum AdvancementCriterion {
@@ -558,6 +558,16 @@ pub enum AdvancementCriterion {
     KillEntity { entity: String },
     /// Finish consuming the selected item.
     ConsumeItem { item: String },
+    /// Complete a native interaction with a selected entity type.
+    InteractEntity {
+        entity: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        item: Option<String>,
+    },
+    /// Tame an animal of the selected type.
+    TameEntity { entity: String },
+    /// Activate the selected totem item.
+    UseTotem { item: String },
     /// Change dimensions and arrive in the selected destination.
     ArriveDimension {
         /// Destination dimension identity.

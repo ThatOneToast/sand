@@ -1895,28 +1895,35 @@ pub(super) fn validate(
                         "criterion names must be nonblank and contain no control characters".into(),
                     );
                 }
-                let (id, registry, field) = match criterion {
+                let item_ref = |item| (item, "minecraft:item", "item");
+                let entity_ref = |entity| (entity, "minecraft:entity_type", "entity");
+                let references = match criterion {
                     // DimensionId validates the identity and may reference a world supplied by another pack.
-                    AdvancementCriterion::ArriveDimension { .. } => continue,
+                    AdvancementCriterion::ArriveDimension { .. } => [None, None],
                     AdvancementCriterion::InventoryItem { item }
-                    | AdvancementCriterion::ConsumeItem { item } => {
-                        (item, "minecraft:item", "item")
-                    }
+                    | AdvancementCriterion::ConsumeItem { item }
+                    | AdvancementCriterion::UseTotem { item } => [Some(item_ref(item)), None],
                     AdvancementCriterion::PlaceBlock { block } => {
-                        (block, "minecraft:block", "block")
+                        [Some((block, "minecraft:block", "block")), None]
                     }
-                    AdvancementCriterion::KillEntity { entity } => {
-                        (entity, "minecraft:entity_type", "entity")
+                    AdvancementCriterion::KillEntity { entity }
+                    | AdvancementCriterion::TameEntity { entity } => {
+                        [Some(entity_ref(entity)), None]
+                    }
+                    AdvancementCriterion::InteractEntity { entity, item } => {
+                        [Some(entity_ref(entity)), item.as_ref().map(item_ref)]
                     }
                 };
-                if !syntax_id(id)
-                    || !available(id, registry)
-                    || (field == "item" && custom_items.contains(id))
-                {
-                    push(
-                        format!("{criteria_path}/{field}"),
-                        format!("`{id}` is not a vanilla {field} identity"),
-                    );
+                for (id, registry, field) in references.into_iter().flatten() {
+                    if !syntax_id(id)
+                        || !available(id, registry)
+                        || (field == "item" && custom_items.contains(id))
+                    {
+                        push(
+                            format!("{criteria_path}/{field}"),
+                            format!("`{id}` is not a vanilla {field} identity"),
+                        );
+                    }
                 }
             }
             if let Some(display) = &advancement.display {

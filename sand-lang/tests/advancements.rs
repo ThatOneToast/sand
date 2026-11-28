@@ -244,3 +244,57 @@ fn completion_handlers_require_a_visible_advancement_declaration() {
         assert!(analysis.has_errors(), "{attribute}");
     }
 }
+
+#[test]
+fn native_interaction_taming_and_totem_criteria_keep_their_filters() {
+    let source = r#"
+#![pack(namespace = "milestone", minecraft = "26.2")]
+advancement Companion {
+    criteria: {
+        touch: { interact_entity: { entity: Entity::Wolf, item: Item::Bone } },
+        tame: { tame_entity: Entity::Wolf },
+        survived: { use_totem: Item::TotemOfUndying },
+    },
+}
+"#;
+    let analysis = analyze_one(source);
+    let pack = compile(&analysis);
+    let json: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/milestone/advancement/companion.json"])
+            .unwrap();
+    let criteria = &json["criteria"];
+    assert_eq!(
+        criteria["touch"]["trigger"],
+        "minecraft:player_interacted_with_entity"
+    );
+    assert_eq!(
+        criteria["touch"]["conditions"]["entity"][0]["predicate"]["minecraft:entity_type"],
+        "minecraft:wolf"
+    );
+    assert_eq!(
+        criteria["touch"]["conditions"]["item"]["items"],
+        serde_json::json!(["minecraft:bone"])
+    );
+    assert_eq!(criteria["tame"]["trigger"], "minecraft:tame_animal");
+    assert_eq!(
+        criteria["tame"]["conditions"]["entity"][0]["predicate"]["minecraft:entity_type"],
+        "minecraft:wolf"
+    );
+    assert_eq!(criteria["survived"]["trigger"], "minecraft:used_totem");
+    assert_eq!(
+        criteria["survived"]["conditions"]["item"]["items"],
+        serde_json::json!(["minecraft:totem_of_undying"])
+    );
+
+    let invalid = source.replace("item: Item::Bone", "item: Entity::Pig");
+    assert!(analyze_one(&invalid).has_errors());
+    let encoded = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&encoded, &Default::default()).unwrap();
+    assert_eq!(
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources,
+        pack.resources
+    );
+}

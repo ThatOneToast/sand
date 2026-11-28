@@ -1481,6 +1481,38 @@ fn advancement_component(
                     item: Some(sand_components::ItemPredicate::id(item)),
                 }
             }
+            AdvancementCriterion::InteractEntity { entity, item } => {
+                let entity = entity
+                    .parse::<sand_components::EntityTypeId>()
+                    .map_err(|error| error.to_string())?;
+                let item = item
+                    .as_ref()
+                    .map(|item| {
+                        item.parse::<sand_components::ItemId>()
+                            .map_err(|error| error.to_string())
+                    })
+                    .transpose()?;
+                AdvancementTrigger::PlayerInteractedWithEntity {
+                    item: item.map(sand_components::ItemPredicate::id),
+                    entity: Some(EntityPredicate::type_(entity)),
+                }
+            }
+            AdvancementCriterion::TameEntity { entity } => {
+                let entity = entity
+                    .parse::<sand_components::EntityTypeId>()
+                    .map_err(|error| error.to_string())?;
+                AdvancementTrigger::TamedAnimal {
+                    entity: Some(EntityPredicate::type_(entity)),
+                }
+            }
+            AdvancementCriterion::UseTotem { item } => {
+                let item = item
+                    .parse::<sand_components::ItemId>()
+                    .map_err(|error| error.to_string())?;
+                AdvancementTrigger::UsedTotem {
+                    item: Some(sand_components::ItemPredicate::id(item)),
+                }
+            }
             AdvancementCriterion::ArriveDimension { dimension } => {
                 AdvancementTrigger::changed_dimension(None, Some(dimension.clone()))
             }

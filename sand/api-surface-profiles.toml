@@ -106,6 +106,7 @@
 # Portable jigsaw structures and template pools add three types and 17 fields.
 # Portable online rosters add 23 source items.
 # Fire and health add five portable event kinds.
+# Three portable advancement criteria add seven source items.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -114,19 +115,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 6199
+static_surface_items = 6206
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12513
+static_surface_items = 12520
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12775
+static_surface_items = 12782
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

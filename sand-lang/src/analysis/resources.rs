@@ -3785,6 +3785,23 @@ impl Cx {
             .collect()
     }
 
+    fn data_interaction_criterion(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::AdvancementCriterion> {
+        let fields =
+            self.data_object_fields(file, value, "entity interaction", &["entity"], &["item"])?;
+        let entity = self.data_expr(file, fields.get("entity")?, "an Entity value")?;
+        let entity = self.vanilla_value(module, file, entity, "Entity")?;
+        let item = match fields.get("item") {
+            Some(value) => Some(self.data_item_ref(module, file, value, false)?),
+            None => None,
+        };
+        Some(pc::AdvancementCriterion::InteractEntity { entity, item })
+    }
+
     fn data_advancement_criteria(
         &mut self,
         module: ModuleId,
@@ -3836,6 +3853,14 @@ impl Cx {
                 "consume_item" => self
                     .data_item_ref(module, file, &trigger.value, false)
                     .map(|item| pc::AdvancementCriterion::ConsumeItem { item }),
+                "interact_entity" => self.data_interaction_criterion(module, file, &trigger.value),
+                "tame_entity" => self
+                    .data_expr(file, &trigger.value, "an Entity value")
+                    .and_then(|expr| self.vanilla_value(module, file, expr, "Entity"))
+                    .map(|entity| pc::AdvancementCriterion::TameEntity { entity }),
+                "use_totem" => self
+                    .data_item_ref(module, file, &trigger.value, false)
+                    .map(|item| pc::AdvancementCriterion::UseTotem { item }),
                 "arrive_dimension" => self
                     .data_expr(file, &trigger.value, "a dimension")
                     .and_then(|expr| self.vanilla_value(module, file, expr, "Dimension"))
@@ -3854,7 +3879,7 @@ impl Cx {
                         "advancement",
                         file,
                         trigger.key.span,
-                        "use `inventory_item`, `consume_item`, `place_block`, `kill_entity`, or `arrive_dimension`",
+                        "expected inventory_item, consume_item, place_block, kill_entity, interact_entity, tame_entity, use_totem, or arrive_dimension",
                     );
                     None
                 }

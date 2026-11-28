@@ -2047,7 +2047,9 @@ pages. Pages use fixed content authored in the item declaration.
 
 Use named criteria to define player milestones tracked by Minecraft. Each
 criterion uses one trigger. Use `inventory_item`, `consume_item`,
-`place_block`, `kill_entity`, or `arrive_dimension`. Arrival accepts a
+`place_block`, `kill_entity`, `tame_entity`, `use_totem`, `interact_entity`,
+or `arrive_dimension`. An interaction takes `{ entity: Entity::Wolf }` and
+an optional `item: Item::Bone` in that object. Arrival accepts a
 declared dimension or a vanilla `Dimension::...` value.
 Every criterion is required by default. Set `require_any: true` to require one.
 An advancement can award experience points once per completion.

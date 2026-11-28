@@ -496,6 +496,34 @@ pub(super) fn lower(
                 &mut tick,
             )?;
         }
+        for (index, checkpoint) in module.checkpoints.iter().enumerate() {
+            let pointer = format!("/checkpoints/{index}");
+            let registration = crate::gameplay::Checkpoint::portable(
+                checkpoint,
+                &lower.data_states,
+                checkpoint.before_restore.as_ref().map(reference_id),
+                checkpoint.after_restore.as_ref().map(reference_id),
+            )
+            .map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_CHECKPOINT",
+                    &module_id,
+                    &pointer,
+                    error.to_string(),
+                )]
+            })?;
+            lower.register_owned_runtime(
+                registration,
+                (
+                    &format!("checkpoint {}", checkpoint.id),
+                    &module_id,
+                    &pointer,
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
         for (index, hud) in module.huds.iter().enumerate() {
             lower.register_owned_runtime(
                 lower.huds[&hud.id.to_string()].clone().into_datapack(),
@@ -3214,6 +3242,10 @@ impl Lower<'_> {
                         definition.cancel().0
                     }
                 }
+                Action::Checkpoint {
+                    checkpoint,
+                    command,
+                } => crate::gameplay::Checkpoint::invoke(checkpoint, *command).0,
                 Action::TransferInventory { transfer } => {
                     crate::gameplay::InventoryTransfer::invoke(transfer).0
                 }

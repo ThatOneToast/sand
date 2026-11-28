@@ -301,6 +301,12 @@ pub(super) fn validate(
             .flat_map(|module| &module.huds)
             .map(|hud| hud.id.to_string())
             .collect(),
+        checkpoints: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.checkpoints)
+            .map(|checkpoint| checkpoint.id.to_string())
+            .collect(),
         transfers: program
             .modules
             .iter()
@@ -741,6 +747,21 @@ pub(super) fn validate(
                         ExecutionContext::Player,
                         &owner,
                         &format!("/inventory_transfers/{index}/{field}"),
+                    );
+                }
+            }
+        }
+        for (index, checkpoint) in module.checkpoints.iter().enumerate() {
+            for (field, callback) in [
+                ("before_restore", &checkpoint.before_restore),
+                ("after_restore", &checkpoint.after_restore),
+            ] {
+                if let Some(callback) = callback {
+                    validator.call(
+                        callback,
+                        ExecutionContext::Player,
+                        &owner,
+                        &format!("/checkpoints/{index}/{field}"),
                     );
                 }
             }
@@ -1479,6 +1500,14 @@ pub(super) fn validate(
                 ),
             }
         }
+        for (index, checkpoint) in module.checkpoints.iter().enumerate() {
+            if !resource_ids.insert(format!("checkpoint {}", checkpoint.id)) {
+                push(
+                    format!("/checkpoints/{index}/id"),
+                    format!("duplicate checkpoint `{}`", checkpoint.id),
+                );
+            }
+        }
         for (index, structure_set) in module.structure_sets.iter().enumerate() {
             use sand_components::component::DatapackComponent;
             let ptr = format!("/structure_sets/{index}");
@@ -2039,6 +2068,7 @@ struct Validator<'a, 'e> {
     dialogs_supported: bool,
     advancements: BTreeMap<String, BTreeSet<String>>,
     transfers: BTreeSet<String>,
+    checkpoints: BTreeSet<String>,
     huds: BTreeSet<String>,
     projectiles: BTreeSet<String>,
     progressions: BTreeSet<String>,
@@ -3324,6 +3354,22 @@ impl Validator<'_, '_> {
                             owner,
                             &format!("{ptr}/action/hud"),
                             format!("unknown HUD `{hud}`"),
+                        ));
+                    }
+                }
+                Action::Checkpoint { checkpoint, .. } => {
+                    self.player(
+                        context,
+                        owner,
+                        &ptr,
+                        "operating the executing player's checkpoint",
+                    );
+                    if !self.checkpoints.contains(&checkpoint.to_string()) {
+                        self.errors.push(Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            owner,
+                            &format!("{ptr}/action/checkpoint"),
+                            format!("unknown checkpoint `{checkpoint}`"),
                         ));
                     }
                 }

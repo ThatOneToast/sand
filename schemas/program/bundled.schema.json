@@ -878,6 +878,28 @@
         },
         {
           "additionalProperties": false,
+          "description": "Operate on the executing player's checkpoint.",
+          "properties": {
+            "checkpoint": {
+              "type": "string"
+            },
+            "command": {
+              "$ref": "#/$defs/CheckpointCommand"
+            },
+            "op": {
+              "const": "checkpoint",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "checkpoint",
+            "command"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Run a named inventory transfer for the executing player.",
           "properties": {
             "op": {
@@ -2339,6 +2361,94 @@
           "type": "string"
         }
       ]
+    },
+    "CheckpointCommand": {
+      "description": "The operation to apply to a portable player checkpoint.",
+      "oneOf": [
+        {
+          "const": "save",
+          "description": "Copy the live values to saved State.",
+          "type": "string"
+        },
+        {
+          "const": "restore",
+          "description": "Copy saved values back to the live fields.",
+          "type": "string"
+        },
+        {
+          "const": "clear",
+          "description": "Invalidate the snapshot.",
+          "type": "string"
+        }
+      ]
+    },
+    "CheckpointDefinition": {
+      "additionalProperties": false,
+      "description": "An owned portable definition of a canonical player checkpoint.",
+      "properties": {
+        "after_restore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Called as the player after the restored fields commit."
+        },
+        "before_restore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Called as the player before restoring and revalidating the snapshot."
+        },
+        "fields": {
+          "description": "Explicit integer projection in authored order.",
+          "items": {
+            "$ref": "#/$defs/CheckpointFieldPair"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Registered checkpoint identity.",
+          "type": "string"
+        },
+        "valid": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The saved State field representing whether this snapshot exists."
+        }
+      },
+      "required": [
+        "id",
+        "valid",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "CheckpointFieldPair": {
+      "additionalProperties": false,
+      "description": "Explicit live and saved player State fields in one checkpoint projection.",
+      "properties": {
+        "live": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The live gameplay field."
+        },
+        "saved": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "The saved copy in the checkpoint State."
+        }
+      },
+      "required": [
+        "live",
+        "saved"
+      ],
+      "type": "object"
     },
     "ClickEvent": {
       "description": "A click event attached to a [`TextComponent`].\n\n# Context\nA click event attached to a [`TextComponent`]. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.\n\n# Minecraft behavior\nThe component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.\n\n# Use when\n- Building player-visible text with typed styling or interactions\n\n# Avoid when\n- Passing an unvalidated JSON string when a typed text component can express the same value\n\n# Example\n```rust,ignore\nuse sand::text::ClickEvent;\n```\nA click event attached to a [`TextComponent`].",
@@ -4642,6 +4752,13 @@
           "description": "Boss bars, created at load.",
           "items": {
             "$ref": "#/$defs/BossBar"
+          },
+          "type": "array"
+        },
+        "checkpoints": {
+          "description": "Player-owned State checkpoint definitions.",
+          "items": {
+            "$ref": "#/$defs/CheckpointDefinition"
           },
           "type": "array"
         },

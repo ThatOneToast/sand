@@ -857,6 +857,18 @@ impl Cx {
                     bossbar,
                 });
             }
+            DataKind::Checkpoint => {
+                let Some(checkpoint) = self.data_checkpoint(module, file, location, get) else {
+                    return;
+                };
+                self.pointers.push((
+                    module_id,
+                    format!("/checkpoints/{}", out.checkpoints.len()),
+                    file,
+                    data.name.span,
+                ));
+                out.checkpoints.push(checkpoint);
+            }
             DataKind::InventoryTransfer => {
                 use sand::inventory::InventoryIndex;
                 let max = i64::from(InventoryIndex::MAX);
@@ -1973,6 +1985,78 @@ impl Cx {
             }
         }
         Some(fields)
+    }
+
+    fn data_checkpoint<'a>(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        id: sand::ResourceLocation,
+        get: impl Fn(&str) -> Option<&'a DataField>,
+    ) -> Option<pc::CheckpointDefinition> {
+        let valid = self.data_flag(module, file, &get("valid")?.value)?;
+        let fields = &get("fields")?.value;
+        let DataValue::Array(pairs, _) = fields else {
+            self.error(
+                "checkpoint",
+                file,
+                fields.span(),
+                "expected a list of live and saved field pairs",
+            );
+            return None;
+        };
+        let fields = pairs
+            .iter()
+            .map(|pair| {
+                let fields = self.data_object_fields(
+                    file,
+                    pair,
+                    "checkpoint score pair",
+                    &["live", "saved"],
+                    &[],
+                )?;
+                let live = self.data_player_score(module, file, fields.get("live")?, false)?;
+                let saved = self.data_player_score(module, file, fields.get("saved")?, false)?;
+                Some(pc::CheckpointFieldPair { live, saved })
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let mut callback = |name| match get(name) {
+            Some(field) => self.data_callback(module, file, &field.value).map(Some),
+            None => Some(None),
+        };
+        Some(pc::CheckpointDefinition {
+            id,
+            valid,
+            fields,
+            before_restore: callback("before_restore")?,
+            after_restore: callback("after_restore")?,
+        })
+    }
+
+    fn data_flag(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+    ) -> Option<pc::FieldReference> {
+        let expected = "a player State bool";
+        let expr = self.data_expr(file, value, expected)?;
+        if let Expr::Place(place) = expr {
+            let (state, field, ty) = self.resolve_place(module, file, place)?;
+            if ty == Ty::Bool
+                && matches!(
+                    self.defs[state.0].info,
+                    DefInfo::State {
+                        scope: Scope::Player,
+                        ..
+                    }
+                )
+            {
+                return self.field_reference(state, field);
+            }
+        }
+        self.error("state", file, value.span(), format!("expected {expected}"));
+        None
     }
 
     fn data_state_cooldown(

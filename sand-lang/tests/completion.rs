@@ -82,6 +82,7 @@ fn item_level() {
             "structure_template",
             "structure_set",
             "inventory_transfer",
+            "checkpoint",
             "hud",
             "menu",
             "projectile",
@@ -434,6 +435,11 @@ fn data_declarations_offer_only_remaining_valid_fields() {
         "dimension_type Deep {}\ndimension Workshop { type: | }",
         &["Deep", "DimensionType::Overworld"],
         &["Dimension::Overworld"],
+    );
+    includes_excludes(
+        "player state Live { score: number }\nplayer state Saved { valid: bool, score: number }\ncheckpoint Snapshot { valid: Saved.valid, fields: [{ live: Live.score, saved: Saved.score }] }\n#[player] fn f() { restore_checkpoint(|); }",
+        &["Snapshot"],
+        &["Live", "Saved"],
     );
     includes_excludes(
         "dimension Workshop { layers: [{ block: Block::Bedrock, height: 1 }] }\nfn f() { in_dimension(|, setup); }",

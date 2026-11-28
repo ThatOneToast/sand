@@ -605,6 +605,7 @@ impl Builder<'_> {
                     "structure_template" => DataKind::StructureTemplate,
                     "structure_set" => DataKind::StructureSet,
                     "inventory_transfer" => DataKind::InventoryTransfer,
+                    "checkpoint" => DataKind::Checkpoint,
                     "hud" => DataKind::Hud,
                     "menu" => DataKind::Menu,
                     "projectile" => DataKind::Projectile,

@@ -1415,6 +1415,35 @@ fn compute_later(done: fn(number)) {
 }
 ```
 
+### Player checkpoints
+
+A `checkpoint` saves selected player State numbers into a separate saved
+State. Its validity field is an initially false player State bool. Sand
+checks the entire projection before it changes any field.
+
+```rust,ignore
+player state LiveRun { points: number }
+player state SavedRun { valid: bool, points: number }
+
+checkpoint LastRun {
+    valid: SavedRun.valid,
+    fields: [{ live: LiveRun.points, saved: SavedRun.points }],
+}
+
+#[player]
+fn save_round() { save_checkpoint(LastRun); }
+
+#[player]
+fn resume_round() { restore_checkpoint(LastRun); }
+```
+
+An optional `before_restore` function can cancel waits or prepare a new
+session. Sand resolves the same player by UUID and checks the saved values
+again after that function returns. An optional `after_restore` function runs
+after all live fields commit. `clear_checkpoint` invalidates the projection
+while its saved scores retain their values.
+
+
 ## The world
 
 Block positions are `pos(x, y, z)` in world coordinates or `offset(dx, dy, dz)`

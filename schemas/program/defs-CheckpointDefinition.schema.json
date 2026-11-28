@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An owned portable definition of a canonical player checkpoint.",
+  "properties": {
+    "after_restore": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Called as the player after the restored fields commit."
+    },
+    "before_restore": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Called as the player before restoring and revalidating the snapshot."
+    },
+    "fields": {
+      "description": "Explicit integer projection in authored order.",
+      "items": {
+        "$ref": "defs-CheckpointFieldPair.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Registered checkpoint identity.",
+      "type": "string"
+    },
+    "valid": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "The saved State field representing whether this snapshot exists."
+    }
+  },
+  "required": [
+    "id",
+    "valid",
+    "fields"
+  ],
+  "type": "object"
+}

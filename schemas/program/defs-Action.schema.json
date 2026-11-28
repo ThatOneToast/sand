@@ -764,6 +764,28 @@
     },
     {
       "additionalProperties": false,
+      "description": "Operate on the executing player's checkpoint.",
+      "properties": {
+        "checkpoint": {
+          "type": "string"
+        },
+        "command": {
+          "$ref": "defs-CheckpointCommand.schema.json"
+        },
+        "op": {
+          "const": "checkpoint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "checkpoint",
+        "command"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
       "description": "Run a named inventory transfer for the executing player.",
       "properties": {
         "op": {

@@ -974,6 +974,10 @@
                 },
                 {
                   "type": "STRING",
+                  "value": "checkpoint"
+                },
+                {
+                  "type": "STRING",
                   "value": "hud"
                 },
                 {

@@ -99,6 +99,7 @@
 # Portable dimension types add one module field.
 # Biome feature references add one field and one typed registry ID.
 # Portable structure sets add one module field.
+# Portable player checkpoints add 17 source items.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -107,19 +108,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 6111
+static_surface_items = 6128
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 12425
+static_surface_items = 12442
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 12687
+static_surface_items = 12704
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

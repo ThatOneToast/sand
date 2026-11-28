@@ -18,15 +18,15 @@ pub use gameplay::{
     ScoreOperator, ScoreRelation, StateAttached, TeleportDestination, TextColor, TextPart,
     TextStyle, Weather,
 };
-pub use operation::{AbilityCommand, Action, Operation, SessionCommand};
+pub use operation::{AbilityCommand, Action, CheckpointCommand, Operation, SessionCommand};
 pub use resources::{
     AbilityCost, AbilityDefinition, Advancement, AdvancementCriterion, AdvancementDisplay, BossBar,
-    BossBarColor, BossBarStyle, CombatCritical, CombatDefinition, CookingMethod, CustomBiome,
-    CustomItem, DimensionDefinition, FlatDimension, HudBossBar, HudDefinition,
-    InventoryTransferDefinition, JobDefinition, LootItem, LootPool, LootTable, MenuChoice,
-    MenuDefinition, MenuView, NoiseDimension, NoticeDialog, ProgressionBranch,
-    ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity, Recipe,
-    RecipeOutput, ResourceTag, SceneContent, SceneDefinition, SceneKeyframe, ScenePart,
+    BossBarColor, BossBarStyle, CheckpointDefinition, CheckpointFieldPair, CombatCritical,
+    CombatDefinition, CookingMethod, CustomBiome, CustomItem, DimensionDefinition, FlatDimension,
+    HudBossBar, HudDefinition, InventoryTransferDefinition, JobDefinition, LootItem, LootPool,
+    LootTable, MenuChoice, MenuDefinition, MenuView, NoiseDimension, NoticeDialog,
+    ProgressionBranch, ProgressionDefinition, ProgressionObjective, ProjectileDefinition, Rarity,
+    Recipe, RecipeOutput, ResourceTag, SceneContent, SceneDefinition, SceneKeyframe, ScenePart,
     SessionDefinition, StateCooldown, TagKind, WorldPredicate, WrittenBookContent,
 };
 pub use state::{DataField, FieldReference, ScoreComparison, ScoreField, State};

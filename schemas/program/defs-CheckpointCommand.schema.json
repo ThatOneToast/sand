@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The operation to apply to a portable player checkpoint.",
+  "oneOf": [
+    {
+      "const": "save",
+      "description": "Copy the live values to saved State.",
+      "type": "string"
+    },
+    {
+      "const": "restore",
+      "description": "Copy saved values back to the live fields.",
+      "type": "string"
+    },
+    {
+      "const": "clear",
+      "description": "Invalidate the snapshot.",
+      "type": "string"
+    }
+  ]
+}

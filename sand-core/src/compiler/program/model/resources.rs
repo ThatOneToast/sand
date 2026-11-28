@@ -730,6 +730,55 @@ pub struct CustomBiome {
     pub features: BTreeMap<sand_components::GenerationStep, Vec<sand_components::PlacedFeatureId>>,
 }
 
+/// Explicit live and saved player State fields in one checkpoint projection.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::CheckpointFieldPair", module = "sand::advanced::compiler",
+    summary = "A live and saved field pair in a checkpoint.",
+    context = "The fields use separate player State components.",
+    minecraft = "Both scores are checked before a checkpoint copies either direction.",
+    use_when = ["Declaring one integer field copied at a gameplay checkpoint"],
+    avoid_when = ["Snapshotting storage or an entity's position"],
+    fields(live = "Current gameplay field.", saved = "Snapshot field in saved State."),
+    example = "use sand::advanced::compiler::CheckpointFieldPair;",
+)]
+pub struct CheckpointFieldPair {
+    /// The live gameplay field.
+    pub live: super::FieldReference,
+    /// The saved copy in the checkpoint State.
+    pub saved: super::FieldReference,
+}
+
+/// An owned portable definition of a canonical player checkpoint.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::CheckpointDefinition", module = "sand::advanced::compiler",
+    summary = "A portable player checkpoint with an explicit State projection.",
+    context = "Restore revalidates the original player and the snapshot after preparation.",
+    minecraft = "Uses the shared Checkpoint runtime for score preflight, transaction locking, and UUID isolation.",
+    use_when = ["Saving a selected group of gameplay scores"],
+    avoid_when = ["Saving automatically scheduled tasks or native world state"],
+    fields(id = "Registered checkpoint identity.", valid = "Initially zero flag in the saved State.", fields = "Live and saved score pairs.", before_restore = "Preparation callback, before revalidation.", after_restore = "Callback after all restored values commit."),
+    example = "use sand::advanced::compiler::CheckpointDefinition;",
+)]
+pub struct CheckpointDefinition {
+    /// Registered checkpoint identity.
+    #[schemars(with = "String")]
+    pub id: ResourceLocation,
+    /// The saved State field representing whether this snapshot exists.
+    pub valid: super::FieldReference,
+    /// Explicit integer projection in authored order.
+    pub fields: Vec<CheckpointFieldPair>,
+    /// Called as the player before restoring and revalidating the snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before_restore: Option<super::FunctionReference>,
+    /// Called as the player after the restored fields commit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_restore: Option<super::FunctionReference>,
+}
+
 /// A reusable native player inventory transfer between two numbered slots.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

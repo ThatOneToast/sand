@@ -535,6 +535,8 @@ pub enum DataKind {
     /// A native weighted structure placement schedule.
     StructureSet,
     InventoryTransfer,
+    /// A player-owned checkpoint projection.
+    Checkpoint,
     Hud,
     Menu,
     Projectile,
@@ -565,6 +567,7 @@ impl DataKind {
             DataKind::StructureTemplate => "structure_template",
             DataKind::StructureSet => "structure_set",
             DataKind::InventoryTransfer => "inventory_transfer",
+            DataKind::Checkpoint => "checkpoint",
             DataKind::Hud => "hud",
             DataKind::Menu => "menu",
             DataKind::Projectile => "projectile",

@@ -31,6 +31,13 @@
       },
       "type": "array"
     },
+    "checkpoints": {
+      "description": "Player-owned State checkpoint definitions.",
+      "items": {
+        "$ref": "defs-CheckpointDefinition.schema.json"
+      },
+      "type": "array"
+    },
     "combats": {
       "description": "Named State combat policies.",
       "items": {

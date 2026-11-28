@@ -5152,6 +5152,21 @@ impl Cx {
                 hud: self.arg_declared(body, bound["hud"], DefKind::Hud, "a HUD")?,
                 show: builtin.name == "start_hud",
             },
+            "save_checkpoint" | "restore_checkpoint" | "clear_checkpoint" => {
+                pc::Action::Checkpoint {
+                    checkpoint: self.arg_declared(
+                        body,
+                        bound["snapshot"],
+                        DefKind::Checkpoint,
+                        "a checkpoint",
+                    )?,
+                    command: match builtin.name {
+                        "save_checkpoint" => pc::CheckpointCommand::Save,
+                        "restore_checkpoint" => pc::CheckpointCommand::Restore,
+                        _ => pc::CheckpointCommand::Clear,
+                    },
+                }
+            }
             "transfer_inventory" => pc::Action::TransferInventory {
                 transfer: self.arg_declared(
                     body,

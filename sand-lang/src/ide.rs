@@ -306,6 +306,12 @@ pub fn describe(analysis: &Analysis, id: DefId) -> String {
                     format!("{vis}hud {}", def.name),
                     format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
                 ),
+                (crate::ast::DataKind::Checkpoint, _) => (
+                    format!("{vis}checkpoint {}", def.name),
+                    format!(
+                        "Player checkpoint `{id}`. Use `save_checkpoint` or `restore_checkpoint`."
+                    ),
+                ),
                 (crate::ast::DataKind::InventoryTransfer, _) => (
                     format!("{vis}inventory_transfer {}", def.name),
                     format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
@@ -1259,6 +1265,7 @@ fn kind_of(kind: DefKind) -> CompletionKind {
         | DefKind::StructureTemplate
         | DefKind::StructureSet
         | DefKind::InventoryTransfer
+        | DefKind::Checkpoint
         | DefKind::Hud
         | DefKind::Progression
         | DefKind::Combat
@@ -1970,6 +1977,9 @@ fn expression_completions(
             Some("Hud") => {
                 return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Hud);
             }
+            Some("Checkpoint") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Checkpoint);
+            }
             Some("InventoryTransfer") => {
                 return scope_defs(analysis, in_scope, &|d| {
                     d.kind == DefKind::InventoryTransfer
@@ -2667,6 +2677,11 @@ fn item_snippets(after_pub: bool) -> Vec<Completion> {
             r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
         ),
         Completion::snippet(
+            "checkpoint",
+            "save and restore selected player State",
+            "checkpoint ${1:Snapshot} { valid: ${2:Saved.valid}, fields: [{ live: ${3:Live.score}, saved: ${4:Saved.score} }] }",
+        ),
+        Completion::snippet(
             "inventory_transfer",
             "checked inventory move",
             "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
@@ -2990,6 +3005,7 @@ pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Optio
                 ParamKind::Dialog => "Dialog",
                 ParamKind::StructureTemplate => "StructureTemplate",
                 ParamKind::InventoryTransfer => "InventoryTransfer",
+                ParamKind::Checkpoint => "Checkpoint",
                 ParamKind::Hud => "Hud",
                 ParamKind::Menu => "Menu",
                 ParamKind::Projectile => "Projectile",

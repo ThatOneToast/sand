@@ -58,6 +58,8 @@ pub enum ParamKind {
     StructureTemplate,
     /// An authored inventory transfer definition.
     InventoryTransfer,
+    /// A declared player-owned checkpoint.
+    Checkpoint,
     /// An authored player-owned HUD.
     Hud,
     /// An authored player-owned dialog menu.
@@ -1820,6 +1822,54 @@ pub const BUILTINS: &[Builtin] = &[
         snippet: "cancel_hud(${1:Status});",
     },
     Builtin {
+        name: "save_checkpoint",
+        kind: BuiltinKind::Statement,
+        signature: "save_checkpoint(snapshot)",
+        summary: "Save the player’s selected live scores.",
+        details: "Copies the entire projection, then marks the saved snapshot valid.",
+        minecraft: "Invokes the shared player checkpoint transaction.",
+        needs_player: true,
+        params: &[p(
+            "snapshot",
+            ParamKind::Checkpoint,
+            true,
+            "The declared player checkpoint.",
+        )],
+        snippet: "save_checkpoint(${1:Snapshot});",
+    },
+    Builtin {
+        name: "restore_checkpoint",
+        kind: BuiltinKind::Statement,
+        signature: "restore_checkpoint(snapshot)",
+        summary: "Restore the player’s valid saved scores.",
+        details: "Preparation runs before bounds and the original player are checked again.",
+        minecraft: "Invokes the shared player checkpoint transaction.",
+        needs_player: true,
+        params: &[p(
+            "snapshot",
+            ParamKind::Checkpoint,
+            true,
+            "The declared player checkpoint.",
+        )],
+        snippet: "restore_checkpoint(${1:Snapshot});",
+    },
+    Builtin {
+        name: "clear_checkpoint",
+        kind: BuiltinKind::Statement,
+        signature: "clear_checkpoint(snapshot)",
+        summary: "Invalidate the player’s saved snapshot.",
+        details: "Keeps the live and saved scores in their current State.",
+        minecraft: "Invokes the shared player checkpoint transaction.",
+        needs_player: true,
+        params: &[p(
+            "snapshot",
+            ParamKind::Checkpoint,
+            true,
+            "The declared player checkpoint.",
+        )],
+        snippet: "clear_checkpoint(${1:Snapshot});",
+    },
+    Builtin {
         name: "transfer_inventory",
         kind: BuiltinKind::Statement,
         signature: "transfer_inventory(transfer)",
@@ -3137,6 +3187,38 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         r#"{ title: "${1:Supplies}", value: ${2:Hero.energy}, max: ${3:100} }"#,
     ),
     f(
+        "checkpoint",
+        "valid",
+        FieldKind::BooleanState,
+        true,
+        "An initially false bool in the saved player State.",
+        "${1:Saved.valid}",
+    ),
+    f(
+        "checkpoint",
+        "fields",
+        FieldKind::ResourceId,
+        true,
+        "Pairs of live and saved non-ticking player State numbers.",
+        "[{ live: ${1:Live.score}, saved: ${2:Saved.score} }]",
+    ),
+    f(
+        "checkpoint",
+        "before_restore",
+        FieldKind::Callback,
+        false,
+        "Prepare the player before the snapshot is revalidated.",
+        "${1:prepare}",
+    ),
+    f(
+        "checkpoint",
+        "after_restore",
+        FieldKind::Callback,
+        false,
+        "Run as the player after restored State commits.",
+        "${1:restored}",
+    ),
+    f(
         "inventory_transfer",
         "from",
         FieldKind::Int,
@@ -3556,6 +3638,10 @@ pub const DATA_KINDS: &[(&str, &str)] = &[
     (
         "hud",
         "`hud Name { ticks: 100, actionbar: \"Ready\" }` declares owner-scoped native presentation.",
+    ),
+    (
+        "checkpoint",
+        "`checkpoint Name { ... }` declares selected player State scores to save and restore together.",
     ),
     (
         "inventory_transfer",

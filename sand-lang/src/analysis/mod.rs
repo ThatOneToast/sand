@@ -399,6 +399,13 @@ pub struct FunctionType {
     pub returns: Option<Ty>,
 }
 
+#[derive(Clone)]
+struct EventHandler {
+    function: DefId,
+    span: Span,
+    when: Option<sand::ResourceLocation>,
+}
+
 /// The complete result of analysing a package.
 #[derive(Debug, Clone)]
 pub struct Analysis {
@@ -748,7 +755,7 @@ struct Cx {
     tests: BTreeMap<DefId, TestCase>,
     test_functions: std::collections::BTreeSet<DefId>,
     /// Handlers of each custom event, in declaration order.
-    event_handlers: BTreeMap<DefId, Vec<(DefId, Span)>>,
+    event_handlers: BTreeMap<DefId, Vec<EventHandler>>,
     /// `#[on(Event)]` attributes that name a custom event.
     handler_attrs: HashSet<(FileId, Span)>,
     /// Caller and callee of each frame marker, indexed by marker number.
@@ -2952,6 +2959,7 @@ impl Cx {
                             value: AttrValue::Expr(Expr::Path(path)),
                             ..
                         },
+                        ..,
                     ] = attr.args.as_slice()
                     else {
                         continue;
@@ -2971,6 +2979,9 @@ impl Cx {
                     }
                     self.references.extend(refs);
                     self.handler_attrs.insert((file, attr.span));
+                    let Some(when) = self.event_guard(module, file, attr) else {
+                        continue;
+                    };
                     let expected: Vec<Ty> =
                         self.fn_slots[&event].params.iter().map(|p| p.2).collect();
                     let found: Vec<Ty> = self.fn_slots[&def].params.iter().map(|p| p.2).collect();
@@ -3004,7 +3015,11 @@ impl Cx {
                     self.event_handlers
                         .entry(event)
                         .or_default()
-                        .push((def, function.name.span));
+                        .push(EventHandler {
+                            function: def,
+                            span: function.name.span,
+                            when,
+                        });
                 }
             }
         }
@@ -3026,33 +3041,60 @@ impl Cx {
         let slots = self.fn_slots[&def].clone();
         let mut body = Vec::new();
         let mut calls = Vec::new();
-        for (handler, span) in self.event_handlers.get(&def).cloned().unwrap_or_default() {
+        for EventHandler {
+            function: handler,
+            span,
+            when,
+        } in self.event_handlers.get(&def).cloned().unwrap_or_default()
+        {
+            let handler_file = self.defs[handler.0].file;
+            let mut invocation = Vec::new();
             let handler_slots = self.fn_slots[&handler].clone();
             // A handler that emits this event again re-enters the dispatcher.
             let marker = self.frame_marker(Some(def), handler);
-            body.push(op_at(
+            invocation.push(op_at(
                 pc::Action::PushFrame {
                     fields: vec![marker.clone()],
                 },
-                file,
+                handler_file,
                 span,
             ));
             for ((from, _, ty), (to, _, _)) in slots.params.iter().zip(&handler_slots.params) {
                 let from = self.slot(from.clone());
                 let to = self.slot(to.clone());
-                self.copy_value(&to, &from, *ty, file, span, &mut body);
+                self.copy_value(&to, &from, *ty, handler_file, span, &mut invocation);
             }
             if let Some(function) = self.function_reference(handler) {
-                body.push(op_at(pc::Action::Call { function }, file, span));
+                invocation.push(op_at(pc::Action::Call { function }, handler_file, span));
             }
-            body.push(op_at(
+            invocation.push(op_at(
                 pc::Action::PopFrame {
                     fields: vec![marker],
                 },
-                file,
+                handler_file,
                 span,
             ));
-            calls.push((handler, span));
+            if let Some(predicate) = when {
+                body.push(op_at(
+                    pc::Action::Branch {
+                        condition: pc::Condition::Predicate { predicate },
+                        then: invocation,
+                        otherwise: Vec::new(),
+                    },
+                    handler_file,
+                    span,
+                ));
+            } else {
+                body.extend(invocation);
+            }
+            calls.push((
+                handler,
+                if handler_file == file {
+                    span
+                } else {
+                    event.name.span
+                },
+            ));
         }
         lowerer.facts.insert(
             def,
@@ -3340,6 +3382,37 @@ impl Cx {
         out
     }
 
+    /// Resolve an optional predicate shared by native and custom event hooks.
+    fn event_guard(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        attr: &Attr,
+    ) -> Option<Option<sand::ResourceLocation>> {
+        match attr.args.as_slice() {
+            [_] => Some(None),
+            [
+                _,
+                AttrArg {
+                    key: Some(key),
+                    value: AttrValue::Expr(expr),
+                    ..
+                },
+            ] if key.name == "when" => self
+                .native_data_id(module, file, expr, DefKind::Predicate)
+                .map(Some),
+            _ => {
+                self.error(
+                    "attribute",
+                    file,
+                    attr.span,
+                    "expected an event and an optional `when = Predicate`",
+                );
+                None
+            }
+        }
+    }
+
     /// Parse a bare player event, a vanilla filter, or an authored advancement.
     fn event_attr(
         &mut self,
@@ -3354,7 +3427,7 @@ impl Cx {
                 .collect::<Vec<_>>()
                 .join(", ")
         };
-        let [arg] = attr.args.as_slice() else {
+        let [arg, ..] = attr.args.as_slice() else {
             self.diagnostics.push(
                 Diagnostic::error(
                     "attribute",
@@ -3825,6 +3898,9 @@ impl Cx {
                 }
                 "on" if self.handler_attrs.contains(&(file, attr.span)) => {}
                 "on" => {
+                    let Some(when) = self.event_guard(module, file, attr) else {
+                        continue;
+                    };
                     let Some((event, label)) = self.event_attr(module, file, attr) else {
                         continue;
                     };
@@ -3839,6 +3915,7 @@ impl Cx {
                     ));
                     out.events.push(pc::EventHook {
                         event,
+                        when,
                         function: reference(),
                     });
                     entry.push((format!("#[on({label})]"), attr.span));

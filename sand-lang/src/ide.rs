@@ -1361,6 +1361,7 @@ pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Comp
             let definition = match (attr.as_str(), key.as_deref()) {
                 ("on", None) => Some(DefKind::Event),
                 ("on", Some("advancement")) => Some(DefKind::Advancement),
+                ("on", Some("when")) => Some(DefKind::Predicate),
                 _ => None,
             };
             if let Some(kind) = definition {

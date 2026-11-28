@@ -762,6 +762,14 @@ pub(super) fn validate(
                     format!("advancement completion requires an authored advancement, found `{advancement}`"),
                 ));
             }
+            if let Some(predicate) = &hook.when {
+                validator.resource(
+                    &predicate.to_string(),
+                    &owner,
+                    &format!("{ptr}/when"),
+                    "predicate",
+                );
+            }
             // Handlers run as the observed player.
             validator.call(
                 &hook.function,
@@ -1522,7 +1530,11 @@ pub(super) fn validate(
             if !resource_ids.insert(format!("dimension {id}")) {
                 push(format!("{ptr}/id"), format!("duplicate dimension `{id}`"));
             }
-            let (biome, field) = match dimension {
+            let check_biome = |biome: &sand_components::BiomeId| {
+                (!available(&biome.to_string(), "minecraft:worldgen/biome"))
+                    .then(|| format!("unknown biome `{biome}`"))
+            };
+            match dimension {
                 DimensionDefinition::Flat(dimension) => {
                     for (layer_index, layer) in dimension.flat.layers.iter().enumerate() {
                         let block = layer.block.to_string();
@@ -1533,7 +1545,9 @@ pub(super) fn validate(
                             );
                         }
                     }
-                    (&dimension.flat.biome_id, "flat/biome_id")
+                    if let Some(error) = check_biome(&dimension.flat.biome_id) {
+                        push(format!("{ptr}/flat/biome_id"), error);
+                    }
                 }
                 DimensionDefinition::Noise(dimension) => {
                     let settings = dimension.noise_settings.to_string();
@@ -1543,11 +1557,29 @@ pub(super) fn validate(
                             format!("unknown noise settings `{settings}`"),
                         );
                     }
-                    (&dimension.biome, "biome")
+                    match &dimension.biome_source {
+                        sand_components::BiomeSource::Fixed(biome) => {
+                            if let Some(error) = check_biome(biome) {
+                                push(format!("{ptr}/biome_source/fixed"), error);
+                            }
+                        }
+                        sand_components::BiomeSource::Checkerboard { biomes, .. } => {
+                            for (index, biome) in biomes.iter().enumerate() {
+                                if let Some(error) = check_biome(biome) {
+                                    push(
+                                        format!("{ptr}/biome_source/checkerboard/biomes/{index}"),
+                                        error,
+                                    );
+                                }
+                            }
+                        }
+                        sand_components::BiomeSource::Vanilla => {}
+                        sand_components::BiomeSource::Raw(_) => push(
+                            format!("{ptr}/biome_source"),
+                            "portable noise dimensions require a typed biome source".into(),
+                        ),
+                    }
                 }
-            };
-            if !available(&biome.to_string(), "minecraft:worldgen/biome") {
-                push(format!("{ptr}/{field}"), format!("unknown biome `{biome}`"));
             }
         }
         for (index, dialog) in module.dialogs.iter().enumerate() {

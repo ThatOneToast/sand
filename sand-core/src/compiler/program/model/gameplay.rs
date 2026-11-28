@@ -927,11 +927,15 @@ impl PlayerEvent {
  use_when = ["Running a function when a player event occurs"],
  avoid_when = ["Periodic work; use module tick bodies"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(event = "Observed occurrence.", function = "Handler, run as the player."),
+ fields(event = "Observed occurrence.", function = "Handler, run as the player.", when = "Optional native predicate evaluated as the observed player."),
 )]
 pub struct EventHook {
     /// Observed occurrence.
     pub event: PlayerEvent,
+    /// Optional native predicate evaluated at the observed player's position.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub when: Option<sand_components::ResourceLocation>,
     /// Handler, run as the player.
     pub function: FunctionReference,
 }

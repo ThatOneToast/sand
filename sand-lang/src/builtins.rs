@@ -3285,7 +3285,7 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "noise_settings",
         FieldKind::ResourceId,
         false,
-        "Noise settings resource for fixed-biome terrain. Supply layers or noise settings.",
+        "Noise settings resource for noise terrain. Supply layers or noise settings.",
         r#""minecraft:overworld""#,
     ),
     f(
@@ -3295,6 +3295,22 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         false,
         "The biome used for every column. Defaults to Plains.",
         "Biome::${1:Plains}",
+    ),
+    f(
+        "dimension",
+        "biomes",
+        FieldKind::Registry("Biome"),
+        false,
+        "Nonempty ordered biomes for checkerboard noise terrain.",
+        "[Biome::${1:Plains}, Biome::${2:Desert}]",
+    ),
+    f(
+        "dimension",
+        "biome_scale",
+        FieldKind::Number,
+        false,
+        "Checkerboard biome scale from 0 to 62. Defaults to 2.",
+        "${1:2}",
     ),
     f(
         "dimension",

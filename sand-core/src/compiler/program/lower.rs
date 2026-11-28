@@ -687,7 +687,7 @@ pub(super) fn lower(
                         sand_components::NoiseGenerator::custom_settings(
                             dimension.noise_settings.clone(),
                         )
-                        .biome_source(sand_components::BiomeSource::Fixed(dimension.biome.clone())),
+                        .biome_source(dimension.biome_source.clone()),
                     )
                 }
             };
@@ -1857,7 +1857,12 @@ impl Lower<'_> {
         program: &Program,
         automatic: &mut crate::state::registry::AutomaticLifecycle,
     ) -> Result<Vec<EventLine>, Vec<Diagnostic>> {
-        let mut groups: BTreeMap<String, (PlayerEvent, Vec<(String, String)>)> = BTreeMap::new();
+        struct Handler {
+            function: String,
+            owner: String,
+            when: Option<String>,
+        }
+        let mut groups: BTreeMap<String, (PlayerEvent, Vec<Handler>)> = BTreeMap::new();
         let mut modules: Vec<_> = program.modules.iter().collect();
         modules.sort_by_key(|module| module.id.to_string());
         for module in modules {
@@ -1866,10 +1871,11 @@ impl Lower<'_> {
                     .entry(hook.event.key())
                     .or_insert_with(|| (hook.event.clone(), Vec::new()))
                     .1
-                    .push((
-                        reference_id(&hook.function),
-                        format!("{}#{index}", module.id),
-                    ));
+                    .push(Handler {
+                        function: reference_id(&hook.function),
+                        owner: format!("{}#{index}", module.id),
+                        when: hook.when.as_ref().map(ToString::to_string),
+                    });
             }
         }
         let mut lines = Vec::new();
@@ -1920,12 +1926,22 @@ impl Lower<'_> {
                 )));
                 body.push(format!("tag @s add {tag}"));
             }
-            for (function, _) in &handlers {
-                body.push(Cmd::Function(function.clone()).render());
+            for handler in &handlers {
+                let call = Cmd::Function(handler.function.clone());
+                let command = match &handler.when {
+                    Some(predicate) => Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::If(
+                            sand_commands::ConditionIr::Predicate(predicate.clone()),
+                        )],
+                        run: Box::new(call),
+                    },
+                    None => call,
+                };
+                body.push(command.render());
             }
             let owner = handlers
                 .first()
-                .map(|(_, owner)| owner.clone())
+                .map(|handler| handler.owner.clone())
                 .unwrap_or_default();
             self.function(&dispatch, body, &owner, "/events")?;
         }

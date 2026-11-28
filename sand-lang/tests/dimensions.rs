@@ -36,8 +36,48 @@ dimension Highlands { noise_settings: "minecraft:overworld", biome: Biome::Deser
 }
 
 #[test]
+fn checkerboard_noise_uses_ordered_vanilla_and_authored_biomes() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+biome Dry { temperature: 1.0, downfall: 0.1 }
+dimension Tiles {
+    noise_settings: "minecraft:overworld",
+    biomes: [Biome::Desert, Dry, Biome::Forest],
+    biome_scale: 3,
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    let dimension: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/world_probe/dimension/tiles.json"]).unwrap();
+    assert_eq!(
+        dimension["generator"]["biome_source"],
+        serde_json::json!({
+            "type": "minecraft:checkerboard",
+            "biomes": ["minecraft:desert", "world_probe:dry", "minecraft:forest"],
+            "scale": 3,
+        })
+    );
+    let program = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded =
+        sand::advanced::compiler::Compiler::decode(&program, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+}
+
+#[test]
 fn dimensions_require_one_generator_and_keep_flat_structure_settings_separate() {
     for fields in [
+        r#"layers: [], biomes: [Biome::Desert]"#,
+        r#"noise_settings: "minecraft:overworld", biomes: []"#,
+        r#"noise_settings: "minecraft:overworld", biomes: [Biome::Desert], biome: Biome::Plains"#,
+        r#"noise_settings: "minecraft:overworld", biomes: [Biome::Desert], biome_scale: 63"#,
+        r#"noise_settings: "minecraft:overworld", biome_scale: 0"#,
         "",
         "layers: [], noise_settings: \"minecraft:overworld\"",
         "noise_settings: \"minecraft:overworld\", structures: true",

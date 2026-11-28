@@ -10,6 +10,13 @@
     "function": {
       "$ref": "defs-FunctionReference.schema.json",
       "description": "Handler, run as the player."
+    },
+    "when": {
+      "description": "Optional native predicate evaluated at the observed player's position.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

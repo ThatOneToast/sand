@@ -627,14 +627,14 @@ pub struct FlatDimension {
  minecraft = "Adapts to the canonical Dimension component before validation and export.",
  use_when = ["Declaring worlds in portable gameplay programs"],
  avoid_when = ["Defining the dimension type's environmental rules"],
- variants(Flat = "Generate an ordered stack of layers.", Noise = "Generate noise terrain in a fixed biome."),
+ variants(Flat = "Generate an ordered stack of layers.", Noise = "Generate noise terrain with a typed biome source."),
  variant_fields(Flat = ["The flat terrain definition."], Noise = ["The noise terrain definition."]),
  example = "use sand::advanced::compiler::DimensionDefinition;",
 )]
 pub enum DimensionDefinition {
     /// An ordered stack of flat layers.
     Flat(FlatDimension),
-    /// A fixed-biome noise world.
+    /// A noise world with a typed biome source.
     Noise(NoiseDimension),
 }
 
@@ -647,17 +647,17 @@ impl DimensionDefinition {
     }
 }
 
-/// A native fixed-biome noise dimension.
+/// A native noise dimension with a typed biome source.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[sand_macros::api(
  registry = sand_api_contract, path = "sand::advanced::compiler::NoiseDimension", module = "sand::advanced::compiler",
- summary = "A native noise dimension with a fixed biome.",
+ summary = "A native noise dimension with a typed biome source.",
  context = "The noise settings and biome reference existing resources. A module can declare the biome in the same program.",
- minecraft = "Lowers through the canonical NoiseGenerator and fixed BiomeSource.",
- use_when = ["Giving a biome native noise-shaped terrain"],
- avoid_when = ["Choosing different biomes per column"],
- fields(id = "Native dimension identity.", dimension_type = "Existing dimension type identity.", noise_settings = "Existing noise settings resource.", biome = "Biome used for every column."),
+ minecraft = "Lowers through the canonical NoiseGenerator and BiomeSource.",
+ use_when = ["Generating noise-shaped terrain with controlled biome placement"],
+ avoid_when = ["Defining a stack of flat layers"],
+ fields(id = "Native dimension identity.", dimension_type = "Existing dimension type identity.", noise_settings = "Existing noise settings resource.", biome_source = "Biome placement, independent of terrain density."),
  example = "use sand::advanced::compiler::NoiseDimension;",
 )]
 pub struct NoiseDimension {
@@ -670,9 +670,8 @@ pub struct NoiseDimension {
     /// The noise settings used to shape terrain.
     #[schemars(with = "String")]
     pub noise_settings: sand_components::NoiseSettingsId,
-    /// The biome used for every column.
-    #[schemars(with = "String")]
-    pub biome: sand_components::BiomeId,
+    /// Biome placement across the generated terrain.
+    pub biome_source: sand_components::BiomeSource,
 }
 
 /// Climate, visual settings, and natural spawn rules for a native custom biome.

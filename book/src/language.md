@@ -160,6 +160,10 @@ Function attributes:
 - `#[on(start_sneaking)]` and `#[on(stop_sneaking)]` run when a sampled
   player changes state. The same start/stop pairs exist for `sprinting`,
   `swimming`, and `flying`. The first sample on load establishes a baseline.
+- Add `when = PredicateName` to a native or custom handler, for example
+  `#[on(start_sneaking, when = InsideCamp)]`. Sand tests the named native
+  predicate in the event's execution context before calling that handler.
+  An unfiltered handler for the same event still runs in declaration order.
 - `#[tag("ns:name")]` adds the function to any function tag.
 - `#[player]` requires a player executor explicitly. Without it, the context is
   inferred (see below).
@@ -1459,6 +1463,18 @@ dimension Highlands {
 
 The settings reference an existing native noise settings resource.
 `structures` is a flat-generator option.
+
+Use `biomes` for native checkerboard placement in the order supplied.
+Each entry can name a vanilla or authored biome. The optional `biome_scale`
+takes a value from 0 to 62 and defaults to 2.
+
+```rust,ignore
+dimension Tiles {
+    noise_settings: "minecraft:overworld",
+    biomes: [Biome::Desert, Biome::Forest],
+    biome_scale: 3,
+}
+```
 
 ### Custom biomes
 

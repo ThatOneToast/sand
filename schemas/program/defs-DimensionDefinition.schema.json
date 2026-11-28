@@ -7,7 +7,7 @@
     },
     {
       "$ref": "defs-NoiseDimension.schema.json",
-      "description": "A fixed-biome noise world."
+      "description": "A noise world with a typed biome source."
     }
   ],
   "description": "A native dimension with flat layers or noise terrain."

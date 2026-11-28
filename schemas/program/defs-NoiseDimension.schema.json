@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "A native fixed-biome noise dimension.",
+  "description": "A native noise dimension with a typed biome source.",
   "properties": {
-    "biome": {
-      "description": "The biome used for every column.",
-      "type": "string"
+    "biome_source": {
+      "$ref": "defs-BiomeSource.schema.json",
+      "description": "Biome placement across the generated terrain."
     },
     "dimension_type": {
       "description": "Existing dimension type.",
@@ -24,7 +24,7 @@
     "id",
     "dimension_type",
     "noise_settings",
-    "biome"
+    "biome_source"
   ],
   "type": "object"
 }

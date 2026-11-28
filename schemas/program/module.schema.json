@@ -2075,6 +2075,61 @@
       ],
       "type": "object"
     },
+    "BiomeSource": {
+      "description": "How a noise generator selects biomes per-column.\n\n\ud83c\udf0d World (datapack).",
+      "oneOf": [
+        {
+          "const": "vanilla",
+          "description": "Biome placement matching the noise settings: Nether uses its multi-noise\npreset, End uses the End biome source, and other settings use the\nOverworld multi-noise preset. Custom settings default to Overworld.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Every column uses the same biome (vanilla's \"single biome\" preset,\ne.g. for a desert-only or ocean-only world).",
+          "properties": {
+            "fixed": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "fixed"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Alternate biomes horizontally in declaration order. The list must be\nnonempty and scale must be in Minecraft's codec range `0..=62`.",
+          "properties": {
+            "checkerboard": {
+              "additionalProperties": false,
+              "properties": {
+                "biomes": {
+                  "description": "Nonempty ordered biome references.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "scale": {
+                  "description": "Checkerboard scale, in `0..=62` (vanilla's default is 2).",
+                  "format": "int32",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "biomes",
+                "scale"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "checkerboard"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "BlockDataAddress": {
       "additionalProperties": false,
       "description": "A checked NBT path in the block entity at a position.",
@@ -3190,7 +3245,7 @@
         },
         {
           "$ref": "#/$defs/NoiseDimension",
-          "description": "A fixed-biome noise world."
+          "description": "A noise world with a typed biome source."
         }
       ],
       "description": "A native dimension with flat layers or noise terrain."
@@ -3550,6 +3605,13 @@
         "function": {
           "$ref": "#/$defs/FunctionReference",
           "description": "Handler, run as the player."
+        },
+        "when": {
+          "description": "Optional native predicate evaluated at the observed player's position.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -4625,11 +4687,11 @@
     },
     "NoiseDimension": {
       "additionalProperties": false,
-      "description": "A native fixed-biome noise dimension.",
+      "description": "A native noise dimension with a typed biome source.",
       "properties": {
-        "biome": {
-          "description": "The biome used for every column.",
-          "type": "string"
+        "biome_source": {
+          "$ref": "#/$defs/BiomeSource",
+          "description": "Biome placement across the generated terrain."
         },
         "dimension_type": {
           "description": "Existing dimension type.",
@@ -4648,7 +4710,7 @@
         "id",
         "dimension_type",
         "noise_settings",
-        "biome"
+        "biome_source"
       ],
       "type": "object"
     },

@@ -52,3 +52,62 @@ player state History { events: number }
             .resources
     );
 }
+
+#[test]
+fn native_and_custom_hooks_can_filter_a_typed_event_chain() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "motion", minecraft = "26.2")]
+predicate Always { chance: 1 }
+predicate Never { chance: 0 }
+
+event Moved(amount: number);
+player state History { events: number }
+
+#[on(start_sneaking, when = Always)]
+fn start() { emit Moved(3); }
+
+#[on(Moved, when = Never)]
+fn skipped(amount: number) { History.events += amount; }
+
+#[on(Moved)]
+fn counted(amount: number) { History.events += amount; }
+"#,
+    );
+    let pack = compile(&analysis);
+    let dispatch = function(&pack, "motion/function/__sand_program/event/start_sneaking");
+    assert!(dispatch.contains("execute if predicate motion:always run function motion:start"));
+    assert!(function(&pack, "motion/function/start").contains("function motion:sand_event/moved"));
+    let custom = function(&pack, "motion/function/sand_event/moved");
+    assert!(custom.contains("function motion:counted"), "{custom}");
+    assert!(
+        pack.resources.iter().any(|(path, bytes)| {
+            path.ends_with(".mcfunction")
+                && std::str::from_utf8(bytes)
+                    .is_ok_and(|body| body.contains("predicate motion:never"))
+        }),
+        "{custom}"
+    );
+    assert!(pack.resources.values().any(|bytes| {
+        std::str::from_utf8(bytes).is_ok_and(|body| body.contains("function motion:skipped"))
+    }));
+
+    let json = serde_json::to_vec(&analysis.program.unwrap()).unwrap();
+    let decoded = sand::advanced::compiler::Compiler::decode(&json, &Default::default()).unwrap();
+    assert_eq!(
+        pack.resources,
+        sand::advanced::compiler::Compiler::compile(&decoded)
+            .unwrap()
+            .resources
+    );
+}
+
+#[test]
+fn event_guards_require_an_authored_predicate() {
+    for guard in ["Missing", "Biome::Desert", "17"] {
+        let source = format!(
+            "#![pack(namespace = \"motion\")] #[on(start_sneaking, when = {guard})] fn start() {{}}",
+        );
+        assert!(analyze_one(&source).has_errors(), "{guard}");
+    }
+}

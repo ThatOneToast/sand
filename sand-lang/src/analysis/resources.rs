@@ -990,6 +990,27 @@ impl Cx {
                 out.biomes.push(biome);
             }
             DataKind::Dimension => {
+                let checkerboard = get("biomes");
+                let scale = get("biome_scale");
+                if let Some(field) = checkerboard {
+                    if get("noise_settings").is_none() || get("biome").is_some() {
+                        self.error(
+                            "dimension",
+                            file,
+                            field.key.span,
+                            "checkerboard biomes require noise settings and exclude the fixed biome field",
+                        );
+                        return;
+                    }
+                } else if let Some(field) = scale {
+                    self.error(
+                        "dimension",
+                        file,
+                        field.key.span,
+                        "a biome scale requires checkerboard biomes",
+                    );
+                    return;
+                }
                 let biome = if let Some(field) = get("biome") {
                     let Some(biome) = self
                         .data_expr(file, &field.value, "a biome")
@@ -1055,10 +1076,23 @@ impl Cx {
                             self.error("dimension", file, field.value.span(), "expected a namespaced noise settings id such as \"minecraft:overworld\"");
                             return;
                         };
+                        let biome_source = if let Some(field) = checkerboard {
+                            let Some(source) = self.data_checkerboard(
+                                module,
+                                file,
+                                &field.value,
+                                scale.map(|f| &f.value),
+                            ) else {
+                                return;
+                            };
+                            source
+                        } else {
+                            sand::component::BiomeSource::Fixed(biome)
+                        };
                         pc::DimensionDefinition::Noise(pc::NoiseDimension {
                             id: location,
                             dimension_type,
-                            biome,
+                            biome_source,
                             noise_settings: noise_settings.into(),
                         })
                     }
@@ -2677,6 +2711,41 @@ impl Cx {
             "expected an RGB color such as `\"#3f76e4\"`",
         );
         None
+    }
+
+    fn data_checkerboard(
+        &mut self,
+        module: ModuleId,
+        file: FileId,
+        value: &DataValue,
+        scale: Option<&DataValue>,
+    ) -> Option<sand::component::BiomeSource> {
+        let DataValue::Array(entries, _) = value else {
+            self.error("type", file, value.span(), "expected an array of biomes");
+            return None;
+        };
+        if entries.is_empty() {
+            self.error(
+                "dimension",
+                file,
+                value.span(),
+                "checkerboard biomes must not be empty",
+            );
+            return None;
+        }
+        let biomes = entries
+            .iter()
+            .map(|entry| {
+                let expr = self.data_expr(file, entry, "a biome")?;
+                let id = self.vanilla_value(module, file, expr, "Biome")?;
+                Some(id.parse::<sand::ResourceLocation>().ok()?.into())
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let scale = match scale {
+            Some(value) => self.data_int(module, file, value, 0, 62)? as i32,
+            None => 2,
+        };
+        Some(sand::component::BiomeSource::Checkerboard { biomes, scale })
     }
 
     fn data_flat_layers(

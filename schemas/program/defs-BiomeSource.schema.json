@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How a noise generator selects biomes per-column.\n\n\ud83c\udf0d World (datapack).",
+  "oneOf": [
+    {
+      "const": "vanilla",
+      "description": "Biome placement matching the noise settings: Nether uses its multi-noise\npreset, End uses the End biome source, and other settings use the\nOverworld multi-noise preset. Custom settings default to Overworld.",
+      "type": "string"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Every column uses the same biome (vanilla's \"single biome\" preset,\ne.g. for a desert-only or ocean-only world).",
+      "properties": {
+        "fixed": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "fixed"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Alternate biomes horizontally in declaration order. The list must be\nnonempty and scale must be in Minecraft's codec range `0..=62`.",
+      "properties": {
+        "checkerboard": {
+          "additionalProperties": false,
+          "properties": {
+            "biomes": {
+              "description": "Nonempty ordered biome references.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "scale": {
+              "description": "Checkerboard scale, in `0..=62` (vanilla's default is 2).",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "biomes",
+            "scale"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "checkerboard"
+      ],
+      "type": "object"
+    }
+  ]
+}

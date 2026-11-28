@@ -717,7 +717,7 @@ impl TextPart {
  use_when = ["Reacting to joins, deaths, kills, or item use in a portable program"],
  avoid_when = ["Occurrences not listed here, which use the Rust event API"],
  example = "let event = sand::advanced::compiler::PlayerEvent::Death;",
- variants(Join = "Every join, including the first.", FirstJoin = "Only the first join ever.", Death = "The player died.", KillEntity = "The player killed any entity.", KillPlayer = "The player killed another player.", UseItem = "The player used an item.", Jump = "The player jumped.", DropItem = "The player dropped an item.", Sleep = "The player slept in a bed.", TakeDamage = "The player took damage.", DealDamage = "The player dealt damage.", StartSneaking = "The player started sneaking.", StopSneaking = "The player stopped sneaking.", StartSprinting = "The player started sprinting.", StopSprinting = "The player stopped sprinting.", StartSwimming = "The player started swimming.", StopSwimming = "The player stopped swimming.", StartFlying = "The player started flying.", StopFlying = "The player stopped flying.", CraftItem = "The player crafted an item.", PickUpItem = "The player picked up an item.", MineBlock = "The player mined a block.", KillEntityType = "The player killed an entity of one type.", KilledBy = "An entity of one type killed the player.", AdvancementCompleted = "The player completed one advancement authored by this program."),
+ variants(Join = "Every join, including the first.", FirstJoin = "Only the first join ever.", Death = "The player died.", KillEntity = "The player killed any entity.", KillPlayer = "The player killed another player.", UseItem = "The player used an item.", Jump = "The player jumped.", DropItem = "The player dropped an item.", Sleep = "The player slept in a bed.", TakeDamage = "The player took damage.", DealDamage = "The player dealt damage.", StartSneaking = "The player started sneaking.", StopSneaking = "The player stopped sneaking.", StartSprinting = "The player started sprinting.", StopSprinting = "The player stopped sprinting.", StartSwimming = "The player started swimming.", StopSwimming = "The player stopped swimming.", StartFlying = "The player started flying.", StopFlying = "The player stopped flying.", StartBurning = "The player began burning.", StopBurning = "The player stopped burning.", HealthChanged = "The observed health score changed.", HealthLost = "The observed health score decreased.", HealthGained = "The observed health score increased.", CraftItem = "The player crafted an item.", PickUpItem = "The player picked up an item.", MineBlock = "The player mined a block.", KillEntityType = "The player killed an entity of one type.", KilledBy = "An entity of one type killed the player.", AdvancementCompleted = "The player completed one advancement authored by this program."),
  variant_fields(UseItem(item = "Used item identity, such as `minecraft:carrot_on_a_stick`."), CraftItem(item = "Crafted item identity."), PickUpItem(item = "Picked-up item identity."), MineBlock(block = "Mined block identity."), KillEntityType(entity = "Killed entity type identity."), KilledBy(entity = "Killer entity type identity."), AdvancementCompleted(advancement = "The authored advancement identity.")),
 )]
 pub enum PlayerEvent {
@@ -762,6 +762,16 @@ pub enum PlayerEvent {
     StartFlying,
     /// Fires on the observed stop flying transition.
     StopFlying,
+    /// The player began burning.
+    StartBurning,
+    /// The player stopped burning.
+    StopBurning,
+    /// The observed health score changed.
+    HealthChanged,
+    /// The observed health score decreased.
+    HealthLost,
+    /// The observed health score increased.
+    HealthGained,
     /// The player crafted an item.
     CraftItem {
         /// Crafted item identity.
@@ -832,6 +842,11 @@ impl PlayerEvent {
             Self::StopSwimming => "stop_swimming",
             Self::StartFlying => "start_flying",
             Self::StopFlying => "stop_flying",
+            Self::StartBurning => "start_burning",
+            Self::StopBurning => "stop_burning",
+            Self::HealthChanged => "health_changed",
+            Self::HealthLost => "health_lost",
+            Self::HealthGained => "health_gained",
             PlayerEvent::CraftItem { .. } => "craft_item",
             PlayerEvent::PickUpItem { .. } => "pick_up_item",
             PlayerEvent::MineBlock { .. } => "mine_block",
@@ -887,6 +902,19 @@ impl PlayerEvent {
             ),
             Self::StartFlying => ("player_flying", PLAYER_FLYING_TRACKED_SOURCE, BecameTrue),
             Self::StopFlying => ("player_flying", PLAYER_FLYING_TRACKED_SOURCE, BecameFalse),
+            Self::StartBurning => ("player_on_fire", PLAYER_ON_FIRE_TRACKED_SOURCE, BecameTrue),
+            Self::StopBurning => ("player_on_fire", PLAYER_ON_FIRE_TRACKED_SOURCE, BecameFalse),
+            Self::HealthChanged => ("player_health", PLAYER_HEALTH_TRACKED_SOURCE, ScoreChanged),
+            Self::HealthLost => (
+                "player_health",
+                PLAYER_HEALTH_TRACKED_SOURCE,
+                ScoreDecreased,
+            ),
+            Self::HealthGained => (
+                "player_health",
+                PLAYER_HEALTH_TRACKED_SOURCE,
+                ScoreIncreased,
+            ),
             _ => return None,
         };
         Some(crate::TrackedTransition::new(id, source, kind))
@@ -906,7 +934,12 @@ impl PlayerEvent {
             | Self::StartSwimming
             | Self::StopSwimming
             | Self::StartFlying
-            | Self::StopFlying => return None,
+            | Self::StopFlying
+            | Self::StartBurning
+            | Self::StopBurning
+            | Self::HealthChanged
+            | Self::HealthLost
+            | Self::HealthGained => return None,
             PlayerEvent::Death => "deathCount".into(),
             PlayerEvent::KillEntity => "totalKillCount".into(),
             PlayerEvent::KillPlayer => "playerKillCount".into(),

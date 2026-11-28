@@ -3556,6 +3556,11 @@ impl Cx {
                     "stop_swimming" => pc::PlayerEvent::StopSwimming,
                     "start_flying" => pc::PlayerEvent::StartFlying,
                     "stop_flying" => pc::PlayerEvent::StopFlying,
+                    "start_burning" => pc::PlayerEvent::StartBurning,
+                    "stop_burning" => pc::PlayerEvent::StopBurning,
+                    "health_changed" => pc::PlayerEvent::HealthChanged,
+                    "health_lost" => pc::PlayerEvent::HealthLost,
+                    "health_gained" => pc::PlayerEvent::HealthGained,
                     "advancement" => {
                         self.diagnostics.push(
                             Diagnostic::error(

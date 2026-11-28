@@ -111,3 +111,53 @@ fn event_guards_require_an_authored_predicate() {
         assert!(analyze_one(&source).has_errors(), "{guard}");
     }
 }
+
+#[test]
+fn health_and_fire_handlers_share_native_observation_sources() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "motion", minecraft = "26.2")]
+player state History { events: number }
+#[on(health_changed)] fn changed() { History.events += 1; }
+#[on(health_lost)] fn lost() { History.events += 2; }
+#[on(health_gained)] fn gained() { History.events += 4; }
+#[on(start_burning)] fn burning() { History.events += 8; }
+#[on(stop_burning)] fn extinguished() { History.events += 16; }
+"#,
+    );
+    let pack = compile(&analysis);
+    let commands = pack
+        .resources
+        .iter()
+        .filter(|(path, _)| path.ends_with(".mcfunction"))
+        .map(|(_, content)| std::str::from_utf8(content).unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_eq!(
+        commands
+            .matches("scoreboard objectives add sand_health health")
+            .count(),
+        1
+    );
+    assert_eq!(
+        commands
+            .matches("predicate motion:__sand/player_on_fire")
+            .count(),
+        1
+    );
+    for (event, handler) in [
+        ("health_changed", "changed"),
+        ("health_lost", "lost"),
+        ("health_gained", "gained"),
+        ("start_burning", "burning"),
+        ("stop_burning", "extinguished"),
+    ] {
+        assert!(
+            function(
+                &pack,
+                &format!("motion/function/__sand_program/event/{event}")
+            )
+            .contains(&format!("function motion:{handler}"))
+        );
+    }
+}

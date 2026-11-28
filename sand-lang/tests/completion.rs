@@ -178,6 +178,11 @@ fn attributes_fit_what_they_are_attached_to() {
             "stop_swimming",
             "start_flying",
             "stop_flying",
+            "start_burning",
+            "stop_burning",
+            "health_changed",
+            "health_lost",
+            "health_gained",
         ],
     );
     includes_excludes(

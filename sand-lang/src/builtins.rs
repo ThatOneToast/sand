@@ -2244,6 +2244,15 @@ pub const EVENTS: &[(&str, Option<&str>, &str)] = &[
     ),
     ("start_flying", None, "Fires when the player starts flying."),
     ("stop_flying", None, "Fires when the player stops flying."),
+    ("start_burning", None, "The player began burning."),
+    ("stop_burning", None, "The player stopped burning."),
+    ("health_changed", None, "The observed health score changed."),
+    ("health_lost", None, "The observed health score decreased."),
+    (
+        "health_gained",
+        None,
+        "The observed health score increased.",
+    ),
 ];
 
 /// Style names usable inside `{...}` in text.

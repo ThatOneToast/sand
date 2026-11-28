@@ -160,6 +160,10 @@ Function attributes:
 - `#[on(start_sneaking)]` and `#[on(stop_sneaking)]` run when a sampled
   player changes state. The same start/stop pairs exist for `sprinting`,
   `swimming`, and `flying`. The first sample on load establishes a baseline.
+- `#[on(start_burning)]` and `#[on(stop_burning)]` track whether the player
+  is on fire. Use `health_changed`, `health_lost`, or `health_gained` to
+  respond to a change in vanilla's integer health score, which includes
+  absorption. The first available sample establishes the baseline.
 - Add `when = PredicateName` to a native or custom handler, for example
   `#[on(start_sneaking, when = InsideCamp)]`. Sand tests the named native
   predicate in the event's execution context before calling that handler.
@@ -2482,7 +2486,7 @@ command and State models as Rust. Today the language covers:
 | State | player, global, and entity State; scalars, records, strings, arrays, vectors, timers, clamps, flows, impl methods, and ordered migrations | derived values and general lifecycle hooks |
 | Logic | recursive functions, borrowed method receivers, generics, static traits, function values, owned closures, destructuring, value-producing `match`, loops, casts, and entity/player waits inside branches, statement matches and local loops | Rust compile-time metaprogramming and richer owned tasks |
 | Players and entities | loops and queries with NBT and score filters, retained identities and relationships, attributed damage, mounts, teleportation, attributes, entity properties and checked NBT reads, effects, items, inventory counts, equipment slots, non-player velocity, experience, and entity flags | archetypes |
-| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, sneaking/sprinting/swimming/flying transitions, custom events with payloads, predicate guards, authored advancement completion | additional native triggers and tracked changes |
+| Events | join, first join, death, kills (by type), killed by, item use, crafting, pickups, mining, jumping, dropping, sleeping, damage taken/dealt, movement, burning, and health transitions, custom events with payloads, predicate guards, authored advancement completion | additional native triggers and tracked changes |
 | World | block placement, reads and cloning, time, weather, dimension and biome tests, scoped calls, flat and fixed/checkerboard noise dimensions, custom dimension rules, custom biome climate and spawn tables, authored ore veins, structure templates, jigsaw pools and structure sets, typed block data literals and copies | more biome sources and terrain feature families |
 | Text and feedback | chat, broadcast, actionbar, titles, translations, clickable text and tooltips, sounds, particles, boss bars | VFX sequences |
 | Data | custom items, crafting/cooking/stonecutting/smithing upgrade and trim recipes, item/block/entity tags, conditional multi-pool loot, damage types, native world predicates, advancements, written books and notice dialogs | broader triggers, worldgen, interactive dialog flows |

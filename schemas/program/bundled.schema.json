@@ -6104,6 +6104,76 @@
         },
         {
           "additionalProperties": false,
+          "description": "The player began burning.",
+          "properties": {
+            "kind": {
+              "const": "start_burning",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player stopped burning.",
+          "properties": {
+            "kind": {
+              "const": "stop_burning",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The observed health score changed.",
+          "properties": {
+            "kind": {
+              "const": "health_changed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The observed health score decreased.",
+          "properties": {
+            "kind": {
+              "const": "health_lost",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The observed health score increased.",
+          "properties": {
+            "kind": {
+              "const": "health_gained",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "The player crafted an item.",
           "properties": {
             "item": {

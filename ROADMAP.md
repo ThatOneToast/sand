@@ -291,8 +291,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [ ] Broader equipment and entity data operations, motion controls, and
   archetypes.
 - [ ] Broader event triggers, filters, tracked changes and event chains.
-- [x] Player sneaking, sprinting, swimming, and flying transitions through the
-  shared observation planner.
+- [x] Player sneaking, sprinting, swimming, flying, burning, and health
+  transitions through the shared observation planner.
 - [x] Named native predicate guards on player and custom event handlers.
 - [x] Top-level `wait` statements in entity and player functions, with
   per-invocation locals, original dimension, and owner-scoped cancellation.

@@ -439,7 +439,8 @@ Place `breakpoint("before_award")` at a statement where the function can wait.
 Use `breakpoint("before_award", server = true)` in server functions. Each label
 identifies one source location. Breakpoints start disarmed in a fresh world.
 
-- `sand lang breakpoints` lists the labels and their source locations.
+- `sand lang breakpoints` lists the labels and their source locations. Add
+  `--rcon-port 25575` to show which labels are armed on the server.
 - `sand lang breakpoint before_award --rcon-port 25575` arms this label. An
   invocation reaching it pauses with its own local values, checking once per
   loaded tick for release.
@@ -448,8 +449,8 @@ identifies one source location. Breakpoints start disarmed in a fresh world.
 - `sand lang breakpoint before_award --resume --rcon-port 25575` disarms the
   label and releases all paused invocations as their next wait becomes due.
 
-Use the same local RCON settings as State inspection. Arming is stored in the
-world and persists across pack reloads.
+Use the same local RCON settings as State inspection. Loading the pack
+disarms its breakpoints.
 
 
 

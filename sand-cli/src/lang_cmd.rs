@@ -57,7 +57,7 @@ enum Command {
     Build {
         #[command(flatten)]
         input: Input,
-        /// Output directory; defaults to dist/<namespace> next to the root file
+        /// Output directory. Defaults to `dist/<namespace>` next to the root file.
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -122,8 +122,14 @@ enum Command {
         #[command(flatten)]
         input: Input,
     },
-    /// List the named breakpoints available in this package
-    Breakpoints(Input),
+    /// List source-declared breakpoints and optionally read their live status
+    Breakpoints {
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: Option<u16>,
+        #[command(flatten)]
+        input: Input,
+    },
     /// Arm or release one named breakpoint on a loopback Minecraft server
     Breakpoint {
         /// Label printed by sand lang breakpoints
@@ -251,9 +257,15 @@ pub fn run(args: LangArgs) -> Result<()> {
             report(&analysis)?;
             inspect_waits(&analysis, group.as_deref(), rcon_port)
         }
-        Command::Breakpoints(input) => {
+        Command::Breakpoints { rcon_port, input } => {
             let analysis = analyze(&input.path)?;
             report(&analysis)?;
+            let status = match rcon_port {
+                Some(port) if !analysis.breakpoints.is_empty() => {
+                    live_breakpoints(&analysis, port)?
+                }
+                _ => std::collections::BTreeMap::new(),
+            };
             for (label, (file, span)) in &analysis.breakpoints {
                 let index = sand_lang::LineIndex::new(&analysis.package.files[file.0].text);
                 let location = mapped_location(
@@ -264,7 +276,11 @@ pub fn run(args: LangArgs) -> Result<()> {
                     },
                     &index,
                 );
-                println!("{label}\t{location}");
+                if let Some(status) = status.get(label) {
+                    println!("{label}\t{location}\t{status}");
+                } else {
+                    println!("{label}\t{location}");
+                }
             }
             Ok(())
         }
@@ -435,6 +451,39 @@ fn local_console(port: u16) -> Result<crate::dev::rcon::ConsoleSession> {
         bail!("SAND_RCON_PASSWORD is empty");
     }
     crate::dev::rcon::Rcon::console_connection(port, secret)
+}
+
+fn live_breakpoints(
+    analysis: &Analysis,
+    port: u16,
+) -> Result<std::collections::BTreeMap<String, &'static str>> {
+    let program = analysis.program.as_ref().context("no analyzed program")?;
+    let id = format!("{}:sand.breakpoints", program.pack.namespace).parse()?;
+    let commands = sand::advanced::compiler::Compiler::state_inspection(program, &id, None)
+        .map_err(compiler_inspection_error)?;
+    let mut rcon = local_console(port)?;
+    analysis
+        .breakpoints
+        .keys()
+        .map(|label| {
+            let command = commands
+                .get(label)
+                .with_context(|| format!("missing breakpoint `{label}`"))?;
+            let response = rcon
+                .query(command)
+                .with_context(|| format!("could not inspect `{label}`"))?;
+            let status = match response
+                .rsplit_once(" has ")
+                .and_then(|(_, value)| value.split_once(" ["))
+                .map(|(score, _)| score)
+            {
+                Some("0") => "disarmed",
+                Some("1") => "armed",
+                _ => bail!("could not read breakpoint `{label}`: {response}"),
+            };
+            Ok((label.clone(), status))
+        })
+        .collect()
 }
 
 fn inspect_waits(analysis: &Analysis, group: Option<&str>, port: u16) -> Result<()> {

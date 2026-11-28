@@ -2719,9 +2719,23 @@ impl Cx {
         if !self.breakpoints.is_empty()
             && let Some(root) = modules.first_mut()
         {
-            let id = format!("{}:sand.breakpoints", pack.namespace)
+            let id: sand::ResourceLocation = format!("{}:sand.breakpoints", pack.namespace)
                 .parse()
                 .expect("valid breakpoint State identity");
+            let resets = self.breakpoints.iter().map(|(label, (file, span))| {
+                op_at(
+                    pc::Action::ScoreSet {
+                        score: pc::FieldReference {
+                            state: id.clone(),
+                            field: label.clone(),
+                        },
+                        value: 0,
+                    },
+                    *file,
+                    *span,
+                )
+            });
+            root.load.splice(..0, resets);
             root.states.push(pc::State {
                 id,
                 scope: "global".into(),
